@@ -37,30 +37,32 @@ import type { JoinCasualRunResult } from "./casualTournamentTypes";
 export type { JoinCasualRunResult } from "./casualTournamentTypes";
 import {
   buildCasualAsyncTableSummary,
-  casualSolitaireVirtualOpponentCount,
   casualTableSummarySolo,
-  computeSolitaireRankForSession,
+  computeCasualAsyncSessionRank,
   ensureAsyncMatchRosterFull,
   ensureBotsSeededForPartialSubmit,
-  fillSolitaireVirtualLeaderboardAndRerankHumans,
+  fillCasualAsyncVirtualLeaderboardAndRerankHumans,
   finalizeCasualAsyncTableSummaryForPlayer,
-  isCasualSolitaireVirtualUid,
+  isCasualAsyncVirtualOpponentUid,
 } from "./casualRunSettlementFill";
+import { isCasualDevAutoReplayTokensEnabled } from "../../data/casualBotDifficultyConfig";
 import {
   allHumansSubmitted,
+  isReplayableFinished,
   promoteExpiredFinishedInMatch,
 } from "./casualPlayerMatchStatus";
+import { grantReplayTokens } from "./casualBotDifficultyService";
 import {
   buildConfirmedDedupeResponse,
   buildPartialIngestResponse,
 } from "./casualRunIngestHelpers";
 
-/** Re-exports for backward compatibility with imports from this module path */
+/** Re-exports for imports from this module path */
 export {
-  CASUAL_BLOCK_BLAST_BOT_UID_PREFIX,
-  CASUAL_SOLITAIRE_BOT_UID_PREFIX,
-  isCasualSolitaireVirtualUid,
-  seedSolitaireVirtualOpponents,
+  CASUAL_ASYNC_VIRTUAL_BOT_UID_BLOCK_BLAST,
+  CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE,
+  isCasualAsyncVirtualOpponentUid,
+  seedCasualAsyncVirtualOpponents,
 } from "./casualRunSettlementFill";
 
 async function resolveRunHistoryRank(
@@ -82,7 +84,7 @@ async function resolveRunHistoryRank(
   }
 
   if ((opts.gameId === "solitaire" || opts.gameId === "block_blast") && pm.externalGameId) {
-    return computeSolitaireRankForSession(ctx, opts.templateId, pm.externalGameId, opts.uid);
+    return computeCasualAsyncSessionRank(ctx, opts.templateId, pm.externalGameId, opts.uid);
   }
 
   if (pm.status === "settled" && pm.rank != null) {
@@ -126,7 +128,7 @@ async function leaderboardRowsFromRuns(
     (r) =>
       r.status === "settled" &&
       r.score != null &&
-      !isCasualSolitaireVirtualUid(r.uid)
+      !isCasualAsyncVirtualOpponentUid(r.uid)
   );
   const bestByUid = new Map<string, { score: number; submittedAt?: number }>();
   for (const r of eligible) {
@@ -212,8 +214,8 @@ async function applyCasualTemplateScoreEffects(
     runTournamentId?: string;
     /** 为 true 时金币/钻/赛季券写入 pending，由历史页 `claimCasualRunRewards` 领取 */
     deferWalletRewards?: boolean;
-    /** 多人场合已在结算路径手动调用 `seedSolitaireVirtualOpponents`，跳过此处播种 */
-    skipSolitaireBotSeed?: boolean;
+    /** 多人场合已在结算路径手动调用 `seedCasualAsyncVirtualOpponents`，跳过此处播种 */
+    skipCasualAsyncBotSeed?: boolean;
     /**
      * 多人异步终局名次（含虚拟对手重排后）。传入时赛季分来自 `rankRewards.seasonPoints`，
      * 不再使用本局分数 × `seasonPointsMultiplier`。
@@ -531,7 +533,7 @@ export const solitaireSessionStandings = query({
         uid: r.uid,
         score: r.score as number,
         submittedAt: r.updatedAt,
-        isVirtual: isCasualSolitaireVirtualUid(r.uid),
+        isVirtual: isCasualAsyncVirtualOpponentUid(r.uid),
       }));
     withScore.sort((a, b) => b.score - a.score);
     return withScore.map((e, i) => ({
@@ -724,7 +726,9 @@ export const gameHistory = query({
       });
     }
 
-    const sliced = pts.slice(0, n * 2);
+    const sliced = pts
+      .filter((pt) => pt.status === RUN_PLAYER_TOURNAMENT_COMPLETED)
+      .slice(0, n);
     const runRows = await Promise.all(
       sliced.map(async (pt) => {
         const run = await ctx.db.get(pt.tournamentId);
@@ -892,6 +896,17 @@ export const joinCasualRunCore = internalMutation({
       return { ok: false as const, error: "join_failed" };
     }
 
+    if (isCasualDevAutoReplayTokensEnabled() && def.maxPlayers > 1) {
+      const existing = await ctx.db
+        .query("casual_replay_tokens")
+        .withIndex("by_uid", (q) => q.eq("uid", uid))
+        .collect();
+      const unused = existing.filter((t) => t.usedAt == null).length;
+      if (unused < 3) {
+        await grantReplayTokens(ctx, uid, 3 - unused);
+      }
+    }
+
     return {
       ok: true as const,
       queued: false as const,
@@ -965,6 +980,180 @@ export const listOpenCasualRunAssignments = query({
       .sort((a, b) => b.createdAt - a.createdAt);
   },
 });
+
+/** 异步桌：全员可终局时写入 `settled`、发奖并返回最终 `tableSummary`。 */
+export async function finalizeCasualAsyncMatchIngest(
+  ctx: MutationCtx,
+  args: {
+    def: CasualTournamentDefinition;
+    pm: Doc<"casual_run_player_matches">;
+    uid: string;
+    now: number;
+    gameId: string;
+    humanPms: Doc<"casual_run_player_matches">[];
+    matchDoc: Doc<"casual_run_matches">;
+    canonicalSessionId: string;
+    humanCountPlanned: number;
+  }
+) {
+  const { def, pm, uid, now, gameId, humanPms, matchDoc, canonicalSessionId, humanCountPlanned } =
+    args;
+  const runTid = pm.tournamentId as Id<"casual_run_tournaments">;
+  const runRow = await ctx.db.get(runTid);
+  const skipPeriodWallet = Boolean(isPeriodScopedTournament(def) && runRow?.instanceId);
+
+  const sortedHumans = [...humanPms].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  for (const hp of sortedHumans) {
+    if (hp.status === "settled") continue;
+    await ctx.db.patch(hp._id, {
+      status: "settled",
+      externalGameId: canonicalSessionId,
+      updatedAt: now,
+    });
+  }
+
+  const matchBeforeFill = await ctx.db.get(matchDoc._id);
+  if (canonicalSessionId && matchBeforeFill && !matchBeforeFill.completed) {
+    await fillCasualAsyncVirtualLeaderboardAndRerankHumans(ctx, {
+      def,
+      templateId: pm.templateId,
+      matchId: pm.matchId,
+      runTournamentId: pm.tournamentId,
+      sessionExternalId: canonicalSessionId,
+      humanCountPlanned,
+      humanRows: humanPms
+        .filter((h) => h.score != null)
+        .map((h) => ({ _id: h._id, uid: h.uid, score: h.score as number })),
+      updatedAt: now,
+    });
+    await ctx.db.patch(matchDoc._id, {
+      completed: true,
+      updatedAt: now,
+    });
+  } else if (canonicalSessionId) {
+    await ensureAsyncMatchRosterFull(ctx, {
+      def,
+      templateId: pm.templateId,
+      matchId: pm.matchId,
+      runTournamentId: pm.tournamentId,
+      sessionExternalId: canonicalSessionId,
+      updatedAt: now,
+    });
+  }
+
+  await ctx.db.patch(runTid, {
+    status: RUN_TOURNAMENT_COMPLETED,
+    updatedAt: now,
+  });
+
+  for (const hp of sortedHumans) {
+    const ptRow = await ctx.db
+      .query("casual_run_player_tournaments")
+      .withIndex("by_tournament_uid", (q) =>
+        q.eq("tournamentId", runTid).eq("uid", hp.uid)
+      )
+      .unique();
+    if (ptRow && hp.score != null) {
+      await ctx.db.patch(ptRow._id, {
+        score: hp.score,
+        status: RUN_PLAYER_TOURNAMENT_COMPLETED,
+        updatedAt: now,
+      });
+    }
+  }
+
+  if (skipPeriodWallet && runRow?.instanceId) {
+    for (const hp of sortedHumans) {
+      if (hp.score == null) continue;
+      await ensureInstancePlayerStateRow(ctx, {
+        instanceId: runRow.instanceId,
+        uid: hp.uid,
+        now,
+      });
+      await applyPeriodMatchScoreToInstanceState(ctx, {
+        instanceId: runRow.instanceId,
+        uid: hp.uid,
+        matchScore: hp.score,
+        now,
+        def,
+      });
+      await grantCasualScoreTierRewardsOnEachRunSettled(ctx, {
+        instanceId: runRow.instanceId,
+        runTournamentId: runTid,
+        uid: hp.uid,
+        def,
+        now,
+        matchGameId: hp.gameId,
+        gameType: def.gameId,
+      });
+      await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
+        uid: hp.uid,
+        matchType: def.matchType,
+        spotlightSeasonBoardGain: 0,
+      });
+    }
+    const tableSummaryPeriodMulti =
+      canonicalSessionId.trim().length > 0
+        ? await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
+            def,
+            templateId: pm.templateId,
+            matchId: pm.matchId,
+            runTournamentId: pm.tournamentId,
+            sessionExternalId: canonicalSessionId,
+            uid,
+            updatedAt: now,
+          })
+        : null;
+    return {
+      ok: true as const,
+      finalized: true as const,
+      periodSettled: true as const,
+      ...(tableSummaryPeriodMulti ? { tableSummary: tableSummaryPeriodMulti } : {}),
+    };
+  }
+
+  let lastExtra: Awaited<ReturnType<typeof applyCasualTemplateScoreEffects>> = {};
+  for (const hp of sortedHumans) {
+    if (hp.score == null) continue;
+    const freshPm = await ctx.db.get(hp._id);
+    const finalRank = freshPm?.rank;
+    const extra = await applyCasualTemplateScoreEffects(ctx, def, {
+      uid: hp.uid,
+      tournamentId: pm.templateId,
+      gameId,
+      score: hp.score,
+      externalGameId: canonicalSessionId,
+      matchId: pm.matchId,
+      runTournamentId: pm.tournamentId,
+      skipCasualAsyncBotSeed: true,
+      ...(typeof finalRank === "number" && finalRank >= 1
+        ? { multiplayerFinalRank: finalRank }
+        : {}),
+    });
+    await persistPendingRunRewards(ctx, runTid, hp.uid, extra.pendingWalletRewards);
+    lastExtra = extra;
+  }
+
+  const tableSummaryReturn =
+    canonicalSessionId.trim().length > 0
+      ? await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
+          def,
+          templateId: pm.templateId,
+          matchId: pm.matchId,
+          runTournamentId: pm.tournamentId,
+          sessionExternalId: canonicalSessionId,
+          uid,
+          updatedAt: now,
+        })
+      : null;
+
+  return {
+    ok: true as const,
+    finalized: true as const,
+    ...(tableSummaryReturn ? { tableSummary: tableSummaryReturn } : {}),
+    ...lastExtra,
+  };
+}
 
 export const submitCasualRunScoreCore = internalMutation({
   args: {
@@ -1050,7 +1239,7 @@ export const submitCasualRunScoreCore = internalMutation({
             .query("casual_run_player_matches")
             .withIndex("by_match_uid", (q) => q.eq("matchId", pm.matchId))
             .collect()
-        ).filter((p) => !isCasualSolitaireVirtualUid(p.uid)),
+        ).filter((p) => !isCasualAsyncVirtualOpponentUid(p.uid)),
         now,
       });
       return {
@@ -1058,6 +1247,8 @@ export const submitCasualRunScoreCore = internalMutation({
         deduped: true as const,
         ...(partial.tableSummary ? { tableSummary: partial.tableSummary } : {}),
         ...(partial.pendingOthers ? { pendingOthers: true as const } : {}),
+        replayOffered: partial.replayOffered,
+        replayTokenCount: partial.replayTokenCount,
         canReplay: partial.canReplay,
       };
     }
@@ -1102,13 +1293,21 @@ export const submitCasualRunScoreCore = internalMutation({
       .withIndex("by_match_uid", (q) => q.eq("matchId", pm.matchId))
       .collect();
 
-    const humanPms = refreshed.filter((p) => !isCasualSolitaireVirtualUid(p.uid));
+    const humanPms = refreshed.filter((p) => !isCasualAsyncVirtualOpponentUid(p.uid));
     const humanCountPlanned = Math.max(1, matchDoc.humanPlayerCount ?? 1);
 
-    if (!allHumansSubmitted(humanPms)) {
+    /** 异步桌：任一真人仍在 `finished` 再战窗口内 → 不立刻全员 settled，返回 `canReplay` */
+    const anyHumanInReplayWindow =
+      def.maxPlayers > 1 &&
+      humanPms.some(
+        (p) => p.status === "finished" && isReplayableFinished(p, p.templateId, now)
+      );
+
+    if (!allHumansSubmitted(humanPms) || anyHumanInReplayWindow) {
+      const pmFresh = (await ctx.db.get(pm._id)) ?? pm;
       const partial = await buildPartialIngestResponse(ctx, {
         def,
-        pm,
+        pm: pmFresh,
         uid,
         canonicalSessionId,
         humanPms,
@@ -1118,6 +1317,8 @@ export const submitCasualRunScoreCore = internalMutation({
         ok: true as const,
         ...(partial.tableSummary ? { tableSummary: partial.tableSummary } : {}),
         ...(partial.pendingOthers ? { pendingOthers: true as const } : {}),
+        replayOffered: partial.replayOffered,
+        replayTokenCount: partial.replayTokenCount,
         canReplay: partial.canReplay,
       };
     }
@@ -1229,155 +1430,143 @@ export const submitCasualRunScoreCore = internalMutation({
       };
     }
 
-    const sortedHumans = [...humanPms].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
-    for (let i = 0; i < sortedHumans.length; i++) {
-      const hp = sortedHumans[i]!;
-      if (hp.status === "settled") continue;
-      await ctx.db.patch(hp._id, {
-        status: "settled",
-        externalGameId: canonicalSessionId,
-        updatedAt: now,
-      });
-    }
-
-    const matchBeforeFill = await ctx.db.get(matchDoc._id);
-    if (canonicalSessionId && matchBeforeFill && !matchBeforeFill.completed) {
-      await fillSolitaireVirtualLeaderboardAndRerankHumans(ctx, {
-        def,
-        templateId: pm.templateId,
-        matchId: pm.matchId,
-        runTournamentId: pm.tournamentId,
-        sessionExternalId: canonicalSessionId,
-        humanCountPlanned,
-        humanRows: humanPms
-          .filter((h) => h.score != null)
-          .map((h) => ({ _id: h._id, uid: h.uid, score: h.score as number })),
-        updatedAt: now,
-      });
-      await ctx.db.patch(matchDoc._id, {
-        completed: true,
-        updatedAt: now,
-      });
-    } else if (canonicalSessionId) {
-      await ensureAsyncMatchRosterFull(ctx, {
-        def,
-        templateId: pm.templateId,
-        matchId: pm.matchId,
-        runTournamentId: pm.tournamentId,
-        sessionExternalId: canonicalSessionId,
-        updatedAt: now,
-      });
-    }
-
-    await ctx.db.patch(runTid, {
-      status: RUN_TOURNAMENT_COMPLETED,
-      updatedAt: now,
+    return await finalizeCasualAsyncMatchIngest(ctx, {
+      def,
+      pm,
+      uid,
+      now,
+      gameId,
+      humanPms,
+      matchDoc,
+      canonicalSessionId,
+      humanCountPlanned,
     });
+  },
+});
 
-    for (const hp of sortedHumans) {
-      const ptRow = await ctx.db
-        .query("casual_run_player_tournaments")
-        .withIndex("by_tournament_uid", (q) =>
-          q.eq("tournamentId", runTid).eq("uid", hp.uid)
-        )
-        .unique();
-      if (ptRow && hp.score != null) {
-        await ctx.db.patch(ptRow._id, {
-          score: hp.score,
-          status: RUN_PLAYER_TOURNAMENT_COMPLETED,
-          updatedAt: now,
-        });
-      }
+/**
+ * 用户放弃再战（点「继续」）：本人 `finished` → `confirmed`；若全桌可终局则立即 `settled` 发奖。
+ */
+async function runConfirmCasualRunWithoutReplay(
+  ctx: MutationCtx,
+  { uid, matchGameId }: { uid: string; matchGameId: string }
+) {
+    const pm = await ctx.db
+      .query("casual_run_player_matches")
+      .withIndex("by_gameId", (q) => q.eq("gameId", matchGameId))
+      .unique();
+    if (!pm) {
+      return { ok: false as const, error: "unknown_match_game" };
+    }
+    if (pm.uid !== uid) {
+      return { ok: false as const, error: "forbidden" };
+    }
+    const def = getTournamentDefinition(pm.templateId);
+    if (!def) {
+      return { ok: false as const, error: "bad_tournament" };
     }
 
-    if (skipPeriodWallet && runRow?.instanceId) {
-      for (const hp of sortedHumans) {
-        if (hp.score == null) continue;
-        await ensureInstancePlayerStateRow(ctx, {
-          instanceId: runRow.instanceId,
-          uid: hp.uid,
-          now,
-        });
-        await applyPeriodMatchScoreToInstanceState(ctx, {
-          instanceId: runRow.instanceId,
-          uid: hp.uid,
-          matchScore: hp.score,
-          now,
-          def,
-        });
-        await grantCasualScoreTierRewardsOnEachRunSettled(ctx, {
-          instanceId: runRow.instanceId,
-          runTournamentId: runTid,
-          uid: hp.uid,
-          def,
-          now,
-          matchGameId: hp.gameId,
-          gameType: def.gameId,
-        });
-        await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
-          uid: hp.uid,
-          matchType: def.matchType,
-          spotlightSeasonBoardGain: 0,
-        });
-      }
-      const tableSummaryPeriodMulti =
-        canonicalSessionId.trim().length > 0
-          ? await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
-              def,
-              templateId: pm.templateId,
-              matchId: pm.matchId,
-              runTournamentId: pm.tournamentId,
-              sessionExternalId: canonicalSessionId,
-              uid,
-              updatedAt: now,
-            })
-          : null;
+    const now = Date.now();
+    const canonicalSessionId = canonicalCasualRunSessionExternalId(String(pm.matchId));
+
+    if (pm.status === "settled") {
+      const tableSummary = await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
+        def,
+        templateId: pm.templateId,
+        matchId: pm.matchId,
+        runTournamentId: pm.tournamentId,
+        sessionExternalId:
+          typeof pm.externalGameId === "string" && pm.externalGameId.trim().startsWith("casual_sess:")
+            ? pm.externalGameId.trim()
+            : canonicalSessionId,
+        uid,
+        updatedAt: now,
+      });
       return {
         ok: true as const,
-        periodSettled: true as const,
-        ...(tableSummaryPeriodMulti ? { tableSummary: tableSummaryPeriodMulti } : {}),
+        confirmed: true as const,
+        finalized: true as const,
+        deduped: true as const,
+        ...(tableSummary ? { tableSummary } : {}),
       };
     }
 
-    let lastExtra: Awaited<ReturnType<typeof applyCasualTemplateScoreEffects>> = {};
-    for (const hp of sortedHumans) {
-      if (hp.score == null) continue;
-      const freshPm = await ctx.db.get(hp._id);
-      const finalRank = freshPm?.rank;
-      const extra = await applyCasualTemplateScoreEffects(ctx, def, {
-        uid: hp.uid,
-        tournamentId: pm.templateId,
-        gameId,
-        score: hp.score,
-        externalGameId: canonicalSessionId,
-        matchId: pm.matchId,
-        runTournamentId: pm.tournamentId,
-        skipSolitaireBotSeed: true,
-        ...(typeof finalRank === "number" && finalRank >= 1 ? { multiplayerFinalRank: finalRank } : {}),
-      });
-      await persistPendingRunRewards(ctx, runTid, hp.uid, extra.pendingWalletRewards);
-      lastExtra = extra;
+    if (pm.status === "open" || pm.status === "replaying") {
+      return { ok: false as const, error: "match_not_submitted" };
     }
 
-    const tableSummaryReturn =
-      canonicalSessionId.trim().length > 0
-        ? await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
-            def,
-            templateId: pm.templateId,
-            matchId: pm.matchId,
-            runTournamentId: pm.tournamentId,
-            sessionExternalId: canonicalSessionId,
-            uid,
-            updatedAt: now,
-          })
-        : null;
+    if (pm.status === "finished") {
+      await ctx.db.patch(pm._id, {
+        status: "confirmed",
+        updatedAt: now,
+      });
+    }
 
+    await promoteExpiredFinishedInMatch(ctx, pm.matchId, now);
+
+    const refreshed = await ctx.db
+      .query("casual_run_player_matches")
+      .withIndex("by_match_uid", (q) => q.eq("matchId", pm.matchId))
+      .collect();
+    const humanPms = refreshed.filter((p) => !isCasualAsyncVirtualOpponentUid(p.uid));
+    const matchDoc = await ctx.db.get(pm.matchId as Id<"casual_run_matches">);
+    if (!matchDoc) {
+      return { ok: false as const, error: "match_not_found" };
+    }
+
+    const anyHumanInReplayWindow =
+      def.maxPlayers > 1 &&
+      humanPms.some(
+        (p) => p.status === "finished" && isReplayableFinished(p, p.templateId, now)
+      );
+
+    if (!allHumansSubmitted(humanPms) || anyHumanInReplayWindow) {
+      const pmFresh = (await ctx.db.get(pm._id)) ?? pm;
+      const partial = await buildPartialIngestResponse(ctx, {
+        def,
+        pm: pmFresh,
+        uid,
+        canonicalSessionId,
+        humanPms,
+        now,
+      });
+      return {
+        ok: true as const,
+        confirmed: true as const,
+        finalized: false as const,
+        ...(partial.tableSummary ? { tableSummary: partial.tableSummary } : {}),
+        ...(partial.pendingOthers ? { pendingOthers: true as const } : {}),
+      };
+    }
+
+    const gameId = pm.gameType === "block_blast" ? "block_blast" : "solitaire";
+    const humanCountPlanned = Math.max(1, matchDoc.humanPlayerCount ?? 1);
+    const pmFresh = (await ctx.db.get(pm._id)) ?? pm;
+    const fin = await finalizeCasualAsyncMatchIngest(ctx, {
+      def,
+      pm: pmFresh,
+      uid,
+      now,
+      gameId,
+      humanPms,
+      matchDoc,
+      canonicalSessionId,
+      humanCountPlanned,
+    });
     return {
-      ok: true as const,
-      ...(tableSummaryReturn ? { tableSummary: tableSummaryReturn } : {}),
-      ...lastExtra,
+      ...fin,
+      confirmed: true as const,
     };
-  },
+}
+
+export const confirmCasualRunWithoutReplayCore = internalMutation({
+  args: { uid: v.string(), matchGameId: v.string() },
+  handler: runConfirmCasualRunWithoutReplay,
+});
+
+export const confirmCasualRunWithoutReplay = mutation({
+  args: { uid: v.string(), matchGameId: v.string() },
+  handler: runConfirmCasualRunWithoutReplay,
 });
 
 export const claimCasualRunRewards = mutation({

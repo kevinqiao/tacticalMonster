@@ -7,54 +7,99 @@ import {
 } from "../../data/casualShopCatalog";
 import { grantReplayTokens } from "../tournament/casualBotDifficultyService";
 import { applyScaledCurrencyCost } from "../../data/casualTournamentConfigs";
-import { internalMutation, mutation, query } from "../../_generated/server";
+import type { Doc } from "../../_generated/dataModel";
+import { internalMutation, mutation, query, type MutationCtx } from "../../_generated/server";
+
+function catalogSeedForSkuId(skuId: string): CasualShopSkuSeed | undefined {
+  return CASUAL_SHOP_SKU_CATALOG.find((c) => c.skuId === skuId);
+}
+
+async function insertShopSkuFromSeed(ctx: MutationCtx, s: CasualShopSkuSeed) {
+  await ctx.db.insert("casual_shop_skus", {
+    skuId: s.skuId,
+    title: s.title,
+    skuKind: s.skuKind ?? "virtual",
+    iapPriceLabel: s.iapPriceLabel,
+    priceCoins: s.priceCoins,
+    priceGems: s.priceGems,
+    grantCoins: s.grantCoins,
+    grantGems: s.grantGems,
+    grantSkinId: s.grantSkinId,
+    grantReplayTokenCount: s.grantReplayTokenCount,
+    active: true,
+  });
+}
+
+function shopSkuFromDbRow(r: Doc<"casual_shop_skus">) {
+  const cat = catalogSeedForSkuId(r.skuId);
+  return mapCasualShopSkuRow({
+    skuId: r.skuId,
+    title: r.title,
+    skuKind: r.skuKind ?? cat?.skuKind ?? "virtual",
+    iapPriceLabel: r.iapPriceLabel ?? cat?.iapPriceLabel,
+    priceCoins: r.priceCoins ?? cat?.priceCoins,
+    priceGems: r.priceGems ?? cat?.priceGems,
+    grantCoins: r.grantCoins ?? cat?.grantCoins,
+    grantGems: r.grantGems ?? cat?.grantGems,
+    grantSkinId: r.grantSkinId ?? cat?.grantSkinId,
+    grantReplayTokenCount: r.grantReplayTokenCount ?? cat?.grantReplayTokenCount,
+  });
+}
+
+/** DB 已有旧种子时，把配表里缺失的 SKU（如再战令）补进 `casual_shop_skus`。 */
+async function ensureShopCatalogInDb(ctx: MutationCtx) {
+  let inserted = 0;
+  const any = await ctx.db.query("casual_shop_skus").first();
+  if (!any) {
+    for (const s of CASUAL_SHOP_SKU_CATALOG) {
+      await insertShopSkuFromSeed(ctx, s);
+      inserted++;
+    }
+    return { ok: true as const, seeded: true as const, inserted };
+  }
+  for (const s of CASUAL_SHOP_SKU_CATALOG) {
+    const existing = await ctx.db
+      .query("casual_shop_skus")
+      .withIndex("by_skuId", (q) => q.eq("skuId", s.skuId))
+      .unique();
+    if (!existing) {
+      await insertShopSkuFromSeed(ctx, s);
+      inserted++;
+    }
+  }
+  return { ok: true as const, seeded: inserted > 0, inserted };
+}
 
 export const listActiveShopSkus = query({
   args: {},
   handler: async (ctx) => {
     const rows = await ctx.db.query("casual_shop_skus").collect();
     const active = rows.filter((r) => r.active);
-    if (active.length > 0) {
-      return active.map((r) =>
-        mapCasualShopSkuRow({
-          skuId: r.skuId,
-          title: r.title,
-          skuKind: r.skuKind ?? "virtual",
-          iapPriceLabel: r.iapPriceLabel,
-          priceCoins: r.priceCoins,
-          priceGems: r.priceGems,
-          grantCoins: r.grantCoins,
-          grantGems: r.grantGems,
-          grantSkinId: r.grantSkinId,
-        })
-      );
+    const seen = new Set<string>();
+    const out = [];
+    for (const r of active) {
+      seen.add(r.skuId);
+      out.push(shopSkuFromDbRow(r));
     }
+    for (const c of CASUAL_SHOP_SKU_CATALOG) {
+      if (!seen.has(c.skuId)) {
+        out.push(mapCasualShopSkuRow(c));
+      }
+    }
+    if (out.length > 0) return out;
     return CASUAL_SHOP_SKU_CATALOG.map(mapCasualShopSkuRow);
   },
 });
 
+/** 开发/运营：把配表中新 SKU 写入 DB（幂等，仅补缺）。 */
+export const syncShopCatalogSkus = mutation({
+  args: {},
+  handler: async (ctx) => ensureShopCatalogInDb(ctx),
+});
+
 export const seedShopSkusIfEmpty = internalMutation({
   args: {},
-  handler: async (ctx) => {
-    const any = await ctx.db.query("casual_shop_skus").first();
-    if (any) return { ok: true as const, seeded: false as const };
-    for (const s of CASUAL_SHOP_SKU_CATALOG) {
-      await ctx.db.insert("casual_shop_skus", {
-        skuId: s.skuId,
-        title: s.title,
-        skuKind: s.skuKind ?? "virtual",
-        iapPriceLabel: s.iapPriceLabel,
-        priceCoins: s.priceCoins,
-        priceGems: s.priceGems,
-        grantCoins: s.grantCoins,
-        grantGems: s.grantGems,
-        grantSkinId: s.grantSkinId,
-        grantReplayTokenCount: s.grantReplayTokenCount,
-        active: true,
-      });
-    }
-    return { ok: true as const, seeded: true as const };
-  },
+  handler: async (ctx) => ensureShopCatalogInDb(ctx),
 });
 
 export const purchaseSku = mutation({

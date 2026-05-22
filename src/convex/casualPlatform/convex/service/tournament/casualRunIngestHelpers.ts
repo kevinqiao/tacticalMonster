@@ -1,7 +1,15 @@
 import type { CasualTournamentDefinition } from "../../data/casualTournamentConfigs";
 import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { countUnusedReplayTokens } from "./casualBotDifficultyService";
+import {
+  CASUAL_REPLAY_REQUIRE_NEAR_MISS,
+  isCasualDevAutoReplayTokensEnabled,
+} from "../../data/casualBotDifficultyConfig";
+import {
+  countUnusedReplayTokens,
+  grantReplayTokens,
+  isNearMissTableSummary,
+} from "./casualBotDifficultyService";
 import {
   buildCasualAsyncTableSummary,
   type CasualAsyncTableSummary,
@@ -13,20 +21,6 @@ import {
   isReplayableFinished,
   matchAllHumansSettled,
 } from "./casualPlayerMatchStatus";
-
-const CASUAL_NEAR_MISS_GAP_RATIO = 0.1;
-
-function isNearMissTableSummary(summary: CasualAsyncTableSummary | null): boolean {
-  if (!summary?.rows?.length) return false;
-  const you = summary.rows.find((r) => r.isYou && r.rowState !== "playing");
-  const first = summary.rows.find((r) => r.rowState !== "playing" && r.rank === 1);
-  if (!you || !first || you.rank === 1) return false;
-  const yourScore = you.score;
-  const firstScore = first.score;
-  if (yourScore == null || firstScore == null || firstScore <= 0) return false;
-  const gap = (firstScore - yourScore) / firstScore;
-  return gap >= 0 && gap <= CASUAL_NEAR_MISS_GAP_RATIO;
-}
 
 export async function buildPartialIngestResponse(
   ctx: MutationCtx,
@@ -41,6 +35,9 @@ export async function buildPartialIngestResponse(
 ): Promise<{
   tableSummary: CasualAsyncTableSummary | null;
   pendingOthers: boolean;
+  /** 模板 + `finished` 窗口内（与是否有令无关，供 UI 展示灰态按钮） */
+  replayOffered: boolean;
+  replayTokenCount: number;
   canReplay: boolean;
 }> {
   const { def, pm, uid, canonicalSessionId, humanPms, now } = args;
@@ -72,18 +69,28 @@ export async function buildPartialIngestResponse(
   }
 
   const pendingOthers = !allHumansSubmitted(humanPms);
-  let canReplay = false;
-  if (
+  const replayOffered =
     canUseReplayForTemplate(pm.templateId) &&
-    isReplayableFinished(freshPm, pm.templateId, now)
+    isReplayableFinished(freshPm, pm.templateId, now);
+
+  let replayTokenCount = await countUnusedReplayTokens(ctx, uid);
+  if (
+    replayOffered &&
+    replayTokenCount === 0 &&
+    isCasualDevAutoReplayTokensEnabled() &&
+    def.maxPlayers > 1
   ) {
-    const tokenCount = await countUnusedReplayTokens(ctx, uid);
-    if (tokenCount > 0) {
-      canReplay = tableSummary ? isNearMissTableSummary(tableSummary) : true;
-    }
+    await grantReplayTokens(ctx, uid, 3);
+    replayTokenCount = await countUnusedReplayTokens(ctx, uid);
   }
 
-  return { tableSummary, pendingOthers, canReplay };
+  const canReplay =
+    replayOffered &&
+    replayTokenCount > 0 &&
+    (!CASUAL_REPLAY_REQUIRE_NEAR_MISS ||
+      (tableSummary ? isNearMissTableSummary(tableSummary) : true));
+
+  return { tableSummary, pendingOthers, replayOffered, replayTokenCount, canReplay };
 }
 
 export async function buildConfirmedDedupeResponse(

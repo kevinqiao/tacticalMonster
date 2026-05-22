@@ -28,7 +28,6 @@ import type * as service_activity_casualActivityService from "../service/activit
 import type * as service_auth_casualAuth from "../service/auth/casualAuth.js";
 import type * as service_auth_jwtAccessSecret from "../service/auth/jwtAccessSecret.js";
 import type * as service_bridge_casualGameBridgeSecret from "../service/bridge/casualGameBridgeSecret.js";
-import type * as service_casualTournamentService from "../service/casualTournamentService.js";
 import type * as service_chest_casualFixedChestService from "../service/chest/casualFixedChestService.js";
 import type * as service_payout_casualPayoutDailyService from "../service/payout/casualPayoutDailyService.js";
 import type * as service_player_playerManager from "../service/player/playerManager.js";
@@ -44,7 +43,9 @@ import type * as service_tournament_casualInstanceService from "../service/tourn
 import type * as service_tournament_casualMatchmaking from "../service/tournament/casualMatchmaking.js";
 import type * as service_tournament_casualPlayerMatchStatus from "../service/tournament/casualPlayerMatchStatus.js";
 import type * as service_tournament_casualReplayPassService from "../service/tournament/casualReplayPassService.js";
+import type * as service_tournament_casualRunExpireCron from "../service/tournament/casualRunExpireCron.js";
 import type * as service_tournament_casualRunIngestHelpers from "../service/tournament/casualRunIngestHelpers.js";
+import type * as service_tournament_casualRunMatchFinalize from "../service/tournament/casualRunMatchFinalize.js";
 import type * as service_tournament_casualRunReplay from "../service/tournament/casualRunReplay.js";
 import type * as service_tournament_casualRunSettlementFill from "../service/tournament/casualRunSettlementFill.js";
 import type * as service_tournament_casualTournamentActions from "../service/tournament/casualTournamentActions.js";
@@ -80,7 +81,6 @@ declare const fullApi: ApiFromModules<{
   "service/auth/casualAuth": typeof service_auth_casualAuth;
   "service/auth/jwtAccessSecret": typeof service_auth_jwtAccessSecret;
   "service/bridge/casualGameBridgeSecret": typeof service_bridge_casualGameBridgeSecret;
-  "service/casualTournamentService": typeof service_casualTournamentService;
   "service/chest/casualFixedChestService": typeof service_chest_casualFixedChestService;
   "service/payout/casualPayoutDailyService": typeof service_payout_casualPayoutDailyService;
   "service/player/playerManager": typeof service_player_playerManager;
@@ -96,7 +96,9 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/casualMatchmaking": typeof service_tournament_casualMatchmaking;
   "service/tournament/casualPlayerMatchStatus": typeof service_tournament_casualPlayerMatchStatus;
   "service/tournament/casualReplayPassService": typeof service_tournament_casualReplayPassService;
+  "service/tournament/casualRunExpireCron": typeof service_tournament_casualRunExpireCron;
   "service/tournament/casualRunIngestHelpers": typeof service_tournament_casualRunIngestHelpers;
+  "service/tournament/casualRunMatchFinalize": typeof service_tournament_casualRunMatchFinalize;
   "service/tournament/casualRunReplay": typeof service_tournament_casualRunReplay;
   "service/tournament/casualRunSettlementFill": typeof service_tournament_casualRunSettlementFill;
   "service/tournament/casualTournamentActions": typeof service_tournament_casualTournamentActions;

@@ -16,6 +16,9 @@ export type CasualPostSettleSummaryOverlayProps = {
   dismissLabel?: string;
   /** 近失且持有再战令时展示 */
   replayAvailable?: boolean;
+  /** 展示再战但不可点（如无再战令） */
+  replayDisabled?: boolean;
+  replayDisabledHint?: string;
   replayLabel?: string;
   onReplay?: () => void;
   replayBusy?: boolean;
@@ -33,6 +36,8 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
   onDismiss,
   dismissLabel = '继续',
   replayAvailable = false,
+  replayDisabled = false,
+  replayDisabledHint = '需要再战令（商店购买）',
   replayLabel = '再战',
   onReplay,
   replayBusy = false,
@@ -84,10 +89,11 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
               <button
                 type="button"
                 className="ssc__btn ssc__btn--secondary"
-                disabled={replayBusy}
+                disabled={replayBusy || replayDisabled}
+                title={replayDisabled ? replayDisabledHint : undefined}
                 onClick={onReplay}
               >
-                {replayBusy ? '匹配中…' : replayLabel}
+                {replayBusy ? '匹配中…' : replayDisabled ? `${replayLabel}（无令）` : replayLabel}
               </button>
             ) : null}
             <button type="button" className="ssc__btn ssc__btn--primary" onClick={onDismiss}>

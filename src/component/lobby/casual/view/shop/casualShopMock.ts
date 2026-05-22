@@ -2,12 +2,14 @@
 export interface CasualShopSkuRow {
   skuId: string;
   title: string;
-  skuKind?: "virtual" | "iap";
+  skuKind?: "virtual" | "iap" | "skin";
   iapPriceLabel?: string;
   priceCoins?: number;
   priceGems?: number;
   grantCoins?: number;
   grantGems?: number;
+  grantSkinId?: string;
+  grantReplayTokenCount?: number;
 }
 
 export interface CasualShopWalletMock {
@@ -58,6 +60,13 @@ export const MOCK_SHOP_SKUS: CasualShopSkuRow[] = [
     skuKind: "iap",
     iapPriceLabel: "¥98",
     grantGems: 1200,
+  },
+  {
+    skuId: "shop_replay_pass_3pack",
+    title: "Replay Pass × 3",
+    skuKind: "virtual",
+    priceGems: 15,
+    grantReplayTokenCount: 3,
   },
 ];
 

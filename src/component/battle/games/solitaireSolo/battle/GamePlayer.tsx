@@ -74,10 +74,13 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         postCasualTableSummary,
         postCasualWaitingForPeers,
         postCasualCanReplay,
+        postCasualReplayOffered,
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,
     } = useActHandler();
+
+    const postCasualReplayDisabled = postCasualReplayOffered && !postCasualCanReplay;
     const { actionData } = useSoloDnDManager();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
@@ -423,15 +426,20 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 open={postCasualScoreReportOpen}
                 report={postCasualScoreReport}
                 onConfirm={dismissPostCasualScoreReport}
+                replayAvailable={postCasualReplayOffered}
+                replayDisabled={postCasualReplayDisabled}
+                replayBusy={casualReplayBusy}
+                onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
             />
             <CasualPostSettleSummaryOverlay
                 open={postCasualSummaryOpen}
                 title="同桌成绩"
                 summary={postCasualTableSummary}
                 waitingForPeers={postCasualWaitingForPeers}
-                replayAvailable={postCasualCanReplay}
+                replayAvailable={postCasualReplayOffered}
+                replayDisabled={postCasualReplayDisabled}
                 replayBusy={casualReplayBusy}
-                onReplay={() => void replayCasualRun()}
+                onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
                 onDismiss={dismissPostCasualSummary}
             />
         </div>

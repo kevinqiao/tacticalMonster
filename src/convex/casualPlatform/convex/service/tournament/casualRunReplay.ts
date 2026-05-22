@@ -10,7 +10,6 @@ import {
   RUN_PLAYER_TOURNAMENT_OPEN,
   RUN_TOURNAMENT_OPEN,
 } from "./casualTournamentJoinCore";
-import { isCasualSolitaireVirtualUid } from "./casualRunSettlementFill";
 import { consumeReplayToken } from "./casualBotDifficultyService";
 import {
   canUseReplayForTemplate,

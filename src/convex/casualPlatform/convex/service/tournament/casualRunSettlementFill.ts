@@ -21,20 +21,21 @@ import {
 } from "./casualBotDifficultyService";
 
 /** `uid` 前缀；本场虚拟对手，不参与全局异步榜 */
-export const CASUAL_SOLITAIRE_BOT_UID_PREFIX = "__vp_solitaire:";
-/** Block Blast 异步场虚拟对手（与接龙分列前缀，便于排查） */
-export const CASUAL_BLOCK_BLAST_BOT_UID_PREFIX = "__vp_block_blast:";
+/** Solitaire 异步场虚拟对手 uid 前缀（DB 存量数据依赖此字符串） */
+export const CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE = "__vp_solitaire:";
+/** Block Blast 异步场虚拟对手 uid 前缀 */
+export const CASUAL_ASYNC_VIRTUAL_BOT_UID_BLOCK_BLAST = "__vp_block_blast:";
 
-/** 真人以外：异步虚拟补位行（接龙 + Block Blast） */
-export function isCasualSolitaireVirtualUid(uid: string): boolean {
+/** 真人以外：异步虚拟补位行（solitaire + block_blast） */
+export function isCasualAsyncVirtualOpponentUid(uid: string): boolean {
   return (
-    uid.startsWith(CASUAL_SOLITAIRE_BOT_UID_PREFIX) ||
-    uid.startsWith(CASUAL_BLOCK_BLAST_BOT_UID_PREFIX)
+    uid.startsWith(CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE) ||
+    uid.startsWith(CASUAL_ASYNC_VIRTUAL_BOT_UID_BLOCK_BLAST)
   );
 }
 
 /** Slots to fill with virtual rows = maxPlayers − planned humans (≥1 human slot). */
-export function casualSolitaireVirtualOpponentCount(
+export function casualAsyncVirtualOpponentCount(
   defMaxPlayers: number,
   matchHumanPlayerCount: number
 ): number {
@@ -42,7 +43,7 @@ export function casualSolitaireVirtualOpponentCount(
   return Math.max(0, defMaxPlayers - humanCountPlanned);
 }
 
-export async function computeSolitaireRankForSession(
+export async function computeCasualAsyncSessionRank(
   ctx: QueryCtx,
   templateId: string,
   sessionExternalId: string,
@@ -137,7 +138,7 @@ export async function buildCasualAsyncTableSummary(
         if (r.uid === uid) {
           return r.score != null && Number.isFinite(r.score);
         }
-        if (isCasualSolitaireVirtualUid(r.uid)) {
+        if (isCasualAsyncVirtualOpponentUid(r.uid)) {
           return r.score != null && Number.isFinite(r.score);
         }
         return false;
@@ -158,7 +159,7 @@ export async function buildCasualAsyncTableSummary(
     let botPeerIdx = 0;
     const outRows: CasualAsyncTableLeaderboardRow[] = scored.map((e) => {
       const isYou = e.uid === uid;
-      const isBot = isCasualSolitaireVirtualUid(e.uid);
+      const isBot = isCasualAsyncVirtualOpponentUid(e.uid);
       const displayLabel = isYou ? "你" : `补位 ${++botPeerIdx}`;
       return {
         rank: e.rank < 999 ? e.rank : scored.indexOf(e) + 1,
@@ -172,7 +173,7 @@ export async function buildCasualAsyncTableSummary(
 
     let humanPeerIdx = 0;
     const otherHumans = rows.filter(
-      (r) => r.uid !== uid && !isCasualSolitaireVirtualUid(r.uid)
+      (r) => r.uid !== uid && !isCasualAsyncVirtualOpponentUid(r.uid)
     );
     for (const _h of otherHumans) {
       outRows.push({
@@ -207,7 +208,7 @@ export async function buildCasualAsyncTableSummary(
   let botPeerIdx = 0;
   const outRows: CasualAsyncTableLeaderboardRow[] = withScore.map((e) => {
     const isYou = e.uid === uid;
-    const isBot = isCasualSolitaireVirtualUid(e.uid);
+    const isBot = isCasualAsyncVirtualOpponentUid(e.uid);
     let displayLabel: string;
     if (isYou) {
       displayLabel = "你";
@@ -259,7 +260,7 @@ export async function finalizeCasualAsyncTableSummaryForPlayer(
     .query("casual_run_player_matches")
     .withIndex("by_match_uid", (q) => q.eq("matchId", args.matchId))
     .collect();
-  const humanRows = matchRows.filter((r) => !isCasualSolitaireVirtualUid(r.uid));
+  const humanRows = matchRows.filter((r) => !isCasualAsyncVirtualOpponentUid(r.uid));
   const allHumansSettled =
     humanRows.length > 0 && humanRows.every((r) => r.status === "settled");
 
@@ -318,7 +319,7 @@ export async function ensureBotsSeededForPartialSubmit(
   const humanRows = matchRows
     .filter(
       (r) =>
-        !isCasualSolitaireVirtualUid(r.uid) &&
+        !isCasualAsyncVirtualOpponentUid(r.uid) &&
         r.score != null &&
         Number.isFinite(r.score)
     )
@@ -327,7 +328,7 @@ export async function ensureBotsSeededForPartialSubmit(
   if (humanRows.length === 0) return;
 
   if (!args.matchDoc.botsSeeded) {
-    await fillSolitaireVirtualLeaderboardAndRerankHumans(ctx, {
+    await fillCasualAsyncVirtualLeaderboardAndRerankHumans(ctx, {
       def: args.def,
       templateId: args.templateId,
       matchId: args.matchId,
@@ -366,7 +367,7 @@ export type SeedVirtualOpponentArgs = {
 };
 
 /** 同 mutation 内写入虚拟对手（勿 `runMutation`，否则父事务读榜可能缺行） */
-export async function seedSolitaireVirtualOpponentsCore(
+export async function seedCasualAsyncVirtualOpponentsCore(
   ctx: MutationCtx,
   args: SeedVirtualOpponentArgs
 ): Promise<void> {
@@ -382,8 +383,8 @@ export async function seedSolitaireVirtualOpponentsCore(
   } = args;
   const uidPrefix =
     matchGameType === "block_blast"
-      ? CASUAL_BLOCK_BLAST_BOT_UID_PREFIX
-      : CASUAL_SOLITAIRE_BOT_UID_PREFIX;
+      ? CASUAL_ASYNC_VIRTUAL_BOT_UID_BLOCK_BLAST
+      : CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE;
 
   if (replaceAllVirtual) {
     const prior = await ctx.db
@@ -391,7 +392,7 @@ export async function seedSolitaireVirtualOpponentsCore(
       .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
       .collect();
     for (const row of prior) {
-      if (isCasualSolitaireVirtualUid(row.uid)) {
+      if (isCasualAsyncVirtualOpponentUid(row.uid)) {
         await ctx.db.delete(row._id);
       }
     }
@@ -434,7 +435,7 @@ export async function seedSolitaireVirtualOpponentsCore(
   }
 }
 
-export const seedSolitaireVirtualOpponents = internalMutation({
+export const seedCasualAsyncVirtualOpponents = internalMutation({
   args: {
     templateId: v.string(),
     runTournamentId: v.string(),
@@ -445,7 +446,7 @@ export const seedSolitaireVirtualOpponents = internalMutation({
     updatedAt: v.number(),
   },
   handler: async (ctx, args) => {
-    await seedSolitaireVirtualOpponentsCore(ctx, args);
+    await seedCasualAsyncVirtualOpponentsCore(ctx, args);
     return { ok: true as const };
   },
 });
@@ -466,8 +467,8 @@ function botUidForMatchSlot(
 ): string {
   const prefix =
     matchGameType === "block_blast"
-      ? CASUAL_BLOCK_BLAST_BOT_UID_PREFIX
-      : CASUAL_SOLITAIRE_BOT_UID_PREFIX;
+      ? CASUAL_ASYNC_VIRTUAL_BOT_UID_BLOCK_BLAST
+      : CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE;
   return `${prefix}${matchId}:r${slotRank}`;
 }
 
@@ -592,7 +593,7 @@ async function patchRanksForAsyncMatch(
       .map((r) => ({
         uid: r.uid,
         score: r.score as number,
-        isBot: isCasualSolitaireVirtualUid(r.uid),
+        isBot: isCasualAsyncVirtualOpponentUid(r.uid),
       }));
     rankMap = assignRanksWithMinScores({
       entities,
@@ -643,10 +644,10 @@ export async function ensureAsyncMatchRosterFull(
     .collect();
 
   const humansWithScore = rows.filter(
-    (r) => !isCasualSolitaireVirtualUid(r.uid) && r.score != null && Number.isFinite(r.score)
+    (r) => !isCasualAsyncVirtualOpponentUid(r.uid) && r.score != null && Number.isFinite(r.score)
   );
   const virtualWithScore = rows.filter(
-    (r) => isCasualSolitaireVirtualUid(r.uid) && r.score != null && Number.isFinite(r.score)
+    (r) => isCasualAsyncVirtualOpponentUid(r.uid) && r.score != null && Number.isFinite(r.score)
   );
   const needBots = args.def.maxPlayers - humansWithScore.length;
   if (needBots <= 0) return;
@@ -669,7 +670,7 @@ export async function ensureAsyncMatchRosterFull(
     botCount: needBots,
   });
 
-  await seedSolitaireVirtualOpponentsCore(ctx, {
+  await seedCasualAsyncVirtualOpponentsCore(ctx, {
     templateId: args.templateId,
     runTournamentId: args.runTournamentId,
     matchId: args.matchId,
@@ -692,7 +693,7 @@ export async function ensureAsyncMatchRosterFull(
 }
 
 /** 多人结算：规则引擎 / 中性槽位填 bot，再按 rankMinScores 定全员名次。 */
-export async function fillSolitaireVirtualLeaderboardAndRerankHumans(
+export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
   ctx: MutationCtx,
   args: {
     def: CasualTournamentDefinition;
@@ -717,14 +718,14 @@ export async function fillSolitaireVirtualLeaderboardAndRerankHumans(
   const humanRows = matchRows
     .filter(
       (r) =>
-        !isCasualSolitaireVirtualUid(r.uid) &&
+        !isCasualAsyncVirtualOpponentUid(r.uid) &&
         r.score != null &&
         Number.isFinite(r.score)
     )
     .map((r) => ({ uid: r.uid, score: r.score as number }));
 
   const actualHumanCount = Math.max(1, humanRows.length);
-  const botCount = casualSolitaireVirtualOpponentCount(args.def.maxPlayers, actualHumanCount);
+  const botCount = casualAsyncVirtualOpponentCount(args.def.maxPlayers, actualHumanCount);
   if (botCount <= 0) return;
 
   const rankMinScores = getCasualRankMinScores(args.def);
@@ -737,7 +738,7 @@ export async function fillSolitaireVirtualLeaderboardAndRerankHumans(
     botCount,
   });
 
-  await seedSolitaireVirtualOpponentsCore(ctx, {
+  await seedCasualAsyncVirtualOpponentsCore(ctx, {
     templateId: args.templateId,
     runTournamentId: args.runTournamentId,
     matchId: args.matchId,

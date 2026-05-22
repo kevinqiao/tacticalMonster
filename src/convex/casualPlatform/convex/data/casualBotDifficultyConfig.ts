@@ -8,6 +8,15 @@ export const CASUAL_LOSS_STREAK_LOOKBACK_MAX = 10;
 /** 再战令：与第 1 名分差比例 ≤ 此值视为近失 */
 export const CASUAL_NEAR_MISS_GAP_RATIO = 0.1;
 
+/** `false`：有再战令且在窗口内即可 `canReplay`（便于测试）；上线可改 `true` 恢复近失 */
+export const CASUAL_REPLAY_REQUIRE_NEAR_MISS = false;
+
+/** Convex 环境变量 `CASUAL_DEV_AUTO_REPLAY_TOKENS=1` 时，异步场 join/结算自动补再战令（仅本地调试） */
+export function isCasualDevAutoReplayTokensEnabled(): boolean {
+  const v = (process.env.CASUAL_DEV_AUTO_REPLAY_TOKENS ?? "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
 /** 多人匹配队列：仅 effectiveMinHumans > 1 时生效（与前端 CASUAL_MATCH_OPEN_TIMEOUT_MS 对齐） */
 export const CASUAL_MATCH_QUEUE_TIMEOUT_MS = 90_000;
 

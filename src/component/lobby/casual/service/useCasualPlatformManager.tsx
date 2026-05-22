@@ -149,12 +149,14 @@ export interface CasualPlatformValue {
   shopSkus: Array<{
     skuId: string;
     title: string;
-    skuKind?: "virtual" | "iap";
+    skuKind?: "virtual" | "iap" | "skin";
     iapPriceLabel?: string;
     priceCoins?: number;
     priceGems?: number;
     grantCoins?: number;
     grantGems?: number;
+    grantSkinId?: string;
+    grantReplayTokenCount?: number;
   }>;
   missions: Array<{
     taskId: string;
@@ -272,6 +274,17 @@ export interface CasualPlatformValue {
     track: "free" | "standard" | "deluxe";
     level: number;
   }) => Promise<{ ok: boolean; error?: string }>;
+  /** 放弃再战并确认成绩；A 场单人桌会立即最终结算 */
+  confirmCasualRunWithoutReplay: (matchGameId: string) => Promise<{
+    ok: boolean;
+    error?: string;
+    confirmed?: boolean;
+    finalized?: boolean;
+    pendingOthers?: boolean;
+    deduped?: boolean;
+  }>;
+  /** 把配表中新 SKU 补进 DB（如再战令）；打开商店时会自动调用 */
+  syncShopCatalogSkus: () => Promise<{ ok: boolean; seeded?: boolean; inserted?: number }>;
   purchaseShopSku: (skuId: string) => Promise<{
     ok: boolean;
     error?: string;
@@ -1057,6 +1070,34 @@ export function useCasualPlatform(): CasualPlatformValue {
     [user?.uid]
   );
 
+  const confirmCasualRunWithoutReplay = useCallback(
+    async (matchGameId: string) => {
+      const http = getCasualHttpClient();
+      if (!http || !user?.uid) return { ok: false, error: "no_auth" };
+      try {
+        return await http.mutation(casualTournamentFns.confirmCasualRunWithoutReplay, {
+          uid: user.uid,
+          matchGameId,
+        });
+      } catch (e) {
+        console.error("[CasualPlatform] confirmCasualRunWithoutReplay", e);
+        return { ok: false, error: "confirm_failed" };
+      }
+    },
+    [user?.uid]
+  );
+
+  const syncShopCatalogSkus = useCallback(async () => {
+    const http = getCasualHttpClient();
+    if (!http) return { ok: false };
+    try {
+      return await http.mutation(casualPlatformApi.service.shop.casualShopService.syncShopCatalogSkus, {});
+    } catch (e) {
+      console.error("[CasualPlatform] syncShopCatalogSkus", e);
+      return { ok: false };
+    }
+  }, []);
+
   const purchaseShopSku = useCallback(
     async (skuId: string) => {
       const http = getCasualHttpClient();
@@ -1191,6 +1232,8 @@ export function useCasualPlatform(): CasualPlatformValue {
       claimSeasonMission,
       touchDailyLoginMission,
       claimPassLevel,
+      confirmCasualRunWithoutReplay,
+      syncShopCatalogSkus,
       purchaseShopSku,
       fulfillIapShopPurchase,
       openFixedChest,
@@ -1223,6 +1266,8 @@ export function useCasualPlatform(): CasualPlatformValue {
       claimSeasonMission,
       touchDailyLoginMission,
       claimPassLevel,
+      confirmCasualRunWithoutReplay,
+      syncShopCatalogSkus,
       purchaseShopSku,
       fulfillIapShopPurchase,
       openFixedChest,

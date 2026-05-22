@@ -1,4 +1,5 @@
 import { SoloGameEngine } from "@/convex/solitaireArena/convex/service/SoloGameEngine";
+import { useCasualPlatform } from "component/lobby/casual/service/useCasualPlatformManager";
 import { useUserManager } from "host/service/UserManager";
 import { useConvex } from "convex/react";
 import gsap from "gsap";
@@ -32,7 +33,14 @@ import type { GameReport } from "../../types/SoloTypes";
 type ServerProgress = { score?: number; moves?: number; gameStatus?: number };
 
 type CasualRunSubmitOutcome =
-    | { ok: true; tableSummary?: CasualAsyncTableSummaryUI; pendingOthers?: boolean; canReplay?: boolean }
+    | {
+          ok: true;
+          tableSummary?: CasualAsyncTableSummaryUI;
+          pendingOthers?: boolean;
+          replayOffered?: boolean;
+          replayTokenCount?: number;
+          canReplay?: boolean;
+      }
     | { ok: false };
 
 function mergeServerProgress(gs: SoloGameState, p: ServerProgress) {
@@ -48,6 +56,7 @@ function isTerminalSoloStatus(status: SoloGameStatus | number | undefined): bool
 
 const useActHandler = () => {
     const convex = useConvex();
+    const casual = useCasualPlatform();
     const { user } = useUserManager();
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
     const [postCasualScoreReportOpen, setPostCasualScoreReportOpen] = useState(false);
@@ -58,6 +67,8 @@ const useActHandler = () => {
     );
     const [postCasualWaitingForPeers, setPostCasualWaitingForPeers] = useState(false);
     const [postCasualCanReplay, setPostCasualCanReplay] = useState(false);
+    const [postCasualReplayOffered, setPostCasualReplayOffered] = useState(false);
+    const [postCasualReplayTokenCount, setPostCasualReplayTokenCount] = useState(0);
     const [casualReplayBusy, setCasualReplayBusy] = useState(false);
     const casualRunSubmittedRef = useRef(false);
     const settleInFlightRef = useRef(false);
@@ -124,6 +135,8 @@ const useActHandler = () => {
             settle: {
                 tableSummary?: CasualAsyncTableSummaryUI;
                 pendingOthers?: boolean;
+                replayOffered?: boolean;
+                replayTokenCount?: number;
                 canReplay?: boolean;
             }
         ) => {
@@ -131,7 +144,20 @@ const useActHandler = () => {
             setPostCasualScoreReport(report);
             setPostCasualTableSummary(settle.tableSummary ?? null);
             setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
+            const offered = Boolean(settle.replayOffered ?? settle.canReplay);
+            setPostCasualReplayOffered(offered);
+            setPostCasualReplayTokenCount(
+                typeof settle.replayTokenCount === "number" ? settle.replayTokenCount : 0
+            );
             setPostCasualCanReplay(Boolean(settle.canReplay));
+            if (import.meta.env.DEV) {
+                console.log("[Solitaire] post-settle replay", {
+                    replayOffered: offered,
+                    replayTokenCount: settle.replayTokenCount,
+                    canReplay: settle.canReplay,
+                    pendingOthers: settle.pendingOthers,
+                });
+            }
             setPostCasualScoreReportOpen(true);
         },
         [loadSolitaireScoreReport]
@@ -159,6 +185,8 @@ const useActHandler = () => {
                         error?: string;
                         tableSummary?: CasualAsyncTableSummaryUI;
                         pendingOthers?: boolean;
+                        replayOffered?: boolean;
+                        replayTokenCount?: number;
                         canReplay?: boolean;
                     };
                     if (!cr.ok) {
@@ -166,7 +194,6 @@ const useActHandler = () => {
                         casualRunSubmittedRef.current = false;
                         return { ok: false };
                     }
-                    console.log("submitCasualPlatformRun success");
                     if (!deferHost) {
                         onGameSubmit?.();
                     }
@@ -174,6 +201,8 @@ const useActHandler = () => {
                         ok: true,
                         ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
                         ...(cr.pendingOthers ? { pendingOthers: true } : {}),
+                        ...(cr.replayOffered ? { replayOffered: true } : {}),
+                        ...(cr.replayTokenCount != null ? { replayTokenCount: cr.replayTokenCount } : {}),
                         ...(cr.canReplay ? { canReplay: true } : {}),
                     };
                 }
@@ -229,7 +258,37 @@ const useActHandler = () => {
         }
     }, [gameState, runSolitaireSettlement, casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]);
 
+    const exitCasualRunAfterSettle = useCallback(
+        async (opts: { hadReplayOffer: boolean }) => {
+            const gs = gameStateRef.current;
+            const isCasualRun =
+                Boolean(casualTournamentId) &&
+                gs &&
+                typeof gs.gameId === "string" &&
+                gs.gameId.startsWith("game_");
+            if (opts.hadReplayOffer && isCasualRun && user?.uid) {
+                try {
+                    await casual.confirmCasualRunWithoutReplay(gs.gameId);
+                    await casual.refreshCasualPlayer();
+                } catch (e) {
+                    console.warn("[Solitaire] confirmCasualRunWithoutReplay", e);
+                }
+            }
+            setPostCasualSummaryOpen(false);
+            setPostCasualTableSummary(null);
+            setPostCasualWaitingForPeers(false);
+            setPostCasualCanReplay(false);
+            setPostCasualReplayOffered(false);
+            setPostCasualReplayTokenCount(0);
+            setPostCasualScoreReportOpen(false);
+            setPostCasualScoreReport(null);
+            onGameSubmit?.();
+        },
+        [casual, casualTournamentId, user?.uid, onGameSubmit]
+    );
+
     const dismissPostCasualScoreReport = useCallback(() => {
+        const hadReplayOffer = postCasualReplayOffered;
         setPostCasualScoreReportOpen(false);
         setPostCasualScoreReport(null);
         if (
@@ -241,19 +300,19 @@ const useActHandler = () => {
         ) {
             setPostCasualSummaryOpen(true);
         } else {
-            setPostCasualTableSummary(null);
-            setPostCasualWaitingForPeers(false);
-            onGameSubmit?.();
+            void exitCasualRunAfterSettle({ hadReplayOffer: hadReplayOffer });
         }
-    }, [casualTournamentId, postCasualTableSummary, postCasualWaitingForPeers, onGameSubmit]);
+    }, [
+        casualTournamentId,
+        postCasualTableSummary,
+        postCasualWaitingForPeers,
+        postCasualReplayOffered,
+        exitCasualRunAfterSettle,
+    ]);
 
     const dismissPostCasualSummary = useCallback(() => {
-        setPostCasualSummaryOpen(false);
-        setPostCasualTableSummary(null);
-        setPostCasualWaitingForPeers(false);
-        setPostCasualCanReplay(false);
-        onGameSubmit?.();
-    }, [onGameSubmit]);
+        void exitCasualRunAfterSettle({ hadReplayOffer: postCasualReplayOffered });
+    }, [postCasualReplayOffered, exitCasualRunAfterSettle]);
 
     const replayCasualRun = useCallback(async () => {
         const gs = gameStateRef.current;
@@ -274,6 +333,8 @@ const useActHandler = () => {
             setPostCasualTableSummary(null);
             setPostCasualWaitingForPeers(false);
             setPostCasualCanReplay(false);
+            setPostCasualReplayOffered(false);
+            setPostCasualReplayTokenCount(0);
             setPostCasualScoreReportOpen(false);
             setPostCasualScoreReport(null);
             await reloadCasualRun();
@@ -305,6 +366,9 @@ const useActHandler = () => {
             void beginCasualPostSettleFlow(gs.gameId, score, {
                 tableSummary: extras?.tableSummary ?? undefined,
                 pendingOthers: extras?.pendingOthers,
+                replayOffered: extras?.replayOffered,
+                replayTokenCount: extras?.replayTokenCount,
+                canReplay: extras?.canReplay,
             });
         },
         [casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]
@@ -339,6 +403,8 @@ const useActHandler = () => {
             const out: ManualSettleConfirmExtras = {};
             if (settled.tableSummary) out.tableSummary = settled.tableSummary;
             if (settled.pendingOthers) out.pendingOthers = true;
+            if (settled.replayOffered) out.replayOffered = true;
+            if (settled.replayTokenCount != null) out.replayTokenCount = settled.replayTokenCount;
             if (settled.canReplay) out.canReplay = true;
             return out;
         } catch (e) {
@@ -757,6 +823,8 @@ const useActHandler = () => {
         postCasualTableSummary,
         postCasualWaitingForPeers,
         postCasualCanReplay,
+        postCasualReplayOffered,
+        postCasualReplayTokenCount,
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,

@@ -33,13 +33,29 @@ const SHOP_TITLE_ZH: Record<string, string> = {
   iap_gem_tier_1: "钻石 · 入门档",
   iap_gem_tier_2: "钻石 · 进阶档",
   iap_gem_tier_3: "钻石 · 尊享档",
+  shop_replay_pass_3pack: "再战令 × 3",
 };
 
 function displayTitle(skuId: string, serverTitle: string): string {
   return SHOP_TITLE_ZH[skuId] ?? serverTitle;
 }
 
+/** 后端旧种子缺新 SKU 时，用本地 fallback 补全（与配表 `CASUAL_SHOP_SKU_CATALOG` 一致） */
+function mergeShopSkuRows(
+  server: CasualShopSkuRow[],
+  fallback: CasualShopSkuRow[]
+): CasualShopSkuRow[] {
+  const byId = new Map(fallback.map((s) => [s.skuId, s]));
+  for (const s of server) {
+    byId.set(s.skuId, { ...byId.get(s.skuId), ...s });
+  }
+  const order = fallback.map((s) => s.skuId);
+  const extra = [...byId.keys()].filter((id) => !order.includes(id));
+  return [...order, ...extra].map((id) => byId.get(id)!);
+}
+
 function skuEmoji(skuId: string): string {
+  if (skuId.includes("replay")) return "🔄";
   if (skuId.includes("combo")) return "🎁";
   if (skuId.includes("coin")) return "🪙";
   if (skuId.includes("gem")) return "💎";
@@ -69,8 +85,35 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  /** 钻→币购买是否走后端；商品列表始终用下方 `MOCK_SHOP_SKUS` 静态六档 */
+  /** 钻→币 / 再战令等虚拟商品购买是否走后端 */
   const ordinaryShopPurchasesLive = Boolean(casual.convexUrl && user?.uid);
+
+  useEffect(() => {
+    if (!visible || !ordinaryShopPurchasesLive) return;
+    void casual.syncShopCatalogSkus();
+  }, [visible, ordinaryShopPurchasesLive, casual.syncShopCatalogSkus]);
+
+  const shopSkuRows: CasualShopSkuRow[] = useMemo(() => {
+    const serverRows: CasualShopSkuRow[] =
+      casual.shopSkus.length > 0
+        ? casual.shopSkus.map((s) => ({
+            skuId: s.skuId,
+            title: s.title,
+            skuKind: s.skuKind,
+            iapPriceLabel: s.iapPriceLabel,
+            priceCoins: s.priceCoins,
+            priceGems: s.priceGems,
+            grantCoins: s.grantCoins,
+            grantGems: s.grantGems,
+            grantSkinId: s.grantSkinId,
+            grantReplayTokenCount: s.grantReplayTokenCount,
+          }))
+        : [];
+    if (serverRows.length > 0) {
+      return mergeShopSkuRows(serverRows, MOCK_SHOP_SKUS);
+    }
+    return MOCK_SHOP_SKUS;
+  }, [casual.shopSkus]);
 
   const globalActivityCount = useMemo(
     () => casual.activities.filter((a) => a.target.type === "global").length,
@@ -81,18 +124,18 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
     if (ordinaryShopPurchasesLive) {
       return {
         isLive: true,
-        skus: MOCK_SHOP_SKUS,
+        skus: shopSkuRows,
         coins: casual.casualPlayer?.coins ?? 0,
         gems: casual.casualPlayer?.gems ?? 0,
       };
     }
     return {
       isLive: false,
-      skus: MOCK_SHOP_SKUS,
+      skus: shopSkuRows,
       coins: mockWallet.coins,
       gems: mockWallet.gems,
     };
-  }, [ordinaryShopPurchasesLive, casual.casualPlayer, mockWallet]);
+  }, [ordinaryShopPurchasesLive, casual.casualPlayer, mockWallet, shopSkuRows]);
 
   /** 静态商店 SKU 始终合并演示促销；全量 Mock 模式则用 casual.activities */
   const activitiesForOrdinaryShop = useMemo(() => {
@@ -107,6 +150,14 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
   const virtualShopSkus = useMemo(
     () => view.skus.filter((s) => (s.skuKind ?? "virtual") !== "iap"),
     [view.skus]
+  );
+  const replayShopSkus = useMemo(
+    () => virtualShopSkus.filter((s) => (s.grantReplayTokenCount ?? 0) > 0),
+    [virtualShopSkus]
+  );
+  const coinVirtualShopSkus = useMemo(
+    () => virtualShopSkus.filter((s) => !(s.grantReplayTokenCount ?? 0)),
+    [virtualShopSkus]
   );
   const iapShopSkus = useMemo(() => view.skus.filter((s) => s.skuKind === "iap"), [view.skus]);
 
@@ -166,11 +217,14 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
     const parts: string[] = [];
     if (sku.grantCoins && sku.grantCoins > 0) parts.push(`金币 +${sku.grantCoins}`);
     if (sku.grantGems && sku.grantGems > 0) parts.push(`钻 +${sku.grantGems}`);
+    if (sku.grantReplayTokenCount && sku.grantReplayTokenCount > 0) {
+      parts.push(`再战令 +${sku.grantReplayTokenCount}`);
+    }
     return parts.length ? `获得 ${parts.join("，")}` : "即时到账";
   };
 
   const mockBannerText = !casual.convexUrl
-    ? "未配置休闲后端：普通商店为静态六档演示，购买仅更新本页预览钱包。"
+    ? "未配置休闲后端：普通商店为静态演示货架，购买仅更新本页预览钱包。"
     : !user?.uid
       ? "未登录：普通商店仍为静态六档演示；登录后可使用真实余额购买钻→币（需后端配置同名 skuId）。"
       : "";
@@ -216,8 +270,8 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
           </>
         ) : (
           <div className="casual-econ__mockBanner" role="note" style={{ marginBottom: 12 }}>
-            普通商店展示<strong>静态六档</strong>（钻→币 ×3、法币→钻 ×3）；钻→币购买将请求后端{" "}
-            <code style={{ fontSize: 12 }}>purchaseSku</code>（skuId 须与表一致）。法币档位仍走收银台接入流程。
+            货架含钻→币、再战令、法币→钻；虚拟货币购买走{" "}
+            <code style={{ fontSize: 12 }}>purchaseSku</code>。首次打开商店会自动同步配表 SKU 到数据库。
           </div>
         )}
 
@@ -240,7 +294,7 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
         </div>
 
         <div className="casual-shop__grid">
-          {virtualShopSkus.map((sku, index) => {
+          {coinVirtualShopSkus.map((sku, index) => {
             const shopMatchedActs = listActivitiesMatchingShopPurchase(activitiesForOrdinaryShop, sku.skuId);
             const { line: priceTagLine, hasPromo: pricePromo } = shopSkuPriceDisplay(sku);
             const affordable = shopSkuCanAfford(sku);
@@ -339,6 +393,112 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
             );
           })}
         </div>
+
+        {replayShopSkus.length > 0 ? (
+          <>
+            <h2 className="casual-econ__sectionTitle" style={{ marginTop: 28 }}>
+              再战令
+            </h2>
+            <p className="casual-econ__sectionHint">
+              消耗再战令可在结算后 30 分钟内对同一局重玩并重传分数（异步场；赛季券场不可用）。
+            </p>
+            <div className="casual-shop__grid">
+              {replayShopSkus.map((sku) => {
+                const shopMatchedActs = listActivitiesMatchingShopPurchase(
+                  activitiesForOrdinaryShop,
+                  sku.skuId
+                );
+                const { line: priceTagLine, hasPromo: pricePromo } = shopSkuPriceDisplay(sku);
+                const affordable = shopSkuCanAfford(sku);
+                const loading = busySku === sku.skuId;
+                return (
+                  <article
+                    key={sku.skuId}
+                    className={`casual-shop__card${pricePromo ? " casual-shop__card--seasonVoucherPromo" : ""}`}
+                  >
+                    <div className="casual-shop__cardIcon" aria-hidden>
+                      {skuEmoji(sku.skuId)}
+                    </div>
+                    <h3 className="casual-shop__cardTitle">{displayTitle(sku.skuId, sku.title)}</h3>
+                    <div className="casual-shop__price">
+                      <span className="casual-shop__priceTag">{priceTagLine}</span>
+                    </div>
+                    {shopMatchedActs.length > 0 ? (
+                      <div className="casual-shop__seasonActBox" role="group" aria-label="与本商品相关的限时活动">
+                        <div className="casual-shop__seasonActLabel">活动关联 · {shopMatchedActs.length}</div>
+                        <ul className="casual-shop__seasonActList">
+                          {shopMatchedActs.map((a) => {
+                            const fxChips = formatActivityEffectChips(a);
+                            return (
+                              <li key={a.activityId} className="casual-shop__seasonActRow">
+                                <span className="casual-shop__seasonActTitle">{a.title}</span>
+                                {fxChips.length > 0 ? (
+                                  <span className="casual-shop__seasonActFx">{fxChips.join(" · ")}</span>
+                                ) : (
+                                  <span className="casual-shop__seasonActFx casual-shop__seasonActFx--muted">
+                                    计入购买上下文（无数值摘要）
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ) : null}
+                    <p className="casual-shop__grant">{grantLine(sku)}</p>
+                    <button
+                      type="button"
+                      className={`casual-shop__buy${loading ? " casual-shop__buy--busy" : ""}`}
+                      disabled={!affordable || loading}
+                      onClick={async () => {
+                        setBusySku(sku.skuId);
+                        try {
+                          if (view.isLive) {
+                            const r = await casual.purchaseShopSku(sku.skuId);
+                            if (r.ok) {
+                              const actTitles = resolveActivityTitlesById(
+                                activitiesForOrdinaryShop,
+                                r.activityIds
+                              );
+                              const actHint = actTitles.length ? ` · ${actTitles.join("、")}` : "";
+                              setToast({ ok: true, text: `购买成功，货币已更新。${actHint}` });
+                            } else {
+                              setToast({ ok: false, text: shopErrorMessage(r.error) });
+                            }
+                            await casual.refreshCasualPlayer();
+                          } else {
+                            if (!affordable) return;
+                            const ctx = { shopSkuId: sku.skuId };
+                            const acts = activitiesForOrdinaryShop;
+                            setMockWallet((w) => {
+                              let c = w.coins;
+                              let g = w.gems;
+                              if (sku.priceCoins != null) {
+                                c -= previewCoinsCost(acts, ctx, sku.priceCoins).effective;
+                              }
+                              if (sku.priceGems != null) {
+                                g -= previewGemsCost(acts, ctx, sku.priceGems).effective;
+                              }
+                              return { coins: Math.max(0, c), gems: Math.max(0, g) };
+                            });
+                            setToast({
+                              ok: true,
+                              text: `预览：已购买「${displayTitle(sku.skuId, sku.title)}」（仅本页钱包演示）`,
+                            });
+                          }
+                        } finally {
+                          setBusySku(null);
+                        }
+                      }}
+                    >
+                      {loading ? "处理中…" : affordable ? "购买" : "货币不足"}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        ) : null}
 
         <h2 className="casual-econ__sectionTitle" style={{ marginTop: 28 }}>
           钻石充值（法币）

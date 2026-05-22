@@ -1,6 +1,7 @@
 /**
  * Block Blast 游戏管理器（对齐 solitaireSolo：interactionPhase、loadGame、战报与提交）
  */
+import { useCasualPlatform } from 'component/lobby/casual/service/useCasualPlatformManager';
 import { useUserManager } from 'host/service/UserManager';
 import { useConvex } from 'convex/react';
 import gsap from 'gsap';
@@ -96,6 +97,7 @@ interface IBlockBlastGameContext {
     postCasualTableSummary: CasualAsyncTableSummaryUI | null;
     postCasualWaitingForPeers: boolean;
     postCasualCanReplay: boolean;
+    postCasualReplayOffered: boolean;
     casualReplayBusy: boolean;
     replayCasualRun: () => Promise<void>;
     dismissPostCasualSummary: () => void;
@@ -130,6 +132,7 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     postCasualTableSummary: null,
     postCasualWaitingForPeers: false,
     postCasualCanReplay: false,
+    postCasualReplayOffered: false,
     casualReplayBusy: false,
     replayCasualRun: async () => {},
     dismissPostCasualSummary: () => { },
@@ -175,6 +178,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     }
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const convex = useConvex();
+    const casual = useCasualPlatform();
     const { user } = useUserManager();
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
     const [postCasualScoreReportOpen, setPostCasualScoreReportOpen] = useState(false);
@@ -187,6 +191,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     );
     const [postCasualWaitingForPeers, setPostCasualWaitingForPeers] = useState(false);
     const [postCasualCanReplay, setPostCasualCanReplay] = useState(false);
+    const [postCasualReplayOffered, setPostCasualReplayOffered] = useState(false);
+    const [postCasualReplayTokenCount, setPostCasualReplayTokenCount] = useState(0);
     const [casualReplayBusy, setCasualReplayBusy] = useState(false);
 
     const casualRunSubmittedRef = useRef(false);
@@ -245,6 +251,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             settle: {
                 tableSummary?: CasualAsyncTableSummaryUI | null;
                 pendingOthers?: boolean;
+                replayOffered?: boolean;
+                replayTokenCount?: number;
                 canReplay?: boolean;
             }
         ) => {
@@ -255,6 +263,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             setPostCasualScoreReport(report);
             setPostCasualTableSummary(settle.tableSummary ?? null);
             setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
+            const offered = Boolean(settle.replayOffered ?? settle.canReplay);
+            setPostCasualReplayOffered(offered);
+            setPostCasualReplayTokenCount(
+                typeof settle.replayTokenCount === 'number' ? settle.replayTokenCount : 0
+            );
             setPostCasualCanReplay(Boolean(settle.canReplay));
             setPostCasualScoreReportOpen(true);
         },
@@ -307,6 +320,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             setPostCasualTableSummary(null);
             setPostCasualWaitingForPeers(false);
             setPostCasualCanReplay(false);
+            setPostCasualReplayOffered(false);
+            setPostCasualReplayTokenCount(0);
             setPostCasualScoreReportOpen(false);
             setPostCasualScoreReport(null);
             await reloadCasualRun();
@@ -317,7 +332,37 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         }
     }, [convex, user?.token, casualReplayBusy, reloadCasualRun]);
 
+    const exitCasualRunAfterSettle = useCallback(
+        async (opts: { hadReplayOffer: boolean }) => {
+            const gs = gameStateRef.current;
+            const isCasualRun =
+                Boolean(casualTournamentId) &&
+                gs &&
+                typeof gs.gameId === 'string' &&
+                gs.gameId.startsWith('game_');
+            if (opts.hadReplayOffer && isCasualRun && user?.uid) {
+                try {
+                    await casual.confirmCasualRunWithoutReplay(gs.gameId);
+                    await casual.refreshCasualPlayer();
+                } catch (e) {
+                    console.warn('[BlockBlast] confirmCasualRunWithoutReplay', e);
+                }
+            }
+            setPostCasualSummaryOpen(false);
+            setPostCasualTableSummary(null);
+            setPostCasualWaitingForPeers(false);
+            setPostCasualCanReplay(false);
+            setPostCasualReplayOffered(false);
+            setPostCasualReplayTokenCount(0);
+            setPostCasualScoreReportOpen(false);
+            setPostCasualScoreReport(null);
+            onGameSubmit?.();
+        },
+        [casual, casualTournamentId, user?.uid, onGameSubmit]
+    );
+
     const dismissPostCasualScoreReport = useCallback(() => {
+        const hadReplayOffer = postCasualReplayOffered;
         setPostCasualScoreReportOpen(false);
         setPostCasualScoreReport(null);
         if (
@@ -329,19 +374,19 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         ) {
             setPostCasualSummaryOpen(true);
         } else {
-            setPostCasualTableSummary(null);
-            setPostCasualWaitingForPeers(false);
-            onGameSubmit?.();
+            void exitCasualRunAfterSettle({ hadReplayOffer: hadReplayOffer });
         }
-    }, [casualTournamentId, postCasualTableSummary, postCasualWaitingForPeers, onGameSubmit]);
+    }, [
+        casualTournamentId,
+        postCasualTableSummary,
+        postCasualWaitingForPeers,
+        postCasualReplayOffered,
+        exitCasualRunAfterSettle,
+    ]);
 
     const dismissPostCasualSummary = useCallback(() => {
-        setPostCasualSummaryOpen(false);
-        setPostCasualTableSummary(null);
-        setPostCasualWaitingForPeers(false);
-        setPostCasualCanReplay(false);
-        onGameSubmit?.();
-    }, [onGameSubmit]);
+        void exitCasualRunAfterSettle({ hadReplayOffer: postCasualReplayOffered });
+    }, [postCasualReplayOffered, exitCasualRunAfterSettle]);
 
     const ruleManager = useMemo(() => {
         if (!gameState) return null;
@@ -461,7 +506,14 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             scoreArg?: number,
             opts?: { deferHostNotify?: boolean }
         ): Promise<
-            | { ok: true; tableSummary?: CasualAsyncTableSummaryUI; pendingOthers?: boolean; canReplay?: boolean }
+            | {
+                  ok: true;
+                  tableSummary?: CasualAsyncTableSummaryUI;
+                  pendingOthers?: boolean;
+                  replayOffered?: boolean;
+                  replayTokenCount?: number;
+                  canReplay?: boolean;
+              }
             | { ok: false }
         > => {
             const gs = gameStateRef.current;
@@ -484,6 +536,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                         error?: string;
                         tableSummary?: CasualAsyncTableSummaryUI;
                         pendingOthers?: boolean;
+                        replayOffered?: boolean;
+                        replayTokenCount?: number;
                         canReplay?: boolean;
                     };
                     if (!cr.ok) {
@@ -498,6 +552,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                         ok: true,
                         ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
                         ...(cr.pendingOthers ? { pendingOthers: true } : {}),
+                        ...(cr.replayOffered ? { replayOffered: true } : {}),
+                        ...(cr.replayTokenCount != null ? { replayTokenCount: cr.replayTokenCount } : {}),
                         ...(cr.canReplay ? { canReplay: true } : {}),
                     };
                 }
@@ -548,6 +604,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             void beginCasualPostSettleFlow(gs.gameId, score, {
                 tableSummary: extras?.tableSummary ?? undefined,
                 pendingOthers: extras?.pendingOthers,
+                replayOffered: extras?.replayOffered,
+                replayTokenCount: extras?.replayTokenCount,
                 canReplay: extras?.canReplay,
             });
         },
@@ -589,6 +647,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             const out: ManualSettleConfirmExtras = {};
             if (settled.tableSummary) out.tableSummary = settled.tableSummary;
             if (settled.pendingOthers) out.pendingOthers = true;
+            if (settled.replayOffered) out.replayOffered = true;
+            if (settled.replayTokenCount != null) out.replayTokenCount = settled.replayTokenCount;
             if (settled.canReplay) out.canReplay = true;
             return out;
         } catch (e) {
@@ -713,6 +773,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         postCasualTableSummary,
         postCasualWaitingForPeers,
         postCasualCanReplay,
+        postCasualReplayOffered,
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,

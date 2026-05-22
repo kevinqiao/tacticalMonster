@@ -82,6 +82,12 @@ http.route({
     if (r.periodSettled === true) {
       okBody.periodSettled = true;
     }
+    if (r.replayOffered === true) {
+      okBody.replayOffered = true;
+    }
+    if (typeof r.replayTokenCount === "number") {
+      okBody.replayTokenCount = r.replayTokenCount;
+    }
     if (r.canReplay === true) {
       okBody.canReplay = true;
     } else if (r.canReplay === false) {

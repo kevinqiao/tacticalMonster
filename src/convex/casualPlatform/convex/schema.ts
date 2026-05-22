@@ -151,7 +151,7 @@ export default defineSchema({
     botsSeeded: v.optional(v.boolean()),
     minPlayers: v.number(),
     maxPlayers: v.number(),
-    /** 开局时真人数量（用于 Solitaire 虚拟对手数 = maxPlayers - humanPlayerCount） */
+    /** 开局时真人数量（异步虚拟对手数 = maxPlayers - humanPlayerCount） */
     humanPlayerCount: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),

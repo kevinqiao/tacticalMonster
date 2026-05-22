@@ -21,7 +21,7 @@ import {
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "./casualTournamentJoinCore";
-import { isCasualSolitaireVirtualUid } from "./casualRunSettlementFill";
+import { isCasualAsyncVirtualOpponentUid } from "./casualRunSettlementFill";
 
 async function activeSeasonId(ctx: QueryCtx | MutationCtx): Promise<string | null> {
   const seasons = await ctx.db.query("casual_seasons").collect();
@@ -314,7 +314,7 @@ export async function computeConsecutiveLossStreak(
     .collect();
 
   const settled = rows
-    .filter((r) => r.status === "settled" && r.rank != null && !isCasualSolitaireVirtualUid(r.uid))
+    .filter((r) => r.status === "settled" && r.rank != null && !isCasualAsyncVirtualOpponentUid(r.uid))
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, CASUAL_LOSS_STREAK_LOOKBACK_MAX);
 
@@ -387,7 +387,7 @@ export async function resolvePlayerBotStrategyContext(
     .withIndex("by_uid", (q) => q.eq("uid", uid))
     .collect();
   const humanSettled = matchRows
-    .filter((r) => r.status === "settled" && !isCasualSolitaireVirtualUid(r.uid))
+    .filter((r) => r.status === "settled" && !isCasualAsyncVirtualOpponentUid(r.uid))
     .sort((a, b) => b.updatedAt - a.updatedAt);
   const last = humanSettled[0];
   const daysSinceLastMatch = last

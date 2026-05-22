@@ -18,5 +18,7 @@ export type ManualSettleConfirmExtras = {
   tableSummary?: CasualAsyncTableSummaryUI | null;
   /** 同桌尚未全部提交，暂无本桌名次表 */
   pendingOthers?: boolean;
+  replayOffered?: boolean;
+  replayTokenCount?: number;
   canReplay?: boolean;
 };

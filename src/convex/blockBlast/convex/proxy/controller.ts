@@ -251,7 +251,15 @@ export const submitCasualPlatformRun = action({
       return { ok: false as const, error: "casual_unreachable" };
     }
 
-    let parsed: { ok?: boolean; error?: string; tableSummary?: unknown; pendingOthers?: boolean } = {};
+    let parsed: {
+      ok?: boolean;
+      error?: string;
+      tableSummary?: unknown;
+      pendingOthers?: boolean;
+      replayOffered?: boolean;
+      replayTokenCount?: number;
+      canReplay?: boolean;
+    } = {};
     try {
       const text = await res.text();
       if (text) {
@@ -260,6 +268,9 @@ export const submitCasualPlatformRun = action({
           error?: string;
           tableSummary?: unknown;
           pendingOthers?: boolean;
+          replayOffered?: boolean;
+          replayTokenCount?: number;
+          canReplay?: boolean;
         };
       }
     } catch {
@@ -275,11 +286,16 @@ export const submitCasualPlatformRun = action({
 
     const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
     const pendingOthers = parsed.pendingOthers === true;
+    const replayOffered = parsed.replayOffered === true;
+    const replayTokenCount =
+      typeof parsed.replayTokenCount === "number" ? parsed.replayTokenCount : undefined;
     const canReplay = parsed.canReplay === true;
     return {
       ok: true as const,
       ...(tableSummary ? { tableSummary } : {}),
       ...(pendingOthers ? { pendingOthers: true as const } : {}),
+      ...(replayOffered ? { replayOffered: true as const } : {}),
+      ...(replayTokenCount != null ? { replayTokenCount } : {}),
       ...(canReplay ? { canReplay: true as const } : {}),
     };
   },

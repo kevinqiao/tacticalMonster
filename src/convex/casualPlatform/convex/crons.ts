@@ -3,6 +3,13 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
+crons.interval(
+  "finalize expired casual async runs",
+  { minutes: 1 },
+  internal.service.tournament.casualRunExpireCron.finalizeExpiredCasualAsyncRuns,
+  {}
+);
+
 crons.hourly(
   "close expired casual tournament instances",
   { minuteUTC: 12 },

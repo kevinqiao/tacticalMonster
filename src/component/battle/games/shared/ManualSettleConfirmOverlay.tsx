@@ -19,11 +19,18 @@ function normalizeSettleExtras(maybe: unknown): ManualSettleConfirmExtras | unde
   const ts = m.tableSummary;
   const hasTable =
     ts != null && typeof ts === 'object' && Array.isArray(ts.rows) && ts.rows.length > 0;
-  const hasExtra = hasTable || m.pendingOthers === true;
+  const hasReplay =
+    m.replayOffered === true ||
+    m.canReplay === true ||
+    typeof m.replayTokenCount === 'number';
+  const hasExtra = hasTable || m.pendingOthers === true || hasReplay;
   if (!hasExtra) return undefined;
   return {
     tableSummary: hasTable ? ts : undefined,
     pendingOthers: m.pendingOthers,
+    ...(m.replayOffered ? { replayOffered: true } : {}),
+    ...(m.replayTokenCount != null ? { replayTokenCount: m.replayTokenCount } : {}),
+    ...(m.canReplay ? { canReplay: true } : {}),
   };
 }
 
