@@ -314,7 +314,11 @@ async function applyCasualTemplateScoreEffects(
   await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
     uid,
     matchType: def.matchType,
+    platformGameId: def.gameId,
     spotlightSeasonBoardGain: appliedSeasonPointsForTask,
+    ...(typeof args.multiplayerFinalRank === "number" && args.multiplayerFinalRank >= 1
+      ? { multiplayerFinalRank: args.multiplayerFinalRank }
+      : {}),
   });
 
   const pendingPruned = deferWallet ? prunePendingWalletRewards(pendingWallet) : undefined;
@@ -1089,6 +1093,7 @@ export async function finalizeCasualAsyncMatchIngest(
       await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
         uid: hp.uid,
         matchType: def.matchType,
+        platformGameId: def.gameId,
         spotlightSeasonBoardGain: 0,
       });
     }
@@ -1397,8 +1402,10 @@ export const submitCasualRunScoreCore = internalMutation({
         await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
           uid,
           matchType: def.matchType,
+          platformGameId: def.gameId,
           spotlightSeasonBoardGain:
             def.matchType === "season_challenge" ? periodLadderDelta : 0,
+          multiplayerFinalRank: 1,
         });
         const tableSummaryPeriodSolo = casualTableSummarySolo(def.maxPlayers, score);
         return {

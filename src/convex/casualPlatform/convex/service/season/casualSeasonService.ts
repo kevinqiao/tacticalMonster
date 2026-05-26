@@ -325,6 +325,10 @@ async function autoClaimPassLevelsUpTo(
           uid,
           kind: g.kind,
           amount: g.amount,
+          skinId: g.skinId,
+          skinToken: g.skinToken,
+          seasonId,
+          source: g.kind === "skin" ? ("pass" as const) : undefined,
         });
       }
       await ctx.db.insert("casual_pass_claims", {

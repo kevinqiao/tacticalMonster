@@ -16,6 +16,7 @@ import {
     SoloMove,
     ZoneType
 } from '../types/SoloTypes';
+import { scoreDeltaForMove } from '@/convex/solitaireArena/convex/service/seedPool/solitaireScoring';
 import { createZones } from '../Utils';
 
 export class SoloRuleManager implements SolitaireRule {
@@ -275,6 +276,35 @@ export class SoloRuleManager implements SolitaireRule {
             }
         }
 
+        // foundation 顶牌 → tableau（Solitaire Cash 允许，-100）
+        const foundationZonesForTableau = this.gameState.zones.filter(
+            (zone) => zone.type === ZoneType.FOUNDATION
+        );
+        for (const foundationZone of foundationZonesForTableau) {
+            const foundationCards = this.gameState.cards
+                .filter((c) => c.zone === ZoneType.FOUNDATION && c.zoneId === foundationZone.id)
+                .sort((a, b) => b.zoneIndex - a.zoneIndex);
+            const topFoundation = foundationCards[0];
+            if (!topFoundation) continue;
+
+            const tableauTargets = this.gameState.zones.filter((zone) => zone.type === ZoneType.TABLEAU);
+            for (const tableauZone of tableauTargets) {
+                const col = parseInt(tableauZone.id.split("-")[1]);
+                if (this.canMoveToTableau(topFoundation, tableauZone.id)) {
+                    moves.push({
+                        id: `move-${Date.now()}-${Math.random()}`,
+                        type: "move",
+                        from: foundationZone.id,
+                        to: `tableau-${col}`,
+                        card: topFoundation,
+                        timestamp: Date.now(),
+                        isValid: true,
+                        points: -100,
+                    });
+                }
+            }
+        }
+
         // 检查牌桌的移动
         const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
         for (const tableauZone of tableauZones) {
@@ -389,30 +419,10 @@ export class SoloRuleManager implements SolitaireRule {
     }
 
     /**
-     * 计算移动得分
+     * 计算移动得分（Solitaire Cash base actions）
      */
     calculateMoveScore(move: SoloMove): number {
-        let score = 0;
-
-        switch (move.type) {
-            case 'foundation':
-                score = 10;
-                break;
-            case 'move':
-                score = 5;
-                break;
-            case 'waste':
-                score = 0;
-                break;
-            default:
-                score = 0;
-        }
-
-        // 时间奖励
-        const timeBonus = Math.max(0, 100 - this.gameState.moves * 10);
-        score += Math.floor(timeBonus / 10);
-
-        return score;
+        return scoreDeltaForMove(move.from, move.to, 0);
     }
     /**
      * 检查是否可以抽牌

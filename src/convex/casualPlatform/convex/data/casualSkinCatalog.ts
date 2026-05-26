@@ -409,7 +409,7 @@ export function listPublicSkinCatalog() {
   }));
 }
 
-/** Pass 领取时按赛季解析皮肤奖励 token */
+/** Pass 领取时按赛季解析皮肤奖励 token（多游戏平台 Pass） */
 export function resolveSeasonPassSkinId(
   seasonId: string,
   token:
@@ -423,6 +423,19 @@ export function resolveSeasonPassSkinId(
     | "ui_deluxe"
     | "town_full_standard"
     | "town_full_deluxe"
+    | "solitaire_card_back_standard"
+    | "block_piece_standard"
+    | "solitaire_table_rare"
+    | "block_board_rare"
+    | "platform_avatar_standard"
+    | "platform_avatar_deluxe"
+    | "town_standard"
+    | "town_deluxe"
+    | "finale_fragment"
+    | "platform_finale_standard"
+    | "platform_mvp_deluxe"
+    | "explorer_bonus_deluxe"
+    | "platform_finale_deluxe"
 ): string | null {
   const n = seasonId.trim().toLowerCase();
   const isS2 = n === "casual_s2" || n.endsWith("_s2") || n.startsWith("casual_s2_");
@@ -438,6 +451,19 @@ export function resolveSeasonPassSkinId(
     ui_deluxe: `ui_${prefix}_deluxe`,
     town_full_standard: `${prefix}_town_theme_full_std`,
     town_full_deluxe: `${prefix}_town_theme_full_deluxe`,
+    solitaire_card_back_standard: `${prefix}_visual_bundle_std`,
+    block_piece_standard: `${prefix}_visual_bundle_std`,
+    solitaire_table_rare: `${prefix}_town_theme_accent_std`,
+    block_board_rare: `${prefix}_town_theme_accent_deluxe`,
+    platform_avatar_standard: `ui_${prefix}_standard`,
+    platform_avatar_deluxe: `ui_${prefix}_deluxe`,
+    town_standard: `${prefix}_town_theme_facade_std`,
+    town_deluxe: `${prefix}_town_theme_facade_deluxe`,
+    finale_fragment: `ui_${prefix}_env`,
+    platform_finale_standard: `${prefix}_visual_bundle_std`,
+    platform_mvp_deluxe: `${prefix}_town_theme_full_deluxe`,
+    explorer_bonus_deluxe: `${prefix}_visual_bundle_deluxe`,
+    platform_finale_deluxe: `${prefix}_visual_bundle_deluxe`,
   };
   return map[token] ?? null;
 }

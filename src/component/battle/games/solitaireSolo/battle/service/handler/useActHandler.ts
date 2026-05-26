@@ -497,8 +497,12 @@ const useActHandler = () => {
         if (!gameState || !ruleManager || !card) return;
         if (isTerminalSoloStatus(gameState.status)) return;
         const drawResult = SoloGameEngine.drawCard(gameState, card.id);
-        const drawedCard = drawResult.data?.draw?.[0];
-        if (!drawedCard) return;
+        const drawnCards = drawResult.data?.draw ?? [];
+        if (drawnCards.length === 0) return;
+        const drawnWithEle = drawnCards.map((c) => {
+            const dom = gameState.cards.find((gc) => gc.id === c.id);
+            return { ...c, ele: dom?.ele } as SoloCard;
+        });
 
         setInteractionPhase(GameInteractionPhase.animating);
         let updateCards: SoloCard[] = [];
@@ -509,7 +513,7 @@ const useActHandler = () => {
                     .mutation(api.service.gameManager.draw, { gameId: gameState.gameId, cardId: card.id })
                     .then((result: ActionResult & ServerProgress) => {
                         if (result.ok && result.data?.draw && result.data.draw.length > 0) {
-                            const revealedCard = result.data.draw[0] as SoloCard;
+                            const revealedCard = result.data.draw[result.data.draw.length - 1] as SoloCard;
                             updateCards.push(...result.data.draw);
                             serverSnap = {
                                 score: result.score,
@@ -533,7 +537,7 @@ const useActHandler = () => {
             });
             const playPromise = new Promise<void>((resolve) => {
                 PlayEffects.drawCard({
-                    data: { card: drawedCard as SoloCard, boardDimensionRef, gameState },
+                    data: { cards: drawnWithEle, boardDimensionRef, gameState },
                     onComplete: () => {
                         resolve();
                     },

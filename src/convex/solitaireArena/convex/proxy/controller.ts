@@ -6,6 +6,11 @@ import jwt from "jsonwebtoken";
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
 import { resolveCasualBridgeEnv } from "../service/casualBridgeEnv";
+import {
+    buildSolitaireCashGameReport,
+    resolveLiveGameElapsedSec,
+    SOLITAIRE_MATCH_TIME_LIMIT_SEC,
+} from "../service/seedPool/solitaireScoring";
 import { SoloGameStatus } from "../types/SoloTypes";
 
 const tournament_url = "https://beloved-mouse-699.convex.site";
@@ -227,7 +232,13 @@ export const submitCasualPlatformRun = action({
             return { ok: false as const, error: "not_terminal" };
         }
 
-        const score = Math.max(0, Math.floor(Number((game as { score?: number }).score ?? 0)));
+        const baseScore = Math.max(0, Math.floor(Number((game as { score?: number }).score ?? 0)));
+        const playStartedAt = (game as { playStartedAt?: number }).playStartedAt;
+        const elapsedSec = Math.min(
+            SOLITAIRE_MATCH_TIME_LIMIT_SEC,
+            resolveLiveGameElapsedSec(playStartedAt)
+        );
+        const score = buildSolitaireCashGameReport(baseScore, elapsedSec).totalScore;
 
         const url = `${casualOrigin}/internal/casual-run-ingest`;
         let res: Response;

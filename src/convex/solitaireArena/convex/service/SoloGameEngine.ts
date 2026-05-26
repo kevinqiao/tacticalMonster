@@ -13,6 +13,10 @@ import {
 } from '../types/SoloTypes';
 import { createSeededRandom } from '../utils/seedRandom';
 import { SoloRuleManager } from './SoloRuleManager';
+
+/** Klondike 抽牌张数：3 = Draw 3，1 = Draw 1 */
+export const SOLITAIRE_TALON_DRAW_COUNT = 3;
+
 export const createZones = () => {
     return [
         // 牌堆
@@ -114,10 +118,18 @@ export class SoloGameEngine {
         if (!gameState) return result;
         const ruleManager = new SoloRuleManager(gameState, GameInteractionPhase.idle);
         if (!ruleManager.canRecycle()) return result;
-        const wasteCards = gameState.cards.filter((c: Card) => c.zoneId === 'waste').sort((a: Card, b: Card) => b.zoneIndex - a.zoneIndex);
-        const cards = wasteCards.map((c: Card, index: number) => {
-            return { ...c, zoneIndex: wasteCards.length - index - 1, zoneId: 'talon', zone: ZoneType.TALON };
-        });
+        // waste 自底向顶；回收后底牌应在 talon 顶（下一轮先被 Draw 3 抽到）
+        const wasteCards = gameState.cards
+            .filter((c: Card) => c.zoneId === 'waste')
+            .sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
+        const n = wasteCards.length;
+        const cards = wasteCards.map((c: Card, index: number) => ({
+            ...c,
+            zoneIndex: n - 1 - index,
+            zoneId: 'talon',
+            zone: ZoneType.TALON,
+            isRevealed: false,
+        }));
         result.data!.update = cards;
         result.ok = true;
         return result;
@@ -164,18 +176,35 @@ export class SoloGameEngine {
         return result;
     }
     public static drawCard(gameState: SoloGameState, cardId: string): ActionResult {
-
         const result: ActionResult = { ok: false, data: {} };
         if (!gameState) return result;
         const ruleManager = new SoloRuleManager(gameState, GameInteractionPhase.idle);
-        const canDraw = ruleManager.canDraw(cardId);
-        if (!canDraw) return result;
-        const card = gameState.cards.find((c: Card) => c.id === cardId);
-        // console.log('card', card);
-        if (!card) return result;
-        const wasteCards = gameState.cards.filter((c: Card) => c.zoneId === 'waste').sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
-        const wasteIndex = wasteCards.length === 0 ? 0 : wasteCards[wasteCards.length - 1].zoneIndex + 1;
-        result.data!.draw = [{ ...card, zone: ZoneType.WASTE, zoneId: 'waste', zoneIndex: wasteIndex, isRevealed: true }];
+        if (!ruleManager.canDraw(cardId)) return result;
+
+        const talonCards = gameState.cards
+            .filter((c: Card) => c.zoneId === 'talon')
+            .sort((a: Card, b: Card) => b.zoneIndex - a.zoneIndex);
+        const drawCount = Math.min(SOLITAIRE_TALON_DRAW_COUNT, talonCards.length);
+        if (drawCount === 0) return result;
+
+        const wasteCards = gameState.cards
+            .filter((c: Card) => c.zoneId === 'waste')
+            .sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
+        let nextWasteIndex =
+            wasteCards.length === 0 ? 0 : wasteCards[wasteCards.length - 1].zoneIndex + 1;
+
+        const drawn: Card[] = [];
+        for (let i = 0; i < drawCount; i++) {
+            const card = talonCards[i]!;
+            drawn.push({
+                ...card,
+                zone: ZoneType.WASTE,
+                zoneId: 'waste',
+                zoneIndex: nextWasteIndex + i,
+                isRevealed: true,
+            });
+        }
+        result.data!.draw = drawn;
         result.ok = true;
         return result;
     }

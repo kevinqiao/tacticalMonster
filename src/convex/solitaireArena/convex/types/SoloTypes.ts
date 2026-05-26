@@ -64,6 +64,8 @@ export interface GameModel {
     score: number;
     moves: number;
     seed?: string;
+    /** Wall-clock ms when the 5-minute match timer starts (first scoring action). */
+    playStartedAt?: number;
     lastUpdate?: string;//event id
 }
 // 简化的游戏状态 - 只使用统一的 cards 数组
@@ -207,12 +209,13 @@ export const CARD_VALUES = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7'
 export const SUIT_ICONS = { 'hearts': '♥', 'diamonds': '♦', 'clubs': '♣', 'spades': '♠' } as const;
 export const DEFAULT_GAME_CONFIG: SoloGameConfig = {
     scoring: {
-        foundationMove: 10,
-        tableauMove: 5,
-        wasteMove: 0,
+        foundationMove: 120,
+        tableauMove: 0,
+        wasteMove: 20,
         timeBonus: 1,
-        movePenalty: -1
+        movePenalty: 0,
     },
+    timeLimit: 300,
     hintsEnabled: true,
     /** 为 true 时，满足「全明且可仅收 foundation」则显示「收到基础」并允许一键收完 */
     autoComplete: true

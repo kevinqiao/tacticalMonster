@@ -21,6 +21,7 @@ import type * as data_casualPayoutPolicy from "../data/casualPayoutPolicy.js";
 import type * as data_casualSeasonLadderConfig from "../data/casualSeasonLadderConfig.js";
 import type * as data_casualShopCatalog from "../data/casualShopCatalog.js";
 import type * as data_casualSkinCatalog from "../data/casualSkinCatalog.js";
+import type * as data_casualSpotlightGame from "../data/casualSpotlightGame.js";
 import type * as data_casualTournamentConfigs from "../data/casualTournamentConfigs.js";
 import type * as data_casualTournamentRewardTypes from "../data/casualTournamentRewardTypes.js";
 import type * as http from "../http.js";
@@ -37,6 +38,7 @@ import type * as service_season_casualSeasonLadder from "../service/season/casua
 import type * as service_season_casualSeasonService from "../service/season/casualSeasonService.js";
 import type * as service_shop_casualShopService from "../service/shop/casualShopService.js";
 import type * as service_skin_casualSkinService from "../service/skin/casualSkinService.js";
+import type * as service_task_casualPrimaryGame from "../service/task/casualPrimaryGame.js";
 import type * as service_task_casualTaskService from "../service/task/casualTaskService.js";
 import type * as service_tournament_casualBotDifficultyService from "../service/tournament/casualBotDifficultyService.js";
 import type * as service_tournament_casualInstanceService from "../service/tournament/casualInstanceService.js";
@@ -74,6 +76,7 @@ declare const fullApi: ApiFromModules<{
   "data/casualSeasonLadderConfig": typeof data_casualSeasonLadderConfig;
   "data/casualShopCatalog": typeof data_casualShopCatalog;
   "data/casualSkinCatalog": typeof data_casualSkinCatalog;
+  "data/casualSpotlightGame": typeof data_casualSpotlightGame;
   "data/casualTournamentConfigs": typeof data_casualTournamentConfigs;
   "data/casualTournamentRewardTypes": typeof data_casualTournamentRewardTypes;
   http: typeof http;
@@ -90,6 +93,7 @@ declare const fullApi: ApiFromModules<{
   "service/season/casualSeasonService": typeof service_season_casualSeasonService;
   "service/shop/casualShopService": typeof service_shop_casualShopService;
   "service/skin/casualSkinService": typeof service_skin_casualSkinService;
+  "service/task/casualPrimaryGame": typeof service_task_casualPrimaryGame;
   "service/task/casualTaskService": typeof service_task_casualTaskService;
   "service/tournament/casualBotDifficultyService": typeof service_tournament_casualBotDifficultyService;
   "service/tournament/casualInstanceService": typeof service_tournament_casualInstanceService;

@@ -127,19 +127,41 @@ export function chestErrorMessage(code: string | undefined): string {
 /** 已知任务 ID 的中文标题；其余回退服务端 title */
 export const MISSION_TITLE_ZH: Record<string, string> = {
   daily_sign_in: "每日签到",
-  daily_async_1: "完成 1 次异步锦标（A/B/C）",
-  daily_spotlight_1: "完成 1 次赛季专场",
-  daily_runs_3: "当日累计完成 3 局有效结算",
-  weekly_async_8: "本周完成异步锦标结算 8 次",
-  weekly_spotlight_3: "本周完成赛季专场结算 3 次",
-  weekly_spotlight_season_pts_20: "本周专场对局累计获得 20 赛季分（仅正分计入）",
-  weekly_runs_15: "本周累计有效结算 15 局",
-  season_join_tournament_1: "本赛季首次加入任意锦标赛",
+  daily_platform_async_1: "任意游戏完成 1 次异步锦标（A/B/C）",
+  daily_platform_runs_3: "任意游戏累计完成 3 局有效结算",
+  weekly_platform_async_8: "任意游戏完成异步锦标结算 8 次",
+  weekly_platform_runs_15: "任意游戏累计有效结算 15 局",
+  season_first_tournament: "本赛季首次加入任意锦标赛",
+  season_platform_runs_60: "任意游戏累计有效结算 60 局",
+  weekly_spotlight_game_3: "本周主题游戏完成 3 局",
+  weekly_spotlight_top3_1: "本周主题游戏异步 A/B 名次进入前 3 一次",
+  weekly_non_primary_1: "非主游戏完成 1 局有效结算",
+  weekly_two_distinct_games: "2 个不同游戏各完成至少 1 局",
+  season_game_explorer_5: "非主游戏累计有效结算 5 局",
+  season_platform_polyglot: "3 个不同游戏各累计至少 5 局",
+  weekly_pvp_any_3: "任意 PVP 完成 3 局",
+  season_pvp_win_10: "PVP 累计获得 10 胜",
   season_spotlight_10: "本赛季累计完成赛季专场结算 10 次",
   season_spotlight_season_pts_80: "本赛季专场对局累计获得 80 赛季分（仅正分计入）",
-  season_runs_60: "本赛季累计有效结算 60 局",
   mock_preview_mission_claimed: "赛季：累计邀请 3 位好友（示例）",
 };
+
+export function missionPoolLabelZh(pool: string | undefined): string {
+  switch (pool) {
+    case "platform":
+      return "平台必做";
+    case "theme":
+      return "主题游戏周";
+    case "explorer":
+      return "平台探索";
+    case "pvp":
+      return "PVP 专项";
+    case "spotlight":
+      return "专场加码";
+    default:
+      return "任务";
+  }
+}
 
 export function missionDisplayTitle(taskId: string, serverTitle: string): string {
   return MISSION_TITLE_ZH[taskId] ?? serverTitle;

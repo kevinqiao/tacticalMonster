@@ -106,7 +106,7 @@ export type BotDifficultyRule = {
 };
 
 const RANK_MIN_SOLITAIRE: Record<CasualTournamentDefinition["matchType"], RankMinScoresByRank> = {
-  tournament_a: { 1: 450, 2: 280, 3: 120 },
+  tournament_a: { 1: 450, 2: 80, 3: 20 },
   tournament_b: { 1: 500, 2: 320, 3: 180, 4: 80 },
   tournament_c: { 1: 550, 2: 380, 3: 240, 4: 120, 5: 40 },
   season_challenge: { 1: 480, 2: 300, 3: 150, 4: 60 },

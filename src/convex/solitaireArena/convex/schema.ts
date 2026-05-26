@@ -1,7 +1,59 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+import {
+    rolloutDistributionMetrics,
+    rolloutTerminalReason,
+    solitaireSeedTier,
+    tierCounts,
+} from "./service/seedPool/solitaireSeedPoolValidators";
+
 export default defineSchema({
+    solitaire_seed_pool_meta: defineTable({
+        poolVersion: v.string(),
+        rolloutCount: v.number(),
+        matchTimeLimitSec: v.number(),
+        generatedAt: v.string(),
+        entryCount: v.number(),
+        tierCounts: v.optional(tierCounts),
+        isActive: v.boolean(),
+        importStatus: v.optional(v.union(v.literal("importing"), v.literal("ready"))),
+        importedAt: v.number(),
+    })
+        .index("by_poolVersion", ["poolVersion"])
+        .index("by_isActive", ["isActive"]),
+
+    solitaire_seed_pool_entries: defineTable({
+        poolVersion: v.string(),
+        seedId: v.string(),
+        tier: solitaireSeedTier,
+        difficultyScore: v.number(),
+        metrics: rolloutDistributionMetrics,
+    })
+        .index("by_poolVersion", ["poolVersion"])
+        .index("by_poolVersion_and_seedId", ["poolVersion", "seedId"])
+        .index("by_poolVersion_and_tier", ["poolVersion", "tier"])
+        .index("by_poolVersion_and_difficultyScore", ["poolVersion", "difficultyScore"]),
+
+    solitaire_seed_pool_rollout_summaries: defineTable({
+        poolVersion: v.string(),
+        seedId: v.string(),
+        rolloutIndex: v.number(),
+        finalScore: v.number(),
+        moves: v.number(),
+        completed: v.boolean(),
+        terminalReason: rolloutTerminalReason,
+        elapsedSimSeconds: v.number(),
+        opCount: v.number(),
+    })
+        .index("by_poolVersion", ["poolVersion"])
+        .index("by_poolVersion_and_seedId", ["poolVersion", "seedId"])
+        .index("by_poolVersion_and_seedId_and_rolloutIndex", [
+            "poolVersion",
+            "seedId",
+            "rolloutIndex",
+        ]),
+
     game: defineTable({
         gameId: v.string(),
         cards: v.array(v.object({
@@ -23,6 +75,7 @@ export default defineSchema({
         status: v.number(),
         score: v.number(),
         moves: v.number(),
+        playStartedAt: v.optional(v.number()),
         seed: v.optional(v.string()),
         lastUpdate: v.optional(v.string()),
     }).index("by_gameId", ["gameId"]),

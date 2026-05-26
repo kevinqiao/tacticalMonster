@@ -1,15 +1,19 @@
 import { v } from "convex/values";
+import { weeklySpotlightPlatformGameId } from "../../data/casualSpotlightGame.js";
 import {
   CASUAL_MISSION_TEMPLATES,
   type CasualMissionTemplate,
   type MissionTier,
+  missionPoolLabelZh,
 } from "../../data/casualMissionTemplates";
+import { resolvePrimaryPlatformGameId } from "./casualPrimaryGame.js";
 import { internal } from "../../_generated/api";
 import type { MutationCtx } from "../../_generated/server";
 import { dailyPeriodKey, seasonPeriodKey, weeklyPeriodKey } from "../../utils/casualTaskPeriod";
 import { internalMutation, mutation, query } from "../../_generated/server";
 
 const ASYNC_MATCH_TYPES = new Set(["tournament_a", "tournament_b", "tournament_c"]);
+const PVP_MATCH_TYPES = new Set(["pvp", "tournament_pvp"]);
 type TaskEventType =
   | "task_progressed"
   | "task_completed"
@@ -132,16 +136,215 @@ async function upsertTaskProgress(
   }
 }
 
+async function setTaskProgressAbsolute(
+  ctx: MutationCtx,
+  template: CasualMissionTemplate,
+  uid: string,
+  taskId: string,
+  periodKey: string,
+  absoluteProgress: number,
+  meta?: { matchType?: string }
+) {
+  const existing = await ctx.db
+    .query("casual_tasks")
+    .withIndex("by_uid_task_period", (q) =>
+      q.eq("uid", uid).eq("taskId", taskId).eq("periodKey", periodKey)
+    )
+    .unique();
+  const now = Date.now();
+  const target = template.target;
+  const base = existing?.progress ?? 0;
+  const next = Math.min(target, Math.max(0, Math.floor(absoluteProgress)));
+  if (next === base) return;
+  const completedAt = next >= target ? (existing?.completedAt ?? now) : undefined;
+  if (!existing) {
+    await ctx.db.insert("casual_tasks", {
+      uid,
+      taskId,
+      periodKey,
+      progress: next,
+      completedAt,
+      updatedAt: now,
+    });
+  } else {
+    await ctx.db.patch(existing._id, {
+      progress: next,
+      completedAt,
+      updatedAt: now,
+    });
+  }
+  if (next > base) {
+    await writeTaskEvent(ctx, {
+      uid,
+      taskId,
+      tier: template.tier,
+      periodKey,
+      eventType: "task_progressed",
+      objectiveKind: template.objectiveKind,
+      delta: next - base,
+      progress: next,
+      target,
+      matchType: meta?.matchType,
+    });
+  }
+  if (base < target && next >= target) {
+    await writeTaskEvent(ctx, {
+      uid,
+      taskId,
+      tier: template.tier,
+      periodKey,
+      eventType: "task_completed",
+      objectiveKind: template.objectiveKind,
+      progress: next,
+      target,
+      matchType: meta?.matchType,
+    });
+  }
+}
+
+async function bumpTaskGameCount(
+  ctx: MutationCtx,
+  uid: string,
+  taskId: string,
+  periodKey: string,
+  platformGameId: string
+): Promise<number> {
+  const existing = await ctx.db
+    .query("casual_task_game_progress")
+    .withIndex("by_uid_task_period_game", (q) =>
+      q
+        .eq("uid", uid)
+        .eq("taskId", taskId)
+        .eq("periodKey", periodKey)
+        .eq("platformGameId", platformGameId)
+    )
+    .unique();
+  const now = Date.now();
+  const next = (existing?.count ?? 0) + 1;
+  if (!existing) {
+    await ctx.db.insert("casual_task_game_progress", {
+      uid,
+      taskId,
+      periodKey,
+      platformGameId,
+      count: next,
+      updatedAt: now,
+    });
+  } else {
+    await ctx.db.patch(existing._id, { count: next, updatedAt: now });
+  }
+  return next;
+}
+
+async function countDistinctGamesMeetingMin(
+  ctx: MutationCtx,
+  uid: string,
+  taskId: string,
+  periodKey: string,
+  minRuns: number
+): Promise<number> {
+  const rows = await ctx.db
+    .query("casual_task_game_progress")
+    .withIndex("by_uid_task_period", (q) =>
+      q.eq("uid", uid).eq("taskId", taskId).eq("periodKey", periodKey)
+    )
+    .collect();
+  let n = 0;
+  for (const row of rows) {
+    if (row.count >= minRuns) n += 1;
+  }
+  return n;
+}
+
+async function syncDistinctGameTaskProgress(
+  ctx: MutationCtx,
+  template: CasualMissionTemplate,
+  uid: string,
+  periodKey: string,
+  meta?: { matchType?: string }
+) {
+  const minRuns = template.minRunsPerGame ?? 1;
+  const distinct = await countDistinctGamesMeetingMin(ctx, uid, template.taskId, periodKey, minRuns);
+  await setTaskProgressAbsolute(ctx, template, uid, template.taskId, periodKey, distinct, meta);
+}
+
+async function updatePlatformGameDerivedTasks(
+  ctx: MutationCtx,
+  args: {
+    uid: string;
+    platformGameId: string;
+    primaryGameId: string;
+    spotlightGameId: string;
+    matchType: string;
+    multiplayerFinalRank?: number;
+    dailyPk: string;
+    weeklyPk: string;
+    seasonPk: string | null;
+  }
+) {
+  const {
+    uid,
+    platformGameId,
+    primaryGameId,
+    spotlightGameId,
+    matchType,
+    multiplayerFinalRank,
+    dailyPk,
+    weeklyPk,
+    seasonPk,
+  } = args;
+  const isNonPrimary = platformGameId !== primaryGameId;
+  const isSpotlight = platformGameId === spotlightGameId;
+  const isAsyncTop3 =
+    ASYNC_MATCH_TYPES.has(matchType) &&
+    typeof multiplayerFinalRank === "number" &&
+    multiplayerFinalRank >= 1 &&
+    multiplayerFinalRank <= 3;
+
+  for (const t of CASUAL_MISSION_TEMPLATES) {
+    const pk = t.tier === "daily" ? dailyPk : t.tier === "weekly" ? weeklyPk : seasonPk;
+    if (!pk) continue;
+
+    if (t.objectiveKind === "submit_non_primary_score" && isNonPrimary) {
+      await upsertTaskProgress(ctx, t, uid, t.taskId, pk, 1, { matchType });
+      continue;
+    }
+
+    if (t.objectiveKind === "submit_spotlight_game_score" && isSpotlight) {
+      const delta =
+        isSpotlight && platformGameId === primaryGameId ? 2 : 1;
+      await upsertTaskProgress(ctx, t, uid, t.taskId, pk, delta, { matchType });
+      continue;
+    }
+
+    if (t.objectiveKind === "submit_spotlight_game_top3" && isSpotlight && isAsyncTop3) {
+      await upsertTaskProgress(ctx, t, uid, t.taskId, pk, 1, { matchType });
+      continue;
+    }
+
+    if (t.objectiveKind === "submit_distinct_games") {
+      await bumpTaskGameCount(ctx, uid, t.taskId, pk, platformGameId);
+      await syncDistinctGameTaskProgress(ctx, t, uid, pk, { matchType });
+    }
+  }
+}
+
 function deltaForObjective(
   template: CasualMissionTemplate,
   args: {
     matchType: string;
+    platformGameId: string;
+    primaryGameId: string;
+    spotlightGameId: string;
     /** 专场单场结算写入 `casual_player_season_ladder` 的实际增量（已含累计分不低于 0 的裁剪） */
     spotlightSeasonBoardGain: number;
+    multiplayerFinalRank?: number;
   }
 ): number {
   const isAsync = ASYNC_MATCH_TYPES.has(args.matchType);
   const isSpotlight = args.matchType === "season_challenge";
+  const isPvp = PVP_MATCH_TYPES.has(args.matchType);
+
   switch (template.objectiveKind) {
     case "submit_any_score":
       return 1;
@@ -151,6 +354,15 @@ function deltaForObjective(
       return isSpotlight ? 1 : 0;
     case "earn_spotlight_season_board_points":
       return isSpotlight ? Math.max(0, Math.floor(args.spotlightSeasonBoardGain)) : 0;
+    case "submit_pvp_settled":
+      return isPvp ? 1 : 0;
+    case "submit_pvp_win":
+      return isPvp && args.multiplayerFinalRank === 1 ? 1 : 0;
+    case "submit_non_primary_score":
+    case "submit_spotlight_game_score":
+    case "submit_spotlight_game_top3":
+    case "submit_distinct_games":
+      return 0;
     default:
       return 0;
   }
@@ -202,6 +414,8 @@ export const listSeasonMissions = query({
           completed,
           completedAt,
           tier: t.tier,
+          missionPool: t.missionPool,
+          missionPoolLabel: missionPoolLabelZh(t.missionPool),
           claimed,
           periodKey: pk ?? undefined,
         };
@@ -558,22 +772,54 @@ export const notifyTournamentJoined = internalMutation({
   },
 });
 
+/** 多游戏 Pass 任务上下文：主游戏、本周主题游戏 */
+export const getPlatformPassMissionContext = query({
+  args: { uid: v.optional(v.string()) },
+  handler: async (ctx, { uid }) => {
+    const now = Date.now();
+    const spotlightGameId = weeklySpotlightPlatformGameId(now);
+    const primaryGameId = uid ? await resolvePrimaryPlatformGameId(ctx, uid, now) : null;
+    return {
+      spotlightGameId,
+      primaryGameId,
+      spotlightGames: ["solitaire", "block_blast"],
+    };
+  },
+});
+
 /** 对局有效结算后调用，驱动任务进度。 */
 export const notifyScoreSubmitted = internalMutation({
   args: {
     uid: v.string(),
     matchType: v.string(),
+    /** 平台玩法 ID：`solitaire` / `block_blast` 等 */
+    platformGameId: v.string(),
+    /** 多人异步终局名次（1-based） */
+    multiplayerFinalRank: v.optional(v.number()),
     /** 赛季专场：`casual_player_season_stats` 本局正向赛季分增量（负局传 0） */
     spotlightSeasonBoardGain: v.optional(v.number()),
   },
-  handler: async (ctx, { uid, matchType, spotlightSeasonBoardGain = 0 }) => {
+  handler: async (
+    ctx,
+    { uid, matchType, platformGameId, multiplayerFinalRank, spotlightSeasonBoardGain = 0 }
+  ) => {
     const now = Date.now();
     const dailyPk = dailyPeriodKey(now);
     const weeklyPk = weeklyPeriodKey(now);
     const sid = await activeSeasonId(ctx);
     const seasonPk = sid ? seasonPeriodKey(sid) : null;
 
-    const args = { matchType, spotlightSeasonBoardGain: Math.max(0, spotlightSeasonBoardGain) };
+    const primaryGameId = await resolvePrimaryPlatformGameId(ctx, uid, now);
+    const spotlightGameId = weeklySpotlightPlatformGameId(now);
+
+    const args = {
+      matchType,
+      platformGameId,
+      primaryGameId,
+      spotlightGameId,
+      spotlightSeasonBoardGain: Math.max(0, spotlightSeasonBoardGain),
+      multiplayerFinalRank,
+    };
 
     for (const t of CASUAL_MISSION_TEMPLATES) {
       if (
@@ -589,6 +835,18 @@ export const notifyScoreSubmitted = internalMutation({
       if (!pk) continue;
       await upsertTaskProgress(ctx, t, uid, t.taskId, pk, delta, { matchType });
     }
+
+    await updatePlatformGameDerivedTasks(ctx, {
+      uid,
+      platformGameId,
+      primaryGameId,
+      spotlightGameId,
+      matchType,
+      multiplayerFinalRank,
+      dailyPk,
+      weeklyPk,
+      seasonPk,
+    });
     return { ok: true as const };
   },
 });

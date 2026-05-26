@@ -97,6 +97,45 @@ export function casualTableSummarySolo(maxPlayers: number, score: number): Casua
   };
 }
 
+/** 赛后 UI 暂名表：按当前分数降序展示名次（勿用 DB `rank`，再战后 bot 仍保留首次 seed 的名次槽） */
+function sortScoredUidsByScoreDesc(
+  entries: Array<{ uid: string; score: number }>
+): Array<{ uid: string; score: number }> {
+  return [...entries].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.uid.localeCompare(b.uid);
+  });
+}
+
+function buildLeaderboardRowsFromScored(
+  scored: Array<{ uid: string; score: number }>,
+  uid: string
+): CasualAsyncTableLeaderboardRow[] {
+  const sorted = sortScoredUidsByScoreDesc(scored);
+  let humanPeerIdx = 0;
+  let botPeerIdx = 0;
+  return sorted.map((e, idx) => {
+    const isYou = e.uid === uid;
+    const isBot = isCasualAsyncVirtualOpponentUid(e.uid);
+    let displayLabel: string;
+    if (isYou) {
+      displayLabel = "你";
+    } else if (isBot) {
+      displayLabel = `补位 ${++botPeerIdx}`;
+    } else {
+      displayLabel = `同桌 ${++humanPeerIdx}`;
+    }
+    return {
+      rank: idx + 1,
+      score: e.score,
+      rowState: "scored" as const,
+      displayLabel,
+      isYou,
+      ...(isBot ? { isBot: true as const } : {}),
+    };
+  });
+}
+
 export async function buildCasualAsyncTableSummary(
   ctx: QueryCtx,
   args: {
@@ -148,40 +187,13 @@ export async function buildCasualAsyncTableSummary(
       .map((r) => ({
         uid: r.uid,
         score: r.score as number,
-        rank: typeof r.rank === "number" && r.rank >= 1 ? r.rank : 999,
       }));
     if (scored.length === 0) return null;
 
-    scored.sort((a, b) => {
-      if (a.rank !== b.rank) return a.rank - b.rank;
-      if (b.score !== a.score) return b.score - a.score;
-      return a.uid.localeCompare(b.uid);
-    });
-
     const scoredUidSet = new Set(scored.map((e) => e.uid));
-    let humanPeerIdx = 0;
-    let botPeerIdx = 0;
-    const outRows: CasualAsyncTableLeaderboardRow[] = scored.map((e) => {
-      const isYou = e.uid === uid;
-      const isBot = isCasualAsyncVirtualOpponentUid(e.uid);
-      let displayLabel: string;
-      if (isYou) {
-        displayLabel = "你";
-      } else if (isBot) {
-        displayLabel = `补位 ${++botPeerIdx}`;
-      } else {
-        displayLabel = `同桌 ${++humanPeerIdx}`;
-      }
-      return {
-        rank: e.rank < 999 ? e.rank : scored.indexOf(e) + 1,
-        score: e.score,
-        rowState: "scored" as const,
-        displayLabel,
-        isYou,
-        ...(isBot ? { isBot: true as const } : {}),
-      };
-    });
+    const outRows = buildLeaderboardRowsFromScored(scored, uid);
 
+    let humanPeerIdx = 0;
     for (const h of rows) {
       if (scoredUidSet.has(h.uid) || isCasualAsyncVirtualOpponentUid(h.uid)) continue;
       outRows.push({

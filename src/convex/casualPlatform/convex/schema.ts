@@ -257,6 +257,17 @@ export default defineSchema({
     claimedAt: v.number(),
   }).index("by_uid_claim_task_period", ["uid", "taskId", "periodKey"]),
 
+  /** 多游戏 Pass 任务：按 `(taskId, periodKey, platformGameId)` 累计局数 */
+  casual_task_game_progress: defineTable({
+    uid: v.string(),
+    taskId: v.string(),
+    periodKey: v.string(),
+    platformGameId: v.string(),
+    count: v.number(),
+    updatedAt: v.number(),
+  }).index("by_uid_task_period_game", ["uid", "taskId", "periodKey", "platformGameId"])
+    .index("by_uid_task_period", ["uid", "taskId", "periodKey"]),
+
   /** 每日签到连签状态（P3） */
   casual_checkin_streaks: defineTable({
     uid: v.string(),

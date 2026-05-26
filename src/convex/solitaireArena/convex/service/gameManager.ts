@@ -6,26 +6,23 @@ import {
     GameInteractionPhase,
     SoloGameState,
     SoloGameStatus,
+    ZoneType,
 } from "../types/SoloTypes";
 import { createZones, SoloGameEngine } from "./SoloGameEngine";
 import { SoloRuleManager } from "./SoloRuleManager";
+import {
+    buildSolitaireCashGameReport,
+    scoreDeltaForDraw,
+    scoreDeltaForMove,
+    scoreDeltaForRecycle,
+    SOLITAIRE_MATCH_TIME_LIMIT_SEC,
+} from "./seedPool/solitaireScoring";
 
-const SOLITAIRE_WIN_SCORE_BONUS = 100;
-
-/** 与客户端 `SoloRuleManager.calculateMoveScore` 对齐（foundation/tableau/waste + 步数时间项） */
-function scoreDeltaForStep(
-    moveType: "foundation" | "move" | "waste",
-    movesBefore: number
-): number {
-    let base = 0;
-    if (moveType === "foundation") base = 10;
-    else if (moveType === "move") base = 5;
-    const timePart = Math.max(0, 100 - movesBefore * 10);
-    return base + Math.floor(timePart / 10);
-}
-
-function inferMoveScoringKind(toZone: string): "foundation" | "move" {
-    return toZone.startsWith("foundation-") ? "foundation" : "move";
+function ensurePlayStarted(game: SoloGameState): number {
+    if (game.playStartedAt == null) {
+        game.playStartedAt = Date.now();
+    }
+    return game.playStartedAt;
 }
 
 export class GameManager {
@@ -48,6 +45,7 @@ export class GameManager {
         status?: SoloGameStatus;
         moves?: number;
         score?: number;
+        playStartedAt?: number;
     }) {
         if (!this.game) return;
         if (data.cards) {
@@ -65,12 +63,17 @@ export class GameManager {
         if (data.status !== undefined) this.game.status = data.status;
         if (data.moves !== undefined) this.game.moves = data.moves;
         if (data.score !== undefined) this.game.score = data.score;
-        await this.dbCtx.db.patch(this.game._id, {
+        if (data.playStartedAt !== undefined) this.game.playStartedAt = data.playStartedAt;
+        const patch: Record<string, unknown> = {
             cards: this.game.cards,
             status: this.game.status,
             moves: this.game.moves,
             score: this.game.score,
-        });
+        };
+        if (this.game.playStartedAt != null) {
+            patch.playStartedAt = this.game.playStartedAt;
+        }
+        await this.dbCtx.db.patch(this.game._id, patch);
     }
 
     progressSnapshot(): { score: number; moves: number; gameStatus: number } {
@@ -82,7 +85,6 @@ export class GameManager {
     }
     async createGame(seed?: string | number, gameId?: string): Promise<any> {
         const game = SoloGameEngine.createGame(seed);
-        // console.log("createGame", game, seed);
         const zones = createZones();
         const gameState: SoloGameState = {
             ...game, gameId: gameId ?? "", zones
@@ -93,9 +95,6 @@ export class GameManager {
             if (gameState.seed) {
                 patchData.seed = gameState.seed;
             }
-            // console.log("documentId...", gid);
-            // if (patchData.length > 0)
-            //     await this.dbCtx.db.patch(gid, patchData);
             this.game = { ...gameState, _id: gid, _creationTime: undefined } as any;
             return this.game
         }
@@ -104,7 +103,6 @@ export class GameManager {
         const game = await this.load(gameId);
         if (!game) return;
         const cards = SoloGameEngine.deal(game.cards);
-        // console.log('deal cards', cards);
         await this.save({ cards, status: SoloGameStatus.DEALED });
         return { ok: true, data: { update: cards } };
     }
@@ -112,39 +110,49 @@ export class GameManager {
         if (!this.game) return { ok: false };
         const result = SoloGameEngine.drawCard(this.game, cardId);
         if (!result.ok) return result;
+        const playStartedAt = ensurePlayStarted(this.game);
         const movesBefore = this.game.moves ?? 0;
-        const delta = scoreDeltaForStep("waste", movesBefore);
         await this.save({
             cards: result.data?.draw,
             moves: movesBefore + 1,
-            score: (this.game.score ?? 0) + delta,
+            score: (this.game.score ?? 0) + scoreDeltaForDraw(),
+            status: this.game.status === SoloGameStatus.DEALED ? SoloGameStatus.PLAYING : this.game.status,
+            playStartedAt,
         });
         return { ...result, ...this.progressSnapshot() };
     }
     async move(cardId: string, toZone: string): Promise<any> {
-        // console.log("manager move", cardId, toZone);
         if (!this.game) return { ok: false };
-        // console.log("manager move", this.game.cards);
         const card = this.game.cards.find((c: Card) => c.id === cardId);
         if (!card) return { ok: false };
-        // console.log("manager move", card);
         const result = SoloGameEngine.moveCard(this.game, card, toZone);
-        // console.log("manager move result", result);
         if (!result.ok) return result;
-        const updateCards = [...(result.data?.move || []), ...(result.data?.flip || [])];
-        const kind = inferMoveScoringKind(toZone);
+        const flipCards = result.data?.flip ?? [];
+        const updateCards = [...(result.data?.move || []), ...flipCards];
+        const playStartedAt = ensurePlayStarted(this.game);
         const movesBefore = this.game.moves ?? 0;
-        const delta = scoreDeltaForStep(kind, movesBefore);
+        const from =
+            card.zone === ZoneType.WASTE
+                ? "waste"
+                : card.zone === ZoneType.FOUNDATION
+                    ? card.zoneId
+                    : card.zoneId;
+        const delta = scoreDeltaForMove(
+            from,
+            toZone,
+            flipCards.filter((c) => c.isRevealed).length
+        );
         await this.save({
             cards: updateCards,
             moves: movesBefore + 1,
             score: (this.game.score ?? 0) + delta,
+            status: this.game.status === SoloGameStatus.DEALED ? SoloGameStatus.PLAYING : this.game.status,
+            playStartedAt,
         });
         const rm = new SoloRuleManager(this.game as SoloGameState, GameInteractionPhase.idle);
         if (rm.isGameWon()) {
             await this.save({
                 status: SoloGameStatus.COMPLETED,
-                score: (this.game.score ?? 0) + SOLITAIRE_WIN_SCORE_BONUS,
             });
         }
         return { ...result, ...this.progressSnapshot() };
@@ -153,12 +161,14 @@ export class GameManager {
         const result = SoloGameEngine.recycle(this.game);
         if (!result.ok) return result;
         const cards = result.data?.update || [];
+        const playStartedAt = ensurePlayStarted(this.game);
         const movesBefore = this.game.moves ?? 0;
-        const delta = scoreDeltaForStep("waste", movesBefore);
         await this.save({
             cards,
             moves: movesBefore + 1,
-            score: (this.game.score ?? 0) + delta,
+            score: (this.game.score ?? 0) + scoreDeltaForRecycle(),
+            status: this.game.status === SoloGameStatus.DEALED ? SoloGameStatus.PLAYING : this.game.status,
+            playStartedAt,
         });
         return { ...result, ...this.progressSnapshot() };
     }
@@ -179,6 +189,16 @@ export class GameManager {
         }
         await this.save({ status: SoloGameStatus.CANCELLED });
         return { ok: true, ...this.progressSnapshot() };
+    }
+
+    buildScoreReport(nowMs: number = Date.now()) {
+        const baseScore = Math.max(0, Math.floor(this.game?.score ?? 0));
+        const playStartedAt = this.game?.playStartedAt;
+        const elapsedSec =
+            playStartedAt == null
+                ? 0
+                : Math.max(0, Math.min(SOLITAIRE_MATCH_TIME_LIMIT_SEC, (nowMs - playStartedAt) / 1000));
+        return buildSolitaireCashGameReport(baseScore, elapsedSec);
     }
 }
 // Convex 函数接口
@@ -251,15 +271,12 @@ export const findReport = query({
         if (!game) {
             return { ok: false as const };
         }
-        const total = game.score ?? 0;
+        const report = gameManager.buildScoreReport();
         return {
             ok: true as const,
             data: {
                 gameId,
-                baseScore: total,
-                timeBonus: 0,
-                completeBonus: 0,
-                totalScore: total,
+                ...report,
             },
         };
     },

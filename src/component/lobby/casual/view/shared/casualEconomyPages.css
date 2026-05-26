@@ -1028,6 +1028,22 @@
   border-left: 4px solid var(--casual-tier-accent, #2d6cdf);
 }
 
+.casual-tasks__pool {
+  margin-bottom: 14px;
+}
+
+.casual-tasks__pool:last-child {
+  margin-bottom: 0;
+}
+
+.casual-tasks__poolTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--econ-muted, rgba(26, 26, 46, 0.62));
+  letter-spacing: 0.01em;
+}
+
 .casual-tasks__tier--daily {
   --casual-tier-accent: #2d6cdf;
 }

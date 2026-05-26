@@ -17,7 +17,8 @@
 | 统一赛季、任务、Pass、榜单、专场、商店动线 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | CasualTown（展示与轻社交；非第二养成主循环） | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
 | 成就、徽章与长期身份展示 | [`casual-platform-achievement-system-design.md`](./casual-platform-achievement-system-design.md) |
-| Battle Pass、皮肤、成就（若仓库中存在专文） | [`casual-platform-battle-pass-skins-achievements.md`](./casual-platform-battle-pass-skins-achievements.md)（存在则读；不存在则以前两篇为准） |
+| Battle Pass、皮肤、成就 | [`casual-platform-battle-pass-skins-achievements.md`](./casual-platform-battle-pass-skins-achievements.md) |
+| **多游戏 Web 平台 Pass**（SKU、XP、任务、指标） | [`casual-platform-multi-game-pass-design.md`](./casual-platform-multi-game-pass-design.md) |
 
 **与 Tactical Monster 的关系：** 同仓可共存，**两条产品线独立**——经济、关卡、锦标规则**不混用**；见 [`casual-platform-system-design.md`](./casual-platform-system-design.md) §0。
 

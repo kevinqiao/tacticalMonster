@@ -12,6 +12,7 @@ import "../shared/casualEconomyPages.css";
 import {
   missionClaimErrorMessage,
   missionDisplayTitle,
+  missionPoolLabelZh,
   missionRewardChipsFromTemplate,
   missionRowPhase,
   missionStatusLabelZh,
@@ -19,8 +20,10 @@ import {
 } from "../shared/casualEconomyUi";
 
 const TIER_ORDER = ["daily", "weekly", "season"] as const;
+const POOL_ORDER = ["platform", "theme", "explorer", "spotlight", "pvp"] as const;
 
 type TierKey = (typeof TIER_ORDER)[number];
+type PoolKey = (typeof POOL_ORDER)[number];
 
 type MissionRow = CasualPlatformValue["missions"][number];
 
@@ -59,8 +62,25 @@ const CasualTasksPanel: React.FC = () => {
       const key: TierKey = raw && raw in buckets ? raw : "season";
       buckets[key].push(mission);
     }
-    return TIER_ORDER.map((tier) => ({ tier, items: buckets[tier] })).filter((g) => g.items.length > 0);
-  }, [casual.missions]);
+    return TIER_ORDER.map((tier) => {
+      const poolBuckets = new Map<PoolKey, typeof casual.missions>();
+      for (const mission of buckets[tier]) {
+        const tpl = templateById.get(mission.taskId);
+        const rawPool = mission.missionPool ?? tpl?.missionPool;
+        const pool: PoolKey =
+          rawPool && (POOL_ORDER as readonly string[]).includes(rawPool)
+            ? (rawPool as PoolKey)
+            : "platform";
+        poolBuckets.set(pool, [...(poolBuckets.get(pool) ?? []), mission]);
+      }
+      const pools = POOL_ORDER.map((pool) => ({
+        pool,
+        label: missionPoolLabelZh(pool),
+        items: poolBuckets.get(pool) ?? [],
+      })).filter((g) => g.items.length > 0);
+      return { tier, pools };
+    }).filter((g) => g.pools.length > 0);
+  }, [casual.missions, templateById]);
 
   const statusNote = !casual.convexUrl
     ? "未配置休闲 Convex（VITE_CONVEX_URL_CASUAL），无法加载任务。"
@@ -206,7 +226,7 @@ const CasualTasksPanel: React.FC = () => {
 
       <h2 className="casual-econ__sectionTitle">赛季任务</h2>
       <p className="casual-econ__sectionHint">
-        完成对局与登录等目标积累进度；达成后可领取配置奖励（赛季券、赛季 XP 等）。
+        任意平台游戏对局均可推进任务；「平台探索」为可选加成，不完成也不影响 Pass 主进度。
       </p>
 
       <div className="casual-econ__linkRow">
@@ -229,16 +249,21 @@ const CasualTasksPanel: React.FC = () => {
       ) : null}
 
       {liveReady && grouped.length > 0
-        ? grouped.map(({ tier, items }) => (
+        ? grouped.map(({ tier, pools }) => (
             <section
               key={tier}
               className={`casual-tasks__tier casual-tasks__tier--${tier}`}
               aria-label={missionTierLabelZh(tier)}
             >
               <h3 className="casual-tasks__tierTitle">{missionTierLabelZh(tier)}任务</h3>
-              <div className="casual-tasks__list">
-                {items.map((m) => renderMissionRow(m, m.taskId))}
-              </div>
+              {pools.map(({ pool, label, items }) => (
+                <div key={`${tier}-${pool}`} className="casual-tasks__pool">
+                  <h4 className="casual-tasks__poolTitle">{label}</h4>
+                  <div className="casual-tasks__list">
+                    {items.map((m) => renderMissionRow(m, m.taskId))}
+                  </div>
+                </div>
+              ))}
             </section>
           ))
         : null}
