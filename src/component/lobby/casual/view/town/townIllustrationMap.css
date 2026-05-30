@@ -114,6 +114,46 @@
   transition: filter 0.4s ease;
 }
 
+/* 建筑解锁叠层：fullCanvas = 全幅同尺寸；hotspot = 热区矩形内整栋建筑 */
+.town-illus__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.town-illus__overlay--hotspot {
+  inset: auto;
+  z-index: 3;
+}
+
+.town-illus__overlay--reveal {
+  animation: town-overlay-reveal 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.town-illus__overlay--legendary {
+  filter: drop-shadow(0 0 12px rgba(200, 140, 255, 0.75));
+}
+
+@keyframes town-overlay-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .town-illus__fx {
   position: absolute;
   inset: 0;

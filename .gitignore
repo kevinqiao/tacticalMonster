@@ -52,6 +52,11 @@ yarn-error.log*
 *.tmp
 *.temp
 
+# Town overlay pipeline WIP (MJ before/after); shipped PNGs live in overlays/
+src/component/lobby/casual/view/town/assets/illustration/raw/**
+!src/component/lobby/casual/view/town/assets/illustration/raw/**/
+!src/component/lobby/casual/view/town/assets/illustration/raw/**/.gitkeep
+
 # Solitaire seed pool generated output (large JSON)
 /scripts/solitaire/output/
 docs/**

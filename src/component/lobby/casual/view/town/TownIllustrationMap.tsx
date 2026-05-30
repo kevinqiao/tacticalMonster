@@ -7,6 +7,8 @@ import {
   getTownIllustrationConfig,
   type TownIllustrationHotspot,
 } from "./townIllustrationConfig";
+import { resolveBuildingOverlays } from "./townBuildingOverlays";
+import { isTownBuildingUnlocked } from "./townBuildingUnlock";
 import {
   effectiveTownBpLayer,
   resolveTownEntitlements,
@@ -28,6 +30,8 @@ export interface TownIllustrationMapProps {
     townLayer: TownBpLayer;
     townVariant?: "standard" | "deluxe";
   } | null;
+  /** 服务端已解锁建筑（成就校验后）；未传则仅按 Town 等级 + visibleFromStage */
+  unlockedBuildingIds?: ReadonlySet<string>;
 }
 
 const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
@@ -37,8 +41,23 @@ const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
   seasonId,
   entitlements: liveEntitlements,
   themePreview,
+  unlockedBuildingIds,
 }) => {
   const config = useMemo(() => getTownIllustrationConfig(seasonId), [seasonId]);
+
+  const unlockCtx = useMemo(
+    () => ({
+      townLevel: level,
+      previewAllUnlocked: config.previewAllUnlocked,
+      unlockedBuildingIds,
+    }),
+    [level, config.previewAllUnlocked, unlockedBuildingIds]
+  );
+
+  const resolvedOverlays = useMemo(
+    () => resolveBuildingOverlays(config.buildingOverlays, config.hotspots),
+    [config.buildingOverlays, config.hotspots]
+  );
 
   const entitlements = useMemo(
     () => resolveTownEntitlements(liveEntitlements, themePreview ?? null),
@@ -69,13 +88,10 @@ const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
   const unlockedById = useMemo(() => {
     const map = new Map<string, boolean>();
     TOWN_BUILDINGS.forEach((b) => {
-      map.set(
-        b.buildingId,
-        config.previewAllUnlocked || level >= b.visibleFromStage
-      );
+      map.set(b.buildingId, isTownBuildingUnlocked(b.buildingId, unlockCtx));
     });
     return map;
-  }, [config.previewAllUnlocked, level]);
+  }, [unlockCtx]);
 
   const hotspotById = useMemo(() => {
     const map = new Map<string, TownIllustrationHotspot>();
@@ -158,6 +174,36 @@ const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
               />
             )
           )}
+          {!isCalibrating &&
+            resolvedOverlays.map((overlay) => {
+              const unlocked = unlockedById.get(overlay.buildingId) ?? false;
+              if (!unlocked) return null;
+              const def = getTownBuilding(overlay.buildingId);
+              const hotspotLayout = config.buildingOverlayLayout === "hotspot";
+              return (
+                <img
+                  key={overlay.buildingId}
+                  className={`town-illus__overlay town-illus__overlay--reveal${
+                    hotspotLayout ? " town-illus__overlay--hotspot" : ""
+                  }${def?.isLegendary ? " town-illus__overlay--legendary" : ""}`}
+                  src={overlay.src}
+                  alt=""
+                  draggable={false}
+                  style={
+                    hotspotLayout
+                      ? {
+                          opacity: overlay.opacity,
+                          left: `${overlay.x * 100}%`,
+                          top: `${overlay.y * 100}%`,
+                          width: `${overlay.w * 100}%`,
+                          height: `${overlay.h * 100}%`,
+                          objectFit: overlay.objectFit ?? "contain",
+                        }
+                      : { opacity: overlay.opacity }
+                  }
+                />
+              );
+            })}
           <div
             className="town-illus__ground"
             style={{ background: groundTint }}

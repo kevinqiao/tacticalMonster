@@ -5,6 +5,11 @@
  */
 
 import type { TownBpLayer } from "./casualTownThemeCatalog";
+import {
+  TOWN_S1_BUILDING_OVERLAYS,
+  type TownBuildingOverlayDef,
+  type TownBuildingOverlayLayout,
+} from "./townBuildingOverlays";
 
 
 
@@ -70,26 +75,31 @@ export interface TownIllustrationConfig {
 
   calibrationBuildingIds: readonly string[] | null;
 
+  /** 建筑解锁后叠放的透明 PNG */
+  buildingOverlays: readonly TownBuildingOverlayDef[];
+
+  /**
+   * fullCanvas：与母图同尺寸差分增量（base 已有建筑，解锁叠装饰）
+   * hotspot：热区矩形内显示整栋建筑 PNG（base 该处须为空地/工地）
+   */
+  buildingOverlayLayout?: TownBuildingOverlayLayout;
+
 }
 
 
 
+/** 校准模式下优先显示的建筑（与 S1 母图地标一一对应） */
 export const TOWN_MAP_CALIBRATION_ANCHORS = [
-
+  "town_square",
   "champion_plaza",
-
+  "honor_gallery",
   "streak_monument",
-
-  "arena",
-
-  "game_museum",
-
-  "rival_hall",
-
+  "battle_board",
   "legend_hall",
-
   "season_archive",
-
+  "rival_hall",
+  "game_museum",
+  "arena",
 ] as const;
 
 
@@ -110,9 +120,14 @@ export const TOWN_ILLUSTRATION_S1: TownIllustrationConfig = {
 
   aspectRatio: 1376 / 944,
 
-  previewAllUnlocked: true,
+  previewAllUnlocked: false,
 
   calibrationBuildingIds: [...TOWN_MAP_CALIBRATION_ANCHORS],
+
+  buildingOverlays: TOWN_S1_BUILDING_OVERLAYS,
+
+  /** 空地 base + 解锁盖房时用 hotspot；当前民房 base 用 fullCanvas + 仅增量 overlay */
+  buildingOverlayLayout: "fullCanvas",
 
   fxLayers: [
 
@@ -124,32 +139,21 @@ export const TOWN_ILLUSTRATION_S1: TownIllustrationConfig = {
 
   ],
 
+  // S1 母图地标映射（casual_village_s1.png，比例 0–1，左上为原点）
+  // 喷泉 | 奖杯 | 荣誉通道 | 风车 | 公告牌 | 紫晶殿 | 宝箱档案 | 左下路径 | 招财猫 | 竞技场
   hotspots: [
-
-    { buildingId: "town_square", x: 0.3, y: 0.38, w: 0.28, h: 0.22, onMap: true },
-
-    { buildingId: "champion_plaza", x: 0.4, y: 0.44, w: 0.2, h: 0.16, onMap: true },
-
-    { buildingId: "legend_hall", x: 0.08, y: 0.11, w: 0.16, h: 0.16, onMap: true },
-
-    { buildingId: "season_archive", x: 0.05, y: 0.44, w: 0.18, h: 0.16, onMap: true },
-
-    { buildingId: "honor_gallery", x: 0.73, y: 0.57, w: 0.2, h: 0.18, onMap: true },
-
-    { buildingId: "game_museum", x: 0.7, y: 0.35, w: 0.16, h: 0.14, onMap: true },
-
-    { buildingId: "arena", x: 0.66, y: 0.67, w: 0.18, h: 0.18, onMap: true },
-
-    { buildingId: "streak_monument", x: 0.46, y: 0.16, w: 0.18, h: 0.2, onMap: true },
-
-    { buildingId: "visitor_log", x: 0.78, y: 0.14, w: 0.12, h: 0.1, onMap: false },
-
-    { buildingId: "skin_exhibition", x: 0.82, y: 0.28, w: 0.12, h: 0.1, onMap: false },
-
-    { buildingId: "rival_hall", x: 0.29, y: 0.72, w: 0.18, h: 0.16, onMap: true },
-
-    { buildingId: "battle_board", x: 0.22, y: 0.72, w: 0.12, h: 0.1, onMap: false },
-
+    { buildingId: "town_square", x: 0.35, y: 0.29, w: 0.3, h: 0.25, onMap: true },
+    { buildingId: "champion_plaza", x: 0.39, y: 0.06, w: 0.22, h: 0.2, onMap: true },
+    { buildingId: "honor_gallery", x: 0.33, y: 0.1, w: 0.34, h: 0.14, onMap: true },
+    { buildingId: "streak_monument", x: 0.04, y: 0.04, w: 0.15, h: 0.19, onMap: true },
+    { buildingId: "battle_board", x: 0.2, y: 0.14, w: 0.13, h: 0.17, onMap: true },
+    { buildingId: "legend_hall", x: 0.06, y: 0.36, w: 0.19, h: 0.21, onMap: true },
+    { buildingId: "season_archive", x: 0.14, y: 0.58, w: 0.22, h: 0.24, onMap: true },
+    { buildingId: "rival_hall", x: 0.2, y: 0.5, w: 0.14, h: 0.14, onMap: true },
+    { buildingId: "game_museum", x: 0.55, y: 0.3, w: 0.24, h: 0.28, onMap: true },
+    { buildingId: "arena", x: 0.62, y: 0.52, w: 0.34, h: 0.38, onMap: true },
+    { buildingId: "visitor_log", x: 0.72, y: 0.15, w: 0.12, h: 0.1, onMap: false },
+    { buildingId: "skin_exhibition", x: 0.58, y: 0.38, w: 0.14, h: 0.12, onMap: false },
   ],
 
 };
