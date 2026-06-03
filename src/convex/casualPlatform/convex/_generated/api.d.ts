@@ -19,6 +19,7 @@ import type * as data_casualMissionTemplates from "../data/casualMissionTemplate
 import type * as data_casualPassRewards from "../data/casualPassRewards.js";
 import type * as data_casualPayoutPolicy from "../data/casualPayoutPolicy.js";
 import type * as data_casualSeasonLadderConfig from "../data/casualSeasonLadderConfig.js";
+import type * as data_casualSeedTierPolicy from "../data/casualSeedTierPolicy.js";
 import type * as data_casualShopCatalog from "../data/casualShopCatalog.js";
 import type * as data_casualSkinCatalog from "../data/casualSkinCatalog.js";
 import type * as data_casualSpotlightGame from "../data/casualSpotlightGame.js";
@@ -29,6 +30,7 @@ import type * as service_activity_casualActivityService from "../service/activit
 import type * as service_auth_casualAuth from "../service/auth/casualAuth.js";
 import type * as service_auth_jwtAccessSecret from "../service/auth/jwtAccessSecret.js";
 import type * as service_bridge_casualGameBridgeSecret from "../service/bridge/casualGameBridgeSecret.js";
+import type * as service_bridge_casualMatchSeedBridge from "../service/bridge/casualMatchSeedBridge.js";
 import type * as service_chest_casualFixedChestService from "../service/chest/casualFixedChestService.js";
 import type * as service_payout_casualPayoutDailyService from "../service/payout/casualPayoutDailyService.js";
 import type * as service_player_playerManager from "../service/player/playerManager.js";
@@ -42,6 +44,8 @@ import type * as service_task_casualPrimaryGame from "../service/task/casualPrim
 import type * as service_task_casualTaskService from "../service/task/casualTaskService.js";
 import type * as service_tournament_casualBotDifficultyService from "../service/tournament/casualBotDifficultyService.js";
 import type * as service_tournament_casualInstanceService from "../service/tournament/casualInstanceService.js";
+import type * as service_tournament_casualMatchSeedActions from "../service/tournament/casualMatchSeedActions.js";
+import type * as service_tournament_casualMatchSeedMutations from "../service/tournament/casualMatchSeedMutations.js";
 import type * as service_tournament_casualMatchmaking from "../service/tournament/casualMatchmaking.js";
 import type * as service_tournament_casualPlayerMatchStatus from "../service/tournament/casualPlayerMatchStatus.js";
 import type * as service_tournament_casualReplayPassService from "../service/tournament/casualReplayPassService.js";
@@ -62,6 +66,14 @@ import type {
   FunctionReference,
 } from "convex/server";
 
+/**
+ * A utility for referencing Convex functions in your app's API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
 declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   "custom/session": typeof custom_session;
@@ -74,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   "data/casualPassRewards": typeof data_casualPassRewards;
   "data/casualPayoutPolicy": typeof data_casualPayoutPolicy;
   "data/casualSeasonLadderConfig": typeof data_casualSeasonLadderConfig;
+  "data/casualSeedTierPolicy": typeof data_casualSeedTierPolicy;
   "data/casualShopCatalog": typeof data_casualShopCatalog;
   "data/casualSkinCatalog": typeof data_casualSkinCatalog;
   "data/casualSpotlightGame": typeof data_casualSpotlightGame;
@@ -84,6 +97,7 @@ declare const fullApi: ApiFromModules<{
   "service/auth/casualAuth": typeof service_auth_casualAuth;
   "service/auth/jwtAccessSecret": typeof service_auth_jwtAccessSecret;
   "service/bridge/casualGameBridgeSecret": typeof service_bridge_casualGameBridgeSecret;
+  "service/bridge/casualMatchSeedBridge": typeof service_bridge_casualMatchSeedBridge;
   "service/chest/casualFixedChestService": typeof service_chest_casualFixedChestService;
   "service/payout/casualPayoutDailyService": typeof service_payout_casualPayoutDailyService;
   "service/player/playerManager": typeof service_player_playerManager;
@@ -97,6 +111,8 @@ declare const fullApi: ApiFromModules<{
   "service/task/casualTaskService": typeof service_task_casualTaskService;
   "service/tournament/casualBotDifficultyService": typeof service_tournament_casualBotDifficultyService;
   "service/tournament/casualInstanceService": typeof service_tournament_casualInstanceService;
+  "service/tournament/casualMatchSeedActions": typeof service_tournament_casualMatchSeedActions;
+  "service/tournament/casualMatchSeedMutations": typeof service_tournament_casualMatchSeedMutations;
   "service/tournament/casualMatchmaking": typeof service_tournament_casualMatchmaking;
   "service/tournament/casualPlayerMatchStatus": typeof service_tournament_casualPlayerMatchStatus;
   "service/tournament/casualReplayPassService": typeof service_tournament_casualReplayPassService;
@@ -111,30 +127,14 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/casualTournamentTypes": typeof service_tournament_casualTournamentTypes;
   "utils/casualTaskPeriod": typeof utils_casualTaskPeriod;
 }>;
+declare const fullApiWithMounts: typeof fullApi;
 
-/**
- * A utility for referencing Convex functions in your app's public API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = api.myModule.myFunction;
- * ```
- */
 export declare const api: FilterApi<
-  typeof fullApi,
+  typeof fullApiWithMounts,
   FunctionReference<any, "public">
 >;
-
-/**
- * A utility for referencing Convex functions in your app's internal API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = internal.myModule.myFunction;
- * ```
- */
 export declare const internal: FilterApi<
-  typeof fullApi,
+  typeof fullApiWithMounts,
   FunctionReference<any, "internal">
 >;
 

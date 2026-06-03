@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 
+import { internal } from "../_generated/api";
 import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
+import { parseCasualRunGameId } from "./casualGameLifecycle";
 import {
     Card,
     GameInteractionPhase,
@@ -212,10 +214,32 @@ export const createGame = internalMutation({
         const gameManager = new GameManager(ctx);
         const game = await gameManager.createGame(seed, gameId);
         if (game) {
-            const initialGame = JSON.parse(JSON.stringify(game));
             const dealedCards = SoloGameEngine.deal(game.cards);
             await gameManager.save({ cards: dealedCards, status: SoloGameStatus.DEALED });
-            return { ok: true, data: initialGame, events: [{ name: "deal", cards: dealedCards }] };
+
+            if (gameId.startsWith("game_")) {
+                const parsed = parseCasualRunGameId(gameId);
+                if (parsed?.uid && game._id) {
+                    const now = Date.now();
+                    const dueTime = now + SOLITAIRE_MATCH_TIME_LIMIT_SEC * 1000;
+                    const jobId = await ctx.scheduler.runAfter(
+                        SOLITAIRE_MATCH_TIME_LIMIT_SEC * 1000,
+                        internal.service.casualGameTimeoutAction.checkCasualGameTimeoutAndIngest,
+                        { gameRowId: game._id, gameId, uid: parsed.uid }
+                    );
+                    await ctx.db.patch(game._id, {
+                        dueTime,
+                        casualTimeoutScheduledId: jobId,
+                    });
+                }
+            }
+
+            const fresh = await gameManager.load(gameId);
+            return {
+                ok: true,
+                data: fresh ?? game,
+                events: [{ name: "deal", cards: dealedCards }],
+            };
         }
         return { ok: false };
 
@@ -253,6 +277,9 @@ export const findGame = internalQuery({
 export const deleteCasualGameForReplay = internalMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
+        await ctx.runMutation(internal.service.casualGameLifecycle.cancelCasualTimeoutJob, {
+            gameId,
+        });
         const rows = await ctx.db
             .query("game")
             .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))

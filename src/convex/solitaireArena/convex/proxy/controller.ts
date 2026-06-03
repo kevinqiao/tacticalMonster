@@ -5,13 +5,13 @@ import jwt from "jsonwebtoken";
 
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
-import { resolveCasualBridgeEnv } from "../service/casualBridgeEnv";
+import { postCasualRunIngest, type CasualIngestParsed } from "../service/casualBridgeIngest";
 import {
-    buildSolitaireCashGameReport,
-    resolveLiveGameElapsedSec,
-    SOLITAIRE_MATCH_TIME_LIMIT_SEC,
-} from "../service/seedPool/solitaireScoring";
-import { SoloGameStatus } from "../types/SoloTypes";
+    isTerminalSolitaireStatus,
+    parseCasualRunGameId,
+    resolveCasualIngestScoreFromRow,
+} from "../service/casualGameLifecycle";
+import { resolveCasualBridgeEnv } from "../service/casualBridgeEnv";
 
 const tournament_url = "https://beloved-mouse-699.convex.site";
 
@@ -20,8 +20,36 @@ function jwtAccessSecret(): string {
     return process.env.JWT_ACCESS_SECRET ?? "12222222";
 }
 
-function isTerminalSolitaire(status: number): boolean {
-    return status === SoloGameStatus.COMPLETED || status === SoloGameStatus.CANCELLED;
+function verifyCasualRunToken(token: string): { ok: true; uid: string } | { ok: false; error: string } {
+    try {
+        const payload = jwt.verify(token, jwtAccessSecret());
+        if (!payload || typeof payload !== "object" || !("uid" in payload)) {
+            return { ok: false, error: "invalid_token" };
+        }
+        return { ok: true, uid: String((payload as { uid: unknown }).uid) };
+    } catch {
+        return { ok: false, error: "verify_failed" };
+    }
+}
+
+function mapCasualIngestClientResponse(parsed: CasualIngestParsed) {
+    const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
+    const pendingOthers = parsed.pendingOthers === true;
+    const replayOffered = parsed.replayOffered === true;
+    const replayTokenCount =
+        typeof parsed.replayTokenCount === "number" ? parsed.replayTokenCount : undefined;
+    const canReplay = parsed.canReplay === true;
+    const replayWindowEndsAt =
+        typeof parsed.replayWindowEndsAt === "number" ? parsed.replayWindowEndsAt : undefined;
+    return {
+        ok: true as const,
+        ...(tableSummary ? { tableSummary } : {}),
+        ...(pendingOthers ? { pendingOthers: true as const } : {}),
+        ...(replayOffered ? { replayOffered: true as const } : {}),
+        ...(replayTokenCount != null ? { replayTokenCount } : {}),
+        ...(canReplay ? { canReplay: true as const } : {}),
+        ...(replayWindowEndsAt != null ? { replayWindowEndsAt } : {}),
+    };
 }
 
 /** casual `/internal/casual-run-ingest` 成功后可选载荷 */
@@ -145,8 +173,9 @@ export const loadGame = action({
 
         const gameResult = await ctx.runMutation(internal.service.gameManager.createGame, createArgs);
         if (gameResult && gameResult.ok) {
+            const fresh = await ctx.runQuery(internal.service.gameManager.findGame, { gameId });
             res.ok = true;
-            res.game = gameResult.data;
+            res.game = fresh ?? gameResult.data;
             res.events = gameResult.events;
         } else {
             res.ok = false;
@@ -205,21 +234,18 @@ export const submitScore = action({
 export const submitCasualPlatformRun = action({
     args: { token: v.string(), gameId: v.string() },
     handler: async (ctx, { token, gameId }) => {
-        const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
-
         if (!gameId.startsWith("game_")) {
             return { ok: false as const, error: "not_casual_run_game_id" };
         }
 
-        let uid: string;
-        try {
-            const payload = jwt.verify(token, jwtAccessSecret());
-            if (!payload || typeof payload !== "object" || !("uid" in payload)) {
-                return { ok: false as const, error: "invalid_token" };
-            }
-            uid = String((payload as { uid: unknown }).uid);
-        } catch {
-            return { ok: false as const, error: "verify_failed" };
+        const auth = verifyCasualRunToken(token);
+        if (!auth.ok) {
+            return { ok: false as const, error: auth.error };
+        }
+        const uid = auth.uid;
+        const parsedId = parseCasualRunGameId(gameId);
+        if (!parsedId || parsedId.uid !== uid) {
+            return { ok: false as const, error: "forbidden" };
         }
 
         const game = await ctx.runQuery(internal.service.gameManager.findGame, { gameId });
@@ -228,99 +254,74 @@ export const submitCasualPlatformRun = action({
         }
 
         const status = Number((game as { status?: number }).status);
-        if (!isTerminalSolitaire(status)) {
+        if (!isTerminalSolitaireStatus(status)) {
             return { ok: false as const, error: "not_terminal" };
         }
 
-        const baseScore = Math.max(0, Math.floor(Number((game as { score?: number }).score ?? 0)));
-        const playStartedAt = (game as { playStartedAt?: number }).playStartedAt;
-        const elapsedSec = Math.min(
-            SOLITAIRE_MATCH_TIME_LIMIT_SEC,
-            resolveLiveGameElapsedSec(playStartedAt)
-        );
-        const score = buildSolitaireCashGameReport(baseScore, elapsedSec).totalScore;
-
-        const url = `${casualOrigin}/internal/casual-run-ingest`;
-        let res: Response;
-        try {
-            res = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Casual-Bridge-Secret": bridge,
-                },
-                body: JSON.stringify({
-                    uid,
-                    matchGameId: gameId,
-                    score,
-                    gameKind: "solitaire",
-                }),
-            });
-        } catch (e) {
-            console.error("[solitaire] casual ingest fetch failed", e);
-            return { ok: false as const, error: "casual_unreachable" };
+        const score = resolveCasualIngestScoreFromRow(game as { score?: number; playStartedAt?: number });
+        const ingest = await postCasualRunIngest({ uid, matchGameId: gameId, score });
+        if (!ingest.ok) {
+            return { ok: false as const, error: ingest.error };
         }
 
-        let parsed: {
-            ok?: boolean;
-            error?: string;
-            tableSummary?: unknown;
-            pendingOthers?: boolean;
-            replayOffered?: boolean;
-            replayTokenCount?: number;
-            canReplay?: boolean;
-            replayWindowEndsAt?: number;
-        } = {};
-        try {
-            const text = await res.text();
-            if (text) {
-                parsed = JSON.parse(text) as {
-                    ok?: boolean;
-                    error?: string;
-                    tableSummary?: unknown;
-                    pendingOthers?: boolean;
-                    replayOffered?: boolean;
-                    replayTokenCount?: number;
-                    canReplay?: boolean;
-                    replayWindowEndsAt?: number;
-                };
-            }
-        } catch {
-            parsed = {};
-        }
+        await ctx.runMutation(internal.service.casualGameLifecycle.cancelCasualTimeoutJob, { gameId });
 
-        if (!res.ok || !parsed.ok) {
-            return {
-                ok: false as const,
-                error: parsed.error ?? `casual_${res.status}`,
-            };
-        }
-
-        const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
-        const pendingOthers = parsed.pendingOthers === true;
-        const replayOffered = parsed.replayOffered === true;
-        const replayTokenCount =
-            typeof parsed.replayTokenCount === "number" ? parsed.replayTokenCount : undefined;
-        const canReplay = parsed.canReplay === true;
-        const replayWindowEndsAt =
-            typeof parsed.replayWindowEndsAt === "number" ? parsed.replayWindowEndsAt : undefined;
         console.log("[solitaire] casual-run-ingest", {
-            replayOffered,
-            replayTokenCount,
-            canReplay,
-            replayWindowEndsAt,
-            pendingOthers,
-            hasTableSummary: Boolean(tableSummary),
+            gameId,
+            deduped: ingest.parsed.deduped,
+            pendingOthers: ingest.parsed.pendingOthers,
         });
-        return {
-            ok: true as const,
-            ...(tableSummary ? { tableSummary } : {}),
-            ...(pendingOthers ? { pendingOthers: true as const } : {}),
-            ...(replayOffered ? { replayOffered: true as const } : {}),
-            ...(replayTokenCount != null ? { replayTokenCount } : {}),
-            ...(canReplay ? { canReplay: true as const } : {}),
-            ...(replayWindowEndsAt != null ? { replayWindowEndsAt } : {}),
-        };
+        return mapCasualIngestClientResponse(ingest.parsed);
+    },
+});
+
+/**
+ * 玩家强行结束：取消 timeout scheduler、终局写 game 表、ingest casual。
+ */
+export const forceEndCasualPlatformRun = action({
+    args: { token: v.string(), gameId: v.string() },
+    handler: async (ctx, { token, gameId }) => {
+        if (!gameId.startsWith("game_")) {
+            return { ok: false as const, error: "not_casual_run_game_id" };
+        }
+
+        const auth = verifyCasualRunToken(token);
+        if (!auth.ok) {
+            return { ok: false as const, error: auth.error };
+        }
+        const uid = auth.uid;
+        const parsedId = parseCasualRunGameId(gameId);
+        if (!parsedId || parsedId.uid !== uid) {
+            return { ok: false as const, error: "forbidden" };
+        }
+
+        await ctx.runMutation(internal.service.casualGameLifecycle.cancelCasualTimeoutJob, { gameId });
+
+        const settled = await ctx.runMutation(
+            internal.service.casualGameLifecycle.settleCasualGameFromTable,
+            { gameId, uid }
+        );
+        if (!settled.ok || !settled.shouldIngest) {
+            const err =
+                settled.ok === false && "error" in settled
+                    ? settled.error
+                    : "reason" in settled && settled.reason === "gone"
+                      ? "no_game"
+                      : "settle_failed";
+            return { ok: false as const, error: err };
+        }
+
+        const ingest = await postCasualRunIngest({
+            uid: settled.uid,
+            matchGameId: settled.gameId,
+            score: settled.score,
+        });
+        if (!ingest.ok) {
+            return { ok: false as const, error: ingest.error };
+        }
+
+        console.log("[solitaire] forceEndCasualPlatformRun", { gameId, deduped: ingest.parsed.deduped });
+        return mapCasualIngestClientResponse(ingest.parsed);
     },
 });
 

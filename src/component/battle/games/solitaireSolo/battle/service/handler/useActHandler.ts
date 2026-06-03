@@ -171,6 +171,33 @@ const useActHandler = () => {
         [loadSolitaireScoreReport]
     );
 
+    const mapCasualPlatformRunActionResult = (
+        cr: {
+            ok?: boolean;
+            tableSummary?: CasualAsyncTableSummaryUI;
+            pendingOthers?: boolean;
+            replayOffered?: boolean;
+            replayTokenCount?: number;
+            canReplay?: boolean;
+            replayWindowEndsAt?: number;
+        },
+        deferHost: boolean
+    ): CasualRunSubmitOutcome => {
+        if (!cr.ok) return { ok: false };
+        if (!deferHost) {
+            onGameSubmit?.();
+        }
+        return {
+            ok: true,
+            ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
+            ...(cr.pendingOthers ? { pendingOthers: true } : {}),
+            ...(cr.replayOffered ? { replayOffered: true } : {}),
+            ...(cr.replayTokenCount != null ? { replayTokenCount: cr.replayTokenCount } : {}),
+            ...(cr.canReplay ? { canReplay: true } : {}),
+            ...(cr.replayWindowEndsAt != null ? { replayWindowEndsAt: cr.replayWindowEndsAt } : {}),
+        };
+    };
+
     const runSolitaireSettlement = useCallback(
         async (score: number, opts?: { deferHostNotify?: boolean }): Promise<CasualRunSubmitOutcome> => {
             const gs = gameStateRef.current;
@@ -203,18 +230,7 @@ const useActHandler = () => {
                         casualRunSubmittedRef.current = false;
                         return { ok: false };
                     }
-                    if (!deferHost) {
-                        onGameSubmit?.();
-                    }
-                    return {
-                        ok: true,
-                        ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
-                        ...(cr.pendingOthers ? { pendingOthers: true } : {}),
-                        ...(cr.replayOffered ? { replayOffered: true } : {}),
-                        ...(cr.replayTokenCount != null ? { replayTokenCount: cr.replayTokenCount } : {}),
-                        ...(cr.canReplay ? { canReplay: true } : {}),
-                        ...(cr.replayWindowEndsAt != null ? { replayWindowEndsAt: cr.replayWindowEndsAt } : {}),
-                    };
+                    return mapCasualPlatformRunActionResult(cr, deferHost);
                 }
 
                 let proxyOk = false;
@@ -241,6 +257,51 @@ const useActHandler = () => {
                 return { ok: true };
             } catch (e) {
                 console.error("[Solitaire] runSolitaireSettlement", e);
+                casualRunSubmittedRef.current = false;
+                return { ok: false };
+            }
+        },
+        [convex, casualTournamentId, user?.token, onGameSubmit]
+    );
+
+    /** 强行结束：取消 timeout scheduler、服务端终局、ingest casual */
+    const runForceEndCasualSettlement = useCallback(
+        async (opts?: { deferHostNotify?: boolean }): Promise<CasualRunSubmitOutcome> => {
+            const gs = gameStateRef.current;
+            if (!gs || casualRunSubmittedRef.current) return { ok: false };
+            if (
+                !casualTournamentId ||
+                typeof gs.gameId !== "string" ||
+                !gs.gameId.startsWith("game_") ||
+                !user?.token
+            ) {
+                return { ok: false };
+            }
+            casualRunSubmittedRef.current = true;
+            const deferHost = Boolean(opts?.deferHostNotify);
+            try {
+                const cr = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
+                    token: user.token,
+                    gameId: gs.gameId,
+                })) as {
+                    ok?: boolean;
+                    error?: string;
+                    tableSummary?: CasualAsyncTableSummaryUI;
+                    pendingOthers?: boolean;
+                    replayOffered?: boolean;
+                    replayTokenCount?: number;
+                    canReplay?: boolean;
+                    replayWindowEndsAt?: number;
+                };
+                if (!cr.ok) {
+                    console.warn("[Solitaire] forceEndCasualPlatformRun", cr.error);
+                    casualRunSubmittedRef.current = false;
+                    return { ok: false };
+                }
+                mergeServerProgress(gs, { gameStatus: SoloGameStatus.CANCELLED });
+                return mapCasualPlatformRunActionResult(cr, deferHost);
+            } catch (e) {
+                console.error("[Solitaire] runForceEndCasualSettlement", e);
                 casualRunSubmittedRef.current = false;
                 return { ok: false };
             }
@@ -397,19 +458,30 @@ const useActHandler = () => {
         }
         settleInFlightRef.current = true;
         try {
-            const res = await convex.mutation(api.service.gameManager.concedeGame, {
-                gameId: gs.gameId,
-            });
-            if (!res?.ok) {
-                throw new Error("认输失败，请重试");
-            }
-            mergeServerProgress(gs, {
-                score: res.score,
-                moves: res.moves,
-                gameStatus: res.gameStatus,
-            });
-            const score = Math.max(0, Math.floor(gs.score ?? 0));
-            const settled = await runSolitaireSettlement(score, { deferHostNotify: true });
+            const isCasualRun =
+                Boolean(casualTournamentId) &&
+                typeof gs.gameId === "string" &&
+                gs.gameId.startsWith("game_") &&
+                Boolean(user?.token);
+
+            const settled = isCasualRun
+                ? await runForceEndCasualSettlement({ deferHostNotify: true })
+                : await (async () => {
+                      const res = await convex.mutation(api.service.gameManager.concedeGame, {
+                          gameId: gs.gameId,
+                      });
+                      if (!res?.ok) {
+                          throw new Error("认输失败，请重试");
+                      }
+                      mergeServerProgress(gs, {
+                          score: res.score,
+                          moves: res.moves,
+                          gameStatus: res.gameStatus,
+                      });
+                      const score = Math.max(0, Math.floor(gs.score ?? 0));
+                      return runSolitaireSettlement(score, { deferHostNotify: true });
+                  })();
+
             if (!settled.ok) {
                 throw new Error("结算提交失败，请重试");
             }
@@ -428,7 +500,7 @@ const useActHandler = () => {
         } finally {
             settleInFlightRef.current = false;
         }
-    }, [convex, runSolitaireSettlement]);
+    }, [convex, casualTournamentId, user?.token, runSolitaireSettlement, runForceEndCasualSettlement]);
 
     const settleManuallyAndExit = useCallback(async () => {
         if (!gameState || casualRunSubmittedRef.current || settleInFlightRef.current) return;

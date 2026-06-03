@@ -13,7 +13,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { runConvexSolitaire } from "./run-convex-solitaire.mjs";
+import {
+  clearSeedPoolFully,
+  convexPayloadBytes,
+  runConvexSolitaire,
+  WINDOWS_CONVEX_ARG_BUDGET,
+} from "./run-convex-solitaire.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -21,11 +26,17 @@ const repoRoot = path.resolve(__dirname, "../..");
 const ADMIN = "service/seedPool/solitaireSeedPoolAdmin";
 const QUERIES = "service/seedPool/solitaireSeedPoolQueries";
 
+function defaultBatchSize(indexOnly) {
+  if (indexOnly) return 8;
+  // Full import payloads include rolloutSummaries (~8–12KiB/seed on Windows).
+  return process.platform === "win32" ? 2 : 8;
+}
+
 function parseArgs(argv) {
   const opts = {
     index: path.join(repoRoot, "scripts/solitaire/output/pool-v2/index.json"),
-    batchSize: 8,
-    minEntries: 1,
+    batchSize: 0,
+    minEntries: 0,
     indexOnly: false,
     clearFirst: false,
     append: false,
@@ -77,9 +88,34 @@ function toEntryImport(e) {
   };
 }
 
+function buildBatchArgs(poolVersion, batchEntries, indexOnly) {
+  const rollouts = indexOnly ? [] : flattenRollouts(batchEntries, poolVersion);
+  return {
+    poolVersion,
+    entries: batchEntries.map(toEntryImport),
+    rollouts,
+    indexOnly,
+  };
+}
+
+function fitBatchSize(entries, start, maxSize, poolVersion, indexOnly) {
+  let size = Math.min(maxSize, entries.length - start);
+  if (process.platform !== "win32" || indexOnly) {
+    return size;
+  }
+  while (size > 1) {
+    const slice = entries.slice(start, start + size);
+    if (convexPayloadBytes(buildBatchArgs(poolVersion, slice, indexOnly)) <= WINDOWS_CONVEX_ARG_BUDGET) {
+      return size;
+    }
+    size -= 1;
+  }
+  return 1;
+}
+
 async function clearPool(poolVersion) {
   console.log(`clearing pool ${poolVersion}...`);
-  const res = await runConvexSolitaire(`${ADMIN}:clearSeedPoolVersion`, { poolVersion });
+  const res = await clearSeedPoolFully(poolVersion);
   console.log("clear:", res);
 }
 
@@ -136,8 +172,9 @@ async function main() {
     }
   }
 
+  const batchSize = Math.max(1, opts.batchSize || defaultBatchSize(opts.indexOnly));
   console.log(
-    `import poolVersion=${poolVersion} mode=${opts.append ? "append" : "full"} entries=${entries.length} indexOnly=${opts.indexOnly} batchSize=${opts.batchSize}`
+    `import poolVersion=${poolVersion} mode=${opts.append ? "append" : "full"} entries=${entries.length} indexOnly=${opts.indexOnly} batchSize=${batchSize}${process.platform === "win32" && !opts.indexOnly ? " (win32 adaptive shrink)" : ""}`
   );
 
   if (!opts.append) {
@@ -149,24 +186,17 @@ async function main() {
     });
   }
 
-  const batchSize = Math.max(1, opts.batchSize);
-  const totalBatches = Math.ceil(entries.length / batchSize);
-
-  for (let i = 0; i < entries.length; i += batchSize) {
-    const batchEntries = entries.slice(i, i + batchSize);
-    const rollouts = opts.indexOnly
-      ? []
-      : flattenRollouts(batchEntries, poolVersion);
-    const batchNum = Math.floor(i / batchSize) + 1;
-    const res = await runConvexSolitaire(batchFn, {
-      poolVersion,
-      entries: batchEntries.map(toEntryImport),
-      rollouts,
-      indexOnly: opts.indexOnly,
-    });
+  let batchNum = 0;
+  for (let i = 0; i < entries.length; ) {
+    const size = fitBatchSize(entries, i, batchSize, poolVersion, opts.indexOnly);
+    const batchEntries = entries.slice(i, i + size);
+    const batchArgs = buildBatchArgs(poolVersion, batchEntries, opts.indexOnly);
+    batchNum += 1;
+    const res = await runConvexSolitaire(batchFn, batchArgs);
     console.log(
-      `batch ${batchNum}/${totalBatches} entries=${batchEntries.length} rollouts=${rollouts.length} entryCount=${res?.entryCount}`
+      `batch ${batchNum} entries=${batchEntries.length} rollouts=${batchArgs.rollouts.length} bytes=${convexPayloadBytes(batchArgs)} entryCount=${res?.entryCount}`
     );
+    i += size;
   }
 
   if (opts.append) {
@@ -178,9 +208,11 @@ async function main() {
     });
     console.log("append done:", JSON.stringify(refreshed, null, 2));
   } else {
+    const minEntries =
+      opts.minEntries > 0 ? opts.minEntries : entries.length;
     const finalized = await runConvexSolitaire(`${ADMIN}:importSeedPoolFinalize`, {
       poolVersion,
-      minEntries: opts.minEntries,
+      minEntries,
     });
     console.log("finalize:", JSON.stringify(finalized, null, 2));
   }

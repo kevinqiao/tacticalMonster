@@ -16,6 +16,7 @@
 | 经济、锦标 A/B/C、钻/软币、赛季分口径、默认 PVE 异步竞技 | [`casual-platform-system-design.md`](./casual-platform-system-design.md) |
 | 统一赛季、任务、Pass、榜单、专场、商店动线 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | CasualTown（展示与轻社交；非第二养成主循环） | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
+| CasualTown 美术技法与 AI 交付规范（一页纸） | [`casual-town-art-brief.md`](./casual-town-art-brief.md) |
 | 成就、徽章与长期身份展示 | [`casual-platform-achievement-system-design.md`](./casual-platform-achievement-system-design.md) |
 | Battle Pass、皮肤、成就 | [`casual-platform-battle-pass-skins-achievements.md`](./casual-platform-battle-pass-skins-achievements.md) |
 | **多游戏 Web 平台 Pass**（SKU、XP、任务、指标） | [`casual-platform-multi-game-pass-design.md`](./casual-platform-multi-game-pass-design.md) |

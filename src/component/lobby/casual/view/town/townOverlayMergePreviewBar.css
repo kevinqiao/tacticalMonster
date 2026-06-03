@@ -1,0 +1,107 @@
+.town-overlay-merge-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(120, 200, 255, 0.35);
+}
+
+.town-overlay-merge-preview__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.town-overlay-merge-preview__enable {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.town-overlay-merge-preview__title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8ad4ff;
+}
+
+.town-overlay-merge-preview__status {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.town-overlay-merge-preview__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.town-overlay-merge-preview__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+  flex: 1;
+}
+
+.town-overlay-merge-preview__label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.town-overlay-merge-preview__select {
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+}
+
+.town-overlay-merge-preview__layers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.town-overlay-merge-preview__btn {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.town-overlay-merge-preview__btn.is-active {
+  border-color: #5eb8ff;
+  background: rgba(94, 184, 255, 0.22);
+  color: #b8e4ff;
+}
+
+.town-overlay-merge-preview__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+}
+
+.town-overlay-merge-preview__toggle input {
+  accent-color: #5eb8ff;
+}
+
+.town-overlay-merge-preview__hint {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.5);
+}

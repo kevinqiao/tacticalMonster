@@ -8,11 +8,17 @@
  * @module
  */
 
+import type * as http from "../http.js";
 import type * as proxy_controller from "../proxy/controller.js";
 import type * as service_SoloGameEngine from "../service/SoloGameEngine.js";
 import type * as service_SoloRuleManager from "../service/SoloRuleManager.js";
 import type * as service_casualBridgeEnv from "../service/casualBridgeEnv.js";
+import type * as service_casualBridgeIngest from "../service/casualBridgeIngest.js";
+import type * as service_casualGameLifecycle from "../service/casualGameLifecycle.js";
+import type * as service_casualGameTimeoutAction from "../service/casualGameTimeoutAction.js";
 import type * as service_gameManager from "../service/gameManager.js";
+import type * as service_seedPool_casualMatchSeedHttp from "../service/seedPool/casualMatchSeedHttp.js";
+import type * as service_seedPool_playerSeedStore from "../service/seedPool/playerSeedStore.js";
 import type * as service_seedPool_solitaireHumanPersonas from "../service/seedPool/solitaireHumanPersonas.js";
 import type * as service_seedPool_solitaireOpCodec from "../service/seedPool/solitaireOpCodec.js";
 import type * as service_seedPool_solitaireRecordedOpTypes from "../service/seedPool/solitaireRecordedOpTypes.js";
@@ -51,11 +57,17 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  http: typeof http;
   "proxy/controller": typeof proxy_controller;
   "service/SoloGameEngine": typeof service_SoloGameEngine;
   "service/SoloRuleManager": typeof service_SoloRuleManager;
   "service/casualBridgeEnv": typeof service_casualBridgeEnv;
+  "service/casualBridgeIngest": typeof service_casualBridgeIngest;
+  "service/casualGameLifecycle": typeof service_casualGameLifecycle;
+  "service/casualGameTimeoutAction": typeof service_casualGameTimeoutAction;
   "service/gameManager": typeof service_gameManager;
+  "service/seedPool/casualMatchSeedHttp": typeof service_seedPool_casualMatchSeedHttp;
+  "service/seedPool/playerSeedStore": typeof service_seedPool_playerSeedStore;
   "service/seedPool/solitaireHumanPersonas": typeof service_seedPool_solitaireHumanPersonas;
   "service/seedPool/solitaireOpCodec": typeof service_seedPool_solitaireOpCodec;
   "service/seedPool/solitaireRecordedOpTypes": typeof service_seedPool_solitaireRecordedOpTypes;

@@ -28,6 +28,21 @@ import {
   type JoinCasualRunQueuedResult,
   type JoinCasualRunResult,
 } from "./casualTournamentTypes";
+import type { CasualTournamentDefinition } from "../../data/casualTournamentConfigs";
+
+async function scheduleBindMatchSeedIfSolitaire(
+  ctx: MutationCtx,
+  matchId: string,
+  templateId: string,
+  def: CasualTournamentDefinition
+): Promise<void> {
+  if (def.gameId !== "solitaire") return;
+  await ctx.scheduler.runAfter(0, internal.service.tournament.casualMatchSeedActions.bindCasualMatchSeed, {
+    matchId,
+    templateId,
+    sessionKey: `casual_sess:${matchId}`,
+  });
+}
 
 type QueueRow = Doc<"casual_match_queue">;
 
@@ -114,6 +129,7 @@ async function openTableForClaimedRows(
       updatedAt: doneAt,
     });
   }
+  await scheduleBindMatchSeedIfSolitaire(ctx, inserted.matchId, templateId, def);
   return true;
 }
 
@@ -169,6 +185,7 @@ async function tryOpenSoloTableFromQueueRow(
     matchedRunTournamentId: inserted.runTournamentId as Id<"casual_run_tournaments">,
     updatedAt: now,
   });
+  await scheduleBindMatchSeedIfSolitaire(ctx, inserted.matchId, templateId, def);
   return true;
 }
 

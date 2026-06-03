@@ -54,6 +54,17 @@ export default defineSchema({
             "rolloutIndex",
         ]),
 
+    /** 真人已玩过的 pool seed（resolve-seed 时过滤；绑定成功后写入） */
+    player_seeds: defineTable({
+        uid: v.string(),
+        seedId: v.string(),
+        poolVersion: v.string(),
+        matchId: v.optional(v.string()),
+        usedAt: v.number(),
+    })
+        .index("by_uid_and_poolVersion", ["uid", "poolVersion"])
+        .index("by_uid_poolVersion_and_seedId", ["uid", "poolVersion", "seedId"]),
+
     game: defineTable({
         gameId: v.string(),
         cards: v.array(v.object({
@@ -76,6 +87,10 @@ export default defineSchema({
         score: v.number(),
         moves: v.number(),
         playStartedAt: v.optional(v.number()),
+        /** 休闲 run 绝对截止时间（epoch ms），创局时写入 */
+        dueTime: v.optional(v.number()),
+        /** 创局时注册的 5 分钟超时 job，终局/强退后 cancel */
+        casualTimeoutScheduledId: v.optional(v.id("_scheduled_functions")),
         seed: v.optional(v.string()),
         lastUpdate: v.optional(v.string()),
     }).index("by_gameId", ["gameId"]),

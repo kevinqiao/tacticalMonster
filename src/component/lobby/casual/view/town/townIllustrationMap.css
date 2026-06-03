@@ -324,6 +324,17 @@
   border: 1px dashed rgba(255, 216, 74, 0.45);
 }
 
+.town-illus__overlay-merge-banner {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #b8e4ff;
+  background: rgba(94, 184, 255, 0.12);
+  border: 1px dashed rgba(94, 184, 255, 0.45);
+}
+
 .town-illus--calibration .town-illus__hotspot--debug {
   background: rgba(255, 216, 74, 0.12);
   border: 1px dashed rgba(255, 216, 74, 0.65);

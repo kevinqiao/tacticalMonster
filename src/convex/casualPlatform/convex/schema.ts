@@ -153,6 +153,25 @@ export default defineSchema({
     maxPlayers: v.number(),
     /** 开局时真人数量（异步虚拟对手数 = maxPlayers - humanPlayerCount） */
     humanPlayerCount: v.optional(v.number()),
+    /** solitaire seed pool：整场 match 共用 */
+    seedId: v.optional(v.string()),
+    seedPoolVersion: v.optional(v.string()),
+    seedTier: v.optional(v.union(v.literal("easy"), v.literal("medium"), v.literal("hard"))),
+    seedScoreQuantiles: v.optional(
+      v.object({
+        p10: v.number(),
+        p25: v.number(),
+        p30: v.number(),
+        p33: v.number(),
+        p50: v.number(),
+        p66: v.number(),
+        p70: v.number(),
+        p75: v.number(),
+        p90: v.number(),
+      })
+    ),
+    seedResolvedAt: v.optional(v.number()),
+    seedResolveError: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_tournament", ["tournamentId"]),
@@ -207,6 +226,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_gameId", ["gameId"])
+    .index("by_matchId", ["matchId"])
     .index("by_match_uid", ["matchId", "uid"])
     .index("by_uid_template", ["uid", "templateId"])
     .index("by_uid", ["uid"])

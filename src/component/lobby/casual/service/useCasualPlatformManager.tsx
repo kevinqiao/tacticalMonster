@@ -708,7 +708,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       const http = getCasualHttpClient();
       if (!http || !user?.uid) return null;
       try {
-        const result = await http.mutation(casualTournamentFns.joinTournament, {
+        const result = await http.action(casualTournamentFns.joinTournament, {
           uid: user.uid,
           tournamentId,
           ...(opts?.dailySoloCostAck ? { dailySoloCostAck: true as const } : {}),

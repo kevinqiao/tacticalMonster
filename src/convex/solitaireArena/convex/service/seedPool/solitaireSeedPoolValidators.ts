@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 
+import { HUMAN_STOCHASTIC_POLICY_VERSION } from "./solitaireRecordedOpTypes";
+
 export const solitaireSeedTier = v.union(
   v.literal("easy"),
   v.literal("medium"),
@@ -56,7 +58,7 @@ export const rolloutDistributionMetrics = v.object({
   scoreSpread: v.number(),
   playerEaseScore: v.number(),
   layoutFingerprint: v.string(),
-  policyVersion: v.string(),
+  policyVersion: v.literal(HUMAN_STOCHASTIC_POLICY_VERSION),
   matchTimeLimitSec: v.number(),
 });
 

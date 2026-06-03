@@ -65,6 +65,8 @@ export interface GameModel {
     seed?: string;
     /** Wall-clock ms when the 5-minute match timer starts (first scoring action). */
     playStartedAt?: number;
+    /** 休闲 run 绝对截止时间（epoch ms），创局时由服务端写入 */
+    dueTime?: number;
     lastUpdate?: string;//event id
 }
 // 简化的游戏状态 - 只使用统一的 cards 数组

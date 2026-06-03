@@ -1,11 +1,12 @@
 import type { GenericDatabaseReader, GenericDatabaseWriter } from "convex/server";
 
 import type { DataModel, Doc } from "../../_generated/dataModel";
-import type {
-  RolloutSummary,
-  RolloutTerminalReason,
-  SeedPoolEntry,
-  SolitaireSeedTier,
+import {
+  HUMAN_STOCHASTIC_POLICY_VERSION,
+  type RolloutSummary,
+  type RolloutTerminalReason,
+  type SeedPoolEntry,
+  type SolitaireSeedTier,
 } from "./solitaireRecordedOpTypes";
 
 type DbReader = GenericDatabaseReader<DataModel>;
@@ -42,7 +43,7 @@ export function entryDocToSeedPoolEntry(
     poolVersion: entry.poolVersion,
     tier: entry.tier,
     difficultyScore: entry.difficultyScore,
-    metrics: entry.metrics,
+    metrics: { ...entry.metrics, policyVersion: HUMAN_STOCHASTIC_POLICY_VERSION },
     ...(rolloutSummaries?.length ? { rolloutSummaries } : {}),
   };
 }
@@ -236,7 +237,27 @@ function paginateEntryDocs(
 export async function pickRandomSeedForTier(
   db: DbReader,
   poolVersion: string,
-  tier: SolitaireSeedTier
+  tier: SolitaireSeedTier,
+  excludeSeedIds: ReadonlySet<string> = new Set()
+): Promise<SeedPoolEntryDoc | null> {
+  return pickRandomSeedForTierExcluding(db, poolVersion, tier, excludeSeedIds);
+}
+
+function filterEntriesExcludingUsed(
+  rows: SeedPoolEntryDoc[],
+  excludeSeedIds: ReadonlySet<string>
+): SeedPoolEntryDoc[] {
+  if (excludeSeedIds.size === 0) return rows;
+  return rows.filter((r) => !excludeSeedIds.has(r.seedId));
+}
+
+/** Deterministic pick: same sessionKey always yields same seed within tier pool. */
+export async function pickDeterministicSeedForTier(
+  db: DbReader,
+  poolVersion: string,
+  tier: SolitaireSeedTier,
+  sessionKey: string,
+  excludeSeedIds: ReadonlySet<string> = new Set()
 ): Promise<SeedPoolEntryDoc | null> {
   const rows = await db
     .query("solitaire_seed_pool_entries")
@@ -244,9 +265,33 @@ export async function pickRandomSeedForTier(
       q.eq("poolVersion", poolVersion).eq("tier", tier)
     )
     .collect();
-  if (rows.length === 0) return null;
-  const idx = Math.floor(Math.random() * rows.length);
-  return rows[idx]!;
+  const available = filterEntriesExcludingUsed(rows, excludeSeedIds);
+  if (available.length === 0) return null;
+  const sorted = [...available].sort((a, b) => a.seedId.localeCompare(b.seedId));
+  let hash = 0;
+  for (let i = 0; i < sessionKey.length; i++) {
+    hash = (hash * 31 + sessionKey.charCodeAt(i)) >>> 0;
+  }
+  const idx = hash % sorted.length;
+  return sorted[idx]!;
+}
+
+export async function pickRandomSeedForTierExcluding(
+  db: DbReader,
+  poolVersion: string,
+  tier: SolitaireSeedTier,
+  excludeSeedIds: ReadonlySet<string>
+): Promise<SeedPoolEntryDoc | null> {
+  const rows = await db
+    .query("solitaire_seed_pool_entries")
+    .withIndex("by_poolVersion_and_tier", (q) =>
+      q.eq("poolVersion", poolVersion).eq("tier", tier)
+    )
+    .collect();
+  const available = filterEntriesExcludingUsed(rows, excludeSeedIds);
+  if (available.length === 0) return null;
+  const idx = Math.floor(Math.random() * available.length);
+  return available[idx]!;
 }
 
 export async function countEntriesForPool(db: DbReader, poolVersion: string): Promise<number> {

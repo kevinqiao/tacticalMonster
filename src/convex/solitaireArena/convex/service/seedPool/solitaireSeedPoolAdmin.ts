@@ -318,22 +318,26 @@ export const clearSeedPoolVersion = internalMutation({
     entryBatchSize: v.optional(v.number()),
   },
   handler: async (ctx, { poolVersion, rolloutBatchSize, entryBatchSize }) => {
-    let rolloutDeleted = 0;
-    let rolloutDone = false;
-    while (!rolloutDone) {
-      const r = await deleteRolloutsBatch(ctx.db, poolVersion, rolloutBatchSize ?? 200);
-      rolloutDeleted += r.deleted;
-      rolloutDone = r.done;
-      if (r.deleted === 0) break;
+    const rollouts = await deleteRolloutsBatch(ctx.db, poolVersion, rolloutBatchSize ?? 100);
+    if (rollouts.deleted > 0) {
+      return {
+        ok: true as const,
+        poolVersion,
+        phase: "rollouts" as const,
+        deleted: rollouts.deleted,
+        complete: false,
+      };
     }
 
-    let entryDeleted = 0;
-    let entryDone = false;
-    while (!entryDone) {
-      const e = await deleteEntriesBatch(ctx.db, poolVersion, entryBatchSize ?? 100);
-      entryDeleted += e.deleted;
-      entryDone = e.done;
-      if (e.deleted === 0) break;
+    const entries = await deleteEntriesBatch(ctx.db, poolVersion, entryBatchSize ?? 100);
+    if (entries.deleted > 0) {
+      return {
+        ok: true as const,
+        poolVersion,
+        phase: "entries" as const,
+        deleted: entries.deleted,
+        complete: false,
+      };
     }
 
     const meta = await getPoolMetaByVersion(ctx.db, poolVersion);
@@ -344,8 +348,9 @@ export const clearSeedPoolVersion = internalMutation({
     return {
       ok: true as const,
       poolVersion,
-      rolloutDeleted,
-      entryDeleted,
+      phase: "complete" as const,
+      deleted: 0,
+      complete: true,
     };
   },
 });

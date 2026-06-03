@@ -5,9 +5,18 @@ import { TOWN_POINT_SOURCES, TOWN_STAGES, townLevelProgress } from "./casualTown
 import type { TownBpLayer } from "./casualTownThemeCatalog";
 import { TOWN_ILLUSTRATION_S1 } from "./townIllustrationConfig";
 import TownIllustrationMap from "./TownIllustrationMap";
+import TownOverlayMergePreviewBar from "./TownOverlayMergePreviewBar";
+import type { TownOverlayMergePreviewState } from "./townOverlayPairPreview";
 import TownThemePreviewBar from "./TownThemePreviewBar";
 import { useCasualTownTheme } from "./useCasualTownTheme";
 import "./casualTownView.css";
+
+const DEFAULT_OVERLAY_MERGE_PREVIEW: TownOverlayMergePreviewState = {
+  enabled: false,
+  buildingId: "arena",
+  baseSide: "after",
+  showOverlay: true,
+};
 
 const MOCK_TOTAL_POINTS = 320;
 
@@ -36,6 +45,9 @@ const CasualTownView: React.FC = () => {
   const [tab, setTab] = useState<"map" | "economy">("map");
   const [themePreviewLayer, setThemePreviewLayer] = useState<TownBpLayer | null>("env");
   const [themePreviewDeluxe, setThemePreviewDeluxe] = useState(false);
+  const [overlayMergePreview, setOverlayMergePreview] = useState(
+    DEFAULT_OVERLAY_MERGE_PREVIEW
+  );
   const { entitlements: liveEntitlements } = useCasualTownTheme();
 
   const themePreview = useMemo(() => {
@@ -112,6 +124,12 @@ const CasualTownView: React.FC = () => {
             onPreviewLayer={setThemePreviewLayer}
             onPreviewDeluxe={setThemePreviewDeluxe}
           />
+          {import.meta.env.DEV && (
+            <TownOverlayMergePreviewBar
+              state={overlayMergePreview}
+              onChange={setOverlayMergePreview}
+            />
+          )}
           <div className="casual-town__map-wrap casual-town__map-wrap--illustration">
             <TownIllustrationMap
               level={level}
@@ -119,6 +137,7 @@ const CasualTownView: React.FC = () => {
               onSelect={setSelectedId}
               entitlements={liveEntitlements}
               themePreview={themePreview}
+              overlayMergePreview={overlayMergePreview}
             />
           </div>
           {selected ? (

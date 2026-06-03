@@ -395,6 +395,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             <SoloGameHeader
                 displayScore={displayScore}
                 displayMoves={displayMoves}
+                dueTime={gameState?.dueTime}
                 showAutoComplete={showAutoComplete}
                 onAutoComplete={() => {
                     void runAutoCompleteToFoundation();

@@ -830,6 +830,30 @@ export const findMatchByGameForBridge = internalQuery({
       return { ok: false as const, error: "match_not_open" as const };
     }
     const replayEpoch = pm.replayEpoch ?? 0;
+
+    if (pm.gameType === "solitaire") {
+      const matchDoc = await ctx.db.get(pm.matchId as Id<"casual_run_matches">);
+      if (!matchDoc) {
+        return { ok: false as const, error: "unknown_match" as const };
+      }
+      if (matchDoc.seedResolveError) {
+        return { ok: false as const, error: "seed_unavailable" as const };
+      }
+      if (!matchDoc.seedId) {
+        return { ok: false as const, error: "seed_pending" as const };
+      }
+      return {
+        ok: true as const,
+        match: {
+          gameId: pm.gameId,
+          seed: matchDoc.seedId,
+          seedId: matchDoc.seedId,
+          templateId: pm.templateId,
+          replayEpoch,
+        },
+      };
+    }
+
     const seedKey =
       pm.externalGameId && String(pm.externalGameId).startsWith("casual_sess:")
         ? pm.externalGameId
@@ -931,33 +955,6 @@ export const previewJoinEntryCharge = query({
   args: { uid: v.string(), tournamentId: v.string() },
   handler: async (ctx, { uid, tournamentId }) => {
     return await assertJoinEntryEligible(ctx, uid, tournamentId, Date.now());
-  },
-});
-
-export const joinTournament = mutation({
-  args: {
-    uid: v.string(),
-    tournamentId: v.string(),
-    dailySoloCostAck: v.optional(v.literal(true)),
-  },
-  handler: async (ctx, { uid, tournamentId, dailySoloCostAck }): Promise<JoinCasualRunResult> => {
-    const def = getTournamentDefinition(tournamentId);
-    if (!def) {
-      return { ok: false as const, error: "unknown_tournament" };
-    }
-    /** 日榜等 maxPlayers=1：同步建局，不走异步队列 */
-    if (def.maxPlayers <= 1) {
-      return await ctx.runMutation(internal.service.tournament.casualTournamentService.joinCasualRunCore, {
-        uid,
-        tournamentId,
-        dailySoloCostAck,
-      });
-    }
-    return await ctx.runMutation(internal.service.tournament.casualMatchmaking.enqueueCasualMatchmakingAndTryMatch, {
-      uid,
-      tournamentId,
-      dailySoloCostAck,
-    });
   },
 });
 

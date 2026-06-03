@@ -18,7 +18,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { runConvexSolitaire } from "./run-convex-solitaire.mjs";
+import { clearSeedPoolFully, runConvexSolitaire } from "./run-convex-solitaire.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -28,9 +28,8 @@ const DEFAULT_INDEX = path.join(DEFAULT_OUT, "index.json");
 const DEFAULT_VERSION = "v2";
 const DEFAULT_COUNT = 500;
 const DEFAULT_ROLLOUTS = 40;
-const DEFAULT_MIN_ENTRIES = 500;
-
-const ADMIN = "service/seedPool/solitaireSeedPoolAdmin";
+const DEFAULT_MIN_ENTRIES = 0; // 0 = 自动使用 index 实际条数
+const DEFAULT_BATCH_SIZE = process.platform === "win32" ? 2 : 8;
 
 function usage() {
   console.log(`Solitaire seed pool CLI
@@ -52,8 +51,8 @@ Common options (before --):
   --pool-version <v>    池版本（默认 v2）
   --count <n>           create：目标接纳条数（默认 ${DEFAULT_COUNT}）
   --rollouts <n>        create：每 seed rollout 数（默认 ${DEFAULT_ROLLOUTS}）
-  --min-entries <n>     load：finalize 最少条数（默认 ${DEFAULT_MIN_ENTRIES}）
-  --batch-size <n>      load/append 批大小（默认 8）
+  --min-entries <n>     load：finalize 最少条数（默认 0=index 实际条数；显式设 500 可强制质量门槛）
+  --batch-size <n>      load/append 批大小（默认 ${DEFAULT_BATCH_SIZE}，Windows 含 rollout 时建议 ≤2）
   --no-clear            load 时不先 clean Convex
   --local               clean 时同时删除本地 --out 目录
   --resume              create 断点续跑（等同 generate --resume）
@@ -86,7 +85,7 @@ function parseCommon(flags) {
     count: DEFAULT_COUNT,
     rollouts: DEFAULT_ROLLOUTS,
     minEntries: DEFAULT_MIN_ENTRIES,
-    batchSize: 8,
+    batchSize: DEFAULT_BATCH_SIZE,
     clearFirst: true,
     local: false,
     resume: false,
@@ -150,7 +149,7 @@ async function cmdClean(opts) {
   const poolVersion =
     opts.poolVersion || (await readPoolVersionFromIndex(opts.index, DEFAULT_VERSION));
   console.log(`clean Convex poolVersion=${poolVersion}`);
-  const res = await runConvexSolitaire(`${ADMIN}:clearSeedPoolVersion`, { poolVersion });
+  const res = await clearSeedPoolFully(poolVersion);
   console.log(res);
 
   if (opts.local) {

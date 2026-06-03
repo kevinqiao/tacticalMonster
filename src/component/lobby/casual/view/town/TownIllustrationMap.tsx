@@ -18,6 +18,11 @@ import {
   townLayerSkyGradient,
   TOWN_BP_LAYER_LABELS,
 } from "./townIllustrationTheme";
+import {
+  resolveOverlayMergeBaseSrc,
+  TOWN_OVERLAY_PAIR_ASPECT_RATIO,
+  type TownOverlayMergePreviewState,
+} from "./townOverlayPairPreview";
 import "./townIllustrationMap.css";
 
 export interface TownIllustrationMapProps {
@@ -32,6 +37,8 @@ export interface TownIllustrationMapProps {
   } | null;
   /** 服务端已解锁建筑（成就校验后）；未传则仅按 Town 等级 + visibleFromStage */
   unlockedBuildingIds?: ReadonlySet<string>;
+  /** 开发：raw/pairs before/after 与 overlay 合并预览 */
+  overlayMergePreview?: TownOverlayMergePreviewState | null;
 }
 
 const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
@@ -42,17 +49,55 @@ const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
   entitlements: liveEntitlements,
   themePreview,
   unlockedBuildingIds,
+  overlayMergePreview,
 }) => {
   const config = useMemo(() => getTownIllustrationConfig(seasonId), [seasonId]);
 
-  const unlockCtx = useMemo(
-    () => ({
+  const mergePreviewActive = overlayMergePreview?.enabled === true;
+
+  const unlockCtx = useMemo(() => {
+    if (mergePreviewActive && overlayMergePreview) {
+      const ids = overlayMergePreview.showOverlay
+        ? new Set([overlayMergePreview.buildingId])
+        : new Set<string>();
+      return {
+        townLevel: level,
+        previewAllUnlocked: false,
+        unlockedBuildingIds: ids,
+      };
+    }
+    return {
       townLevel: level,
       previewAllUnlocked: config.previewAllUnlocked,
       unlockedBuildingIds,
-    }),
-    [level, config.previewAllUnlocked, unlockedBuildingIds]
-  );
+    };
+  }, [
+    mergePreviewActive,
+    overlayMergePreview,
+    level,
+    config.previewAllUnlocked,
+    unlockedBuildingIds,
+  ]);
+
+  const displayBaseSrc = useMemo(() => {
+    if (!mergePreviewActive || !overlayMergePreview) return config.baseSrc;
+    return resolveOverlayMergeBaseSrc(
+      overlayMergePreview.buildingId,
+      overlayMergePreview.baseSide,
+      config.baseSrc
+    );
+  }, [mergePreviewActive, overlayMergePreview, config.baseSrc]);
+
+  const displayAspectRatio = useMemo(() => {
+    if (
+      mergePreviewActive &&
+      overlayMergePreview &&
+      overlayMergePreview.baseSide !== "game"
+    ) {
+      return TOWN_OVERLAY_PAIR_ASPECT_RATIO;
+    }
+    return config.aspectRatio;
+  }, [mergePreviewActive, overlayMergePreview, config.aspectRatio]);
 
   const resolvedOverlays = useMemo(
     () => resolveBuildingOverlays(config.buildingOverlays, config.hotspots),
@@ -100,7 +145,8 @@ const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
   }, [config.hotspots]);
 
   const calibrationIds = config.calibrationBuildingIds;
-  const isCalibrating = calibrationIds != null && calibrationIds.length > 0;
+  const isCalibrating =
+    !mergePreviewActive && calibrationIds != null && calibrationIds.length > 0;
 
   const mapHotspots = useMemo(() => {
     return config.hotspots.filter((h) => {
@@ -119,10 +165,13 @@ const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
 
   return (
     <div
-      className={`town-illus${isCalibrating ? " town-illus--calibration" : ""}`}
+      className={`town-illus${isCalibrating ? " town-illus--calibration" : ""}${
+        mergePreviewActive ? " town-illus--overlay-merge-preview" : ""
+      }`}
       data-town-renderer="illustration-hotspot-v1"
       data-illustration-id={config.id}
       data-hotspot-calibration={isCalibrating ? "calibration" : "off"}
+      data-overlay-merge-preview={mergePreviewActive ? "on" : "off"}
       data-town-layer={entitlements.townLayer}
       data-town-variant={entitlements.townVariant}
     >
@@ -131,11 +180,19 @@ const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
           热区校准：虚线框上始终显示建筑名。调准后设 calibrationBuildingIds 为 null。
         </p>
       )}
+      {mergePreviewActive && overlayMergePreview && (
+        <p className="town-illus__overlay-merge-banner">
+          合并预览：{overlayMergePreview.baseSide === "game" ? "游戏底图" : overlayMergePreview.baseSide}
+          {overlayMergePreview.showOverlay
+            ? ` + overlays/${overlayMergePreview.buildingId}.png`
+            : "（未叠 overlay）"}
+        </p>
+      )}
       <div
         className="town-illus__frame"
         data-town-layer={bpLayer}
         style={{
-          aspectRatio: String(config.aspectRatio),
+          aspectRatio: String(displayAspectRatio),
           ["--town-base-filter" as string]: baseFilter,
         }}
       >
@@ -148,7 +205,7 @@ const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
         <div className="town-illus__canvas">
           <img
             className="town-illus__image town-illus__image--base"
-            src={config.baseSrc}
+            src={displayBaseSrc}
             alt=""
             draggable={false}
           />

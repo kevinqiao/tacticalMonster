@@ -19,7 +19,7 @@ export const casualTournamentFns = {
   leaveCasualMatchQueue: makeFunctionReference<"mutation">(
     "service/tournament/casualMatchmaking:leaveCasualMatchQueue"
   ),
-  joinTournament: makeFunctionReference<"mutation">("service/tournament/casualTournamentService:joinTournament"),
+  joinTournament: makeFunctionReference<"action">("service/tournament/casualTournamentActions:joinTournament"),
   confirmCasualRunWithoutReplay: makeFunctionReference<"mutation">(
     "service/tournament/casualTournamentService:confirmCasualRunWithoutReplay"
   ),
