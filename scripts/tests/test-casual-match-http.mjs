@@ -65,6 +65,41 @@ async function post(path, body) {
   return json;
 }
 
+/**
+ * PowerShell 单引号 `'[{"min":1}]'` 会剥掉内部双引号 → `[{min:1}]`；
+ * 双引号 `\"` 也可能原样传入。此处尽量规范化后再 JSON.parse。
+ */
+function quoteUnquotedJsonKeys(s) {
+  if (/"[A-Za-z_][A-Za-z0-9_]*"\s*:/.test(s)) return s;
+  return s.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)/g, '$1"$2"$3');
+}
+
+function parseScoresJson(raw) {
+  const trimmed = raw.trim();
+  const attempts = [
+    trimmed,
+    trimmed.replace(/\\"/g, '"'),
+    quoteUnquotedJsonKeys(trimmed),
+    quoteUnquotedJsonKeys(trimmed.replace(/\\"/g, '"')),
+  ];
+  const seen = new Set();
+  let lastErr;
+  for (const s of attempts) {
+    if (seen.has(s)) continue;
+    seen.add(s);
+    try {
+      const parsed = JSON.parse(s);
+      if (!Array.isArray(parsed)) {
+        throw new Error("scores must be a JSON array");
+      }
+      return parsed;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
+
 function parseArgs(argv) {
   const cmd = argv[0];
   const opts = {};
@@ -77,7 +112,8 @@ function parseArgs(argv) {
     else if (a === "--session-key") opts.sessionKey = next();
     else if (a === "--pool-version") opts.poolVersion = next();
     else if (a === "--seed-id") opts.seedId = next();
-    else if (a === "--scores") opts.scores = JSON.parse(next());
+    else if (a === "--scores") opts.scores = parseScoresJson(next());
+    else if (a === "--scores-file") opts.scoresFile = next();
   }
   return { cmd, opts };
 }
@@ -119,8 +155,20 @@ async function main() {
       console.error("rollouts requires --seed-id");
       process.exit(1);
     }
+    if (opts.scoresFile) {
+      try {
+        opts.scores = parseScoresJson(await readFile(opts.scoresFile, "utf8"));
+      } catch (e) {
+        console.error("failed to read --scores-file:", e.message ?? e);
+        process.exit(1);
+      }
+    }
     if (!opts.scores?.length) {
-      console.error('rollouts requires --scores \'[{"min":0,"max":100,"count":1}]\'');
+      console.error(
+        "rollouts requires --scores or --scores-file\n" +
+          "  PowerShell: --scores '[{\"min\":0,\"max\":100,\"count\":1}]'  (用单引号包住 JSON)\n" +
+          "  或: --scores-file scripts/tests/sample-rollout-scores.json"
+      );
       process.exit(1);
     }
     await post("/internal/casual-match-rollouts", {
