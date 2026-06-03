@@ -6,7 +6,9 @@ import { v } from "convex/values";
 import type { CasualTournamentDefinition } from "../../data/casualTournamentConfigs";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
+import { internal } from "../../_generated/api";
 import { internalMutation } from "../../_generated/server";
+import { readCasualMatchSeedBinding } from "./casualMatchSeedBinding";
 import { getCasualRankMinScores } from "../../data/casualBotDifficultyConfig";
 import {
   assignRanksWithMinScores,
@@ -348,7 +350,7 @@ export async function ensureBotsSeededForPartialSubmit(
   if (humanRows.length === 0) return;
 
   if (!args.matchDoc.botsSeeded) {
-    await fillCasualAsyncVirtualLeaderboardAndRerankHumans(ctx, {
+    const filled = await fillCasualAsyncVirtualLeaderboardAndRerankHumans(ctx, {
       def: args.def,
       templateId: args.templateId,
       matchId: args.matchId,
@@ -357,11 +359,14 @@ export async function ensureBotsSeededForPartialSubmit(
       humanCountPlanned: args.humanCountPlanned,
       humanRows,
       updatedAt: args.updatedAt,
+      deferRolloutsToHttpSync: true,
     });
-    await ctx.db.patch(args.matchDoc._id, {
-      botsSeeded: true,
-      updatedAt: args.updatedAt,
-    });
+    if (filled) {
+      await ctx.db.patch(args.matchDoc._id, {
+        botsSeeded: true,
+        updatedAt: args.updatedAt,
+      });
+    }
     return;
   }
 
@@ -492,7 +497,7 @@ function botUidForMatchSlot(
   return `${prefix}${matchId}:r${slotRank}`;
 }
 
-function padBotFillsToCount(args: {
+export function padBotFillsToCount(args: {
   fills: BotFill[];
   botCount: number;
   maxPlayers: number;
@@ -681,6 +686,19 @@ export async function ensureAsyncMatchRosterFull(
     uid: r.uid,
     score: r.score as number,
   }));
+  const scheduled = await scheduleRolloutBotFillsIfNeeded(ctx, {
+    def: args.def,
+    templateId: args.templateId,
+    matchId: args.matchId,
+    runTournamentId: args.runTournamentId,
+    sessionExternalId: args.sessionExternalId,
+    humanScores: humanRows,
+    botCount: needBots,
+    updatedAt: args.updatedAt,
+    replaceAllVirtual: true,
+  });
+  if (scheduled) return;
+
   const { botFills, soloPlan } = await buildBotFillsForAsyncMatch(ctx, {
     def: args.def,
     templateId: args.templateId,
@@ -712,6 +730,88 @@ export async function ensureAsyncMatchRosterFull(
   });
 }
 
+/** 写入 bot 分并 rerank（本地或 rollouts action 共用） */
+export async function applyAsyncBotFillPlanToMatch(
+  ctx: MutationCtx,
+  args: {
+    def: CasualTournamentDefinition;
+    templateId: string;
+    matchId: string;
+    runTournamentId: string;
+    sessionExternalId: string;
+    matchGameType: "solitaire" | "block_blast";
+    botFills: Array<{ rank: number; score: number }>;
+    soloPlan?: { humanUid: string; effectiveRank: number };
+    updatedAt: number;
+    replaceAllVirtual?: boolean;
+  }
+): Promise<void> {
+  const rankMinScores = getCasualRankMinScores(args.def);
+  await seedCasualAsyncVirtualOpponentsCore(ctx, {
+    templateId: args.templateId,
+    runTournamentId: args.runTournamentId,
+    matchId: args.matchId,
+    externalGameId: args.sessionExternalId,
+    matchGameType: args.matchGameType,
+    botFills: args.botFills,
+    updatedAt: args.updatedAt,
+    replaceAllVirtual: args.replaceAllVirtual ?? true,
+  });
+  await patchRanksForAsyncMatch(ctx, {
+    matchId: args.matchId,
+    sessionExternalId: args.sessionExternalId,
+    def: args.def,
+    rankMinScores,
+    updatedAt: args.updatedAt,
+    soloPlan: args.soloPlan,
+    botFills: args.botFills,
+  });
+  const matchDoc = await ctx.db.get(args.matchId as Id<"casual_run_matches">);
+  if (matchDoc && !matchDoc.botsSeeded) {
+    await ctx.db.patch(matchDoc._id, {
+      botsSeeded: true,
+      updatedAt: args.updatedAt,
+    });
+  }
+}
+
+async function scheduleRolloutBotFillsIfNeeded(
+  ctx: MutationCtx,
+  args: {
+    def: CasualTournamentDefinition;
+    templateId: string;
+    matchId: string;
+    runTournamentId: string;
+    sessionExternalId: string;
+    humanScores: Array<{ uid: string; score: number }>;
+    botCount: number;
+    updatedAt: number;
+    replaceAllVirtual?: boolean;
+    /** 首个真人提交走 HTTP action 同步填分，避免与 scheduler 重复 */
+    skipSchedule?: boolean;
+  }
+): Promise<boolean> {
+  if (args.skipSchedule) return false;
+  if (args.def.gameId !== "solitaire" || args.botCount <= 0) return false;
+  const matchDoc = await ctx.db.get(args.matchId as Id<"casual_run_matches">);
+  if (!matchDoc || !readCasualMatchSeedBinding(matchDoc)) return false;
+  await ctx.scheduler.runAfter(
+    0,
+    internal.service.tournament.casualMatchSeedRolloutsAction.computeAndApplyAsyncBotFills,
+    {
+      templateId: args.templateId,
+      matchId: args.matchId,
+      runTournamentId: args.runTournamentId,
+      sessionExternalId: args.sessionExternalId,
+      humanScores: args.humanScores,
+      botCount: args.botCount,
+      updatedAt: args.updatedAt,
+      replaceAllVirtual: args.replaceAllVirtual,
+    }
+  );
+  return true;
+}
+
 /** 多人结算：规则引擎 / 中性槽位填 bot，再按 rankMinScores 定全员名次。 */
 export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
   ctx: MutationCtx,
@@ -724,11 +824,13 @@ export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
     humanCountPlanned: number;
     humanRows: Array<{ _id: Id<"casual_run_player_matches">; uid: string; score: number }>;
     updatedAt: number;
+    /** 首个真人提交：由 HTTP `syncRolloutBotsAfterScoreSubmit` 同步拉 rollouts */
+    deferRolloutsToHttpSync?: boolean;
   }
-): Promise<void> {
+): Promise<boolean> {
   const gt = args.def.gameId;
-  if (gt !== "solitaire" && gt !== "block_blast") return;
-  if (!args.sessionExternalId) return;
+  if (gt !== "solitaire" && gt !== "block_blast") return false;
+  if (!args.sessionExternalId) return false;
 
   /** 以 DB 为准重读真人分，避免并发提交传入过时的 humanRows */
   const matchRows = await ctx.db
@@ -746,7 +848,26 @@ export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
 
   const actualHumanCount = Math.max(1, humanRows.length);
   const botCount = casualAsyncVirtualOpponentCount(args.def.maxPlayers, actualHumanCount);
-  if (botCount <= 0) return;
+  if (botCount <= 0) return false;
+
+  const matchDoc = await ctx.db.get(args.matchId as Id<"casual_run_matches">);
+  const useRollouts =
+    gt === "solitaire" && matchDoc != null && readCasualMatchSeedBinding(matchDoc) != null;
+
+  const scheduled = await scheduleRolloutBotFillsIfNeeded(ctx, {
+    def: args.def,
+    templateId: args.templateId,
+    matchId: args.matchId,
+    runTournamentId: args.runTournamentId,
+    sessionExternalId: args.sessionExternalId,
+    humanScores: humanRows,
+    botCount,
+    updatedAt: args.updatedAt,
+    replaceAllVirtual: true,
+    skipSchedule: args.deferRolloutsToHttpSync,
+  });
+  if (scheduled) return false;
+  if (useRollouts && args.deferRolloutsToHttpSync) return false;
 
   const rankMinScores = getCasualRankMinScores(args.def);
   const { botFills, soloPlan } = await buildBotFillsForAsyncMatch(ctx, {
@@ -758,25 +879,17 @@ export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
     botCount,
   });
 
-  await seedCasualAsyncVirtualOpponentsCore(ctx, {
+  await applyAsyncBotFillPlanToMatch(ctx, {
+    def: args.def,
     templateId: args.templateId,
-    runTournamentId: args.runTournamentId,
     matchId: args.matchId,
-    externalGameId: args.sessionExternalId,
+    runTournamentId: args.runTournamentId,
+    sessionExternalId: args.sessionExternalId,
     matchGameType: gt,
     botFills,
+    soloPlan,
     updatedAt: args.updatedAt,
     replaceAllVirtual: true,
-  });
-
-  await patchRanksForAsyncMatch(ctx, {
-    matchId: args.matchId,
-    sessionExternalId: args.sessionExternalId,
-    def: args.def,
-    rankMinScores,
-    updatedAt: args.updatedAt,
-    soloPlan,
-    botFills,
   });
 
   await ensureAsyncMatchRosterFull(ctx, {
@@ -787,5 +900,6 @@ export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
     sessionExternalId: args.sessionExternalId,
     updatedAt: args.updatedAt,
   });
+  return true;
 }
 

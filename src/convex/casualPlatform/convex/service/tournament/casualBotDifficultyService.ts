@@ -198,6 +198,74 @@ function boundsForRankSlot(
   return { low, high };
 }
 
+export type BotScoreSlot = { rank: number; low: number; high: number };
+
+/** solo：每个 bot 名次槽的分数区间（供 rollouts HTTP 查询） */
+export function computeSoloBotScoreSlots(args: {
+  humanScore: number;
+  effectiveRank: number;
+  rankMinScores: RankMinScoresByRank;
+  maxPlayers: number;
+  gameType: CasualGameIdForBot;
+}): BotScoreSlot[] {
+  const { humanScore, effectiveRank, rankMinScores, maxPlayers, gameType } = args;
+  const eps = scoreEpsilon(gameType);
+  const span = gameType === "block_blast" ? 5000 : 500;
+  const slots: BotScoreSlot[] = [];
+  for (let r = 1; r <= maxPlayers; r++) {
+    if (r === effectiveRank) continue;
+    const minS = rankMinScores[r] ?? 0;
+    let low: number;
+    let high: number;
+    if (r < effectiveRank) {
+      low = Math.max(minS, humanScore + eps);
+      high = low + Math.max(eps * 20, span);
+    } else {
+      low = minS;
+      high = Math.max(minS + eps, humanScore - eps);
+      if (high <= low) high = low + eps;
+    }
+    slots.push({ rank: r, low, high });
+  }
+  return slots;
+}
+
+/** mixed_human：空名次槽的分数区间 */
+export function computeNeutralGapBotScoreSlots(args: {
+  humanScores: Array<{ uid: string; score: number }>;
+  rankMinScores: RankMinScoresByRank;
+  maxPlayers: number;
+  gameType: CasualGameIdForBot;
+}): BotScoreSlot[] {
+  const { humanScores, rankMinScores, maxPlayers, gameType } = args;
+  const humans = [...humanScores].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.uid.localeCompare(b.uid);
+  });
+  const remaining = new Set<number>();
+  for (let r = 1; r <= maxPlayers; r++) remaining.add(r);
+  const occupants: Occupant[] = [];
+  for (const h of humans) {
+    const eligible = [...remaining]
+      .filter((r) => h.score >= (rankMinScores[r] ?? 0))
+      .sort((a, b) => a - b);
+    const pick = eligible[0] ?? Math.max(...remaining);
+    occupants.push({
+      uid: h.uid,
+      score: h.score,
+      assignedRank: pick,
+      isBot: false,
+    });
+    remaining.delete(pick);
+  }
+  const slots: BotScoreSlot[] = [];
+  for (const r of [...remaining].sort((a, b) => a - b)) {
+    const { low, high } = boundsForRankSlot(r, occupants, rankMinScores, gameType);
+    slots.push({ rank: r, low, high });
+  }
+  return slots;
+}
+
 /** mixed_human：真人先占坑，再为空名次槽生成 bot 分 */
 export function generateNeutralGapBotScores(args: {
   humanScores: Array<{ uid: string; score: number }>;
@@ -230,14 +298,23 @@ export function generateNeutralGapBotScores(args: {
     remaining.delete(pick);
   }
 
+  const slots = computeNeutralGapBotScoreSlots({
+    humanScores,
+    rankMinScores,
+    maxPlayers,
+    gameType,
+  });
   const botFills: Array<{ rank: number; score: number }> = [];
-  const emptyRanks = [...remaining].sort((a, b) => a - b);
   let botIdx = 0;
-  for (const r of emptyRanks) {
-    const { low, high } = boundsForRankSlot(r, occupants, rankMinScores, gameType);
-    const score = scoreForRankSlot(low, high, botIdx, sessionSeed, gameType);
-    botFills.push({ rank: r, score });
-    occupants.push({ uid: `__bot_${r}`, score, assignedRank: r, isBot: true });
+  for (const slot of slots) {
+    const score = scoreForRankSlot(slot.low, slot.high, botIdx, sessionSeed, gameType);
+    botFills.push({ rank: slot.rank, score });
+    occupants.push({
+      uid: `__bot_${slot.rank}`,
+      score,
+      assignedRank: slot.rank,
+      isBot: true,
+    });
     botIdx++;
   }
   return botFills;
@@ -255,26 +332,19 @@ export function generateSoloBotScores(args: {
 }): Array<{ rank: number; score: number }> {
   const { humanScore, effectiveRank, rankMinScores, maxPlayers, gameType, sessionSeed } =
     args;
-  const eps = scoreEpsilon(gameType);
-  const span = gameType === "block_blast" ? 5000 : 500;
 
+  const slots = computeSoloBotScoreSlots({
+    humanScore,
+    effectiveRank,
+    rankMinScores,
+    maxPlayers,
+    gameType,
+  });
   const fills: Array<{ rank: number; score: number }> = [];
   let botIdx = 0;
-  for (let r = 1; r <= maxPlayers; r++) {
-    if (r === effectiveRank) continue;
-    const minS = rankMinScores[r] ?? 0;
-    let low: number;
-    let high: number;
-    if (r < effectiveRank) {
-      low = Math.max(minS, humanScore + eps);
-      high = low + Math.max(eps * 20, span);
-    } else {
-      low = minS;
-      high = Math.max(minS + eps, humanScore - eps);
-      if (high <= low) high = low + eps;
-    }
-    const score = scoreForRankSlot(low, high, botIdx, sessionSeed, gameType);
-    fills.push({ rank: r, score });
+  for (const slot of slots) {
+    const score = scoreForRankSlot(slot.low, slot.high, botIdx, sessionSeed, gameType);
+    fills.push({ rank: slot.rank, score });
     botIdx++;
   }
   return fills;

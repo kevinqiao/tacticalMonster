@@ -123,7 +123,7 @@ function usage() {
 
 Quick:
   npx tsx scripts/tests/test-casual-match-http.mjs resolve --uids <uid>[,uid2...]
-  npx tsx scripts/tests/test-casual-match-http.mjs rollouts --seed-id <seedId>
+  npx tsx scripts/tests/test-casual-match-http.mjs rollouts --seed-id <seedId> --scores-file scripts/tests/sample-rollout-scores.json
 `);
 }
 

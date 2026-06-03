@@ -45,7 +45,11 @@ import type * as service_task_casualTaskService from "../service/task/casualTask
 import type * as service_tournament_casualBotDifficultyService from "../service/tournament/casualBotDifficultyService.js";
 import type * as service_tournament_casualInstanceService from "../service/tournament/casualInstanceService.js";
 import type * as service_tournament_casualMatchSeedActions from "../service/tournament/casualMatchSeedActions.js";
+import type * as service_tournament_casualMatchSeedBinding from "../service/tournament/casualMatchSeedBinding.js";
 import type * as service_tournament_casualMatchSeedMutations from "../service/tournament/casualMatchSeedMutations.js";
+import type * as service_tournament_casualMatchSeedRollouts from "../service/tournament/casualMatchSeedRollouts.js";
+import type * as service_tournament_casualMatchSeedRolloutsAction from "../service/tournament/casualMatchSeedRolloutsAction.js";
+import type * as service_tournament_casualMatchSeedRolloutsMutations from "../service/tournament/casualMatchSeedRolloutsMutations.js";
 import type * as service_tournament_casualMatchmaking from "../service/tournament/casualMatchmaking.js";
 import type * as service_tournament_casualPlayerMatchStatus from "../service/tournament/casualPlayerMatchStatus.js";
 import type * as service_tournament_casualReplayPassService from "../service/tournament/casualReplayPassService.js";
@@ -112,7 +116,11 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/casualBotDifficultyService": typeof service_tournament_casualBotDifficultyService;
   "service/tournament/casualInstanceService": typeof service_tournament_casualInstanceService;
   "service/tournament/casualMatchSeedActions": typeof service_tournament_casualMatchSeedActions;
+  "service/tournament/casualMatchSeedBinding": typeof service_tournament_casualMatchSeedBinding;
   "service/tournament/casualMatchSeedMutations": typeof service_tournament_casualMatchSeedMutations;
+  "service/tournament/casualMatchSeedRollouts": typeof service_tournament_casualMatchSeedRollouts;
+  "service/tournament/casualMatchSeedRolloutsAction": typeof service_tournament_casualMatchSeedRolloutsAction;
+  "service/tournament/casualMatchSeedRolloutsMutations": typeof service_tournament_casualMatchSeedRolloutsMutations;
   "service/tournament/casualMatchmaking": typeof service_tournament_casualMatchmaking;
   "service/tournament/casualPlayerMatchStatus": typeof service_tournament_casualPlayerMatchStatus;
   "service/tournament/casualReplayPassService": typeof service_tournament_casualReplayPassService;

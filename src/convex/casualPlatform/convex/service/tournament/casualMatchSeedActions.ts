@@ -10,6 +10,7 @@ import {
   fetchGameMatchSeed,
   type ResolveSeedResponse,
 } from "../bridge/casualMatchSeedBridge";
+import type { CasualMatchSeedBinding } from "./casualMatchSeedBinding";
 
 function extractScoreQuantiles(
   metrics: ResolveSeedResponse["metrics"]
@@ -45,7 +46,7 @@ export const bindCasualMatchSeed = internalAction({
     if (!matchRow) {
       return { ok: false as const, error: "unknown_match" as const };
     }
-    if (matchRow.seedId) {
+    if (matchRow.seedBinding) {
       return { ok: true as const, alreadyBound: true as const };
     }
 
@@ -87,12 +88,15 @@ export const bindCasualMatchSeed = internalAction({
       return { ok: false as const, error: "missing_score_quantiles" as const };
     }
 
+    const seedBinding: CasualMatchSeedBinding = {
+      seedId: resolved.seedId,
+      poolVersion: resolved.poolVersion,
+      tier: resolved.tier,
+      scoreQuantiles: quantiles,
+    };
     await ctx.runMutation(internal.service.tournament.casualMatchSeedMutations.patchCasualRunMatchSeed, {
       matchId,
-      seedId: resolved.seedId,
-      seedPoolVersion: resolved.poolVersion,
-      seedTier: resolved.tier,
-      seedScoreQuantiles: quantiles,
+      seedBinding,
     });
     return { ok: true as const, seedId: resolved.seedId };
   },

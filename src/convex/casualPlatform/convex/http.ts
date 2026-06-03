@@ -55,12 +55,22 @@ http.route({
     }
     const gameIdConvex = gameKind === "solitaire" ? "solitaire" : "block_blast";
 
-    const result = await ctx.runMutation(internal.service.tournament.casualTournamentService.submitCasualRunScoreCore, {
-      uid,
-      matchGameId,
-      score: Math.floor(score),
-      gameId: gameIdConvex,
-    });
+    const result = await ctx.runMutation(
+      internal.service.tournament.casualTournamentService.submitCasualRunScoreCore,
+      {
+        uid,
+        matchGameId,
+        score: Math.floor(score),
+        gameId: gameIdConvex,
+      }
+    );
+
+    if (result.ok && gameIdConvex === "solitaire") {
+      await ctx.runAction(
+        internal.service.tournament.casualMatchSeedRolloutsAction.syncRolloutBotsAfterScoreSubmit,
+        { matchGameId, updatedAt: Date.now() }
+      );
+    }
 
     if (!result.ok) {
       return new Response(JSON.stringify({ ok: false, error: (result as { error?: string }).error }), {

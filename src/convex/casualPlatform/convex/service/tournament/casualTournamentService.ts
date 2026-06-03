@@ -45,6 +45,7 @@ import {
   finalizeCasualAsyncTableSummaryForPlayer,
   isCasualAsyncVirtualOpponentUid,
 } from "./casualRunSettlementFill";
+import { readCasualMatchSeedBinding } from "./casualMatchSeedBinding";
 import { isCasualDevAutoReplayTokensEnabled } from "../../data/casualBotDifficultyConfig";
 import {
   allHumansSubmitted,
@@ -839,15 +840,16 @@ export const findMatchByGameForBridge = internalQuery({
       if (matchDoc.seedResolveError) {
         return { ok: false as const, error: "seed_unavailable" as const };
       }
-      if (!matchDoc.seedId) {
+      const seedBinding = readCasualMatchSeedBinding(matchDoc);
+      if (!seedBinding) {
         return { ok: false as const, error: "seed_pending" as const };
       }
       return {
         ok: true as const,
         match: {
           gameId: pm.gameId,
-          seed: matchDoc.seedId,
-          seedId: matchDoc.seedId,
+          seed: seedBinding.seedId,
+          seedId: seedBinding.seedId,
           templateId: pm.templateId,
           replayEpoch,
         },
