@@ -1,9 +1,33 @@
 import type { GenericDatabaseReader, GenericDatabaseWriter } from "convex/server";
 
-import type { DataModel } from "../../_generated/dataModel";
+import type { DataModel, Doc } from "../../_generated/dataModel";
+
+export type PlayerSeedDoc = Doc<"player_seeds">;
 
 type DbReader = GenericDatabaseReader<DataModel>;
 type DbWriter = GenericDatabaseWriter<DataModel>;
+
+/**
+ * 同 match 幂等：按 matchId 查已绑定 seed（player_seeds 写入时带 matchId）。
+ * 多场 match 共用同一 seedId 时返回该 seedId；数据异常（同 match 多 seed）返回 null + conflict。
+ */
+export async function findBoundSeedIdForMatch(
+  db: DbReader,
+  poolVersion: string,
+  matchId: string
+): Promise<{ seedId: string } | { conflict: true } | null> {
+  const rows = await db
+    .query("player_seeds")
+    .withIndex("by_matchId", (q) => q.eq("matchId", matchId))
+    .collect();
+  const forPool = rows.filter((r) => r.poolVersion === poolVersion);
+  if (forPool.length === 0) return null;
+  const seedIds = new Set(forPool.map((r) => r.seedId));
+  if (seedIds.size > 1) {
+    return { conflict: true };
+  }
+  return { seedId: forPool[0]!.seedId };
+}
 
 /** 任一真人已用过的 seedId（当前 poolVersion 下并集）。 */
 export async function loadUsedSeedIdsForUids(

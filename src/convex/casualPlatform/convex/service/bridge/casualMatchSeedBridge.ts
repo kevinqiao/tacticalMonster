@@ -42,22 +42,31 @@ export type ResolveSeedResponse = {
   };
 };
 
+export type ScoreBand = {
+  min: number;
+  max?: number;
+  /** 该区间最多返回条数；缺省 1 */
+  count?: number;
+};
+
 export type RolloutsRequest = {
   seedId: string;
   poolVersion?: string;
-  matchId?: string;
-  scoreQuantileMin?: keyof ScoreQuantiles;
-  scoreQuantileMax?: keyof ScoreQuantiles;
-  minScore?: number;
-  maxScore?: number;
-  limit?: number;
+  scores: ScoreBand[];
 };
 
-export type RolloutRow = {
-  rolloutIndex: number;
-  finalScore: number;
-  elapsedTime: number;
+export type RolloutBandResult = {
+  min: number;
+  max?: number;
+  count: number;
+  rollouts: Array<{
+    rolloutIndex: number;
+    finalScore: number;
+    elapsedTime: number;
+  }>;
 };
+
+export type RolloutRow = RolloutBandResult["rollouts"][number];
 
 function resolveSolitaireOrigin(): string {
   const origin = (process.env.SOLITAIRE_HTTP_ORIGIN ?? process.env.SOLITAIRE_CONVEX_SITE_URL ?? "")
@@ -131,15 +140,15 @@ export async function fetchGameMatchSeed(
 export async function fetchGameMatchRollouts(
   gameType: string,
   body: RolloutsRequest
-): Promise<{ ok: true; rollouts: RolloutRow[] } | { ok: false; error: string }> {
+): Promise<{ ok: true; bands: RolloutBandResult[] } | { ok: false; error: string }> {
   if (gameType !== "solitaire") {
     return { ok: false, error: "unsupported_game" };
   }
   const origin = resolveSolitaireOrigin();
-  const result = await postJson<{ rollouts?: RolloutRow[] }>(
+  const result = await postJson<{ bands?: RolloutBandResult[] }>(
     `${origin}/internal/casual-match-rollouts`,
     body
   );
   if (!result.ok) return result;
-  return { ok: true, rollouts: result.data.rollouts ?? [] };
+  return { ok: true, bands: result.data.bands ?? [] };
 }

@@ -63,7 +63,8 @@ export default defineSchema({
         usedAt: v.number(),
     })
         .index("by_uid_and_poolVersion", ["uid", "poolVersion"])
-        .index("by_uid_poolVersion_and_seedId", ["uid", "poolVersion", "seedId"]),
+        .index("by_uid_poolVersion_and_seedId", ["uid", "poolVersion", "seedId"])
+        .index("by_matchId", ["matchId"]),
 
     game: defineTable({
         gameId: v.string(),

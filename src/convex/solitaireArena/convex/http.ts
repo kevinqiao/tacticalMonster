@@ -34,6 +34,37 @@ function parseTier(raw: unknown): SolitaireSeedTier {
   return "easy";
 }
 
+/** `{ min, max?, count? }[]` — `count` 缺省 1；遍历 rollout summaries 按 finalScore 过滤 */
+function parseScoreBands(
+  raw: unknown
+): Array<{ min: number; max?: number; count: number }> | { error: "invalid_count" } {
+  if (!Array.isArray(raw)) return [];
+  const bands: Array<{ min: number; max?: number; count: number }> = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const min = row.min;
+    const max = row.max;
+    const countRaw = row.count;
+    if (typeof min !== "number" || !Number.isFinite(min)) continue;
+    if (max !== undefined && (typeof max !== "number" || !Number.isFinite(max))) continue;
+    let count = 1;
+    if (countRaw !== undefined) {
+      if (typeof countRaw !== "number" || !Number.isFinite(countRaw)) {
+        return { error: "invalid_count" };
+      }
+      count = Math.floor(countRaw);
+      if (count < 1 || count > 200) return { error: "invalid_count" };
+    }
+    bands.push({
+      min,
+      count,
+      ...(max !== undefined ? { max } : {}),
+    });
+  }
+  return bands;
+}
+
 /** 本场真人 uid 列表；单人亦用 `uids: ["one"]` */
 function parseUids(body: Record<string, unknown>): string[] {
   const raw = body.uids;
@@ -97,31 +128,23 @@ http.route({
     if (!seedId) {
       return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
     }
-    const quantileKeys = ["p10", "p25", "p30", "p33", "p50", "p66", "p70", "p75", "p90"] as const;
-    const scoreQuantileMin =
-      typeof body.scoreQuantileMin === "string" &&
-      (quantileKeys as readonly string[]).includes(body.scoreQuantileMin)
-        ? (body.scoreQuantileMin as (typeof quantileKeys)[number])
-        : undefined;
-    const scoreQuantileMax =
-      typeof body.scoreQuantileMax === "string" &&
-      (quantileKeys as readonly string[]).includes(body.scoreQuantileMax)
-        ? (body.scoreQuantileMax as (typeof quantileKeys)[number])
-        : undefined;
+    const parsed = parseScoreBands(body.scores);
+    if (!Array.isArray(parsed)) {
+      return jsonResponse({ ok: false, error: parsed.error }, 400);
+    }
+    if (parsed.length === 0) {
+      return jsonResponse({ ok: false, error: "invalid_scores" }, 400);
+    }
 
     const result = await ctx.runQuery(internal.service.seedPool.casualMatchSeedHttp.rolloutsForCasualMatchSeed, {
       seedId,
       poolVersion: typeof body.poolVersion === "string" ? body.poolVersion : undefined,
-      scoreQuantileMin,
-      scoreQuantileMax,
-      minScore: typeof body.minScore === "number" ? body.minScore : undefined,
-      maxScore: typeof body.maxScore === "number" ? body.maxScore : undefined,
-      limit: typeof body.limit === "number" ? body.limit : undefined,
+      scores: parsed,
     });
     if (!result.ok) {
       return jsonResponse(result, 404);
     }
-    return jsonResponse({ ok: true, rollouts: result.rollouts });
+    return jsonResponse(result);
   }),
 });
 
