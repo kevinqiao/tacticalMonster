@@ -26,9 +26,9 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
     <div className="msc-overlay" role="presentation">
       <button
         type="button"
-        className="msc-backdrop msc-backdrop--inactive"
-        aria-hidden
-        tabIndex={-1}
+        className="msc-backdrop"
+        aria-label="关闭"
+        onClick={onConfirm}
       />
       <div
         className="msc-dialog"

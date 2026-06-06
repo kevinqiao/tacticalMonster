@@ -65,11 +65,28 @@ http.route({
       }
     );
 
+    let ingestTableSummary: unknown = undefined;
     if (result.ok && gameIdConvex === "solitaire") {
-      await ctx.runAction(
-        internal.service.tournament.casualMatchSeedRolloutsAction.syncRolloutBotsAfterScoreSubmit,
-        { matchGameId, updatedAt: Date.now() }
-      );
+      const updatedAt = Date.now();
+      try {
+        await ctx.runAction(
+          internal.service.tournament.casualMatchSeedRolloutsAction.syncRolloutBotsAfterScoreSubmit,
+          { matchGameId, updatedAt }
+        );
+      } catch (e) {
+        console.error("[casual] syncRolloutBotsAfterScoreSubmit failed (ingest ok)", matchGameId, e);
+      }
+      try {
+        const refreshed = await ctx.runMutation(
+          internal.service.tournament.casualTournamentService.refreshCasualIngestTableSummary,
+          { matchGameId, uid, updatedAt }
+        );
+        if (refreshed.ok && refreshed.tableSummary != null) {
+          ingestTableSummary = refreshed.tableSummary;
+        }
+      } catch (e) {
+        console.error("[casual] refreshCasualIngestTableSummary failed (ingest ok)", matchGameId, e);
+      }
     }
 
     if (!result.ok) {
@@ -80,7 +97,9 @@ http.route({
     }
     const okBody: Record<string, unknown> = { ok: true };
     const r = result as Record<string, unknown>;
-    if (r.tableSummary != null) {
+    if (ingestTableSummary != null) {
+      okBody.tableSummary = ingestTableSummary;
+    } else if (r.tableSummary != null) {
       okBody.tableSummary = r.tableSummary;
     }
     if (r.pendingOthers === true) {

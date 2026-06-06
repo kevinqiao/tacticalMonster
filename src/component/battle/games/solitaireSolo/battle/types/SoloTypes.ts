@@ -10,6 +10,12 @@ export enum SoloGameStatus {
     COMPLETED = 3,
     CANCELLED = 4
 }
+
+/** 可拖拽/点击出牌（Convex 首步后常为 PLAYING，不仅是 DEALED） */
+export function isSolitairePlayableStatus(status: SoloGameStatus | number | undefined): boolean {
+    const n = Number(status);
+    return n === SoloGameStatus.DEALED || n === SoloGameStatus.PLAYING;
+}
 /** 客户端交互阶段（不持久化到 Convex game 文档） */
 export enum GameInteractionPhase {
     idle = 'idle',

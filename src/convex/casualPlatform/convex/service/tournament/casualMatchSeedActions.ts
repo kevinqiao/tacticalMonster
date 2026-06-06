@@ -35,6 +35,15 @@ export const bindCasualMatchSeed = internalAction({
       });
       return { ok: false as const, error: "unknown_tournament" as const };
     }
+    if (def.gameId === "block_blast") {
+      const bind = await ctx.runMutation(
+        internal.service.tournament.casualMatchSeedMutations.bindCasualMatchTemplateQuantiles,
+        { matchId, templateId }
+      );
+      return bind.ok
+        ? { ok: true as const, seedId: bind.seedId }
+        : { ok: false as const, error: bind.error ?? ("missing_reference_quantiles" as const) };
+    }
     if (def.gameId !== "solitaire") {
       return { ok: true as const, skipped: true as const };
     }

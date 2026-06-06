@@ -52,6 +52,9 @@ import type * as service_tournament_casualMatchSeedRolloutsAction from "../servi
 import type * as service_tournament_casualMatchSeedRolloutsMutations from "../service/tournament/casualMatchSeedRolloutsMutations.js";
 import type * as service_tournament_casualMatchmaking from "../service/tournament/casualMatchmaking.js";
 import type * as service_tournament_casualPlayerMatchStatus from "../service/tournament/casualPlayerMatchStatus.js";
+import type * as service_tournament_casualPlayerTournamentRankStats from "../service/tournament/casualPlayerTournamentRankStats.js";
+import type * as service_tournament_casualRankQuantiles from "../service/tournament/casualRankQuantiles.js";
+import type * as service_tournament_casualRankStatBuckets from "../service/tournament/casualRankStatBuckets.js";
 import type * as service_tournament_casualReplayPassService from "../service/tournament/casualReplayPassService.js";
 import type * as service_tournament_casualRunExpireCron from "../service/tournament/casualRunExpireCron.js";
 import type * as service_tournament_casualRunIngestHelpers from "../service/tournament/casualRunIngestHelpers.js";
@@ -123,6 +126,9 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/casualMatchSeedRolloutsMutations": typeof service_tournament_casualMatchSeedRolloutsMutations;
   "service/tournament/casualMatchmaking": typeof service_tournament_casualMatchmaking;
   "service/tournament/casualPlayerMatchStatus": typeof service_tournament_casualPlayerMatchStatus;
+  "service/tournament/casualPlayerTournamentRankStats": typeof service_tournament_casualPlayerTournamentRankStats;
+  "service/tournament/casualRankQuantiles": typeof service_tournament_casualRankQuantiles;
+  "service/tournament/casualRankStatBuckets": typeof service_tournament_casualRankStatBuckets;
   "service/tournament/casualReplayPassService": typeof service_tournament_casualReplayPassService;
   "service/tournament/casualRunExpireCron": typeof service_tournament_casualRunExpireCron;
   "service/tournament/casualRunIngestHelpers": typeof service_tournament_casualRunIngestHelpers;

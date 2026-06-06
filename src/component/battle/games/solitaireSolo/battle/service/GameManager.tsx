@@ -14,7 +14,8 @@ import {
     SoloCard,
     SoloGameConfig,
     SoloGameState,
-    SoloGameStatus
+    SoloGameStatus,
+    isSolitairePlayableStatus,
 } from '../types/SoloTypes';
 import SoloRuleManager from './SoloRuleManager';
 
@@ -100,18 +101,27 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         setBoardDimension(dimension);
     }, [timelinesRef]);
     const loadGame = useCallback(async () => {
-        if (!gameId) return;
+        if (!gameId) {
+            onGameLoadComplete?.();
+            return;
+        }
         const res = await convex.action(api.proxy.controller.loadGame, { gameId });
         if (!res.ok) {
             console.error('[SoloGameProvider] loadGame failed', (res as { error?: string }).error, res);
+            onGameLoadComplete?.();
             return;
         }
         const raw = res.game as SoloGameState & { actionStatus?: string };
         const { actionStatus: _drop, ...rest } = raw;
         const game = rest as SoloGameState;
         const event = res.events?.find((e: { name?: string }) => e.name === "deal");
-        // 仅当局仍为 OPEN 时才跑发牌动画；库中已是 DEALED 时若仍带 deal 事件，不应锁在 animating（否则 getActModes 永远为空）
-        if (event) {
+        const st = Number(game.status);
+        const skipDealAnim =
+            isSolitairePlayableStatus(st) ||
+            st === SoloGameStatus.COMPLETED ||
+            st === SoloGameStatus.CANCELLED;
+        // 仅 OPEN 局播发牌动画；已 DEALED/PLAYING 时忽略 deal 事件，避免长期 animating + 牌面 opacity 0
+        if (event && !skipDealAnim) {
             setDealEvent(event);
             setInteractionPhase(GameInteractionPhase.animating);
         } else {
@@ -136,7 +146,12 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         const { actionStatus: _drop, ...rest } = raw;
         const game = rest as SoloGameState;
         const event = res.events?.find((e: { name?: string }) => e.name === "deal");
-        if (event) {
+        const st = Number(game.status);
+        const skipDealAnim =
+            isSolitairePlayableStatus(st) ||
+            st === SoloGameStatus.COMPLETED ||
+            st === SoloGameStatus.CANCELLED;
+        if (event && !skipDealAnim) {
             setDealEvent(event);
             setInteractionPhase(GameInteractionPhase.animating);
         } else {
@@ -150,30 +165,44 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     useEffect(() => {
         loadGame();
     }, [loadGame]);
+
+    /** 发牌/走子动画异常未回调时，避免长期锁在 animating（表现为「有遮罩、不能操作」） */
     useEffect(() => {
-        if (!dealEvent || gameState?.status !== SoloGameStatus.OPEN || !boardDimension) return;
+        if (interactionPhase !== GameInteractionPhase.animating) return;
+        const id = window.setTimeout(() => {
+            console.warn('[SoloGameProvider] interaction animating watchdog -> idle');
+            setDealEvent(null);
+            setInteractionPhase(GameInteractionPhase.idle);
+        }, 4_000);
+        return () => window.clearTimeout(id);
+    }, [interactionPhase]);
+
+    useEffect(() => {
+        if (!dealEvent || !boardDimension || !gameState) return;
 
         const ready = gameState.cards.every((card) => card.ele !== null) || false;
         if (!ready) return;
 
-        setGameState((prev) => {
-            if (!prev || prev.status !== SoloGameStatus.OPEN) return prev;
-            const byId = new Map(dealEvent.cards.map((r: Card) => [r.id, r]));
-            const cards = prev.cards.map((c: SoloCard) => {
-                const r = byId.get(c.id);
-                if (!r) return c;
-                return {
-                    ...c,
-                    isRevealed: r.isRevealed,
-                    zone: r.zone,
-                    zoneId: r.zoneId,
-                    zoneIndex: r.zoneIndex,
-                };
+        const st = Number(gameState.status);
+        if (st === SoloGameStatus.OPEN) {
+            setGameState((prev) => {
+                if (!prev || Number(prev.status) !== SoloGameStatus.OPEN) return prev;
+                const byId = new Map(dealEvent.cards.map((r: Card) => [r.id, r]));
+                const cards = prev.cards.map((c: SoloCard) => {
+                    const r = byId.get(c.id);
+                    if (!r) return c;
+                    return {
+                        ...c,
+                        isRevealed: r.isRevealed,
+                        zone: r.zone,
+                        zoneId: r.zoneId,
+                        zoneIndex: r.zoneIndex,
+                    };
+                });
+                return { ...prev, status: SoloGameStatus.DEALED, cards };
             });
-            return { ...prev, status: SoloGameStatus.DEALED, cards };
-        });
+        }
         setDealEvent(null);
-        /** 必须回到 idle：`SoloDnDCard` 在 animating 时默认不跑 `initCard`（避免走子动画期间被旧 state 抢写 GSAP），idle 后才把牌摆到棋盘。 */
         setInteractionPhase(GameInteractionPhase.idle);
     }, [dealEvent, gameState, boardDimension]);
 

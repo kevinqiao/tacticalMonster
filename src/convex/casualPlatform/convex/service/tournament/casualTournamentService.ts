@@ -57,6 +57,7 @@ import {
   buildConfirmedDedupeResponse,
   buildPartialIngestResponse,
 } from "./casualRunIngestHelpers";
+import { incrementRankCountsForSettledHumans } from "./casualPlayerTournamentRankStats";
 
 /** Re-exports for imports from this module path */
 export {
@@ -1049,6 +1050,17 @@ export async function finalizeCasualAsyncMatchIngest(
     updatedAt: now,
   });
 
+  const humanRankRows: Array<{ uid: string; rank?: number | null }> = [];
+  for (const hp of sortedHumans) {
+    const freshPm = await ctx.db.get(hp._id);
+    humanRankRows.push({ uid: hp.uid, rank: freshPm?.rank });
+  }
+  await incrementRankCountsForSettledHumans(ctx, {
+    templateId: pm.templateId,
+    humanRows: humanRankRows,
+    now,
+  });
+
   for (const hp of sortedHumans) {
     const ptRow = await ctx.db
       .query("casual_run_player_tournaments")
@@ -1158,6 +1170,42 @@ export async function finalizeCasualAsyncMatchIngest(
     ...lastExtra,
   };
 }
+
+/** Solitaire ingest：rollouts 同步填 bot 后重建同桌榜（mutation 返回时 bot 尚未写入） */
+export const refreshCasualIngestTableSummary = internalMutation({
+  args: {
+    matchGameId: v.string(),
+    uid: v.string(),
+    updatedAt: v.number(),
+  },
+  handler: async (ctx, { matchGameId, uid, updatedAt }) => {
+    const pm = await ctx.db
+      .query("casual_run_player_matches")
+      .withIndex("by_gameId", (q) => q.eq("gameId", matchGameId))
+      .unique();
+    if (!pm) {
+      return { ok: false as const, error: "unknown_match_game" as const };
+    }
+    const def = getTournamentDefinition(pm.templateId);
+    if (!def || def.maxPlayers <= 1) {
+      return { ok: false as const, error: "not_multi_async" as const };
+    }
+    const sessionExternalId =
+      typeof pm.externalGameId === "string" && pm.externalGameId.trim().startsWith("casual_sess:")
+        ? pm.externalGameId.trim()
+        : canonicalCasualRunSessionExternalId(String(pm.matchId));
+    const tableSummary = await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
+      def,
+      templateId: pm.templateId,
+      matchId: pm.matchId,
+      runTournamentId: pm.tournamentId,
+      sessionExternalId,
+      uid,
+      updatedAt,
+    });
+    return { ok: true as const, tableSummary: tableSummary ?? undefined };
+  },
+});
 
 export const submitCasualRunScoreCore = internalMutation({
   args: {

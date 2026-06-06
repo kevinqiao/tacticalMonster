@@ -245,6 +245,11 @@ export const submitCasualPlatformRun = action({
         const uid = auth.uid;
         const parsedId = parseCasualRunGameId(gameId);
         if (!parsedId || parsedId.uid !== uid) {
+            console.warn("[solitaire] submitCasualPlatformRun forbidden", {
+                gameId,
+                tokenUid: uid,
+                parsedUid: parsedId?.uid ?? null,
+            });
             return { ok: false as const, error: "forbidden" };
         }
 
@@ -292,6 +297,11 @@ export const forceEndCasualPlatformRun = action({
         const uid = auth.uid;
         const parsedId = parseCasualRunGameId(gameId);
         if (!parsedId || parsedId.uid !== uid) {
+            console.warn("[solitaire] forceEndCasualPlatformRun forbidden", {
+                gameId,
+                tokenUid: uid,
+                parsedUid: parsedId?.uid ?? null,
+            });
             return { ok: false as const, error: "forbidden" };
         }
 

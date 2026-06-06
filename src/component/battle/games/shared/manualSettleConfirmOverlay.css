@@ -7,7 +7,8 @@
   padding: 16px;
   box-sizing: border-box;
   z-index: 2147483646;
-  pointer-events: auto;
+  /* 仅对话框/背景层接事件，避免透明区域挡住棋盘 */
+  pointer-events: none;
 }
 
 .msc-backdrop {
@@ -30,6 +31,7 @@
   z-index: 1;
   width: 100%;
   max-width: min(96vw, 440px);
+  pointer-events: auto;
 }
 
 .ssc {

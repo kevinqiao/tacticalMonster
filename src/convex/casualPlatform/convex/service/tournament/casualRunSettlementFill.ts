@@ -9,19 +9,32 @@ import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { internalMutation } from "../../_generated/server";
 import { readCasualMatchSeedBinding } from "./casualMatchSeedBinding";
-import { getCasualRankMinScores } from "../../data/casualBotDifficultyConfig";
 import {
-  assignRanksWithMinScores,
+  assignMixedRanks,
   buildSoloTableRankMap,
-  clampTargetRank,
-  evaluateBotDifficultyRules,
   generateNeutralGapBotScores,
   generateSoloBotScores,
   hashSessionSeed,
+  recommendSoloEffectiveRank,
   resolvePlayerBotStrategyContext,
-  sampleTargetRank,
 } from "./casualBotDifficultyService";
+import {
+  deriveRankScoreFloorsFromQuantiles,
+  type RankScoreFloorsByRank,
+} from "./casualRankQuantiles";
 import { isHumanSubmittedStatus } from "./casualPlayerMatchStatus";
+
+export function resolveRankFloorsFromMatchDoc(
+  matchDoc: { seedBinding?: unknown },
+  maxPlayers: number
+): RankScoreFloorsByRank | null {
+  const binding = readCasualMatchSeedBinding(matchDoc);
+  if (!binding) return null;
+  return deriveRankScoreFloorsFromQuantiles(binding.scoreQuantiles, maxPlayers);
+}
+
+/** @alias resolveRankFloorsFromMatchDoc */
+export const deriveRankFloorsForMatch = resolveRankFloorsFromMatchDoc;
 
 /** `uid` 前缀；本场虚拟对手，不参与全局异步榜 */
 /** Solitaire 异步场虚拟对手 uid 前缀（DB 存量数据依赖此字符串） */
@@ -307,12 +320,15 @@ export async function rerankCasualAsyncMatchScores(
   }
 ): Promise<void> {
   if (!args.sessionExternalId.trim()) return;
-  const rankMinScores = getCasualRankMinScores(args.def);
+  const matchDoc = await ctx.db.get(args.matchId as Id<"casual_run_matches">);
+  if (!matchDoc) return;
+  const rankFloors = resolveRankFloorsFromMatchDoc(matchDoc, args.def.maxPlayers);
+  if (!rankFloors) return;
   await patchRanksForAsyncMatch(ctx, {
     matchId: args.matchId,
     sessionExternalId: args.sessionExternalId,
     def: args.def,
-    rankMinScores,
+    rankFloors,
     updatedAt: args.updatedAt,
   });
 }
@@ -501,7 +517,7 @@ export function padBotFillsToCount(args: {
   fills: BotFill[];
   botCount: number;
   maxPlayers: number;
-  rankMinScores: ReturnType<typeof getCasualRankMinScores>;
+  rankFloors: RankScoreFloorsByRank;
   gameType: "solitaire" | "block_blast";
 }): BotFill[] {
   const sorted = [...args.fills].sort((a, b) => a.rank - b.rank);
@@ -509,22 +525,25 @@ export function padBotFillsToCount(args: {
   const eps = args.gameType === "block_blast" ? 50 : 5;
   for (let r = 1; r <= args.maxPlayers && sorted.length < args.botCount; r++) {
     if (occupied.has(r)) continue;
-    const low = args.rankMinScores[r] ?? 0;
+    const low = args.rankFloors[r] ?? 0;
     sorted.push({ rank: r, score: low + eps });
     occupied.add(r);
   }
   return sorted.slice(0, args.botCount);
 }
 
-async function buildBotFillsForAsyncMatch(
-  ctx: MutationCtx,
+export async function buildBotFillsForAsyncMatch(
+  ctx: QueryCtx | MutationCtx,
   args: {
     def: CasualTournamentDefinition;
     templateId: string;
     sessionExternalId: string;
     humanRows: Array<{ uid: string; score: number }>;
-    rankMinScores: ReturnType<typeof getCasualRankMinScores>;
+    rankFloors: RankScoreFloorsByRank;
+    seedBinding: NonNullable<ReturnType<typeof readCasualMatchSeedBinding>>;
     botCount: number;
+    /** planned 真人数；≥2 走 mixed，≤1 走 solo */
+    humanCountPlanned: number;
   }
 ): Promise<BotFillBuildResult> {
   const gt =
@@ -535,27 +554,30 @@ async function buildBotFillsForAsyncMatch(
   let botFills: BotFill[];
   let soloPlan: SoloBotPlan | undefined;
 
-  if (args.humanRows.length === 1) {
+  const isSoloTable = args.humanCountPlanned <= 1;
+
+  if (isSoloTable && args.humanRows.length >= 1) {
     const human = args.humanRows[0]!;
     const profile = await resolvePlayerBotStrategyContext(ctx, {
       uid: human.uid,
       templateId: args.templateId,
       def: args.def,
     });
-    const dist = evaluateBotDifficultyRules(profile);
-    const target = sampleTargetRank(dist, args.def.maxPlayers, sessionSeed);
-    const effectiveRank = clampTargetRank(
-      target,
-      human.score,
-      args.rankMinScores,
-      args.def.maxPlayers
-    );
-    soloPlan = { humanUid: human.uid, effectiveRank };
+    const recommended = await recommendSoloEffectiveRank(ctx, {
+      humanScore: human.score,
+      seedBinding: args.seedBinding,
+      def: args.def,
+      profile,
+      sessionSeed,
+      uid: human.uid,
+      templateId: args.templateId,
+    });
+    soloPlan = { humanUid: human.uid, effectiveRank: recommended.effectiveRank };
     botFills = generateSoloBotScores({
       humanUid: human.uid,
       humanScore: human.score,
-      effectiveRank,
-      rankMinScores: args.rankMinScores,
+      effectiveRank: recommended.effectiveRank,
+      rankFloors: args.rankFloors,
       maxPlayers: args.def.maxPlayers,
       gameType: gt,
       sessionSeed,
@@ -563,7 +585,7 @@ async function buildBotFillsForAsyncMatch(
   } else {
     botFills = generateNeutralGapBotScores({
       humanScores: args.humanRows.map((h) => ({ uid: h.uid, score: h.score })),
-      rankMinScores: args.rankMinScores,
+      rankFloors: args.rankFloors,
       maxPlayers: args.def.maxPlayers,
       gameType: gt,
       sessionSeed,
@@ -575,7 +597,7 @@ async function buildBotFillsForAsyncMatch(
       fills: botFills,
       botCount: args.botCount,
       maxPlayers: args.def.maxPlayers,
-      rankMinScores: args.rankMinScores,
+      rankFloors: args.rankFloors,
       gameType: gt,
     }),
     soloPlan,
@@ -588,7 +610,7 @@ async function patchRanksForAsyncMatch(
     matchId: string;
     sessionExternalId: string;
     def: CasualTournamentDefinition;
-    rankMinScores: ReturnType<typeof getCasualRankMinScores>;
+    rankFloors: RankScoreFloorsByRank;
     updatedAt: number;
     soloPlan?: SoloBotPlan;
     botFills?: BotFill[];
@@ -620,9 +642,9 @@ async function patchRanksForAsyncMatch(
         score: r.score as number,
         isBot: isCasualAsyncVirtualOpponentUid(r.uid),
       }));
-    rankMap = assignRanksWithMinScores({
+    rankMap = assignMixedRanks({
       entities,
-      rankMinScores: args.rankMinScores,
+      rankFloors: args.rankFloors,
       maxPlayers: args.def.maxPlayers,
     });
   }
@@ -662,7 +684,11 @@ export async function ensureAsyncMatchRosterFull(
       : null;
   if (!gt || args.def.maxPlayers <= 1) return;
 
-  const rankMinScores = getCasualRankMinScores(args.def);
+  const matchDoc = await ctx.db.get(args.matchId as Id<"casual_run_matches">);
+  if (!matchDoc) return;
+  const rankFloors = resolveRankFloorsFromMatchDoc(matchDoc, args.def.maxPlayers);
+  if (!rankFloors) return;
+
   const rows = await ctx.db
     .query("casual_run_player_matches")
     .withIndex("by_match_uid", (q) => q.eq("matchId", args.matchId))
@@ -674,13 +700,23 @@ export async function ensureAsyncMatchRosterFull(
   const virtualWithScore = rows.filter(
     (r) => isCasualAsyncVirtualOpponentUid(r.uid) && r.score != null && Number.isFinite(r.score)
   );
-  const needBots = args.def.maxPlayers - humansWithScore.length;
-  if (needBots <= 0) return;
+  const humanCountPlanned = Math.max(
+    1,
+    matchDoc.humanPlayerCount ?? humansWithScore.length
+  );
+  const targetBotCount = casualAsyncVirtualOpponentCount(
+    args.def.maxPlayers,
+    humanCountPlanned
+  );
+  if (targetBotCount <= 0) return;
 
   const totalScored = humansWithScore.length + virtualWithScore.length;
-  if (virtualWithScore.length >= needBots && totalScored >= args.def.maxPlayers) {
+  if (virtualWithScore.length >= targetBotCount && totalScored >= args.def.maxPlayers) {
     return;
   }
+
+  const needBots = targetBotCount - virtualWithScore.length;
+  if (needBots <= 0) return;
 
   const humanRows = humansWithScore.map((r) => ({
     uid: r.uid,
@@ -704,8 +740,10 @@ export async function ensureAsyncMatchRosterFull(
     templateId: args.templateId,
     sessionExternalId: args.sessionExternalId,
     humanRows,
-    rankMinScores,
+    rankFloors,
+    seedBinding: readCasualMatchSeedBinding(matchDoc)!,
     botCount: needBots,
+    humanCountPlanned,
   });
 
   await seedCasualAsyncVirtualOpponentsCore(ctx, {
@@ -723,7 +761,7 @@ export async function ensureAsyncMatchRosterFull(
     matchId: args.matchId,
     sessionExternalId: args.sessionExternalId,
     def: args.def,
-    rankMinScores,
+    rankFloors,
     updatedAt: args.updatedAt,
     soloPlan,
     botFills,
@@ -746,7 +784,11 @@ export async function applyAsyncBotFillPlanToMatch(
     replaceAllVirtual?: boolean;
   }
 ): Promise<void> {
-  const rankMinScores = getCasualRankMinScores(args.def);
+  const matchDoc = await ctx.db.get(args.matchId as Id<"casual_run_matches">);
+  if (!matchDoc) return;
+  const rankFloors = resolveRankFloorsFromMatchDoc(matchDoc, args.def.maxPlayers);
+  if (!rankFloors) return;
+
   await seedCasualAsyncVirtualOpponentsCore(ctx, {
     templateId: args.templateId,
     runTournamentId: args.runTournamentId,
@@ -761,13 +803,12 @@ export async function applyAsyncBotFillPlanToMatch(
     matchId: args.matchId,
     sessionExternalId: args.sessionExternalId,
     def: args.def,
-    rankMinScores,
+    rankFloors,
     updatedAt: args.updatedAt,
     soloPlan: args.soloPlan,
     botFills: args.botFills,
   });
-  const matchDoc = await ctx.db.get(args.matchId as Id<"casual_run_matches">);
-  if (matchDoc && !matchDoc.botsSeeded) {
+  if (!matchDoc.botsSeeded) {
     await ctx.db.patch(matchDoc._id, {
       botsSeeded: true,
       updatedAt: args.updatedAt,
@@ -812,7 +853,7 @@ async function scheduleRolloutBotFillsIfNeeded(
   return true;
 }
 
-/** 多人结算：规则引擎 / 中性槽位填 bot，再按 rankMinScores 定全员名次。 */
+/** 多人结算：规则引擎 / 中性槽位填 bot，再按本场 quantile floors 定全员名次。 */
 export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
   ctx: MutationCtx,
   args: {
@@ -846,13 +887,30 @@ export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
     )
     .map((r) => ({ uid: r.uid, score: r.score as number }));
 
-  const actualHumanCount = Math.max(1, humanRows.length);
-  const botCount = casualAsyncVirtualOpponentCount(args.def.maxPlayers, actualHumanCount);
+  const botCount = casualAsyncVirtualOpponentCount(
+    args.def.maxPlayers,
+    args.humanCountPlanned
+  );
   if (botCount <= 0) return false;
 
   const matchDoc = await ctx.db.get(args.matchId as Id<"casual_run_matches">);
+  if (!matchDoc) return false;
+  const seedBinding = readCasualMatchSeedBinding(matchDoc);
+  if (!seedBinding) {
+    if (!matchDoc.seedResolveError) {
+      await ctx.db.patch(matchDoc._id, {
+        seedResolveError: "missing_seed_binding",
+        updatedAt: args.updatedAt,
+      });
+    }
+    return false;
+  }
+  const rankFloors = deriveRankScoreFloorsFromQuantiles(
+    seedBinding.scoreQuantiles,
+    args.def.maxPlayers
+  );
   const useRollouts =
-    gt === "solitaire" && matchDoc != null && readCasualMatchSeedBinding(matchDoc) != null;
+    gt === "solitaire" && seedBinding != null;
 
   const scheduled = await scheduleRolloutBotFillsIfNeeded(ctx, {
     def: args.def,
@@ -869,14 +927,15 @@ export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
   if (scheduled) return false;
   if (useRollouts && args.deferRolloutsToHttpSync) return false;
 
-  const rankMinScores = getCasualRankMinScores(args.def);
   const { botFills, soloPlan } = await buildBotFillsForAsyncMatch(ctx, {
     def: args.def,
     templateId: args.templateId,
     sessionExternalId: args.sessionExternalId,
     humanRows,
-    rankMinScores,
+    rankFloors,
+    seedBinding,
     botCount,
+    humanCountPlanned: args.humanCountPlanned,
   });
 
   await applyAsyncBotFillPlanToMatch(ctx, {

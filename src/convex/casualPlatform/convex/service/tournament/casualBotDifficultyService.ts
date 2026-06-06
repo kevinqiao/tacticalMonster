@@ -1,6 +1,8 @@
 import {
   findCasualRankRewardEntry,
   getTournamentDefinition,
+  getTournamentRankRates,
+  type CasualRankRateEntry,
   type CasualTournamentDefinition,
 } from "../../data/casualTournamentConfigs";
 import {
@@ -8,20 +10,29 @@ import {
   CASUAL_CONSECUTIVE_LOSS_THRESHOLD,
   CASUAL_LOSS_STREAK_LOOKBACK_MAX,
   CASUAL_NEAR_MISS_GAP_RATIO,
-  getBaselineEffectiveMinHumans,
-  getCasualRankMinScores,
+  CASUAL_DEFAULT_EFFECTIVE_HUMANS,
   isCasualMultiplayerAsyncTemplate,
   MATCHMAKING_RULES,
   type BotRankDistribution,
   type BotStrategyPlayerContext,
   type CasualGameIdForBot,
   type CasualTableMode,
-  type RankMinScoresByRank,
 } from "../../data/casualBotDifficultyConfig";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "./casualTournamentJoinCore";
 import { isCasualAsyncVirtualOpponentUid } from "./casualRunSettlementFill";
+import type { CasualMatchSeedBinding } from "./casualMatchSeedBinding";
+import { loadPlayerTournamentRankCounts } from "./casualPlayerTournamentRankStats";
+import {
+  CASUAL_RANK_STAT_BUCKET_MAX,
+  expandStatBucketToTargetRank,
+} from "./casualRankStatBuckets";
+import {
+  deriveRankScoreFloorsFromQuantiles,
+  recommendTargetRankFromQuantileProximity,
+  type RankScoreFloorsByRank,
+} from "./casualRankQuantiles";
 
 async function activeSeasonId(ctx: QueryCtx | MutationCtx): Promise<string | null> {
   const seasons = await ctx.db.query("casual_seasons").collect();
@@ -52,14 +63,16 @@ export function isCasualMultiplayerRankLoss(
   return penalty <= 0;
 }
 
+export type { RankScoreFloorsByRank } from "./casualRankQuantiles";
+
 export function eligibleMaxRank(
   score: number,
-  rankMinScores: RankMinScoresByRank,
+  rankFloors: RankScoreFloorsByRank,
   maxPlayers: number
 ): number {
   let best = 0;
   for (let r = 1; r <= maxPlayers; r++) {
-    const minS = rankMinScores[r];
+    const minS = rankFloors[r];
     if (minS != null && score >= minS) best = r;
   }
   return best;
@@ -68,22 +81,137 @@ export function eligibleMaxRank(
 export function clampTargetRank(
   targetRank: number,
   humanScore: number,
-  rankMinScores: RankMinScoresByRank,
+  rankFloors: RankScoreFloorsByRank,
   maxPlayers: number
 ): number {
-  const cap = eligibleMaxRank(humanScore, rankMinScores, maxPlayers);
+  const cap = eligibleMaxRank(humanScore, rankFloors, maxPlayers);
   if (cap <= 0) return maxPlayers;
   return Math.min(Math.max(1, targetRank), cap);
+}
+
+export function evaluateBotDifficultyRulesWithMeta(
+  ctx: BotStrategyPlayerContext
+): { strategy: BotRankDistribution | null; matchedRuleId: string | null } {
+  const sorted = [...BOT_DIFFICULTY_RULES].sort((a, b) => b.priority - a.priority);
+  for (const rule of sorted) {
+    if (rule.condition(ctx)) {
+      return { strategy: rule.strategy, matchedRuleId: rule.id };
+    }
+  }
+  return { strategy: null, matchedRuleId: null };
 }
 
 export function evaluateBotDifficultyRules(
   ctx: BotStrategyPlayerContext
 ): BotRankDistribution | null {
-  const sorted = [...BOT_DIFFICULTY_RULES].sort((a, b) => b.priority - a.priority);
-  for (const rule of sorted) {
-    if (rule.condition(ctx)) return rule.strategy;
+  return evaluateBotDifficultyRulesWithMeta(ctx).strategy;
+}
+
+export function buildBalancedRankWeights(args: {
+  rankRates: CasualRankRateEntry[];
+  rankCounts: Record<number, number>;
+}): BotRankDistribution {
+  const { rankRates, rankCounts } = args;
+  const oddsByRank = new Map<number, number>();
+  for (const entry of rankRates) {
+    if (
+      entry.rank >= 1 &&
+      entry.rank <= CASUAL_RANK_STAT_BUCKET_MAX &&
+      entry.odd > 0
+    ) {
+      oddsByRank.set(entry.rank, entry.odd);
+    }
   }
-  return null;
+
+  let oddSum = 0;
+  for (let r = 1; r <= CASUAL_RANK_STAT_BUCKET_MAX; r++) {
+    oddSum += oddsByRank.get(r) ?? 0;
+  }
+  if (oddSum <= 0) {
+    return { weights: { 1: 1 } };
+  }
+
+  let total = 0;
+  for (let r = 1; r <= CASUAL_RANK_STAT_BUCKET_MAX; r++) {
+    total += rankCounts[r] ?? 0;
+  }
+  const denom = Math.max(total, 1);
+
+  const weights: Record<number, number> = {};
+  for (let r = 1; r <= CASUAL_RANK_STAT_BUCKET_MAX; r++) {
+    const odd = oddsByRank.get(r) ?? 0;
+    if (odd <= 0) continue;
+    const targetShare = odd / oddSum;
+    const expected = targetShare * denom;
+    const deficit = expected - (rankCounts[r] ?? 0);
+    weights[r] = Math.max(1, odd * (1 + deficit / denom));
+  }
+  return { weights };
+}
+
+export type SoloRankRecommendSource = "quantile" | "profile" | "rank_rates";
+
+export type SoloRankRecommendResult = {
+  targetRank: number;
+  effectiveRank: number;
+  source: SoloRankRecommendSource;
+  matchedRuleId?: string;
+};
+
+export async function recommendSoloEffectiveRank(
+  ctx: QueryCtx | MutationCtx,
+  args: {
+    humanScore: number;
+    seedBinding: CasualMatchSeedBinding;
+    def: CasualTournamentDefinition;
+    profile: BotStrategyPlayerContext;
+    sessionSeed: number;
+    uid: string;
+    templateId: string;
+  }
+): Promise<SoloRankRecommendResult> {
+  const { humanScore, seedBinding, def, profile, sessionSeed, uid, templateId } = args;
+  const rankFloors = deriveRankScoreFloorsFromQuantiles(
+    seedBinding.scoreQuantiles,
+    def.maxPlayers
+  );
+  const p50 = seedBinding.scoreQuantiles.p50;
+
+  let targetRank: number;
+  let source: SoloRankRecommendSource;
+  let matchedRuleId: string | undefined;
+
+  if (humanScore < p50) {
+    targetRank = recommendTargetRankFromQuantileProximity(
+      humanScore,
+      seedBinding.scoreQuantiles,
+      def.maxPlayers
+    );
+    source = "quantile";
+  } else {
+    const { strategy, matchedRuleId: ruleId } = evaluateBotDifficultyRulesWithMeta(profile);
+    if (strategy != null) {
+      targetRank = sampleTargetRank(strategy, def.maxPlayers, sessionSeed);
+      source = "profile";
+      matchedRuleId = ruleId ?? undefined;
+    } else {
+      const rankCounts = await loadPlayerTournamentRankCounts(ctx, uid, templateId);
+      const balanced = buildBalancedRankWeights({
+        rankRates: getTournamentRankRates(def),
+        rankCounts,
+      });
+      const statBucket = sampleTargetRank(
+        balanced,
+        CASUAL_RANK_STAT_BUCKET_MAX,
+        sessionSeed
+      );
+      targetRank = expandStatBucketToTargetRank(statBucket, def.maxPlayers, sessionSeed);
+      source = "rank_rates";
+    }
+  }
+
+  const effectiveRank = clampTargetRank(targetRank, humanScore, rankFloors, def.maxPlayers);
+  return { targetRank, effectiveRank, source, matchedRuleId };
 }
 
 export function sampleTargetRank(
@@ -116,29 +244,81 @@ export type RankedEntity = {
   isBot: boolean;
 };
 
-export function assignRanksWithMinScores(args: {
-  entities: RankedEntity[];
-  rankMinScores: RankMinScoresByRank;
-  maxPlayers: number;
-}): Map<string, number> {
-  const { entities, rankMinScores, maxPlayers } = args;
-  const sorted = [...entities].sort((a, b) => {
+function sortRankedEntitiesByScoreDesc(entities: RankedEntity[]): RankedEntity[] {
+  return [...entities].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     return a.uid.localeCompare(b.uid);
   });
+}
+
+/** 全部真人低于 rank2 floor → 低档桌（mixed 纯分数序） */
+export function isLowTierMixedTable(
+  entities: RankedEntity[],
+  rankFloors: RankScoreFloorsByRank,
+  maxPlayers: number
+): boolean {
+  const humans = entities.filter((e) => !e.isBot);
+  if (humans.length === 0) return false;
+  const threshold = maxPlayers >= 2 ? rankFloors[2] : rankFloors[1];
+  if (threshold == null || !Number.isFinite(threshold)) return false;
+  return humans.every((h) => h.score < threshold);
+}
+
+export function assignRanksWithMinScores(args: {
+  entities: RankedEntity[];
+  rankFloors: RankScoreFloorsByRank;
+  maxPlayers: number;
+}): Map<string, number> {
+  const { entities, rankFloors, maxPlayers } = args;
+  const sorted = sortRankedEntitiesByScoreDesc(entities);
   const remaining = new Set<number>();
   for (let r = 1; r <= maxPlayers; r++) remaining.add(r);
 
   const out = new Map<string, number>();
   for (const e of sorted) {
     const eligible = [...remaining]
-      .filter((r) => e.score >= (rankMinScores[r] ?? 0))
+      .filter((r) => e.score >= (rankFloors[r] ?? 0))
       .sort((a, b) => a - b);
     const pick = eligible[0] ?? Math.max(...remaining);
     out.set(e.uid, pick);
     remaining.delete(pick);
   }
   return out;
+}
+
+/** mixed 统一排位：低档纯分数序；否则 floor 贪心（maxPlayers 2..9） */
+export function assignMixedRanks(args: {
+  entities: RankedEntity[];
+  rankFloors: RankScoreFloorsByRank;
+  maxPlayers: number;
+}): Map<string, number> {
+  const { entities, rankFloors, maxPlayers } = args;
+  if (isLowTierMixedTable(entities, rankFloors, maxPlayers)) {
+    const sorted = sortRankedEntitiesByScoreDesc(entities);
+    const out = new Map<string, number>();
+    for (let i = 0; i < sorted.length && i < maxPlayers; i++) {
+      out.set(sorted[i]!.uid, i + 1);
+    }
+    return out;
+  }
+  return assignRanksWithMinScores(args);
+}
+
+function assignHumanRanksForGapSlots(args: {
+  humanScores: Array<{ uid: string; score: number }>;
+  rankFloors: RankScoreFloorsByRank;
+  maxPlayers: number;
+}): Map<string, number> {
+  const entities: RankedEntity[] = args.humanScores.map((h) => ({
+    uid: h.uid,
+    score: h.score,
+    isBot: false,
+  }));
+  return assignMixedRanks({
+    entities,
+    rankFloors: args.rankFloors,
+    maxPlayers: args.maxPlayers,
+  });
 }
 
 function scoreEpsilon(gameType: CasualGameIdForBot): number {
@@ -175,11 +355,11 @@ type Occupant = { uid: string; score: number; assignedRank: number; isBot: boole
 function boundsForRankSlot(
   r: number,
   occupants: Occupant[],
-  rankMinScores: RankMinScoresByRank,
+  rankFloors: RankScoreFloorsByRank,
   gameType: CasualGameIdForBot
 ): { low: number; high: number } {
   const eps = scoreEpsilon(gameType);
-  let low = rankMinScores[r] ?? 0;
+  let low = rankFloors[r] ?? 0;
   let high = Number.POSITIVE_INFINITY;
 
   const better = occupants.filter((o) => o.assignedRank < r);
@@ -204,17 +384,17 @@ export type BotScoreSlot = { rank: number; low: number; high: number };
 export function computeSoloBotScoreSlots(args: {
   humanScore: number;
   effectiveRank: number;
-  rankMinScores: RankMinScoresByRank;
+  rankFloors: RankScoreFloorsByRank;
   maxPlayers: number;
   gameType: CasualGameIdForBot;
 }): BotScoreSlot[] {
-  const { humanScore, effectiveRank, rankMinScores, maxPlayers, gameType } = args;
+  const { humanScore, effectiveRank, rankFloors, maxPlayers, gameType } = args;
   const eps = scoreEpsilon(gameType);
   const span = gameType === "block_blast" ? 5000 : 500;
   const slots: BotScoreSlot[] = [];
   for (let r = 1; r <= maxPlayers; r++) {
     if (r === effectiveRank) continue;
-    const minS = rankMinScores[r] ?? 0;
+    const minS = rankFloors[r] ?? 0;
     let low: number;
     let high: number;
     if (r < effectiveRank) {
@@ -233,23 +413,22 @@ export function computeSoloBotScoreSlots(args: {
 /** mixed_human：空名次槽的分数区间 */
 export function computeNeutralGapBotScoreSlots(args: {
   humanScores: Array<{ uid: string; score: number }>;
-  rankMinScores: RankMinScoresByRank;
+  rankFloors: RankScoreFloorsByRank;
   maxPlayers: number;
   gameType: CasualGameIdForBot;
 }): BotScoreSlot[] {
-  const { humanScores, rankMinScores, maxPlayers, gameType } = args;
-  const humans = [...humanScores].sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return a.uid.localeCompare(b.uid);
+  const { humanScores, rankFloors, maxPlayers, gameType } = args;
+  const rankMap = assignHumanRanksForGapSlots({
+    humanScores,
+    rankFloors,
+    maxPlayers,
   });
   const remaining = new Set<number>();
   for (let r = 1; r <= maxPlayers; r++) remaining.add(r);
   const occupants: Occupant[] = [];
-  for (const h of humans) {
-    const eligible = [...remaining]
-      .filter((r) => h.score >= (rankMinScores[r] ?? 0))
-      .sort((a, b) => a - b);
-    const pick = eligible[0] ?? Math.max(...remaining);
+  for (const h of humanScores) {
+    const pick = rankMap.get(h.uid);
+    if (pick == null) continue;
     occupants.push({
       uid: h.uid,
       score: h.score,
@@ -260,7 +439,7 @@ export function computeNeutralGapBotScoreSlots(args: {
   }
   const slots: BotScoreSlot[] = [];
   for (const r of [...remaining].sort((a, b) => a - b)) {
-    const { low, high } = boundsForRankSlot(r, occupants, rankMinScores, gameType);
+    const { low, high } = boundsForRankSlot(r, occupants, rankFloors, gameType);
     slots.push({ rank: r, low, high });
   }
   return slots;
@@ -269,38 +448,29 @@ export function computeNeutralGapBotScoreSlots(args: {
 /** mixed_human：真人先占坑，再为空名次槽生成 bot 分 */
 export function generateNeutralGapBotScores(args: {
   humanScores: Array<{ uid: string; score: number }>;
-  rankMinScores: RankMinScoresByRank;
+  rankFloors: RankScoreFloorsByRank;
   maxPlayers: number;
   gameType: CasualGameIdForBot;
   sessionSeed: number;
 }): Array<{ rank: number; score: number }> {
-  const { humanScores, rankMinScores, maxPlayers, gameType, sessionSeed } = args;
-  const humans = [...humanScores].sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return a.uid.localeCompare(b.uid);
+  const { humanScores, rankFloors, maxPlayers, gameType, sessionSeed } = args;
+  const rankMap = assignHumanRanksForGapSlots({
+    humanScores,
+    rankFloors,
+    maxPlayers,
   });
-
-  const remaining = new Set<number>();
-  for (let r = 1; r <= maxPlayers; r++) remaining.add(r);
-
-  const occupants: Occupant[] = [];
-  for (const h of humans) {
-    const eligible = [...remaining]
-      .filter((r) => h.score >= (rankMinScores[r] ?? 0))
-      .sort((a, b) => a - b);
-    const pick = eligible[0] ?? Math.max(...remaining);
-    occupants.push({
+  const occupants: Occupant[] = humanScores
+    .filter((h) => rankMap.has(h.uid))
+    .map((h) => ({
       uid: h.uid,
       score: h.score,
-      assignedRank: pick,
+      assignedRank: rankMap.get(h.uid)!,
       isBot: false,
-    });
-    remaining.delete(pick);
-  }
+    }));
 
   const slots = computeNeutralGapBotScoreSlots({
     humanScores,
-    rankMinScores,
+    rankFloors,
     maxPlayers,
     gameType,
   });
@@ -325,18 +495,18 @@ export function generateSoloBotScores(args: {
   humanUid: string;
   humanScore: number;
   effectiveRank: number;
-  rankMinScores: RankMinScoresByRank;
+  rankFloors: RankScoreFloorsByRank;
   maxPlayers: number;
   gameType: CasualGameIdForBot;
   sessionSeed: number;
 }): Array<{ rank: number; score: number }> {
-  const { humanScore, effectiveRank, rankMinScores, maxPlayers, gameType, sessionSeed } =
+  const { humanScore, effectiveRank, rankFloors, maxPlayers, gameType, sessionSeed } =
     args;
 
   const slots = computeSoloBotScoreSlots({
     humanScore,
     effectiveRank,
-    rankMinScores,
+    rankFloors,
     maxPlayers,
     gameType,
   });
@@ -495,20 +665,64 @@ export function isNearMissTableSummary(
   return gap >= 0 && gap <= CASUAL_NEAR_MISS_GAP_RATIO;
 }
 
-/** join 时按玩家画像 + matchType 基线决定开桌所需真人数 */
-export function evaluateEffectiveMatchmakingMinHumans(
+/** join 时按玩家画像决定开桌所需真人数（MATCHMAKING_RULES；未命中 → default） */
+export function evaluateEffectiveHumans(
   ctx: BotStrategyPlayerContext,
   def: CasualTournamentDefinition
-): { effectiveMinHumans: number; matchedRuleId: string | null } {
+): { effectiveHumans: number; matchedRuleId: string | null } {
   const cap = Math.max(1, def.maxPlayers);
   const sorted = [...MATCHMAKING_RULES].sort((a, b) => b.priority - a.priority);
   for (const rule of sorted) {
     if (!rule.condition(ctx)) continue;
-    const effective = Math.min(cap, Math.max(1, rule.effectiveMinHumans));
-    return { effectiveMinHumans: effective, matchedRuleId: rule.id };
+    const effective = Math.min(cap, Math.max(1, rule.effectiveHumans));
+    return { effectiveHumans: effective, matchedRuleId: rule.id };
   }
-  const baseline = Math.min(cap, getBaselineEffectiveMinHumans(def.matchType));
-  return { effectiveMinHumans: baseline, matchedRuleId: "baseline_match_type" };
+  const effective = Math.min(cap, Math.max(1, CASUAL_DEFAULT_EFFECTIVE_HUMANS));
+  return { effectiveHumans: effective, matchedRuleId: "default" };
+}
+
+/** @deprecated 使用 evaluateEffectiveHumans */
+export function evaluateEffectiveMatchmakingMinHumans(
+  ctx: BotStrategyPlayerContext,
+  def: CasualTournamentDefinition
+): { effectiveHumans: number; matchedRuleId: string | null } {
+  return evaluateEffectiveHumans(ctx, def);
+}
+
+/** join 画像规则评估结果（Convex dashboard / `npx convex dev` 日志） */
+export function logJoinMatchmakingProfileResult(args: {
+  uid: string;
+  templateId: string;
+  profile: BotStrategyPlayerContext;
+  effectiveHumans: number;
+  matchedRuleId: string | null;
+  source: "enqueue" | "existing_open";
+}): void {
+  const { uid, templateId, profile, effectiveHumans, matchedRuleId, source } = args;
+  console.log(
+    "[casual][join-matchmaking]",
+    JSON.stringify({
+      source,
+      uid,
+      templateId,
+      matchType: profile.matchType,
+      maxPlayers: profile.maxPlayers,
+      profile: {
+        seasonLadderPoints: profile.seasonLadderPoints,
+        completedMultiplayerMatches: profile.completedMultiplayerMatches,
+        coinsBalance: profile.coinsBalance,
+        daysSinceLastMatch: profile.daysSinceLastMatch,
+        passLevel: profile.passLevel,
+        passTrack: profile.passTrack,
+        consecutiveLossStreak: profile.consecutiveLossStreak,
+      },
+      result: {
+        effectiveHumans,
+        matchedRuleId,
+        waitingForPeer: effectiveHumans > 1,
+      },
+    })
+  );
 }
 
 export async function countUnusedReplayTokens(ctx: QueryCtx, uid: string): Promise<number> {

@@ -12,14 +12,19 @@ import {
   SOLITAIRE_MATCH_TIME_LIMIT_SEC,
 } from "./seedPool/solitaireScoring";
 
-export function parseCasualRunGameId(gameId: string): { uid: string } | null {
+/**
+ * `game_${matchId}_${uid}` — Convex `matchId` 不含 `_`；`uid` 可含下划线（如 `telegram_123`）。
+ * 必须用首个 `_` 分隔 matchId 与 uid，不可用 `lastIndexOf`。
+ */
+export function parseCasualRunGameId(gameId: string): { uid: string; matchId: string } | null {
   if (!gameId.startsWith("game_")) return null;
   const rest = gameId.slice("game_".length);
-  const lastUnderscore = rest.lastIndexOf("_");
-  if (lastUnderscore <= 0 || lastUnderscore >= rest.length - 1) return null;
-  const uid = rest.slice(lastUnderscore + 1);
-  if (!uid) return null;
-  return { uid };
+  const sep = rest.indexOf("_");
+  if (sep <= 0 || sep >= rest.length - 1) return null;
+  const matchId = rest.slice(0, sep);
+  const uid = rest.slice(sep + 1);
+  if (!matchId || !uid) return null;
+  return { uid, matchId };
 }
 
 export function isTerminalSolitaireStatus(status: number): boolean {

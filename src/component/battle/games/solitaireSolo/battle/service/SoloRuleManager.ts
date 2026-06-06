@@ -12,6 +12,7 @@ import {
     SoloCard,
     SoloGameState,
     SoloGameStatus,
+    isSolitairePlayableStatus,
     SoloHint,
     SoloMove,
     ZoneType
@@ -32,9 +33,7 @@ export class SoloRuleManager implements SolitaireRule {
         const modes: ActMode[] = [];
 
         const status = this.gameState.status as SoloGameStatus | number | undefined;
-        const isDealed =
-            status === SoloGameStatus.DEALED || Number(status) === SoloGameStatus.DEALED;
-        if (this.interactionPhase !== GameInteractionPhase.idle || !isDealed) {
+        if (this.interactionPhase !== GameInteractionPhase.idle || !isSolitairePlayableStatus(status)) {
             return modes;
         }
         if (!card.isRevealed && card.zone !== ZoneType.TALON) {

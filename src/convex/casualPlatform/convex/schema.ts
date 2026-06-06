@@ -177,6 +177,15 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_tournament", ["tournamentId"]),
 
+  /** 玩家在各异步模板下的终局名次累计（1–4 档；实际名次 >3 归入第 4 档，用于 rankRates 平衡抽样） */
+  casual_player_tournament_rank_stats: defineTable({
+    uid: v.string(),
+    templateId: v.string(),
+    /** 键 "1".."4"；历史 "5+" 读取时会合并入 "4" */
+    rankCounts: v.record(v.string(), v.number()),
+    updatedAt: v.number(),
+  }).index("by_uid_template", ["uid", "templateId"]),
+
   /**
    * 异步锦标匹配队列：`joinTournament`（非赛季专场）先入队，由 `tryCasualMatchmakingForTemplate` 凑齐人后建局。
    */
@@ -184,10 +193,12 @@ export default defineSchema({
     uid: v.string(),
     /** 配表 tournamentId */
     templateId: v.string(),
-    /** join 时规则引擎写入；process 唯一依据（旧行可缺省，由 resolveQueueEffectiveMinHumans 回退） */
+    /** join 时规则引擎写入；process 唯一依据（读时 effectiveHumans ?? effectiveMinHumans ?? default） */
+    effectiveHumans: v.optional(v.number()),
+    /** @deprecated 迁移前字段；新写入仅用 effectiveHumans */
     effectiveMinHumans: v.optional(v.number()),
     matchedRuleId: v.optional(v.string()),
-    /** 仅 effectiveMinHumans > 1 */
+    /** 仅 effectiveHumans > 1 */
     expiresAt: v.optional(v.number()),
     skipEntryCharge: v.optional(v.boolean()),
     /** `claiming`：已被某次匹配事务预留，防止并发 join 对同一行双重扣费 */
@@ -197,7 +208,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_template_status", ["templateId", "status"])
-    .index("by_template_status_effective", ["templateId", "status", "effectiveMinHumans"])
+    .index("by_template_status_effective", ["templateId", "status", "effectiveHumans"])
     .index("by_uid", ["uid"])
     .index("by_uid_template_status", ["uid", "templateId", "status"]),
 

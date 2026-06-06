@@ -62,23 +62,24 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
     const loadingRef = useRef<HTMLDivElement | null>(null)
     const playerRef = useRef<HTMLDivElement | null>(null)
     const onGameLoadComplete = useCallback(() => {
-
-        const tl = gsap.timeline();
-        tl.to(loadingRef.current, {
-            autoAlpha: 0,
-            duration: 0.5,
-            ease: "power2.inOut"
-        })
-        tl.to(playerRef.current, {
-            autoAlpha: 1,
-            duration: 1,
-            ease: "power2.inOut"
-        }, "<")
-        tl.play();
+        loadingRef.current?.classList.add('solo-game-loading--hidden');
+        if (playerRef.current) {
+            gsap.set(playerRef.current, { autoAlpha: 1 });
+        }
+        if (loadingRef.current) {
+            gsap.to(loadingRef.current, {
+                autoAlpha: 0,
+                duration: 0.35,
+                ease: 'power2.inOut',
+            });
+        }
     }, []);
     return (
         <>
-            <div ref={playerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0, 0, 0, 0.5)" }}>
+            <div
+                ref={playerRef}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            >
                 <SoloGameProvider
 
                     config={config}

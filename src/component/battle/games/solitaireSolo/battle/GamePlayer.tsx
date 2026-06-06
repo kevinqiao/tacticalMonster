@@ -4,7 +4,7 @@
  */
 
 import { SoloGameEngine } from '@/convex/solitaireArena/convex/service/SoloGameEngine';
-import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
@@ -25,6 +25,7 @@ import {
     GameInteractionPhase,
     SoloBoardDimension,
     SoloGameStatus,
+    isSolitairePlayableStatus,
     SUIT_ICONS,
     ZoneType
 } from './types/SoloTypes';
@@ -38,6 +39,10 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     const visualTheme = useGameVisualTheme('solitaire');
     /** 整局在 animating+DEALED 下只批量补跑一次牌位（与原先各 SoloDnDCard 的 postDealLayoutOnce 等价）。 */
     const postDealBatchLayoutDoneRef = useRef(false);
+    const [cardMountEpoch, setCardMountEpoch] = useState(0);
+    const notifyCardDomChange = useCallback(() => {
+        setCardMountEpoch((n) => n + 1);
+    }, []);
     const containerRef = useRef<HTMLDivElement>(null);
     const boardSurfaceRef = useRef<HTMLDivElement>(null);
     const talonZoneRef = useRef<HTMLDivElement | undefined>(undefined);
@@ -244,12 +249,12 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         if (interactionPhase === GameInteractionPhase.pointerDrag) return;
 
         const st = gameState.status as SoloGameStatus | number | undefined;
-        const isDealed = st === SoloGameStatus.DEALED || Number(st) === SoloGameStatus.DEALED;
+        const playable = isSolitairePlayableStatus(st);
         const allMounted =
             gameState.cards.length > 0 && gameState.cards.every((c) => c.ele != null);
         const allowWhileAnimatingDeal =
             interactionPhase === GameInteractionPhase.animating &&
-            isDealed &&
+            playable &&
             !postDealBatchLayoutDoneRef.current &&
             allMounted;
 
@@ -262,7 +267,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         if (allowWhileAnimatingDeal) {
             postDealBatchLayoutDoneRef.current = true;
         }
-    }, [gameState, boardDimension, boardDimensionRef, interactionPhase]);
+    }, [gameState, boardDimension, boardDimensionRef, interactionPhase, cardMountEpoch]);
 
 
     /** 与 `useActHandler.runAutoCompleteToFoundation` 同条件：已发牌、空闲、开启配置且引擎判定可贪心收齐 */
@@ -270,9 +275,9 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         if (!gameState || !config.autoComplete) return false;
         const st = Number(gameState.status);
         if (st === SoloGameStatus.COMPLETED || st === SoloGameStatus.CANCELLED) return false;
-        const dealt =
-            gameState.status === SoloGameStatus.DEALED || Number(gameState.status) === SoloGameStatus.DEALED;
-        if (!dealt || interactionPhase !== GameInteractionPhase.idle) return false;
+        if (!isSolitairePlayableStatus(gameState.status) || interactionPhase !== GameInteractionPhase.idle) {
+            return false;
+        }
         return SoloGameEngine.canAutoCompleteWithFoundationOnly(gameState);
     }, [gameState, config.autoComplete, interactionPhase]);
 
@@ -365,6 +370,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             <SoloDnDCard
                 key={card.id}
                 card={card}
+                onCardDomChange={notifyCardDomChange}
                 style={{
                     position: 'absolute',
                     top: 0,
@@ -375,7 +381,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             />
         ))
 
-    }, [cards]);
+    }, [cards, notifyCardDomChange]);
 
     // 渲染控制面板
 

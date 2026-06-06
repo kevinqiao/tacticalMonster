@@ -41,7 +41,43 @@ type CasualRunSubmitOutcome =
           canReplay?: boolean;
           replayWindowEndsAt?: number;
       }
-    | { ok: false };
+    | { ok: false; error?: string };
+
+/** 将 solitaire/casual 后端 error 码映射为结算弹窗可读文案 */
+function casualSettleErrorMessage(error?: string): string {
+    switch (error) {
+        case "verify_failed":
+        case "invalid_token":
+            return "登录已失效，请退出对局后重新登录再试";
+        case "forbidden":
+            return "账号与对局不匹配，请从大厅重新进入本场";
+        case "no_game":
+            return "对局数据不存在，请重新进入本场";
+        case "not_terminal":
+            return "对局尚未结束，请稍后再试";
+        case "unknown_match_game":
+            return "未找到休闲场次记录，请从大厅重新开局";
+        case "match_not_submittable":
+            return "本场已不可提交成绩";
+        case "unauthorized":
+        case "casual_401":
+            return "休闲平台鉴权失败，请确认部署环境配置";
+        case "casual_unreachable":
+        case "game_unreachable":
+            return "休闲平台暂时不可达，请稍后重试";
+        case "casual_run_forbidden_client_submit":
+            return "结算通道异常，请重新登录后重试";
+        case "missing_casual_auth":
+            return "未登录，无法提交休闲场成绩";
+        case "settle_failed":
+            return "终局写入失败，请重试";
+        default:
+            if (error?.startsWith("casual_")) {
+                return `休闲平台返回错误（${error}），请稍后重试`;
+            }
+            return error ? `结算失败（${error}），请重试` : "结算提交失败，请重试";
+    }
+}
 
 function mergeServerProgress(gs: SoloGameState, p: ServerProgress) {
     if (typeof p.score === "number") gs.score = p.score;
@@ -100,6 +136,7 @@ const useActHandler = () => {
 
     useEffect(() => {
         casualRunSubmittedRef.current = false;
+        setSettleConfirmOpen(false);
         setPostCasualScoreReportOpen(false);
         setPostCasualScoreReport(null);
         setPostCasualSummaryOpen(false);
@@ -228,7 +265,7 @@ const useActHandler = () => {
                     if (!cr.ok) {
                         console.warn("[Solitaire] submitCasualPlatformRun", cr.error);
                         casualRunSubmittedRef.current = false;
-                        return { ok: false };
+                        return { ok: false, error: cr.error };
                     }
                     return mapCasualPlatformRunActionResult(cr, deferHost);
                 }
@@ -249,7 +286,13 @@ const useActHandler = () => {
 
                 if (!proxyOk) {
                     casualRunSubmittedRef.current = false;
-                    return { ok: false };
+                    return {
+                        ok: false,
+                        error:
+                            gs.gameId.startsWith("game_") && casualTournamentId
+                                ? "casual_run_forbidden_client_submit"
+                                : "proxy_submit_failed",
+                    };
                 }
                 if (!deferHost) {
                     onGameSubmit?.();
@@ -258,7 +301,7 @@ const useActHandler = () => {
             } catch (e) {
                 console.error("[Solitaire] runSolitaireSettlement", e);
                 casualRunSubmittedRef.current = false;
-                return { ok: false };
+                return { ok: false, error: "network_error" };
             }
         },
         [convex, casualTournamentId, user?.token, onGameSubmit]
@@ -272,10 +315,12 @@ const useActHandler = () => {
             if (
                 !casualTournamentId ||
                 typeof gs.gameId !== "string" ||
-                !gs.gameId.startsWith("game_") ||
-                !user?.token
+                !gs.gameId.startsWith("game_")
             ) {
-                return { ok: false };
+                return { ok: false, error: "not_casual_run" };
+            }
+            if (!user?.token) {
+                return { ok: false, error: "missing_casual_auth" };
             }
             casualRunSubmittedRef.current = true;
             const deferHost = Boolean(opts?.deferHostNotify);
@@ -296,14 +341,14 @@ const useActHandler = () => {
                 if (!cr.ok) {
                     console.warn("[Solitaire] forceEndCasualPlatformRun", cr.error);
                     casualRunSubmittedRef.current = false;
-                    return { ok: false };
+                    return { ok: false, error: cr.error };
                 }
                 mergeServerProgress(gs, { gameStatus: SoloGameStatus.CANCELLED });
                 return mapCasualPlatformRunActionResult(cr, deferHost);
             } catch (e) {
                 console.error("[Solitaire] runForceEndCasualSettlement", e);
                 casualRunSubmittedRef.current = false;
-                return { ok: false };
+                return { ok: false, error: "network_error" };
             }
         },
         [convex, casualTournamentId, user?.token, onGameSubmit]
@@ -420,6 +465,8 @@ const useActHandler = () => {
 
     const cancelSettleConfirm = useCallback(() => {
         setSettleConfirmOpen(false);
+        settleInFlightRef.current = false;
+        casualRunSubmittedRef.current = false;
     }, []);
 
     const finishManualSettleSuccess = useCallback(
@@ -458,11 +505,13 @@ const useActHandler = () => {
         }
         settleInFlightRef.current = true;
         try {
+            const isCasualGameId =
+                typeof gs.gameId === "string" && gs.gameId.startsWith("game_");
+            if (Boolean(casualTournamentId) && isCasualGameId && !user?.token) {
+                throw new Error(casualSettleErrorMessage("missing_casual_auth"));
+            }
             const isCasualRun =
-                Boolean(casualTournamentId) &&
-                typeof gs.gameId === "string" &&
-                gs.gameId.startsWith("game_") &&
-                Boolean(user?.token);
+                Boolean(casualTournamentId) && isCasualGameId && Boolean(user?.token);
 
             const settled = isCasualRun
                 ? await runForceEndCasualSettlement({ deferHostNotify: true })
@@ -483,7 +532,7 @@ const useActHandler = () => {
                   })();
 
             if (!settled.ok) {
-                throw new Error("结算提交失败，请重试");
+                throw new Error(casualSettleErrorMessage(settled.error));
             }
             const out: ManualSettleConfirmExtras = {};
             if (settled.tableSummary) out.tableSummary = settled.tableSummary;

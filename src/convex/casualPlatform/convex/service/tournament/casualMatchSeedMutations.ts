@@ -1,10 +1,13 @@
 import { v } from "convex/values";
 
+import { getTournamentDefinition } from "../../data/casualTournamentConfigs";
+import { resolveSeedTierForTemplate } from "../../data/casualSeedTierPolicy";
 import type { Id } from "../../_generated/dataModel";
 import { internalMutation, internalQuery } from "../../_generated/server";
 import {
   casualMatchSeedBindingValidator,
   readCasualMatchSeedBinding,
+  type CasualMatchSeedBinding,
 } from "./casualMatchSeedBinding";
 
 export const patchCasualRunMatchSeed = internalMutation({
@@ -61,7 +64,53 @@ export const getMatchForSeedBind = internalQuery({
       seedBinding: binding,
       humanPlayerCount: matchDoc.humanPlayerCount,
       maxPlayers: matchDoc.maxPlayers,
+      templateId: matchDoc.templateId,
+      gameType: matchDoc.gameType,
       uids,
     };
+  },
+});
+
+/** Block Blast 等：将模板 referenceScoreQuantiles 写入 seedBinding */
+export const bindCasualMatchTemplateQuantiles = internalMutation({
+  args: {
+    matchId: v.string(),
+    templateId: v.string(),
+  },
+  handler: async (ctx, { matchId, templateId }) => {
+    const def = getTournamentDefinition(templateId);
+    if (!def?.referenceScoreQuantiles) {
+      const matchDoc = await ctx.db.get(matchId as Id<"casual_run_matches">);
+      if (matchDoc) {
+        await ctx.db.patch(matchDoc._id, {
+          seedResolveError: "missing_reference_quantiles",
+          updatedAt: Date.now(),
+        });
+      }
+      return { ok: false as const, error: "missing_reference_quantiles" as const };
+    }
+
+    const matchDoc = await ctx.db.get(matchId as Id<"casual_run_matches">);
+    if (!matchDoc) {
+      return { ok: false as const, error: "unknown_match" as const };
+    }
+    if (readCasualMatchSeedBinding(matchDoc)) {
+      return { ok: true as const, alreadyBound: true as const };
+    }
+
+    const tier = resolveSeedTierForTemplate(def);
+    const seedBinding: CasualMatchSeedBinding = {
+      seedId: `template:${templateId}`,
+      poolVersion: "static",
+      tier,
+      scoreQuantiles: { ...def.referenceScoreQuantiles },
+    };
+    const now = Date.now();
+    await ctx.db.patch(matchDoc._id, {
+      seedBinding,
+      seedResolveError: undefined,
+      updatedAt: now,
+    });
+    return { ok: true as const, seedId: seedBinding.seedId };
   },
 });

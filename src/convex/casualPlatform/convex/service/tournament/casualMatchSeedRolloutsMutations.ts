@@ -1,29 +1,24 @@
 import { v } from "convex/values";
 
 import { getTournamentDefinition } from "../../data/casualTournamentConfigs";
-import { getCasualRankMinScores } from "../../data/casualBotDifficultyConfig";
 import type { Id } from "../../_generated/dataModel";
 import { internalMutation, internalQuery } from "../../_generated/server";
 import {
-  clampTargetRank,
   computeNeutralGapBotScoreSlots,
   computeSoloBotScoreSlots,
-  evaluateBotDifficultyRules,
-  generateNeutralGapBotScores,
-  generateSoloBotScores,
   hashSessionSeed,
-  resolvePlayerBotStrategyContext,
-  sampleTargetRank,
+  type BotScoreSlot,
 } from "./casualBotDifficultyService";
 import { readCasualMatchSeedBinding } from "./casualMatchSeedBinding";
-import type { BotScoreSlot } from "./casualMatchSeedRollouts";
 import {
   applyAsyncBotFillPlanToMatch,
+  buildBotFillsForAsyncMatch,
   casualAsyncVirtualOpponentCount,
+  deriveRankFloorsForMatch,
   isCasualAsyncVirtualOpponentUid,
-  padBotFillsToCount,
 } from "./casualRunSettlementFill";
-import { readCasualMatchSeedBinding } from "./casualMatchSeedBinding";
+
+export { type BotScoreSlot };
 
 export const planAsyncBotFillSlots = internalQuery({
   args: {
@@ -40,72 +35,49 @@ export const planAsyncBotFillSlots = internalQuery({
     const matchDoc = await ctx.db.get(args.matchId as Id<"casual_run_matches">);
     if (!matchDoc) return { ok: false as const, error: "unknown_match" as const };
 
+    const floors = deriveRankFloorsForMatch(matchDoc, def.maxPlayers);
+    const seedBinding = readCasualMatchSeedBinding(matchDoc);
+    if (!floors || !seedBinding) {
+      return { ok: false as const, error: "no_seed_binding" as const };
+    }
+
     const gt =
       def.gameId === "block_blast" || def.gameId === "solitaire" ? def.gameId : "solitaire";
-    const rankMinScores = getCasualRankMinScores(def);
     const sessionSeed = hashSessionSeed(`${args.templateId}|${args.sessionExternalId}`);
-    const seedBinding = readCasualMatchSeedBinding(matchDoc);
     const humanRows = args.humanScores;
+    const humanCountPlanned = Math.max(1, matchDoc.humanPlayerCount ?? humanRows.length);
+    const isMixedTable = humanCountPlanned >= 2;
+
+    const { botFills: localBotFills, soloPlan } = await buildBotFillsForAsyncMatch(ctx, {
+      def,
+      templateId: args.templateId,
+      sessionExternalId: args.sessionExternalId,
+      humanRows,
+      rankFloors: floors,
+      seedBinding,
+      botCount: args.botCount,
+      humanCountPlanned,
+    });
 
     let slots: BotScoreSlot[] = [];
-    let soloPlan: { humanUid: string; effectiveRank: number } | undefined;
-    let localBotFills: Array<{ rank: number; score: number }>;
-
-    if (humanRows.length === 1) {
+    if (!isMixedTable && humanRows.length === 1 && soloPlan) {
       const human = humanRows[0]!;
-      const profile = await resolvePlayerBotStrategyContext(ctx, {
-        uid: human.uid,
-        templateId: args.templateId,
-        def,
-      });
-      const dist = evaluateBotDifficultyRules(profile);
-      const target = sampleTargetRank(dist, def.maxPlayers, sessionSeed);
-      const effectiveRank = clampTargetRank(
-        target,
-        human.score,
-        rankMinScores,
-        def.maxPlayers
-      );
-      soloPlan = { humanUid: human.uid, effectiveRank };
       slots = computeSoloBotScoreSlots({
         humanScore: human.score,
-        effectiveRank,
-        rankMinScores,
+        effectiveRank: soloPlan.effectiveRank,
+        rankFloors: floors,
         maxPlayers: def.maxPlayers,
         gameType: gt,
-      });
-      localBotFills = generateSoloBotScores({
-        humanUid: human.uid,
-        humanScore: human.score,
-        effectiveRank,
-        rankMinScores,
-        maxPlayers: def.maxPlayers,
-        gameType: gt,
-        sessionSeed,
       });
     } else {
       slots = computeNeutralGapBotScoreSlots({
         humanScores: humanRows,
-        rankMinScores,
+        rankFloors: floors,
         maxPlayers: def.maxPlayers,
         gameType: gt,
       });
-      localBotFills = generateNeutralGapBotScores({
-        humanScores: humanRows,
-        rankMinScores,
-        maxPlayers: def.maxPlayers,
-        gameType: gt,
-        sessionSeed,
-      });
+      slots = [...slots].sort((a, b) => a.rank - b.rank).slice(0, args.botCount);
     }
-
-    localBotFills = padBotFillsToCount({
-      fills: localBotFills,
-      botCount: args.botCount,
-      maxPlayers: def.maxPlayers,
-      rankMinScores,
-      gameType: gt,
-    });
 
     return {
       ok: true as const,
@@ -143,9 +115,6 @@ export const getMatchRolloutBotContext = internalQuery({
     if (!matchDoc || !readCasualMatchSeedBinding(matchDoc)) {
       return { ok: false as const, error: "no_seed_binding" as const };
     }
-    if (matchDoc.botsSeeded) {
-      return { ok: false as const, error: "bots_already_seeded" as const };
-    }
     const def = getTournamentDefinition(pm.templateId);
     if (!def || def.maxPlayers <= 1) {
       return { ok: false as const, error: "not_multi_async" as const };
@@ -171,6 +140,10 @@ export const getMatchRolloutBotContext = internalQuery({
     );
     if (botCount <= 0) {
       return { ok: false as const, error: "no_bot_slots" as const };
+    }
+    const virtualRows = rows.filter((r) => isCasualAsyncVirtualOpponentUid(r.uid));
+    if (matchDoc.botsSeeded && virtualRows.length >= botCount) {
+      return { ok: false as const, error: "bots_already_seeded" as const };
     }
     const sessionExternalId =
       typeof pm.externalGameId === "string" && pm.externalGameId.trim().startsWith("casual_sess:")

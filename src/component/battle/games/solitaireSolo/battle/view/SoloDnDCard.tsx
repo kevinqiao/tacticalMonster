@@ -12,12 +12,15 @@ interface SoloDnDCardProps {
     card: SoloCard;
     style?: React.CSSProperties;
     className?: string;
+    /** 牌 DOM 挂载/卸载时通知父级重跑布局（card.ele 变更不触发 React state） */
+    onCardDomChange?: () => void;
 }
 
 const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     card,
     style,
-    className = ''
+    className = '',
+    onCardDomChange,
 }) => {
     const { onPointerDragStart } = useSoloDnDManager();
     const { ruleManager } = useSoloGameManager();
@@ -58,9 +61,16 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         e.stopPropagation();
     }, []);
 
-    const load = useCallback((ele: HTMLDivElement | null) => {
-        card.ele = ele;
-    }, [card]);
+    const load = useCallback(
+        (ele: HTMLDivElement | null) => {
+            const hadEle = card.ele != null;
+            card.ele = ele;
+            if (ele && !hadEle) {
+                onCardDomChange?.();
+            }
+        },
+        [card, onCardDomChange]
+    );
 
     return (
         <div

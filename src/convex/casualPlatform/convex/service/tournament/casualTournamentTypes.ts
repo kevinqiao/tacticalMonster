@@ -17,7 +17,7 @@ export type JoinCasualRunReadyResult = {
 /** @deprecated 使用 `JoinCasualRunReadyResult` */
 export type JoinCasualRunDirectResult = JoinCasualRunReadyResult;
 
-/** 队列/入队对客户端暴露的匹配 UI 标志（不含 effectiveMinHumans / 规则 id） */
+/** 队列/入队对客户端暴露的匹配 UI 标志（不含 effectiveHumans / 规则 id） */
 export type CasualMatchQueueClientFlags = {
   /** true：展示「等待其他玩家」；false：展示「正在创建对局」（含单真人桌，不区分 bot） */
   waitingForPeer: boolean;
@@ -26,10 +26,10 @@ export type CasualMatchQueueClientFlags = {
 };
 
 export function toCasualMatchQueueClientFlags(args: {
-  effectiveMinHumans: number;
+  effectiveHumans: number;
   expiresAt?: number;
 }): CasualMatchQueueClientFlags {
-  const waitingForPeer = args.effectiveMinHumans > 1;
+  const waitingForPeer = args.effectiveHumans > 1;
   return {
     waitingForPeer,
     ...(waitingForPeer && args.expiresAt != null ? { expiresAt: args.expiresAt } : {}),

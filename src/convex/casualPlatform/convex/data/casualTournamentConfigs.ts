@@ -20,6 +20,21 @@ export type CasualInstanceScope = "single_match" | "daily" | "weekly" | "season"
 export type CasualScoreAggregation = "single_match" | "best_score" | "sum_scores";
 export type CasualEntryBilling = "per_match" | "per_instance";
 
+/** 与 seedBinding.scoreQuantiles 同构；Block Blast 静态 bind 用 */
+export type CasualReferenceScoreQuantiles = {
+  p10: number;
+  p25: number;
+  p30: number;
+  p33: number;
+  p50: number;
+  p66: number;
+  p70: number;
+  p75: number;
+  p90: number;
+};
+
+export type CasualRankRateEntry = { rank: number; odd: number };
+
 export interface CasualTournamentDefinition {
   tournamentId: string;
   title: string;
@@ -46,6 +61,10 @@ export interface CasualTournamentDefinition {
   hideLeaderboard?: boolean;
   /** 日榜单人挑战等：仅 Play 专区入口，不出现在多人竞技列表 */
   omitFromPlayLobby?: boolean;
+  /** score >= p50 且画像权重为空时，与 DB 名次累计（1–4 档）平衡后抽样；缺省见 CASUAL_RANK_RATES_4B */
+  rankRates?: CasualRankRateEntry[];
+  /** Block Blast 等无 pool 时开桌 bind 写入 seedBinding 的静态分位 */
+  referenceScoreQuantiles?: CasualReferenceScoreQuantiles;
 }
 
 /** Play「日榜单人挑战」· Solitaire */
@@ -133,6 +152,64 @@ const CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P: CasualRankRewardEntry[] = [
   { rankRange: [5, 5], multiplier: 1, seasonPoints: -8 },
 ];
 
+const CASUAL_RANK_RATES_4B = [
+  { rank: 1, odd: 35 },
+  { rank: 2, odd: 30 },
+  { rank: 3, odd: 20 },
+  { rank: 4, odd: 15 },
+] as const satisfies readonly CasualRankRateEntry[];
+
+export { CASUAL_RANK_RATES_4B };
+
+export function getTournamentRankRates(_def?: CasualTournamentDefinition): CasualRankRateEntry[] {
+  return [...CASUAL_RANK_RATES_4B];
+}
+
+const CASUAL_BB_QUANTILES_A: CasualReferenceScoreQuantiles = {
+  p10: 3_000,
+  p25: 4_500,
+  p30: 5_500,
+  p33: 6_000,
+  p50: 7_000,
+  p66: 8_500,
+  p70: 9_500,
+  p75: 10_500,
+  p90: 12_000,
+};
+const CASUAL_BB_QUANTILES_B: CasualReferenceScoreQuantiles = {
+  p10: 2_000,
+  p25: 3_500,
+  p30: 4_500,
+  p33: 5_000,
+  p50: 9_000,
+  p66: 11_000,
+  p70: 12_500,
+  p75: 13_500,
+  p90: 15_000,
+};
+const CASUAL_BB_QUANTILES_C: CasualReferenceScoreQuantiles = {
+  p10: 1_000,
+  p25: 2_500,
+  p30: 3_500,
+  p33: 4_000,
+  p50: 6_500,
+  p66: 9_000,
+  p70: 10_000,
+  p75: 11_000,
+  p90: 18_000,
+};
+const CASUAL_BB_QUANTILES_SEASON_4P: CasualReferenceScoreQuantiles = {
+  p10: 1_500,
+  p25: 3_000,
+  p30: 4_000,
+  p33: 4_500,
+  p50: 8_000,
+  p66: 10_000,
+  p70: 11_000,
+  p75: 12_000,
+  p90: 14_000,
+};
+
 /** Play 异步 A/B/C：`maxPlayers` 3 / 4 / 5；多人赛季分按名次 `rankRewards.seasonPoints`（可负）；日榜单机仍用 `seasonPointsMultiplier`。 */
 const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
@@ -150,6 +227,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     },
     seasonXpOnSettle: 12,
     seasonPointsMultiplier: 0,
+    referenceScoreQuantiles: CASUAL_BB_QUANTILES_A,
   },
   {
     tournamentId: "casual_async_b_bb",
@@ -166,6 +244,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     },
     seasonXpOnSettle: 18,
     seasonPointsMultiplier: 0,
+    referenceScoreQuantiles: CASUAL_BB_QUANTILES_B,
   },
   {
     tournamentId: "casual_async_c_bb",
@@ -182,6 +261,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     },
     seasonXpOnSettle: 28,
     seasonPointsMultiplier: 0,
+    referenceScoreQuantiles: CASUAL_BB_QUANTILES_C,
   },
   {
     tournamentId: "casual_async_a_solitaire",
@@ -321,6 +401,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     seasonXpOnSettle: 18,
     seasonPointsMultiplier: 0,
     hideLeaderboard: true,
+    referenceScoreQuantiles: CASUAL_BB_QUANTILES_SEASON_4P,
   },
   {
     tournamentId: CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID,

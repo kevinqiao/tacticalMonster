@@ -16,6 +16,7 @@ export default defineConfig({
     environment: "node",
     include: [
       "src/convex/solitaireArena/convex/service/seedPool/__tests__/**/*.test.ts",
+      "src/convex/casualPlatform/convex/service/tournament/__tests__/**/*.test.ts",
     ],
   },
 });
