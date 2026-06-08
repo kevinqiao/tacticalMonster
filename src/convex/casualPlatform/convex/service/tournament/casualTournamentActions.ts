@@ -18,11 +18,10 @@ export const submitScore = action({
   args: {
     token: v.string(),
     tournamentId: v.string(),
-    gameId: v.string(),
+    gameType: v.string(),
     score: v.number(),
-    externalGameId: v.optional(v.string()),
   },
-  handler: async (ctx, { token, tournamentId, gameId, score, externalGameId }) => {
+  handler: async (ctx, { token, tournamentId, gameType, score }) => {
     const secret = jwtAccessSecret();
     if (!secret) {
       console.error("[casualPlatform] submitScore: JWT secret unavailable");
@@ -37,9 +36,8 @@ export const submitScore = action({
       await ctx.runMutation(internal.service.tournament.casualTournamentService.applyScore, {
         uid,
         tournamentId,
-        gameId,
+        gameType,
         score,
-        externalGameId,
       });
       return { ok: true as const };
     } catch (e) {
@@ -71,7 +69,7 @@ export const joinTournament = action({
       if (!result.ok || result.queued !== false) {
         return result;
       }
-      if (def.gameId === "solitaire" && result.matchId) {
+      if (def.gameType === "solitaire" && result.matchId) {
         const bind = await ctx.runAction(
           internal.service.tournament.casualMatchSeedActions.bindCasualMatchSeed,
           {

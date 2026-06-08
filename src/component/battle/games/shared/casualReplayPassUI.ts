@@ -7,8 +7,8 @@ export function isCasualNearMissTableSummary(
   summary: CasualAsyncTableSummaryUI | null | undefined
 ): boolean {
   if (!summary?.rows?.length) return false;
-  const you = summary.rows.find((r) => r.isYou && r.rowState !== 'playing');
-  const first = summary.rows.find((r) => r.rowState !== 'playing' && r.rank === 1);
+  const you = summary.rows.find((r) => r.isYou && r.rowState === 'scored');
+  const first = summary.rows.find((r) => r.rowState === 'scored' && r.rank === 1);
   if (!you || !first || you.rank === 1) return false;
   if (first.score <= 0) return false;
   const gap = (first.score - you.score) / first.score;

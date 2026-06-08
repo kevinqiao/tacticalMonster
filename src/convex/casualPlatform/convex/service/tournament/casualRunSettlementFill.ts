@@ -4,14 +4,14 @@
  */
 import { v } from "convex/values";
 import type { CasualTournamentDefinition } from "../../data/casualTournamentConfigs";
-import type { Id } from "../../_generated/dataModel";
+import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { internalMutation } from "../../_generated/server";
 import { readCasualMatchSeedBinding } from "./casualMatchSeedBinding";
 import {
   assignMixedRanks,
-  buildSoloTableRankMap,
+  assignRanksByScoreDesc,
   generateNeutralGapBotScores,
   generateSoloBotScores,
   hashSessionSeed,
@@ -22,7 +22,12 @@ import {
   deriveRankScoreFloorsFromQuantiles,
   type RankScoreFloorsByRank,
 } from "./casualRankQuantiles";
-import { isHumanSubmittedStatus } from "./casualPlayerMatchStatus";
+import {
+  pickDurationFallbackMs,
+  planBotRevealSchedule,
+  resolveAsyncLeaderboardRowState,
+} from "../../data/casualBotFillStaggerConfig";
+import { canonicalCasualRunSessionExternalId } from "./casualRunSession";
 
 export function resolveRankFloorsFromMatchDoc(
   matchDoc: { seedBinding?: unknown },
@@ -61,15 +66,12 @@ export function casualAsyncVirtualOpponentCount(
 
 export async function computeCasualAsyncSessionRank(
   ctx: QueryCtx,
-  templateId: string,
-  sessionExternalId: string,
+  matchId: string,
   uid: string
 ): Promise<number | null> {
   const rows = await ctx.db
     .query("casual_run_player_matches")
-    .withIndex("by_template_external", (q) =>
-      q.eq("templateId", templateId).eq("externalGameId", sessionExternalId)
-    )
+    .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
     .collect();
   const row = rows.find((r) => r.uid === uid);
   if (row?.rank != null) return row.rank;
@@ -88,11 +90,13 @@ export async function computeCasualAsyncSessionRank(
   return idx >= 0 ? (withScore[idx]!.rank ?? idx + 1) : null;
 }
 
+export { resolveAsyncLeaderboardRowState } from "../../data/casualBotFillStaggerConfig";
+
 /** 本桌一行（真人/机器人同一套展示字段） */
 export type CasualAsyncTableLeaderboardRow = {
   rank: number;
   score?: number;
-  rowState?: "scored" | "playing";
+  rowState?: "scored" | "playing" | "matching";
   /** 已本地化：「你」/「同桌 n」（真人）/「补位 n」（系统对手），不暴露 uid */
   displayLabel: string;
   isBot?: boolean;
@@ -151,74 +155,139 @@ function buildLeaderboardRowsFromScored(
   });
 }
 
+type PlayerMatchRow = Doc<"casual_run_player_matches">;
+
+function buildPartialAsyncTableSummaryRows(args: {
+  rows: PlayerMatchRow[];
+  uid: string;
+  maxPlayers: number;
+  humanCountPlanned: number;
+  now: number;
+}): CasualAsyncTableLeaderboardRow[] {
+  const { rows, uid, maxPlayers, humanCountPlanned, now } = args;
+  const targetBotCount = casualAsyncVirtualOpponentCount(maxPlayers, humanCountPlanned);
+
+  const scoredEntries: Array<{ uid: string; score: number }> = [];
+  const playingRows: CasualAsyncTableLeaderboardRow[] = [];
+  let matchingSlots = 0;
+  let humanPeerIdx = 0;
+  let botPeerIdx = 0;
+
+  const humans = rows.filter((r) => !isCasualAsyncVirtualOpponentUid(r.uid));
+  const bots = rows
+    .filter((r) => isCasualAsyncVirtualOpponentUid(r.uid))
+    .sort((a, b) => a.uid.localeCompare(b.uid));
+
+  for (const h of humans) {
+    const state = resolveAsyncLeaderboardRowState({ kind: "human", status: h.status }, now);
+    const isYou = h.uid === uid;
+    if (state === "scored" && h.score != null && Number.isFinite(h.score)) {
+      scoredEntries.push({ uid: h.uid, score: h.score as number });
+      continue;
+    }
+    if (state === "playing") {
+      playingRows.push({
+        rank: 0,
+        rowState: "playing",
+        displayLabel: isYou ? "你" : `同桌 ${++humanPeerIdx}`,
+        isYou,
+      });
+    }
+  }
+
+  for (const b of bots) {
+    const state = resolveAsyncLeaderboardRowState(
+      {
+        kind: "bot",
+        revealAt: b.revealAt,
+        duration: b.duration,
+      },
+      now
+    );
+    if (state === "matching") {
+      matchingSlots += 1;
+      continue;
+    }
+    const label = `补位 ${++botPeerIdx}`;
+    if (state === "playing") {
+      playingRows.push({
+        rank: 0,
+        rowState: "playing",
+        displayLabel: label,
+        isBot: true,
+        isYou: false,
+      });
+      continue;
+    }
+    if (b.score != null && Number.isFinite(b.score)) {
+      scoredEntries.push({ uid: b.uid, score: b.score as number });
+    }
+  }
+
+  const unrevealedFromTarget = Math.max(0, targetBotCount - bots.length);
+  matchingSlots += unrevealedFromTarget;
+
+  const outRows = buildLeaderboardRowsFromScored(scoredEntries, uid);
+  outRows.push(...playingRows);
+  for (let i = 0; i < matchingSlots; i++) {
+    outRows.push({
+      rank: 0,
+      rowState: "matching",
+      displayLabel: "正在匹配中",
+      isBot: true,
+      isYou: false,
+    });
+  }
+  return outRows;
+}
+
 export async function buildCasualAsyncTableSummary(
   ctx: QueryCtx,
   args: {
     templateId: string;
-    sessionExternalId: string;
     uid: string;
     maxPlayers: number;
-    /** 优先按 match 拉全桌（真人 externalGameId 可能与 bot 的 casual_sess 不一致） */
-    matchId?: string;
+    matchId: string;
     /** false：未全员 settled；已交分真人仍展示分数/暂名，仅 open/replaying 等为 Playing */
     allHumansSettled?: boolean;
   }
 ): Promise<CasualAsyncTableSummary | null> {
-  const { templateId, sessionExternalId, uid, maxPlayers, matchId } = args;
+  const { templateId, uid, maxPlayers, matchId } = args;
   const allHumansSettled = args.allHumansSettled === true;
 
-  let rows;
-  if (matchId && matchId.trim().length > 0) {
-    rows = await ctx.db
-      .query("casual_run_player_matches")
-      .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
-      .collect();
-  } else if (sessionExternalId.trim().length > 0) {
-    rows = await ctx.db
-      .query("casual_run_player_matches")
-      .withIndex("by_template_external", (q) =>
-        q.eq("templateId", templateId).eq("externalGameId", sessionExternalId)
-      )
-      .collect();
-  } else {
-    return null;
-  }
+  if (!matchId.trim()) return null;
+  const rows = await ctx.db
+    .query("casual_run_player_matches")
+    .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
+    .collect();
 
   const viewerRow = rows.find((r) => r.uid === uid);
   if (!viewerRow) return null;
 
   if (!allHumansSettled && maxPlayers > 1) {
-    const scored = rows
-      .filter((r) => {
-        if (isCasualAsyncVirtualOpponentUid(r.uid)) {
-          return r.score != null && Number.isFinite(r.score);
-        }
-        return (
-          isHumanSubmittedStatus(r.status) &&
-          r.score != null &&
-          Number.isFinite(r.score)
-        );
-      })
-      .map((r) => ({
-        uid: r.uid,
-        score: r.score as number,
-      }));
-    if (scored.length === 0) return null;
-
-    const scoredUidSet = new Set(scored.map((e) => e.uid));
-    const outRows = buildLeaderboardRowsFromScored(scored, uid);
-
-    let humanPeerIdx = 0;
-    for (const h of rows) {
-      if (scoredUidSet.has(h.uid) || isCasualAsyncVirtualOpponentUid(h.uid)) continue;
-      outRows.push({
-        rank: 0,
-        rowState: "playing",
-        displayLabel: `同桌 ${++humanPeerIdx}`,
-        isYou: false,
-      });
+    let humanCountPlanned = 1;
+    if (matchId?.trim()) {
+      const matchDoc = await ctx.db.get(matchId as Id<"casual_run_matches">);
+      const humansWithScore = rows.filter(
+        (r) => !isCasualAsyncVirtualOpponentUid(r.uid) && r.score != null
+      );
+      humanCountPlanned = Math.max(
+        1,
+        matchDoc?.humanPlayerCount ?? humansWithScore.length ?? 1
+      );
     }
 
+    const outRows = buildPartialAsyncTableSummaryRows({
+      rows,
+      uid,
+      maxPlayers,
+      humanCountPlanned,
+      now: Date.now(),
+    });
+    const hasContent = outRows.some(
+      (r) => r.rowState === "scored" || r.rowState === "playing" || r.rowState === "matching"
+    );
+    if (!hasContent) return null;
     return { maxPlayers, rows: outRows };
   }
 
@@ -301,7 +370,6 @@ export async function finalizeCasualAsyncTableSummaryForPlayer(
 
   return await buildCasualAsyncTableSummary(ctx, {
     templateId: args.templateId,
-    sessionExternalId: args.sessionExternalId,
     uid: args.uid,
     maxPlayers: args.def.maxPlayers,
     matchId: args.matchId,
@@ -326,7 +394,6 @@ export async function rerankCasualAsyncMatchScores(
   if (!rankFloors) return;
   await patchRanksForAsyncMatch(ctx, {
     matchId: args.matchId,
-    sessionExternalId: args.sessionExternalId,
     def: args.def,
     rankFloors,
     updatedAt: args.updatedAt,
@@ -394,14 +461,20 @@ export async function ensureBotsSeededForPartialSubmit(
   });
 }
 
+export type AsyncBotFill = {
+  rank: number;
+  score: number;
+  duration?: number;
+  rolloutIndex?: number;
+};
+
 export type SeedVirtualOpponentArgs = {
   templateId: string;
   runTournamentId: string;
   matchId: string;
-  externalGameId: string;
   matchGameType: "solitaire" | "block_blast";
   /** 每个 bot 的目标名次槽与分数 */
-  botFills: Array<{ rank: number; score: number }>;
+  botFills: AsyncBotFill[];
   updatedAt: number;
   /** 默认 true：先删本 match 全部虚拟行再写入；false：仅 upsert 传入槽位（供 topUp 追加） */
   replaceAllVirtual?: boolean;
@@ -416,7 +489,6 @@ export async function seedCasualAsyncVirtualOpponentsCore(
     templateId,
     runTournamentId,
     matchId,
-    externalGameId,
     matchGameType,
     botFills,
     updatedAt,
@@ -455,8 +527,9 @@ export async function seedCasualAsyncVirtualOpponentsCore(
       await ctx.db.patch(existing._id, {
         score,
         status: "settled",
-        externalGameId,
         updatedAt,
+        ...(fill.duration != null ? { duration: fill.duration } : {}),
+        rolloutIndex: fill.rolloutIndex,
       });
       continue;
     }
@@ -467,9 +540,10 @@ export async function seedCasualAsyncVirtualOpponentsCore(
       uid,
       gameId,
       gameType: matchGameType,
-      externalGameId,
       score,
       status: "settled",
+      ...(fill.duration != null ? { duration: fill.duration } : {}),
+      ...(fill.rolloutIndex != null ? { rolloutIndex: fill.rolloutIndex } : {}),
       createdAt: updatedAt,
       updatedAt,
     });
@@ -481,9 +555,15 @@ export const seedCasualAsyncVirtualOpponents = internalMutation({
     templateId: v.string(),
     runTournamentId: v.string(),
     matchId: v.string(),
-    externalGameId: v.string(),
     matchGameType: v.union(v.literal("solitaire"), v.literal("block_blast")),
-    botFills: v.array(v.object({ rank: v.number(), score: v.number() })),
+    botFills: v.array(
+      v.object({
+        rank: v.number(),
+        score: v.number(),
+        duration: v.optional(v.number()),
+        rolloutIndex: v.optional(v.number()),
+      })
+    ),
     updatedAt: v.number(),
   },
   handler: async (ctx, args) => {
@@ -492,7 +572,7 @@ export const seedCasualAsyncVirtualOpponents = internalMutation({
   },
 });
 
-type BotFill = { rank: number; score: number };
+type BotFill = AsyncBotFill;
 
 type SoloBotPlan = { humanUid: string; effectiveRank: number };
 
@@ -519,6 +599,7 @@ export function padBotFillsToCount(args: {
   maxPlayers: number;
   rankFloors: RankScoreFloorsByRank;
   gameType: "solitaire" | "block_blast";
+  sessionSeed: number;
 }): BotFill[] {
   const sorted = [...args.fills].sort((a, b) => a.rank - b.rank);
   const occupied = new Set(sorted.map((f) => f.rank));
@@ -526,7 +607,11 @@ export function padBotFillsToCount(args: {
   for (let r = 1; r <= args.maxPlayers && sorted.length < args.botCount; r++) {
     if (occupied.has(r)) continue;
     const low = args.rankFloors[r] ?? 0;
-    sorted.push({ rank: r, score: low + eps });
+    sorted.push({
+      rank: r,
+      score: low + eps,
+      duration: pickDurationFallbackMs(args.sessionSeed, r),
+    });
     occupied.add(r);
   }
   return sorted.slice(0, args.botCount);
@@ -547,8 +632,8 @@ export async function buildBotFillsForAsyncMatch(
   }
 ): Promise<BotFillBuildResult> {
   const gt =
-    args.def.gameId === "block_blast" || args.def.gameId === "solitaire"
-      ? args.def.gameId
+    args.def.gameType === "block_blast" || args.def.gameType === "solitaire"
+      ? args.def.gameType
       : "solitaire";
   const sessionSeed = hashSessionSeed(`${args.templateId}|${args.sessionExternalId}`);
   let botFills: BotFill[];
@@ -594,11 +679,15 @@ export async function buildBotFillsForAsyncMatch(
 
   return {
     botFills: padBotFillsToCount({
-      fills: botFills,
+      fills: botFills.map((f, i) => ({
+        ...f,
+        duration: f.duration ?? pickDurationFallbackMs(sessionSeed, f.rank + i),
+      })),
       botCount: args.botCount,
       maxPlayers: args.def.maxPlayers,
       rankFloors: args.rankFloors,
       gameType: gt,
+      sessionSeed,
     }),
     soloPlan,
   };
@@ -608,7 +697,6 @@ async function patchRanksForAsyncMatch(
   ctx: MutationCtx,
   args: {
     matchId: string;
-    sessionExternalId: string;
     def: CasualTournamentDefinition;
     rankFloors: RankScoreFloorsByRank;
     updatedAt: number;
@@ -621,19 +709,16 @@ async function patchRanksForAsyncMatch(
     .withIndex("by_match_uid", (q) => q.eq("matchId", args.matchId))
     .collect();
 
-  const gt =
-    args.def.gameId === "block_blast" || args.def.gameId === "solitaire"
-      ? args.def.gameId
-      : "solitaire";
-
   let rankMap: Map<string, number>;
   if (args.soloPlan && args.botFills?.length) {
-    rankMap = buildSoloTableRankMap({
-      humanUid: args.soloPlan.humanUid,
-      effectiveRank: args.soloPlan.effectiveRank,
-      botFills: args.botFills,
-      botUidForSlot: (slotRank) => botUidForMatchSlot(gt, args.matchId, slotRank),
-    });
+    const entities = rows
+      .filter((r) => r.score != null && Number.isFinite(r.score))
+      .map((r) => ({
+        uid: r.uid,
+        score: r.score as number,
+        isBot: isCasualAsyncVirtualOpponentUid(r.uid),
+      }));
+    rankMap = assignRanksByScoreDesc(entities);
   } else {
     const entities = rows
       .filter((r) => r.score != null && Number.isFinite(r.score))
@@ -651,16 +736,11 @@ async function patchRanksForAsyncMatch(
 
   for (const row of rows) {
     const rr = rankMap.get(row.uid);
-    const patch: { rank?: number; externalGameId?: string; updatedAt: number } = {
+    if (rr == null) continue;
+    await ctx.db.patch(row._id, {
+      rank: rr,
       updatedAt: args.updatedAt,
-    };
-    if (rr != null) patch.rank = rr;
-    if (row.externalGameId !== args.sessionExternalId) {
-      patch.externalGameId = args.sessionExternalId;
-    }
-    if (patch.rank != null || patch.externalGameId != null) {
-      await ctx.db.patch(row._id, patch);
-    }
+    });
   }
 
   return rows.filter((r) => r.score != null && Number.isFinite(r.score)).length;
@@ -679,8 +759,8 @@ export async function ensureAsyncMatchRosterFull(
   }
 ): Promise<void> {
   const gt =
-    args.def.gameId === "block_blast" || args.def.gameId === "solitaire"
-      ? args.def.gameId
+    args.def.gameType === "block_blast" || args.def.gameType === "solitaire"
+      ? args.def.gameType
       : null;
   if (!gt || args.def.maxPlayers <= 1) return;
 
@@ -750,7 +830,6 @@ export async function ensureAsyncMatchRosterFull(
     templateId: args.templateId,
     runTournamentId: args.runTournamentId,
     matchId: args.matchId,
-    externalGameId: args.sessionExternalId,
     matchGameType: gt,
     botFills,
     updatedAt: args.updatedAt,
@@ -759,7 +838,6 @@ export async function ensureAsyncMatchRosterFull(
 
   await patchRanksForAsyncMatch(ctx, {
     matchId: args.matchId,
-    sessionExternalId: args.sessionExternalId,
     def: args.def,
     rankFloors,
     updatedAt: args.updatedAt,
@@ -767,6 +845,151 @@ export async function ensureAsyncMatchRosterFull(
     botFills,
   });
 }
+
+/** reveal 计划 seed：含再战 epoch + 本次提交时刻，避免同桌榜 bot 分布永远固定 */
+export function buildAsyncBotRevealPlanSeedKey(args: {
+  templateId: string;
+  sessionExternalId: string;
+  replayEpoch?: number;
+  anchorAt: number;
+}): string {
+  const re = args.replayEpoch ?? 0;
+  return `${args.templateId}|${args.sessionExternalId}|re${re}|t${args.anchorAt}`;
+}
+
+async function resolveHumanReplayEpochForMatch(
+  ctx: MutationCtx,
+  matchId: string
+): Promise<number> {
+  const rows = await ctx.db
+    .query("casual_run_player_matches")
+    .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
+    .collect();
+  const humans = rows.filter((r) => !isCasualAsyncVirtualOpponentUid(r.uid));
+  if (humans.length === 0) return 0;
+  return Math.max(0, ...humans.map((h) => h.replayEpoch ?? 0));
+}
+
+/** 虚拟 bot 分批入场：写入 revealAt + 注册 scheduler */
+export async function installAsyncBotRevealPlan(
+  ctx: MutationCtx,
+  args: {
+    templateId: string;
+    matchId: string;
+    sessionExternalId: string;
+    updatedAt: number;
+    planSeedKey?: string;
+    /** 真人再次交分时重排 reveal（再战后同桌榜不应沿用旧时间线） */
+    forceReplan?: boolean;
+  }
+): Promise<void> {
+  const rows = await ctx.db
+    .query("casual_run_player_matches")
+    .withIndex("by_match_uid", (q) => q.eq("matchId", args.matchId))
+    .collect();
+  const virtualRows = rows.filter(
+    (r) =>
+      isCasualAsyncVirtualOpponentUid(r.uid) &&
+      r.score != null &&
+      Number.isFinite(r.score)
+  );
+  if (virtualRows.length === 0) return;
+  if (!args.forceReplan && virtualRows.some((r) => r.revealAt != null)) return;
+
+  if (args.forceReplan) {
+    for (const row of virtualRows) {
+      await ctx.db.patch(row._id, {
+        revealAt: undefined,
+        botRevealed: undefined,
+        updatedAt: args.updatedAt,
+      });
+    }
+  }
+
+  const sessionSeed = hashSessionSeed(
+    args.planSeedKey ?? `${args.templateId}|${args.sessionExternalId}`
+  );
+  const schedule = planBotRevealSchedule({
+    virtualUids: virtualRows.map((r) => r.uid),
+    sessionSeed,
+    now: args.updatedAt,
+  });
+  const byUid = new Map(virtualRows.map((r) => [r.uid, r]));
+
+  for (const entry of schedule) {
+    const row = byUid.get(entry.uid);
+    if (!row) continue;
+    const patch: {
+      revealAt: number;
+      updatedAt: number;
+      botRevealed?: boolean;
+    } = {
+      revealAt: entry.revealAt,
+      updatedAt: args.updatedAt,
+    };
+    if (entry.revealAt <= args.updatedAt) {
+      patch.botRevealed = true;
+    }
+    await ctx.db.patch(row._id, patch);
+
+    if (entry.revealAt > args.updatedAt) {
+      await ctx.scheduler.runAfter(
+        entry.revealAt - args.updatedAt,
+        internal.service.tournament.casualRunSettlementFill.fireAsyncBotReveal,
+        { playerMatchId: row._id }
+      );
+    }
+  }
+}
+
+/** 真人已交分且 bot 已 seed：按本次提交重排 reveal（partial 榜用 Date.now() 实时三态） */
+export async function replanAsyncBotRevealOnHumanSubmit(
+  ctx: MutationCtx,
+  args: {
+    templateId: string;
+    matchId: string;
+    sessionExternalId: string;
+    updatedAt: number;
+  }
+): Promise<boolean> {
+  const rows = await ctx.db
+    .query("casual_run_player_matches")
+    .withIndex("by_match_uid", (q) => q.eq("matchId", args.matchId))
+    .collect();
+  const hasVirtualScores = rows.some(
+    (r) =>
+      isCasualAsyncVirtualOpponentUid(r.uid) &&
+      r.score != null &&
+      Number.isFinite(r.score)
+  );
+  if (!hasVirtualScores) return false;
+
+  const replayEpoch = await resolveHumanReplayEpochForMatch(ctx, args.matchId);
+  await installAsyncBotRevealPlan(ctx, {
+    ...args,
+    forceReplan: true,
+    planSeedKey: buildAsyncBotRevealPlanSeedKey({
+      templateId: args.templateId,
+      sessionExternalId: args.sessionExternalId,
+      replayEpoch,
+      anchorAt: args.updatedAt,
+    }),
+  });
+  return true;
+}
+
+export const fireAsyncBotReveal = internalMutation({
+  args: { playerMatchId: v.id("casual_run_player_matches") },
+  handler: async (ctx, { playerMatchId }) => {
+    const row = await ctx.db.get(playerMatchId);
+    if (!row || !isCasualAsyncVirtualOpponentUid(row.uid)) return;
+    if (row.botRevealed === true) return;
+    await ctx.db.patch(playerMatchId, {
+      botRevealed: true,
+      updatedAt: Date.now(),
+    });
+  },
+});
 
 /** 写入 bot 分并 rerank（本地或 rollouts action 共用） */
 export async function applyAsyncBotFillPlanToMatch(
@@ -778,7 +1001,7 @@ export async function applyAsyncBotFillPlanToMatch(
     runTournamentId: string;
     sessionExternalId: string;
     matchGameType: "solitaire" | "block_blast";
-    botFills: Array<{ rank: number; score: number }>;
+    botFills: AsyncBotFill[];
     soloPlan?: { humanUid: string; effectiveRank: number };
     updatedAt: number;
     replaceAllVirtual?: boolean;
@@ -793,7 +1016,6 @@ export async function applyAsyncBotFillPlanToMatch(
     templateId: args.templateId,
     runTournamentId: args.runTournamentId,
     matchId: args.matchId,
-    externalGameId: args.sessionExternalId,
     matchGameType: args.matchGameType,
     botFills: args.botFills,
     updatedAt: args.updatedAt,
@@ -801,7 +1023,6 @@ export async function applyAsyncBotFillPlanToMatch(
   });
   await patchRanksForAsyncMatch(ctx, {
     matchId: args.matchId,
-    sessionExternalId: args.sessionExternalId,
     def: args.def,
     rankFloors,
     updatedAt: args.updatedAt,
@@ -812,6 +1033,22 @@ export async function applyAsyncBotFillPlanToMatch(
     await ctx.db.patch(matchDoc._id, {
       botsSeeded: true,
       updatedAt: args.updatedAt,
+    });
+  }
+
+  if (args.def.maxPlayers > 1) {
+    const replayEpoch = await resolveHumanReplayEpochForMatch(ctx, args.matchId);
+    await installAsyncBotRevealPlan(ctx, {
+      templateId: args.templateId,
+      matchId: args.matchId,
+      sessionExternalId: args.sessionExternalId,
+      updatedAt: args.updatedAt,
+      planSeedKey: buildAsyncBotRevealPlanSeedKey({
+        templateId: args.templateId,
+        sessionExternalId: args.sessionExternalId,
+        replayEpoch,
+        anchorAt: args.updatedAt,
+      }),
     });
   }
 }
@@ -833,7 +1070,7 @@ async function scheduleRolloutBotFillsIfNeeded(
   }
 ): Promise<boolean> {
   if (args.skipSchedule) return false;
-  if (args.def.gameId !== "solitaire" || args.botCount <= 0) return false;
+  if (args.def.gameType !== "solitaire" || args.botCount <= 0) return false;
   const matchDoc = await ctx.db.get(args.matchId as Id<"casual_run_matches">);
   if (!matchDoc || !readCasualMatchSeedBinding(matchDoc)) return false;
   await ctx.scheduler.runAfter(
@@ -869,7 +1106,7 @@ export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
     deferRolloutsToHttpSync?: boolean;
   }
 ): Promise<boolean> {
-  const gt = args.def.gameId;
+  const gt = args.def.gameType;
   if (gt !== "solitaire" && gt !== "block_blast") return false;
   if (!args.sessionExternalId) return false;
 
@@ -897,7 +1134,10 @@ export async function fillCasualAsyncVirtualLeaderboardAndRerankHumans(
   if (!matchDoc) return false;
   const seedBinding = readCasualMatchSeedBinding(matchDoc);
   if (!seedBinding) {
-    if (!matchDoc.seedResolveError) {
+    const bindGraceMs = 15_000;
+    const tooEarlyForMissingSeed =
+      matchDoc.createdAt != null && args.updatedAt - matchDoc.createdAt < bindGraceMs;
+    if (!matchDoc.seedResolveError && !tooEarlyForMissingSeed) {
       await ctx.db.patch(matchDoc._id, {
         seedResolveError: "missing_seed_binding",
         updatedAt: args.updatedAt,

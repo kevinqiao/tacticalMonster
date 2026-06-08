@@ -60,6 +60,30 @@ describe("deriveRankScoreFloorsFromQuantiles", () => {
       3: 9_500,
     });
   });
+
+  it("skips tied quantiles so worse ranks have strictly lower floors", () => {
+    expect(
+      deriveRankScoreFloorsFromQuantiles(
+        {
+          p10: 1065,
+          p25: 1300,
+          p30: 1300,
+          p33: 1304,
+          p50: 1342,
+          p66: 1349,
+          p70: 1349,
+          p75: 1382,
+          p90: 2988,
+        },
+        4
+      )
+    ).toEqual({
+      1: 2988,
+      2: 1382,
+      3: 1349,
+      4: 1342,
+    });
+  });
 });
 
 describe("recommendTargetRankFromQuantileProximity", () => {

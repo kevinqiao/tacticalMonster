@@ -286,7 +286,7 @@ export async function insertCasualRunDocumentsForHumans(
   const now = Date.now();
   const runTournamentId = await ctx.db.insert("casual_run_tournaments", {
     templateId,
-    gameType: def.gameId,
+    gameType: def.gameType,
     status: RUN_TOURNAMENT_OPEN,
     createdAt: now,
     updatedAt: now,
@@ -309,7 +309,7 @@ export async function insertCasualRunDocumentsForHumans(
   const matchConvexId = await ctx.db.insert("casual_run_matches", {
     tournamentId: runTournamentId,
     templateId,
-    gameType: def.gameId,
+    gameType: def.gameType,
     completed: false,
     minPlayers: humanPlayerCount,
     maxPlayers: def.maxPlayers,
@@ -318,7 +318,6 @@ export async function insertCasualRunDocumentsForHumans(
     updatedAt: now,
   });
   const matchIdStr = String(matchConvexId);
-  const sessionExternal = `casual_sess:${matchIdStr}`;
   const byUid: Record<string, { gameId: string }> = {};
   for (const uid of uids) {
     const gameId = `game_${matchIdStr}_${uid}`;
@@ -328,8 +327,7 @@ export async function insertCasualRunDocumentsForHumans(
       templateId,
       uid,
       gameId,
-      gameType: def.gameId,
-      externalGameId: sessionExternal,
+      gameType: def.gameType,
       status: "open",
       createdAt: now,
       updatedAt: now,

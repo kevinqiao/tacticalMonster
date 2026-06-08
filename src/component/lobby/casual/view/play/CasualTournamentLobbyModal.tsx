@@ -64,7 +64,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
     enabled: visible && Boolean(casual.convexUrl),
     openRunAssignments: casual.openRunAssignments,
   });
-  const targetGameKind: CasualGameKind = data?.gameId === "solitaire" ? "solitaire" : "block_blast";
+  const targetGameKind: CasualGameKind = data?.gameType === "solitaire" ? "solitaire" : "block_blast";
   const gameTitle =
     typeof data?.gameTitle === "string"
       ? data.gameTitle
@@ -78,7 +78,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
       .filter((t) => {
         const def = getTournamentDefinition(t.tournamentId);
         return (
-          def?.gameId === targetGameKind &&
+          def?.gameType === targetGameKind &&
           (def.matchType === "tournament_a" ||
             def.matchType === "tournament_b" ||
             def.matchType === "tournament_c" ||
@@ -108,7 +108,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
     const hasSeasonChallenge = baseRows.some((row) => row.matchType === "season_challenge");
     if (hasSeasonChallenge) return baseRows;
     const seasonDef = getTournamentDefinition(seasonTournamentId);
-    if (!seasonDef || seasonDef.gameId !== targetGameKind) return baseRows;
+    if (!seasonDef || seasonDef.gameType !== targetGameKind) return baseRows;
     return [
       ...baseRows,
       {
@@ -159,6 +159,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
 
   useAwaitOpenCasualRunAssignment({
     watch: awaitingMatch,
+    enabled: visible,
     openRunAssignments: casual.openRunAssignments,
     onMatched: (hit) => {
       if (!awaitingMatch) return;

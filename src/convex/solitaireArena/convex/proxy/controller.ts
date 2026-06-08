@@ -59,7 +59,7 @@ function casualTableSummaryFromParsed(v: unknown):
           rows: Array<{
               rank: number;
               score?: number;
-              rowState?: "scored" | "playing";
+              rowState?: "scored" | "playing" | "matching";
               displayLabel: string;
               isYou: boolean;
               isBot?: boolean;
@@ -72,7 +72,7 @@ function casualTableSummaryFromParsed(v: unknown):
     const rows: Array<{
         rank: number;
         score?: number;
-        rowState?: "scored" | "playing";
+        rowState?: "scored" | "playing" | "matching";
         displayLabel: string;
         isYou: boolean;
         isBot?: boolean;
@@ -82,6 +82,16 @@ function casualTableSummaryFromParsed(v: unknown):
         const r = item as Record<string, unknown>;
         if (typeof r.rank !== "number" || typeof r.displayLabel !== "string" || typeof r.isYou !== "boolean") {
             return undefined;
+        }
+        if (r.rowState === "matching") {
+            rows.push({
+                rank: r.rank,
+                rowState: "matching",
+                displayLabel: r.displayLabel,
+                isYou: r.isYou,
+                ...(r.isBot === true ? { isBot: true as const } : {}),
+            });
+            continue;
         }
         const rowState =
             r.rowState === "playing" || r.rowState === "scored" ? r.rowState : undefined;

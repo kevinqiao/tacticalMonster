@@ -1,12 +1,12 @@
 import { v } from "convex/values";
-import { weeklySpotlightPlatformGameId } from "../../data/casualSpotlightGame.js";
+import { weeklySpotlightPlatformGameType } from "../../data/casualSpotlightGame.js";
 import {
   CASUAL_MISSION_TEMPLATES,
   type CasualMissionTemplate,
   type MissionTier,
   missionPoolLabelZh,
 } from "../../data/casualMissionTemplates";
-import { resolvePrimaryPlatformGameId } from "./casualPrimaryGame.js";
+import { resolvePrimaryPlatformGameType } from "./casualPrimaryGame.js";
 import { internal } from "../../_generated/api";
 import type { MutationCtx } from "../../_generated/server";
 import { dailyPeriodKey, seasonPeriodKey, weeklyPeriodKey } from "../../utils/casualTaskPeriod";
@@ -207,7 +207,7 @@ async function bumpTaskGameCount(
   uid: string,
   taskId: string,
   periodKey: string,
-  platformGameId: string
+  platformGameType: string
 ): Promise<number> {
   const existing = await ctx.db
     .query("casual_task_game_progress")
@@ -216,7 +216,7 @@ async function bumpTaskGameCount(
         .eq("uid", uid)
         .eq("taskId", taskId)
         .eq("periodKey", periodKey)
-        .eq("platformGameId", platformGameId)
+        .eq("platformGameType", platformGameType)
     )
     .unique();
   const now = Date.now();
@@ -226,7 +226,7 @@ async function bumpTaskGameCount(
       uid,
       taskId,
       periodKey,
-      platformGameId,
+      platformGameType,
       count: next,
       updatedAt: now,
     });
@@ -272,9 +272,9 @@ async function updatePlatformGameDerivedTasks(
   ctx: MutationCtx,
   args: {
     uid: string;
-    platformGameId: string;
-    primaryGameId: string;
-    spotlightGameId: string;
+    platformGameType: string;
+    primaryGameType: string;
+    spotlightGameType: string;
     matchType: string;
     multiplayerFinalRank?: number;
     dailyPk: string;
@@ -284,17 +284,17 @@ async function updatePlatformGameDerivedTasks(
 ) {
   const {
     uid,
-    platformGameId,
-    primaryGameId,
-    spotlightGameId,
+    platformGameType,
+    primaryGameType,
+    spotlightGameType,
     matchType,
     multiplayerFinalRank,
     dailyPk,
     weeklyPk,
     seasonPk,
   } = args;
-  const isNonPrimary = platformGameId !== primaryGameId;
-  const isSpotlight = platformGameId === spotlightGameId;
+  const isNonPrimary = platformGameType !== primaryGameType;
+  const isSpotlight = platformGameType === spotlightGameType;
   const isAsyncTop3 =
     ASYNC_MATCH_TYPES.has(matchType) &&
     typeof multiplayerFinalRank === "number" &&
@@ -312,7 +312,7 @@ async function updatePlatformGameDerivedTasks(
 
     if (t.objectiveKind === "submit_spotlight_game_score" && isSpotlight) {
       const delta =
-        isSpotlight && platformGameId === primaryGameId ? 2 : 1;
+        isSpotlight && platformGameType === primaryGameType ? 2 : 1;
       await upsertTaskProgress(ctx, t, uid, t.taskId, pk, delta, { matchType });
       continue;
     }
@@ -323,7 +323,7 @@ async function updatePlatformGameDerivedTasks(
     }
 
     if (t.objectiveKind === "submit_distinct_games") {
-      await bumpTaskGameCount(ctx, uid, t.taskId, pk, platformGameId);
+      await bumpTaskGameCount(ctx, uid, t.taskId, pk, platformGameType);
       await syncDistinctGameTaskProgress(ctx, t, uid, pk, { matchType });
     }
   }
@@ -333,9 +333,9 @@ function deltaForObjective(
   template: CasualMissionTemplate,
   args: {
     matchType: string;
-    platformGameId: string;
-    primaryGameId: string;
-    spotlightGameId: string;
+    platformGameType: string;
+    primaryGameType: string;
+    spotlightGameType: string;
     /** 专场单场结算写入 `casual_player_season_ladder` 的实际增量（已含累计分不低于 0 的裁剪） */
     spotlightSeasonBoardGain: number;
     multiplayerFinalRank?: number;
@@ -756,6 +756,28 @@ export const touchDailyLoginMission = mutation({
   },
 });
 
+/** 一次性：`platformGameId` → `platformGameType`（字段重命名迁移） */
+export const migrateCasualTaskGameProgressPlatformGameType = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db.query("casual_task_game_progress").collect();
+    let patched = 0;
+    for (const row of rows) {
+      const legacy = (row as { platformGameId?: string }).platformGameId;
+      const current = (row as { platformGameType?: string }).platformGameType;
+      if (legacy != null && !current) {
+        // @ts-expect-error legacy field renamed to platformGameType
+        await ctx.db.patch(row._id, {
+          platformGameType: legacy,
+          platformGameId: undefined,
+        });
+        patched++;
+      }
+    }
+    return { ok: true as const, patched };
+  },
+});
+
 /** 新创建锦标报名（非重复入场）后调用 */
 export const notifyTournamentJoined = internalMutation({
   args: { uid: v.string() },
@@ -777,11 +799,11 @@ export const getPlatformPassMissionContext = query({
   args: { uid: v.optional(v.string()) },
   handler: async (ctx, { uid }) => {
     const now = Date.now();
-    const spotlightGameId = weeklySpotlightPlatformGameId(now);
-    const primaryGameId = uid ? await resolvePrimaryPlatformGameId(ctx, uid, now) : null;
+    const spotlightGameType = weeklySpotlightPlatformGameType(now);
+    const primaryGameType = uid ? await resolvePrimaryPlatformGameType(ctx, uid, now) : null;
     return {
-      spotlightGameId,
-      primaryGameId,
+      spotlightGameType,
+      primaryGameType,
       spotlightGames: ["solitaire", "block_blast"],
     };
   },
@@ -792,8 +814,8 @@ export const notifyScoreSubmitted = internalMutation({
   args: {
     uid: v.string(),
     matchType: v.string(),
-    /** 平台玩法 ID：`solitaire` / `block_blast` 等 */
-    platformGameId: v.string(),
+    /** 平台玩法类型：`solitaire` / `block_blast` 等 */
+    platformGameType: v.string(),
     /** 多人异步终局名次（1-based） */
     multiplayerFinalRank: v.optional(v.number()),
     /** 赛季专场：`casual_player_season_stats` 本局正向赛季分增量（负局传 0） */
@@ -801,7 +823,7 @@ export const notifyScoreSubmitted = internalMutation({
   },
   handler: async (
     ctx,
-    { uid, matchType, platformGameId, multiplayerFinalRank, spotlightSeasonBoardGain = 0 }
+    { uid, matchType, platformGameType, multiplayerFinalRank, spotlightSeasonBoardGain = 0 }
   ) => {
     const now = Date.now();
     const dailyPk = dailyPeriodKey(now);
@@ -809,14 +831,14 @@ export const notifyScoreSubmitted = internalMutation({
     const sid = await activeSeasonId(ctx);
     const seasonPk = sid ? seasonPeriodKey(sid) : null;
 
-    const primaryGameId = await resolvePrimaryPlatformGameId(ctx, uid, now);
-    const spotlightGameId = weeklySpotlightPlatformGameId(now);
+    const primaryGameType = await resolvePrimaryPlatformGameType(ctx, uid, now);
+    const spotlightGameType = weeklySpotlightPlatformGameType(now);
 
     const args = {
       matchType,
-      platformGameId,
-      primaryGameId,
-      spotlightGameId,
+      platformGameType,
+      primaryGameType,
+      spotlightGameType,
       spotlightSeasonBoardGain: Math.max(0, spotlightSeasonBoardGain),
       multiplayerFinalRank,
     };
@@ -838,9 +860,9 @@ export const notifyScoreSubmitted = internalMutation({
 
     await updatePlatformGameDerivedTasks(ctx, {
       uid,
-      platformGameId,
-      primaryGameId,
-      spotlightGameId,
+      platformGameType,
+      primaryGameType,
+      spotlightGameType,
       matchType,
       multiplayerFinalRank,
       dailyPk,

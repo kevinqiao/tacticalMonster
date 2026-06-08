@@ -17,15 +17,30 @@ export const SCORE_QUANTILE_KEYS_DESC = [
   "p10",
 ] as const satisfies ReadonlyArray<keyof ScoreQuantiles>;
 
-/** 为名次 1..maxPlayers 生成本场分数门槛：取反序 quantile 的前 maxPlayers 档 */
+/** 为名次 1..maxPlayers 生成本场分数门槛：取反序 quantile，名次越靠后门槛 strictly 更低 */
 export function deriveRankScoreFloorsFromQuantiles(
   scoreQuantiles: ScoreQuantiles,
   maxPlayers: number
 ): RankScoreFloorsByRank {
   const out: RankScoreFloorsByRank = {};
+  let keyCursor = 0;
+  let prevFloor = Number.POSITIVE_INFINITY;
   for (let rank = 1; rank <= maxPlayers; rank++) {
-    const key = SCORE_QUANTILE_KEYS_DESC[rank - 1];
-    out[rank] = scoreQuantiles[key];
+    let floor: number | undefined;
+    while (keyCursor < SCORE_QUANTILE_KEYS_DESC.length) {
+      const key = SCORE_QUANTILE_KEYS_DESC[keyCursor]!;
+      keyCursor += 1;
+      const candidate = scoreQuantiles[key];
+      if (rank === 1 || candidate < prevFloor) {
+        floor = candidate;
+        break;
+      }
+    }
+    if (floor == null) {
+      floor = prevFloor - 5;
+    }
+    out[rank] = floor;
+    prevFloor = floor;
   }
   return out;
 }

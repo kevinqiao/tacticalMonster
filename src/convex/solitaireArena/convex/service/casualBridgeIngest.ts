@@ -37,7 +37,6 @@ export async function postCasualRunIngest(args: {
         uid: args.uid,
         matchGameId: args.matchGameId,
         score: args.score,
-        gameKind: "solitaire",
       }),
     });
   } catch (e) {

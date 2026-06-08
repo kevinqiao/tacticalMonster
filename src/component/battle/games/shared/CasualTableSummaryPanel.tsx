@@ -4,8 +4,27 @@ import type { CasualAsyncTableSummaryUI } from './casualAsyncTableSummaryUI';
 import './manualSettleConfirmOverlay.css';
 
 export const CasualTableSummaryPanel: React.FC<{ s: CasualAsyncTableSummaryUI }> = ({ s }) => {
+  const scoredCount = s.rows.filter((r) => r.rowState !== 'playing' && r.rowState !== 'matching').length;
   const slotNote =
-    s.maxPlayers > 0 ? `本桌至多 ${s.maxPlayers} 席 · 已计分 ${s.rows.length} 人` : `已计分 ${s.rows.length} 人`;
+    s.maxPlayers > 0
+      ? `本桌至多 ${s.maxPlayers} 席 · 已计分 ${scoredCount} 人`
+      : `已计分 ${scoredCount} 人`;
+
+  const scoreCell = (row: CasualAsyncTableSummaryUI['rows'][number]) => {
+    if (row.rowState === 'matching') return '正在匹配中';
+    if (row.rowState === 'playing') {
+      return row.isBot ? '对局中' : 'Playing';
+    }
+    return row.score;
+  };
+
+  const rowClass = (row: CasualAsyncTableSummaryUI['rows'][number]) => {
+    if (row.isYou) return 'msc-lb-row--you';
+    if (row.rowState === 'matching') return 'msc-lb-row--matching';
+    if (row.isBot && row.rowState === 'playing') return 'msc-lb-row--bot msc-lb-row--bot-playing';
+    if (row.isBot) return 'msc-lb-row--bot';
+    return undefined;
+  };
 
   return (
     <div className="msc-tableSummary" role="group" aria-label="本桌成绩榜">
@@ -21,22 +40,24 @@ export const CasualTableSummaryPanel: React.FC<{ s: CasualAsyncTableSummaryUI }>
           </thead>
           <tbody>
             {s.rows.map((row, i) => (
-              <tr
-                key={`lb-${i}`}
-                className={
-                  row.isYou ? 'msc-lb-row--you' : row.isBot ? 'msc-lb-row--bot' : undefined
-                }
-              >
-                <td>{row.rowState === 'playing' ? '—' : row.rank}</td>
+              <tr key={`lb-${i}`} className={rowClass(row)}>
+                <td>
+                  {row.rowState === 'playing' || row.rowState === 'matching' ? '—' : row.rank}
+                </td>
                 <td>
                   {row.displayLabel}
-                  {row.isBot ? (
+                  {row.isBot && row.rowState === 'scored' ? (
+                    <span className="msc-lb-botTag" aria-label="系统对手">
+                      系统对手
+                    </span>
+                  ) : null}
+                  {row.isBot && row.rowState === 'playing' ? (
                     <span className="msc-lb-botTag" aria-label="系统对手">
                       系统对手
                     </span>
                   ) : null}
                 </td>
-                <td>{row.rowState === 'playing' ? 'Playing' : row.score}</td>
+                <td>{scoreCell(row)}</td>
               </tr>
             ))}
           </tbody>

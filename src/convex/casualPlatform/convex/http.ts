@@ -46,14 +46,23 @@ http.route({
         : typeof b.score === "string"
           ? Number(b.score)
           : NaN;
-    const gameKind = b.gameKind === "solitaire" || b.gameKind === "block_blast" ? b.gameKind : "";
-    if (!uid || !matchGameId || !gameKind || !Number.isFinite(score) || score < 0) {
+    if (!uid || !matchGameId || !Number.isFinite(score) || score < 0) {
       return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
-    const gameIdConvex = gameKind === "solitaire" ? "solitaire" : "block_blast";
+
+    const gameType = await ctx.runQuery(
+      internal.service.tournament.casualTournamentService.getCasualRunMatchGameType,
+      { matchGameId }
+    );
+    if (!gameType) {
+      return new Response(JSON.stringify({ ok: false, error: "unknown_match_game" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     const result = await ctx.runMutation(
       internal.service.tournament.casualTournamentService.submitCasualRunScoreCore,
@@ -61,12 +70,11 @@ http.route({
         uid,
         matchGameId,
         score: Math.floor(score),
-        gameId: gameIdConvex,
       }
     );
 
     let ingestTableSummary: unknown = undefined;
-    if (result.ok && gameIdConvex === "solitaire") {
+    if (result.ok && gameType === "solitaire") {
       const updatedAt = Date.now();
       try {
         await ctx.runAction(
@@ -170,9 +178,35 @@ http.route({
         headers: { "Content-Type": "application/json" },
       });
     }
-    const row = await ctx.runQuery(internal.service.tournament.casualTournamentService.findMatchByGameForBridge, {
-      gameId,
-    });
+
+    const tryFindMatch = () =>
+      ctx.runQuery(internal.service.tournament.casualTournamentService.findMatchByGameForBridge, {
+        gameId,
+      });
+
+    let row = await tryFindMatch();
+    if (
+      !row.ok &&
+      (row.error === "seed_pending" || row.error === "seed_unavailable")
+    ) {
+      const bindCtx = await ctx.runQuery(
+        internal.service.tournament.casualTournamentService.getMatchBindContextForBridge,
+        { gameId }
+      );
+      if (bindCtx.ok) {
+        try {
+          await ctx.runAction(internal.service.tournament.casualMatchSeedActions.bindCasualMatchSeed, {
+            matchId: bindCtx.matchId,
+            templateId: bindCtx.templateId,
+            sessionKey: bindCtx.sessionKey,
+          });
+        } catch (e) {
+          console.error("[casual] find-match bind retry failed", gameId, e);
+        }
+        row = await tryFindMatch();
+      }
+    }
+
     if (!row.ok) {
       return new Response(JSON.stringify({ ok: false, error: row.error }), {
         status: 404,

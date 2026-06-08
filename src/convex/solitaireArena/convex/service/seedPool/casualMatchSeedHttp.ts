@@ -102,6 +102,26 @@ export const resolveCasualMatchSeed = internalMutation({
   },
 });
 
+function hashMix(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function shuffleRolloutsByKey<T>(items: T[], key: string): T[] {
+  const out = [...items];
+  let state = hashMix(key);
+  for (let i = out.length - 1; i > 0; i--) {
+    state = (Math.imul(state, 1103515245) + 12345) >>> 0;
+    const j = state % (i + 1);
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
 export const rolloutsForCasualMatchSeed = internalQuery({
   args: {
     seedId: v.string(),
@@ -132,6 +152,7 @@ export const rolloutsForCasualMatchSeed = internalQuery({
         elapsedTime: number;
       }>;
     }> = [];
+    const usedAcrossBands = new Set<number>();
 
     for (const band of args.scores) {
       if (band.max != null && band.max < band.min) {
@@ -149,7 +170,19 @@ export const rolloutsForCasualMatchSeed = internalQuery({
         minScore: band.min,
         maxScore: band.max,
       });
+      rollouts = rollouts.filter((r) => !usedAcrossBands.has(r.rolloutIndex));
+      const seen = new Set<number>();
+      rollouts = rollouts.filter((r) => {
+        if (seen.has(r.rolloutIndex)) return false;
+        seen.add(r.rolloutIndex);
+        return true;
+      });
+      const bandKey = `${args.seedId}|${band.min}|${band.max ?? "inf"}`;
+      rollouts = shuffleRolloutsByKey(rollouts, bandKey);
       rollouts = rollouts.slice(0, count);
+      for (const r of rollouts) {
+        usedAcrossBands.add(r.rolloutIndex);
+      }
       bands.push({
         min: band.min,
         count,

@@ -10,15 +10,17 @@ import CasualSkinEquipPanel from "component/battle/games/shared/visualTheme/Casu
 import { PageProp } from "host/RenderApp";
 import { useModalManager } from "host/service/ModalManager";
 import { usePageManager } from "host/service/PageManager";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
+  gameKindFromTemplateId,
   hasAnyOpenCasualRunAssignment,
   inferCasualGameKindFromAssignment,
   type CasualGameKind,
 } from "../../service/casualOpenRunAssignment";
 import {
+  CASUAL_MATCH_OPEN_TIMEOUT_MS,
   type AwaitOpenCasualRunMatchWatch,
   useAwaitOpenCasualRunAssignment,
 } from "../../service/useAwaitOpenCasualRunAssignment";
@@ -161,6 +163,8 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
 
   const [joiningSolo, setJoiningSolo] = useState<CasualGameKind | null>(null);
   const [awaitingSoloMatch, setAwaitingSoloMatch] = useState<AwaitOpenCasualRunMatchWatch | null>(null);
+  /** A/B/C 异步场：队列消失后仍订阅 openRunAssignments 直至开桌或超时 */
+  const [awaitingAsyncMatch, setAwaitingAsyncMatch] = useState<AwaitOpenCasualRunMatchWatch | null>(null);
   const [soloNote, setSoloNote] = useState<string | null>(null);
   const [soloCostConfirm, setSoloCostConfirm] = useState<{
     kind: CasualGameKind;
@@ -180,10 +184,10 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
     openModal({ name: "casual_tasks_sheet" });
   };
 
-  const openGameTournaments = (gameId: "solitaire" | "block_blast", gameTitle: string) => {
+  const openGameTournaments = (gameType: "solitaire" | "block_blast", gameTitle: string) => {
     openModal({
       name: "casual_game_tournaments",
-      data: { gameId, gameTitle },
+      data: { gameType, gameTitle },
     });
   };
 
@@ -208,9 +212,24 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
   );
 
   useAwaitOpenCasualRunAssignment({
-    watch: awaitingSoloMatch,
+    watch: awaitingAsyncMatch ?? awaitingSoloMatch,
+    enabled: visible !== 0,
+    timeoutMs: awaitingAsyncMatch
+      ? CASUAL_MATCH_OPEN_TIMEOUT_MS + 15_000
+      : CASUAL_MATCH_OPEN_TIMEOUT_MS,
     openRunAssignments: casual.openRunAssignments,
     onMatched: (hit) => {
+      if (awaitingAsyncMatch) {
+        setAwaitingAsyncMatch(null);
+        setSoloNote(null);
+        void casual.refreshCasualPlayer();
+        openSoloGame(
+          gameKindFromTemplateId(awaitingAsyncMatch.templateId),
+          awaitingAsyncMatch.templateId,
+          hit.gameId
+        );
+        return;
+      }
       if (!awaitingSoloMatch) return;
       setAwaitingSoloMatch(null);
       setJoiningSolo(null);
@@ -219,6 +238,12 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
       openSoloGame(awaitingSoloMatch.gameKind, awaitingSoloMatch.templateId, hit.gameId);
     },
     onTimeout: () => {
+      if (awaitingAsyncMatch) {
+        setAwaitingAsyncMatch(null);
+        setSoloNote("匹配超时，请稍后重试。");
+        void casual.refreshCasualPlayer();
+        return;
+      }
       setAwaitingSoloMatch(null);
       setJoiningSolo(null);
       setSoloNote("匹配超时，请稍后重试。");
@@ -350,9 +375,22 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
   const queue = casual.matchQueueEntries;
   const queueWaiting = queue.some((e) => e.status === "waiting");
   const queueClaiming = queue.some((e) => e.status === "claiming");
-  const hasOpenRun = latestOpenAssignment != null;
-  const playBlocked = hasOpenRun || queueWaiting || queueClaiming;
   const primaryQueueEntry = queue[0];
+
+  useEffect(() => {
+    const entry = primaryQueueEntry;
+    if (entry && (entry.status === "waiting" || entry.status === "claiming")) {
+      setAwaitingAsyncMatch({
+        templateId: entry.templateId,
+        gameKind: gameKindFromTemplateId(entry.templateId),
+      });
+    }
+  }, [primaryQueueEntry?.templateId, primaryQueueEntry?.status]);
+
+  const hasOpenRun = latestOpenAssignment != null;
+  const matchOverlayOpen =
+    awaitingAsyncMatch != null || queueWaiting || queueClaiming;
+  const playBlocked = hasOpenRun || matchOverlayOpen;
   const primaryQueueTitle = primaryQueueEntry
     ? getTournamentDefinition(primaryQueueEntry.templateId)?.title ?? primaryQueueEntry.templateId
     : "";
@@ -368,6 +406,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
     setLeavingMatch(true);
     try {
       const res = await casual.leaveCasualMatchQueue(primaryQueueEntry?.templateId);
+      setAwaitingAsyncMatch(null);
       setAwaitingSoloMatch(null);
       setJoiningSolo(null);
       if (res.ok) {
@@ -459,9 +498,13 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
           ) : null}
 
           <CasualPlayMatchOverlay
-            open={visible !== 0 && !hasOpenRun && (queueWaiting || queueClaiming)}
+            open={visible !== 0 && !hasOpenRun && matchOverlayOpen}
             phase={queueClaiming ? "claiming" : "waiting"}
-            waitingForPeer={primaryQueueEntry?.waitingForPeer ?? false}
+            waitingForPeer={
+              awaitingAsyncMatch != null && !queueWaiting && !queueClaiming
+                ? false
+                : (primaryQueueEntry?.waitingForPeer ?? false)
+            }
             tournamentTitle={primaryQueueTitle || undefined}
             leaving={leavingMatch}
             onLeave={

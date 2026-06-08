@@ -51,7 +51,7 @@ export interface CasualGameHistoryRow {
   runTournamentId?: string;
   tournamentId: string;
   title: string;
-  gameId: string;
+  gameType: string;
   matchType: string;
   score: number | null;
   submittedAt: number | null;
@@ -114,7 +114,7 @@ export interface CasualPlatformValue {
   tournaments: Array<{
     tournamentId: string;
     title: string;
-    gameId: string;
+    gameType: string;
     matchType: string;
     status: string;
     instanceScope?: string;
@@ -210,6 +210,10 @@ export interface CasualPlatformValue {
     | { ok: false; error: string }
     | null
   >;
+  /** partial 同桌榜轮询（bot matching/playing → scored） */
+  fetchCasualTableSummaryForGame: (
+    matchGameId: string
+  ) => Promise<import("../../battle/games/shared/casualAsyncTableSummaryUI").CasualAsyncTableSummaryUI | null>;
   /** 一次性 HTTP 读开放 run（并写入 store）；日常请用 `openRunAssignments` 订阅 */
   fetchOpenCasualRunAssignments: () => Promise<OpenCasualRunAssignment[]>;
   /** 退出匹配队列（仅 `waiting`；`claiming` 时返回 `cannot_leave_claiming`） */
@@ -753,6 +757,27 @@ export function useCasualPlatform(): CasualPlatformValue {
     [user?.uid]
   );
 
+  const fetchCasualTableSummaryForGame = useCallback(
+    async (matchGameId: string) => {
+      const http = getCasualHttpClient();
+      if (!http || !user?.uid) return null;
+      try {
+        const row = await http.query(casualTournamentFns.getCasualAsyncTableSummaryForGame, {
+          uid: user.uid,
+          matchGameId,
+        });
+        if (!row || typeof row !== "object" || !Array.isArray((row as { rows?: unknown }).rows)) {
+          return null;
+        }
+        return row as import("../../battle/games/shared/casualAsyncTableSummaryUI").CasualAsyncTableSummaryUI;
+      } catch (e) {
+        console.warn("[CasualPlatform] getCasualAsyncTableSummaryForGame", e);
+        return null;
+      }
+    },
+    [user?.uid]
+  );
+
   const fetchLeaderboard = useCallback(async (tournamentId: string, limit?: number, instanceKey?: string) => {
     const http = getCasualHttpClient();
     if (!http) return [];
@@ -1216,6 +1241,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       refreshCheckinStreak,
       joinTournament,
       fetchJoinEntryChargePreview,
+      fetchCasualTableSummaryForGame,
       fetchLeaderboard,
       fetchPeriodInstanceSelfStanding,
       fetchGameHistory,
@@ -1250,6 +1276,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       refreshCheckinStreak,
       joinTournament,
       fetchJoinEntryChargePreview,
+      fetchCasualTableSummaryForGame,
       fetchLeaderboard,
       fetchPeriodInstanceSelfStanding,
       fetchGameHistory,

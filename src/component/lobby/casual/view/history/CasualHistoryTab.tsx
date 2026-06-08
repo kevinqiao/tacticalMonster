@@ -114,7 +114,7 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
                     <span>{formatMatchType(row.matchType)}</span>
                   </div>
                   <div className="casual-history-tab__meta">
-                    <span>游戏：{row.gameId}</span>
+                    <span>游戏：{row.gameType}</span>
                     <span>分数：{row.score ?? "-"}</span>
                     <span>名次：{row.rank != null ? row.rank : "-"}</span>
                     <span>参与人数：{row.participantCount ?? "-"}</span>

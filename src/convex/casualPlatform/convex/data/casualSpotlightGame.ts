@@ -3,10 +3,10 @@ import { weeklyPeriodKey } from "../utils/casualTaskPeriod.js";
 /** 主题游戏周轮换列表（多游戏平台 Pass · 板 B） */
 export const PLATFORM_SPOTLIGHT_GAMES = ["solitaire", "block_blast"] as const;
 
-export type PlatformSpotlightGameId = (typeof PLATFORM_SPOTLIGHT_GAMES)[number];
+export type PlatformSpotlightGameType = (typeof PLATFORM_SPOTLIGHT_GAMES)[number];
 
-/** 按运营周 `periodKey` 稳定轮换 spotlight `gameId` */
-export function weeklySpotlightPlatformGameId(nowMs: number): PlatformSpotlightGameId {
+/** 按运营周 `periodKey` 稳定轮换 spotlight 玩法类型 */
+export function weeklySpotlightPlatformGameType(nowMs: number): PlatformSpotlightGameType {
   const weekKey = weeklyPeriodKey(nowMs);
   let hash = 0;
   for (let i = 0; i < weekKey.length; i++) {

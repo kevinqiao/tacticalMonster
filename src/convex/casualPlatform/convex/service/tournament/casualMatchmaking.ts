@@ -6,9 +6,11 @@ import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import {
   CASUAL_DEFAULT_EFFECTIVE_HUMANS,
+  CASUAL_DEFAULT_QUEUE_EXPIRE,
   CASUAL_MATCH_QUEUE_TIMEOUT_MS,
   CASUAL_SOLO_ASYNC_OPEN_DELAY_MS,
-} from "../../data/casualBotDifficultyConfig";
+  type QueueExpireAction,
+} from "../../data/casualMatchmakingConfig";
 import { getTournamentDefinition, isPeriodScopedTournament } from "../../data/casualTournamentConfigs";
 import type { MutationCtx } from "../../_generated/server";
 import { internalMutation, mutation, query } from "../../_generated/server";
@@ -39,7 +41,7 @@ async function scheduleBindMatchSeed(
   def: CasualTournamentDefinition
 ): Promise<void> {
   if (def.maxPlayers <= 1) return;
-  if (def.gameId === "solitaire") {
+  if (def.gameType === "solitaire") {
     await ctx.scheduler.runAfter(0, internal.service.tournament.casualMatchSeedActions.bindCasualMatchSeed, {
       matchId,
       templateId,
@@ -47,7 +49,7 @@ async function scheduleBindMatchSeed(
     });
     return;
   }
-  if (def.gameId === "block_blast") {
+  if (def.gameType === "block_blast") {
     await ctx.scheduler.runAfter(
       0,
       internal.service.tournament.casualMatchSeedMutations.bindCasualMatchTemplateQuantiles,
@@ -66,6 +68,13 @@ export function resolveQueueEffectiveHumans(row: QueueRow): number {
     return Math.floor(n);
   }
   return CASUAL_DEFAULT_EFFECTIVE_HUMANS;
+}
+
+/** 兼容迁移前队列行；expire 定时任务唯一使用该值 */
+export function resolveQueueExpireAction(row: QueueRow): QueueExpireAction {
+  const action = row.queueExpireAction;
+  if (action === "solo" || action === "exit") return action;
+  return CASUAL_DEFAULT_QUEUE_EXPIRE;
 }
 
 /** multi batch 开桌人数：凑齐 effectiveHumans 后取当前 waiting 与 maxPlayers 的较小值 */
@@ -224,7 +233,22 @@ async function tryOpenSoloTableFromQueueRow(
   return openSingleHumanTableFromQueueRow(ctx, templateId, fresh);
 }
 
-/** 90s 超时 fallback：eff>=2 仍在 waiting 时开单真人桌 */
+/** 排队超时：按 queueExpireAction 开 solo 桌或移出队列 */
+async function expireCasualMatchQueueRow(
+  ctx: MutationCtx,
+  queueRowId: Id<"casual_match_queue">
+): Promise<boolean> {
+  const row = await ctx.db.get(queueRowId);
+  if (!row || row.status !== "waiting") return false;
+  if (resolveQueueEffectiveHumans(row) <= 1) return false;
+
+  if (resolveQueueExpireAction(row) === "exit") {
+    await ctx.db.delete(row._id);
+    return true;
+  }
+  return tryOpenSoloFallbackFromExpiredQueueRow(ctx, queueRowId);
+}
+
 async function tryOpenSoloFallbackFromExpiredQueueRow(
   ctx: MutationCtx,
   queueRowId: Id<"casual_match_queue">
@@ -232,8 +256,6 @@ async function tryOpenSoloFallbackFromExpiredQueueRow(
   const row = await ctx.db.get(queueRowId);
   if (!row || row.status !== "waiting") return false;
   if (resolveQueueEffectiveHumans(row) <= 1) return false;
-  const exp = row.expiresAt;
-  if (exp != null && exp > Date.now()) return false;
   return openSingleHumanTableFromQueueRow(ctx, row.templateId, row);
 }
 
@@ -405,7 +427,7 @@ export const openSoloTableFromScheduledQueue = internalMutation({
 export const expireCasualMatchQueueEntry = internalMutation({
   args: { queueRowId: v.id("casual_match_queue") },
   handler: async (ctx, { queueRowId }) => {
-    await tryOpenSoloFallbackFromExpiredQueueRow(ctx, queueRowId);
+    await expireCasualMatchQueueRow(ctx, queueRowId);
     return { ok: true as const };
   },
 });
@@ -446,13 +468,14 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         templateId: tournamentId,
         def,
       });
-      const { effectiveHumans, matchedRuleId } = evaluateEffectiveHumans(profile, def);
+      const { effectiveHumans, matchedRuleId, queueExpireAction } = evaluateEffectiveHumans(profile, def);
       logJoinMatchmakingProfileResult({
         uid,
         templateId: tournamentId,
         profile,
         effectiveHumans,
         matchedRuleId,
+        queueExpireAction,
         source: "existing_open",
       });
       return buildQueuedResponse({
@@ -476,13 +499,14 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       templateId: tournamentId,
       def,
     });
-    const { effectiveHumans, matchedRuleId } = evaluateEffectiveHumans(profile, def);
+    const { effectiveHumans, matchedRuleId, queueExpireAction } = evaluateEffectiveHumans(profile, def);
     logJoinMatchmakingProfileResult({
       uid,
       templateId: tournamentId,
       profile,
       effectiveHumans,
       matchedRuleId,
+      queueExpireAction,
       source: "enqueue",
     });
     const expiresAt =
@@ -500,6 +524,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       await ctx.db.patch(dupWaiting._id, {
         effectiveHumans,
         matchedRuleId: matchedRuleId ?? undefined,
+        queueExpireAction: effectiveHumans > 1 ? queueExpireAction : undefined,
         expiresAt,
         skipEntryCharge: dupWaiting.skipEntryCharge,
         updatedAt: now,
@@ -511,6 +536,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         templateId: tournamentId,
         effectiveHumans,
         matchedRuleId: matchedRuleId ?? undefined,
+        queueExpireAction: effectiveHumans > 1 ? queueExpireAction : undefined,
         expiresAt,
         skipEntryCharge: undefined,
         status: "waiting",

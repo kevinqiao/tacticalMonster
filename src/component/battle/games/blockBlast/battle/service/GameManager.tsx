@@ -37,6 +37,7 @@ import {
     type CasualGameScoreReportUI,
 } from '../../../shared/casualGameScoreReportUI';
 import type { CasualAsyncTableSummaryUI, ManualSettleConfirmExtras } from '../../../shared/casualAsyncTableSummaryUI';
+import { useCasualTableSummaryPoll } from '../../../shared/useCasualTableSummaryPoll';
 
 function isTerminalBlockBlastStatus(status: number | undefined): boolean {
     return status !== undefined && status !== BlockBlastGameStatus.PLAYING;
@@ -204,6 +205,17 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     const settleInFlightRef = useRef(false);
     const gameStateRef = useRef<BlockBlastGameState | null>(null);
     const interactionPhaseRef = useRef<GameInteractionPhase>(GameInteractionPhase.idle);
+
+    useCasualTableSummaryPoll({
+        open: postCasualSummaryOpen || postCasualScoreReportOpen,
+        summary: postCasualTableSummary,
+        matchGameId:
+            typeof gameState?.gameId === 'string' && gameState.gameId.startsWith('game_')
+                ? gameState.gameId
+                : undefined,
+        fetchSummary: casual.fetchCasualTableSummaryForGame,
+        onUpdate: setPostCasualTableSummary,
+    });
 
     useEffect(() => {
         gameStateRef.current = gameState ?? null;

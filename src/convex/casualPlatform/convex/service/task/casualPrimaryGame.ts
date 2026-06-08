@@ -4,9 +4,9 @@ const PRIMARY_GAME_LOOKBACK_MS = 14 * 86400000;
 const DEFAULT_PRIMARY_GAME = "solitaire";
 
 /**
- * 近 14 天有效结算局数最多的平台 `gameId`（`casual_run_player_matches.gameType`）。
+ * 近 14 天有效结算局数最多的平台玩法类型（`casual_run_player_matches.gameType`）。
  */
-export async function resolvePrimaryPlatformGameId(
+export async function resolvePrimaryPlatformGameType(
   ctx: QueryCtx,
   uid: string,
   nowMs: number = Date.now()
@@ -30,9 +30,9 @@ export async function resolvePrimaryPlatformGameId(
 
   let best = DEFAULT_PRIMARY_GAME;
   let bestCount = 0;
-  for (const [gameId, count] of counts) {
+  for (const [gameType, count] of counts) {
     if (count > bestCount) {
-      best = gameId;
+      best = gameType;
       bestCount = count;
     }
   }

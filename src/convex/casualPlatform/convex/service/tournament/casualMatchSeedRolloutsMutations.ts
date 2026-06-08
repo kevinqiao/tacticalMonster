@@ -42,7 +42,7 @@ export const planAsyncBotFillSlots = internalQuery({
     }
 
     const gt =
-      def.gameId === "block_blast" || def.gameId === "solitaire" ? def.gameId : "solitaire";
+      def.gameType === "block_blast" || def.gameType === "solitaire" ? def.gameType : "solitaire";
     const sessionSeed = hashSessionSeed(`${args.templateId}|${args.sessionExternalId}`);
     const humanRows = args.humanScores;
     const humanCountPlanned = Math.max(1, matchDoc.humanPlayerCount ?? humanRows.length);
@@ -141,14 +141,7 @@ export const getMatchRolloutBotContext = internalQuery({
     if (botCount <= 0) {
       return { ok: false as const, error: "no_bot_slots" as const };
     }
-    const virtualRows = rows.filter((r) => isCasualAsyncVirtualOpponentUid(r.uid));
-    if (matchDoc.botsSeeded && virtualRows.length >= botCount) {
-      return { ok: false as const, error: "bots_already_seeded" as const };
-    }
-    const sessionExternalId =
-      typeof pm.externalGameId === "string" && pm.externalGameId.trim().startsWith("casual_sess:")
-        ? pm.externalGameId.trim()
-        : `casual_sess:${pm.matchId}`;
+    const sessionExternalId = `casual_sess:${pm.matchId}`;
     return {
       ok: true as const,
       templateId: pm.templateId,
@@ -169,7 +162,14 @@ export const applyAsyncBotFillPlan = internalMutation({
     runTournamentId: v.string(),
     sessionExternalId: v.string(),
     matchGameType: v.union(v.literal("solitaire"), v.literal("block_blast")),
-    botFills: v.array(v.object({ rank: v.number(), score: v.number() })),
+    botFills: v.array(
+      v.object({
+        rank: v.number(),
+        score: v.number(),
+        duration: v.optional(v.number()),
+        rolloutIndex: v.optional(v.number()),
+      })
+    ),
     soloPlan: v.optional(
       v.object({
         humanUid: v.string(),

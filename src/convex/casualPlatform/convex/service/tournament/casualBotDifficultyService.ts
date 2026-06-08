@@ -5,19 +5,24 @@ import {
   type CasualRankRateEntry,
   type CasualTournamentDefinition,
 } from "../../data/casualTournamentConfigs";
+import { BOT_DIFFICULTY_RULES } from "../../data/casualBotDifficultyConfig";
 import {
-  BOT_DIFFICULTY_RULES,
+  CASUAL_DEFAULT_EFFECTIVE_HUMANS,
+  CASUAL_DEFAULT_QUEUE_EXPIRE,
+  MATCHMAKING_RULES,
+  resolveMatchmakingExpireAction,
+  type QueueExpireAction,
+} from "../../data/casualMatchmakingConfig";
+import {
   CASUAL_CONSECUTIVE_LOSS_THRESHOLD,
   CASUAL_LOSS_STREAK_LOOKBACK_MAX,
   CASUAL_NEAR_MISS_GAP_RATIO,
-  CASUAL_DEFAULT_EFFECTIVE_HUMANS,
   isCasualMultiplayerAsyncTemplate,
-  MATCHMAKING_RULES,
   type BotRankDistribution,
   type BotStrategyPlayerContext,
   type CasualGameIdForBot,
   type CasualTableMode,
-} from "../../data/casualBotDifficultyConfig";
+} from "../../data/casualPlayerStrategyTypes";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "./casualTournamentJoinCore";
@@ -40,7 +45,7 @@ async function activeSeasonId(ctx: QueryCtx | MutationCtx): Promise<string | nul
   return s?.seasonId ?? null;
 }
 
-export { CASUAL_NEAR_MISS_GAP_RATIO } from "../../data/casualBotDifficultyConfig";
+export { CASUAL_NEAR_MISS_GAP_RATIO } from "../../data/casualPlayerStrategyTypes";
 
 export function resolveCasualTableMode(humanPlayerCount: number): CasualTableMode {
   return Math.max(1, humanPlayerCount) >= 2 ? "mixed_human" : "solo_bot";
@@ -520,6 +525,17 @@ export function generateSoloBotScores(args: {
   return fills;
 }
 
+export function assignRanksByScoreDesc(
+  entities: RankedEntity[]
+): Map<string, number> {
+  const sorted = sortRankedEntitiesByScoreDesc(entities);
+  const out = new Map<string, number>();
+  for (let i = 0; i < sorted.length; i++) {
+    out.set(sorted[i]!.uid, i + 1);
+  }
+  return out;
+}
+
 /** solo 桌按规划名次写 rank（勿用 assignRanksWithMinScores，否则会挤掉前排 bot） */
 export function buildSoloTableRankMap(args: {
   humanUid: string;
@@ -578,9 +594,9 @@ export async function resolvePlayerBotStrategyContext(
   }
 ): Promise<BotStrategyPlayerContext> {
   const { uid, templateId, def } = args;
-  const gameId =
-    def.gameId === "block_blast" || def.gameId === "solitaire"
-      ? def.gameId
+  const gameType =
+    def.gameType === "block_blast" || def.gameType === "solitaire"
+      ? def.gameType
       : "solitaire";
 
   let seasonLadderPoints = 0;
@@ -641,7 +657,7 @@ export async function resolvePlayerBotStrategyContext(
     tournamentId: templateId,
     templateId,
     matchType: def.matchType,
-    gameId,
+    gameType,
     maxPlayers: def.maxPlayers,
     seasonLadderPoints,
     completedMultiplayerMatches,
@@ -665,27 +681,43 @@ export function isNearMissTableSummary(
   return gap >= 0 && gap <= CASUAL_NEAR_MISS_GAP_RATIO;
 }
 
-/** join 时按玩家画像决定开桌所需真人数（MATCHMAKING_RULES；未命中 → default） */
+/** join 时按玩家画像决定开桌所需真人数与超时行为（MATCHMAKING_RULES；未命中 → default） */
 export function evaluateEffectiveHumans(
   ctx: BotStrategyPlayerContext,
   def: CasualTournamentDefinition
-): { effectiveHumans: number; matchedRuleId: string | null } {
+): {
+  effectiveHumans: number;
+  matchedRuleId: string | null;
+  queueExpireAction: QueueExpireAction;
+} {
   const cap = Math.max(1, def.maxPlayers);
   const sorted = [...MATCHMAKING_RULES].sort((a, b) => b.priority - a.priority);
   for (const rule of sorted) {
     if (!rule.condition(ctx)) continue;
-    const effective = Math.min(cap, Math.max(1, rule.effectiveHumans));
-    return { effectiveHumans: effective, matchedRuleId: rule.id };
+    const effective = Math.min(cap, Math.max(1, rule.strategy.effectiveHumans));
+    return {
+      effectiveHumans: effective,
+      matchedRuleId: rule.id,
+      queueExpireAction: resolveMatchmakingExpireAction(rule.strategy),
+    };
   }
   const effective = Math.min(cap, Math.max(1, CASUAL_DEFAULT_EFFECTIVE_HUMANS));
-  return { effectiveHumans: effective, matchedRuleId: "default" };
+  return {
+    effectiveHumans: effective,
+    matchedRuleId: "default",
+    queueExpireAction: CASUAL_DEFAULT_QUEUE_EXPIRE,
+  };
 }
 
 /** @deprecated 使用 evaluateEffectiveHumans */
 export function evaluateEffectiveMatchmakingMinHumans(
   ctx: BotStrategyPlayerContext,
   def: CasualTournamentDefinition
-): { effectiveHumans: number; matchedRuleId: string | null } {
+): {
+  effectiveHumans: number;
+  matchedRuleId: string | null;
+  queueExpireAction: QueueExpireAction;
+} {
   return evaluateEffectiveHumans(ctx, def);
 }
 
@@ -696,9 +728,11 @@ export function logJoinMatchmakingProfileResult(args: {
   profile: BotStrategyPlayerContext;
   effectiveHumans: number;
   matchedRuleId: string | null;
+  queueExpireAction?: QueueExpireAction;
   source: "enqueue" | "existing_open";
 }): void {
-  const { uid, templateId, profile, effectiveHumans, matchedRuleId, source } = args;
+  const { uid, templateId, profile, effectiveHumans, matchedRuleId, queueExpireAction, source } =
+    args;
   console.log(
     "[casual][join-matchmaking]",
     JSON.stringify({
@@ -719,6 +753,7 @@ export function logJoinMatchmakingProfileResult(args: {
       result: {
         effectiveHumans,
         matchedRuleId,
+        queueExpireAction,
         waitingForPeer: effectiveHumans > 1,
       },
     })

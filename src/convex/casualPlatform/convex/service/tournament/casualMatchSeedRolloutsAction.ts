@@ -58,6 +58,7 @@ export const computeAndApplyAsyncBotFills = internalAction({
           bands: rollouts.bands,
           sessionSeed: plan.sessionSeed,
           gameType: "solitaire",
+          localFills: plan.localBotFills,
         });
       }
     }

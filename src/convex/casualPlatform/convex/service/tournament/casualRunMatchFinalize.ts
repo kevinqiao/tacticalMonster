@@ -12,10 +12,6 @@ import {
 import { isCasualAsyncVirtualOpponentUid } from "./casualRunSettlementFill";
 import { finalizeCasualAsyncMatchIngest } from "./casualTournamentService";
 
-function canonicalCasualRunSessionExternalId(matchId: string): string {
-  return `casual_sess:${matchId}`;
-}
-
 /** 将 `matchId` 上过期的 `finished` 升为 `confirmed`，若全桌可终局则 `settled` 发奖。 */
 export async function tryFinalizeCasualAsyncMatch(
   ctx: MutationCtx,
@@ -55,19 +51,17 @@ export async function tryFinalizeCasualAsyncMatch(
     humanPms.find((p) => p.score != null) ??
     humanPms[0]!;
   const pmFresh = (await ctx.db.get(anchor._id)) ?? anchor;
-  const canonicalSessionId = canonicalCasualRunSessionExternalId(String(matchId));
   const humanCountPlanned = Math.max(1, matchDoc.humanPlayerCount ?? 1);
-  const gameId = pmFresh.gameType === "block_blast" ? "block_blast" : "solitaire";
+  const gameType = pmFresh.gameType === "block_blast" ? "block_blast" : "solitaire";
 
   await finalizeCasualAsyncMatchIngest(ctx, {
     def,
     pm: pmFresh,
     uid: anchor.uid,
     now,
-    gameId,
+    gameType,
     humanPms,
     matchDoc,
-    canonicalSessionId,
     humanCountPlanned,
   });
   return { finalized: true, promotedOnly: false };

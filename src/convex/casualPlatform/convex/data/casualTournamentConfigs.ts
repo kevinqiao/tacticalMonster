@@ -38,7 +38,7 @@ export type CasualRankRateEntry = { rank: number; odd: number };
 export interface CasualTournamentDefinition {
   tournamentId: string;
   title: string;
-  gameId: string;
+  gameType: string;
   matchType: "tournament_a" | "tournament_b" | "tournament_c" | "season_challenge";
   status: string;
   /** 周期桶；缺省 `single_match` 与现网一致 */
@@ -215,7 +215,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: "casual_async_a_bb",
     title: "A · Block Blast (金币入门)",
-    gameId: "block_blast",
+    gameType: "block_blast",
     matchType: "tournament_a",
     status: "open",
     maxPlayers: 3,
@@ -232,7 +232,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: "casual_async_b_bb",
     title: "B · Block Blast (coins in / pool)",
-    gameId: "block_blast",
+    gameType: "block_blast",
     matchType: "tournament_b",
     status: "open",
     maxPlayers: 4,
@@ -249,7 +249,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: "casual_async_c_bb",
     title: "C · Block Blast (gems in / pool)",
-    gameId: "block_blast",
+    gameType: "block_blast",
     matchType: "tournament_c",
     status: "open",
     maxPlayers: 5,
@@ -266,7 +266,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: "casual_async_a_solitaire",
     title: "A · Solitaire (金币入门)",
-    gameId: "solitaire",
+    gameType: "solitaire",
     matchType: "tournament_a",
     status: "open",
     maxPlayers: 3,
@@ -282,7 +282,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: "casual_async_b_solitaire",
     title: "B · Solitaire (coins in / pool)",
-    gameId: "solitaire",
+    gameType: "solitaire",
     matchType: "tournament_b",
     status: "open",
     maxPlayers: 4,
@@ -298,7 +298,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: "casual_async_c_solitaire",
     title: "C · Solitaire (gems in / pool)",
-    gameId: "solitaire",
+    gameType: "solitaire",
     matchType: "tournament_c",
     status: "open",
     maxPlayers: 5,
@@ -314,7 +314,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
     title: "Daily · Solitaire 日榜最高分",
-    gameId: "solitaire",
+    gameType: "solitaire",
     matchType: "tournament_a",
     status: "open",
     instanceScope: "daily",
@@ -348,7 +348,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
     title: "Daily · Block Blast 日榜最高分",
-    gameId: "block_blast",
+    gameType: "block_blast",
     matchType: "tournament_a",
     status: "open",
     instanceScope: "daily",
@@ -383,7 +383,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID,
     title: "专场对局 · Block Blast",
-    gameId: "block_blast",
+    gameType: "block_blast",
     matchType: "season_challenge",
     status: "open",
     maxPlayers: 4,
@@ -406,7 +406,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID,
     title: "专场对局 · Solitaire",
-    gameId: "solitaire",
+    gameType: "solitaire",
     matchType: "season_challenge",
     status: "open",
     maxPlayers: 4,
@@ -444,7 +444,7 @@ export function listTournamentDefinitions(): CasualTournamentDefinition[] {
 export function listPlayCasualTournaments(): Array<{
   tournamentId: string;
   title: string;
-  gameId: string;
+  gameType: string;
   matchType: string;
   status: string;
   instanceScope?: CasualInstanceScope;
@@ -456,7 +456,7 @@ export function listPlayCasualTournaments(): Array<{
   ).map((t) => ({
     tournamentId: t.tournamentId,
     title: t.title,
-    gameId: t.gameId,
+    gameType: t.gameType,
     matchType: t.matchType,
     status: t.status,
     ...(t.instanceScope ? { instanceScope: t.instanceScope } : {}),

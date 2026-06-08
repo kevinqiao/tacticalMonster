@@ -12,12 +12,12 @@ export interface OpenCasualRunAssignment {
   createdAt: number;
 }
 
-/** 是否属于某玩法：优先 `gameType`，否则用模板配置的 `gameId` */
+/** 是否属于某玩法：优先 `gameType`，否则用模板配置的 `gameType` */
 export function assignmentMatchesGameKind(a: OpenCasualRunAssignment, kind: CasualGameKind): boolean {
   if (a.gameType === kind) return true;
   if (typeof a.gameType === "string" && a.gameType.length > 0) return false;
   const def = getTournamentDefinition(a.templateId);
-  return def?.gameId === kind;
+  return def?.gameType === kind;
 }
 
 /** 同一玩法可能多场 open，取 `createdAt` 最新 */
@@ -41,11 +41,16 @@ export function inferCasualGameKindFromAssignment(a: OpenCasualRunAssignment): C
   if (a.gameType === "block_blast") return "block_blast";
   if (a.gameType === "solitaire") return "solitaire";
   const def = getTournamentDefinition(a.templateId);
-  if (def?.gameId === "block_blast") return "block_blast";
+  if (def?.gameType === "block_blast") return "block_blast";
   return "solitaire";
 }
 
 /** 任一玩法存在未结束的开放 run：全局禁止新开锦标（与 `listOpenCasualRunAssignments` 语义一致） */
 export function hasAnyOpenCasualRunAssignment(assigns: OpenCasualRunAssignment[]): boolean {
   return assigns.length > 0;
+}
+
+export function gameKindFromTemplateId(templateId: string): CasualGameKind {
+  const def = getTournamentDefinition(templateId);
+  return def?.gameType === "block_blast" ? "block_blast" : "solitaire";
 }

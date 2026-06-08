@@ -2,7 +2,7 @@
 export type CasualAsyncTableLeaderboardRowUI = {
   rank: number;
   score?: number;
-  rowState?: 'scored' | 'playing';
+  rowState?: 'scored' | 'playing' | 'matching';
   displayLabel: string;
   isYou: boolean;
   /** 系统对手（虚拟补位） */

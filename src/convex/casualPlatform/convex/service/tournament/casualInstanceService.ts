@@ -153,7 +153,7 @@ export async function grantCasualScoreTierRewardsOnEachRunSettled(
     now: number;
     /** `casual_run_player_matches.gameId`，与 Play `casualMatchGameId` 一致 */
     matchGameId: string;
-    /** `solitaire` | `block_blast`，与 `CasualTournamentDefinition.gameId` 一致 */
+    /** `solitaire` | `block_blast`，与 `CasualTournamentDefinition.gameType` 一致 */
     gameType: string;
   }
 ): Promise<void> {

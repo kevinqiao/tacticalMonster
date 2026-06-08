@@ -32,6 +32,9 @@ export const casualTournamentFns = {
   previewJoinEntryCharge: makeFunctionReference<"query">(
     "service/tournament/casualTournamentService:previewJoinEntryCharge"
   ),
+  getCasualAsyncTableSummaryForGame: makeFunctionReference<"query">(
+    "service/tournament/casualTournamentService:getCasualAsyncTableSummaryForGame"
+  ),
   claimCasualRunRewards: makeFunctionReference<"mutation">(
     "service/tournament/casualTournamentService:claimCasualRunRewards"
   ),

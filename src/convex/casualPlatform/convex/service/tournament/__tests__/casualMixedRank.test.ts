@@ -115,22 +115,31 @@ describe("assignMixedRanks normal mode", () => {
 });
 
 describe("botSlotsToScoreBands merge", () => {
-  it("merges identical intervals with count", () => {
+  it("merges identical intervals with bot slot count", () => {
     const bands = botSlotsToScoreBands([
       { rank: 1, low: 12_000, high: Number.POSITIVE_INFINITY },
       { rank: 2, low: 12_000, high: Number.POSITIVE_INFINITY },
     ]);
-    expect(bands).toEqual([{ min: 12_000, count: 2 }]);
+    expect(bands).toEqual([{ min: 0, count: 2 }]);
   });
 
-  it("keeps separate bands when intervals differ", () => {
+  it("merges slots with same high and different lows into one band (union min)", () => {
+    const bands = botSlotsToScoreBands([
+      { rank: 2, low: 1265, high: 1838 },
+      { rank: 3, low: 1263, high: 1838 },
+      { rank: 4, low: 1262, high: 1838 },
+    ]);
+    expect(bands).toEqual([{ min: 0, max: 1838, count: 3 }]);
+  });
+
+  it("keeps separate bands when high differs", () => {
     const bands = botSlotsToScoreBands([
       { rank: 1, low: 12_000, high: Number.POSITIVE_INFINITY },
       { rank: 4, low: 8_000, high: 10_995 },
     ]);
     expect(bands).toEqual([
-      { min: 12_000, count: 1 },
-      { min: 8_000, max: 10_995, count: 1 },
+      { min: 0, count: 1 },
+      { min: 0, max: 10_995, count: 1 },
     ]);
   });
 });
@@ -143,13 +152,80 @@ describe("pickScoresFromRolloutBands merged bands", () => {
     ];
     const fills = pickScoresFromRolloutBands({
       slots,
-      bands: [{ min: 12_000, rollouts: [{ rolloutIndex: 0, finalScore: 12_100 }, { rolloutIndex: 1, finalScore: 12_200 }] }],
+      bands: [{ min: 12_000, rollouts: [{ rolloutIndex: 0, finalScore: 12_100, elapsedTime: 45 }, { rolloutIndex: 1, finalScore: 12_200, elapsedTime: 60 }] }],
       sessionSeed: 42,
       gameType: "solitaire",
     });
-    expect(fills).toEqual([
-      { rank: 1, score: 12_100 },
-      { rank: 2, score: 12_200 },
-    ]);
+    expect(fills[0]).toMatchObject({ rank: 1, score: 12_200, duration: 60_000, rolloutIndex: 1 });
+    expect(fills[1]).toMatchObject({ rank: 2, score: 12_100, duration: 45_000, rolloutIndex: 0 });
+  });
+
+  it("does not assign duplicate rolloutIndex when band returns fewer rollouts than slots", () => {
+    const slots = [
+      { rank: 1, low: 12_000, high: Number.POSITIVE_INFINITY },
+      { rank: 2, low: 12_000, high: Number.POSITIVE_INFINITY },
+      { rank: 3, low: 12_000, high: Number.POSITIVE_INFINITY },
+    ];
+    const localFills = [
+      { rank: 1, score: 12_300, duration: 50_000 },
+      { rank: 2, score: 12_050, duration: 55_000 },
+      { rank: 3, score: 12_000, duration: 60_000 },
+    ];
+    const fills = pickScoresFromRolloutBands({
+      slots,
+      bands: [
+        {
+          min: 12_000,
+          rollouts: [{ rolloutIndex: 7, finalScore: 12_100, elapsedTime: 40 }],
+        },
+      ],
+      sessionSeed: 99,
+      gameType: "solitaire",
+      localFills,
+    });
+    const rolloutIndices = fills.map((f) => f.rolloutIndex).filter((x) => x != null);
+    expect(rolloutIndices).toEqual([7]);
+    expect(fills.find((f) => f.rank === 1)).toMatchObject({
+      score: 12_100,
+      rolloutIndex: 7,
+    });
+    expect(fills.find((f) => f.rank === 2)).toMatchObject({
+      score: 12_050,
+      duration: 55_000,
+    });
+    expect(fills.find((f) => f.rank === 3)).toMatchObject({
+      score: 12_000,
+      duration: 60_000,
+    });
+    expect(fills.find((f) => f.rank === 3)?.rolloutIndex).toBeUndefined();
+  });
+
+  it("does not reuse rolloutIndex across separate bands that each return the same rollout", () => {
+    const slots = [
+      { rank: 1, low: 12_000, high: 12_500 },
+      { rank: 3, low: 8_000, high: 10_000 },
+      { rank: 4, low: 8_000, high: 10_000 },
+    ];
+    const fills = pickScoresFromRolloutBands({
+      slots,
+      bands: [
+        {
+          min: 12_000,
+          max: 12_500,
+          rollouts: [{ rolloutIndex: 1, finalScore: 12_100, elapsedTime: 40 }],
+        },
+        {
+          min: 8_000,
+          max: 10_000,
+          rollouts: [{ rolloutIndex: 1, finalScore: 9_100, elapsedTime: 50 }],
+        },
+      ],
+      sessionSeed: 77,
+      gameType: "solitaire",
+    });
+    const rolloutIndices = fills.map((f) => f.rolloutIndex).filter((x) => x != null);
+    expect(new Set(rolloutIndices).size).toBe(rolloutIndices.length);
+    expect(rolloutIndices.length).toBeLessThanOrEqual(1);
+    expect(new Set(fills.map((f) => f.score)).size).toBe(3);
   });
 });

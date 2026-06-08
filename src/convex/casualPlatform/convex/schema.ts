@@ -27,7 +27,7 @@ export default defineSchema({
   casual_tournaments: defineTable({
     tournamentId: v.string(),
     title: v.string(),
-    gameId: v.string(),
+    gameType: v.string(),
     matchType: v.string(),
     status: v.string(),
     endsAt: v.optional(v.number()),
@@ -198,6 +198,8 @@ export default defineSchema({
     /** @deprecated 迁移前字段；新写入仅用 effectiveHumans */
     effectiveMinHumans: v.optional(v.number()),
     matchedRuleId: v.optional(v.string()),
+    /** eff>1 超时：`solo` 开单人桌；`exit` 移出队列 */
+    queueExpireAction: v.optional(v.union(v.literal("solo"), v.literal("exit"))),
     /** 仅 effectiveHumans > 1 */
     expiresAt: v.optional(v.number()),
     skipEntryCharge: v.optional(v.boolean()),
@@ -220,7 +222,6 @@ export default defineSchema({
     /** TM 对齐：`game_${matchId}_${uid}`，用于结算查找 */
     gameId: v.string(),
     gameType: v.string(),
-    externalGameId: v.optional(v.string()),
     score: v.optional(v.number()),
     rank: v.optional(v.number()),
     status: v.union(
@@ -232,6 +233,14 @@ export default defineSchema({
     ),
     /** 进入 `finished` 的时刻；再战重交后重置，用于再战窗口 */
     finishedAt: v.optional(v.number()),
+    /** 虚拟对手：入场时间（epoch ms） */
+    revealAt: v.optional(v.number()),
+    /** 虚拟对手：入场后对局时长（ms）；完赛 = revealAt + duration */
+    duration: v.optional(v.number()),
+    /** 虚拟对手：seed pool rollout 索引 */
+    rolloutIndex: v.optional(v.number()),
+    /** 虚拟对手：scheduler 在 revealAt 到点标记 */
+    botRevealed: v.optional(v.boolean()),
     /** 再战次数；游戏服 `loadGame(resetCasualRun)` 可据此强制清档 */
     replayEpoch: v.optional(v.number()),
     createdAt: v.number(),
@@ -243,7 +252,6 @@ export default defineSchema({
     .index("by_uid_template", ["uid", "templateId"])
     .index("by_uid", ["uid"])
     .index("by_templateId", ["templateId"])
-    .index("by_template_external", ["templateId", "externalGameId"])
     .index("by_run_uid", ["tournamentId", "uid"])
     /** `gameHistory` 本场总人数（真人 + 机器人） */
     .index("by_run_tournament", ["tournamentId"]),
@@ -289,15 +297,15 @@ export default defineSchema({
     claimedAt: v.number(),
   }).index("by_uid_claim_task_period", ["uid", "taskId", "periodKey"]),
 
-  /** 多游戏 Pass 任务：按 `(taskId, periodKey, platformGameId)` 累计局数 */
+  /** 多游戏 Pass 任务：按 `(taskId, periodKey, platformGameType)` 累计局数 */
   casual_task_game_progress: defineTable({
     uid: v.string(),
     taskId: v.string(),
     periodKey: v.string(),
-    platformGameId: v.string(),
+    platformGameType: v.string(),
     count: v.number(),
     updatedAt: v.number(),
-  }).index("by_uid_task_period_game", ["uid", "taskId", "periodKey", "platformGameId"])
+  }).index("by_uid_task_period_game", ["uid", "taskId", "periodKey", "platformGameType"])
     .index("by_uid_task_period", ["uid", "taskId", "periodKey"]),
 
   /** 每日签到连签状态（P3） */

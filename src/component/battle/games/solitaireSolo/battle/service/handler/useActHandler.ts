@@ -27,6 +27,7 @@ import {
     type CasualGameScoreReportUI,
 } from "../../../../shared/casualGameScoreReportUI";
 import type { CasualAsyncTableSummaryUI, ManualSettleConfirmExtras } from "../../../../shared/casualAsyncTableSummaryUI";
+import { useCasualTableSummaryPoll } from "../../../../shared/useCasualTableSummaryPoll";
 import type { GameReport } from "../../types/SoloTypes";
 
 type ServerProgress = { score?: number; moves?: number; gameStatus?: number };
@@ -113,6 +114,7 @@ const useActHandler = () => {
     const settleInFlightRef = useRef(false);
     const gameStateRef = useRef<SoloGameState | null>(null);
     const interactionPhaseRef = useRef<GameInteractionPhase>(GameInteractionPhase.idle);
+
     const {
         ruleManager,
         gameState,
@@ -125,6 +127,17 @@ const useActHandler = () => {
         onGameSubmit,
         reloadCasualRun,
     } = useSoloGameManager();
+
+    useCasualTableSummaryPoll({
+        open: postCasualSummaryOpen || postCasualScoreReportOpen,
+        summary: postCasualTableSummary,
+        matchGameId:
+            typeof gameState?.gameId === "string" && gameState.gameId.startsWith("game_")
+                ? gameState.gameId
+                : undefined,
+        fetchSummary: casual.fetchCasualTableSummaryForGame,
+        onUpdate: setPostCasualTableSummary,
+    });
 
     useEffect(() => {
         gameStateRef.current = gameState ?? null;

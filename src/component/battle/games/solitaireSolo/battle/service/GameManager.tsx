@@ -100,12 +100,20 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         boardDimensionRef.current = dimension;
         setBoardDimension(dimension);
     }, [timelinesRef]);
+    const loadGameOnce = async () =>
+        convex.action(api.proxy.controller.loadGame, { gameId });
+
     const loadGame = useCallback(async () => {
         if (!gameId) {
             onGameLoadComplete?.();
             return;
         }
-        const res = await convex.action(api.proxy.controller.loadGame, { gameId });
+        const retryable = new Set(["seed_pending", "seed_unavailable", "casual_find_400"]);
+        let res = await loadGameOnce();
+        for (let attempt = 0; attempt < 8 && !res.ok && retryable.has((res as { error?: string }).error ?? ""); attempt++) {
+            await new Promise((r) => window.setTimeout(r, 400 * (attempt + 1)));
+            res = await loadGameOnce();
+        }
         if (!res.ok) {
             console.error('[SoloGameProvider] loadGame failed', (res as { error?: string }).error, res);
             onGameLoadComplete?.();

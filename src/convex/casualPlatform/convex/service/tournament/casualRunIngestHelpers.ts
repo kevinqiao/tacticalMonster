@@ -4,7 +4,7 @@ import type { MutationCtx } from "../../_generated/server";
 import {
   CASUAL_REPLAY_REQUIRE_NEAR_MISS,
   isCasualDevAutoReplayTokensEnabled,
-} from "../../data/casualBotDifficultyConfig";
+} from "../../data/casualPlayerStrategyTypes";
 import {
   countUnusedReplayTokens,
   grantReplayTokens,
@@ -15,6 +15,7 @@ import {
   type CasualAsyncTableSummary,
   finalizeCasualAsyncTableSummaryForPlayer,
 } from "./casualRunSettlementFill";
+import { canonicalCasualRunSessionExternalId } from "./casualRunSession";
 import {
   allHumansSubmitted,
   canUseReplayForTemplate,
@@ -29,7 +30,6 @@ export async function buildPartialIngestResponse(
     def: CasualTournamentDefinition;
     pm: Doc<"casual_run_player_matches">;
     uid: string;
-    canonicalSessionId: string;
     humanPms: Doc<"casual_run_player_matches">[];
     now: number;
   }
@@ -42,26 +42,26 @@ export async function buildPartialIngestResponse(
   canReplay: boolean;
   replayWindowEndsAt?: number;
 }> {
-  const { def, pm, uid, canonicalSessionId, humanPms, now } = args;
+  const { def, pm, uid, humanPms, now } = args;
   const freshPm = (await ctx.db.get(pm._id)) ?? pm;
   const allSettled = matchAllHumansSettled(humanPms);
+  const sessionExternalId = canonicalCasualRunSessionExternalId(pm.matchId);
 
   let tableSummary: CasualAsyncTableSummary | null = null;
-  if (canonicalSessionId.trim().length > 0) {
+  if (sessionExternalId.trim().length > 0) {
     if (allSettled) {
       tableSummary = await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
         def,
         templateId: pm.templateId,
         matchId: pm.matchId,
         runTournamentId: pm.tournamentId,
-        sessionExternalId: canonicalSessionId,
+        sessionExternalId,
         uid,
         updatedAt: now,
       });
     } else {
       tableSummary = await buildCasualAsyncTableSummary(ctx, {
         templateId: pm.templateId,
-        sessionExternalId: canonicalSessionId,
         uid,
         maxPlayers: def.maxPlayers,
         matchId: pm.matchId,
@@ -115,14 +115,8 @@ export async function buildConfirmedDedupeResponse(
     now: number;
   }
 ): Promise<{ tableSummary?: CasualAsyncTableSummary; canReplay: false }> {
-  const ext =
-    typeof args.pm.externalGameId === "string" &&
-    args.pm.externalGameId.trim().startsWith("casual_sess:")
-      ? args.pm.externalGameId.trim()
-      : `casual_sess:${args.pm.matchId}`;
   const tableSummary = await buildCasualAsyncTableSummary(ctx, {
     templateId: args.pm.templateId,
-    sessionExternalId: ext,
     uid: args.uid,
     maxPlayers: args.def.maxPlayers,
     matchId: args.pm.matchId,
