@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import {
   CASUAL_DEFAULT_EFFECTIVE_HUMANS,
@@ -10,7 +10,7 @@ import {
   type BotStrategyPlayerContext,
 } from "../../../data/casualPlayerStrategyTypes";
 import { getTournamentDefinition } from "../../../data/casualTournamentConfigs";
-import { evaluateEffectiveHumans } from "../casualBotDifficultyService";
+import { evaluateEffectiveHumans } from "../join/casualMatchmakingProfile";
 import {
   computeMultiTableBatchSize,
   resolveQueueEffectiveHumans,

@@ -1,4 +1,4 @@
-import type { JoinCasualRunResult } from "@/convex/casualPlatform/convex/service/tournament/casualTournamentTypes";
+import type { JoinCasualRunResult } from "@/convex/casualPlatform/convex/service/tournament/shared/casualTournamentTypes";
 
 import { joinEntryErrorMessage } from "../view/shared/casualEconomyUi";
 

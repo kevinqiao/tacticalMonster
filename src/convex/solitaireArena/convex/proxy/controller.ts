@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
 import { postCasualRunIngest, type CasualIngestParsed } from "../service/casualBridgeIngest";
+import { buildCasualV2IngestPayload } from "../service/casualBotFill/computeBotFills";
 import {
     isTerminalSolitaireStatus,
     parseCasualRunGameId,
@@ -35,20 +36,12 @@ function verifyCasualRunToken(token: string): { ok: true; uid: string } | { ok: 
 function mapCasualIngestClientResponse(parsed: CasualIngestParsed) {
     const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
     const pendingOthers = parsed.pendingOthers === true;
-    const replayOffered = parsed.replayOffered === true;
-    const replayTokenCount =
-        typeof parsed.replayTokenCount === "number" ? parsed.replayTokenCount : undefined;
-    const canReplay = parsed.canReplay === true;
-    const replayWindowEndsAt =
-        typeof parsed.replayWindowEndsAt === "number" ? parsed.replayWindowEndsAt : undefined;
     return {
         ok: true as const,
         ...(tableSummary ? { tableSummary } : {}),
         ...(pendingOthers ? { pendingOthers: true as const } : {}),
-        ...(replayOffered ? { replayOffered: true as const } : {}),
-        ...(replayTokenCount != null ? { replayTokenCount } : {}),
-        ...(canReplay ? { canReplay: true as const } : {}),
-        ...(replayWindowEndsAt != null ? { replayWindowEndsAt } : {}),
+        ...(parsed.deduped === true ? { deduped: true as const } : {}),
+        ...(parsed.finalized === true ? { finalized: true as const } : {}),
     };
 }
 
@@ -64,6 +57,7 @@ function casualTableSummaryFromParsed(v: unknown):
               isYou: boolean;
               isBot?: boolean;
           }>;
+          isBoardStable?: boolean;
       }
     | undefined {
     if (!v || typeof v !== "object") return undefined;
@@ -116,7 +110,11 @@ function casualTableSummaryFromParsed(v: unknown):
         });
     }
     if (rows.length === 0) return undefined;
-    return { maxPlayers: o.maxPlayers, rows };
+    return {
+        maxPlayers: o.maxPlayers,
+        rows,
+        ...(typeof o.isBoardStable === "boolean" ? { isBoardStable: o.isBoardStable } : {}),
+    };
 }
 
 export const loadGame = action({
@@ -181,15 +179,21 @@ export const loadGame = action({
             }
         }
 
-        const gameResult = await ctx.runMutation(internal.service.gameManager.createGame, createArgs);
-        if (gameResult && gameResult.ok) {
+        let gameResult: { ok: boolean; data?: unknown; events?: unknown; error?: string };
+        try {
+            gameResult = await ctx.runMutation(internal.service.gameManager.createGame, createArgs);
+        } catch (err) {
+            console.error("[solitaire] loadGame createGame mutation threw", gameId, err);
+            return { ok: false, error: "create_failed" };
+        }
+        if (gameResult?.ok) {
             const fresh = await ctx.runQuery(internal.service.gameManager.findGame, { gameId });
             res.ok = true;
             res.game = fresh ?? gameResult.data;
             res.events = gameResult.events;
         } else {
             res.ok = false;
-            res.error = "create_failed";
+            res.error = gameResult?.error ?? "create_failed";
         }
         return res;
     },
@@ -239,7 +243,7 @@ export const submitScore = action({
 });
 
 /**
- * 休闲锦标：从 DB 读终局分数，再 POST casual `/internal/casual-run-ingest`（服务端密钥）。
+ * 休闲锦标 v2：resolve 桌型 → 游戏服算 bot → POST casual ingest。
  */
 export const submitCasualPlatformRun = action({
     args: { token: v.string(), gameId: v.string() },
@@ -274,14 +278,20 @@ export const submitCasualPlatformRun = action({
         }
 
         const score = resolveCasualIngestScoreFromRow(game as { score?: number; playStartedAt?: number });
-        const ingest = await postCasualRunIngest({ uid, matchGameId: gameId, score });
+
+        const built = await buildCasualV2IngestPayload({ ctx, uid, matchGameId: gameId, score });
+        if (!built.ok) {
+            return { ok: false as const, error: built.error };
+        }
+
+        const ingest = await postCasualRunIngest(built.payload);
         if (!ingest.ok) {
             return { ok: false as const, error: ingest.error };
         }
 
         await ctx.runMutation(internal.service.casualGameLifecycle.cancelCasualTimeoutJob, { gameId });
 
-        console.log("[solitaire] casual-run-ingest", {
+        console.log("[solitaire] casual-run-ingest v2", {
             gameId,
             deduped: ingest.parsed.deduped,
             pendingOthers: ingest.parsed.pendingOthers,
@@ -331,11 +341,17 @@ export const forceEndCasualPlatformRun = action({
             return { ok: false as const, error: err };
         }
 
-        const ingest = await postCasualRunIngest({
+        const built = await buildCasualV2IngestPayload({
+            ctx,
             uid: settled.uid,
             matchGameId: settled.gameId,
             score: settled.score,
         });
+        if (!built.ok) {
+            return { ok: false as const, error: built.error };
+        }
+
+        const ingest = await postCasualRunIngest(built.payload);
         if (!ingest.ok) {
             return { ok: false as const, error: ingest.error };
         }

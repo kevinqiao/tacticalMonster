@@ -36,7 +36,11 @@ import {
     shouldOpenCasualTableSummaryAfterScoreReport,
     type CasualGameScoreReportUI,
 } from '../../../shared/casualGameScoreReportUI';
-import type { CasualAsyncTableSummaryUI, ManualSettleConfirmExtras } from '../../../shared/casualAsyncTableSummaryUI';
+import {
+    applyCasualTableSummaryFromQuery,
+    type CasualAsyncTableSummaryUI,
+    type ManualSettleConfirmExtras,
+} from '../../../shared/casualAsyncTableSummaryUI';
 import { useCasualTableSummaryPoll } from '../../../shared/useCasualTableSummaryPoll';
 
 function isTerminalBlockBlastStatus(status: number | undefined): boolean {
@@ -214,7 +218,15 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 ? gameState.gameId
                 : undefined,
         fetchSummary: casual.fetchCasualTableSummaryForGame,
-        onUpdate: setPostCasualTableSummary,
+        onUpdate: (next) => {
+            applyCasualTableSummaryFromQuery(next, {
+                setTableSummary: setPostCasualTableSummary,
+                setReplayOffered: setPostCasualReplayOffered,
+                setReplayTokenCount: setPostCasualReplayTokenCount,
+                setCanReplay: setPostCasualCanReplay,
+                setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+            });
+        },
     });
 
     useEffect(() => {
@@ -267,12 +279,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             gameId: string,
             fallbackScore: number,
             settle: {
-                tableSummary?: CasualAsyncTableSummaryUI | null;
+                tableSummary?: CasualAsyncTableSummaryUI;
                 pendingOthers?: boolean;
-                replayOffered?: boolean;
-                replayTokenCount?: number;
-                canReplay?: boolean;
-                replayWindowEndsAt?: number;
             }
         ) => {
             if (gameStateRef.current?.reportElement) {
@@ -282,18 +290,38 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             setPostCasualScoreReport(report);
             setPostCasualTableSummary(settle.tableSummary ?? null);
             setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
-            const offered = Boolean(settle.replayOffered ?? settle.canReplay);
-            setPostCasualReplayOffered(offered);
-            setPostCasualReplayTokenCount(
-                typeof settle.replayTokenCount === 'number' ? settle.replayTokenCount : 0
-            );
-            setPostCasualCanReplay(Boolean(settle.canReplay));
-            setPostCasualReplayWindowEndsAt(
-                typeof settle.replayWindowEndsAt === 'number' ? settle.replayWindowEndsAt : undefined
-            );
+            setPostCasualReplayOffered(false);
+            setPostCasualReplayTokenCount(0);
+            setPostCasualCanReplay(false);
+            setPostCasualReplayWindowEndsAt(undefined);
             setPostCasualScoreReportOpen(true);
+
+            if (settle.tableSummary) {
+                applyCasualTableSummaryFromQuery(settle.tableSummary, {
+                    setTableSummary: setPostCasualTableSummary,
+                    setReplayOffered: setPostCasualReplayOffered,
+                    setReplayTokenCount: setPostCasualReplayTokenCount,
+                    setCanReplay: setPostCasualCanReplay,
+                    setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                });
+            } else {
+                try {
+                    const summary = await casual.fetchCasualTableSummaryForGame(gameId);
+                    if (summary?.rows?.length) {
+                        applyCasualTableSummaryFromQuery(summary, {
+                            setTableSummary: setPostCasualTableSummary,
+                            setReplayOffered: setPostCasualReplayOffered,
+                            setReplayTokenCount: setPostCasualReplayTokenCount,
+                            setCanReplay: setPostCasualCanReplay,
+                            setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                        });
+                    }
+                } catch (e) {
+                    console.warn('[BlockBlast] fetchCasualTableSummaryForGame after submit', e);
+                }
+            }
         },
-        [resolveBlockBlastScoreReport]
+        [resolveBlockBlastScoreReport, casual.fetchCasualTableSummaryForGame]
     );
 
     const reloadCasualRun = useCallback(async (): Promise<boolean> => {
@@ -534,10 +562,6 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                   ok: true;
                   tableSummary?: CasualAsyncTableSummaryUI;
                   pendingOthers?: boolean;
-                  replayOffered?: boolean;
-                  replayTokenCount?: number;
-                  canReplay?: boolean;
-                  replayWindowEndsAt?: number;
               }
             | { ok: false }
         > => {
@@ -561,10 +585,6 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                         error?: string;
                         tableSummary?: CasualAsyncTableSummaryUI;
                         pendingOthers?: boolean;
-                        replayOffered?: boolean;
-                        replayTokenCount?: number;
-                        canReplay?: boolean;
-                        replayWindowEndsAt?: number;
                     };
                     if (!cr.ok) {
                         console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
@@ -578,10 +598,6 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                         ok: true,
                         ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
                         ...(cr.pendingOthers ? { pendingOthers: true } : {}),
-                        ...(cr.replayOffered ? { replayOffered: true } : {}),
-                        ...(cr.replayTokenCount != null ? { replayTokenCount: cr.replayTokenCount } : {}),
-                        ...(cr.canReplay ? { canReplay: true } : {}),
-                        ...(cr.replayWindowEndsAt != null ? { replayWindowEndsAt: cr.replayWindowEndsAt } : {}),
                     };
                 }
                 let proxyOk = false;
@@ -631,10 +647,6 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             void beginCasualPostSettleFlow(gs.gameId, score, {
                 tableSummary: extras?.tableSummary ?? undefined,
                 pendingOthers: extras?.pendingOthers,
-                replayOffered: extras?.replayOffered,
-                replayTokenCount: extras?.replayTokenCount,
-                canReplay: extras?.canReplay,
-                replayWindowEndsAt: extras?.replayWindowEndsAt,
             });
         },
         [casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]
@@ -675,10 +687,6 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             const out: ManualSettleConfirmExtras = {};
             if (settled.tableSummary) out.tableSummary = settled.tableSummary;
             if (settled.pendingOthers) out.pendingOthers = true;
-            if (settled.replayOffered) out.replayOffered = true;
-            if (settled.replayTokenCount != null) out.replayTokenCount = settled.replayTokenCount;
-            if (settled.canReplay) out.canReplay = true;
-            if (settled.replayWindowEndsAt != null) out.replayWindowEndsAt = settled.replayWindowEndsAt;
             return out;
         } catch (e) {
             console.error('[BlockBlast] confirmSettleAndExit', e);
@@ -739,10 +747,6 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                         error?: string;
                         tableSummary?: CasualAsyncTableSummaryUI;
                         pendingOthers?: boolean;
-                        replayOffered?: boolean;
-                        replayTokenCount?: number;
-                        canReplay?: boolean;
-                        replayWindowEndsAt?: number;
                     };
                     if (!cr.ok) {
                         console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
@@ -752,10 +756,6 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     await beginCasualPostSettleFlow(gameState.gameId, score, {
                         tableSummary: cr.tableSummary,
                         pendingOthers: cr.pendingOthers,
-                        replayOffered: cr.replayOffered,
-                        replayTokenCount: cr.replayTokenCount,
-                        canReplay: cr.canReplay,
-                        replayWindowEndsAt: cr.replayWindowEndsAt,
                     });
                     return;
                 }

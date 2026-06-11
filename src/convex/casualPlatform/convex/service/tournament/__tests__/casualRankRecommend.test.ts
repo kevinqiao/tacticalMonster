@@ -1,22 +1,20 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import {
   buildBalancedRankWeights,
-  clampTargetRank,
   sampleTargetRank,
-} from "../casualBotDifficultyService";
+} from "../../../shared/rankSampling";
 import {
   CASUAL_RANK_RATES_4B,
   CASUAL_RANK_STAT_BUCKET_MAX,
   collapseActualRankToStatBucket,
   expandStatBucketToTargetRank,
   normalizeRankCountsForStats,
-} from "../casualRankStatBuckets";
+} from "../shared/casualRankStatBuckets";
 import {
   deriveRankScoreFloorsFromQuantiles,
-  recommendTargetRankFromQuantileProximity,
   type ScoreQuantiles,
-} from "../casualRankQuantiles";
+} from "../../../shared/scoreQuantiles";
 
 const BB_QUANTILES_A: ScoreQuantiles = {
   p10: 3_000,
@@ -52,6 +50,7 @@ describe("casualRankStatBuckets", () => {
   });
 });
 
+/** ingest 校验用：平台仅消费 floors，不做 solo 名次推荐 */
 describe("deriveRankScoreFloorsFromQuantiles", () => {
   it("maps first maxPlayers reverse quantiles to rank floors", () => {
     expect(deriveRankScoreFloorsFromQuantiles(BB_QUANTILES_A, 3)).toEqual({
@@ -83,39 +82,6 @@ describe("deriveRankScoreFloorsFromQuantiles", () => {
       3: 1349,
       4: 1342,
     });
-  });
-});
-
-describe("recommendTargetRankFromQuantileProximity", () => {
-  it("picks closest tier and caps at maxPlayers", () => {
-    const targetRank = recommendTargetRankFromQuantileProximity(
-      6_050,
-      BB_QUANTILES_A,
-      3
-    );
-    expect(targetRank).toBe(3);
-  });
-
-  it("prefers better rank on tie distance", () => {
-    const quantiles: ScoreQuantiles = {
-      ...BB_QUANTILES_A,
-      p66: 6_000,
-      p33: 6_000,
-    };
-    expect(recommendTargetRankFromQuantileProximity(6_000, quantiles, 3)).toBe(3);
-  });
-});
-
-describe("clampTargetRank with quantile floors", () => {
-  it("clamps low score to maxPlayers when below all floors", () => {
-    const floors = deriveRankScoreFloorsFromQuantiles(BB_QUANTILES_A, 3);
-    const targetRank = recommendTargetRankFromQuantileProximity(
-      6_050,
-      BB_QUANTILES_A,
-      3
-    );
-    expect(targetRank).toBe(3);
-    expect(clampTargetRank(targetRank, 6_050, floors, 3)).toBe(3);
   });
 });
 

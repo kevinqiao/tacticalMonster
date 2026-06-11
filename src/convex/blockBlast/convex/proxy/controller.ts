@@ -34,6 +34,7 @@ function casualTableSummaryFromParsed(v: unknown):
         isYou: boolean;
         isBot?: boolean;
       }>;
+      isBoardStable?: boolean;
     }
   | undefined {
   if (!v || typeof v !== "object") return undefined;
@@ -86,7 +87,32 @@ function casualTableSummaryFromParsed(v: unknown):
     });
   }
   if (rows.length === 0) return undefined;
-  return { maxPlayers: o.maxPlayers, rows };
+  return {
+    maxPlayers: o.maxPlayers,
+    rows,
+    ...(typeof o.isBoardStable === "boolean" ? { isBoardStable: o.isBoardStable } : {}),
+  };
+}
+
+type CasualIngestParsed = {
+  ok?: boolean;
+  error?: string;
+  tableSummary?: unknown;
+  pendingOthers?: boolean;
+  deduped?: boolean;
+  finalized?: boolean;
+};
+
+function mapCasualIngestClientResponse(parsed: CasualIngestParsed) {
+  const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
+  const pendingOthers = parsed.pendingOthers === true;
+  return {
+    ok: true as const,
+    ...(tableSummary ? { tableSummary } : {}),
+    ...(pendingOthers ? { pendingOthers: true as const } : {}),
+    ...(parsed.deduped === true ? { deduped: true as const } : {}),
+    ...(parsed.finalized === true ? { finalized: true as const } : {}),
+  };
 }
 
 /** 与 solitaireArena `proxy/controller:loadGame` 对齐：休闲 run 走 casual `/internal/find-match-by-game` + bridge secret */
@@ -260,30 +286,10 @@ export const submitCasualPlatformRun = action({
       return { ok: false as const, error: "casual_unreachable" };
     }
 
-    let parsed: {
-      ok?: boolean;
-      error?: string;
-      tableSummary?: unknown;
-      pendingOthers?: boolean;
-      replayOffered?: boolean;
-      replayTokenCount?: number;
-      canReplay?: boolean;
-      replayWindowEndsAt?: number;
-    } = {};
+    let parsed: CasualIngestParsed = {};
     try {
       const text = await res.text();
-      if (text) {
-        parsed = JSON.parse(text) as {
-          ok?: boolean;
-          error?: string;
-          tableSummary?: unknown;
-          pendingOthers?: boolean;
-          replayOffered?: boolean;
-          replayTokenCount?: number;
-          canReplay?: boolean;
-          replayWindowEndsAt?: number;
-        };
-      }
+      if (text) parsed = JSON.parse(text) as CasualIngestParsed;
     } catch {
       parsed = {};
     }
@@ -295,23 +301,7 @@ export const submitCasualPlatformRun = action({
       };
     }
 
-    const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
-    const pendingOthers = parsed.pendingOthers === true;
-    const replayOffered = parsed.replayOffered === true;
-    const replayTokenCount =
-      typeof parsed.replayTokenCount === "number" ? parsed.replayTokenCount : undefined;
-    const canReplay = parsed.canReplay === true;
-    const replayWindowEndsAt =
-      typeof parsed.replayWindowEndsAt === "number" ? parsed.replayWindowEndsAt : undefined;
-    return {
-      ok: true as const,
-      ...(tableSummary ? { tableSummary } : {}),
-      ...(pendingOthers ? { pendingOthers: true as const } : {}),
-      ...(replayOffered ? { replayOffered: true as const } : {}),
-      ...(replayTokenCount != null ? { replayTokenCount } : {}),
-      ...(canReplay ? { canReplay: true as const } : {}),
-      ...(replayWindowEndsAt != null ? { replayWindowEndsAt } : {}),
-    };
+    return mapCasualIngestClientResponse(parsed);
   },
 });
 

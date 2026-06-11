@@ -210,10 +210,26 @@ export const createGame = internalMutation({
         gameId: v.string()
     },
     handler: async (ctx, { seed, gameId }) => {
-        console.log("createGame...", seed, gameId);
-        const gameManager = new GameManager(ctx);
-        const game = await gameManager.createGame(seed, gameId);
-        if (game) {
+        try {
+            const existing = await ctx.db
+                .query("game")
+                .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
+                .unique();
+            if (existing) {
+                return {
+                    ok: true as const,
+                    data: existing,
+                    events: [],
+                };
+            }
+
+            console.log("createGame...", seed, gameId);
+            const gameManager = new GameManager(ctx);
+            const game = await gameManager.createGame(seed, gameId);
+            if (!game) {
+                return { ok: false as const, error: "insert_failed" as const };
+            }
+
             const dealedCards = SoloGameEngine.deal(game.cards);
             await gameManager.save({ cards: dealedCards, status: SoloGameStatus.DEALED });
 
@@ -222,27 +238,32 @@ export const createGame = internalMutation({
                 if (parsed?.uid && game._id) {
                     const now = Date.now();
                     const dueTime = now + SOLITAIRE_MATCH_TIME_LIMIT_SEC * 1000;
-                    const jobId = await ctx.scheduler.runAfter(
-                        SOLITAIRE_MATCH_TIME_LIMIT_SEC * 1000,
-                        internal.service.casualGameTimeoutAction.checkCasualGameTimeoutAndIngest,
-                        { gameRowId: game._id, gameId, uid: parsed.uid }
-                    );
-                    await ctx.db.patch(game._id, {
-                        dueTime,
-                        casualTimeoutScheduledId: jobId,
-                    });
+                    try {
+                        const jobId = await ctx.scheduler.runAfter(
+                            SOLITAIRE_MATCH_TIME_LIMIT_SEC * 1000,
+                            internal.service.casualGameTimeoutAction.checkCasualGameTimeoutAndIngest,
+                            { gameRowId: game._id, gameId, uid: parsed.uid }
+                        );
+                        await ctx.db.patch(game._id, {
+                            dueTime,
+                            casualTimeoutScheduledId: jobId,
+                        });
+                    } catch (scheduleErr) {
+                        console.warn("[solitaire] casual timeout schedule failed", gameId, scheduleErr);
+                    }
                 }
             }
 
             const fresh = await gameManager.load(gameId);
             return {
-                ok: true,
+                ok: true as const,
                 data: fresh ?? game,
                 events: [{ name: "deal", cards: dealedCards }],
             };
+        } catch (err) {
+            console.error("[solitaire] createGame failed", gameId, err);
+            return { ok: false as const, error: "create_failed" as const };
         }
-        return { ok: false };
-
     },
 });
 

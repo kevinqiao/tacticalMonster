@@ -79,7 +79,7 @@ function main() {
 
   const before = {
     seasons: runConvex("service/season/casualSeasonService:listSeasons", {}, convexArgs),
-    tournaments: runConvex("service/tournament/casualTournamentService:listTournaments", {}, convexArgs),
+    tournaments: runConvex("service/tournament/list/casualTournamentQueries:listTournaments", {}, convexArgs),
     shopSkus: runConvex("service/shop/casualShopService:listActiveShopSkus", {}, convexArgs),
     activities: runConvex("service/activity/casualActivityService:listActiveActivities", {}, convexArgs),
   };
@@ -99,7 +99,7 @@ function main() {
   }
 
   const seedResult = runConvex(
-    "service/tournament/casualTournamentService:seedDemoTournaments",
+    "service/tournament/shared/casualTournamentAdmin:seedDemoTournaments",
     {},
     convexArgs
   );
@@ -107,7 +107,7 @@ function main() {
 
   const after = {
     seasons: runConvex("service/season/casualSeasonService:listSeasons", {}, convexArgs),
-    tournaments: runConvex("service/tournament/casualTournamentService:listTournaments", {}, convexArgs),
+    tournaments: runConvex("service/tournament/list/casualTournamentQueries:listTournaments", {}, convexArgs),
     shopSkus: runConvex("service/shop/casualShopService:listActiveShopSkus", {}, convexArgs),
     activities: runConvex("service/activity/casualActivityService:listActiveActivities", {}, convexArgs),
   };

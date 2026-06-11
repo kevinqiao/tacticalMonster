@@ -74,7 +74,7 @@ function main() {
   );
 
   const seasons = runConvex("service/season/casualSeasonService:listSeasons", {}, convexArgs);
-  const tournaments = runConvex("service/tournament/casualTournamentService:listTournaments", {}, convexArgs);
+  const tournaments = runConvex("service/tournament/list/casualTournamentQueries:listTournaments", {}, convexArgs);
   const shopSkus = runConvex("service/shop/casualShopService:listActiveShopSkus", {}, convexArgs);
   const activities = runConvex("service/activity/casualActivityService:listActiveActivities", {}, convexArgs);
   const allActivities = runConvex("service/activity/casualActivityService:listAllActivities", {}, convexArgs);

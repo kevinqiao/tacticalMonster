@@ -6,19 +6,26 @@ import { resolveCasualBridgeEnv } from "./casualBridgeEnv";
 export type CasualIngestParsed = {
   ok?: boolean;
   error?: string;
+  /** finalize 直返终局榜时可能存在；partial ingest 由客户端 query 拉取 */
   tableSummary?: unknown;
   pendingOthers?: boolean;
-  replayOffered?: boolean;
-  replayTokenCount?: number;
-  canReplay?: boolean;
-  replayWindowEndsAt?: number;
   deduped?: boolean;
+  finalized?: boolean;
+};
+
+export type BotFillPayload = {
+  rank: number;
+  score: number;
+  duration?: number;
+  rolloutIndex?: number;
 };
 
 export async function postCasualRunIngest(args: {
   uid: string;
   matchGameId: string;
   score: number;
+  botFills?: BotFillPayload[];
+  replaceAllVirtual?: boolean;
 }): Promise<
   | { ok: true; parsed: CasualIngestParsed; status: number }
   | { ok: false; error: string; status?: number }
@@ -37,6 +44,8 @@ export async function postCasualRunIngest(args: {
         uid: args.uid,
         matchGameId: args.matchGameId,
         score: args.score,
+        ...(args.botFills && args.botFills.length > 0 ? { botFills: args.botFills } : {}),
+        ...(args.replaceAllVirtual ? { replaceAllVirtual: true } : {}),
       }),
     });
   } catch (e) {

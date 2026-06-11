@@ -159,17 +159,19 @@ export default defineSchema({
         seedId: v.string(),
         poolVersion: v.string(),
         tier: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
-        scoreQuantiles: v.object({
-          p10: v.number(),
-          p25: v.number(),
-          p30: v.number(),
-          p33: v.number(),
-          p50: v.number(),
-          p66: v.number(),
-          p70: v.number(),
-          p75: v.number(),
-          p90: v.number(),
-        }),
+        scoreQuantiles: v.optional(
+          v.object({
+            p10: v.number(),
+            p25: v.number(),
+            p30: v.number(),
+            p33: v.number(),
+            p50: v.number(),
+            p66: v.number(),
+            p70: v.number(),
+            p75: v.number(),
+            p90: v.number(),
+          })
+        ),
       })
     ),
     seedResolveError: v.optional(v.string()),

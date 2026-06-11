@@ -42,32 +42,6 @@ export type ResolveSeedResponse = {
   };
 };
 
-export type ScoreBand = {
-  min: number;
-  max?: number;
-  /** 该区间最多返回条数；缺省 1 */
-  count?: number;
-};
-
-export type RolloutsRequest = {
-  seedId: string;
-  poolVersion?: string;
-  scores: ScoreBand[];
-};
-
-export type RolloutBandResult = {
-  min: number;
-  max?: number;
-  count: number;
-  rollouts: Array<{
-    rolloutIndex: number;
-    finalScore: number;
-    elapsedTime: number;
-  }>;
-};
-
-export type RolloutRow = RolloutBandResult["rollouts"][number];
-
 function resolveSolitaireOrigin(): string {
   const origin = (process.env.SOLITAIRE_HTTP_ORIGIN ?? process.env.SOLITAIRE_CONVEX_SITE_URL ?? "")
     .trim()
@@ -135,20 +109,4 @@ export async function fetchGameMatchSeed(
     difficultyScore: difficultyScore ?? 0,
     metrics,
   };
-}
-
-export async function fetchGameMatchRollouts(
-  gameType: string,
-  body: RolloutsRequest
-): Promise<{ ok: true; bands: RolloutBandResult[] } | { ok: false; error: string }> {
-  if (gameType !== "solitaire") {
-    return { ok: false, error: "unsupported_game" };
-  }
-  const origin = resolveSolitaireOrigin();
-  const result = await postJson<{ bands?: RolloutBandResult[] }>(
-    `${origin}/internal/casual-match-rollouts`,
-    body
-  );
-  if (!result.ok) return result;
-  return { ok: true, bands: result.data.bands ?? [] };
 }

@@ -6,7 +6,7 @@ import {
   type OpenCasualRunAssignment,
 } from "./casualOpenRunAssignment";
 
-export const CASUAL_MATCH_OPEN_TIMEOUT_MS = 30_000;
+export const CASUAL_MATCH_OPEN_TIMEOUT_MS = 60_000;
 
 export type AwaitOpenCasualRunMatchWatch = {
   templateId: string;

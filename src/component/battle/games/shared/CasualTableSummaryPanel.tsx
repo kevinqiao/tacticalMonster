@@ -1,9 +1,40 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import type { CasualAsyncTableSummaryUI } from './casualAsyncTableSummaryUI';
 import './manualSettleConfirmOverlay.css';
 
+function formatBotPlayingElapsedMs(elapsedMs: number): string {
+  const sec = Math.max(0, Math.floor(elapsedMs / 1000));
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m > 0) {
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+  return `${s}秒`;
+}
+
+function botPlayingScoreLabel(row: CasualAsyncTableSummaryUI['rows'][number], now: number): string {
+  if (row.revealAt != null && Number.isFinite(row.revealAt)) {
+    const elapsed = formatBotPlayingElapsedMs(now - row.revealAt);
+    return `对局中 · ${elapsed}`;
+  }
+  return '对局中';
+}
+
 export const CasualTableSummaryPanel: React.FC<{ s: CasualAsyncTableSummaryUI }> = ({ s }) => {
+  const hasPlayingBot = s.rows.some(
+    (r) => r.isBot && r.rowState === 'playing' && r.revealAt != null
+  );
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!hasPlayingBot) return;
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [hasPlayingBot, s.rows]);
+
+  const tickNow = hasPlayingBot ? now : Date.now();
   const scoredCount = s.rows.filter((r) => r.rowState !== 'playing' && r.rowState !== 'matching').length;
   const slotNote =
     s.maxPlayers > 0
@@ -13,7 +44,7 @@ export const CasualTableSummaryPanel: React.FC<{ s: CasualAsyncTableSummaryUI }>
   const scoreCell = (row: CasualAsyncTableSummaryUI['rows'][number]) => {
     if (row.rowState === 'matching') return '正在匹配中';
     if (row.rowState === 'playing') {
-      return row.isBot ? '对局中' : 'Playing';
+      return row.isBot ? botPlayingScoreLabel(row, tickNow) : 'Playing';
     }
     return row.score;
   };

@@ -4,13 +4,6 @@ import type { CasualAsyncTableSummaryUI } from './casualAsyncTableSummaryUI';
 
 const DEFAULT_POLL_MS = 2_000;
 
-function tableSummaryHasPendingBotRows(summary: CasualAsyncTableSummaryUI | null): boolean {
-  if (!summary?.rows?.length) return false;
-  return summary.rows.some(
-    (r) => r.isBot && (r.rowState === 'matching' || r.rowState === 'playing')
-  );
-}
-
 function tableSummarySignature(summary: CasualAsyncTableSummaryUI): string {
   return JSON.stringify(
     summary.rows.map((r) => ({
@@ -24,7 +17,12 @@ function tableSummarySignature(summary: CasualAsyncTableSummaryUI): string {
   );
 }
 
-/** partial 同桌榜：bot matching 随 revealAt 变化，轮询刷新 */
+function shouldPollTableSummary(summary: CasualAsyncTableSummaryUI | null | undefined): boolean {
+  if (!summary) return true;
+  return summary.isBoardStable !== true;
+}
+
+/** partial 同桌榜：未稳定时轮询（bot stagger / 等同桌 / 再战窗口） */
 export function useCasualTableSummaryPoll(args: {
   /** 得分明细或同桌榜任一打开时轮询 */
   open: boolean;
@@ -40,10 +38,10 @@ export function useCasualTableSummaryPoll(args: {
   fetchRef.current = fetchSummary;
   onUpdateRef.current = onUpdate;
 
-  const hasPendingBots = tableSummaryHasPendingBotRows(summary);
+  const needsPoll = shouldPollTableSummary(summary);
 
   useEffect(() => {
-    if (!open || !matchGameId || !hasPendingBots) {
+    if (!open || !matchGameId || !needsPoll) {
       return;
     }
 
@@ -56,7 +54,7 @@ export function useCasualTableSummaryPoll(args: {
         const next = await fetchRef.current(matchGameId);
         if (cancelled || !next?.rows?.length) return;
         if (latest && tableSummarySignature(latest) === tableSummarySignature(next)) {
-          if (!tableSummaryHasPendingBotRows(next)) return;
+          if (next.isBoardStable === true) return;
         }
         latest = next;
         onUpdateRef.current(next);
@@ -71,5 +69,5 @@ export function useCasualTableSummaryPoll(args: {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [open, matchGameId, pollMs, hasPendingBots, summary]);
+  }, [open, matchGameId, pollMs, needsPoll, summary]);
 }

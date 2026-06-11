@@ -5,7 +5,7 @@ import {
   mapCasualShopSkuRow,
   type CasualShopSkuSeed,
 } from "../../data/casualShopCatalog";
-import { grantReplayTokens } from "../tournament/casualBotDifficultyService";
+import { grantReplayTokens } from "../tournament/replay/casualReplayTokens";
 import { applyScaledCurrencyCost } from "../../data/casualTournamentConfigs";
 import type { Doc } from "../../_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx } from "../../_generated/server";

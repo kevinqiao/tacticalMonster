@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+﻿import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import {
   internalMutation,
@@ -103,7 +103,7 @@ export const upsertSeason = mutation({
           await ctx.db.patch(s._id, { active: nextActive });
         }
       }
-      await ctx.runMutation(internal.service.tournament.casualTournamentService.seedDemoTournaments, {});
+      await ctx.runMutation(internal.service.tournament.shared.casualTournamentAdmin.seedDemoTournaments, {});
     }
 
     return {
@@ -529,7 +529,7 @@ export const autoInitializeCurrentSeason = internalMutation({
 
     // 冷启动：没有赛季时先做一次引导写入。
     if (seasons.length === 0) {
-      await ctx.runMutation(internal.service.tournament.casualTournamentService.seedDemoTournaments, {});
+      await ctx.runMutation(internal.service.tournament.shared.casualTournamentAdmin.seedDemoTournaments, {});
       seasons = await ctx.db.query("casual_seasons").collect();
       if (seasons.length === 0) {
         return {
@@ -563,7 +563,7 @@ export const autoInitializeCurrentSeason = internalMutation({
           await ctx.db.patch(s._id, { active: nextActive });
         }
       }
-      await ctx.runMutation(internal.service.tournament.casualTournamentService.seedDemoTournaments, {});
+      await ctx.runMutation(internal.service.tournament.shared.casualTournamentAdmin.seedDemoTournaments, {});
       return {
         ok: true as const,
         changed: true,
@@ -578,7 +578,7 @@ export const autoInitializeCurrentSeason = internalMutation({
     const hasActivity = await ctx.db.query("casual_activities").first();
     const repaired = !hasTournament || !hasShopSku || !hasActivity;
     if (repaired) {
-      await ctx.runMutation(internal.service.tournament.casualTournamentService.seedDemoTournaments, {});
+      await ctx.runMutation(internal.service.tournament.shared.casualTournamentAdmin.seedDemoTournaments, {});
     }
     return {
       ok: true as const,

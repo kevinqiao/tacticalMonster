@@ -26,7 +26,11 @@ import {
     shouldOpenCasualTableSummaryAfterScoreReport,
     type CasualGameScoreReportUI,
 } from "../../../../shared/casualGameScoreReportUI";
-import type { CasualAsyncTableSummaryUI, ManualSettleConfirmExtras } from "../../../../shared/casualAsyncTableSummaryUI";
+import {
+    applyCasualTableSummaryFromQuery,
+    type CasualAsyncTableSummaryUI,
+    type ManualSettleConfirmExtras,
+} from "../../../../shared/casualAsyncTableSummaryUI";
 import { useCasualTableSummaryPoll } from "../../../../shared/useCasualTableSummaryPoll";
 import type { GameReport } from "../../types/SoloTypes";
 
@@ -35,12 +39,9 @@ type ServerProgress = { score?: number; moves?: number; gameStatus?: number };
 type CasualRunSubmitOutcome =
     | {
           ok: true;
+          /** finalize 直返时可能存在；partial 路径由 query 拉榜 */
           tableSummary?: CasualAsyncTableSummaryUI;
           pendingOthers?: boolean;
-          replayOffered?: boolean;
-          replayTokenCount?: number;
-          canReplay?: boolean;
-          replayWindowEndsAt?: number;
       }
     | { ok: false; error?: string };
 
@@ -136,7 +137,15 @@ const useActHandler = () => {
                 ? gameState.gameId
                 : undefined,
         fetchSummary: casual.fetchCasualTableSummaryForGame,
-        onUpdate: setPostCasualTableSummary,
+        onUpdate: (next) => {
+            applyCasualTableSummaryFromQuery(next, {
+                setTableSummary: setPostCasualTableSummary,
+                setReplayOffered: setPostCasualReplayOffered,
+                setReplayTokenCount: setPostCasualReplayTokenCount,
+                setCanReplay: setPostCasualCanReplay,
+                setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+            });
+        },
     });
 
     useEffect(() => {
@@ -189,36 +198,44 @@ const useActHandler = () => {
             settle: {
                 tableSummary?: CasualAsyncTableSummaryUI;
                 pendingOthers?: boolean;
-                replayOffered?: boolean;
-                replayTokenCount?: number;
-                canReplay?: boolean;
-                replayWindowEndsAt?: number;
             }
         ) => {
             const report = await loadSolitaireScoreReport(gameId, fallbackScore);
             setPostCasualScoreReport(report);
             setPostCasualTableSummary(settle.tableSummary ?? null);
             setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
-            const offered = Boolean(settle.replayOffered ?? settle.canReplay);
-            setPostCasualReplayOffered(offered);
-            setPostCasualReplayTokenCount(
-                typeof settle.replayTokenCount === "number" ? settle.replayTokenCount : 0
-            );
-            setPostCasualCanReplay(Boolean(settle.canReplay));
-            setPostCasualReplayWindowEndsAt(
-                typeof settle.replayWindowEndsAt === "number" ? settle.replayWindowEndsAt : undefined
-            );
-            if (import.meta.env.DEV) {
-                console.log("[Solitaire] post-settle replay", {
-                    replayOffered: offered,
-                    replayTokenCount: settle.replayTokenCount,
-                    canReplay: settle.canReplay,
-                    pendingOthers: settle.pendingOthers,
-                });
-            }
+            setPostCasualReplayOffered(false);
+            setPostCasualReplayTokenCount(0);
+            setPostCasualCanReplay(false);
+            setPostCasualReplayWindowEndsAt(undefined);
             setPostCasualScoreReportOpen(true);
+
+            if (settle.tableSummary) {
+                applyCasualTableSummaryFromQuery(settle.tableSummary, {
+                    setTableSummary: setPostCasualTableSummary,
+                    setReplayOffered: setPostCasualReplayOffered,
+                    setReplayTokenCount: setPostCasualReplayTokenCount,
+                    setCanReplay: setPostCasualCanReplay,
+                    setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                });
+            } else {
+                try {
+                    const summary = await casual.fetchCasualTableSummaryForGame(gameId);
+                    if (summary?.rows?.length) {
+                        applyCasualTableSummaryFromQuery(summary, {
+                            setTableSummary: setPostCasualTableSummary,
+                            setReplayOffered: setPostCasualReplayOffered,
+                            setReplayTokenCount: setPostCasualReplayTokenCount,
+                            setCanReplay: setPostCasualCanReplay,
+                            setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                        });
+                    }
+                } catch (e) {
+                    console.warn("[Solitaire] fetchCasualTableSummaryForGame after submit", e);
+                }
+            }
         },
-        [loadSolitaireScoreReport]
+        [loadSolitaireScoreReport, casual.fetchCasualTableSummaryForGame]
     );
 
     const mapCasualPlatformRunActionResult = (
@@ -226,10 +243,6 @@ const useActHandler = () => {
             ok?: boolean;
             tableSummary?: CasualAsyncTableSummaryUI;
             pendingOthers?: boolean;
-            replayOffered?: boolean;
-            replayTokenCount?: number;
-            canReplay?: boolean;
-            replayWindowEndsAt?: number;
         },
         deferHost: boolean
     ): CasualRunSubmitOutcome => {
@@ -241,10 +254,6 @@ const useActHandler = () => {
             ok: true,
             ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
             ...(cr.pendingOthers ? { pendingOthers: true } : {}),
-            ...(cr.replayOffered ? { replayOffered: true } : {}),
-            ...(cr.replayTokenCount != null ? { replayTokenCount: cr.replayTokenCount } : {}),
-            ...(cr.canReplay ? { canReplay: true } : {}),
-            ...(cr.replayWindowEndsAt != null ? { replayWindowEndsAt: cr.replayWindowEndsAt } : {}),
         };
     };
 
@@ -270,10 +279,6 @@ const useActHandler = () => {
                         error?: string;
                         tableSummary?: CasualAsyncTableSummaryUI;
                         pendingOthers?: boolean;
-                        replayOffered?: boolean;
-                        replayTokenCount?: number;
-                        canReplay?: boolean;
-                        replayWindowEndsAt?: number;
                     };
                     if (!cr.ok) {
                         console.warn("[Solitaire] submitCasualPlatformRun", cr.error);
@@ -346,10 +351,6 @@ const useActHandler = () => {
                     error?: string;
                     tableSummary?: CasualAsyncTableSummaryUI;
                     pendingOthers?: boolean;
-                    replayOffered?: boolean;
-                    replayTokenCount?: number;
-                    canReplay?: boolean;
-                    replayWindowEndsAt?: number;
                 };
                 if (!cr.ok) {
                     console.warn("[Solitaire] forceEndCasualPlatformRun", cr.error);
@@ -499,10 +500,6 @@ const useActHandler = () => {
             void beginCasualPostSettleFlow(gs.gameId, score, {
                 tableSummary: extras?.tableSummary ?? undefined,
                 pendingOthers: extras?.pendingOthers,
-                replayOffered: extras?.replayOffered,
-                replayTokenCount: extras?.replayTokenCount,
-                canReplay: extras?.canReplay,
-                replayWindowEndsAt: extras?.replayWindowEndsAt,
             });
         },
         [casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]
@@ -550,10 +547,6 @@ const useActHandler = () => {
             const out: ManualSettleConfirmExtras = {};
             if (settled.tableSummary) out.tableSummary = settled.tableSummary;
             if (settled.pendingOthers) out.pendingOthers = true;
-            if (settled.replayOffered) out.replayOffered = true;
-            if (settled.replayTokenCount != null) out.replayTokenCount = settled.replayTokenCount;
-            if (settled.canReplay) out.canReplay = true;
-            if (settled.replayWindowEndsAt != null) out.replayWindowEndsAt = settled.replayWindowEndsAt;
             return out;
         } catch (e) {
             console.error("[Solitaire] confirmSettleAndExit", e);

@@ -4,45 +4,53 @@
 import { makeFunctionReference } from "convex/server";
 
 export const casualTournamentFns = {
-  listTournaments: makeFunctionReference<"query">("service/tournament/casualTournamentService:listTournaments"),
-  leaderboard: makeFunctionReference<"query">("service/tournament/casualTournamentService:leaderboard"),
-  periodInstanceSelfStanding: makeFunctionReference<"query">(
-    "service/tournament/casualTournamentService:periodInstanceSelfStanding"
+  listTournaments: makeFunctionReference<"query">(
+    "service/tournament/list/casualTournamentQueries:listTournaments"
   ),
-  gameHistory: makeFunctionReference<"query">("service/tournament/casualTournamentService:gameHistory"),
+  leaderboard: makeFunctionReference<"query">(
+    "service/tournament/list/casualTournamentQueries:leaderboard"
+  ),
+  periodInstanceSelfStanding: makeFunctionReference<"query">(
+    "service/tournament/list/casualTournamentQueries:periodInstanceSelfStanding"
+  ),
+  gameHistory: makeFunctionReference<"query">(
+    "service/tournament/list/casualTournamentQueries:gameHistory"
+  ),
   listOpenCasualRunAssignments: makeFunctionReference<"query">(
-    "service/tournament/casualTournamentService:listOpenCasualRunAssignments"
+    "service/tournament/list/casualTournamentQueries:listOpenCasualRunAssignments"
   ),
   listCasualMatchQueueForUid: makeFunctionReference<"query">(
-    "service/tournament/casualMatchmaking:listCasualMatchQueueForUid"
+    "service/tournament/join/casualMatchmaking:listCasualMatchQueueForUid"
   ),
   leaveCasualMatchQueue: makeFunctionReference<"mutation">(
-    "service/tournament/casualMatchmaking:leaveCasualMatchQueue"
+    "service/tournament/join/casualMatchmaking:leaveCasualMatchQueue"
   ),
-  joinTournament: makeFunctionReference<"action">("service/tournament/casualTournamentActions:joinTournament"),
+  joinTournament: makeFunctionReference<"action">(
+    "service/tournament/join/casualTournamentActions:joinTournament"
+  ),
   confirmCasualRunWithoutReplay: makeFunctionReference<"mutation">(
-    "service/tournament/casualTournamentService:confirmCasualRunWithoutReplay"
+    "service/tournament/submit/casualRunIngestMutations:confirmCasualRunWithoutReplay"
   ),
   startCasualRunReplay: makeFunctionReference<"mutation">(
-    "service/tournament/casualReplayPassService:startCasualRunReplay"
+    "service/tournament/replay/casualReplayPassService:startCasualRunReplay"
   ),
   countUnusedReplayTokensForUid: makeFunctionReference<"query">(
-    "service/tournament/casualReplayPassService:countUnusedReplayTokensForUid"
+    "service/tournament/replay/casualReplayPassService:countUnusedReplayTokensForUid"
   ),
   previewJoinEntryCharge: makeFunctionReference<"query">(
-    "service/tournament/casualTournamentService:previewJoinEntryCharge"
+    "service/tournament/join/casualJoinMutations:previewJoinEntryCharge"
   ),
   getCasualAsyncTableSummaryForGame: makeFunctionReference<"query">(
-    "service/tournament/casualTournamentService:getCasualAsyncTableSummaryForGame"
+    "service/tournament/submit/casualRunIngestMutations:getCasualAsyncTableSummaryForGame"
   ),
   claimCasualRunRewards: makeFunctionReference<"mutation">(
-    "service/tournament/casualTournamentService:claimCasualRunRewards"
+    "service/tournament/settle/casualRunRewardsMutations:claimCasualRunRewards"
   ),
   claimCasualScoreTierPendingReward: makeFunctionReference<"mutation">(
-    "service/tournament/casualTournamentService:claimCasualScoreTierPendingReward"
+    "service/tournament/settle/casualRunRewardsMutations:claimCasualScoreTierPendingReward"
   ),
   claimCasualScoreTierPendingRewardsBatch: makeFunctionReference<"mutation">(
-    "service/tournament/casualTournamentService:claimCasualScoreTierPendingRewardsBatch"
+    "service/tournament/settle/casualRunRewardsMutations:claimCasualScoreTierPendingRewardsBatch"
   ),
 } as const;
 
@@ -55,9 +63,9 @@ export const casualSkinFns = {
 
 export const casualInstanceFns = {
   listInstancePendingRewards: makeFunctionReference<"query">(
-    "service/tournament/casualInstanceService:listInstancePendingRewards"
+    "service/tournament/list/casualInstanceService:listInstancePendingRewards"
   ),
   claimCasualInstanceRewards: makeFunctionReference<"mutation">(
-    "service/tournament/casualInstanceService:claimCasualInstanceRewards"
+    "service/tournament/list/casualInstanceService:claimCasualInstanceRewards"
   ),
 } as const;
