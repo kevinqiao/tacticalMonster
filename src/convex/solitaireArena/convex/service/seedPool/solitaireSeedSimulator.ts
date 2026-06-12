@@ -9,6 +9,7 @@ import {
   pickFoundationBurstOp,
   pickNextOp,
   replayPolicyContext,
+  shouldCashEarlyExit,
   updatePolicyAfterOp,
 } from "./solitaireStochasticHumanPolicy";
 import type {
@@ -123,6 +124,11 @@ export function simulateRollout(
       break;
     }
 
+    if (shouldCashEarlyExit(state, ctx, elapsed.value)) {
+      terminalReason = "exited";
+      break;
+    }
+
     const next = pickNextOp(state, ctx);
     if (!next) {
       break;
@@ -180,7 +186,7 @@ export function simulateRollout(
     ops,
     replayPacingMs,
     finalScore: computeSolitaireCashTotalScore(
-      finalState.score ?? 0,
+      Math.max(0, Math.floor(finalState.score ?? 0)),
       elapsedSimSeconds,
       matchSeconds
     ),

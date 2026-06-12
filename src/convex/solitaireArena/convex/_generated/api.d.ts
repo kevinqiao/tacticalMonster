@@ -27,6 +27,7 @@ import type * as service_casualGameLifecycle from "../service/casualGameLifecycl
 import type * as service_casualGameTimeoutAction from "../service/casualGameTimeoutAction.js";
 import type * as service_gameManager from "../service/gameManager.js";
 import type * as service_seedPool_casualMatchSeedHttp from "../service/seedPool/casualMatchSeedHttp.js";
+import type * as service_seedPool_matchSeedPickStore from "../service/seedPool/matchSeedPickStore.js";
 import type * as service_seedPool_playerSeedStore from "../service/seedPool/playerSeedStore.js";
 import type * as service_seedPool_solitaireHumanPersonas from "../service/seedPool/solitaireHumanPersonas.js";
 import type * as service_seedPool_solitaireOpCodec from "../service/seedPool/solitaireOpCodec.js";
@@ -35,6 +36,7 @@ import type * as service_seedPool_solitaireScoring from "../service/seedPool/sol
 import type * as service_seedPool_solitaireSeedDifficulty from "../service/seedPool/solitaireSeedDifficulty.js";
 import type * as service_seedPool_solitaireSeedPoolActions from "../service/seedPool/solitaireSeedPoolActions.js";
 import type * as service_seedPool_solitaireSeedPoolAdmin from "../service/seedPool/solitaireSeedPoolAdmin.js";
+import type * as service_seedPool_solitaireSeedPoolDevQueries from "../service/seedPool/solitaireSeedPoolDevQueries.js";
 import type * as service_seedPool_solitaireSeedPoolLazy from "../service/seedPool/solitaireSeedPoolLazy.js";
 import type * as service_seedPool_solitaireSeedPoolQueries from "../service/seedPool/solitaireSeedPoolQueries.js";
 import type * as service_seedPool_solitaireSeedPoolReplayVerify from "../service/seedPool/solitaireSeedPoolReplayVerify.js";
@@ -92,6 +94,7 @@ declare const fullApi: ApiFromModules<{
   "service/casualGameTimeoutAction": typeof service_casualGameTimeoutAction;
   "service/gameManager": typeof service_gameManager;
   "service/seedPool/casualMatchSeedHttp": typeof service_seedPool_casualMatchSeedHttp;
+  "service/seedPool/matchSeedPickStore": typeof service_seedPool_matchSeedPickStore;
   "service/seedPool/playerSeedStore": typeof service_seedPool_playerSeedStore;
   "service/seedPool/solitaireHumanPersonas": typeof service_seedPool_solitaireHumanPersonas;
   "service/seedPool/solitaireOpCodec": typeof service_seedPool_solitaireOpCodec;
@@ -100,6 +103,7 @@ declare const fullApi: ApiFromModules<{
   "service/seedPool/solitaireSeedDifficulty": typeof service_seedPool_solitaireSeedDifficulty;
   "service/seedPool/solitaireSeedPoolActions": typeof service_seedPool_solitaireSeedPoolActions;
   "service/seedPool/solitaireSeedPoolAdmin": typeof service_seedPool_solitaireSeedPoolAdmin;
+  "service/seedPool/solitaireSeedPoolDevQueries": typeof service_seedPool_solitaireSeedPoolDevQueries;
   "service/seedPool/solitaireSeedPoolLazy": typeof service_seedPool_solitaireSeedPoolLazy;
   "service/seedPool/solitaireSeedPoolQueries": typeof service_seedPool_solitaireSeedPoolQueries;
   "service/seedPool/solitaireSeedPoolReplayVerify": typeof service_seedPool_solitaireSeedPoolReplayVerify;

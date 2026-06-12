@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { personaForRollout } from "../solitaireHumanPersonas";
 import { applyOp, buildDealtState, openingMoveCount } from "../solitaireOpCodec";
 import {
   assignTiers,
@@ -87,7 +88,7 @@ function mockMetrics(overrides: Partial<ReturnType<typeof computeDistributionMet
     scoreSpread: 100,
     playerEaseScore: 80,
     layoutFingerprint: "fp:test",
-    policyVersion: "human-stochastic-v4" as const,
+    policyVersion: "human-stochastic-v6" as const,
     matchTimeLimitSec: 300,
     ...overrides,
   };
@@ -138,7 +139,7 @@ describe("solitaireSeedPool v2", () => {
 
   it("human-stochastic v4 reaches Cash-scale positive totals on playable seeds", () => {
     const r = simulateRollout("solitaire-pool:v2:21", 0);
-    expect(r.policyVersion).toBe("human-stochastic-v4");
+    expect(r.policyVersion).toBe("human-stochastic-v6");
     expect(r.finalScore).toBeGreaterThan(200);
     expect(["exited", "time_up", "completed"]).toContain(r.terminalReason);
     expect(r.replayPacingMs?.length).toBe(r.ops.length);
@@ -492,10 +493,72 @@ describe("solitaireScoring (Solitaire Cash)", () => {
     });
   });
 
-  it("applyOp draw scores 0; recycle scores -20", () => {
+  it("applyOp draw scores 0; recycle scores -20 at zero base", () => {
     const state = buildDealtState("solitaire-pool:v2:cash-scoring-smoke");
-    const drawRes = applyOp(state, { op: "draw" });
-    expect(drawRes.ok).toBe(true);
-    expect(state.score).toBe(0);
+    for (let i = 0; i < 30; i++) {
+      const res = applyOp(state, { op: "draw" });
+      if (!res.ok) break;
+    }
+    expect(state.score ?? 0).toBe(0);
+    const recycleRes = applyOp(state, { op: "recycle" });
+    expect(recycleRes.ok).toBe(true);
+    expect(state.score).toBe(SOLITAIRE_CASH_RECYCLE_SCORE);
+  });
+
+  it("simulateRollout has no pointless tableau-to-tableau shuffles", () => {
+    const seedId = "solitaire-pool:v2:99";
+    for (let i = 0; i < 12; i++) {
+      const r = simulateRollout(seedId, i);
+      const st = buildDealtState(seedId);
+      for (const op of r.ops) {
+        if (
+          op.op === "move" &&
+          op.from.startsWith("tableau-") &&
+          op.to.startsWith("tableau-")
+        ) {
+          const before = st.score ?? 0;
+          applyOp(st, op);
+          expect(st.score ?? 0).toBeGreaterThan(before);
+        } else {
+          applyOp(st, op);
+        }
+      }
+    }
+  });
+
+  it("simulateRollout still recycles on stalled layouts but caps futile cycles", () => {
+    let layoutsWithRecycle = 0;
+    let maxRecycle = 0;
+    for (let s = 0; s < 48; s++) {
+      for (let i = 0; i < 6; i++) {
+        const r = simulateRollout(`solitaire-pool:v2:${s}`, i);
+        const n = r.ops.filter((o) => o.op === "recycle").length;
+        if (n > 0) layoutsWithRecycle += 1;
+        maxRecycle = Math.max(maxRecycle, n);
+      }
+    }
+    expect(layoutsWithRecycle).toBeGreaterThanOrEqual(1);
+    expect(maxRecycle).toBeGreaterThanOrEqual(1);
+  });
+
+  it("simulateRollout does not tail with long futile recycle loops", () => {
+    const seedId = "solitaire-pool:v2:99";
+    for (let i = 0; i < 12; i++) {
+      const r = simulateRollout(seedId, i);
+      const st = buildDealtState(seedId);
+      let lastScoreIdx = -1;
+      for (let j = 0; j < r.ops.length; j++) {
+        const before = st.score ?? 0;
+        applyOp(st, r.ops[j]!);
+        if ((st.score ?? 0) > before) {
+          lastScoreIdx = j;
+        }
+      }
+      const tail = r.ops.slice(Math.max(0, lastScoreIdx + 1));
+      const tailRecycles = tail.filter((o) => o.op === "recycle").length;
+      expect(tailRecycles).toBeLessThanOrEqual(
+        personaForRollout(i).maxRecyclesWithoutScore
+      );
+    }
   });
 });

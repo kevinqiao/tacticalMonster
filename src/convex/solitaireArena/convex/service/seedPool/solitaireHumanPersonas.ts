@@ -16,6 +16,8 @@ export type HumanPersona = {
   earlyExitBias: number;
   stallMovesBeforeExit: number;
   maxTotalRecycles: number;
+  /** Max recycle ops since last score gain before the bot exits instead of paying -20 again. */
+  maxRecyclesWithoutScore: number;
   minMovesBeforeRecycle: number;
   thinkTimeScale: ThinkTimeScale;
 };
@@ -30,7 +32,8 @@ export const HUMAN_PERSONAS: HumanPersona[] = [
     drawBeforeActRate: 0.04,
     earlyExitBias: -2,
     stallMovesBeforeExit: 20,
-    maxTotalRecycles: 4,
+    maxTotalRecycles: 10,
+    maxRecyclesWithoutScore: 2,
     minMovesBeforeRecycle: 5,
     thinkTimeScale: { draw: 0.85, recycle: 0.9, move: 0.9, foundation: 0.75 },
   },
@@ -43,7 +46,8 @@ export const HUMAN_PERSONAS: HumanPersona[] = [
     drawBeforeActRate: 0.08,
     earlyExitBias: 0,
     stallMovesBeforeExit: 18,
-    maxTotalRecycles: 5,
+    maxTotalRecycles: 12,
+    maxRecyclesWithoutScore: 2,
     minMovesBeforeRecycle: 4,
     thinkTimeScale: { draw: 1, recycle: 1, move: 1, foundation: 1 },
   },
@@ -56,7 +60,8 @@ export const HUMAN_PERSONAS: HumanPersona[] = [
     drawBeforeActRate: 0.14,
     earlyExitBias: 2,
     stallMovesBeforeExit: 16,
-    maxTotalRecycles: 6,
+    maxTotalRecycles: 14,
+    maxRecyclesWithoutScore: 2,
     minMovesBeforeRecycle: 3,
     thinkTimeScale: { draw: 1.25, recycle: 1.1, move: 1.15, foundation: 1.2 },
   },
@@ -69,7 +74,8 @@ export const HUMAN_PERSONAS: HumanPersona[] = [
     drawBeforeActRate: 0.1,
     earlyExitBias: 3,
     stallMovesBeforeExit: 14,
-    maxTotalRecycles: 3,
+    maxTotalRecycles: 10,
+    maxRecyclesWithoutScore: 1,
     minMovesBeforeRecycle: 6,
     thinkTimeScale: { draw: 1.1, recycle: 1.05, move: 1.05, foundation: 1.1 },
   },
@@ -82,7 +88,8 @@ export const HUMAN_PERSONAS: HumanPersona[] = [
     drawBeforeActRate: 0.05,
     earlyExitBias: 6,
     stallMovesBeforeExit: 12,
-    maxTotalRecycles: 4,
+    maxTotalRecycles: 8,
+    maxRecyclesWithoutScore: 1,
     minMovesBeforeRecycle: 4,
     thinkTimeScale: { draw: 0.95, recycle: 0.95, move: 0.95, foundation: 0.9 },
   },
@@ -95,7 +102,8 @@ export const HUMAN_PERSONAS: HumanPersona[] = [
     drawBeforeActRate: 0.12,
     earlyExitBias: -4,
     stallMovesBeforeExit: 24,
-    maxTotalRecycles: 6,
+    maxTotalRecycles: 16,
+    maxRecyclesWithoutScore: 2,
     minMovesBeforeRecycle: 3,
     thinkTimeScale: { draw: 1.35, recycle: 1.2, move: 1.25, foundation: 1.3 },
   },

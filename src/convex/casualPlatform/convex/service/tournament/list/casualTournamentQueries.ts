@@ -15,6 +15,7 @@ import {
 } from "./casualInstanceService";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "../join/casualTournamentJoinCore";
 import { computeCasualAsyncSessionRank, isCasualAsyncVirtualOpponentUid } from "../settle/casualRunSettlementFill";
+import { isRegisteredCasualGameType } from "../../../data/casualGameRegistry";
 import { prunePendingWalletRewards } from "../settle/casualRunScoreEffects";
 async function resolveRunHistoryRank(
   ctx: QueryCtx,
@@ -34,7 +35,7 @@ async function resolveRunHistoryRank(
     return null;
   }
 
-  if (opts.gameType === "solitaire" || opts.gameType === "block_blast") {
+  if (isRegisteredCasualGameType(opts.gameType)) {
     const def = getTournamentDefinition(opts.templateId);
     if (def && def.maxPlayers > 1) {
       return computeCasualAsyncSessionRank(ctx, pm.matchId, opts.uid);

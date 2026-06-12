@@ -19,6 +19,7 @@ import {
   isCasualAsyncVirtualOpponentUid,
   type AsyncBotFill,
 } from "../settle/casualRunSettlementFill";
+import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes";
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
 import type { Id } from "../../../_generated/dataModel";
 import {
@@ -118,7 +119,11 @@ export const submitCasualRunScoreCore = internalMutation({
     if (!def || def.gameType !== pm.gameType) {
       return { ok: false as const, error: "bad_tournament" };
     }
-    const gameType = pm.gameType;
+    const regCheck = assertRegisteredMatchGameType(pm.gameType);
+    if (!regCheck.ok) {
+      return regCheck;
+    }
+    const gameType = regCheck.gameType;
     const sessionExternalId = canonicalCasualRunSessionExternalId(pm.matchId);
     if (!Number.isFinite(score) || score < 0) {
       return { ok: false as const, error: "bad_score" };
@@ -183,15 +188,13 @@ export const submitCasualRunScoreCore = internalMutation({
       botFills.length > 0 &&
       !matchDoc.botsSeeded
     ) {
-      const gt =
-        gameType === "block_blast" || gameType === "solitaire" ? gameType : "solitaire";
       await applyAsyncBotFillPlanToMatch(ctx, {
         def,
         templateId: pm.templateId,
         matchId: pm.matchId,
         runTournamentId: pm.tournamentId,
         sessionExternalId,
-        matchGameType: gt,
+        matchGameType: gameType,
         botFills: botFills as AsyncBotFill[],
         updatedAt: now,
         replaceAllVirtual: replaceAllVirtual ?? true,

@@ -175,6 +175,18 @@ export default defineSchema({
       })
     ),
     seedResolveError: v.optional(v.string()),
+    openPhase: v.optional(v.union(v.literal("pending_seed"), v.literal("ready"))),
+    /** 开桌时各真人 uid 的入场扣费快照；开桌失败回滚时用于退款 */
+    joinChargeByUid: v.optional(
+      v.record(
+        v.string(),
+        v.object({
+          vouchersCharged: v.optional(v.number()),
+          coinsCharged: v.optional(v.number()),
+          gemsCharged: v.optional(v.number()),
+        })
+      )
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_tournament", ["tournamentId"]),

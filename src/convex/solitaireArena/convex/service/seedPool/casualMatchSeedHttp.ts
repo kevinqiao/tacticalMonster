@@ -2,22 +2,18 @@ import { v } from "convex/values";
 
 import { internalMutation, internalQuery } from "../../_generated/server";
 import { solitaireSeedTier } from "./solitaireSeedPoolValidators";
-import {
-  findBoundSeedIdForMatch,
-  loadUsedSeedIdsForUids,
-  recordPlayerSeedsForMatch,
-} from "./playerSeedStore";
+import { findMatchSeedPickByMatchId, insertMatchSeedPick } from "./matchSeedPickStore";
+import { loadUsedSeedIdsForUids, recordPlayerSeedsForMatch } from "./playerSeedStore";
 import type { SeedPoolEntryDoc } from "./solitaireSeedPoolStore";
 import {
   entryDocToSeedPoolEntry,
   findRolloutsInSeed,
   getEntryBySeedId,
   pickDeterministicSeedForTier,
-  pickRandomSeedForTier,
   resolvePoolVersion,
 } from "./solitaireSeedPoolStore";
 
-function buildResolveOkPayload(entry: SeedPoolEntryDoc, idempotent?: boolean) {
+function buildPickOkPayload(entry: SeedPoolEntryDoc, idempotent?: boolean) {
   const payload = entryDocToSeedPoolEntry(entry);
   return {
     ok: true as const,
@@ -37,17 +33,16 @@ function buildResolveOkPayload(entry: SeedPoolEntryDoc, idempotent?: boolean) {
 const scoreBand = v.object({
   min: v.number(),
   max: v.optional(v.number()),
-  /** 该区间最多返回条数；缺省 1 */
   count: v.optional(v.number()),
 });
 
-export const resolveCasualMatchSeed = internalMutation({
+/** 开桌 pick：写 match_seed_picks，不写 player_seeds */
+export const pickCasualMatchSeed = internalMutation({
   args: {
+    matchId: v.string(),
     tier: v.optional(solitaireSeedTier),
     poolVersion: v.optional(v.string()),
-    sessionKey: v.optional(v.string()),
-    matchId: v.optional(v.string()),
-    /** 本场真人 uid 列表（单人亦传长度为 1 的数组） */
+    sessionKey: v.string(),
     uids: v.array(v.string()),
   },
   handler: async (ctx, args) => {
@@ -62,43 +57,84 @@ export const resolveCasualMatchSeed = internalMutation({
       return { ok: false as const, error: "no_active_pool" as const };
     }
 
-    if (args.matchId) {
-      const bound = await findBoundSeedIdForMatch(ctx.db, version, args.matchId);
-      if (bound && "conflict" in bound) {
+    const existingPick = await findMatchSeedPickByMatchId(ctx.db, args.matchId);
+    if (existingPick) {
+      if (existingPick.poolVersion !== version) {
         return { ok: false as const, error: "match_seed_conflict" as const };
       }
-      if (bound && "seedId" in bound) {
-        const existing = await getEntryBySeedId(ctx.db, version, bound.seedId);
-        if (!existing) {
-          return { ok: false as const, error: "bound_seed_missing_from_pool" as const };
-        }
-        await recordPlayerSeedsForMatch(ctx.db, {
-          uids,
-          seedId: bound.seedId,
-          poolVersion: version,
-          matchId: args.matchId,
-        });
-        return buildResolveOkPayload(existing, true);
+      const entry = await getEntryBySeedId(ctx.db, version, existingPick.seedId);
+      if (!entry) {
+        return { ok: false as const, error: "bound_seed_missing_from_pool" as const };
       }
+      return buildPickOkPayload(entry, true);
     }
 
     const usedSeedIds = await loadUsedSeedIdsForUids(ctx.db, version, uids);
-    const sessionKey = args.sessionKey ?? (args.matchId ? `casual_sess:${args.matchId}` : undefined);
-    const entry = sessionKey
-      ? await pickDeterministicSeedForTier(ctx.db, version, tier, sessionKey, usedSeedIds)
-      : await pickRandomSeedForTier(ctx.db, version, tier, usedSeedIds);
+    const entry = await pickDeterministicSeedForTier(
+      ctx.db,
+      version,
+      tier,
+      args.sessionKey,
+      usedSeedIds
+    );
     if (!entry) {
       return { ok: false as const, error: "no_unused_seed_for_tier" as const };
     }
 
-    await recordPlayerSeedsForMatch(ctx.db, {
-      uids,
+    await insertMatchSeedPick(ctx.db, {
+      matchId: args.matchId,
       seedId: entry.seedId,
       poolVersion: version,
-      matchId: args.matchId,
+      uids,
+      sessionKey: args.sessionKey,
     });
 
-    return buildResolveOkPayload(entry);
+    return buildPickOkPayload(entry);
+  },
+});
+
+/** loadGame：按 uid 写入 player_seeds（幂等） */
+export const recordCasualMatchSeedForPlayer = internalMutation({
+  args: {
+    matchId: v.string(),
+    uid: v.string(),
+    seedId: v.string(),
+    poolVersion: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const uid = args.uid.trim();
+    if (!uid) {
+      return { ok: false as const, error: "missing_uid" as const };
+    }
+
+    const pick = await findMatchSeedPickByMatchId(ctx.db, args.matchId);
+    if (!pick) {
+      return { ok: false as const, error: "unknown_match_pick" as const };
+    }
+    if (pick.seedId !== args.seedId || pick.poolVersion !== args.poolVersion) {
+      return { ok: false as const, error: "seed_mismatch" as const };
+    }
+    if (!pick.uids.includes(uid)) {
+      return { ok: false as const, error: "uid_not_in_match" as const };
+    }
+
+    const existing = await ctx.db
+      .query("player_seeds")
+      .withIndex("by_uid_poolVersion_and_seedId", (q) =>
+        q.eq("uid", uid).eq("poolVersion", args.poolVersion).eq("seedId", args.seedId)
+      )
+      .unique();
+    if (existing) {
+      return { ok: true as const, alreadyRecorded: true as const };
+    }
+
+    await recordPlayerSeedsForMatch(ctx.db, {
+      uids: [uid],
+      seedId: args.seedId,
+      poolVersion: args.poolVersion,
+      matchId: args.matchId,
+    });
+    return { ok: true as const };
   },
 });
 
@@ -126,7 +162,6 @@ export const rolloutsForCasualMatchSeed = internalQuery({
   args: {
     seedId: v.string(),
     poolVersion: v.optional(v.string()),
-    /** 按分数区间遍历查询；`max` 缺省表示无上界；`count` 缺省 1 */
     scores: v.array(scoreBand),
   },
   handler: async (ctx, args) => {

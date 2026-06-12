@@ -25,5 +25,16 @@ export default defineSchema({
         shapeCounter: v.optional(v.number()), // 已生成的形状计数器（用于可重现性）
         lastUpdate: v.optional(v.number()),
     }).index("by_gameId", ["gameId"]),
+
+    /** 平台开桌 pick-seed 幂等记录 */
+    match_seed_picks: defineTable({
+        matchId: v.string(),
+        templateId: v.string(),
+        seedId: v.string(),
+        poolVersion: v.string(),
+        uids: v.array(v.string()),
+        sessionKey: v.string(),
+        pickedAt: v.number(),
+    }).index("by_matchId", ["matchId"]),
 });
 

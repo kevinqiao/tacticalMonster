@@ -1,4 +1,5 @@
 import type { CasualTournamentDefinition } from "./casualTournamentConfigs";
+import type { RegisteredCasualGameType } from "./casualGameRegistry";
 
 /** 连续「无名次奖励」场数达到此值 → join solo 开桌 + bot 难度规则 110 */
 export const CASUAL_CONSECUTIVE_LOSS_THRESHOLD = 3;
@@ -19,7 +20,7 @@ export function isCasualDevAutoReplayTokensEnabled(): boolean {
 
 export type CasualTableMode = "solo_bot" | "mixed_human";
 
-export type CasualGameIdForBot = "solitaire" | "block_blast";
+export type CasualGameIdForBot = RegisteredCasualGameType;
 
 export type BotRankDistribution = {
   weights: Record<number, number>;

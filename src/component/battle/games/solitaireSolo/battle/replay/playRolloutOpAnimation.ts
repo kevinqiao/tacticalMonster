@@ -54,11 +54,16 @@ export function playRolloutOpAnimation(opts: PlayRolloutAnimationOptions): Promi
     const cards = result.data?.update ?? [];
     if (!result.ok || cards.length === 0) return Promise.resolve(false);
 
+    const cardsWithEle = cards.map((c) => {
+      const live = gameState.cards.find((gc) => gc.id === c.id);
+      return { ...c, ele: live?.ele } as SoloCard;
+    });
+
     return new Promise((resolve) => {
       PlayEffects.recycle({
-        data: { gameState, boardDimensionRef, cards },
+        data: { gameState, boardDimensionRef, cards: cardsWithEle },
         onComplete: () => {
-          saveUpdate(cards);
+          saveUpdate(cardsWithEle);
           resolve(true);
         },
       });
@@ -74,7 +79,11 @@ export function playRolloutOpAnimation(opts: PlayRolloutAnimationOptions): Promi
 
     const moveData = result.data?.move ?? [];
     const flipCards = result.data?.flip ?? [];
-    const updateCards = [...moveData, ...flipCards];
+    const moveWithEle = moveData.map((c) => {
+      const live = gameState.cards.find((gc) => gc.id === c.id);
+      return { ...c, ele: live?.ele } as SoloCard;
+    });
+    const updateCards = [...moveWithEle, ...flipCards];
 
     return new Promise((resolve) => {
       const finishMove = () => {
@@ -82,7 +91,7 @@ export function playRolloutOpAnimation(opts: PlayRolloutAnimationOptions): Promi
           data: {
             boardDimensionRef,
             gameState,
-            moveCards: moveData,
+            moveCards: moveWithEle,
             targetZoneId: op.to,
           },
           onComplete: () => {

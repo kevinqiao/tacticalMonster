@@ -19,11 +19,22 @@ export type StochasticPolicyContext = {
   persona: HumanPersona;
   movesSinceScoreGain: number;
   consecutiveRecycles: number;
+  /** Recycle ops since last score increase (draw pass + recycle with no gain). */
+  recyclesSinceLastScoreGain: number;
   totalRecycles: number;
   totalMoves: number;
   foundationBurstThisTurn: number;
   forceNonFoundationThisTurn: boolean;
   consecutiveFoundationOps: number;
+  /** Draw ops since last recycle (talon pass without cycling stock). */
+  drawsSinceLastRecycle: number;
+  /** Last tableau→tableau shuffle (to block immediate pointless reverse). */
+  lastTableauShuffle: {
+    op: Extract<SolitaireRecordedOp, { op: "move" }>;
+    scored: boolean;
+  } | null;
+  /** Consecutive tableau→tableau moves with no score gain (incl. no flip). */
+  consecutivePointlessTableauShuffles: number;
 };
 
 export function createStochasticPolicyContext(
@@ -37,11 +48,15 @@ export function createStochasticPolicyContext(
     persona: personaForRollout(rolloutIndex),
     movesSinceScoreGain: 0,
     consecutiveRecycles: 0,
+    recyclesSinceLastScoreGain: 0,
     totalRecycles: 0,
     totalMoves: 0,
     foundationBurstThisTurn: 0,
     forceNonFoundationThisTurn: false,
     consecutiveFoundationOps: 0,
+    drawsSinceLastRecycle: 0,
+    lastTableauShuffle: null,
+    consecutivePointlessTableauShuffles: 0,
   };
 }
 
@@ -104,7 +119,22 @@ export function shouldCashEarlyExit(
 
   const scoring = hasScoringMove(legal);
 
-  if (base <= 0 && !scoring && !canDraw && ctx.movesSinceScoreGain >= 6 + persona.earlyExitBias) {
+  if (
+    base <= 0 &&
+    !scoring &&
+    !canDraw &&
+    !canRecycle &&
+    ctx.movesSinceScoreGain >= 6 + persona.earlyExitBias
+  ) {
+    return true;
+  }
+
+  if (
+    !scoring &&
+    ctx.recyclesSinceLastScoreGain >= persona.maxRecyclesWithoutScore &&
+    !canDraw &&
+    ctx.movesSinceScoreGain >= persona.minMovesBeforeRecycle
+  ) {
     return true;
   }
 
@@ -193,6 +223,28 @@ export function pickGreedyFoundationOp(
   return pickFoundationBurstOp(state, ctx);
 }
 
+function isPointlessTableauShuffle(state: SoloGameState, move: SoloMove): boolean {
+  if (move.type !== "move") return false;
+  if (!move.from.startsWith("tableau-") || !move.to.startsWith("tableau-")) return false;
+  return cashDeltaForTableauMove(state, move) <= 0;
+}
+
+function isPointlessTableauReverse(
+  move: SoloMove,
+  ctx: StochasticPolicyContext
+): boolean {
+  const last = ctx.lastTableauShuffle;
+  if (!last || last.scored) return false;
+  const op = moveOpFromEngine(move.card, move.to);
+  if (op.op !== "move") return false;
+  return (
+    op.suit === last.op.suit &&
+    op.rank === last.op.rank &&
+    op.from === last.op.to &&
+    op.to === last.op.from
+  );
+}
+
 function pickTableauMoveFromState(
   state: SoloGameState,
   moves: SoloMove[],
@@ -203,8 +255,22 @@ function pickTableauMoveFromState(
   );
   if (tableauMoves.length === 0) return null;
 
-  const scoringTableau = tableauMoves.filter((m) => isScoringMove(m));
-  const candidateMoves = scoringTableau.length > 0 ? scoringTableau : tableauMoves;
+  const productive = tableauMoves.filter((m) => cashDeltaForTableauMove(state, m) > 0);
+  if (productive.length === 0) {
+    return null;
+  }
+
+  let candidateMoves = productive;
+  if (ctx.consecutivePointlessTableauShuffles > 0) {
+    const noShuffle = candidateMoves.filter((m) => !isPointlessTableauShuffle(state, m));
+    if (noShuffle.length > 0) {
+      candidateMoves = noShuffle;
+    }
+  }
+  const withoutReverse = candidateMoves.filter((m) => !isPointlessTableauReverse(m, ctx));
+  if (withoutReverse.length > 0) {
+    candidateMoves = withoutReverse;
+  }
 
   const scored = candidateMoves.map((m) => ({
     move: m,
@@ -235,6 +301,20 @@ function pickFoundationCompetingMove(
 
 type CandidateOp = { op: SolitaireRecordedOp; weight: number };
 
+function shouldAttemptRecycle(state: SoloGameState, ctx: StochasticPolicyContext): boolean {
+  const rm = new SoloRuleManager(state, GameInteractionPhase.idle);
+  if (!rm.canRecycle()) return false;
+  if (ctx.totalRecycles >= ctx.persona.maxTotalRecycles) return false;
+  if (ctx.recyclesSinceLastScoreGain >= ctx.persona.maxRecyclesWithoutScore) return false;
+
+  const moves = rm.getAllPossibleMoves();
+  const mustRecycle = moves.length === 0;
+  if (!mustRecycle && ctx.movesSinceScoreGain < ctx.persona.minMovesBeforeRecycle) {
+    return false;
+  }
+  return true;
+}
+
 export function pickNextOp(
   state: SoloGameState,
   ctx: StochasticPolicyContext
@@ -254,6 +334,14 @@ export function pickNextOp(
     const top = talonTop(state);
     if (top && rm.canDraw(top.id)) {
       return { op: "draw" };
+    }
+  }
+
+  // Live: tap empty stock after a draw pass → recycle (even if waste still has cards).
+  if (ctx.drawsSinceLastRecycle > 0) {
+    const scoringMoves = moves.filter(isScoringMove);
+    if (scoringMoves.length === 0 && shouldAttemptRecycle(state, ctx)) {
+      return { op: "recycle" };
     }
   }
 
@@ -303,20 +391,7 @@ export function pickNextOp(
     return { op: "draw" };
   }
 
-  if (rm.canRecycle()) {
-    const base = state.score ?? 0;
-    if (base <= 0) {
-      return null;
-    }
-    if (ctx.totalRecycles >= persona.maxTotalRecycles) {
-      return null;
-    }
-    if (ctx.consecutiveRecycles >= 2) {
-      return null;
-    }
-    if (ctx.movesSinceScoreGain < persona.minMovesBeforeRecycle) {
-      return null;
-    }
+  if (shouldAttemptRecycle(state, ctx)) {
     return { op: "recycle" };
   }
 
@@ -345,13 +420,17 @@ export function updatePolicyAfterOp(
   ctx.totalMoves += 1;
 
   if (op.op === "draw") {
-    if (scoreAfter > 0) {
+    if (scoreAfter > scoreBefore) {
       ctx.movesSinceScoreGain = 0;
+      ctx.recyclesSinceLastScoreGain = 0;
     } else {
       ctx.movesSinceScoreGain += 1;
     }
     ctx.consecutiveRecycles = 0;
     ctx.consecutiveFoundationOps = 0;
+    ctx.drawsSinceLastRecycle += 1;
+    ctx.lastTableauShuffle = null;
+    ctx.consecutivePointlessTableauShuffles = 0;
     return;
   }
 
@@ -359,10 +438,15 @@ export function updatePolicyAfterOp(
     ctx.consecutiveRecycles += 1;
     ctx.totalRecycles += 1;
     ctx.consecutiveFoundationOps = 0;
+    ctx.drawsSinceLastRecycle = 0;
+    ctx.lastTableauShuffle = null;
+    ctx.consecutivePointlessTableauShuffles = 0;
     if (scoreAfter > scoreBefore) {
       ctx.movesSinceScoreGain = 0;
+      ctx.recyclesSinceLastScoreGain = 0;
     } else {
       ctx.movesSinceScoreGain += 1;
+      ctx.recyclesSinceLastScoreGain += 1;
     }
     return;
   }
@@ -375,8 +459,20 @@ export function updatePolicyAfterOp(
   }
   if (scoreAfter > scoreBefore) {
     ctx.movesSinceScoreGain = 0;
+    ctx.recyclesSinceLastScoreGain = 0;
   } else {
     ctx.movesSinceScoreGain += 1;
+  }
+
+  if (op.op === "move" && op.from.startsWith("tableau-") && op.to.startsWith("tableau-")) {
+    const scored = scoreAfter > scoreBefore;
+    ctx.lastTableauShuffle = { op, scored };
+    ctx.consecutivePointlessTableauShuffles = scored
+      ? 0
+      : ctx.consecutivePointlessTableauShuffles + 1;
+  } else {
+    ctx.lastTableauShuffle = null;
+    ctx.consecutivePointlessTableauShuffles = 0;
   }
 }
 

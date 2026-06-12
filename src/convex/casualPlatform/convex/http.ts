@@ -3,6 +3,10 @@
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { casualGameBridgeSecret } from "./service/bridge/casualGameBridgeSecret";
+import { fetchRecordCasualMatchSeed } from "./service/bridge/casualMatchSeedBridge";
+import { bridgeOkBody } from "./service/bridge/casualGameBridgeContract";
+import { resolveSeedRemoteOrigin } from "./data/casualGameRegistry";
+import { getCasualGameRegistration } from "./data/casualGameRegistry";
 
 const http = httpRouter();
 
@@ -70,7 +74,7 @@ http.route({
         headers: { "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(bridgeOkBody(result)), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
@@ -128,7 +132,7 @@ http.route({
         headers: { "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(bridgeOkBody(result)), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
@@ -136,7 +140,7 @@ http.route({
 });
 
 /**
- * 仅供其它 Convex（solitaire/blockBlast）服务端调用：带权威分数写入 casual run。
+ * 仅供其它 Convex（游戏服）服务端调用：带权威分数写入 casual run。
  * Header `X-Casual-Bridge-Secret` 须等于 `CASUAL_GAME_BRIDGE_SECRET`（未配置时用 `casualGameBridgeSecret` 开发默认值）。
  */
 http.route({
@@ -213,8 +217,8 @@ http.route({
       internal.service.tournament.submit.casualRunIngestMutations.getCasualRunMatchGameType,
       { matchGameId }
     );
-    if (!gameType) {
-      return new Response(JSON.stringify({ ok: false, error: "unknown_match_game" }), {
+    if (!gameType || !getCasualGameRegistration(gameType)) {
+      return new Response(JSON.stringify({ ok: false, error: "unregistered_game_type" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
@@ -254,7 +258,7 @@ http.route({
     if (r.finalized === true) {
       okBody.finalized = true;
     }
-    return new Response(JSON.stringify(okBody), {
+    return new Response(JSON.stringify(bridgeOkBody(okBody)), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
@@ -300,33 +304,10 @@ http.route({
       });
     }
 
-    const tryFindMatch = () =>
-      ctx.runQuery(internal.service.tournament.submit.casualRunBridgeQueries.findMatchByGameForBridge, {
-        gameId,
-      });
-
-    let row = await tryFindMatch();
-    if (
-      !row.ok &&
-      (row.error === "seed_pending" || row.error === "seed_unavailable")
-    ) {
-      const bindCtx = await ctx.runQuery(
-        internal.service.tournament.submit.casualRunBridgeQueries.getMatchBindContextForBridge,
-        { gameId }
-      );
-      if (bindCtx.ok) {
-        try {
-          await ctx.runAction(internal.service.tournament.join.casualMatchSeedActions.bindCasualMatchSeed, {
-            matchId: bindCtx.matchId,
-            templateId: bindCtx.templateId,
-            sessionKey: bindCtx.sessionKey,
-          });
-        } catch (e) {
-          console.error("[casual] find-match bind retry failed", gameId, e);
-        }
-        row = await tryFindMatch();
-      }
-    }
+    const row = await ctx.runQuery(
+      internal.service.tournament.submit.casualRunBridgeQueries.findMatchByGameForBridge,
+      { gameId }
+    );
 
     if (!row.ok) {
       return new Response(JSON.stringify({ ok: false, error: row.error }), {
@@ -334,10 +315,75 @@ http.route({
         headers: { "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({ ok: true, match: row.match }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+
+    const bridgeRow = row as {
+      ok: true;
+      gameType?: string;
+      recordSeedOnHttp?: boolean;
+      match: {
+        gameId?: string;
+        seed?: string;
+        seedId?: string;
+        poolVersion?: string;
+        uid?: string;
+        matchId?: string;
+        templateId?: string;
+        replayEpoch?: number;
+      };
+    };
+    const match = bridgeRow.match;
+
+    if (
+      bridgeRow.recordSeedOnHttp &&
+      match.uid &&
+      match.matchId &&
+      match.seedId &&
+      match.poolVersion &&
+      bridgeRow.gameType
+    ) {
+      const reg = getCasualGameRegistration(bridgeRow.gameType);
+      const origin = reg ? resolveSeedRemoteOrigin(reg) : "";
+      if (!origin) {
+        return new Response(JSON.stringify({ ok: false, error: "missing_seed_remote_origin" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      const record = await fetchRecordCasualMatchSeed(
+        {
+          matchId: match.matchId,
+          uid: match.uid,
+          seedId: match.seedId,
+          poolVersion: match.poolVersion,
+        },
+        origin
+      );
+      if (!record.ok) {
+        return new Response(JSON.stringify({ ok: false, error: record.error }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    return new Response(
+      JSON.stringify(
+        bridgeOkBody({
+          ok: true,
+          match: {
+            gameId: match.gameId,
+            seed: match.seed,
+            seedId: match.seedId,
+            templateId: match.templateId,
+            replayEpoch: match.replayEpoch,
+          },
+        })
+      ),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }),
 });
 
@@ -402,13 +448,15 @@ http.route({
       });
     }
     return new Response(
-      JSON.stringify({
-        ok: true,
-        gameId: result.gameId,
-        templateId: result.templateId,
-        matchId: result.matchId,
-        replayEpoch: result.replayEpoch,
-      }),
+      JSON.stringify(
+        bridgeOkBody({
+          ok: true,
+          gameId: result.gameId,
+          templateId: result.templateId,
+          matchId: result.matchId,
+          replayEpoch: result.replayEpoch,
+        })
+      ),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }),

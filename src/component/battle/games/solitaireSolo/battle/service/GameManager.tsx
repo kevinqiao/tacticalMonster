@@ -17,6 +17,7 @@ import {
     SoloGameStatus,
     isSolitairePlayableStatus,
 } from '../types/SoloTypes';
+import { createRolloutReplayState } from '../replay/solitaireRolloutReplay';
 import SoloRuleManager from './SoloRuleManager';
 
 interface ISoloGameContext {
@@ -31,6 +32,13 @@ interface ISoloGameContext {
     loadGame: () => void;
     /** 平台 authorize 后同 gameId 清档重开 */
     reloadCasualRun: () => Promise<boolean>;
+    /** 动画回放：合并卡牌 patch 并触发重渲染 */
+    saveUpdate: (cards: SoloCard[]) => void;
+    /** 动画回放：将模拟状态完整同步到 live 棋盘（含 score/moves） */
+    syncReplayState: (source: SoloGameState) => void;
+    /** 动画回放：仅同步 score/moves/status，不触发布局重排 */
+    syncReplayScore: (source: SoloGameState) => void;
+    replayMode: boolean;
     casualTournamentId?: string;
     onGameSubmit?: () => void;
 }
@@ -46,6 +54,10 @@ const SoloGameContext = createContext<ISoloGameContext>({
     updateBoardDimension: () => { },
     loadGame: () => { },
     reloadCasualRun: async () => false,
+    saveUpdate: () => { },
+    syncReplayState: () => { },
+    syncReplayScore: () => { },
+    replayMode: false,
     casualTournamentId: undefined,
     onGameSubmit: undefined,
 });
@@ -61,6 +73,8 @@ export const useSoloGameManager = () => {
 interface SoloGameProviderProps {
     children: ReactNode;
     gameId?: string;
+    /** Rollout dev replay: local dealt state, skips Convex loadGame */
+    replaySeedId?: string;
     casualTournamentId?: string;
     config?: Partial<SoloGameConfig>;
     onGameLoadComplete?: () => void;
@@ -70,12 +84,16 @@ interface SoloGameProviderProps {
 export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     children,
     gameId,
+    replaySeedId,
     casualTournamentId,
     config: customConfig,
     onGameLoadComplete,
     onGameSubmit,
 }) => {
-    const [gameState, setGameState] = useState<SoloGameState | null>(null);
+    const replayMode = Boolean(replaySeedId && !gameId);
+    const [gameState, setGameState] = useState<SoloGameState | null>(() =>
+        replaySeedId && !gameId ? createRolloutReplayState(replaySeedId) : null
+    );
     const [dealEvent, setDealEvent] = useState<{ cards: Card[], name: string } | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const [interactionPhase, setInteractionPhase] = useState<GameInteractionPhase>(GameInteractionPhase.idle);
@@ -182,9 +200,91 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         return true;
     }, [convex, gameId]);
 
+    const saveUpdate = useCallback((cards: SoloCard[]) => {
+        setGameState((prev) => {
+            if (!prev) return prev;
+            const patchById = new Map(cards.map((c) => [c.id, c]));
+            let changed = false;
+            const nextCards = prev.cards.map((c) => {
+                const r = patchById.get(c.id);
+                if (!r) return c;
+                if (
+                    c.isRevealed === r.isRevealed &&
+                    c.zone === r.zone &&
+                    c.zoneId === r.zoneId &&
+                    c.zoneIndex === r.zoneIndex
+                ) {
+                    return c;
+                }
+                changed = true;
+                return {
+                    ...c,
+                    isRevealed: r.isRevealed,
+                    zone: r.zone,
+                    zoneId: r.zoneId,
+                    zoneIndex: r.zoneIndex,
+                };
+            });
+            if (!changed) return prev;
+            return { ...prev, cards: nextCards };
+        });
+    }, []);
+
+    const syncReplayState = useCallback((source: SoloGameState) => {
+        setGameState((prev) => {
+            if (!prev) return prev;
+            const nextCards = prev.cards.map((t) => {
+                const s = source.cards.find((c) => c.id === t.id);
+                if (!s) return t;
+                return {
+                    ...t,
+                    isRevealed: s.isRevealed,
+                    zone: s.zone,
+                    zoneId: s.zoneId,
+                    zoneIndex: s.zoneIndex,
+                };
+            });
+            return {
+                ...prev,
+                score: source.score,
+                moves: source.moves ?? 0,
+                status: source.status,
+                cards: nextCards,
+            };
+        });
+    }, []);
+
+    const syncReplayScore = useCallback((source: SoloGameState) => {
+        setGameState((prev) => {
+            if (!prev) return prev;
+            if (
+                prev.score === source.score &&
+                (prev.moves ?? 0) === (source.moves ?? 0) &&
+                prev.status === source.status
+            ) {
+                return prev;
+            }
+            return {
+                ...prev,
+                score: source.score,
+                moves: source.moves ?? 0,
+                status: source.status,
+            };
+        });
+    }, []);
+
     useEffect(() => {
+        if (!replaySeedId || gameId) return;
+        setGameState(createRolloutReplayState(replaySeedId));
+        setDealEvent(null);
+        setInteractionPhase(GameInteractionPhase.idle);
+        onGameLoadComplete?.();
+    }, [replaySeedId, gameId, onGameLoadComplete]);
+
+    useEffect(() => {
+        if (replaySeedId && !gameId) return;
         loadGame();
-    }, [loadGame]);
+    }, [loadGame, replaySeedId, gameId]);
 
     /** 发牌/走子动画异常未回调时，避免长期锁在 animating（表现为「有遮罩、不能操作」） */
     useEffect(() => {
@@ -240,6 +340,10 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         updateBoardDimension,
         loadGame,
         reloadCasualRun,
+        saveUpdate,
+        syncReplayState,
+        syncReplayScore,
+        replayMode,
         casualTournamentId,
         onGameSubmit,
     };

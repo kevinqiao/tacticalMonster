@@ -57,9 +57,12 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         loadGame,
         boardDimension,
         boardDimensionRef,
+        replayMode,
     } = useSoloGameManager();
     const { cards } = gameState || {};
-    const displayScore = gameState != null ? gameState.score : null;
+    /** Solitaire Cash：局中 base 可因 recycle 暂为负，展示与结算一致不低于 0 */
+    const displayScore =
+        gameState != null ? Math.max(0, Math.floor(gameState.score ?? 0)) : null;
     const displayMoves = gameState != null ? gameState.moves : null;
     /** 动画中禁用「结束」，终局仍允许点击以便结算失败时重试 */
     const endGameDisabled = interactionPhase !== GameInteractionPhase.idle;
@@ -401,52 +404,67 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             <SoloGameHeader
                 displayScore={displayScore}
                 displayMoves={displayMoves}
-                dueTime={gameState?.dueTime}
-                showAutoComplete={showAutoComplete}
+                dueTime={replayMode ? undefined : gameState?.dueTime}
+                showAutoComplete={replayMode ? false : showAutoComplete}
                 onAutoComplete={() => {
-                    void runAutoCompleteToFoundation();
+                    if (!replayMode) void runAutoCompleteToFoundation();
                 }}
                 endGameDisabled={endGameDisabled}
-                onEndGame={() => {
-                    void settleManuallyAndExit();
-                }}
+                onEndGame={
+                    replayMode
+                        ? undefined
+                        : () => {
+                              void settleManuallyAndExit();
+                          }
+                }
             />
             {/* {renderControlPanel()} */}
-            <div ref={boardSurfaceRef} className="solo-board-surface">
+            <div
+                ref={boardSurfaceRef}
+                className={
+                    replayMode ? "solo-board-surface solo-board-surface--replay" : "solo-board-surface"
+                }
+            >
                 <div className="solo-foundation-spacer" aria-hidden />
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: "center", position: 'absolute', top: 0, left: 0, width: '30%', height: "100px", backgroundColor: 'transparent' }}>
-                    <div style={{ cursor: 'pointer', width: "70px", height: "50px", backgroundColor: 'rgba(38, 76, 243, 0.5)', color: 'white', fontSize: "12px", fontWeight: "bold", display: "flex", justifyContent: "center", alignItems: "center" }} onClick={loadGame}>Load</div>
-                </div>
+                {!replayMode && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: "center", position: 'absolute', top: 0, left: 0, width: '30%', height: "100px", backgroundColor: 'transparent' }}>
+                        <div style={{ cursor: 'pointer', width: "70px", height: "50px", backgroundColor: 'rgba(38, 76, 243, 0.5)', color: 'white', fontSize: "12px", fontWeight: "bold", display: "flex", justifyContent: "center", alignItems: "center" }} onClick={loadGame}>Load</div>
+                    </div>
+                )}
                 {renderFoundations()}
                 {renderTalon()}
                 {renderWaste()}
                 {renderTableau()}
                 <div className="solo-board-cards-layer">{renderCards}</div>
             </div>
-            <ManualSettleConfirmOverlay
-                open={settleConfirmOpen}
-                defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_SOLITAIRE}
-                onCancel={cancelSettleConfirm}
-                onConfirm={confirmSettleAndExit}
-                onSuccessClose={finishManualSettleSuccess}
-            />
-            <CasualGameScoreReportOverlay
-                open={postCasualScoreReportOpen}
-                report={postCasualScoreReport}
-                onConfirm={dismissPostCasualScoreReport}
-            />
-            <CasualPostSettleSummaryOverlay
-                open={postCasualSummaryOpen}
-                title="同桌成绩"
-                summary={postCasualTableSummary}
-                waitingForPeers={postCasualWaitingForPeers}
-                replayAvailable={postCasualReplayOffered}
-                replayDisabled={postCasualReplayDisabled}
-                replayBusy={casualReplayBusy}
-                replayWindowEndsAt={postCasualReplayWindowEndsAt}
-                onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
-                onDismiss={dismissPostCasualSummary}
-            />
+            {!replayMode && (
+                <>
+                    <ManualSettleConfirmOverlay
+                        open={settleConfirmOpen}
+                        defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_SOLITAIRE}
+                        onCancel={cancelSettleConfirm}
+                        onConfirm={confirmSettleAndExit}
+                        onSuccessClose={finishManualSettleSuccess}
+                    />
+                    <CasualGameScoreReportOverlay
+                        open={postCasualScoreReportOpen}
+                        report={postCasualScoreReport}
+                        onConfirm={dismissPostCasualScoreReport}
+                    />
+                    <CasualPostSettleSummaryOverlay
+                        open={postCasualSummaryOpen}
+                        title="同桌成绩"
+                        summary={postCasualTableSummary}
+                        waitingForPeers={postCasualWaitingForPeers}
+                        replayAvailable={postCasualReplayOffered}
+                        replayDisabled={postCasualReplayDisabled}
+                        replayBusy={casualReplayBusy}
+                        replayWindowEndsAt={postCasualReplayWindowEndsAt}
+                        onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
+                        onDismiss={dismissPostCasualSummary}
+                    />
+                </>
+            )}
         </div>
     );
     // return <div ref={containerRef} className="solo-player-container"></div>

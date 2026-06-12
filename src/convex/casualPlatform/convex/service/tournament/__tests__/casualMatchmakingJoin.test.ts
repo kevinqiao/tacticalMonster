@@ -15,7 +15,7 @@ import {
   computeMultiTableBatchSize,
   resolveQueueEffectiveHumans,
   resolveQueueExpireAction,
-} from "../casualMatchmaking";
+} from "../join/casualMatchmakingCore";
 import { toCasualMatchQueueClientFlags } from "../casualTournamentTypes";
 
 function baseProfile(

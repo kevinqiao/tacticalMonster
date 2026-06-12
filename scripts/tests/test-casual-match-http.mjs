@@ -112,6 +112,7 @@ function parseArgs(argv) {
     else if (a === "--session-key") opts.sessionKey = next();
     else if (a === "--pool-version") opts.poolVersion = next();
     else if (a === "--seed-id") opts.seedId = next();
+    else if (a === "--uid") opts.uid = next();
     else if (a === "--scores") opts.scores = parseScoresJson(next());
     else if (a === "--scores-file") opts.scoresFile = next();
   }
@@ -122,7 +123,8 @@ function usage() {
   console.log(`See scripts/tests/README.md
 
 Quick:
-  npx tsx scripts/tests/test-casual-match-http.mjs resolve --uids <uid>[,uid2...]
+  npx tsx scripts/tests/test-casual-match-http.mjs pick --match-id <id> --session-key <key> --uids <uid>[,uid2...]
+  npx tsx scripts/tests/test-casual-match-http.mjs record --match-id <id> --uid <uid> --seed-id <seedId> --pool-version <ver>
   npx tsx scripts/tests/test-casual-match-http.mjs rollouts --seed-id <seedId> --scores-file scripts/tests/sample-rollout-scores.json
 `);
 }
@@ -134,18 +136,33 @@ async function main() {
     return;
   }
 
-  if (cmd === "resolve") {
-    if (!opts.uids?.length) {
-      console.error("resolve requires --uids");
+  if (cmd === "pick") {
+    if (!opts.uids?.length || !opts.matchId || !opts.sessionKey) {
+      console.error("pick requires --uids --match-id --session-key");
       usage();
       process.exit(1);
     }
-    await post("/internal/casual-match-resolve-seed", {
+    await post("/internal/casual-match-pick-seed", {
+      matchId: opts.matchId,
+      sessionKey: opts.sessionKey,
       uids: opts.uids,
       ...(opts.tier ? { tier: opts.tier } : {}),
-      ...(opts.matchId ? { matchId: opts.matchId } : {}),
-      ...(opts.sessionKey ? { sessionKey: opts.sessionKey } : {}),
       ...(opts.poolVersion ? { poolVersion: opts.poolVersion } : {}),
+    });
+    return;
+  }
+
+  if (cmd === "record") {
+    if (!opts.matchId || !opts.uid || !opts.seedId || !opts.poolVersion) {
+      console.error("record requires --match-id --uid --seed-id --pool-version");
+      usage();
+      process.exit(1);
+    }
+    await post("/internal/casual-match-record-seed", {
+      matchId: opts.matchId,
+      uid: opts.uid,
+      seedId: opts.seedId,
+      poolVersion: opts.poolVersion,
     });
     return;
   }

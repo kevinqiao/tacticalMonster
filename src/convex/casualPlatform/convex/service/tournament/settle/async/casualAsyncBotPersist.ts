@@ -5,8 +5,11 @@ import type { Id } from "../../../../_generated/dataModel";
 import type { MutationCtx } from "../../../../_generated/server";
 import { internalMutation } from "../../../../_generated/server";
 import {
-  CASUAL_ASYNC_VIRTUAL_BOT_UID_BLOCK_BLAST,
-  CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE,
+  getCasualGameRegistration,
+  virtualBotGameId,
+  virtualBotUid,
+} from "../../../../data/casualGameRegistry";
+import {
   isCasualAsyncVirtualOpponentUid,
   type AsyncBotFill,
   type SeedVirtualOpponentArgs,
@@ -29,10 +32,10 @@ export async function seedCasualAsyncVirtualOpponentsCore(
     updatedAt,
     replaceAllVirtual = true,
   } = args;
-  const uidPrefix =
-    matchGameType === "block_blast"
-      ? CASUAL_ASYNC_VIRTUAL_BOT_UID_BLOCK_BLAST
-      : CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE;
+  const reg = getCasualGameRegistration(matchGameType);
+  if (!reg) {
+    throw new Error(`unregistered_game_type:${matchGameType}`);
+  }
 
   if (replaceAllVirtual) {
     const prior = await ctx.db
@@ -49,11 +52,8 @@ export async function seedCasualAsyncVirtualOpponentsCore(
   for (const fill of botFills) {
     const slot = fill.rank;
     const score = fill.score;
-    const uid = `${uidPrefix}${matchId}:r${slot}`;
-    const gameId =
-      matchGameType === "block_blast"
-        ? `vp_${matchId}_bb_r${slot}`
-        : `vp_${matchId}_r${slot}`;
+    const uid = virtualBotUid(matchId, slot, matchGameType);
+    const gameId = virtualBotGameId(matchId, slot, matchGameType);
     const existing = await ctx.db
       .query("casual_run_player_matches")
       .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
@@ -97,7 +97,7 @@ export const seedCasualAsyncVirtualOpponents = internalMutation({
     templateId: v.string(),
     runTournamentId: v.string(),
     matchId: v.string(),
-    matchGameType: v.union(v.literal("solitaire"), v.literal("block_blast")),
+    matchGameType: v.string(),
     botFills: v.array(
       v.object({
         rank: v.number(),
@@ -124,7 +124,7 @@ export async function applyAsyncBotFillPlanToMatch(
     matchId: string;
     runTournamentId: string;
     sessionExternalId: string;
-    matchGameType: "solitaire" | "block_blast";
+    matchGameType: string;
     botFills: AsyncBotFill[];
     updatedAt: number;
     replaceAllVirtual?: boolean;

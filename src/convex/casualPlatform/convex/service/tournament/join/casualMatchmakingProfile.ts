@@ -15,6 +15,10 @@ import {
   type QueueExpireAction,
 } from "../../../data/casualMatchmakingConfig";
 import {
+  getDefaultPrimaryGameType,
+  isRegisteredCasualGameType,
+} from "../../../data/casualGameRegistry";
+import {
   CASUAL_LOSS_STREAK_LOOKBACK_MAX,
   isCasualMultiplayerAsyncTemplate,
   type BotStrategyPlayerContext,
@@ -80,10 +84,9 @@ export async function resolvePlayerBotStrategyContext(
   }
 ): Promise<BotStrategyPlayerContext> {
   const { uid, templateId, def } = args;
-  const gameType =
-    def.gameType === "block_blast" || def.gameType === "solitaire"
-      ? def.gameType
-      : "solitaire";
+  const gameType = isRegisteredCasualGameType(def.gameType)
+    ? def.gameType
+    : getDefaultPrimaryGameType();
 
   let seasonLadderPoints = 0;
   const seasonId = await activeSeasonId(ctx);
@@ -170,7 +173,7 @@ export function evaluateEffectiveHumans(
     if (!rule.condition(ctx)) continue;
     const effective = Math.min(cap, Math.max(1, rule.strategy.effectiveHumans));
     return {
-      effectiveHumans: effective,
+      effectiveHumans:1,
       matchedRuleId: rule.id,
       queueExpireAction: resolveMatchmakingExpireAction(rule.strategy),
     };

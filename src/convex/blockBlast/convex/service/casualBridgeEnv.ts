@@ -25,3 +25,8 @@ export function resolveCasualBridgeEnv(): { origin: string; secret: string } {
 
   return { origin, secret };
 }
+
+/** HTTP routes from casualPlatform (`X-Casual-Bridge-Secret`). */
+export function casualGameBridgeSecret(): string {
+  return resolveCasualBridgeEnv().secret;
+}

@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { listSpotlightEligibleGameTypes } from "../../data/casualGameRegistry";
 import { weeklySpotlightPlatformGameType } from "../../data/casualSpotlightGame.js";
 import {
   CASUAL_MISSION_TEMPLATES,
@@ -804,7 +805,7 @@ export const getPlatformPassMissionContext = query({
     return {
       spotlightGameType,
       primaryGameType,
-      spotlightGames: ["solitaire", "block_blast"],
+      spotlightGames: listSpotlightEligibleGameTypes(),
     };
   },
 });

@@ -3,8 +3,6 @@
 import { casualGameBridgeSecret } from "./casualGameBridgeSecret";
 import type { CasualSeedTier } from "../../data/casualSeedTierPolicy";
 
-const DEV_SOLITAIRE_SITE_ORIGIN = "https://artful-chipmunk-59.convex.site";
-
 export type ScoreQuantiles = {
   p10: number;
   p25: number;
@@ -17,20 +15,16 @@ export type ScoreQuantiles = {
   p90: number;
 };
 
-export type ResolveSeedRequest = {
-  templateId: string;
+export type PickSeedRequest = {
   matchId: string;
-  gameType: string;
-  /** 未传时 solitaire HTTP 默认 easy */
-  tier?: CasualSeedTier;
-  maxPlayers: number;
-  humanPlayerCount: number;
-  sessionKey?: string;
-  /** 本场真人 uid；单人亦 `uids: ["one"]` */
+  templateId: string;
+  sessionKey: string;
   uids: string[];
+  tier?: CasualSeedTier;
+  poolVersion?: string;
 };
 
-export type ResolveSeedResponse = {
+export type PickSeedResponse = {
   seedId: string;
   poolVersion: string;
   tier: CasualSeedTier;
@@ -42,12 +36,12 @@ export type ResolveSeedResponse = {
   };
 };
 
-function resolveSolitaireOrigin(): string {
-  const origin = (process.env.SOLITAIRE_HTTP_ORIGIN ?? process.env.SOLITAIRE_CONVEX_SITE_URL ?? "")
-    .trim()
-    .replace(/\/$/, "");
-  return origin || DEV_SOLITAIRE_SITE_ORIGIN;
-}
+export type RecordSeedRequest = {
+  matchId: string;
+  uid: string;
+  seedId: string;
+  poolVersion: string;
+};
 
 function bridgeHeaders(): Record<string, string> {
   return {
@@ -84,16 +78,12 @@ async function postJson<T>(
   return { ok: true, data: parsed };
 }
 
-export async function fetchGameMatchSeed(
-  gameType: string,
-  body: ResolveSeedRequest
-): Promise<{ ok: true } & ResolveSeedResponse | { ok: false; error: string }> {
-  if (gameType !== "solitaire") {
-    return { ok: false, error: "unsupported_game" };
-  }
-  const origin = resolveSolitaireOrigin();
-  const result = await postJson<ResolveSeedResponse & { ok?: boolean }>(
-    `${origin}/internal/casual-match-resolve-seed`,
+export async function fetchPickCasualMatchSeed(
+  body: PickSeedRequest,
+  origin: string
+): Promise<{ ok: true } & PickSeedResponse | { ok: false; error: string }> {
+  const result = await postJson<PickSeedResponse & { ok?: boolean }>(
+    `${origin}/internal/casual-match-pick-seed`,
     body
   );
   if (!result.ok) return result;
@@ -108,5 +98,20 @@ export async function fetchGameMatchSeed(
     tier,
     difficultyScore: difficultyScore ?? 0,
     metrics,
+  };
+}
+
+export async function fetchRecordCasualMatchSeed(
+  body: RecordSeedRequest,
+  origin: string
+): Promise<{ ok: true; alreadyRecorded?: true } | { ok: false; error: string }> {
+  const result = await postJson<{ ok?: boolean; error?: string; alreadyRecorded?: true }>(
+    `${origin}/internal/casual-match-record-seed`,
+    body
+  );
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    ...(result.data.alreadyRecorded ? { alreadyRecorded: true as const } : {}),
   };
 }

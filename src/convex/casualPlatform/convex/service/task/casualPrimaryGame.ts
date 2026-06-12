@@ -1,7 +1,9 @@
-import type { QueryCtx } from "../../_generated/server.js";
+import type { QueryCtx } from "../../_generated/server";
+import { getDefaultPrimaryGameType } from "../../data/casualGameRegistry";
 
 const PRIMARY_GAME_LOOKBACK_MS = 14 * 86400000;
-const DEFAULT_PRIMARY_GAME = "solitaire";
+
+export { getDefaultPrimaryGameType as DEFAULT_PRIMARY_GAME };
 
 /**
  * 近 14 天有效结算局数最多的平台玩法类型（`casual_run_player_matches.gameType`）。
@@ -28,7 +30,7 @@ export async function resolvePrimaryPlatformGameType(
     counts.set(gameType, (counts.get(gameType) ?? 0) + 1);
   }
 
-  let best = DEFAULT_PRIMARY_GAME;
+  let best: string = getDefaultPrimaryGameType();
   let bestCount = 0;
   for (const [gameType, count] of counts) {
     if (count > bestCount) {

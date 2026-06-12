@@ -272,6 +272,11 @@ export async function insertCasualRunDocumentsForHumans(
     coinsCharged?: number;
     gemsCharged?: number;
     activityIds?: string[];
+    /** 各 uid 入场扣费快照；seed 绑定失败时用于退款 */
+    joinChargeByUid?: Record<
+      string,
+      { vouchersCharged?: number; coinsCharged?: number; gemsCharged?: number }
+    >;
   }
 ): Promise<{
   runTournamentId: string;
@@ -306,6 +311,18 @@ export async function insertCasualRunDocumentsForHumans(
   }
 
   const humanPlayerCount = uids.length;
+  const joinChargeByUid =
+    args.joinChargeByUid ??
+    Object.fromEntries(
+      uids.map((uid) => [
+        uid,
+        {
+          vouchersCharged: args.vouchersCharged,
+          coinsCharged: args.coinsCharged,
+          gemsCharged: args.gemsCharged,
+        },
+      ])
+    );
   const matchConvexId = await ctx.db.insert("casual_run_matches", {
     tournamentId: runTournamentId,
     templateId,
@@ -314,6 +331,7 @@ export async function insertCasualRunDocumentsForHumans(
     minPlayers: humanPlayerCount,
     maxPlayers: def.maxPlayers,
     humanPlayerCount,
+    joinChargeByUid,
     createdAt: now,
     updatedAt: now,
   });

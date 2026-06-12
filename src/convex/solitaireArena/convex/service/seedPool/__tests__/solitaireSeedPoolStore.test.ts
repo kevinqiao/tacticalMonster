@@ -37,7 +37,7 @@ const sampleMetrics = {
   scoreSpread: 3000,
   playerEaseScore: 1500,
   layoutFingerprint: "fp:test",
-  policyVersion: "human-stochastic-v4",
+  policyVersion: "human-stochastic-v6",
   matchTimeLimitSec: 300,
 };
 

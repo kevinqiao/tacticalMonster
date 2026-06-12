@@ -171,6 +171,12 @@ export const Modals: Record<string, ModalConfig> = {
         auth: 0,
         effects: [{ name: "popCenter", args: { width: "88%", maxWidth: "400px", height: "auto" } }],
     },
+    "solitaire_rollout_replay_dev": {
+        name: "solitaire_rollout_replay_dev",
+        path: "./battle/games/solitaireSolo/battle/replay/SolitaireRolloutReplayPage",
+        auth: 0,
+        effects: [{ name: "popCenter", args: { width: "min(100%, 1100px)", height: "min(92vh, 900px)" } }],
+    },
 }
 // export const animates: { [k: number]: any } = {
 //     1: { autoAlpha: 1, duration: 1.2 },

@@ -79,7 +79,7 @@ function parseUids(body: Record<string, unknown>): string[] {
 }
 
 http.route({
-  path: "/internal/casual-match-resolve-seed",
+  path: "/internal/casual-match-pick-seed",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     if (!checkBridgeSecret(request)) return unauthorized();
@@ -90,21 +90,54 @@ http.route({
       return jsonResponse({ ok: false, error: "bad_json" }, 400);
     }
 
+    const matchId = typeof body.matchId === "string" ? body.matchId.trim() : "";
+    const sessionKey = typeof body.sessionKey === "string" ? body.sessionKey : "";
     const uids = parseUids(body);
-    if (uids.length === 0) {
-      return jsonResponse({ ok: false, error: "missing_uids" }, 400);
+    if (!matchId || !sessionKey || uids.length === 0) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
     }
 
     const tier = parseTier(body.tier);
     const result = await ctx.runMutation(
-      internal.service.seedPool.casualMatchSeedHttp.resolveCasualMatchSeed,
+      internal.service.seedPool.casualMatchSeedHttp.pickCasualMatchSeed,
       {
+        matchId,
         tier,
         poolVersion: typeof body.poolVersion === "string" ? body.poolVersion : undefined,
-        sessionKey: typeof body.sessionKey === "string" ? body.sessionKey : undefined,
-        matchId: typeof body.matchId === "string" ? body.matchId : undefined,
+        sessionKey,
         uids,
       }
+    );
+    if (!result.ok) {
+      return jsonResponse(result, 404);
+    }
+    return jsonResponse(result);
+  }),
+});
+
+http.route({
+  path: "/internal/casual-match-record-seed",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkBridgeSecret(request)) return unauthorized();
+    let body: Record<string, unknown>;
+    try {
+      body = (await request.json()) as Record<string, unknown>;
+    } catch {
+      return jsonResponse({ ok: false, error: "bad_json" }, 400);
+    }
+
+    const matchId = typeof body.matchId === "string" ? body.matchId.trim() : "";
+    const uid = typeof body.uid === "string" ? body.uid.trim() : "";
+    const seedId = typeof body.seedId === "string" ? body.seedId : "";
+    const poolVersion = typeof body.poolVersion === "string" ? body.poolVersion : "";
+    if (!matchId || !uid || !seedId || !poolVersion) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+
+    const result = await ctx.runMutation(
+      internal.service.seedPool.casualMatchSeedHttp.recordCasualMatchSeedForPlayer,
+      { matchId, uid, seedId, poolVersion }
     );
     if (!result.ok) {
       return jsonResponse(result, 404);

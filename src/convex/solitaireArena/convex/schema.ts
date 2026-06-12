@@ -54,7 +54,7 @@ export default defineSchema({
             "rolloutIndex",
         ]),
 
-    /** 真人已玩过的 pool seed（resolve-seed 时过滤；绑定成功后写入） */
+    /** 真人 loadGame 后写入；pick 阶段仅写 match_seed_picks */
     player_seeds: defineTable({
         uid: v.string(),
         seedId: v.string(),
@@ -65,6 +65,16 @@ export default defineSchema({
         .index("by_uid_and_poolVersion", ["uid", "poolVersion"])
         .index("by_uid_poolVersion_and_seedId", ["uid", "poolVersion", "seedId"])
         .index("by_matchId", ["matchId"]),
+
+    /** 开桌 pick 快照（不写 player_seeds；loadGame 时再 record） */
+    match_seed_picks: defineTable({
+        matchId: v.string(),
+        seedId: v.string(),
+        poolVersion: v.string(),
+        uids: v.array(v.string()),
+        sessionKey: v.string(),
+        pickedAt: v.number(),
+    }).index("by_matchId", ["matchId"]),
 
     game: defineTable({
         gameId: v.string(),

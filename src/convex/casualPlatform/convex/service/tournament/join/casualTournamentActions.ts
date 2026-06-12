@@ -7,9 +7,10 @@ import { action } from "../../../_generated/server";
 import { jwtAccessSecret } from "../../auth/jwtAccessSecret";
 import { getTournamentDefinition } from "../../../data/casualTournamentConfigs";
 import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
+import { requiresDailySoloPlayCostAck } from "./casualTournamentJoinCore";
 
 /**
- * 日榜（maxPlayers<=1）：同步建局 + solitaire seed 绑定；异步场仅入队。
+ * 日榜（maxPlayers<=1）：openCasualDailySoloTable；异步场仅入队。
  */
 export const joinTournament = action({
   args: {
@@ -22,32 +23,28 @@ export const joinTournament = action({
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
     }
+
     if (def.maxPlayers <= 1) {
-      const result = await ctx.runMutation(
-        internal.service.tournament.join.casualJoinMutations.joinCasualRunCore,
-        { uid, tournamentId, dailySoloCostAck }
+      const preview = await ctx.runQuery(
+        internal.service.tournament.join.casualJoinMutations.previewJoinEntryChargeInternal,
+        { uid, tournamentId }
       );
-      if (!result.ok || result.queued !== false) {
-        return result;
+      if (!preview.ok) {
+        return { ok: false as const, error: preview.error };
       }
       if (
-        result.matchId &&
-        (def.gameType === "solitaire" || def.gameType === "block_blast")
+        requiresDailySoloPlayCostAck(tournamentId, preview.willChargeEntry) &&
+        dailySoloCostAck !== true
       ) {
-        const bind = await ctx.runAction(
-          internal.service.tournament.join.casualMatchSeedActions.bindCasualMatchSeed,
-          {
-            matchId: result.matchId,
-            templateId: tournamentId,
-            sessionKey: `casual_sess:${result.matchId}`,
-          }
-        );
-        if (!bind.ok) {
-          return { ok: false as const, error: bind.error ?? "seed_bind_failed" };
-        }
+        return { ok: false as const, error: "needs_cost_ack" };
       }
-      return result;
+
+      return await ctx.runAction(
+        internal.service.tournament.join.casualOpenTableActions.openCasualDailySoloTable,
+        { uid, templateId: tournamentId }
+      );
     }
+
     return await ctx.runMutation(
       internal.service.tournament.join.casualMatchmaking.enqueueCasualMatchmakingAndTryMatch,
       { uid, tournamentId, dailySoloCostAck }

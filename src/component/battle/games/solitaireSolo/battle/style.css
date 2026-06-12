@@ -371,6 +371,11 @@
     }
 }
 
+/* Rollout dev replay: block drag while PlayEffects animate */
+.solo-board-surface--replay {
+    pointer-events: none;
+}
+
 /* 牌桌：统一 7 列网格，foundation / stock / tableau 列宽一致，供测量与 getCardCoord 对齐 */
 .solo-board-surface {
     position: relative;

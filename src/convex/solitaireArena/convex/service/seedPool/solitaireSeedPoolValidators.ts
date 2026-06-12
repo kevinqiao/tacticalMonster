@@ -58,7 +58,10 @@ export const rolloutDistributionMetrics = v.object({
   scoreSpread: v.number(),
   playerEaseScore: v.number(),
   layoutFingerprint: v.string(),
-  policyVersion: v.literal(HUMAN_STOCHASTIC_POLICY_VERSION),
+  policyVersion: v.union(
+    v.literal("human-stochastic-v4"),
+    v.literal(HUMAN_STOCHASTIC_POLICY_VERSION)
+  ),
   matchTimeLimitSec: v.number(),
 });
 

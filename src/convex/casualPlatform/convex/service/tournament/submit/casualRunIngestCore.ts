@@ -25,7 +25,13 @@ import {
   finalizeCasualAsyncTableSummaryForPlayer,
   isCasualAsyncVirtualOpponentUid,
 } from "../settle/casualRunSettlementFill";
+import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes";
+import { botFinalizeDelayMs } from "../settle/async/casualAsyncBotDueTime";
+import { internal } from "../../../_generated/api";
+import type { Id } from "../../../_generated/dataModel";
+import type { MutationCtx } from "../../../_generated/server";
 import {
+  allHumansConfirmed,
   allHumansSubmitted,
   isReplayableFinished,
   promoteExpiredFinishedInMatch,
@@ -324,15 +330,16 @@ export async function finalizeCasualAsyncMatchIngest(
 export type TryFinalizeCasualAsyncMatchResult = {
   finalized: boolean;
   promotedOnly: boolean;
+  scheduled?: boolean;
   fin?: Awaited<ReturnType<typeof finalizeCasualAsyncMatchIngest>>;
 };
 
-/** 将 match 上过期的 `finished` 升为 `confirmed`，若全桌可终局则 `settled` 发奖（cron / confirm 共用）。 */
+/** 将 match 上过期的 `finished` 升为 `confirmed`；全员 confirmed 且 bot 完赛后 finalize（cron / confirm 共用）。 */
 export async function tryFinalizeCasualAsyncMatch(
   ctx: MutationCtx,
   matchId: string,
   now: number,
-  opts?: { viewerUid?: string; skipPromote?: boolean }
+  opts?: { viewerUid?: string; skipPromote?: boolean; skipBotDueWait?: boolean }
 ): Promise<TryFinalizeCasualAsyncMatchResult> {
   const matchDoc = await ctx.db.get(matchId as Id<"casual_run_matches">);
   if (!matchDoc || matchDoc.completed) {
@@ -364,13 +371,33 @@ export async function tryFinalizeCasualAsyncMatch(
     return { finalized: false, promotedOnly: true };
   }
 
+  if (!allHumansConfirmed(humanPms)) {
+    return { finalized: false, promotedOnly: true };
+  }
+
+  if (!opts?.skipBotDueWait) {
+    const interval = botFinalizeDelayMs(refreshed, now);
+    if (interval > 0) {
+      await ctx.scheduler.runAfter(
+        interval,
+        internal.service.tournament.settle.casualRunMatchFinalize.runScheduledCasualAsyncMatchFinalize,
+        { matchId }
+      );
+      return { finalized: false, promotedOnly: false, scheduled: true };
+    }
+  }
+
   const anchor =
     humanPms.find((p) => p.score != null && (p.status === "confirmed" || p.status === "settled")) ??
     humanPms.find((p) => p.score != null) ??
     humanPms[0]!;
   const pmFresh = (await ctx.db.get(anchor._id)) ?? anchor;
   const humanCountPlanned = Math.max(1, matchDoc.humanPlayerCount ?? 1);
-  const gameType = pmFresh.gameType === "block_blast" ? "block_blast" : "solitaire";
+  const gameTypeCheck = assertRegisteredMatchGameType(pmFresh.gameType);
+  if (!gameTypeCheck.ok) {
+    return { finalized: false, promotedOnly: false };
+  }
+  const gameType = gameTypeCheck.gameType;
   const tableSummaryUid = opts?.viewerUid ?? anchor.uid;
 
   const fin = await finalizeCasualAsyncMatchIngest(ctx, {
@@ -446,7 +473,11 @@ export async function runConfirmCasualRunWithoutReplay(
     }
 
     const pmFresh = (await ctx.db.get(pm._id)) ?? pm;
-    const gameType = pm.gameType === "block_blast" ? "block_blast" : "solitaire";
+    const gameTypeCheck = assertRegisteredMatchGameType(pmFresh.gameType);
+    if (!gameTypeCheck.ok) {
+      return { ok: false as const, error: gameTypeCheck.error };
+    }
+    const gameType = gameTypeCheck.gameType;
 
     if (
       def.maxPlayers <= 1 &&
@@ -493,6 +524,7 @@ export async function runConfirmCasualRunWithoutReplay(
       confirmed: true as const,
       finalized: false as const,
       ...(def.maxPlayers > 1 ? { deferredFinalize: true as const } : {}),
+      ...(finAttempt.scheduled ? { scheduledFinalize: true as const } : {}),
       ...(partial.pendingOthers ? { pendingOthers: true as const } : {}),
     };
 }

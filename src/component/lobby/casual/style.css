@@ -70,6 +70,39 @@
   filter: brightness(0.92);
 }
 
+/* DEV：rollout 回放测试（通行证左侧，仅 import.meta.env.DEV） */
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-dev-rollout {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #e8e0ff;
+  cursor: pointer;
+  background: linear-gradient(145deg, rgba(72, 52, 120, 0.92), rgba(48, 36, 88, 0.98));
+  border: 1px solid rgba(180, 160, 255, 0.35);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-dev-rollout:hover {
+  filter: brightness(1.08);
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-dev-rollout:active {
+  filter: brightness(0.96);
+  transform: scale(0.98);
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-dev-rollout:focus-visible {
+  outline: 2px solid rgba(200, 180, 255, 0.95);
+  outline-offset: 2px;
+}
+
 /* 顶栏常驻：赛季通行证入口（横/竖屏） */
 .head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass {
   flex-shrink: 0;

@@ -6,6 +6,8 @@ import jwt from "jsonwebtoken";
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
 import { resolveCasualBridgeEnv } from "../service/casualBridgeEnv";
+import { postCasualRunIngest } from "../service/casualBridgeIngest";
+import { buildCasualV2IngestPayload } from "../service/casualBotFill/computeBotFills";
 import { BlockBlastGameStatus } from "../types/BlockBlastTypes";
 
 const tournament_url = "https://beloved-mouse-699.convex.site";
@@ -235,8 +237,6 @@ export const submitScore = action({
 export const submitCasualPlatformRun = action({
   args: { token: v.string(), gameId: v.string() },
   handler: async (ctx, { token, gameId }) => {
-    const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
-
     if (!gameId.startsWith("game_")) {
       return { ok: false as const, error: "not_casual_run_game_id" };
     }
@@ -266,42 +266,22 @@ export const submitCasualPlatformRun = action({
 
     const score = Math.max(0, Math.floor(Number((game as { score?: number }).score ?? 0)));
 
-    const url = `${casualOrigin}/internal/casual-run-ingest`;
-    let res: Response;
-    try {
-      res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Casual-Bridge-Secret": bridge,
-        },
-        body: JSON.stringify({
-          uid,
-          matchGameId: gameId,
-          score,
-        }),
-      });
-    } catch (e) {
-      console.error("[blockBlast] casual ingest fetch failed", e);
-      return { ok: false as const, error: "casual_unreachable" };
+    const built = await buildCasualV2IngestPayload({ ctx, uid, matchGameId: gameId, score });
+    if (!built.ok) {
+      return { ok: false as const, error: built.error };
     }
 
-    let parsed: CasualIngestParsed = {};
-    try {
-      const text = await res.text();
-      if (text) parsed = JSON.parse(text) as CasualIngestParsed;
-    } catch {
-      parsed = {};
+    const ingest = await postCasualRunIngest(built.payload);
+    if (!ingest.ok) {
+      return { ok: false as const, error: ingest.error };
     }
 
-    if (!res.ok || !parsed.ok) {
-      return {
-        ok: false as const,
-        error: parsed.error ?? `casual_${res.status}`,
-      };
-    }
-
-    return mapCasualIngestClientResponse(parsed);
+    console.log("[blockBlast] casual-run-ingest v2", {
+      gameId,
+      deduped: ingest.parsed.deduped,
+      pendingOthers: ingest.parsed.pendingOthers,
+    });
+    return mapCasualIngestClientResponse(ingest.parsed);
   },
 });
 

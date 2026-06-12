@@ -31,7 +31,7 @@ export type SolitaireRecordedOp =
 
 export type RolloutTerminalReason = "completed" | "stuck" | "time_up" | "exited";
 
-export const HUMAN_STOCHASTIC_POLICY_VERSION = "human-stochastic-v4" as const;
+export const HUMAN_STOCHASTIC_POLICY_VERSION = "human-stochastic-v6" as const;
 
 export type SolitaireRolloutScript = {
   rolloutIndex: number;

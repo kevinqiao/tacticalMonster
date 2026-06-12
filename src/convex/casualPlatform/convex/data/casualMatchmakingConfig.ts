@@ -10,7 +10,7 @@ export const CASUAL_MATCH_QUEUE_TIMEOUT_MS = 60_000;
 export const CASUAL_SOLO_ASYNC_OPEN_DELAY_MS = 1_000;
 
 /** Join 画像未命中 MATCHMAKING_RULES 时的默认 effectiveHumans */
-export const CASUAL_DEFAULT_EFFECTIVE_HUMANS = 2;
+export const CASUAL_DEFAULT_EFFECTIVE_HUMANS = 1;
 
 export type QueueExpireAction = "solo" | "exit";
 

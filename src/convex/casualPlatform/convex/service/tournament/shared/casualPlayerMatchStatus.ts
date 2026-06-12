@@ -76,6 +76,10 @@ export function allHumansSubmitted(humanPms: Array<{ status: string }>): boolean
   return humanPms.length > 0 && humanPms.every((p) => isHumanSubmittedStatus(p.status));
 }
 
+export function allHumansConfirmed(humanPms: Array<{ status: string }>): boolean {
+  return humanPms.length > 0 && humanPms.every((p) => p.status === "confirmed");
+}
+
 export function canUseReplayForTemplate(templateId: string): boolean {
   const def = getTournamentDefinition(templateId);
   if (!def) return false;

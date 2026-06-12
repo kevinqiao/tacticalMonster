@@ -241,6 +241,10 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
     });
   }, [openModal]);
 
+  const openRolloutReplayDev = useCallback(() => {
+    openModal({ name: "solitaire_rollout_replay_dev" });
+  }, [openModal]);
+
   const openPlayerProfile = useCallback(() => {
     openModal({
       name: CASUAL_PLAYER_PROFILE_MODAL_OPEN.name,
@@ -266,6 +270,17 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
     user?.uid ? <CasualHudCurrencyBars player={casual.casualPlayer} /> : null;
 
   const stretch = <div className="head-nav-hud__stretch" aria-hidden />;
+
+  const rolloutReplayDevEntry = import.meta.env.DEV ? (
+    <button
+      type="button"
+      className="head-nav-hud__casual-dev-rollout"
+      onClick={openRolloutReplayDev}
+      aria-label="Rollout replay (dev)"
+    >
+      Rollout
+    </button>
+  ) : null;
 
   const battlePassEntry = (
     <button
@@ -347,6 +362,7 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
             {currencyHud}
           </div>
           {stretch}
+          {rolloutReplayDevEntry}
           {battlePassEntry}
           <button
             ref={menuBtnRef}
@@ -373,6 +389,7 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
           {leftCluster}
           {currencyHud}
           {stretch}
+          {rolloutReplayDevEntry}
           {battlePassEntry}
         </>
       )}
