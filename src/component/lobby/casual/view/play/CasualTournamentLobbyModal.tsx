@@ -1,6 +1,4 @@
 import {
-  CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID,
-  CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID,
   getDefaultCasualTournaments,
   getTournamentDefinition,
   type CasualTournamentDefinition,
@@ -9,9 +7,14 @@ import { ModalProp, useModalManager } from "host/service/ModalManager";
 import React, { useCallback, useMemo, useState } from "react";
 
 import {
+  casualGameKindFromGameType,
+  casualGameKindDisplayName,
+  casualPlayModalForKind,
   hasAnyOpenCasualRunAssignment,
   inferCasualGameKindFromAssignment,
+  seasonChallengeTournamentIdForKind,
   type CasualGameKind,
+  type CasualPlayModalName,
   type OpenCasualRunAssignment,
 } from "../../service/casualOpenRunAssignment";
 import {
@@ -64,13 +67,11 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
     enabled: visible && Boolean(casual.convexUrl),
     openRunAssignments: casual.openRunAssignments,
   });
-  const targetGameKind: CasualGameKind = data?.gameType === "solitaire" ? "solitaire" : "block_blast";
+  const targetGameKind: CasualGameKind = casualGameKindFromGameType(
+    typeof data?.gameType === "string" ? data.gameType : undefined
+  );
   const gameTitle =
-    typeof data?.gameTitle === "string"
-      ? data.gameTitle
-      : targetGameKind === "solitaire"
-        ? "Solitaire"
-        : "Block Blast";
+    typeof data?.gameTitle === "string" ? data.gameTitle : casualGameKindDisplayName(targetGameKind);
 
   const rows = useMemo(() => {
     const tournaments = casual.tournaments.length > 0 ? casual.tournaments : getDefaultCasualTournaments();
@@ -101,10 +102,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
           periodHint,
         };
       });
-    const seasonTournamentId =
-      targetGameKind === "solitaire"
-        ? CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID
-        : CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID;
+    const seasonTournamentId = seasonChallengeTournamentIdForKind(targetGameKind);
     const hasSeasonChallenge = baseRows.some((row) => row.matchType === "season_challenge");
     if (hasSeasonChallenge) return baseRows;
     const seasonDef = getTournamentDefinition(seasonTournamentId);
@@ -124,7 +122,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
   /** 须晚于 `useModalAnimate` 的 swipe 关窗时长（~460ms），否则栈顶仍是锦标赛层、`openModal` 易被挡住或表现为无反应 */
   const OPEN_GAME_AFTER_CLOSE_MS = 520;
 
-  const openAfterClose = (modalName: "play_solitaire_solo" | "play_block_blast", modalData?: Record<string, unknown>) => {
+  const openAfterClose = (modalName: CasualPlayModalName, modalData?: Record<string, unknown>) => {
     close();
     window.setTimeout(() => {
       setNote(null);
@@ -138,7 +136,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
     setResumeOpening(true);
     window.setTimeout(() => setResumeOpening(false), OPEN_GAME_AFTER_CLOSE_MS + 200);
     const kind = inferCasualGameKindFromAssignment(hit);
-    openAfterClose(kind === "solitaire" ? "play_solitaire_solo" : "play_block_blast", {
+    openAfterClose(casualPlayModalForKind(kind), {
       casualTournamentId: hit.templateId,
       casualMatchGameId: hit.gameId,
     });
@@ -148,7 +146,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
     (hit: OpenCasualRunAssignment, templateId: string) => {
       const kind = inferCasualGameKindFromAssignment(hit);
       setNote("已入场，正在进入对局...");
-      openAfterClose(kind === "solitaire" ? "play_solitaire_solo" : "play_block_blast", {
+      openAfterClose(casualPlayModalForKind(kind), {
         casualTournamentId: templateId,
         casualMatchGameId: hit.gameId,
       });
@@ -246,13 +244,10 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
       }
       if (outcome.kind === "ready") {
         setNote("已入场，正在进入对局...");
-        openAfterClose(
-          targetGameKind === "solitaire" ? "play_solitaire_solo" : "play_block_blast",
-          {
-            casualTournamentId: outcome.templateId,
-            casualMatchGameId: outcome.gameId,
-          }
-        );
+        openAfterClose(casualPlayModalForKind(targetGameKind), {
+          casualTournamentId: outcome.templateId,
+          casualMatchGameId: outcome.gameId,
+        });
         void casual.refreshCasualPlayer();
         setJoiningId(null);
         close();

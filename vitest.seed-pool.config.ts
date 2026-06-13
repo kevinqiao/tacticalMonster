@@ -16,7 +16,10 @@ export default defineConfig({
     environment: "node",
     include: [
       "src/convex/solitaireArena/convex/service/seedPool/__tests__/**/*.test.ts",
-      "src/convex/casualPlatform/convex/service/tournament/__tests__/**/*.test.ts",
+      "src/convex/towerArena/convex/service/__tests__/**/*.test.ts",
+      "src/convex/towerArena/convex/service/seedPool/__tests__/**/*.test.ts",
+      "src/convex/match3Arena/convex/service/__tests__/**/*.test.ts",
+      "src/convex/match3Arena/convex/service/seedPool/__tests__/**/*.test.ts",
     ],
   },
 });

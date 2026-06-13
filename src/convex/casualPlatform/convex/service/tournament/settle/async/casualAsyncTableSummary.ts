@@ -1,5 +1,6 @@
 ﻿/** 异步同桌榜 query 构建（partial / settled；名次仅按 score 降序）。 */
 import type { CasualTournamentDefinition } from "../../../../data/casualTournamentConfigs";
+import { getTournamentDefinition } from "../../../../data/casualTournamentConfigs";
 import type { Doc, Id } from "../../../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../../../_generated/server";
 import { resolveAsyncLeaderboardRowState } from "../../../../data/casualAsyncLeaderboardRowState";
@@ -9,6 +10,22 @@ import {
 } from "./casualAsyncTypes";
 
 export { resolveAsyncLeaderboardRowState } from "../../../../data/casualAsyncLeaderboardRowState";
+
+/** 本桌一行（真人/机器人同一套展示字段） */
+export type Match3WatchContext =
+  | {
+      kind: "rollout";
+      seedId: string;
+      rolloutIndex: number;
+      expectedScore?: number;
+      revealAt?: number;
+      duration?: number;
+    }
+  | {
+      kind: "recorded";
+      gameId: string;
+      opCount?: number;
+    };
 
 /** 本桌一行（真人/机器人同一套展示字段） */
 export type CasualAsyncTableLeaderboardRow = {
@@ -21,6 +38,7 @@ export type CasualAsyncTableLeaderboardRow = {
   displayLabel: string;
   isBot?: boolean;
   isYou: boolean;
+  watchContext?: Match3WatchContext;
 };
 
 /** 本会话异步桌结算结果（赛后 UI：完整名次表） */
@@ -32,6 +50,58 @@ export type CasualAsyncTableSummary = {
 };
 
 type PlayerMatchRow = Doc<"casual_run_player_matches">;
+
+type WatchAttachOpts = {
+  gameType?: string;
+  seedId?: string;
+  pmByUid: Map<string, PlayerMatchRow>;
+};
+
+function pmByUidFromRows(rows: PlayerMatchRow[]): Map<string, PlayerMatchRow> {
+  return new Map(rows.map((r) => [r.uid, r]));
+}
+
+function attachMatch3WatchContext(
+  pm: PlayerMatchRow | undefined,
+  opts: WatchAttachOpts | undefined,
+  extras?: { expectedScore?: number; revealAt?: number; duration?: number }
+): Match3WatchContext | undefined {
+  if (!opts || opts.gameType !== "match_3" || !pm) return undefined;
+  if (isCasualAsyncVirtualOpponentUid(pm.uid)) {
+    if (!opts.seedId || pm.rolloutIndex == null) return undefined;
+    return {
+      kind: "rollout",
+      seedId: opts.seedId,
+      rolloutIndex: pm.rolloutIndex,
+      expectedScore: extras?.expectedScore ?? pm.score,
+      revealAt: extras?.revealAt ?? pm.revealAt,
+      duration: extras?.duration ?? pm.duration,
+    };
+  }
+  return {
+    kind: "recorded",
+    gameId: pm.gameId,
+  };
+}
+
+async function resolveWatchAttachOpts(
+  ctx: QueryCtx,
+  templateId: string,
+  matchId: string,
+  rows: PlayerMatchRow[]
+): Promise<WatchAttachOpts | undefined> {
+  const def = getTournamentDefinition(templateId);
+  if (!def || def.gameType !== "match_3") return undefined;
+  const matchDoc = matchId.trim()
+    ? await ctx.db.get(matchId as Id<"casual_run_matches">)
+    : null;
+  const seedId = matchDoc?.seedBinding?.seedId;
+  return {
+    gameType: def.gameType,
+    seedId,
+    pmByUid: pmByUidFromRows(rows),
+  };
+}
 
 function allHumansConfirmedOrSettled(humanRows: PlayerMatchRow[]): boolean {
   return (
@@ -156,7 +226,8 @@ export async function assignMatchRanksByScoreDesc(
 
 function buildLeaderboardRowsFromScored(
   scored: Array<{ uid: string; score: number }>,
-  uid: string
+  uid: string,
+  watchOpts?: WatchAttachOpts
 ): CasualAsyncTableLeaderboardRow[] {
   const sorted = sortScoredUidsByScoreDesc(scored);
   let humanPeerIdx = 0;
@@ -172,6 +243,8 @@ function buildLeaderboardRowsFromScored(
     } else {
       displayLabel = `同桌 ${++humanPeerIdx}`;
     }
+    const pm = watchOpts?.pmByUid.get(e.uid);
+    const watchContext = attachMatch3WatchContext(pm, watchOpts, { expectedScore: e.score });
     return {
       rank: idx + 1,
       score: e.score,
@@ -179,6 +252,7 @@ function buildLeaderboardRowsFromScored(
       displayLabel,
       isYou,
       ...(isBot ? { isBot: true as const } : {}),
+      ...(watchContext ? { watchContext } : {}),
     };
   });
 }
@@ -189,8 +263,9 @@ function buildPartialAsyncTableSummaryRows(args: {
   maxPlayers: number;
   humanCountPlanned: number;
   now: number;
+  watchOpts?: WatchAttachOpts;
 }): CasualAsyncTableLeaderboardRow[] {
-  const { rows, uid, maxPlayers, humanCountPlanned, now } = args;
+  const { rows, uid, maxPlayers, humanCountPlanned, now, watchOpts } = args;
   const targetBotCount = casualAsyncVirtualOpponentCount(maxPlayers, humanCountPlanned);
 
   const scoredEntries: Array<{ uid: string; score: number }> = [];
@@ -212,11 +287,13 @@ function buildPartialAsyncTableSummaryRows(args: {
       continue;
     }
     if (state === "playing") {
+      const watchContext = attachMatch3WatchContext(h, watchOpts);
       playingRows.push({
         rank: 0,
         rowState: "playing",
         displayLabel: isYou ? "你" : `同桌 ${++humanPeerIdx}`,
         isYou,
+        ...(watchContext ? { watchContext } : {}),
       });
     }
   }
@@ -236,6 +313,10 @@ function buildPartialAsyncTableSummaryRows(args: {
     }
     const label = `补位 ${++botPeerIdx}`;
     if (state === "playing") {
+      const watchContext = attachMatch3WatchContext(b, watchOpts, {
+        revealAt: b.revealAt,
+        duration: b.duration,
+      });
       playingRows.push({
         rank: 0,
         rowState: "playing",
@@ -243,6 +324,7 @@ function buildPartialAsyncTableSummaryRows(args: {
         isBot: true,
         isYou: false,
         ...(b.revealAt != null && Number.isFinite(b.revealAt) ? { revealAt: b.revealAt } : {}),
+        ...(watchContext ? { watchContext } : {}),
       });
       continue;
     }
@@ -254,7 +336,7 @@ function buildPartialAsyncTableSummaryRows(args: {
   const unrevealedFromTarget = Math.max(0, targetBotCount - bots.length);
   matchingSlots += unrevealedFromTarget;
 
-  const outRows = buildLeaderboardRowsFromScored(scoredEntries, uid);
+  const outRows = buildLeaderboardRowsFromScored(scoredEntries, uid, watchOpts);
   outRows.push(...playingRows);
   for (let i = 0; i < matchingSlots; i++) {
     outRows.push({
@@ -304,6 +386,7 @@ export async function buildCasualAsyncTableSummary(
   }
 
   const now = Date.now();
+  const watchOpts = await resolveWatchAttachOpts(ctx, templateId, matchId, rows);
   const boardStableArgs = {
     rows,
     maxPlayers,
@@ -319,6 +402,7 @@ export async function buildCasualAsyncTableSummary(
       maxPlayers,
       humanCountPlanned,
       now,
+      watchOpts,
     });
     const hasContent = outRows.some(
       (r) => r.rowState === "scored" || r.rowState === "playing" || r.rowState === "matching"
@@ -338,7 +422,7 @@ export async function buildCasualAsyncTableSummary(
 
   if (withScore.findIndex((e) => e.uid === uid) < 0) return null;
 
-  const outRows = buildLeaderboardRowsFromScored(withScore, uid);
+  const outRows = buildLeaderboardRowsFromScored(withScore, uid, watchOpts);
 
   return {
     maxPlayers,

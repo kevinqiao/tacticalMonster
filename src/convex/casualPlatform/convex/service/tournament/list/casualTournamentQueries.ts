@@ -17,6 +17,19 @@ import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "../join/casualTournamentJoinCor
 import { computeCasualAsyncSessionRank, isCasualAsyncVirtualOpponentUid } from "../settle/casualRunSettlementFill";
 import { isRegisteredCasualGameType } from "../../../data/casualGameRegistry";
 import { prunePendingWalletRewards } from "../settle/casualRunScoreEffects";
+
+type Match3HistoryWatchContext = {
+  kind: "recorded";
+  gameId: string;
+};
+
+function match3SelfRecordedWatchContext(
+  gameType: string,
+  gameId: string | undefined
+): Match3HistoryWatchContext | undefined {
+  if (gameType !== "match_3" || !gameId?.trim()) return undefined;
+  return { kind: "recorded", gameId: gameId.trim() };
+}
 async function resolveRunHistoryRank(
   ctx: QueryCtx,
   opts: {
@@ -346,6 +359,7 @@ export const gameHistory = query({
           .sort((a, b) => String(a._id).localeCompare(String(b._id)))
           .map((g) => String(g._id));
         const historySortAt = Math.min(...group.map((g) => g.createdAt));
+        const watchContext = match3SelfRecordedWatchContext(tr.gameType, tr.matchGameId);
         return {
           historySortAt,
           entryId,
@@ -370,6 +384,7 @@ export const gameHistory = query({
           scoreTierMinScore: isMulti ? undefined : tr.minScore,
           scoreTierMinScores: isMulti ? sortedMinScores : undefined,
           scoreTierPendingIds: isMulti && pendingSortedIds.length > 0 ? pendingSortedIds : undefined,
+          ...(watchContext ? { watchContext } : {}),
         };
       })
     );
@@ -528,6 +543,4 @@ export const listOpenCasualRunAssignments = query({
         runTournamentId: r.tournamentId,
         createdAt: r.createdAt,
       }))
-      .sort((a, b) => b.createdAt - a.createdAt);
-  },
-});
+      

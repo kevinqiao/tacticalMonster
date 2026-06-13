@@ -11,6 +11,10 @@ interface ImportMetaEnv {
   readonly VITE_CONVEX_URL_BLOCKBLAST?: string;
   /** Solitaire Arena (`src/convex/solitaireArena`); must match that deployment’s CONVEX_URL */
   readonly VITE_CONVEX_URL_SOLITAIRE?: string;
+  /** Tower Arena (`src/convex/towerArena`); must match that deployment’s CONVEX_URL */
+  readonly VITE_CONVEX_URL_TOWER?: string;
+  /** Match-3 Arena (`src/convex/match3Arena`); must match that deployment’s CONVEX_URL */
+  readonly VITE_CONVEX_URL_MATCH3?: string;
   /** Casual platform (`src/convex/casualPlatform`); separate Convex deployment */
   readonly VITE_CONVEX_URL_CASUAL?: string;
   readonly REACT_APP_CONVEX_URL?: string; // 向后兼容

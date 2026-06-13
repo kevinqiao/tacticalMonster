@@ -61,6 +61,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   './battle/games/solitaireSolo/battle/replay/SolitaireRolloutAnimatedPanel': () =>
     import('component/battle/games/solitaireSolo/battle/replay/SolitaireRolloutAnimatedPanel'),
   './battle/games/blockBlast/battle/PlayBlockBlast': () => import('component/battle/games/blockBlast/battle/PlayBlockBlast'),
+  './battle/games/match3/battle/PlayMatch3': () => import('component/battle/games/match3/battle/PlayMatch3'),
+  './battle/games/towerArena/battle/PlayTowerArena': () => import('component/battle/games/towerArena/battle/PlayTowerArena'),
   './lobby/tactical/view/play/ChestDrop': () => import('component/lobby/tactical/view/play/ChestDrop'),
   './lobby/casual/view/battlePass/CasualBattlePassModal': () => import('component/lobby/casual/view/battlePass/CasualBattlePassModal'),
   './lobby/casual/view/profile/CasualPlayerProfileModal': () => import('component/lobby/casual/view/profile/CasualPlayerProfileModal'),

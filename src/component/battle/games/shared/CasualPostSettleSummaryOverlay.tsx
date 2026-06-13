@@ -1,6 +1,6 @@
 import React, { useId } from 'react';
 
-import type { CasualAsyncTableSummaryUI } from './casualAsyncTableSummaryUI';
+import type { CasualAsyncTableSummaryUI, Match3WatchContext } from './casualAsyncTableSummaryUI';
 import { CasualTableSummaryPanel } from './CasualTableSummaryPanel';
 import { useReplayWindowCountdown } from './useReplayWindowCountdown';
 import './manualSettleConfirmOverlay.css';
@@ -25,6 +25,7 @@ export type CasualPostSettleSummaryOverlayProps = {
   replayBusy?: boolean;
   /** epoch ms，再战窗口结束时刻 */
   replayWindowEndsAt?: number;
+  onWatchRow?: (ctx: Match3WatchContext, displayLabel: string) => void;
 };
 
 /**
@@ -45,6 +46,7 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
   onReplay,
   replayBusy = false,
   replayWindowEndsAt,
+  onWatchRow,
 }) => {
   const titleId = useId();
   const countdown = useReplayWindowCountdown(replayWindowEndsAt);
@@ -95,7 +97,9 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
             {title}
           </h2>
           {body ? <p className="ssc__body">{body}</p> : null}
-          {showTable && summary ? <CasualTableSummaryPanel s={summary} /> : null}
+          {showTable && summary ? (
+            <CasualTableSummaryPanel s={summary} onWatchRow={onWatchRow} />
+          ) : null}
           {showPending ? (
             <p className="ssc__body msc-pendingPeersNote" role="status">
               全部同桌提交后，可在下一场对局结束时的结算页查看本桌名次。

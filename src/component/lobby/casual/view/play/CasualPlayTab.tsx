@@ -1,6 +1,8 @@
 import {
   CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
+  CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID,
   CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
+  CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID,
   casualSettleBaseCoins,
   casualSettleBaseGems,
   effectiveEntryBilling,
@@ -14,9 +16,13 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
+  casualGameKindDisplayName,
+  casualPlayModalForKind,
+  dailySoloTournamentIdForKind,
   gameKindFromTemplateId,
   hasAnyOpenCasualRunAssignment,
   inferCasualGameKindFromAssignment,
+  isCasualGameKindLobbyVisible,
   type CasualGameKind,
 } from "../../service/casualOpenRunAssignment";
 import {
@@ -71,9 +77,7 @@ function buildSoloCostConfirmLines(
 type SoloDetailSection = { heading: string; bullets: string[] };
 
 function dailySoloTournamentId(kind: CasualGameKind): string {
-  return kind === "solitaire"
-    ? CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID
-    : CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID;
+  return dailySoloTournamentIdForKind(kind);
 }
 
 /** 单人挑战「详情」弹窗：玩法 / 成本 / 奖励（与 `casualTournamentConfigs` 对齐的简述） */
@@ -179,12 +183,13 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
   const vouchers =
     casual.passProgress?.seasonVouchers ?? casual.casualPlayer?.seasonVouchers;
   const ladder = casual.seasonLadderSnapshot;
+  const towerLobbyVisible = isCasualGameKindLobbyVisible("tower_arena");
 
   const openTasksSheet = () => {
     openModal({ name: "casual_tasks_sheet" });
   };
 
-  const openGameTournaments = (gameType: "solitaire" | "block_blast", gameTitle: string) => {
+  const openGameTournaments = (gameType: CasualGameKind, gameTitle: string) => {
     openModal({
       name: "casual_game_tournaments",
       data: { gameType, gameTitle },
@@ -201,7 +206,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
   const openSoloGame = useCallback(
     (kind: CasualGameKind, tournamentId: string, gameId: string) => {
       openModal({
-        name: kind === "solitaire" ? "play_solitaire_solo" : "play_block_blast",
+        name: casualPlayModalForKind(kind),
         data: {
           casualTournamentId: tournamentId,
           casualMatchGameId: gameId,
@@ -283,10 +288,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
       if (!casual.convexUrl) return;
 
       setSoloNote(null);
-      const tournamentId =
-        kind === "solitaire"
-          ? CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID
-          : CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID;
+      const tournamentId = dailySoloTournamentIdForKind(kind);
       if (hasAnyOpenCasualRunAssignment(casual.openRunAssignments)) {
         setSoloNote("有未结束的锦标对局，请先完成后再开始新挑战。");
         return;
@@ -364,7 +366,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
     if (!hit) return;
     const kind = inferCasualGameKindFromAssignment(hit);
     openModal({
-      name: kind === "solitaire" ? "play_solitaire_solo" : "play_block_blast",
+      name: casualPlayModalForKind(kind),
       data: {
         casualTournamentId: hit.templateId,
         casualMatchGameId: hit.gameId,
@@ -624,6 +626,88 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   </button>
                 </div>
               </div>
+              <div className="casual-play-hub__modeCard">
+                <div className="casual-play-hub__tileVisual casual-play-hub__tileVisual--solitaire" aria-hidden />
+                <p className="casual-play-hub__modeTitle">Match-3</p>
+                <p className="casual-play-hub__gameHint">
+                  {soloEntryHintLine(CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID)}
+                </p>
+                <div className="casual-play-hub__soloBtnRow casual-play-hub__soloBtnRow--withDetail">
+                  <button
+                    type="button"
+                    className="casual-play-hub__modeBtn casual-play-hub__soloGridPlay"
+                    disabled={playBlocked || playBusy}
+                    onClick={() => void joinSoloDailyChallenge("match_3")}
+                  >
+                    {joiningSolo === "match_3" ? "…" : "Play"}
+                  </button>
+                  <div className="casual-play-hub__soloGridDetailSlot">
+                    <button
+                      type="button"
+                      className="casual-play-hub__modeBtn--detailInline"
+                      disabled={playBlocked || playBusy}
+                      onClick={() => setSoloDetailKind("match_3")}
+                    >
+                      详情
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank casual-play-hub__soloGridRank"
+                    disabled={playBlocked || playBusy}
+                    onClick={() =>
+                      openModal({
+                        name: "casual_daily_solo_leaderboard",
+                        data: { gameKind: "match_3" as const },
+                      })
+                    }
+                  >
+                    今日战况
+                  </button>
+                </div>
+              </div>
+              {towerLobbyVisible ? (
+              <div className="casual-play-hub__modeCard">
+                <div className="casual-play-hub__tileVisual casual-play-hub__tileVisual--blast" aria-hidden />
+                <p className="casual-play-hub__modeTitle">Tower Defense</p>
+                <p className="casual-play-hub__gameHint">
+                  {soloEntryHintLine(CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID)}
+                </p>
+                <div className="casual-play-hub__soloBtnRow casual-play-hub__soloBtnRow--withDetail">
+                  <button
+                    type="button"
+                    className="casual-play-hub__modeBtn casual-play-hub__soloGridPlay"
+                    disabled={playBlocked || playBusy}
+                    onClick={() => void joinSoloDailyChallenge("tower_arena")}
+                  >
+                    {joiningSolo === "tower_arena" ? "…" : "Play"}
+                  </button>
+                  <div className="casual-play-hub__soloGridDetailSlot">
+                    <button
+                      type="button"
+                      className="casual-play-hub__modeBtn--detailInline"
+                      disabled={playBlocked || playBusy}
+                      onClick={() => setSoloDetailKind("tower_arena")}
+                    >
+                      详情
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank casual-play-hub__soloGridRank"
+                    disabled={playBlocked || playBusy}
+                    onClick={() =>
+                      openModal({
+                        name: "casual_daily_solo_leaderboard",
+                        data: { gameKind: "tower_arena" as const },
+                      })
+                    }
+                  >
+                    今日战况
+                  </button>
+                </div>
+              </div>
+              ) : null}
             </div>
           </section>
 
@@ -682,6 +766,54 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   </button>
                 </div>
               </div>
+              <div className="casual-play-hub__modeCard">
+                <div className="casual-play-hub__tileVisual casual-play-hub__tileVisual--solitaire" aria-hidden />
+                <p className="casual-play-hub__modeTitle">Match-3</p>
+                <p className="casual-play-hub__gameHint">锦标赛 · A / B / C 专场</p>
+                <div className="casual-play-hub__soloBtnRow">
+                  <button
+                    type="button"
+                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--secondary"
+                    disabled={playBlocked}
+                    onClick={() => openGameTournaments("match_3", "Match-3")}
+                  >
+                    Enter
+                  </button>
+                  <button
+                    type="button"
+                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
+                    disabled={playBlocked}
+                    onClick={openSeasonLeaderboard}
+                  >
+                    赛季排行榜
+                  </button>
+                </div>
+              </div>
+              {towerLobbyVisible ? (
+              <div className="casual-play-hub__modeCard">
+                <div className="casual-play-hub__tileVisual casual-play-hub__tileVisual--blast" aria-hidden />
+                <p className="casual-play-hub__modeTitle">Tower Defense</p>
+                <p className="casual-play-hub__gameHint">锦标赛 · A / B / C 专场</p>
+                <div className="casual-play-hub__soloBtnRow">
+                  <button
+                    type="button"
+                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--secondary"
+                    disabled={playBlocked}
+                    onClick={() => openGameTournaments("tower_arena", "Tower Defense")}
+                  >
+                    Enter
+                  </button>
+                  <button
+                    type="button"
+                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
+                    disabled={playBlocked}
+                    onClick={openSeasonLeaderboard}
+                  >
+                    赛季排行榜
+                  </button>
+                </div>
+              </div>
+              ) : null}
             </div>
           </section>
 
@@ -704,7 +836,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                       确认入场消耗
                     </h3>
                     <p className="casual-play-hub__costConfirmSub">
-                      {soloCostConfirm.kind === "solitaire" ? "Solitaire" : "Block Blast"} · 日榜最高分
+                      {casualGameKindDisplayName(soloCostConfirm.kind)} · 日榜最高分
                     </p>
                     <ul className="casual-play-hub__costConfirmList">
                       {soloCostConfirm.lines.map((line) => (
@@ -750,7 +882,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <div className="casual-play-hub__soloDetailShell">
                     <div className="casual-play-hub__soloDetailHeader">
                       <h3 id="casual-solo-detail-title" className="casual-play-hub__soloDetailTitle">
-                        {soloDetailKind === "solitaire" ? "Solitaire" : "Block Blast"} · 日榜说明
+                        {casualGameKindDisplayName(soloDetailKind)} · 日榜说明
                       </h3>
                       <button
                         type="button"

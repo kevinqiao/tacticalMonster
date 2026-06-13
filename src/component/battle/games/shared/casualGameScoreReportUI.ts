@@ -1,9 +1,11 @@
 import {
   CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
+  CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID,
   CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
   getTournamentDefinition,
 } from '@/convex/casualPlatform/convex/data/casualTournamentConfigs';
 import type { GameReport as BlockBlastGameReport } from '../blockBlast/battle/types/BlockBlastTypes';
+import type { GameReport as Match3GameReport } from '../match3/battle/types/Match3Types';
 import type { GameReport as SolitaireGameReport } from '../solitaireSolo/battle/types/SoloTypes';
 import type { CasualAsyncTableSummaryUI } from './casualAsyncTableSummaryUI';
 
@@ -12,7 +14,8 @@ export function isCasualDailySoloChallengeTemplate(templateId: string | undefine
   if (!templateId) return false;
   if (
     templateId === CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID ||
-    templateId === CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID
+    templateId === CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID ||
+    templateId === CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID
   ) {
     return true;
   }
@@ -61,6 +64,18 @@ export function buildBlockBlastScoreReport(report: BlockBlastGameReport): Casual
   }
   return {
     gameLabel: 'Block Blast',
+    lines,
+    totalScore: report.totalScore,
+  };
+}
+
+export function buildMatch3ScoreReport(report: Match3GameReport): CasualGameScoreReportUI {
+  const lines: CasualGameScoreReportLine[] = [{ label: '基础分', value: report.baseScore }];
+  if (typeof report.timeBonus === 'number' && report.timeBonus !== 0) {
+    lines.push({ label: '时间奖励', value: report.timeBonus });
+  }
+  return {
+    gameLabel: 'Match-3',
     lines,
     totalScore: report.totalScore,
   };

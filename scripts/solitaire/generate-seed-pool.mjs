@@ -15,6 +15,8 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { loadPoolDefaults } from "./solitaire-pool-defaults.mjs";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 
@@ -232,7 +234,11 @@ async function writePoolOutputs(opts, retiered, mergedRejected) {
 }
 
 async function main() {
-  const opts = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const defaults = await loadPoolDefaults(repoRoot);
+  const opts = parseArgs(argv);
+  if (!argv.includes("--version")) opts.version = defaults.poolVersion;
+  if (!argv.includes("--out")) opts.out = defaults.outDir;
   const log = console.log;
   console.log = () => {};
 

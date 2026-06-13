@@ -6,6 +6,7 @@ import { internal } from "../../../_generated/api";
 import { action } from "../../../_generated/server";
 import { jwtAccessSecret } from "../../auth/jwtAccessSecret";
 import { getTournamentDefinition } from "../../../data/casualTournamentConfigs";
+import { isCasualGameLobbyVisible } from "../../../data/casualGameRegistry";
 import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
 import { requiresDailySoloPlayCostAck } from "./casualTournamentJoinCore";
 
@@ -22,6 +23,9 @@ export const joinTournament = action({
     const def = getTournamentDefinition(tournamentId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
+    }
+    if (!isCasualGameLobbyVisible(def.gameType)) {
+      return { ok: false as const, error: "game_not_available" };
     }
 
     if (def.maxPlayers <= 1) {

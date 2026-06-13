@@ -1,4 +1,5 @@
 import type { CasualPlatformRewardConfig, CasualRankRewardEntry } from "./casualTournamentRewardTypes";
+import { isCasualGameLobbyVisible } from "./casualGameRegistry";
 
 export type {
   CasualPlatformRewardConfig,
@@ -73,6 +74,12 @@ export const CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID =
 /** Play「日榜单人挑战」· Block Blast */
 export const CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID =
   "casual_daily_solo_challenge_block_blast" as const;
+/** Play「日榜单人挑战」· Tower Arena */
+export const CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID =
+  "casual_daily_solo_challenge_tower_arena" as const;
+/** Play「日榜单人挑战」· Match-3 */
+export const CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID =
+  "casual_daily_solo_challenge_match_3" as const;
 
 export function effectiveInstanceScope(def: CasualTournamentDefinition): CasualInstanceScope {
   return def.instanceScope ?? "single_match";
@@ -115,6 +122,8 @@ export function casualSettleBaseGems(def: CasualTournamentDefinition): number {
 export const CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID = "season_challenge_bb_1";
 /** Solitaire 赛季专场 tournamentId */
 export const CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID = "season_challenge_solitaire_1";
+/** Tower Arena 赛季专场 tournamentId */
+export const CASUAL_SEASON_CHALLENGE_TOWER_ARENA_ID = "season_challenge_tower_arena_1";
 
 /** 通用：`floor(base * multiplier + delta)`，下限 0（入场券 / Pass XP / 金币钻扣除共用） */
 export function applyScaledCurrencyCost(base: number, multiplier: number, delta: number): number {
@@ -312,6 +321,102 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     seasonPointsMultiplier: 0,
   },
   {
+    tournamentId: "casual_async_a_match_3",
+    title: "A · Match-3 (金币入门)",
+    gameType: "match_3",
+    matchType: "tournament_a",
+    status: "open",
+    maxPlayers: 3,
+    entry: { kind: "coins", amount: 30 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 22, gems: 0 },
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
+    },
+    seasonXpOnSettle: 12,
+    seasonPointsMultiplier: 0,
+  },
+  {
+    tournamentId: "casual_async_b_match_3",
+    title: "B · Match-3 (coins in / pool)",
+    gameType: "match_3",
+    matchType: "tournament_b",
+    status: "open",
+    maxPlayers: 4,
+    entry: { kind: "coins", amount: 40 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 58, gems: 1 },
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
+    },
+    seasonXpOnSettle: 18,
+    seasonPointsMultiplier: 0,
+  },
+  {
+    tournamentId: "casual_async_c_match_3",
+    title: "C · Match-3 (gems in / pool)",
+    gameType: "match_3",
+    matchType: "tournament_c",
+    status: "open",
+    maxPlayers: 5,
+    entry: { kind: "gems", amount: 5 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 0, gems: 8 },
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
+    },
+    seasonXpOnSettle: 28,
+    seasonPointsMultiplier: 0,
+  },
+  {
+    tournamentId: "casual_async_a_tower_arena",
+    title: "A · Tower Defense (金币入门)",
+    gameType: "tower_arena",
+    matchType: "tournament_a",
+    status: "open",
+    maxPlayers: 3,
+    entry: { kind: "coins", amount: 30 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 22, gems: 0 },
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
+    },
+    seasonXpOnSettle: 12,
+    seasonPointsMultiplier: 0,
+  },
+  {
+    tournamentId: "casual_async_b_tower_arena",
+    title: "B · Tower Defense (coins in / pool)",
+    gameType: "tower_arena",
+    matchType: "tournament_b",
+    status: "open",
+    maxPlayers: 4,
+    entry: { kind: "coins", amount: 40 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 58, gems: 1 },
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
+    },
+    seasonXpOnSettle: 18,
+    seasonPointsMultiplier: 0,
+  },
+  {
+    tournamentId: "casual_async_c_tower_arena",
+    title: "C · Tower Defense (gems in / pool)",
+    gameType: "tower_arena",
+    matchType: "tournament_c",
+    status: "open",
+    maxPlayers: 5,
+    entry: { kind: "gems", amount: 5 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 0, gems: 8 },
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
+    },
+    seasonXpOnSettle: 28,
+    seasonPointsMultiplier: 0,
+  },
+  {
     tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
     title: "Daily · Solitaire 日榜最高分",
     gameType: "solitaire",
@@ -379,6 +484,74 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     seasonPointsMultiplier: 0.5,
     omitFromPlayLobby: true,
   },
+  {
+    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID,
+    title: "Daily · Tower Defense 日榜最高分",
+    gameType: "tower_arena",
+    matchType: "tournament_a",
+    status: "open",
+    instanceScope: "daily",
+    scoreAggregation: "best_score",
+    entryBilling: "per_instance",
+    instanceTimezone: "UTC",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: {
+      type: "by_performance",
+      baseRewards: { coins: 10, gems: 0 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, coins: 90, gems: 0 },
+        { rankRange: [2, 3], multiplier: 1, coins: 55, gems: 0 },
+        { rankRange: [4, 10], multiplier: 1, coins: 32, gems: 0 },
+        { rankRange: [11, 50], multiplier: 1, coins: 16, gems: 0 },
+        { rankRange: [51, 999_999], multiplier: 1, coins: 6, gems: 0 },
+      ],
+      scoreTierRewardsGrantTiming: "on_each_run_settled",
+      scoreTierRewards: [
+        { minScore: 2500, coins: 45, gems: 0 },
+        { minScore: 1800, coins: 30, gems: 0 },
+        { minScore: 1200, coins: 18, gems: 0 },
+        { minScore: 600, coins: 8, gems: 0 },
+      ],
+    },
+    seasonXpOnSettle: 8,
+    seasonPointsMultiplier: 0.5,
+    omitFromPlayLobby: true,
+  },
+  {
+    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID,
+    title: "Daily · Match-3 日榜最高分",
+    gameType: "match_3",
+    matchType: "tournament_a",
+    status: "open",
+    instanceScope: "daily",
+    scoreAggregation: "best_score",
+    entryBilling: "per_instance",
+    instanceTimezone: "UTC",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: {
+      type: "by_performance",
+      baseRewards: { coins: 10, gems: 0 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, coins: 85, gems: 0 },
+        { rankRange: [2, 3], multiplier: 1, coins: 52, gems: 0 },
+        { rankRange: [4, 10], multiplier: 1, coins: 30, gems: 0 },
+        { rankRange: [11, 50], multiplier: 1, coins: 15, gems: 0 },
+        { rankRange: [51, 999_999], multiplier: 1, coins: 5, gems: 0 },
+      ],
+      scoreTierRewardsGrantTiming: "on_each_run_settled",
+      scoreTierRewards: [
+        { minScore: 1200, coins: 42, gems: 0 },
+        { minScore: 900, coins: 28, gems: 0 },
+        { minScore: 600, coins: 16, gems: 0 },
+        { minScore: 300, coins: 6, gems: 0 },
+      ],
+    },
+    seasonXpOnSettle: 8,
+    seasonPointsMultiplier: 0.5,
+    omitFromPlayLobby: true,
+  },
   /** 赛季专场：赛季券入场、异步匹配同档 4 人桌；赛季分按名次，不参与挑战点/代金券档位 */
   {
     tournamentId: CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID,
@@ -425,6 +598,28 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     seasonPointsMultiplier: 0,
     hideLeaderboard: true,
   },
+  {
+    tournamentId: CASUAL_SEASON_CHALLENGE_TOWER_ARENA_ID,
+    title: "专场对局 · Tower Defense",
+    gameType: "tower_arena",
+    matchType: "season_challenge",
+    status: "open",
+    maxPlayers: 4,
+    entry: { kind: "seasonVouchers", amount: 2 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 0, gems: 0 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, seasonPoints: 12 },
+        { rankRange: [2, 2], multiplier: 1, seasonPoints: 7 },
+        { rankRange: [3, 3], multiplier: 1, seasonPoints: 3 },
+        { rankRange: [4, 4], multiplier: 1, seasonPoints: -6 },
+      ],
+    },
+    seasonXpOnSettle: 18,
+    seasonPointsMultiplier: 0,
+    hideLeaderboard: true,
+  },
 ];
 
 /** Block Blast 异步 A 档：演示 / 默认入口 */
@@ -452,7 +647,10 @@ export function listPlayCasualTournaments(): Array<{
   entryBilling?: CasualEntryBilling;
 }> {
   return TOURNAMENT_DEFS.filter(
-    (t) => t.matchType !== "season_challenge" && !t.omitFromPlayLobby
+    (t) =>
+      t.matchType !== "season_challenge" &&
+      !t.omitFromPlayLobby &&
+      isCasualGameLobbyVisible(t.gameType)
   ).map((t) => ({
     tournamentId: t.tournamentId,
     title: t.title,
@@ -475,7 +673,9 @@ export function listSeasonChallengeMatchCatalog(): Array<{
   title: string;
   voucherCost: number;
 }> {
-  return TOURNAMENT_DEFS.filter((t) => t.matchType === "season_challenge").map((t) => ({
+  return TOURNAMENT_DEFS.filter(
+    (t) => t.matchType === "season_challenge" && isCasualGameLobbyVisible(t.gameType)
+  ).map((t) => ({
     matchId: t.tournamentId,
     title: t.title,
     voucherCost: t.entry.kind === "seasonVouchers" ? t.entry.amount : 0,

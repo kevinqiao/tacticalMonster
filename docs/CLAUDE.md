@@ -20,6 +20,8 @@
 | 成就、徽章与长期身份展示 | [`casual-platform-achievement-system-design.md`](./casual-platform-achievement-system-design.md) |
 | Battle Pass、皮肤、成就 | [`casual-platform-battle-pass-skins-achievements.md`](./casual-platform-battle-pass-skins-achievements.md) |
 | **多游戏 Web 平台 Pass**（SKU、XP、任务、指标） | [`casual-platform-multi-game-pass-design.md`](./casual-platform-multi-game-pass-design.md) |
+| **Seed Pipeline**（AI 生成、仿真 Gate、日榜选题、bot 分位） | [`casual-platform-seed-pipeline.md`](./casual-platform-seed-pipeline.md) |
+| **再战令 Replay Pass**（日榜/A/B/C 规则、经济、付费平衡） | [`casual-platform-replay-pass-design.md`](./casual-platform-replay-pass-design.md) |
 
 **与 Tactical Monster 的关系：** 同仓可共存，**两条产品线独立**——经济、关卡、锦标规则**不混用**；见 [`casual-platform-system-design.md`](./casual-platform-system-design.md) §0。
 
@@ -86,6 +88,7 @@
 | 小镇布局、拜访、异步挑战、与 ingest 边界 | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
 | 成就、称号、展示 | [`casual-platform-achievement-system-design.md`](./casual-platform-achievement-system-design.md) |
 | 配置与实现细节 | `src/convex/casualPlatform/` 下 schema、service、`casualTournamentConfigs` 等 |
+| Seed 生产 / AI Gate / 分位与 rollout | [`casual-platform-seed-pipeline.md`](./casual-platform-seed-pipeline.md) |
 
 ---
 

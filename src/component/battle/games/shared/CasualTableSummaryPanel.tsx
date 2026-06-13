@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-import type { CasualAsyncTableSummaryUI } from './casualAsyncTableSummaryUI';
+import type { CasualAsyncTableSummaryUI, Match3WatchContext } from './casualAsyncTableSummaryUI';
 import './manualSettleConfirmOverlay.css';
 
 function formatBotPlayingElapsedMs(elapsedMs: number): string {
@@ -21,7 +21,10 @@ function botPlayingScoreLabel(row: CasualAsyncTableSummaryUI['rows'][number], no
   return '对局中';
 }
 
-export const CasualTableSummaryPanel: React.FC<{ s: CasualAsyncTableSummaryUI }> = ({ s }) => {
+export const CasualTableSummaryPanel: React.FC<{
+  s: CasualAsyncTableSummaryUI;
+  onWatchRow?: (ctx: Match3WatchContext, displayLabel: string) => void;
+}> = ({ s, onWatchRow }) => {
   const hasPlayingBot = s.rows.some(
     (r) => r.isBot && r.rowState === 'playing' && r.revealAt != null
   );
@@ -67,6 +70,7 @@ export const CasualTableSummaryPanel: React.FC<{ s: CasualAsyncTableSummaryUI }>
               <th scope="col">名次</th>
               <th scope="col">玩家</th>
               <th scope="col">得分</th>
+              {onWatchRow ? <th scope="col">回放</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -89,6 +93,21 @@ export const CasualTableSummaryPanel: React.FC<{ s: CasualAsyncTableSummaryUI }>
                   ) : null}
                 </td>
                 <td>{scoreCell(row)}</td>
+                {onWatchRow ? (
+                  <td>
+                    {row.watchContext ? (
+                      <button
+                        type="button"
+                        className="msc-lb-watchBtn"
+                        onClick={() => onWatchRow(row.watchContext!, row.displayLabel)}
+                      >
+                        观战
+                      </button>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>

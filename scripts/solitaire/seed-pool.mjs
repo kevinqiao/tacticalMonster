@@ -19,19 +19,20 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { clearSeedPoolFully, runConvexSolitaire } from "./run-convex-solitaire.mjs";
+import { loadPoolDefaults } from "./solitaire-pool-defaults.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
-
-const DEFAULT_OUT = path.join(repoRoot, "scripts/solitaire/output/pool-v2");
-const DEFAULT_INDEX = path.join(DEFAULT_OUT, "index.json");
-const DEFAULT_VERSION = "v2";
 const DEFAULT_COUNT = 500;
 const DEFAULT_ROLLOUTS = 40;
+const DEFAULT_MIN_SCORE_P25 = 200;
+const DEFAULT_MIN_SCORE_SPREAD = 100;
+const DEFAULT_OVERSAMPLE_FACTOR = 2;
 const DEFAULT_MIN_ENTRIES = 0; // 0 = 自动使用 index 实际条数
 const DEFAULT_BATCH_SIZE = process.platform === "win32" ? 2 : 8;
 
-function usage() {
+function usage(defaults) {
+  const { policyVersion, poolVersion, outDir } = defaults;
   console.log(`Solitaire seed pool CLI
 
 Usage:
@@ -45,12 +46,19 @@ Commands:
   regen     仅重算 rolloutSummaries（+ metrics）写回 index；--sync 同步 Convex 子表
   help      显示本帮助
 
+Defaults (from HUMAN_STOCHASTIC_POLICY_VERSION=${policyVersion}):
+  poolVersion=${poolVersion}  out=${outDir}
+
 Common options (before --):
-  --out <dir>           输出目录（默认 pool-v2）
+  --out <dir>           输出目录（默认 pool-${poolVersion}）
   --index <path>        index.json 路径
-  --pool-version <v>    池版本（默认 v2）
+  --pool-version <v>    池版本（默认 ${poolVersion}，随 policy 自动推导）
   --count <n>           create：目标接纳条数（默认 ${DEFAULT_COUNT}）
   --rollouts <n>        create：每 seed rollout 数（默认 ${DEFAULT_ROLLOUTS}）
+  --min-score-p25 <n>   create：最低 score P25（默认 ${DEFAULT_MIN_SCORE_P25}）
+  --min-score-spread <n> create：最低分数 spread（默认 ${DEFAULT_MIN_SCORE_SPREAD}）
+  --oversample-factor <n> create：过采样倍数（默认 ${DEFAULT_OVERSAMPLE_FACTOR}）
+  --no-reject-collapsed create：关闭 collapsed 布局拒绝
   --min-entries <n>     load：finalize 最少条数（默认 0=index 实际条数；显式设 500 可强制质量门槛）
   --batch-size <n>      load/append 批大小（默认 ${DEFAULT_BATCH_SIZE}，Windows 含 rollout 时建议 ≤2）
   --no-clear            load 时不先 clean Convex
@@ -77,13 +85,18 @@ function splitPassthrough(argv) {
   return { flags: argv.slice(0, i), extra: argv.slice(i + 1) };
 }
 
-function parseCommon(flags) {
+function parseCommon(flags, defaults) {
   const opts = {
-    out: DEFAULT_OUT,
+    out: defaults.outDir,
     index: "",
-    poolVersion: DEFAULT_VERSION,
+    poolVersion: defaults.poolVersion,
+    policyVersion: defaults.policyVersion,
     count: DEFAULT_COUNT,
     rollouts: DEFAULT_ROLLOUTS,
+    minScoreP25: DEFAULT_MIN_SCORE_P25,
+    minScoreSpread: DEFAULT_MIN_SCORE_SPREAD,
+    oversampleFactor: DEFAULT_OVERSAMPLE_FACTOR,
+    rejectCollapsed: true,
     minEntries: DEFAULT_MIN_ENTRIES,
     batchSize: DEFAULT_BATCH_SIZE,
     clearFirst: true,
@@ -106,6 +119,10 @@ function parseCommon(flags) {
     } else if (a === "--pool-version") opts.poolVersion = next();
     else if (a === "--count") opts.count = Number(next());
     else if (a === "--rollouts") opts.rollouts = Number(next());
+    else if (a === "--min-score-p25") opts.minScoreP25 = Number(next());
+    else if (a === "--min-score-spread") opts.minScoreSpread = Number(next());
+    else if (a === "--oversample-factor") opts.oversampleFactor = Number(next());
+    else if (a === "--no-reject-collapsed") opts.rejectCollapsed = false;
     else if (a === "--min-entries") opts.minEntries = Number(next());
     else if (a === "--batch-size") opts.batchSize = Number(next());
     else if (a === "--no-clear") opts.clearFirst = false;
@@ -147,7 +164,7 @@ function runTsx(scriptName, args) {
 
 async function cmdClean(opts) {
   const poolVersion =
-    opts.poolVersion || (await readPoolVersionFromIndex(opts.index, DEFAULT_VERSION));
+    opts.poolVersion || (await readPoolVersionFromIndex(opts.index, opts.poolVersion));
   console.log(`clean Convex poolVersion=${poolVersion}`);
   const res = await clearSeedPoolFully(poolVersion);
   console.log(res);
@@ -160,6 +177,9 @@ async function cmdClean(opts) {
 }
 
 function cmdCreate(opts, extra) {
+  console.log(
+    `create poolVersion=${opts.poolVersion} (policy ${opts.policyVersion}) out=${opts.out}`
+  );
   const args = [
     "--version",
     opts.poolVersion,
@@ -170,7 +190,14 @@ function cmdCreate(opts, extra) {
     "--out",
     opts.out,
     "--write-rollout-summaries",
+    "--min-score-p25",
+    String(opts.minScoreP25),
+    "--min-score-spread",
+    String(opts.minScoreSpread),
+    "--oversample-factor",
+    String(opts.oversampleFactor),
   ];
+  if (opts.rejectCollapsed) args.push("--reject-collapsed");
   if (opts.resume) args.push("--resume");
   if (opts.indexOnly) args.push("--index-only", "true");
   args.push(...extra);
@@ -216,15 +243,16 @@ function cmdLoad(opts, extra, { append = false } = {}) {
 }
 
 async function main() {
+  const defaults = await loadPoolDefaults(repoRoot);
   const argv = process.argv.slice(2);
   if (argv.length === 0 || argv[0] === "help" || argv[0] === "-h" || argv[0] === "--help") {
-    usage();
+    usage(defaults);
     return;
   }
 
   const command = argv[0];
   const { flags, extra } = splitPassthrough(argv.slice(1));
-  const opts = parseCommon(flags);
+  const opts = parseCommon(flags, defaults);
 
   switch (command) {
     case "clean":
@@ -245,7 +273,7 @@ async function main() {
       break;
     default:
       console.error(`unknown command: ${command}\n`);
-      usage();
+      usage(defaults);
       process.exit(1);
   }
 }

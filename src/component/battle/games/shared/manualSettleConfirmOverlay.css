@@ -252,6 +252,21 @@
   vertical-align: middle;
 }
 
+.msc-lb-watchBtn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.msc-lb-watchBtn:hover {
+  background: #dbeafe;
+}
+
 .msc-pendingPeersNote {
   margin-top: 4px;
   padding: 10px 12px;

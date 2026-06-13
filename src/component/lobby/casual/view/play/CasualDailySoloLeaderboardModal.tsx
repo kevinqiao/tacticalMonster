@@ -1,19 +1,21 @@
-import {
-  CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
-  CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
-  getTournamentDefinition,
-} from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
+import { getTournamentDefinition } from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
 import type { CasualScoreTierRewardEntry } from "@/convex/casualPlatform/convex/data/casualTournamentRewardTypes";
 import { ModalProp } from "host/service/ModalManager";
 import { useUserManager } from "host/service/UserManager";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+
+import type { CasualGameKind } from "../../service/casualOpenRunAssignment";
+import {
+  casualGameKindDisplayName,
+  dailySoloTournamentIdForKind,
+} from "../../service/casualOpenRunAssignment";
 
 import type { CasualGameHistoryRow } from "../../service/useCasualPlatformManager";
 import { useCasualPlatform } from "../../service/useCasualPlatformManager";
 import "./casualDailySoloLeaderboardModal.css";
 
 export type CasualDailySoloLeaderboardModalData = {
-  gameKind: "solitaire" | "block_blast";
+  gameKind: CasualGameKind;
 };
 
 type LbRow = { rank: number; uid: string; score: number; submittedAt?: number };
@@ -79,12 +81,14 @@ const CasualDailySoloLeaderboardModal: React.FC<ModalProp> = ({ visible, close, 
   const casual = useCasualPlatform();
   const { user } = useUserManager();
   const payload = data as CasualDailySoloLeaderboardModalData | undefined;
-  const gameKind = payload?.gameKind === "block_blast" ? "block_blast" : "solitaire";
-  const tournamentId =
-    gameKind === "solitaire"
-      ? CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID
-      : CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID;
-  const title = gameKind === "solitaire" ? "Solitaire" : "Block Blast";
+  const gameKind: CasualGameKind =
+    payload?.gameKind === "block_blast" ||
+    payload?.gameKind === "tower_arena" ||
+    payload?.gameKind === "match_3"
+      ? payload.gameKind
+      : "solitaire";
+  const tournamentId = dailySoloTournamentIdForKind(gameKind);
+  const title = casualGameKindDisplayName(gameKind);
 
   const def = useMemo(() => getTournamentDefinition(tournamentId), [tournamentId]);
   const tiersSortedDesc = useMemo(() => {

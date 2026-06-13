@@ -122,6 +122,24 @@ export const Modals: Record<string, ModalConfig> = {
             { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
         ],
     },
+    "play_match_3": {
+        name: "play_match_3",
+        path: "./battle/games/match3/battle/PlayMatch3",
+        auth: 1,
+        effects: [
+            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
+            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
+        ],
+    },
+    "play_tower_arena": {
+        name: "play_tower_arena",
+        path: "./battle/games/towerArena/battle/PlayTowerArena",
+        auth: 1,
+        effects: [
+            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
+            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
+        ],
+    },
     "casual_tasks_sheet": {
         name: "casual_tasks_sheet",
         path: "./lobby/casual/view/tasks/CasualTasksModal",

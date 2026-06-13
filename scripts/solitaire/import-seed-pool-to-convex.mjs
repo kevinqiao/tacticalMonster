@@ -98,6 +98,103 @@ function buildBatchArgs(poolVersion, batchEntries, indexOnly) {
   };
 }
 
+function fitRolloutChunk(summaries, start, poolVersion, seedId, maxBytes) {
+  let size = summaries.length - start;
+  while (size > 1) {
+    const rollouts = summaries.slice(start, start + size).map((r) => ({
+      poolVersion,
+      seedId,
+      rolloutIndex: r.rolloutIndex,
+      finalScore: r.finalScore,
+      moves: r.moves,
+      completed: r.completed,
+      terminalReason: r.terminalReason,
+      elapsedSimSeconds: r.elapsedSimSeconds,
+      opCount: r.opCount,
+    }));
+    const args = { poolVersion, entries: [], rollouts, indexOnly: false };
+    if (convexPayloadBytes(args) <= maxBytes) {
+      return { size, rollouts };
+    }
+    size -= 1;
+  }
+  const r = summaries[start];
+  return {
+    size: 1,
+    rollouts: [
+      {
+        poolVersion,
+        seedId,
+        rolloutIndex: r.rolloutIndex,
+        finalScore: r.finalScore,
+        moves: r.moves,
+        completed: r.completed,
+        terminalReason: r.terminalReason,
+        elapsedSimSeconds: r.elapsedSimSeconds,
+        opCount: r.opCount,
+      },
+    ],
+  };
+}
+
+function singleEntryWithRolloutsBytes(poolVersion, entry, indexOnly) {
+  return convexPayloadBytes(buildBatchArgs(poolVersion, [entry], indexOnly));
+}
+
+/** True when even one entry + all rollouts exceeds the argv budget. */
+function needsSplitEntryRolloutImport(poolVersion, entries, indexOnly) {
+  if (indexOnly) return false;
+  const sample = entries[0];
+  if (!sample) return false;
+  return singleEntryWithRolloutsBytes(poolVersion, sample, false) > WINDOWS_CONVEX_ARG_BUDGET;
+}
+
+async function importEntryBatches(batchFn, poolVersion, entries, batchSize, indexOnly) {
+  const entryBatchSize = indexOnly
+    ? Math.max(batchSize, process.platform === "win32" ? 8 : 16)
+    : batchSize;
+  let batchNum = 0;
+  for (let i = 0; i < entries.length; ) {
+    const size = fitBatchSize(entries, i, entryBatchSize, poolVersion, true);
+    const batchEntries = entries.slice(i, i + size);
+    const batchArgs = buildBatchArgs(poolVersion, batchEntries, true);
+    batchNum += 1;
+    const res = await runConvexSolitaire(batchFn, batchArgs);
+    console.log(
+      `entries batch ${batchNum} count=${batchEntries.length} bytes=${convexPayloadBytes(batchArgs)} entryCount=${res?.entryCount}`
+    );
+    i += size;
+  }
+}
+
+async function importRolloutBatches(batchFn, poolVersion, entries) {
+  let batchNum = 0;
+  let rolloutRows = 0;
+  for (const entry of entries) {
+    const summaries = entry.rolloutSummaries ?? [];
+    for (let i = 0; i < summaries.length; ) {
+      const { size, rollouts } = fitRolloutChunk(
+        summaries,
+        i,
+        poolVersion,
+        entry.seedId,
+        WINDOWS_CONVEX_ARG_BUDGET
+      );
+      const batchArgs = { poolVersion, entries: [], rollouts, indexOnly: false };
+      batchNum += 1;
+      const res = await runConvexSolitaire(batchFn, batchArgs);
+      rolloutRows += rollouts.length;
+      if (batchNum % 50 === 0 || batchNum === 1) {
+        console.log(
+          `rollouts batch ${batchNum} seed=${entry.seedId} chunk=${rollouts.length} bytes=${convexPayloadBytes(batchArgs)} entryCount=${res?.entryCount}`
+        );
+      }
+      i += size;
+    }
+  }
+  console.log(`rollouts import done: batches=${batchNum} rows=${rolloutRows}`);
+}
+
 function fitBatchSize(entries, start, maxSize, poolVersion, indexOnly) {
   let size = Math.min(maxSize, entries.length - start);
   if (process.platform !== "win32" || indexOnly) {
@@ -173,8 +270,9 @@ async function main() {
   }
 
   const batchSize = Math.max(1, opts.batchSize || defaultBatchSize(opts.indexOnly));
+  const splitImport = needsSplitEntryRolloutImport(poolVersion, entries, opts.indexOnly);
   console.log(
-    `import poolVersion=${poolVersion} mode=${opts.append ? "append" : "full"} entries=${entries.length} indexOnly=${opts.indexOnly} batchSize=${batchSize}${process.platform === "win32" && !opts.indexOnly ? " (win32 adaptive shrink)" : ""}`
+    `import poolVersion=${poolVersion} mode=${opts.append ? "append" : "full"} entries=${entries.length} indexOnly=${opts.indexOnly} batchSize=${batchSize}${splitImport ? " (split: entries then rollout chunks)" : process.platform === "win32" && !opts.indexOnly ? " (win32 adaptive shrink)" : ""}`
   );
 
   if (!opts.append) {
@@ -187,16 +285,21 @@ async function main() {
   }
 
   let batchNum = 0;
-  for (let i = 0; i < entries.length; ) {
-    const size = fitBatchSize(entries, i, batchSize, poolVersion, opts.indexOnly);
-    const batchEntries = entries.slice(i, i + size);
-    const batchArgs = buildBatchArgs(poolVersion, batchEntries, opts.indexOnly);
-    batchNum += 1;
-    const res = await runConvexSolitaire(batchFn, batchArgs);
-    console.log(
-      `batch ${batchNum} entries=${batchEntries.length} rollouts=${batchArgs.rollouts.length} bytes=${convexPayloadBytes(batchArgs)} entryCount=${res?.entryCount}`
-    );
-    i += size;
+  if (splitImport) {
+    await importEntryBatches(batchFn, poolVersion, entries, batchSize, true);
+    await importRolloutBatches(batchFn, poolVersion, entries);
+  } else {
+    for (let i = 0; i < entries.length; ) {
+      const size = fitBatchSize(entries, i, batchSize, poolVersion, opts.indexOnly);
+      const batchEntries = entries.slice(i, i + size);
+      const batchArgs = buildBatchArgs(poolVersion, batchEntries, opts.indexOnly);
+      batchNum += 1;
+      const res = await runConvexSolitaire(batchFn, batchArgs);
+      console.log(
+        `batch ${batchNum} entries=${batchEntries.length} rollouts=${batchArgs.rollouts.length} bytes=${convexPayloadBytes(batchArgs)} entryCount=${res?.entryCount}`
+      );
+      i += size;
+    }
   }
 
   if (opts.append) {

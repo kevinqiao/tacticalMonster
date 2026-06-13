@@ -45,6 +45,8 @@ export function joinEntryErrorMessage(code: string | undefined): string {
   switch (code) {
     case "unknown_tournament":
       return "未知锦标赛";
+    case "game_not_available":
+      return "该玩法暂未开放";
     case "period_unavailable":
       return "当前周期不可用";
     case "needs_cost_ack":

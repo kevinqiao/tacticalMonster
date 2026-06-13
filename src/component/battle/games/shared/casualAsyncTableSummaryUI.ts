@@ -1,4 +1,19 @@
 /** 与 casual `CasualAsyncTableLeaderboardRow` / `CasualAsyncTableSummary` 对齐；赛后本桌榜 UI。 */
+export type Match3WatchContext =
+  | {
+      kind: 'rollout';
+      seedId: string;
+      rolloutIndex: number;
+      expectedScore?: number;
+      revealAt?: number;
+      duration?: number;
+    }
+  | {
+      kind: 'recorded';
+      gameId: string;
+      opCount?: number;
+    };
+
 export type CasualAsyncTableLeaderboardRowUI = {
   rank: number;
   score?: number;
@@ -9,6 +24,8 @@ export type CasualAsyncTableLeaderboardRowUI = {
   isYou: boolean;
   /** 系统对手（虚拟补位） */
   isBot?: boolean;
+  /** match_3 观战入口元数据 */
+  watchContext?: Match3WatchContext;
 };
 
 export type CasualAsyncTableSummaryUI = {

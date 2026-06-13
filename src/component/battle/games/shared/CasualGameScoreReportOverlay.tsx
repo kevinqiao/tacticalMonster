@@ -9,6 +9,8 @@ export type CasualGameScoreReportOverlayProps = {
   onConfirm: () => void;
   title?: string;
   confirmLabel?: string;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
 };
 
 /** 休闲场：结算后第一步，展示本局得分构成（非同桌总榜；再战仅在同桌摘要页）。 */
@@ -18,6 +20,8 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   onConfirm,
   title = '本局得分',
   confirmLabel = '确定',
+  secondaryLabel,
+  onSecondary,
 }) => {
   const titleId = useId();
   if (!open || !report) return null;
@@ -59,6 +63,11 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
             </li>
           </ul>
           <div className="ssc__actions">
+            {secondaryLabel && onSecondary ? (
+              <button type="button" className="ssc__btn ssc__btn--secondary" onClick={onSecondary}>
+                {secondaryLabel}
+              </button>
+            ) : null}
             <button type="button" className="ssc__btn ssc__btn--primary" onClick={onConfirm}>
               {confirmLabel}
             </button>
