@@ -9,6 +9,7 @@ export const MATCH3_ANIMATION_CONFIG = {
     clearVanish: 0.18,
     fall: 0.26,
     spawn: 0.26,
+    swap: 0.2,
     cascadeRoundTotal: 0.34,
     invalidRevert: 0.22,
   },

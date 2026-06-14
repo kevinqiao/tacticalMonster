@@ -1,8 +1,12 @@
 import gsap from "gsap";
 import { SoloCard } from "../../types/SoloTypes";
-import { getCardCoord } from "../../Utils";
+import { getCardCoord, soloCardZIndex } from "../../Utils";
 
 const DRAW_FLIGHT_BASE_Z = 50000;
+/** Draw 3：逐张从 talon 顶 peel，间隔略错开 */
+const DRAW_PEEL_STAGGER_SEC = 0.12;
+const DRAW_FLIGHT_DURATION_SEC = 0.5;
+const WASTE_REPOSITION_DURATION_SEC = 0.55;
 
 export const drawCard = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
     const { card, cards: drawnBatch, boardDimensionRef, gameState } = data;
@@ -31,59 +35,69 @@ export const drawCard = ({ data, onComplete }: { data: any; onComplete?: () => v
     const wasteCards = gameState.cards.filter((c: SoloCard) => c.zoneId === "waste");
     const cards = [...wasteCards, ...drawnCards].sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
 
-    // 与 recycle：从牌背朝外旋转到约 90° 时抬 z，避免穿插
-    let zBumped = false;
-    const bumpZOnEdge = (ele: HTMLElement) => {
-        const currentRotateY = gsap.getProperty(ele, "rotateY") as number;
-        if (!zBumped && Math.abs(Math.abs(currentRotateY) - 90) < 45) {
-            gsap.set(ele, { zIndex: DRAW_FLIGHT_BASE_Z + 1 });
-            zBumped = true;
+    const syncAllWasteZ = () => {
+        wasteCards.forEach((c: SoloCard) => {
+            if (c.ele) gsap.set(c.ele, { zIndex: soloCardZIndex(c, cards) });
+        });
+        for (const drawn of drawnCards) {
+            if (drawn.ele) {
+                gsap.set(drawn.ele, {
+                    zIndex: soloCardZIndex(drawn, cards),
+                    rotateY: 180,
+                    rotateZ: 0,
+                });
+            }
         }
     };
 
     const tl = gsap.timeline({
         onComplete: () => {
-            wasteCards.forEach((c: SoloCard) => {
-                if (c.ele) gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
-            });
-            for (const drawn of drawnCards) {
-                if (drawn.ele) {
-                    gsap.set(drawn.ele, { zIndex: drawn.zoneIndex + 10, rotateY: 180, rotateZ: 0 });
-                }
-            }
+            syncAllWasteZ();
             finish();
-        }
+        },
     });
 
     try {
+        const n = drawnCards.length;
+
+        // 起始：全部叠在 talon，第一张（talon 顶）层级最高
         drawnCards.forEach((drawn, idx) => {
             if (!drawn.ele) return;
             gsap.set(drawn.ele, {
                 x: talon.x,
                 y: talon.y,
-                zIndex: DRAW_FLIGHT_BASE_Z + idx,
+                zIndex: DRAW_FLIGHT_BASE_Z + (n - 1 - idx),
                 rotateY: 0,
                 rotateZ: 0,
             });
+        });
+
+        // 逐张 peel：飞行全程保持高层级，落地瞬间再设 waste 终值，避免半空 z 交叉或结束时集体跳变
+        drawnCards.forEach((drawn, idx) => {
+            if (!drawn.ele) return;
+            const targetZ = soloCardZIndex(drawn, cards);
+            const t = idx * DRAW_PEEL_STAGGER_SEC;
+            const flightZ = DRAW_FLIGHT_BASE_Z + 10 + idx;
+
+            tl.set(drawn.ele, { zIndex: flightZ }, t);
+
             tl.to(
                 drawn.ele,
                 {
                     x: () => getCardCoord(drawn, cards, boardDimensionRef).x,
                     y: () => getCardCoord(drawn, cards, boardDimensionRef).y,
                     rotateY: 180,
-                    rotateZ: 0,
-                    duration: 0.8,
-                    ease: "ease.in",
-                    onUpdate: function () {
-                        if (!drawn.ele) return;
-                        bumpZOnEdge(drawn.ele);
+                    duration: DRAW_FLIGHT_DURATION_SEC,
+                    ease: "power2.out",
+                    onComplete: () => {
+                        gsap.set(drawn.ele, { zIndex: targetZ });
                     },
                 },
-                0
+                t
             );
         });
 
-        // 已有废牌随列宽重排，与新抽牌同拍
+        // 已有废牌随 fan 重排；与首张 peel 同时起步，略短于整段 draw
         wasteCards.forEach((c: SoloCard) => {
             if (!c.ele) return;
             tl.to(
@@ -92,8 +106,8 @@ export const drawCard = ({ data, onComplete }: { data: any; onComplete?: () => v
                     x: () => getCardCoord(c, cards, boardDimensionRef).x,
                     y: () => getCardCoord(c, cards, boardDimensionRef).y,
                     rotateZ: 0,
-                    duration: 0.8,
-                    ease: "ease.in"
+                    duration: WASTE_REPOSITION_DURATION_SEC,
+                    ease: "power2.out",
                 },
                 0
             );

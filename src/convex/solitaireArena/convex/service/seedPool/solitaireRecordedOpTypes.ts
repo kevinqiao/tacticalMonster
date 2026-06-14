@@ -29,6 +29,33 @@ export type SolitaireRecordedOp =
     }
   | { op: "concede" };
 
+/** Persisted step: op + optional wall-clock gap before this step (human replay). */
+export type SolitaireRecordedStep =
+  | { op: "draw"; pacingMs?: number }
+  | { op: "recycle"; pacingMs?: number }
+  | {
+      op: "move";
+      suit: SolitaireSuit;
+      rank: SolitaireRank;
+      from: string;
+      to: string;
+      pacingMs?: number;
+    }
+  | { op: "concede"; pacingMs?: number };
+
+export function toSolitaireRecordedOp(step: SolitaireRecordedStep): SolitaireRecordedOp {
+  if (step.op === "draw") return { op: "draw" };
+  if (step.op === "recycle") return { op: "recycle" };
+  if (step.op === "concede") return { op: "concede" };
+  return {
+    op: "move",
+    suit: step.suit,
+    rank: step.rank,
+    from: step.from,
+    to: step.to,
+  };
+}
+
 export type RolloutTerminalReason = "completed" | "stuck" | "time_up" | "exited";
 
 export const HUMAN_STOCHASTIC_POLICY_VERSION = "human-stochastic-v6" as const;

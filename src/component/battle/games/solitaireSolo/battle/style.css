@@ -376,7 +376,7 @@
     pointer-events: none;
 }
 
-/* 牌桌：统一 7 列网格，foundation / stock / tableau 列宽一致，供测量与 getCardCoord 对齐 */
+/* 牌桌：7 列 — row1 foundation×4 靠左；row2 waste(4–6) + talon(7) 靠右 */
 .solo-board-surface {
     position: relative;
     flex: 1;
@@ -394,7 +394,7 @@
     row-gap: var(--solo-zone-gap);
     max-width: min(100%,
             max(200px, calc((100dvh - var(--solo-board-v-reserve)) * 1.42)));
-    margin-inline: auto;
+    margin-inline: 0 auto;
     background-color: #000000;
 }
 
@@ -425,7 +425,7 @@
 
 .solo-foundation-spacer {
     grid-row: 1;
-    grid-column: 1 / 4;
+    grid-column: 5 / 8;
     min-height: 1px;
 }
 
@@ -447,7 +447,7 @@
 
 .solo-stock-slot {
     grid-row: 2;
-    grid-column: 1 / 2;
+    grid-column: 7 / 8;
     width: 100%;
     aspect-ratio: 5 / 7;
     justify-self: stretch;
@@ -460,8 +460,10 @@
 
 .solo-waste-area {
     grid-row: 2;
-    grid-column: 2 / 5;
-    width: 100%;
+    grid-column: 5 / 7;
+    width: calc(var(--solo-card-width, 56px) + 2 * var(--solo-waste-fan-step, 15px));
+    max-width: calc(var(--solo-card-width, 56px) + 2 * var(--solo-waste-fan-step, 15px));
+    justify-self: end;
     min-height: 44px;
     align-self: stretch;
     border: 2px dashed #ccc;
@@ -1043,4 +1045,152 @@
     transform: none !important;
     opacity: 1 !important;
     pointer-events: none !important;
+}
+
+.solo-watch-overlay {
+    --solo-watch-gap: clamp(12px, 3vmin, 28px);
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(var(--solo-watch-gap), env(safe-area-inset-top))
+        max(var(--solo-watch-gap), env(safe-area-inset-right))
+        max(var(--solo-watch-gap), env(safe-area-inset-bottom))
+        max(var(--solo-watch-gap), env(safe-area-inset-left));
+    box-sizing: border-box;
+}
+
+.solo-watch-backdrop {
+    position: fixed;
+    inset: 0;
+    border: 0;
+    background: rgba(0, 0, 0, 0.72);
+    cursor: pointer;
+}
+
+.solo-watch-dialog {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    /* 宽:高 = 2:3，在留白内尽量放大并居中 */
+    width: min(
+        calc(100vw - 2 * var(--solo-watch-gap)),
+        calc((100dvh - 2 * var(--solo-watch-gap)) * 2 / 3)
+    );
+    aspect-ratio: 2 / 3;
+    max-height: calc(100dvh - 2 * var(--solo-watch-gap));
+    overflow: hidden;
+    padding: clamp(10px, 2vmin, 16px);
+    border-radius: 16px;
+    background: linear-gradient(160deg, #0f2a1a 0%, #1a4d2e 45%, #1e293b 100%);
+    color: #fff;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.solo-watch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+.solo-watch-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.solo-watch-close {
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    cursor: pointer;
+}
+
+.solo-watch-hud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    opacity: 0.92;
+    flex-shrink: 0;
+}
+
+.solo-watch-title-inline {
+    font-weight: 700;
+}
+
+.solo-watch-board {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+/* GamePlayer 默认 absolute 100% 在 watch 容器内会高度塌陷 */
+.solo-watch-board .solo-player-container {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.solo-watch-board .solo-game-header {
+    display: none;
+}
+
+.solo-watch-board .solo-board-surface {
+    flex: 1;
+    min-height: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    --solo-board-v-reserve: max(4.5rem, 16%);
+    --solo-zone-gap: clamp(2px, 0.6vw, 8px);
+}
+
+.solo-watch-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    flex-shrink: 0;
+}
+
+.solo-watch-controls button {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+}
+
+.solo-watch-controls button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.solo-watch-status {
+    margin: 12px 0 0;
+    font-size: 14px;
+    opacity: 0.85;
+}
+
+.solo-watch-status--error {
+    color: #fca5a5;
 }

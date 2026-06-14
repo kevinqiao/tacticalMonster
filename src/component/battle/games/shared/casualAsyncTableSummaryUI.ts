@@ -1,4 +1,4 @@
-/** 与 casual `CasualAsyncTableLeaderboardRow` / `CasualAsyncTableSummary` 对齐；赛后本桌榜 UI。 */
+/** 休闲异步桌观战/复盘入口（match_3 · solitaire 等同形） */
 export type Match3WatchContext =
   | {
       kind: 'rollout';
@@ -14,6 +14,8 @@ export type Match3WatchContext =
       opCount?: number;
     };
 
+export type CasualWatchContext = Match3WatchContext;
+
 export type CasualAsyncTableLeaderboardRowUI = {
   rank: number;
   score?: number;
@@ -24,7 +26,7 @@ export type CasualAsyncTableLeaderboardRowUI = {
   isYou: boolean;
   /** 系统对手（虚拟补位） */
   isBot?: boolean;
-  /** match_3 观战入口元数据 */
+  /** 观战/回放入口元数据（match_3 · solitaire） */
   watchContext?: Match3WatchContext;
 };
 

@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import {
     rolloutDistributionMetrics,
     rolloutTerminalReason,
+    solitaireRecordedStep,
     solitaireSeedTier,
     tierCounts,
 } from "./service/seedPool/solitaireSeedPoolValidators";
@@ -104,6 +105,8 @@ export default defineSchema({
         casualTimeoutScheduledId: v.optional(v.id("_scheduled_functions")),
         seed: v.optional(v.string()),
         lastUpdate: v.optional(v.string()),
+        recordedOps: v.optional(v.array(solitaireRecordedStep)),
+        lastOpAt: v.optional(v.number()),
     }).index("by_gameId", ["gameId"]),
 
 });

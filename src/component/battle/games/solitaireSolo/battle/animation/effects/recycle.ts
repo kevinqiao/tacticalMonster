@@ -16,9 +16,23 @@ export const recycle = ({ data, onComplete }: { data: any; onComplete?: () => vo
         }
     });
 
+    // waste 顶牌先回 talon（视觉上从 fan 右侧/顶牌开始撤，与引擎 n-1-index 映射无关）
+    const wasteTopFirst: SoloCard[] = gameState?.cards
+        ? gameState.cards
+              .filter((c: SoloCard) => c.zoneId === "waste")
+              .sort((a: SoloCard, b: SoloCard) => b.zoneIndex - a.zoneIndex)
+        : [];
+    const cardById = new Map(cards.map((c: SoloCard) => [c.id, c]));
+    const animOrder =
+        wasteTopFirst.length > 0
+            ? wasteTopFirst
+                  .map((w) => cardById.get(w.id))
+                  .filter((c): c is SoloCard => Boolean(c?.ele))
+            : [...cards]
+                  .filter((c: SoloCard) => c.ele)
+                  .sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
 
-    // 为每张卡创建独立动画
-    cards.forEach((card: SoloCard, index: number) => {
+    animOrder.forEach((card: SoloCard, index: number) => {
         if (!card.ele) return;
 
         let zIndexChanged = false;

@@ -67,6 +67,8 @@ export interface GameModel {
     /** Wall-clock ms when the 5-minute match timer starts (first scoring action). */
     playStartedAt?: number;
     lastUpdate?: string;//event id
+    recordedOps?: import("../service/seedPool/solitaireRecordedOpTypes").SolitaireRecordedStep[];
+    lastOpAt?: number;
 }
 // 简化的游戏状态 - 只使用统一的 cards 数组
 export interface SoloGameState extends GameModel {

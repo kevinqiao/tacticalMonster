@@ -13,7 +13,9 @@ import type {
 import { simulateRollout } from '@/convex/match3Arena/convex/service/seedPool/match3SeedSimulator';
 
 import type { Match3BoardMetrics } from '../animation/boardMetrics';
+import { DEFAULT_MATCH3_BOARD_METRICS } from '../animation/boardMetrics';
 import type { GridCellRefs } from '../animation/gridCellRefs';
+import { playSwapAnim } from '../animation/effects/swapAnim';
 import {
   gridAfterSwap,
   playMatch3TurnScript,
@@ -111,6 +113,16 @@ export async function playWatchStep(args: {
   if (!local.ok) {
     return { ok: false, reason: local.error };
   }
+
+  const cellStepPx = args.boardMetrics.cellStepPx ?? DEFAULT_MATCH3_BOARD_METRICS.cellStepPx;
+  await playSwapAnim({
+    r1,
+    c1,
+    r2,
+    c2,
+    refs: args.gridCellRefs,
+    cellStepPx,
+  });
 
   const swappedGrid = gridAfterSwap(args.simState.grid, r1, c1, r2, c2);
   flushSync(() => args.commitGrid(swappedGrid));

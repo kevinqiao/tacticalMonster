@@ -61,12 +61,16 @@ function pmByUidFromRows(rows: PlayerMatchRow[]): Map<string, PlayerMatchRow> {
   return new Map(rows.map((r) => [r.uid, r]));
 }
 
-function attachMatch3WatchContext(
+const CASUAL_WATCH_GAME_TYPES = new Set(["match_3", "solitaire"]);
+
+function attachCasualWatchContext(
   pm: PlayerMatchRow | undefined,
   opts: WatchAttachOpts | undefined,
   extras?: { expectedScore?: number; revealAt?: number; duration?: number }
 ): Match3WatchContext | undefined {
-  if (!opts || opts.gameType !== "match_3" || !pm) return undefined;
+  if (!opts || !opts.gameType || !CASUAL_WATCH_GAME_TYPES.has(opts.gameType) || !pm) {
+    return undefined;
+  }
   if (isCasualAsyncVirtualOpponentUid(pm.uid)) {
     if (!opts.seedId || pm.rolloutIndex == null) return undefined;
     return {
@@ -91,7 +95,7 @@ async function resolveWatchAttachOpts(
   rows: PlayerMatchRow[]
 ): Promise<WatchAttachOpts | undefined> {
   const def = getTournamentDefinition(templateId);
-  if (!def || def.gameType !== "match_3") return undefined;
+  if (!def || !CASUAL_WATCH_GAME_TYPES.has(def.gameType)) return undefined;
   const matchDoc = matchId.trim()
     ? await ctx.db.get(matchId as Id<"casual_run_matches">)
     : null;
@@ -244,7 +248,7 @@ function buildLeaderboardRowsFromScored(
       displayLabel = `同桌 ${++humanPeerIdx}`;
     }
     const pm = watchOpts?.pmByUid.get(e.uid);
-    const watchContext = attachMatch3WatchContext(pm, watchOpts, { expectedScore: e.score });
+    const watchContext = attachCasualWatchContext(pm, watchOpts, { expectedScore: e.score });
     return {
       rank: idx + 1,
       score: e.score,
@@ -287,7 +291,7 @@ function buildPartialAsyncTableSummaryRows(args: {
       continue;
     }
     if (state === "playing") {
-      const watchContext = attachMatch3WatchContext(h, watchOpts);
+      const watchContext = attachCasualWatchContext(h, watchOpts);
       playingRows.push({
         rank: 0,
         rowState: "playing",
@@ -313,7 +317,7 @@ function buildPartialAsyncTableSummaryRows(args: {
     }
     const label = `补位 ${++botPeerIdx}`;
     if (state === "playing") {
-      const watchContext = attachMatch3WatchContext(b, watchOpts, {
+      const watchContext = attachCasualWatchContext(b, watchOpts, {
         revealAt: b.revealAt,
         duration: b.duration,
       });

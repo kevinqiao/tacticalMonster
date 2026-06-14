@@ -1,6 +1,6 @@
 import gsap from "gsap";
-import { SoloCard, ZoneType } from "../../types/SoloTypes";
-import { getCardCoord, tableauCardZIndex } from "../../Utils";
+import { SoloCard } from "../../types/SoloTypes";
+import { getCardCoord, soloCardZIndex } from "../../Utils";
 
 export const dragCancel = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
     const { cards: rawCards, boardDimensionRef, gameState } = data;
@@ -24,10 +24,7 @@ export const dragCancel = ({ data, onComplete }: { data: any; onComplete?: () =>
         for (const c of cards) {
             if (!c.ele) continue;
             const { x, y } = getCardCoord(c, zoneCards, boardDimensionRef);
-            const z =
-                c.zone === ZoneType.TABLEAU
-                    ? tableauCardZIndex(c.zoneId, c.zoneIndex)
-                    : c.zoneIndex + 10;
+            const z = soloCardZIndex(c, zoneCards);
             gsap.set(c.ele, { x, y, zIndex: z });
         }
     };
@@ -43,10 +40,7 @@ export const dragCancel = ({ data, onComplete }: { data: any; onComplete?: () =>
         let added = false;
         for (const c of cards) {
             if (!c.ele) continue;
-            const z =
-                c.zone === ZoneType.TABLEAU
-                    ? tableauCardZIndex(c.zoneId, c.zoneIndex)
-                    : c.zoneIndex + 10;
+            const z = soloCardZIndex(c, zoneCards);
             gsap.set(c.ele, { zIndex: z });
             tl.to(
                 c.ele,

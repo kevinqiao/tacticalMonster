@@ -37,6 +37,7 @@ export type UseSolitaireRolloutReplayerOptions = {
   setInteractionPhase?: (phase: GameInteractionPhase) => void;
   onStep?: (payload: RolloutReplayStepPayload) => void | Promise<void>;
   playbackSpeed?: number;
+  initialStepIndex?: number;
 };
 
 export function useSolitaireRolloutReplayer({
@@ -51,6 +52,7 @@ export function useSolitaireRolloutReplayer({
   setInteractionPhase,
   onStep,
   playbackSpeed = 1,
+  initialStepIndex = 0,
 }: UseSolitaireRolloutReplayerOptions) {
   const [playing, setPlaying] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
@@ -81,9 +83,26 @@ export function useSolitaireRolloutReplayer({
   }, [seedId]);
 
   useEffect(() => {
-    reset();
-    // reset is stable (no gameState dep); only re-run when rollout/seed changes
-  }, [rollout?.rolloutIndex, seedId, reset]);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    setPlaying(false);
+    simStateRef.current = createRolloutReplayState(seedId);
+    if (initialStepIndex > 0 && rollout.ops.length > 0) {
+      let sim = simStateRef.current;
+      const target = Math.min(initialStepIndex, rollout.ops.length);
+      for (let i = 0; i < target; i++) {
+        const applied = applyRecordedOp(sim, rollout.ops[i]!);
+        if (!applied.ok) break;
+        sim = applied.state;
+      }
+      simStateRef.current = sim;
+      syncReplayStateRef.current?.(sim);
+      setStepIndex(target);
+      return;
+    }
+    setStepIndex(0);
+    syncReplayStateRef.current?.(simStateRef.current);
+  }, [rollout?.rolloutIndex, rollout.ops.length, seedId, initialStepIndex]);
 
   useEffect(() => {
     return () => {

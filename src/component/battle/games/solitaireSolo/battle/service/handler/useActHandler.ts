@@ -19,13 +19,14 @@ import {
     SoloGameStatus,
     ZoneType,
 } from "../../types/SoloTypes";
-import { getCardCoord, syncCardStackZIndexFromGameState, tableauCardZIndex } from "../../Utils";
+import { getCardCoord, syncCardStackZIndexFromGameState, soloCardZIndex } from "../../Utils";
 import { useSoloGameManager } from "../GameManager";
 import {
     buildSolitaireScoreReport,
     shouldOpenCasualTableSummaryAfterScoreReport,
     type CasualGameScoreReportUI,
 } from "../../../../shared/casualGameScoreReportUI";
+import type { CasualWatchContext } from "../../../../shared/casualAsyncTableSummaryUI";
 import {
     applyCasualTableSummaryFromQuery,
     type CasualAsyncTableSummaryUI,
@@ -111,6 +112,8 @@ const useActHandler = () => {
         undefined
     );
     const [casualReplayBusy, setCasualReplayBusy] = useState(false);
+    const [watchTarget, setWatchTarget] = useState<CasualWatchContext | null>(null);
+    const [watchTargetLabel, setWatchTargetLabel] = useState("");
     const casualRunSubmittedRef = useRef(false);
     const settleInFlightRef = useRef(false);
     const gameStateRef = useRef<SoloGameState | null>(null);
@@ -167,6 +170,8 @@ const useActHandler = () => {
         setPostCasualCanReplay(false);
         setPostCasualReplayWindowEndsAt(undefined);
         setCasualReplayBusy(false);
+        setWatchTarget(null);
+        setWatchTargetLabel("");
     }, [gameState?.gameId]);
 
     const loadSolitaireScoreReport = useCallback(
@@ -444,6 +449,22 @@ const useActHandler = () => {
     const dismissPostCasualSummary = useCallback(() => {
         void exitCasualRunAfterSettle({ hadReplayOffer: postCasualReplayOffered });
     }, [postCasualReplayOffered, exitCasualRunAfterSettle]);
+
+    const openWatch = useCallback((ctx: CasualWatchContext, displayLabel: string) => {
+        setWatchTarget(ctx);
+        setWatchTargetLabel(displayLabel);
+    }, []);
+
+    const closeWatch = useCallback(() => {
+        setWatchTarget(null);
+        setWatchTargetLabel("");
+    }, []);
+
+    const openSelfReplay = useCallback(() => {
+        const gid = gameStateRef.current?.gameId;
+        if (!gid) return;
+        openWatch({ kind: "recorded", gameId: gid }, "你");
+    }, [openWatch]);
 
     const replayCasualRun = useCallback(async () => {
         const gs = gameStateRef.current;
@@ -842,10 +863,7 @@ const useActHandler = () => {
             for (const c of stack) {
                 if (!c.ele) continue;
                 const { x, y } = getCardCoord(c, zoneCards, boardDimensionRef);
-                const z =
-                    c.zone === ZoneType.TABLEAU
-                        ? tableauCardZIndex(c.zoneId, c.zoneIndex)
-                        : c.zoneIndex + 10;
+                const z = soloCardZIndex(c, zoneCards);
                 gsap.set(c.ele, { x, y, zIndex: z });
             }
             syncCardStackZIndexFromGameState(gameState);
@@ -974,6 +992,11 @@ const useActHandler = () => {
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,
+        watchTarget,
+        watchTargetLabel,
+        openWatch,
+        closeWatch,
+        openSelfReplay,
     };
 };
 

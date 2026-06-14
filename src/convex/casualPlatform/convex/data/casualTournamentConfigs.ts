@@ -1,4 +1,8 @@
-import type { CasualPlatformRewardConfig, CasualRankRewardEntry } from "./casualTournamentRewardTypes";
+import type {
+  CasualPlatformRewardConfig,
+  CasualRankRewardEntry,
+  CasualScoreTierRewardEntry,
+} from "./casualTournamentRewardTypes";
 import { isCasualGameLobbyVisible } from "./casualGameRegistry";
 
 export type {
@@ -104,6 +108,19 @@ export function findCasualRankRewardEntry(
   });
 }
 
+/**
+ * 单场（single_match）分位奖：按本局终分命中「最高满足档」（`minScore` 从高到低首个 `score >= minScore`）。
+ * 与周期实例 `findScoreTierRewardEntry` 同语义；供 `applyCasualTemplateScoreEffects` 每局结算调用。
+ */
+export function findHighestScoreTierReward(
+  tiers: CasualScoreTierRewardEntry[] | undefined,
+  score: number
+): CasualScoreTierRewardEntry | undefined {
+  if (!tiers?.length) return undefined;
+  const sorted = [...tiers].sort((a, b) => b.minScore - a.minScore);
+  return sorted.find((t) => score >= t.minScore);
+}
+
 export function isPeriodScopedTournament(def: CasualTournamentDefinition): boolean {
   return effectiveInstanceScope(def) !== "single_match";
 }
@@ -159,6 +176,30 @@ const CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P: CasualRankRewardEntry[] = [
   { rankRange: [3, 3], multiplier: 1, seasonPoints: 5 },
   { rankRange: [4, 4], multiplier: 1, seasonPoints: 2 },
   { rankRange: [5, 5], multiplier: 1, seasonPoints: -8 },
+];
+
+/**
+ * 单场 A/B/C 分位奖（叠加在底奖 + 名次奖之上，每局按本局终分发放）。
+ * 阈值刻意取较低值并跨 4 玩法通用（BB/纸牌/塔防/消除分制不同），便于核查发奖是否生效：
+ * - A：最低档 minScore=1 必中 +3 金；越界往上叠到 +8 / +15。
+ * - B：+5 / +12 / +25 金。
+ * - C：+1 / +2 / +4 钻。
+ * 上线正式调参时按各玩法实际分位（见 `CASUAL_BB_QUANTILES_*`）替换阈值即可。
+ */
+const CASUAL_ASYNC_SCORE_TIER_A: CasualScoreTierRewardEntry[] = [
+  { minScore: 1, coins: 3 },
+  { minScore: 300, coins: 8 },
+  { minScore: 1000, coins: 15 },
+];
+const CASUAL_ASYNC_SCORE_TIER_B: CasualScoreTierRewardEntry[] = [
+  { minScore: 1, coins: 5 },
+  { minScore: 800, coins: 12 },
+  { minScore: 2500, coins: 25 },
+];
+const CASUAL_ASYNC_SCORE_TIER_C: CasualScoreTierRewardEntry[] = [
+  { minScore: 1, gems: 1 },
+  { minScore: 1500, gems: 2 },
+  { minScore: 5000, gems: 4 },
 ];
 
 const CASUAL_RANK_RATES_4B = [
@@ -233,6 +274,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 22, gems: 0 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_A],
     },
     seasonXpOnSettle: 12,
     seasonPointsMultiplier: 0,
@@ -250,6 +292,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 58, gems: 1 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_B],
     },
     seasonXpOnSettle: 18,
     seasonPointsMultiplier: 0,
@@ -267,6 +310,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 0, gems: 8 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_C],
     },
     seasonXpOnSettle: 28,
     seasonPointsMultiplier: 0,
@@ -284,6 +328,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 22, gems: 0 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_A],
     },
     seasonXpOnSettle: 12,
     seasonPointsMultiplier: 0,
@@ -300,6 +345,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 58, gems: 1 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_B],
     },
     seasonXpOnSettle: 18,
     seasonPointsMultiplier: 0,
@@ -316,6 +362,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 0, gems: 8 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_C],
     },
     seasonXpOnSettle: 28,
     seasonPointsMultiplier: 0,
@@ -332,6 +379,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 22, gems: 0 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_A],
     },
     seasonXpOnSettle: 12,
     seasonPointsMultiplier: 0,
@@ -348,6 +396,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 58, gems: 1 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_B],
     },
     seasonXpOnSettle: 18,
     seasonPointsMultiplier: 0,
@@ -364,6 +413,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 0, gems: 8 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_C],
     },
     seasonXpOnSettle: 28,
     seasonPointsMultiplier: 0,
@@ -380,6 +430,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 22, gems: 0 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_A],
     },
     seasonXpOnSettle: 12,
     seasonPointsMultiplier: 0,
@@ -396,6 +447,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 58, gems: 1 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_B],
     },
     seasonXpOnSettle: 18,
     seasonPointsMultiplier: 0,
@@ -412,6 +464,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       type: "by_rank",
       baseRewards: { coins: 0, gems: 8 },
       rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
+      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_C],
     },
     seasonXpOnSettle: 28,
     seasonPointsMultiplier: 0,

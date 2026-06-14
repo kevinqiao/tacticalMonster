@@ -2,8 +2,7 @@ import { gsap } from 'gsap';
 import type { RefObject } from 'react';
 import { popCard } from './animation/effects/popCard';
 import type { SoloBoardDimension, SoloCard, SoloGameState } from './types/SoloTypes';
-import { ZoneType } from './types/SoloTypes';
-import { getCardCoord, tableauCardZIndex } from './Utils';
+import { getCardCoord, soloCardZIndex } from './Utils';
 
 export function layoutSoloCardFromModel(
     card: SoloCard,
@@ -18,10 +17,7 @@ export function layoutSoloCardFromModel(
     const coord = getCardCoord(card, zoneCards, boardDimensionRef);
     const rotateY = card.isRevealed && card.zone !== 'talon' ? 180 : 0;
     popCard(card);
-    const stackZ =
-        card.zone === ZoneType.TABLEAU
-            ? tableauCardZIndex(card.zoneId, card.zoneIndex)
-            : card.zoneIndex + 10;
+    const stackZ = soloCardZIndex(card, zoneCards);
     const cx = Number(gsap.getProperty(card.ele, 'x'));
     const cy = Number(gsap.getProperty(card.ele, 'y'));
     const samePos =

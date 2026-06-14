@@ -15,20 +15,58 @@ import {
 } from "./casualInstanceService";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "../join/casualTournamentJoinCore";
 import { computeCasualAsyncSessionRank, isCasualAsyncVirtualOpponentUid } from "../settle/casualRunSettlementFill";
+import { buildCasualAsyncTableSummary } from "../settle/async/casualAsyncTableSummary";
 import { isRegisteredCasualGameType } from "../../../data/casualGameRegistry";
 import { prunePendingWalletRewards } from "../settle/casualRunScoreEffects";
 
-type Match3HistoryWatchContext = {
-  kind: "recorded";
-  gameId: string;
-};
+async function attachCasualHistoryTableSummary(
+  ctx: QueryCtx,
+  opts: {
+    uid: string;
+    templateId: string;
+    gameType: string;
+    matchGameId?: string;
+    runTournamentId?: Id<"casual_run_tournaments">;
+  }
+) {
+  if (opts.gameType !== "match_3" && opts.gameType !== "solitaire") return undefined;
+  const def = getTournamentDefinition(opts.templateId);
+  if (!def) return undefined;
 
-function match3SelfRecordedWatchContext(
-  gameType: string,
-  gameId: string | undefined
-): Match3HistoryWatchContext | undefined {
-  if (gameType !== "match_3" || !gameId?.trim()) return undefined;
-  return { kind: "recorded", gameId: gameId.trim() };
+  let pm: Doc<"casual_run_player_matches"> | null = null;
+  if (opts.matchGameId?.trim()) {
+    const byGame = await ctx.db
+      .query("casual_run_player_matches")
+      .withIndex("by_gameId", (q) => q.eq("gameId", opts.matchGameId!.trim()))
+      .unique();
+    if (byGame && byGame.uid === opts.uid) {
+      pm = byGame;
+    }
+  }
+  if (!pm && opts.runTournamentId) {
+    pm =
+      (await ctx.db
+        .query("casual_run_player_matches")
+        .withIndex("by_run_uid", (q) =>
+          q.eq("tournamentId", String(opts.runTournamentId)).eq("uid", opts.uid)
+        )
+        .unique()) ?? null;
+  }
+  if (!pm) return undefined;
+
+  const summary = await buildCasualAsyncTableSummary(ctx, {
+    templateId: opts.templateId,
+    uid: opts.uid,
+    maxPlayers: Math.max(1, def.maxPlayers),
+    matchId: pm.matchId,
+    allHumansSettled: true,
+  });
+  if (!summary?.rows.some((r) => r.watchContext)) return undefined;
+  return {
+    maxPlayers: summary.maxPlayers,
+    rows: summary.rows,
+    isBoardStable: true as const,
+  };
 }
 async function resolveRunHistoryRank(
   ctx: QueryCtx,
@@ -359,7 +397,13 @@ export const gameHistory = query({
           .sort((a, b) => String(a._id).localeCompare(String(b._id)))
           .map((g) => String(g._id));
         const historySortAt = Math.min(...group.map((g) => g.createdAt));
-        const watchContext = match3SelfRecordedWatchContext(tr.gameType, tr.matchGameId);
+        const tableSummary = await attachCasualHistoryTableSummary(ctx, {
+          uid,
+          templateId: tr.templateId,
+          gameType: tr.gameType,
+          matchGameId: tr.matchGameId,
+          runTournamentId: tr.runTournamentId,
+        });
         return {
           historySortAt,
           entryId,
@@ -384,7 +428,7 @@ export const gameHistory = query({
           scoreTierMinScore: isMulti ? undefined : tr.minScore,
           scoreTierMinScores: isMulti ? sortedMinScores : undefined,
           scoreTierPendingIds: isMulti && pendingSortedIds.length > 0 ? pendingSortedIds : undefined,
-          ...(watchContext ? { watchContext } : {}),
+          ...(tableSummary ? { tableSummary } : {}),
         };
       })
     );
@@ -489,6 +533,12 @@ export const gameHistory = query({
         }
 
         const historySortAt = run?.createdAt ?? pt.createdAt;
+        const tableSummary = await attachCasualHistoryTableSummary(ctx, {
+          uid,
+          templateId: pt.templateId,
+          gameType,
+          runTournamentId: pt.tournamentId,
+        });
         return {
           historySortAt,
           entryId: String(pt._id),
@@ -509,6 +559,7 @@ export const gameHistory = query({
           rewardsClaimedAt: pt.runRewardsClaimedAt ?? null,
           periodTournament,
           periodInstanceKey,
+          ...(tableSummary ? { tableSummary } : {}),
         };
       })
     );
@@ -543,4 +594,6 @@ export const listOpenCasualRunAssignments = query({
         runTournamentId: r.tournamentId,
         createdAt: r.createdAt,
       }))
-      
+      .sort((a, b) => b.createdAt - a.createdAt);
+  },
+});

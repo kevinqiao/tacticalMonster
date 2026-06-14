@@ -40,6 +40,8 @@ function casualPlayerSummaryFromAuth(result: unknown): CasualPlayerSummary | nul
   };
 }
 
+import type { CasualAsyncTableSummaryUI } from '@/component/battle/games/shared/casualAsyncTableSummaryUI';
+
 export interface CasualSubmitScoreResult {
   ok: boolean;
   error?: string;
@@ -84,6 +86,8 @@ export interface CasualGameHistoryRow {
   scoreTierPendingIds?: string[];
   /** 对局 `gameId`（`game_${matchId}_${uid}`），仅 `score_tier_pending` */
   matchGameId?: string;
+  /** match_3：历史页对局报告（含各对手/补位 watchContext） */
+  tableSummary?: CasualAsyncTableSummaryUI;
 }
 
 /** @deprecated 周期关桶记录已并入 `gameHistory`（`historyRewardKind === "instance_close_pending"`）；仍可从 Convex `listInstancePendingRewards` 查询。 */

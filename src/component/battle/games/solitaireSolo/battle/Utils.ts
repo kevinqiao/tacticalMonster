@@ -36,6 +36,73 @@ function getTableauVerticalStepScale(
     return Math.max(0, (H - h) / gMax);
 }
 
+/** Draw 3：waste 区仅铺开最新三张，更早的牌叠在 fan 左端同位置 */
+export const SOLITAIRE_WASTE_VISIBLE_FAN = 3;
+export const WASTE_FAN_STEP_RATIO = 0.26;
+const WASTE_Z_BASE = 2000;
+
+function sortedWastePile(wastePile: SoloCard[], zoneId = "waste"): SoloCard[] {
+    return [...wastePile]
+        .filter((c) => c.zoneId === zoneId)
+        .sort((a, b) => a.zoneIndex - b.zoneIndex);
+}
+
+/** 三张 fan 的水平步长（相邻牌可见重叠） */
+export function wasteFanStep(cardWidth: number): number {
+    return cardWidth * WASTE_FAN_STEP_RATIO;
+}
+
+/** waste 槽位宽度 = 三张牌 fan 的总跨度 */
+export function wasteZoneFanWidth(cardWidth: number): number {
+    const step = wasteFanStep(cardWidth);
+    return cardWidth + 2 * step;
+}
+
+/** waste 内 pile 序号越大越靠上（顶牌在最上层） */
+export function wasteCardZIndex(card: SoloCard, wastePile: SoloCard[]): number {
+    const pile = sortedWastePile(wastePile, card.zoneId);
+    const idx = pile.findIndex((c) => c.id === card.id);
+    return idx < 0 ? WASTE_Z_BASE : WASTE_Z_BASE + idx;
+}
+
+export function soloCardZIndex(card: SoloCard, zoneCards?: SoloCard[]): number {
+    if (card.zone === ZoneType.TABLEAU) {
+        return tableauCardZIndex(card.zoneId, card.zoneIndex);
+    }
+    if (card.zone === ZoneType.WASTE && zoneCards) {
+        return wasteCardZIndex(card, zoneCards);
+    }
+    return card.zoneIndex + 10;
+}
+
+export function getWasteCardCoord(
+    card: SoloCard,
+    wastePile: SoloCard[],
+    wasteZone: { x: number; y: number; width: number; height: number },
+    cardWidth: number,
+    cardHeight: number
+): { x: number; y: number } {
+    const pile = sortedWastePile(wastePile, card.zoneId);
+    const idx = pile.findIndex((c) => c.id === card.id);
+    if (idx < 0) {
+        return { x: wasteZone.x, y: wasteZone.y };
+    }
+
+    const n = pile.length;
+    const fanStart = Math.max(0, n - SOLITAIRE_WASTE_VISIBLE_FAN);
+    const fanCount = n - fanStart;
+    const y = wasteZone.y + Math.max(0, (wasteZone.height - cardHeight) * 0.5);
+    const step = wasteFanStep(cardWidth);
+
+    if (idx < fanStart) {
+        return { x: wasteZone.x, y };
+    }
+
+    // 较早的 fan 在左，最新顶牌在右（靠近 talon）；右牌 z 更高，盖住左侧
+    const pileIdx = idx - fanStart;
+    return { x: wasteZone.x + pileIdx * step, y };
+}
+
 /** 牌桌单列：zoneIndex 越大越靠上，z 单调递增且列与列之间不重叠 */
 export function tableauCardZIndex(zoneId: string, zoneIndex: number): number {
     const col = parseInt(zoneId.split("-")[1] ?? "0", 10);
@@ -56,11 +123,7 @@ export function syncCardStackZIndexFromGameState(gameState: SoloGameState): void
         list.sort((a, b) => a.zoneIndex - b.zoneIndex);
         for (const c of list) {
             if (!c.ele) continue;
-            const z =
-                c.zone === ZoneType.TABLEAU
-                    ? tableauCardZIndex(c.zoneId, c.zoneIndex)
-                    : c.zoneIndex + 10;
-            gsap.set(c.ele, { zIndex: z });
+            gsap.set(c.ele, { zIndex: soloCardZIndex(c, list) });
         }
     }
 }
@@ -90,25 +153,13 @@ export const getCardCoord = (card: SoloCard, zoneCards: SoloCard[], boardDimensi
             return { x, y };
         }
         case ZoneType.WASTE: {
-            const wasteZone = boardDimension.zones.waste;
-            const cw = boardDimension.cardWidth;
-            const ch = boardDimension.cardHeight;
-
-            // 传统废牌：自左向右平铺，相邻牌水平重叠；张数多时自动缩小步长以落在 waste 区域内
-            const wastePile = [...zoneCards]
-                .filter((c) => c.zoneId === card.zoneId)
-                .sort((a, b) => a.zoneIndex - b.zoneIndex);
-            const idx = wastePile.findIndex((c) => c.id === card.id);
-            if (idx < 0) {
-                return { x: wasteZone.x, y: wasteZone.y };
-            }
-            const n = wastePile.length;
-            const maxStep = cw * 0.26;
-            const spread = Math.max(0, wasteZone.width - cw);
-            const step = n <= 1 ? 0 : Math.min(maxStep, spread / (n - 1));
-            const x = wasteZone.x + idx * step;
-            const y = wasteZone.y + Math.max(0, (wasteZone.height - ch) * 0.5);
-            return { x, y };
+            return getWasteCardCoord(
+                card,
+                zoneCards,
+                boardDimension.zones.waste,
+                boardDimension.cardWidth,
+                boardDimension.cardHeight
+            );
         }
         case ZoneType.TABLEAU: {
             const colIndex = +card.zoneId.split('-')[1];

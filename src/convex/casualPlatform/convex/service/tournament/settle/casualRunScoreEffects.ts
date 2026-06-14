@@ -7,6 +7,7 @@ import {
   casualSettleBaseCoins,
   casualSettleBaseGems,
   findCasualRankRewardEntry,
+  findHighestScoreTierReward,
   type CasualTournamentDefinition,
 } from "../../../data/casualTournamentConfigs";
 import { applyCasualTemplateLadderDelta } from "../../season/casualSeasonLadder";
@@ -122,6 +123,16 @@ export async function applyCasualTemplateScoreEffects(
         if (rg > 0) pendingWallet.gems = (pendingWallet.gems ?? 0) + rg;
       }
     }
+  }
+  // 单场（single_match）分位奖：按本局终分命中最高满足档，叠加到待发钱包。
+  // 周期型（daily/weekly/season）由 `grantCasualScoreTierRewardsOnEachRunSettled` / 桶收尾处理，
+  // 不走本函数，故此处不会重复发放。
+  const scoreTier = findHighestScoreTierReward(def.rewards.scoreTierRewards, score);
+  if (scoreTier) {
+    const tc = scoreTier.coins != null ? Math.max(0, Math.floor(scoreTier.coins)) : 0;
+    const tg = scoreTier.gems != null ? Math.max(0, Math.floor(scoreTier.gems)) : 0;
+    if (tc > 0) pendingWallet.coins = (pendingWallet.coins ?? 0) + tc;
+    if (tg > 0) pendingWallet.gems = (pendingWallet.gems ?? 0) + tg;
   }
   if (settleCoins > 0) {
     if (deferWallet) {

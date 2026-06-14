@@ -19,6 +19,22 @@ import {
     scoreDeltaForRecycle,
     SOLITAIRE_MATCH_TIME_LIMIT_SEC,
 } from "./seedPool/solitaireScoring";
+import type {
+    SolitaireRank,
+    SolitaireRecordedStep,
+    SolitaireSuit,
+} from "./seedPool/solitaireRecordedOpTypes";
+
+function appendRecordedStep(game: SoloGameState, step: SolitaireRecordedStep): void {
+    const now = Date.now();
+    const pacingMs =
+        step.pacingMs ??
+        (game.lastOpAt != null ? Math.max(50, now - game.lastOpAt) : undefined);
+    const withPacing =
+        pacingMs != null && step.pacingMs == null ? { ...step, pacingMs } : step;
+    game.recordedOps = [...(game.recordedOps ?? []), withPacing];
+    game.lastOpAt = now;
+}
 
 function ensurePlayStarted(game: SoloGameState): number {
     if (game.playStartedAt == null) {
@@ -39,7 +55,7 @@ export class GameManager {
         const game = await this.dbCtx.db.query("game").withIndex("by_gameId", (q: any) => q.eq("gameId", gameId)).unique();
         if (!game) return;
 
-        this.game = { ...game, _creationTime: undefined } as SoloGameState;
+        this.game = { ...game, _creationTime: undefined, recordedOps: game.recordedOps ?? [] } as SoloGameState;
         return this.game;
     }
     async save(data: {
@@ -48,6 +64,8 @@ export class GameManager {
         moves?: number;
         score?: number;
         playStartedAt?: number;
+        recordedOps?: SolitaireRecordedStep[];
+        lastOpAt?: number;
     }) {
         if (!this.game) return;
         if (data.cards) {
@@ -66,14 +84,23 @@ export class GameManager {
         if (data.moves !== undefined) this.game.moves = data.moves;
         if (data.score !== undefined) this.game.score = data.score;
         if (data.playStartedAt !== undefined) this.game.playStartedAt = data.playStartedAt;
+        if (data.recordedOps !== undefined) this.game.recordedOps = data.recordedOps;
+        if (data.lastOpAt !== undefined) this.game.lastOpAt = data.lastOpAt;
+        if (this.game.recordedOps === undefined) {
+            this.game.recordedOps = [];
+        }
         const patch: Record<string, unknown> = {
             cards: this.game.cards,
             status: this.game.status,
             moves: this.game.moves,
             score: this.game.score,
+            recordedOps: this.game.recordedOps,
         };
         if (this.game.playStartedAt != null) {
             patch.playStartedAt = this.game.playStartedAt;
+        }
+        if (this.game.lastOpAt != null) {
+            patch.lastOpAt = this.game.lastOpAt;
         }
         await this.dbCtx.db.patch(this.game._id, patch);
     }
@@ -91,13 +118,13 @@ export class GameManager {
         const gameState: SoloGameState = {
             ...game, gameId: gameId ?? "", zones
         };
-        const gid = await this.dbCtx.db.insert("game", gameState);
+        const gid = await this.dbCtx.db.insert("game", { ...gameState, recordedOps: [] });
         if (gid) {
             const patchData: Record<string, any> = {};
             if (gameState.seed) {
                 patchData.seed = gameState.seed;
             }
-            this.game = { ...gameState, _id: gid, _creationTime: undefined } as any;
+            this.game = { ...gameState, _id: gid, recordedOps: [], _creationTime: undefined } as any;
             return this.game
         }
     }
@@ -112,6 +139,7 @@ export class GameManager {
         if (!this.game) return { ok: false };
         const result = SoloGameEngine.drawCard(this.game, cardId);
         if (!result.ok) return result;
+        appendRecordedStep(this.game, { op: "draw" });
         const playStartedAt = ensurePlayStarted(this.game);
         const movesBefore = this.game.moves ?? 0;
         await this.save({
@@ -127,18 +155,25 @@ export class GameManager {
         if (!this.game) return { ok: false };
         const card = this.game.cards.find((c: Card) => c.id === cardId);
         if (!card) return { ok: false };
-        const result = SoloGameEngine.moveCard(this.game, card, toZone);
-        if (!result.ok) return result;
-        const flipCards = result.data?.flip ?? [];
-        const updateCards = [...(result.data?.move || []), ...flipCards];
-        const playStartedAt = ensurePlayStarted(this.game);
-        const movesBefore = this.game.moves ?? 0;
         const from =
             card.zone === ZoneType.WASTE
                 ? "waste"
                 : card.zone === ZoneType.FOUNDATION
                     ? card.zoneId
                     : card.zoneId;
+        const result = SoloGameEngine.moveCard(this.game, card, toZone);
+        if (!result.ok) return result;
+        appendRecordedStep(this.game, {
+            op: "move",
+            suit: card.suit as SolitaireSuit,
+            rank: card.rank as SolitaireRank,
+            from,
+            to: toZone,
+        });
+        const flipCards = result.data?.flip ?? [];
+        const updateCards = [...(result.data?.move || []), ...flipCards];
+        const playStartedAt = ensurePlayStarted(this.game);
+        const movesBefore = this.game.moves ?? 0;
         const delta = scoreDeltaForMove(
             from,
             toZone,
@@ -162,6 +197,7 @@ export class GameManager {
     async recycle() {
         const result = SoloGameEngine.recycle(this.game);
         if (!result.ok) return result;
+        appendRecordedStep(this.game, { op: "recycle" });
         const cards = result.data?.update || [];
         const playStartedAt = ensurePlayStarted(this.game);
         const movesBefore = this.game.moves ?? 0;
@@ -189,6 +225,7 @@ export class GameManager {
         if (st === SoloGameStatus.COMPLETED || st === SoloGameStatus.CANCELLED) {
             return { ok: true, ...this.progressSnapshot() };
         }
+        appendRecordedStep(this.game, { op: "concede" });
         await this.save({ status: SoloGameStatus.CANCELLED });
         return { ok: true, ...this.progressSnapshot() };
     }
@@ -211,11 +248,15 @@ export const createGame = internalMutation({
     },
     handler: async (ctx, { seed, gameId }) => {
         try {
-            const existing = await ctx.db
+            let existing = await ctx.db
                 .query("game")
                 .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
                 .unique();
             if (existing) {
+                if (existing.recordedOps === undefined) {
+                    await ctx.db.patch(existing._id, { recordedOps: [] });
+                    existing = { ...existing, recordedOps: [] };
+                }
                 return {
                     ok: true as const,
                     data: existing,
@@ -342,6 +383,28 @@ export const getGameStatus = query({
         const gameManager = new GameManager(ctx);
         const game = await gameManager.load(gameId);
         return { status: game?.status ?? -1 };
+    },
+});
+
+export const getRecordedOps = query({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const row = await ctx.db
+            .query("game")
+            .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
+            .unique();
+        if (!row) {
+            return { ok: false as const, error: "not_found" as const };
+        }
+        return {
+            ok: true as const,
+            gameId: row.gameId,
+            seedId: row.seed,
+            steps: row.recordedOps ?? [],
+            score: row.score,
+            moves: row.moves,
+            status: row.status,
+        };
     },
 });
 export const gameOver = mutation({

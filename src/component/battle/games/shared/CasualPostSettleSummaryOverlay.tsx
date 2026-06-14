@@ -26,6 +26,7 @@ export type CasualPostSettleSummaryOverlayProps = {
   /** epoch ms，再战窗口结束时刻 */
   replayWindowEndsAt?: number;
   onWatchRow?: (ctx: Match3WatchContext, displayLabel: string) => void;
+  watchButtonLabel?: string;
 };
 
 /**
@@ -47,6 +48,7 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
   replayBusy = false,
   replayWindowEndsAt,
   onWatchRow,
+  watchButtonLabel,
 }) => {
   const titleId = useId();
   const countdown = useReplayWindowCountdown(replayWindowEndsAt);
@@ -98,7 +100,11 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
           </h2>
           {body ? <p className="ssc__body">{body}</p> : null}
           {showTable && summary ? (
-            <CasualTableSummaryPanel s={summary} onWatchRow={onWatchRow} />
+            <CasualTableSummaryPanel
+              s={summary}
+              onWatchRow={onWatchRow}
+              watchButtonLabel={watchButtonLabel}
+            />
           ) : null}
           {showPending ? (
             <p className="ssc__body msc-pendingPeersNote" role="status">

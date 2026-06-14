@@ -30,10 +30,11 @@ import {
     ZoneType
 } from './types/SoloTypes';
 import { layoutAllSoloCardsFromModel } from './soloCardLayout';
-import { tableauCardZIndex } from './Utils';
+import { soloCardZIndex, wasteFanStep } from './Utils';
 import { useGameVisualTheme } from '../../shared/visualTheme/useGameVisualTheme';
 import SoloDnDCard from './view/SoloDnDCard';
 import SoloGameHeader from './view/SoloGameHeader';
+import SolitaireWatchOverlay from './replay/SolitaireWatchOverlay';
 
 const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadComplete }) => {
     const visualTheme = useGameVisualTheme('solitaire');
@@ -54,7 +55,6 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         config,
         updateBoardDimension,
         interactionPhase,
-        loadGame,
         boardDimension,
         boardDimensionRef,
         replayMode,
@@ -87,6 +87,11 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,
+        watchTarget,
+        watchTargetLabel,
+        openWatch,
+        closeWatch,
+        openSelfReplay,
     } = useActHandler();
 
     const postCasualReplayDisabled = postCasualReplayOffered && !postCasualCanReplay;
@@ -320,7 +325,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 className="foundation-zone foundation-slot"
                 data-zone-id={`foundation-${suit}`}
                 data-drop-zone="true"
-                style={{ gridColumn: `${index + 4} / ${index + 5}` }}
+                style={{ gridColumn: `${index + 1} / ${index + 2}` }}
             >
                 {gameState ? SUIT_ICONS[suit] : null}
             </div>
@@ -379,12 +384,12 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                     top: 0,
                     left: 0,
                     opacity: 0,
-                    zIndex: card.zone === ZoneType.TABLEAU ? tableauCardZIndex(card.zoneId, card.zoneIndex) : card.zoneIndex + 10
+                    zIndex: soloCardZIndex(card, gameState?.cards.filter((c) => c.zoneId === card.zoneId) ?? [])
                 }}
             />
         ))
 
-    }, [cards, notifyCardDomChange]);
+    }, [cards, notifyCardDomChange, gameState?.cards]);
 
     // 渲染控制面板
 
@@ -424,13 +429,16 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 className={
                     replayMode ? "solo-board-surface solo-board-surface--replay" : "solo-board-surface"
                 }
+                style={
+                    boardDimension
+                        ? ({
+                              ['--solo-card-width' as string]: `${boardDimension.cardWidth}px`,
+                              ['--solo-waste-fan-step' as string]: `${Math.round(wasteFanStep(boardDimension.cardWidth))}px`,
+                          } as React.CSSProperties)
+                        : undefined
+                }
             >
                 <div className="solo-foundation-spacer" aria-hidden />
-                {!replayMode && (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: "center", position: 'absolute', top: 0, left: 0, width: '30%', height: "100px", backgroundColor: 'transparent' }}>
-                        <div style={{ cursor: 'pointer', width: "70px", height: "50px", backgroundColor: 'rgba(38, 76, 243, 0.5)', color: 'white', fontSize: "12px", fontWeight: "bold", display: "flex", justifyContent: "center", alignItems: "center" }} onClick={loadGame}>Load</div>
-                    </div>
-                )}
                 {renderFoundations()}
                 {renderTalon()}
                 {renderWaste()}
@@ -447,12 +455,14 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                         onSuccessClose={finishManualSettleSuccess}
                     />
                     <CasualGameScoreReportOverlay
-                        open={postCasualScoreReportOpen}
+                        open={postCasualScoreReportOpen && watchTarget == null}
                         report={postCasualScoreReport}
                         onConfirm={dismissPostCasualScoreReport}
+                        secondaryLabel="复盘本局"
+                        onSecondary={openSelfReplay}
                     />
                     <CasualPostSettleSummaryOverlay
-                        open={postCasualSummaryOpen}
+                        open={postCasualSummaryOpen && watchTarget == null}
                         title="同桌成绩"
                         summary={postCasualTableSummary}
                         waitingForPeers={postCasualWaitingForPeers}
@@ -462,6 +472,13 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                         replayWindowEndsAt={postCasualReplayWindowEndsAt}
                         onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
                         onDismiss={dismissPostCasualSummary}
+                        onWatchRow={openWatch}
+                    />
+                    <SolitaireWatchOverlay
+                        open={watchTarget != null}
+                        watchContext={watchTarget}
+                        displayLabel={watchTargetLabel}
+                        onClose={closeWatch}
                     />
                 </>
             )}
