@@ -124,6 +124,8 @@ export interface BlockBlastActionData {
     status?: 'acting' | 'dragging' | 'dropping' | 'cancelled' | 'finished';
     dragGhostEl?: HTMLElement | null;
     dragGhostTransform?: string;
+    /** Pointer-down tile in shape matrix (for WYSIWYG placement). */
+    grabTile?: { row: number; col: number };
 }
 
 export const DEFAULT_GAME_CONFIG: BlockBlastGameConfig = {

@@ -19,6 +19,9 @@ export const casualTournamentFns = {
   listOpenCasualRunAssignments: makeFunctionReference<"query">(
     "service/tournament/list/casualTournamentQueries:listOpenCasualRunAssignments"
   ),
+  getTriathlonSessionProgress: makeFunctionReference<"query">(
+    "service/tournament/list/casualTournamentQueries:getTriathlonSessionProgress"
+  ),
   listCasualMatchQueueForUid: makeFunctionReference<"query">(
     "service/tournament/join/casualMatchmaking:listCasualMatchQueueForUid"
   ),

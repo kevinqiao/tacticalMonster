@@ -18,6 +18,7 @@
 | CasualTown（展示与轻社交；非第二养成主循环） | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
 | CasualTown 美术技法与 AI 交付规范（一页纸） | [`casual-town-art-brief.md`](./casual-town-art-brief.md) |
 | 成就、徽章与长期身份展示 | [`casual-platform-achievement-system-design.md`](./casual-platform-achievement-system-design.md) |
+| **周联赛**（cohort 分组、League XP、Bot 填充、周尾升降；**含完整一周测试剧本 §16**） | [`casual-platform-weekly-league-design.md`](./casual-platform-weekly-league-design.md) |
 | Battle Pass、皮肤、成就 | [`casual-platform-battle-pass-skins-achievements.md`](./casual-platform-battle-pass-skins-achievements.md) |
 | **多游戏 Web 平台 Pass**（SKU、XP、任务、指标） | [`casual-platform-multi-game-pass-design.md`](./casual-platform-multi-game-pass-design.md) |
 | **Seed Pipeline**（AI 生成、仿真 Gate、日榜选题、bot 分位） | [`casual-platform-seed-pipeline.md`](./casual-platform-seed-pipeline.md) |
@@ -87,6 +88,7 @@
 | Pass 等级、任务、专场券、榜单重置 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | 小镇布局、拜访、异步挑战、与 ingest 边界 | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
 | 成就、称号、展示 | [`casual-platform-achievement-system-design.md`](./casual-platform-achievement-system-design.md) |
+| 周联赛分组、Bot、周尾奖、**完整一周测试** | [`casual-platform-weekly-league-design.md`](./casual-platform-weekly-league-design.md) §16 |
 | 配置与实现细节 | `src/convex/casualPlatform/` 下 schema、service、`casualTournamentConfigs` 等 |
 | Seed 生产 / AI Gate / 分位与 rollout | [`casual-platform-seed-pipeline.md`](./casual-platform-seed-pipeline.md) |
 

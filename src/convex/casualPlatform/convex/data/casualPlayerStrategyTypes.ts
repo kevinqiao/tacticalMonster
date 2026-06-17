@@ -35,6 +35,8 @@ export type BotStrategyPlayerContext = {
   gameType: CasualGameIdForBot;
   maxPlayers: number;
   seasonLadderPoints: number;
+  /** 周联赛当前段位（匹配 early_game 规则） */
+  weeklyLeagueTier: string;
   completedMultiplayerMatches: number;
   coinsBalance: number;
   daysSinceLastMatch: number;

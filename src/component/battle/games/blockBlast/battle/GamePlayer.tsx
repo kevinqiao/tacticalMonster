@@ -24,6 +24,8 @@ import BlockBlastStatusBar, {
 } from './view/BlockBlastStatusBar';
 import GridView from './view/GridView';
 import ShapePreview from './view/ShapePreview';
+import BlockBlastWatchOverlay from './replay/BlockBlastWatchOverlay';
+import type { CasualWatchContext } from '../../shared/casualAsyncTableSummaryUI';
 
 /** 棋盘深色底框内沿与格子网之间的留白（尽量小以放大格子） */
 const GRID_PADDING = 4;
@@ -65,6 +67,7 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         dismissPostCasualScoreReport,
         postCasualSummaryOpen,
         postCasualTableSummary,
+        postCasualWeeklyLeagueSettle,
         postCasualWaitingForPeers,
         postCasualCanReplay,
         postCasualReplayOffered,
@@ -73,7 +76,24 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         replayCasualRun,
         dismissPostCasualSummary,
         interactionPhase,
+        replayMode,
     } = useBlockBlastGameManager();
+
+    const [watchTarget, setWatchTarget] = useState<CasualWatchContext | null>(null);
+    const [watchTargetLabel, setWatchTargetLabel] = useState('');
+    const openWatch = useCallback((ctx: CasualWatchContext, displayLabel: string) => {
+        setWatchTarget(ctx);
+        setWatchTargetLabel(displayLabel);
+    }, []);
+    const closeWatch = useCallback(() => {
+        setWatchTarget(null);
+        setWatchTargetLabel('');
+    }, []);
+    const openSelfReplay = useCallback(() => {
+        const gid = gameState?.gameId;
+        if (!gid) return;
+        openWatch({ kind: 'recorded', gameId: gid }, '你');
+    }, [gameState?.gameId, openWatch]);
 
     const postCasualReplayDisabled = postCasualReplayOffered && !postCasualCanReplay;
 
@@ -331,9 +351,10 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
     }, [calculateBoardDimension, updateBoardDimension, gameState?.gameId, gridDimension]);
 
     useLayoutEffect(() => {
+        if (replayMode) return;
         if (!gameState || gameState.status === BlockBlastGameStatus.PLAYING) return;
         void onGameOver();
-    }, [gameState?.status, gameState?.gameId, onGameOver]);
+    }, [replayMode, gameState?.status, gameState?.gameId, onGameOver]);
 
     if (!gameState) {
         return (
@@ -361,37 +382,55 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 isPortrait={isPortrait}
                 gameState={gameState}
                 endGameDisabled={endGameDisabled}
-                onEndGame={() => {
-                    void settleManuallyAndExit();
-                }}
+                onEndGame={
+                    replayMode
+                        ? undefined
+                        : () => {
+                              void settleManuallyAndExit();
+                          }
+                }
             />
             <GridView />
             <ShapePreview />
-            <GameOverReport />
-            <ManualSettleConfirmOverlay
-                open={settleConfirmOpen}
-                defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST}
-                onCancel={cancelSettleConfirm}
-                onConfirm={confirmSettleAndExit}
-                onSuccessClose={finishManualSettleSuccess}
-            />
-            <CasualGameScoreReportOverlay
-                open={postCasualScoreReportOpen}
-                report={postCasualScoreReport}
-                onConfirm={dismissPostCasualScoreReport}
-            />
-            <CasualPostSettleSummaryOverlay
-                open={postCasualSummaryOpen}
-                title="同桌成绩"
-                summary={postCasualTableSummary}
-                waitingForPeers={postCasualWaitingForPeers}
-                replayAvailable={postCasualReplayOffered}
-                replayDisabled={postCasualReplayDisabled}
-                replayBusy={casualReplayBusy}
-                replayWindowEndsAt={postCasualReplayWindowEndsAt}
-                onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
-                onDismiss={dismissPostCasualSummary}
-            />
+            {!replayMode && (
+                <>
+                    <GameOverReport />
+                    <ManualSettleConfirmOverlay
+                        open={settleConfirmOpen}
+                        defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST}
+                        onCancel={cancelSettleConfirm}
+                        onConfirm={confirmSettleAndExit}
+                        onSuccessClose={finishManualSettleSuccess}
+                    />
+                    <CasualGameScoreReportOverlay
+                        open={postCasualScoreReportOpen && watchTarget == null}
+                        report={postCasualScoreReport}
+                        onConfirm={dismissPostCasualScoreReport}
+                        secondaryLabel="复盘本局"
+                        onSecondary={openSelfReplay}
+                    />
+                    <CasualPostSettleSummaryOverlay
+                        open={postCasualSummaryOpen && watchTarget == null}
+                        title="同桌成绩"
+                        summary={postCasualTableSummary}
+                        waitingForPeers={postCasualWaitingForPeers}
+                        replayAvailable={postCasualReplayOffered}
+                        replayDisabled={postCasualReplayDisabled}
+                        replayBusy={casualReplayBusy}
+                        replayWindowEndsAt={postCasualReplayWindowEndsAt}
+                        onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
+                        onDismiss={dismissPostCasualSummary}
+                        weeklyLeagueSettle={postCasualWeeklyLeagueSettle}
+                        onWatchRow={openWatch}
+                    />
+                    <BlockBlastWatchOverlay
+                        open={watchTarget != null}
+                        watchContext={watchTarget}
+                        displayLabel={watchTargetLabel}
+                        onClose={closeWatch}
+                    />
+                </>
+            )}
         </div>
     );
 };

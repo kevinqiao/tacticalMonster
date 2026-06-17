@@ -207,7 +207,7 @@ export function formatUnlockHint(condition: TownUnlockCondition): string {
     case "tournament_wins":
       return `赢得 ${condition.count} 届锦标赛`;
     case "rank_reached":
-      return `达到${condition.rank === "gold" ? "黄金" : "钻石"}段位`;
+      return `周联赛历史最高达到${condition.rank === "gold" ? "黄金" : "钻石"}段位`;
     case "total_match_wins":
       return `累计 ${condition.count} 场赛事胜利`;
     case "game_wins_each":

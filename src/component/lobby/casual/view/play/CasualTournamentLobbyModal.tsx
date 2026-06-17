@@ -35,7 +35,12 @@ import "./casualTournamentLobbyModal.css";
 interface TournamentRow {
   tournamentId: string;
   title: string;
-  matchType: "tournament_a" | "tournament_b" | "tournament_c" | "season_challenge";
+  matchType:
+    | "tournament_a"
+    | "tournament_b"
+    | "tournament_c"
+    | "season_challenge"
+    | "solo_p75_challenge";
   entryLabel: string;
   periodHint?: string;
 }
@@ -44,6 +49,7 @@ function badgeLabel(matchType: TournamentRow["matchType"]): string {
   if (matchType === "tournament_a") return "A";
   if (matchType === "tournament_b") return "B";
   if (matchType === "season_challenge") return "专场";
+  if (matchType === "solo_p75_challenge") return "P75";
   return "C";
 }
 
@@ -52,6 +58,8 @@ function badgeClass(matchType: TournamentRow["matchType"]): string {
   if (matchType === "tournament_b") return "casual-game-tour__badge casual-game-tour__badge--b";
   if (matchType === "season_challenge")
     return "casual-game-tour__badge casual-game-tour__badge--season";
+  if (matchType === "solo_p75_challenge")
+    return "casual-game-tour__badge casual-game-tour__badge--p75";
   return "casual-game-tour__badge casual-game-tour__badge--c";
 }
 
@@ -83,7 +91,8 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
           (def.matchType === "tournament_a" ||
             def.matchType === "tournament_b" ||
             def.matchType === "tournament_c" ||
-            def.matchType === "season_challenge")
+            def.matchType === "season_challenge" ||
+            def.matchType === "solo_p75_challenge")
         );
       })
       .map((t) => {

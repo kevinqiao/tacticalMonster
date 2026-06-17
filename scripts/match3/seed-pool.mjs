@@ -3,14 +3,27 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { clearSeedPoolFully } from "./run-convex-match3.mjs";
+import { CATALOG_GAME_TYPES } from "../seed-catalog/catalog-game-types.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, "../..");
+const CATALOG_GAME_TYPE = CATALOG_GAME_TYPES.match_3;
+const DEFAULT_INDEX = path.join(repoRoot, "scripts/match3/output/pool-v1/index.json");
+
+function runImport(args) {
+  const script = path.join(repoRoot, "scripts/seed-catalog/import-seed-pool.mjs");
+  const res = spawnSync("npx", ["tsx", script, ...args], {
+    stdio: "inherit",
+    cwd: repoRoot,
+    shell: process.platform === "win32",
+  });
+  if (res.status !== 0) process.exit(res.status ?? 1);
+}
 
 function runNode(script, extra = []) {
   const res = spawnSync(process.execPath, ["--import", "tsx", path.join(__dirname, script), ...extra], {
     stdio: "inherit",
-    cwd: path.resolve(__dirname, "../.."),
+    cwd: repoRoot,
   });
   if (res.status !== 0) process.exit(res.status ?? 1);
 }
@@ -21,22 +34,30 @@ const rest = process.argv.slice(3);
 async function main() {
   if (cmd === "create") {
     runNode("generate-seed-pool.mjs", rest);
-  } else if (cmd === "load") {
-    const clearFirst = !rest.includes("--no-clear");
-    const args = [...rest.filter((x) => x !== "--no-clear")];
-    if (clearFirst) {
-      try {
-        await clearSeedPoolFully("v1");
-      } catch {
-        /* pool may not exist yet */
-      }
-    }
-    runNode("import-seed-pool-to-convex.mjs", ["--clear-first", ...args]);
+  } else if (cmd === "load" || cmd === "append") {
+    const clearFirst = cmd === "load" && !rest.includes("--no-clear");
+    const poolVersion =
+      (rest.includes("--pool-version") && rest[rest.indexOf("--pool-version") + 1]) || "v1";
+    const index =
+      (rest.includes("--index") && rest[rest.indexOf("--index") + 1]) || DEFAULT_INDEX;
+    const importArgs = [
+      "--game-type",
+      CATALOG_GAME_TYPE,
+      "--index",
+      index,
+      "--pool-version",
+      poolVersion,
+      ...rest.filter((x) => x !== "--no-clear"),
+    ];
+    if (cmd === "append") importArgs.push("--append");
+    else if (clearFirst) importArgs.push("--clear-first");
+    runImport(importArgs);
   } else if (cmd === "help" || !cmd) {
-    console.log(`Match-3 seed pool CLI
+    console.log(`Match-3 seed pool CLI (casualPlatform)
 
   npx tsx scripts/match3/seed-pool.mjs create [--count 50]
-  npx tsx scripts/match3/seed-pool.mjs load [--no-clear]
+  npx tsx scripts/match3/seed-pool.mjs load [--no-clear] [--index path]
+  npx tsx scripts/match3/seed-pool.mjs append [--index path]
 `);
   } else {
     console.error(`unknown command: ${cmd}`);

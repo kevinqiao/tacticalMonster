@@ -16,12 +16,14 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
+  assignmentMatchesAwaitWatch,
+  awaitWatchGameKindForTemplate,
   casualGameKindDisplayName,
+  casualPlayModalForAssignment,
   casualPlayModalForKind,
   dailySoloTournamentIdForKind,
-  gameKindFromTemplateId,
   hasAnyOpenCasualRunAssignment,
-  inferCasualGameKindFromAssignment,
+  modalDataForOpenAssignment,
   isCasualGameKindLobbyVisible,
   type CasualGameKind,
 } from "../../service/casualOpenRunAssignment";
@@ -182,8 +184,19 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
   const gems = casual.casualPlayer?.gems;
   const vouchers =
     casual.passProgress?.seasonVouchers ?? casual.casualPlayer?.seasonVouchers;
-  const ladder = casual.seasonLadderSnapshot;
+  const weeklyLeague = casual.weeklyLeagueSnapshot;
   const towerLobbyVisible = isCasualGameKindLobbyVisible("tower_arena");
+  const didEnsureWeeklyLeagueRef = useRef(false);
+
+  useEffect(() => {
+    if (visible === 0) {
+      didEnsureWeeklyLeagueRef.current = false;
+      return;
+    }
+    if (!casual.convexUrl || didEnsureWeeklyLeagueRef.current) return;
+    didEnsureWeeklyLeagueRef.current = true;
+    void casual.ensureWeeklyLeagueMember();
+  }, [visible, casual.convexUrl, casual.ensureWeeklyLeagueMember]);
 
   const openTasksSheet = () => {
     openModal({ name: "casual_tasks_sheet" });
@@ -196,12 +209,40 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
     });
   };
 
-  const openSeasonLeaderboard = () => {
+  const openTriathlonLobby = () => {
     openModal({
-      name: "casual_season_leaderboard",
+      name: "casual_triathlon_lobby",
       data: {},
     });
   };
+
+  const openWeeklyLeague = () => {
+    openModal({
+      name: "casual_weekly_league",
+      data: {},
+    });
+  };
+
+  useEffect(() => {
+    if (!visible || !weeklyLeague?.unreadCloseResult) return;
+    openModal({
+      name: "casual_weekly_league_close",
+      data: {
+        outcome: weeklyLeague.lastOutcome,
+        pendingRewards: weeklyLeague.pendingRewards,
+      },
+    });
+  }, [visible, weeklyLeague?.unreadCloseResult, weeklyLeague?.lastOutcome, weeklyLeague?.pendingRewards, openModal]);
+
+  const openMatchedAssignment = useCallback(
+    (hit: Parameters<typeof modalDataForOpenAssignment>[0]) => {
+      openModal({
+        name: casualPlayModalForAssignment(hit),
+        data: modalDataForOpenAssignment(hit),
+      });
+    },
+    [openModal]
+  );
 
   const openSoloGame = useCallback(
     (kind: CasualGameKind, tournamentId: string, gameId: string) => {
@@ -228,11 +269,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
         setAwaitingAsyncMatch(null);
         setSoloNote(null);
         void casual.refreshCasualPlayer();
-        openSoloGame(
-          gameKindFromTemplateId(awaitingAsyncMatch.templateId),
-          awaitingAsyncMatch.templateId,
-          hit.gameId
-        );
+        openMatchedAssignment(hit);
         return;
       }
       if (!awaitingSoloMatch) return;
@@ -364,15 +401,8 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
   const openOngoingGame = useCallback(() => {
     const hit = latestOpenAssignment;
     if (!hit) return;
-    const kind = inferCasualGameKindFromAssignment(hit);
-    openModal({
-      name: casualPlayModalForKind(kind),
-      data: {
-        casualTournamentId: hit.templateId,
-        casualMatchGameId: hit.gameId,
-      },
-    });
-  }, [latestOpenAssignment, openModal]);
+    openMatchedAssignment(hit);
+  }, [latestOpenAssignment, openMatchedAssignment]);
 
   const queue = casual.matchQueueEntries;
   const queueWaiting = queue.some((e) => e.status === "waiting");
@@ -384,10 +414,23 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
     if (entry && (entry.status === "waiting" || entry.status === "claiming")) {
       setAwaitingAsyncMatch({
         templateId: entry.templateId,
-        gameKind: gameKindFromTemplateId(entry.templateId),
+        gameKind: awaitWatchGameKindForTemplate(entry.templateId),
       });
     }
   }, [primaryQueueEntry?.templateId, primaryQueueEntry?.status]);
+
+  /** 开桌已完成但队列仍短暂显示 claiming 时，直接进 triathlon / 异步场 */
+  useEffect(() => {
+    if (!awaitingAsyncMatch) return;
+    const hit = casual.openRunAssignments.find((a) =>
+      assignmentMatchesAwaitWatch(a, awaitingAsyncMatch)
+    );
+    if (!hit) return;
+    setAwaitingAsyncMatch(null);
+    setSoloNote(null);
+    void casual.refreshCasualPlayer();
+    openMatchedAssignment(hit);
+  }, [awaitingAsyncMatch, casual.openRunAssignments, casual.refreshCasualPlayer, openMatchedAssignment]);
 
   const hasOpenRun = latestOpenAssignment != null;
   const matchOverlayOpen =
@@ -465,27 +508,29 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
 
           <CasualSkinEquipPanel gameId="solitaire" />
 
-          {ladder ? (
-            <div className="casual-play-hub__ladder" aria-label="赛季竞技">
+          {weeklyLeague ? (
+            <div className="casual-play-hub__ladder casual-play-hub__weeklyLeague" aria-label="周联赛">
               <div className="casual-play-hub__ladderStats">
                 <span className="casual-play-hub__ladderStat">
-                  积分 <b>{ladder.points.toLocaleString()}</b>
+                  段位 <b>{casualLadderTierLabel(weeklyLeague.leagueTierId)}</b>
                 </span>
                 <span className="casual-play-hub__ladderStat">
-                  段位 <b>{casualLadderTierLabel(ladder.tierId)}</b>
+                  当周 XP <b>{weeklyLeague.weeklyLeagueXp.toLocaleString()}</b>
                 </span>
                 <span className="casual-play-hub__ladderStat">
-                  段内 <b>第 {ladder.rankInTier}</b>
-                  <span className="casual-play-hub__ladderStatMuted"> / {ladder.tierSize}</span>
+                  排名 <b>{weeklyLeague.cohortRank > 0 ? weeklyLeague.cohortRank : "—"}</b>
+                  {weeklyLeague.cohortSize > 0 ? (
+                    <span className="casual-play-hub__ladderStatMuted"> / {weeklyLeague.cohortSize}</span>
+                  ) : null}
                 </span>
               </div>
               <button
                 type="button"
                 className="casual-play-hub__ladderRankBtn"
                 disabled={playBlocked}
-                onClick={openSeasonLeaderboard}
+                onClick={openWeeklyLeague}
               >
-                赛季榜
+                周联赛
               </button>
             </div>
           ) : null}
@@ -737,7 +782,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
                     disabled={playBlocked}
-                    onClick={openSeasonLeaderboard}
+                    onClick={openWeeklyLeague}
                   >
                     赛季排行榜
                   </button>
@@ -760,7 +805,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
                     disabled={playBlocked}
-                    onClick={openSeasonLeaderboard}
+                    onClick={openWeeklyLeague}
                   >
                     赛季排行榜
                   </button>
@@ -783,7 +828,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
                     disabled={playBlocked}
-                    onClick={openSeasonLeaderboard}
+                    onClick={openWeeklyLeague}
                   >
                     赛季排行榜
                   </button>
@@ -807,13 +852,37 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
                     disabled={playBlocked}
-                    onClick={openSeasonLeaderboard}
+                    onClick={openWeeklyLeague}
                   >
                     赛季排行榜
                   </button>
                 </div>
               </div>
               ) : null}
+            </div>
+          </section>
+
+          <section className="casual-play-hub__row" aria-labelledby="casual-play-hub-triathlon">
+            <h2 id="casual-play-hub-triathlon" className="casual-play-hub__rowTitle">
+              三场合战
+            </h2>
+            <div className="casual-play-hub__gameGrid casual-play-hub__gameGrid--pair">
+              <div className="casual-play-hub__modeCard">
+                <p className="casual-play-hub__modeTitle">Block Blast · Solitaire · Match-3</p>
+                <p className="casual-play-hub__gameHint">
+                  一局 session 连打 3 场，按总分排名 · A / B / C 专场
+                </p>
+                <div className="casual-play-hub__soloBtnRow">
+                  <button
+                    type="button"
+                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--secondary"
+                    disabled={playBlocked}
+                    onClick={openTriathlonLobby}
+                  >
+                    Enter
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
 

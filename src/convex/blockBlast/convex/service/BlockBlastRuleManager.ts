@@ -12,6 +12,7 @@ import {
     canPlaceAnyShape as canPlaceAnyShapeLogic,
     canPlaceShape as canPlaceShapeLogic,
     checkLines as checkLinesLogic,
+    normalizeShapeMatrix,
 } from '../utils/gameRules';
 
 export class BlockBlastRuleManager implements BlockBlastRule {
@@ -52,7 +53,7 @@ export class BlockBlastRuleManager implements BlockBlastRule {
 
     findValidPositions(s: Shape): { row: number; col: number }[] {
         const valid: { row: number; col: number }[] = [];
-        const shapeMatrix = s.shape;
+        const shapeMatrix = normalizeShapeMatrix(s.shape);
         const grid = this.gameState.grid;
         const n = grid.length;
         const sh = shapeMatrix.length;

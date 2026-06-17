@@ -17,6 +17,7 @@ import {
   promoteFinishedToConfirmedIfExpired,
 } from "../shared/casualPlayerMatchStatus";
 import { findOldestUnusedReplayTokenId } from "./casualReplayPassService";
+import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
 
 export type AuthorizeCasualRunReplayResult =
   | {
@@ -98,15 +99,17 @@ export async function authorizeCasualRunReplayCore(
     replayTokenId?: Id<"casual_replay_tokens">;
   }
 ): Promise<AuthorizeCasualRunReplayResult> {
-  const pm = await ctx.db
-    .query("casual_run_player_matches")
-    .withIndex("by_gameId", (q) => q.eq("gameId", args.matchGameId))
-    .unique();
-  if (!pm) {
+  const pg = await findPlayerGameByGameId(ctx, args.matchGameId);
+  if (!pg) {
     return { ok: false, error: "unknown_match_game" };
   }
-  if (pm.uid !== args.uid) {
+  if (pg.uid !== args.uid) {
     return { ok: false, error: "forbidden" };
+  }
+
+  const pm = await ctx.db.get(pg.playerMatchId);
+  if (!pm) {
+    return { ok: false, error: "unknown_match_game" };
   }
 
   const def = getTournamentDefinition(pm.templateId);
@@ -159,9 +162,17 @@ export async function authorizeCasualRunReplayCore(
   }
 
   const priorScore = freshPm.score ?? 0;
-  const nextEpoch = (freshPm.replayEpoch ?? 0) + 1;
+  const nextEpoch = (pg.replayEpoch ?? freshPm.replayEpoch ?? 0) + 1;
 
-  await deleteScoreTierPendingForMatchGame(ctx, args.uid, pm.gameId);
+  await deleteScoreTierPendingForMatchGame(ctx, args.uid, pg.gameId);
+
+  await ctx.db.patch(pg._id, {
+    status: "replaying",
+    score: undefined,
+    finishedAt: undefined,
+    replayEpoch: nextEpoch,
+    updatedAt: now,
+  });
 
   await ctx.db.patch(freshPm._id, {
     status: "replaying",
@@ -169,6 +180,7 @@ export async function authorizeCasualRunReplayCore(
     rank: undefined,
     finishedAt: undefined,
     replayEpoch: nextEpoch,
+    gameId: pg.gameId,
     updatedAt: now,
   });
 
@@ -206,7 +218,7 @@ export async function authorizeCasualRunReplayCore(
 
   return {
     ok: true,
-    gameId: pm.gameId,
+    gameId: pg.gameId,
     templateId: pm.templateId,
     matchId: pm.matchId,
     replayEpoch: nextEpoch,

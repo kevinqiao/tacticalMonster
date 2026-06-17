@@ -270,7 +270,7 @@ export const gameSeasonLeaderboard = query({
   },
 });
 
-/** 当前玩家赛季竞技快照：积分 · 段位 · 段位内名次（同源读模型） */
+/** @deprecated 赛季天梯已停用；保留 query 供旧 UI 只读 */
 export const getSeasonLadderSnapshot = query({
   args: {
     uid: v.optional(v.string()),
@@ -557,6 +557,24 @@ export const autoInitializeCurrentSeason = internalMutation({
       activeRows.length !== 1 || activeRows[0]._id !== target._id;
 
     if (shouldSwitch) {
+      const profiles = await ctx.db.query("casual_weekly_league_profile").collect();
+      for (const p of profiles) {
+        await ctx.db.patch(p._id, {
+          seasonPeakLeagueTier: p.peakLeagueTier,
+          updatedAt: now,
+        });
+        await ctx.runMutation(
+          internal.service.achievement.casualAchievementService.checkAndUnlockAchievements,
+          {
+            uid: p.uid,
+            event: {
+              kind: "week_close",
+              peakLeagueTier: p.peakLeagueTier,
+              weeklyPromoteCount: p.totalWeeklyPromotions ?? 0,
+            },
+          }
+        );
+      }
       for (const s of seasons) {
         const nextActive = s._id === target._id;
         if (s.active !== nextActive) {

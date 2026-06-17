@@ -4,11 +4,14 @@ import GamePlayer from './GamePlayer';
 import Match3GameProvider from './service/GameManager';
 import './style.css';
 
+import type { TriathlonMidSessionAdvanceHandler } from 'component/battle/games/shared/casualTriathlonSubmitFlow';
+
 interface Match3GameProps {
   gameId?: string;
   casualTournamentId?: string;
   casualMatchGameId?: string;
   onGameSubmit?: () => void;
+  onTriathlonNextGame?: TriathlonMidSessionAdvanceHandler;
 }
 
 const convexUrl =
@@ -18,6 +21,7 @@ const Match3GameInner: React.FC<Omit<Match3GameProps, 'className' | 'style'>> = 
   casualTournamentId,
   casualMatchGameId,
   onGameSubmit,
+  onTriathlonNextGame,
 }) => {
   const activeGameId = casualMatchGameId;
   if (!activeGameId) {
@@ -28,6 +32,7 @@ const Match3GameInner: React.FC<Omit<Match3GameProps, 'className' | 'style'>> = 
       gameId={activeGameId}
       casualTournamentId={casualTournamentId}
       onGameSubmit={onGameSubmit}
+      onTriathlonNextGame={onTriathlonNextGame}
     >
       <GamePlayer />
     </Match3GameProvider>
@@ -38,16 +43,20 @@ const Match3Game: React.FC<Match3GameProps> = ({
   casualTournamentId,
   casualMatchGameId,
   onGameSubmit,
+  onTriathlonNextGame,
 }) => {
   const client = React.useMemo(() => new ConvexReactClient(convexUrl), []);
   return (
-    <ConvexProvider client={client}>
-      <Match3GameInner
-        casualTournamentId={casualTournamentId}
-        casualMatchGameId={casualMatchGameId}
-        onGameSubmit={onGameSubmit}
-      />
-    </ConvexProvider>
+    <div className="match3-game-root" style={{ width: '100%', height: '100%' }}>
+      <ConvexProvider client={client}>
+        <Match3GameInner
+          casualTournamentId={casualTournamentId}
+          casualMatchGameId={casualMatchGameId}
+          onGameSubmit={onGameSubmit}
+          onTriathlonNextGame={onTriathlonNextGame}
+        />
+      </ConvexProvider>
+    </div>
   );
 };
 

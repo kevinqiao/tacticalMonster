@@ -23,4 +23,10 @@ crons.hourly(
   internal.service.season.casualSeasonService.autoInitializeCurrentSeason,
   {}
 );
+crons.hourly(
+  "close expired casual weekly league weeks",
+  { minuteUTC: 5 },
+  internal.service.weeklyLeague.casualWeeklyLeagueClose.closeExpiredWeeks,
+  {}
+);
 export default crons;

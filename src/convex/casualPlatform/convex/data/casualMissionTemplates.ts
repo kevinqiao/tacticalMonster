@@ -13,6 +13,7 @@ export type MissionObjectiveKind =
   | "submit_async_score"
   | "submit_spotlight_score"
   | "earn_spotlight_season_board_points"
+  | "weekly_league_promote"
   | "submit_spotlight_game_score"
   | "submit_spotlight_game_top3"
   | "submit_non_primary_score"
@@ -183,6 +184,16 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
   },
   // --- 专场高参与（可选） ---
   {
+    taskId: "weekly_league_promote_1",
+    title: "本周周联赛进入晋级区一次",
+    target: 1,
+    tier: "weekly",
+    objectiveKind: "weekly_league_promote",
+    missionPool: "platform",
+    rewardSeasonXp: 80,
+    rewardVouchers: 1,
+  },
+  {
     taskId: "season_spotlight_10",
     title: "本赛季累计完成赛季专场结算 10 次",
     target: 10,
@@ -191,16 +202,6 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     missionPool: "spotlight",
     rewardVouchers: 3,
     rewardSeasonXp: 200,
-  },
-  {
-    taskId: "season_spotlight_season_pts_80",
-    title: "本赛季专场对局累计获得 80 赛季分（仅正分计入）",
-    target: 80,
-    tier: "season",
-    objectiveKind: "earn_spotlight_season_board_points",
-    missionPool: "spotlight",
-    rewardVouchers: 5,
-    rewardSeasonXp: 400,
   },
 ];
 

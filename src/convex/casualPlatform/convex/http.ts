@@ -3,9 +3,9 @@
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { casualGameBridgeSecret } from "./service/bridge/casualGameBridgeSecret";
-import { fetchRecordCasualMatchSeed } from "./service/bridge/casualMatchSeedBridge";
+import { bridgeRecordSeed } from "./service/botFill/seedRolloutBridge";
+import { computePlatformBotFillsIfNeeded } from "./service/botFill/computeBotFillsCore";
 import { bridgeOkBody } from "./service/bridge/casualGameBridgeContract";
-import { resolveSeedRemoteOrigin } from "./data/casualGameRegistry";
 import { getCasualGameRegistration } from "./data/casualGameRegistry";
 
 const http = httpRouter();
@@ -212,6 +212,10 @@ http.route({
       .filter((x): x is NonNullable<typeof x> => x != null);
 
     const replaceAllVirtual = b.replaceAllVirtual === true;
+    const seedScoreThreshold =
+      typeof b.seedScoreThreshold === "number" && Number.isFinite(b.seedScoreThreshold)
+        ? b.seedScoreThreshold
+        : undefined;
 
     const gameType = await ctx.runQuery(
       internal.service.tournament.submit.casualRunIngestMutations.getCasualRunMatchGameType,
@@ -224,14 +228,66 @@ http.route({
       });
     }
 
+    let mergedBotFills = botFills;
+    let mergedReplaceAllVirtual = replaceAllVirtual;
+    let mergedSeedScoreThreshold = seedScoreThreshold;
+
+    const submitCtx = await ctx.runQuery(
+      internal.service.tournament.submit.casualMatchSubmitContext.resolveMatchSubmitContext,
+      { matchGameId, uid, score: Math.floor(score) }
+    );
+
+    if (
+      submitCtx.ok &&
+      submitCtx.botPolicy === "platform_ingest" &&
+      submitCtx.isLastGame &&
+      !submitCtx.botsSeeded &&
+      submitCtx.maxPlayers > 1 &&
+      (submitCtx.mode === "solo" || submitCtx.mode === "mixed") &&
+      (!mergedBotFills || mergedBotFills.length === 0)
+    ) {
+      const humanFinishedAt = Date.now();
+      const matchStartedAt = Math.min(submitCtx.pgCreatedAt ?? humanFinishedAt, humanFinishedAt);
+      const computed = await computePlatformBotFillsIfNeeded(ctx, {
+        context: {
+          mode: submitCtx.mode,
+          templateId: submitCtx.templateId,
+          matchId: submitCtx.matchId,
+          maxPlayers: submitCtx.maxPlayers,
+          botCount: submitCtx.botCount,
+          gameType: submitCtx.gameType,
+          seedBinding: submitCtx.seedBinding,
+          sessionExternalId: submitCtx.sessionExternalId,
+          botsSeeded: submitCtx.botsSeeded,
+          humanReplayEpoch: submitCtx.humanReplayEpoch,
+          isTriathlon: submitCtx.isTriathlon,
+          triathlonLegs: submitCtx.triathlonLegs,
+          soloRankPlanning: submitCtx.soloRankPlanning,
+          successThresholdQuantile: submitCtx.successThresholdQuantile,
+        },
+        humanScore: Math.floor(score),
+        primaryGameType: submitCtx.primaryGameType ?? submitCtx.gameType,
+        matchStartedAt,
+        humanFinishedAt,
+      });
+      if (computed.botFills?.length) {
+        mergedBotFills = computed.botFills;
+        mergedReplaceAllVirtual = computed.replaceAllVirtual ?? true;
+        if (computed.seedScoreThreshold != null) {
+          mergedSeedScoreThreshold = computed.seedScoreThreshold;
+        }
+      }
+    }
+
     const result = await ctx.runMutation(
       internal.service.tournament.submit.casualRunIngestMutations.submitCasualRunScoreCore,
       {
         uid,
         matchGameId,
         score: Math.floor(score),
-        ...(botFills && botFills.length > 0 ? { botFills } : {}),
-        ...(replaceAllVirtual ? { replaceAllVirtual: true } : {}),
+        ...(mergedBotFills && mergedBotFills.length > 0 ? { botFills: mergedBotFills } : {}),
+        ...(mergedReplaceAllVirtual ? { replaceAllVirtual: true } : {}),
+        ...(mergedSeedScoreThreshold != null ? { seedScoreThreshold: mergedSeedScoreThreshold } : {}),
       }
     );
 
@@ -257,6 +313,9 @@ http.route({
     }
     if (r.finalized === true) {
       okBody.finalized = true;
+    }
+    if (r.weeklyLeagueSettle != null) {
+      okBody.weeklyLeagueSettle = r.weeklyLeagueSettle;
     }
     return new Response(JSON.stringify(bridgeOkBody(okBody)), {
       status: 200,
@@ -341,23 +400,13 @@ http.route({
       match.poolVersion &&
       bridgeRow.gameType
     ) {
-      const reg = getCasualGameRegistration(bridgeRow.gameType);
-      const origin = reg ? resolveSeedRemoteOrigin(reg) : "";
-      if (!origin) {
-        return new Response(JSON.stringify({ ok: false, error: "missing_seed_remote_origin" }), {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-      const record = await fetchRecordCasualMatchSeed(
-        {
-          matchId: match.matchId,
-          uid: match.uid,
-          seedId: match.seedId,
-          poolVersion: match.poolVersion,
-        },
-        origin
-      );
+      const record = await bridgeRecordSeed(ctx, {
+        gameType: bridgeRow.gameType,
+        matchId: match.matchId,
+        uid: match.uid,
+        seedId: match.seedId,
+        poolVersion: match.poolVersion,
+      });
       if (!record.ok) {
         return new Response(JSON.stringify({ ok: false, error: record.error }), {
           status: 404,

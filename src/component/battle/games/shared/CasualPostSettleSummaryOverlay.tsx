@@ -1,5 +1,8 @@
 import React, { useId } from 'react';
 
+import type { WeeklyLeagueSettleUI } from './casualWeeklyLeagueScoreUI';
+import { formatWeeklyLeagueSettleLines } from './casualWeeklyLeagueScoreUI';
+
 import type { CasualAsyncTableSummaryUI, Match3WatchContext } from './casualAsyncTableSummaryUI';
 import { CasualTableSummaryPanel } from './CasualTableSummaryPanel';
 import { useReplayWindowCountdown } from './useReplayWindowCountdown';
@@ -27,6 +30,9 @@ export type CasualPostSettleSummaryOverlayProps = {
   replayWindowEndsAt?: number;
   onWatchRow?: (ctx: Match3WatchContext, displayLabel: string) => void;
   watchButtonLabel?: string;
+  weeklyLeagueSettle?: WeeklyLeagueSettleUI | null;
+  /** 内容区滚动时底部操作栏固定可见（历史 LeaderBoard 等） */
+  pinFooter?: boolean;
 };
 
 /**
@@ -49,6 +55,8 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
   replayWindowEndsAt,
   onWatchRow,
   watchButtonLabel,
+  weeklyLeagueSettle,
+  pinFooter = false,
 }) => {
   const titleId = useId();
   const countdown = useReplayWindowCountdown(replayWindowEndsAt);
@@ -79,6 +87,8 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
     replayBtnText = `${replayBtnText} ${countdown}`;
   }
 
+  const leagueLines = formatWeeklyLeagueSettleLines(weeklyLeagueSettle);
+
   return (
     <div className="msc-overlay" role="presentation">
       <button
@@ -94,24 +104,35 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="ssc">
-          <h2 id={titleId} className="ssc__title msc-successTitle">
-            {title}
-          </h2>
-          {body ? <p className="ssc__body">{body}</p> : null}
-          {showTable && summary ? (
-            <CasualTableSummaryPanel
-              s={summary}
-              onWatchRow={onWatchRow}
-              watchButtonLabel={watchButtonLabel}
-            />
-          ) : null}
-          {showPending ? (
-            <p className="ssc__body msc-pendingPeersNote" role="status">
-              全部同桌提交后，可在下一场对局结束时的结算页查看本桌名次。
-            </p>
-          ) : null}
-          <div className="ssc__actions">
+        <div className={pinFooter ? 'ssc ssc--pinnedFooter' : 'ssc'}>
+          <div className={pinFooter ? 'ssc__scroll' : undefined}>
+            <h2 id={titleId} className="ssc__title msc-successTitle">
+              {title}
+            </h2>
+            {body ? <p className="ssc__body">{body}</p> : null}
+            {showTable && summary ? (
+              <CasualTableSummaryPanel
+                s={summary}
+                onWatchRow={onWatchRow}
+                watchButtonLabel={watchButtonLabel}
+              />
+            ) : null}
+            {showPending ? (
+              <p className="ssc__body msc-pendingPeersNote" role="status">
+                全部同桌提交后，可在下一场对局结束时的结算页查看本桌名次。
+              </p>
+            ) : null}
+            {leagueLines.length > 0 ? (
+              <ul className="ssc__leagueLines" aria-label="周联赛">
+                {leagueLines.map((line) => (
+                  <li key={line.label}>
+                    {line.label} <b>{line.value}</b>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          <div className={pinFooter ? 'ssc__actions ssc__actions--pinned' : 'ssc__actions'}>
             {showReplayBtn ? (
               <button
                 type="button"

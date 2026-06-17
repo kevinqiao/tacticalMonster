@@ -15,9 +15,16 @@ import {
 } from "./casualInstanceService";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "../join/casualTournamentJoinCore";
 import { computeCasualAsyncSessionRank, isCasualAsyncVirtualOpponentUid } from "../settle/casualRunSettlementFill";
-import { buildCasualAsyncTableSummary } from "../settle/async/casualAsyncTableSummary";
+import {
+  buildCasualAsyncTableSummary,
+  buildCasualTriathlonHistoryTableSummary,
+} from "../settle/async/casualAsyncTableSummary";
 import { isRegisteredCasualGameType } from "../../../data/casualGameRegistry";
 import { prunePendingWalletRewards } from "../settle/casualRunScoreEffects";
+import {
+  findPlayerGameByGameId,
+  listPlayerGamesForSeat,
+} from "../shared/casualPlayerGameTypes";
 
 async function attachCasualHistoryTableSummary(
   ctx: QueryCtx,
@@ -29,18 +36,14 @@ async function attachCasualHistoryTableSummary(
     runTournamentId?: Id<"casual_run_tournaments">;
   }
 ) {
-  if (opts.gameType !== "match_3" && opts.gameType !== "solitaire") return undefined;
   const def = getTournamentDefinition(opts.templateId);
   if (!def) return undefined;
 
   let pm: Doc<"casual_run_player_matches"> | null = null;
   if (opts.matchGameId?.trim()) {
-    const byGame = await ctx.db
-      .query("casual_run_player_matches")
-      .withIndex("by_gameId", (q) => q.eq("gameId", opts.matchGameId!.trim()))
-      .unique();
-    if (byGame && byGame.uid === opts.uid) {
-      pm = byGame;
+    const pg = await findPlayerGameByGameId(ctx, opts.matchGameId.trim());
+    if (pg && pg.uid === opts.uid) {
+      pm = await ctx.db.get(pg.playerMatchId);
     }
   }
   if (!pm && opts.runTournamentId) {
@@ -53,6 +56,32 @@ async function attachCasualHistoryTableSummary(
         .unique()) ?? null;
   }
   if (!pm) return undefined;
+
+  if (def.gameType === "triathlon") {
+    const summary = await buildCasualTriathlonHistoryTableSummary(ctx, {
+      templateId: opts.templateId,
+      uid: opts.uid,
+      maxPlayers: Math.max(1, def.maxPlayers),
+      matchId: pm.matchId,
+    });
+    if (!summary?.triathlonLegs?.some((leg) => leg.rows.some((r) => r.watchContext))) {
+      return undefined;
+    }
+    return {
+      maxPlayers: summary.maxPlayers,
+      rows: summary.rows,
+      triathlonLegs: summary.triathlonLegs,
+      isBoardStable: true as const,
+    };
+  }
+
+  if (
+    opts.gameType !== "match_3" &&
+    opts.gameType !== "solitaire" &&
+    opts.gameType !== "block_blast"
+  ) {
+    return undefined;
+  }
 
   const summary = await buildCasualAsyncTableSummary(ctx, {
     templateId: opts.templateId,
@@ -580,20 +609,71 @@ export const gameHistory = query({
 export const listOpenCasualRunAssignments = query({
   args: { uid: v.string() },
   handler: async (ctx, { uid }) => {
-    const rows = await ctx.db
-      .query("casual_run_player_matches")
+    const openGames = await ctx.db
+      .query("casual_run_player_games")
       .withIndex("by_uid", (q) => q.eq("uid", uid))
       .collect();
-    return rows
-      .filter((r) => r.status === "open" || r.status === "replaying")
-      .map((r) => ({
-        templateId: r.templateId,
-        gameId: r.gameId,
-        gameType: r.gameType,
-        matchId: r.matchId,
-        runTournamentId: r.tournamentId,
-        createdAt: r.createdAt,
-      }))
-      .sort((a, b) => b.createdAt - a.createdAt);
+    const assignments = [];
+    for (const pg of openGames) {
+      if (pg.status !== "open" && pg.status !== "replaying") continue;
+      const pm = await ctx.db.get(pg.playerMatchId);
+      if (!pm || (pm.status !== "open" && pm.status !== "replaying")) continue;
+      assignments.push({
+        templateId: pg.templateId,
+        gameId: pg.gameId,
+        gameType: pg.gameType,
+        gameIndex: pg.gameIndex,
+        sessionKind: pm.sessionKind,
+        matchId: pg.matchId,
+        runTournamentId: pm.tournamentId,
+        createdAt: pg.createdAt,
+      });
+    }
+    return assignments.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+/** 三场合战 session：已完成局分数 + 当前 open 局（用于重进恢复累计分） */
+export const getTriathlonSessionProgress = query({
+  args: {
+    uid: v.string(),
+    matchGameId: v.string(),
+  },
+  handler: async (ctx, { uid, matchGameId }) => {
+    const pg = await findPlayerGameByGameId(ctx, matchGameId);
+    if (!pg || pg.uid !== uid) {
+      return null;
+    }
+    const pm = await ctx.db.get(pg.playerMatchId);
+    if (!pm || pm.sessionKind !== "triathlon") {
+      return null;
+    }
+    const games = await listPlayerGamesForSeat(ctx, pm._id);
+    const completedLegs = games
+      .filter(
+        (g) =>
+          (g.status === "finished" ||
+            g.status === "confirmed" ||
+            g.status === "settled") &&
+          typeof g.score === "number" &&
+          Number.isFinite(g.score)
+      )
+      .sort((a, b) => a.gameIndex - b.gameIndex)
+      .map((g) => ({
+        gameIndex: g.gameIndex,
+        gameType: g.gameType,
+        score: g.score as number,
+      }));
+    const openLeg = games.find((g) => g.status === "open" || g.status === "replaying") ?? pg;
+    return {
+      templateId: pm.templateId,
+      matchId: pm.matchId,
+      completedLegs,
+      openLeg: {
+        gameId: openLeg.gameId,
+        gameIndex: openLeg.gameIndex,
+        gameType: openLeg.gameType,
+      },
+    };
   },
 });

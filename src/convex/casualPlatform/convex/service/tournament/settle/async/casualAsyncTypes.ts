@@ -5,8 +5,10 @@ import {
   CASUAL_GAME_REGISTRY,
   getCasualGameRegistration,
   usesGameIngestBotPolicy,
+  usesPlatformIngestBotPolicy,
   virtualUidPrefixForGame,
 } from "../../../../data/casualGameRegistry";
+import { effectiveGameSequence } from "../../../../data/casualTournamentConfigs";
 
 export type CasualSubmitMode = "daily" | "solo" | "mixed";
 
@@ -24,8 +26,15 @@ export type AsyncBotFill = {
   score: number;
   duration?: number;
   rolloutIndex?: number;
-  /** 游戏服计算的 bot 入场时刻（ms） */
+  /** 游戏服 / 平台计算的 bot 入场时刻（ms） */
   revealAt?: number;
+  /** 合战：每 leg 分数与 rollout */
+  legs?: Array<{
+    gameIndex: number;
+    score: number;
+    rolloutIndex?: number;
+    duration?: number;
+  }>;
 };
 
 export type SeedVirtualOpponentArgs = {
@@ -64,13 +73,18 @@ export function casualAsyncVirtualOpponentCount(
 
 type AsyncMatchRosterRow = { uid: string; score?: number | null };
 
-/** game_ingest 策略：ingest 已写入 botFills 且 `botsSeeded` 时 finalize 不再平台补位。 */
+/** game_ingest / platform_ingest：ingest 已写入 botFills 且 `botsSeeded` 时 finalize 不再平台补位。 */
 export function isGameIngestBotsCommitted(
   def: CasualTournamentDefinition,
   matchDoc: { botsSeeded?: boolean; humanPlayerCount?: number },
   rows: AsyncMatchRosterRow[]
 ): boolean {
-  if (!usesGameIngestBotPolicy(def.gameType)) return false;
+  const primaryGameType = effectiveGameSequence(def).slice(-1)[0] ?? def.gameType;
+  const usesIngestBots =
+    usesGameIngestBotPolicy(primaryGameType) ||
+    usesPlatformIngestBotPolicy(primaryGameType) ||
+    (def.gameType === "triathlon" && usesPlatformIngestBotPolicy("triathlon"));
+  if (!usesIngestBots) return false;
   if (!matchDoc.botsSeeded) return false;
 
   const humansWithScore = rows.filter(

@@ -1,91 +1,29 @@
 #!/usr/bin/env node
-/**
- * Import tower seed pool index.json into towerArena Convex.
- * Usage: node scripts/tower/import-seed-pool-to-convex.mjs [--dir scripts/tower/output/pool-v1]
- */
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+/** Forwards to casualPlatform seed catalog import (`--game-type tower_arena`). */
+import { spawnSync } from "node:child_process";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import {
-  convexPayloadBytes,
-  runConvexTower,
-  WINDOWS_CONVEX_ARG_BUDGET,
-} from "./run-convex-tower.mjs";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const script = path.join(repoRoot, "scripts/seed-catalog/import-seed-pool.mjs");
 const dir =
   (process.argv.includes("--dir") && process.argv[process.argv.indexOf("--dir") + 1]) ||
-  join(__dirname, "output", "pool-v1");
-const indexPath = join(dir, "index.json");
-const index = JSON.parse(readFileSync(indexPath, "utf8"));
-
-const ADMIN = "service/seedPool/towerSeedPoolAdmin";
-const poolVersion = index.poolVersion;
-const defaultBatchSize = process.platform === "win32" ? 4 : 10;
-
-console.log(`Importing ${index.entries.length} seeds for ${poolVersion}...`);
-
-const beginResult = runConvexTower(`${ADMIN}:importSeedPoolBegin`, {
-  poolVersion,
-  rolloutCount: index.rolloutCount,
-  matchTimeLimitSec: index.matchTimeLimitSec,
-  generatedAt: index.generatedAt,
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "output", "pool-v1");
+const extra = process.argv.slice(2).filter((a, i, arr) => {
+  if (a === "--dir") return false;
+  if (i > 0 && arr[i - 1] === "--dir") return false;
+  return true;
 });
-console.log("begin:", beginResult);
-
-let batchNum = 0;
-for (let i = 0; i < index.entries.length; ) {
-  let batchSize = defaultBatchSize;
-  let slice = index.entries.slice(i, i + batchSize);
-  let rollouts = [];
-  for (const e of slice) {
-    for (const r of e.rolloutSummaries ?? []) {
-      rollouts.push({ poolVersion, seedId: e.seedId, ...r });
-    }
-  }
-  let batch = {
-    poolVersion,
-    entries: slice.map((e) => ({
-      poolVersion,
-      seedId: e.seedId,
-      tier: e.tier,
-      difficultyScore: e.difficultyScore,
-      metrics: e.metrics,
-    })),
-    rollouts,
-  };
-
-  while (convexPayloadBytes(batch) > WINDOWS_CONVEX_ARG_BUDGET && slice.length > 1) {
-    batchSize = Math.max(1, Math.floor(batchSize / 2));
-    slice = index.entries.slice(i, i + batchSize);
-    rollouts = [];
-    for (const e of slice) {
-      for (const r of e.rolloutSummaries ?? []) {
-        rollouts.push({ poolVersion, seedId: e.seedId, ...r });
-      }
-    }
-    batch = {
-      poolVersion,
-      entries: slice.map((e) => ({
-        poolVersion,
-        seedId: e.seedId,
-        tier: e.tier,
-        difficultyScore: e.difficultyScore,
-        metrics: e.metrics,
-      })),
-      rollouts,
-    };
-  }
-
-  batchNum += 1;
-  const batchResult = runConvexTower(`${ADMIN}:importSeedPoolBatch`, batch);
-  console.log(
-    `entries batch ${batchNum} count=${slice.length} bytes=${convexPayloadBytes(batch)} entryCount=${batchResult?.entriesWritten ?? "?"}`
-  );
-  i += slice.length;
-}
-
-const finalizeResult = runConvexTower(`${ADMIN}:importSeedPoolFinalize`, { poolVersion });
-console.log("finalize:", finalizeResult);
-console.log("Import complete.");
+const args = [
+  "--game-type",
+  "tower_arena",
+  "--index",
+  path.join(dir, "index.json"),
+  ...extra,
+];
+const result = spawnSync("npx", ["tsx", script, ...args], {
+  cwd: repoRoot,
+  stdio: "inherit",
+  shell: process.platform === "win32",
+});
+process.exit(result.status ?? 1);

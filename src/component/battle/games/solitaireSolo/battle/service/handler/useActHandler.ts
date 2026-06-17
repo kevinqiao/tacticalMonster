@@ -32,7 +32,16 @@ import {
     type CasualAsyncTableSummaryUI,
     type ManualSettleConfirmExtras,
 } from "../../../../shared/casualAsyncTableSummaryUI";
+import type { WeeklyLeagueSettleUI } from "../../../../shared/casualWeeklyLeagueScoreUI";
 import { useCasualTableSummaryPoll } from "../../../../shared/useCasualTableSummaryPoll";
+import {
+    queueTriathlonMidSessionAdvance,
+    shouldDeferTriathlonTableSummaryForLeg,
+    tryAdvanceTriathlonMidSession,
+    type TriathlonMidSessionAdvanceHandler,
+    type TriathlonPendingAdvance,
+} from "../../../../shared/casualTriathlonSubmitFlow";
+import type { TriathlonNextGame } from "component/lobby/casual/service/useCasualTriathlonSession";
 import type { GameReport } from "../../types/SoloTypes";
 
 type ServerProgress = { score?: number; moves?: number; gameStatus?: number };
@@ -43,6 +52,11 @@ type CasualRunSubmitOutcome =
           /** finalize 直返时可能存在；partial 路径由 query 拉榜 */
           tableSummary?: CasualAsyncTableSummaryUI;
           pendingOthers?: boolean;
+          weeklyLeagueSettle?: WeeklyLeagueSettleUI;
+          /** solo_p75_challenge：目标分（P75）与是否成功 */
+          seedScoreThreshold?: number;
+          success?: boolean;
+          triathlonScoreReportOnly?: boolean;
       }
     | { ok: false; error?: string };
 
@@ -104,6 +118,8 @@ const useActHandler = () => {
     const [postCasualTableSummary, setPostCasualTableSummary] = useState<CasualAsyncTableSummaryUI | null>(
         null
     );
+    const [postCasualWeeklyLeagueSettle, setPostCasualWeeklyLeagueSettle] =
+        useState<WeeklyLeagueSettleUI | null>(null);
     const [postCasualWaitingForPeers, setPostCasualWaitingForPeers] = useState(false);
     const [postCasualCanReplay, setPostCasualCanReplay] = useState(false);
     const [postCasualReplayOffered, setPostCasualReplayOffered] = useState(false);
@@ -112,9 +128,11 @@ const useActHandler = () => {
         undefined
     );
     const [casualReplayBusy, setCasualReplayBusy] = useState(false);
+    const [triathlonDeferTableSummary, setTriathlonDeferTableSummary] = useState(false);
     const [watchTarget, setWatchTarget] = useState<CasualWatchContext | null>(null);
     const [watchTargetLabel, setWatchTargetLabel] = useState("");
     const casualRunSubmittedRef = useRef(false);
+    const pendingTriathlonAdvanceRef = useRef<TriathlonPendingAdvance | null>(null);
     const settleInFlightRef = useRef(false);
     const gameStateRef = useRef<SoloGameState | null>(null);
     const interactionPhaseRef = useRef<GameInteractionPhase>(GameInteractionPhase.idle);
@@ -129,11 +147,15 @@ const useActHandler = () => {
         config,
         casualTournamentId,
         onGameSubmit,
+        onTriathlonNextGame,
         reloadCasualRun,
     } = useSoloGameManager();
 
+    const triathlonSessionActive = Boolean(onTriathlonNextGame);
+
     useCasualTableSummaryPoll({
-        open: postCasualSummaryOpen || postCasualScoreReportOpen,
+        open:
+            (postCasualSummaryOpen || postCasualScoreReportOpen) && !triathlonDeferTableSummary,
         summary: postCasualTableSummary,
         matchGameId:
             typeof gameState?.gameId === "string" && gameState.gameId.startsWith("game_")
@@ -161,6 +183,8 @@ const useActHandler = () => {
 
     useEffect(() => {
         casualRunSubmittedRef.current = false;
+        pendingTriathlonAdvanceRef.current = null;
+        setTriathlonDeferTableSummary(false);
         setSettleConfirmOpen(false);
         setPostCasualScoreReportOpen(false);
         setPostCasualScoreReport(null);
@@ -203,17 +227,61 @@ const useActHandler = () => {
             settle: {
                 tableSummary?: CasualAsyncTableSummaryUI;
                 pendingOthers?: boolean;
+                weeklyLeagueSettle?: WeeklyLeagueSettleUI;
+                seedScoreThreshold?: number;
+                success?: boolean;
+                deferTriathlonTableSummary?: boolean;
             }
         ) => {
             const report = await loadSolitaireScoreReport(gameId, fallbackScore);
+            if (typeof settle.seedScoreThreshold === "number") {
+                report.challenge = {
+                    targetScore: settle.seedScoreThreshold,
+                    achievedScore: report.totalScore,
+                    success: Boolean(settle.success),
+                };
+            }
+            const deferTableSummary =
+                Boolean(settle.deferTriathlonTableSummary) ||
+                shouldDeferTriathlonTableSummaryForLeg(
+                    casualTournamentId,
+                    gameId,
+                    triathlonSessionActive
+                );
+            setTriathlonDeferTableSummary(deferTableSummary);
+
+            if (
+                deferTableSummary &&
+                triathlonSessionActive &&
+                onTriathlonNextGame &&
+                tryAdvanceTriathlonMidSession({
+                    triathlonSessionActive,
+                    casualTournamentId,
+                    matchGameId: gameId,
+                    legScore: report.totalScore,
+                    pendingTriathlon: pendingTriathlonAdvanceRef.current,
+                    onTriathlonNextGame,
+                    scoreReport: report,
+                })
+            ) {
+                pendingTriathlonAdvanceRef.current = null;
+                setTriathlonDeferTableSummary(false);
+                return;
+            }
+
             setPostCasualScoreReport(report);
-            setPostCasualTableSummary(settle.tableSummary ?? null);
-            setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
+            setPostCasualTableSummary(deferTableSummary ? null : settle.tableSummary ?? null);
+            setPostCasualWeeklyLeagueSettle(settle.weeklyLeagueSettle ?? null);
+            setPostCasualWaitingForPeers(deferTableSummary ? false : Boolean(settle.pendingOthers));
             setPostCasualReplayOffered(false);
             setPostCasualReplayTokenCount(0);
             setPostCasualCanReplay(false);
             setPostCasualReplayWindowEndsAt(undefined);
             setPostCasualScoreReportOpen(true);
+
+            if (deferTableSummary) {
+                return;
+            }
 
             if (settle.tableSummary) {
                 applyCasualTableSummaryFromQuery(settle.tableSummary, {
@@ -240,7 +308,7 @@ const useActHandler = () => {
                 }
             }
         },
-        [loadSolitaireScoreReport, casual.fetchCasualTableSummaryForGame]
+        [loadSolitaireScoreReport, casual.fetchCasualTableSummaryForGame, casualTournamentId, triathlonSessionActive, onTriathlonNextGame]
     );
 
     const mapCasualPlatformRunActionResult = (
@@ -248,10 +316,27 @@ const useActHandler = () => {
             ok?: boolean;
             tableSummary?: CasualAsyncTableSummaryUI;
             pendingOthers?: boolean;
+            seedScoreThreshold?: number;
+            success?: boolean;
+            gameComplete?: boolean;
+            nextGame?: TriathlonNextGame;
         },
-        deferHost: boolean
+        deferHost: boolean,
+        score: number,
+        matchGameId?: string
     ): CasualRunSubmitOutcome => {
         if (!cr.ok) return { ok: false };
+        if (
+            triathlonSessionActive &&
+            matchGameId &&
+            queueTriathlonMidSessionAdvance(cr, score, pendingTriathlonAdvanceRef, {
+                templateId: casualTournamentId,
+                gameId: matchGameId,
+                triathlonSessionActive,
+            })
+        ) {
+            return { ok: true, triathlonScoreReportOnly: true };
+        }
         if (!deferHost) {
             onGameSubmit?.();
         }
@@ -259,6 +344,9 @@ const useActHandler = () => {
             ok: true,
             ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
             ...(cr.pendingOthers ? { pendingOthers: true } : {}),
+            ...(cr.weeklyLeagueSettle ? { weeklyLeagueSettle: cr.weeklyLeagueSettle } : {}),
+            ...(typeof cr.seedScoreThreshold === "number" ? { seedScoreThreshold: cr.seedScoreThreshold } : {}),
+            ...(typeof cr.success === "boolean" ? { success: cr.success } : {}),
         };
     };
 
@@ -284,13 +372,15 @@ const useActHandler = () => {
                         error?: string;
                         tableSummary?: CasualAsyncTableSummaryUI;
                         pendingOthers?: boolean;
+                        seedScoreThreshold?: number;
+                        success?: boolean;
                     };
                     if (!cr.ok) {
                         console.warn("[Solitaire] submitCasualPlatformRun", cr.error);
                         casualRunSubmittedRef.current = false;
                         return { ok: false, error: cr.error };
                     }
-                    return mapCasualPlatformRunActionResult(cr, deferHost);
+                    return mapCasualPlatformRunActionResult(cr, deferHost, score, gs.gameId);
                 }
 
                 let proxyOk = false;
@@ -356,6 +446,8 @@ const useActHandler = () => {
                     error?: string;
                     tableSummary?: CasualAsyncTableSummaryUI;
                     pendingOthers?: boolean;
+                    seedScoreThreshold?: number;
+                    success?: boolean;
                 };
                 if (!cr.ok) {
                     console.warn("[Solitaire] forceEndCasualPlatformRun", cr.error);
@@ -363,14 +455,15 @@ const useActHandler = () => {
                     return { ok: false, error: cr.error };
                 }
                 mergeServerProgress(gs, { gameStatus: SoloGameStatus.CANCELLED });
-                return mapCasualPlatformRunActionResult(cr, deferHost);
+                const score = Math.max(0, Math.floor(gs.score ?? 0));
+                return mapCasualPlatformRunActionResult(cr, deferHost, score, gs.gameId);
             } catch (e) {
                 console.error("[Solitaire] runForceEndCasualSettlement", e);
                 casualRunSubmittedRef.current = false;
                 return { ok: false, error: "network_error" };
             }
         },
-        [convex, casualTournamentId, user?.token, onGameSubmit]
+        [convex, casualTournamentId, user?.token, onGameSubmit, triathlonSessionActive]
     );
 
     const completeCasualSolitaireRun = useCallback(async () => {
@@ -387,6 +480,12 @@ const useActHandler = () => {
             typeof gameState.gameId === "string" &&
             gameState.gameId.startsWith("game_");
         if (isCasualRun) {
+            if (r.triathlonScoreReportOnly) {
+                await beginCasualPostSettleFlow(gameState.gameId, score, {
+                    deferTriathlonTableSummary: true,
+                });
+                return;
+            }
             await beginCasualPostSettleFlow(gameState.gameId, score, r);
         } else {
             onGameSubmit?.();
@@ -425,13 +524,45 @@ const useActHandler = () => {
 
     const dismissPostCasualScoreReport = useCallback(() => {
         const hadReplayOffer = postCasualReplayOffered;
+        const pendingTriathlon = pendingTriathlonAdvanceRef.current;
+        const gs = gameStateRef.current;
+        const matchGameId =
+            typeof gs?.gameId === "string" && gs.gameId.startsWith("game_") ? gs.gameId : undefined;
+        const deferTableSummary = shouldDeferTriathlonTableSummaryForLeg(
+            casualTournamentId,
+            matchGameId,
+            triathlonSessionActive
+        );
+        const legScore =
+            postCasualScoreReport?.totalScore ?? Math.max(0, Math.floor(gs?.score ?? 0));
+        const scoreReportSnapshot = postCasualScoreReport;
         setPostCasualScoreReportOpen(false);
         setPostCasualScoreReport(null);
+        setTriathlonDeferTableSummary(false);
+        if (
+            tryAdvanceTriathlonMidSession({
+                triathlonSessionActive,
+                casualTournamentId,
+                matchGameId,
+                legScore,
+                pendingTriathlon,
+                onTriathlonNextGame,
+                scoreReport: scoreReportSnapshot ?? undefined,
+            })
+        ) {
+            pendingTriathlonAdvanceRef.current = null;
+            return;
+        }
         if (
             shouldOpenCasualTableSummaryAfterScoreReport(
                 casualTournamentId,
                 postCasualTableSummary,
-                postCasualWaitingForPeers
+                postCasualWaitingForPeers,
+                {
+                    deferTriathlonTableSummary: deferTableSummary,
+                    triathlonSessionActive,
+                    triathlonGameId: matchGameId,
+                }
             )
         ) {
             setPostCasualSummaryOpen(true);
@@ -443,6 +574,9 @@ const useActHandler = () => {
         postCasualTableSummary,
         postCasualWaitingForPeers,
         postCasualReplayOffered,
+        postCasualScoreReport,
+        triathlonSessionActive,
+        onTriathlonNextGame,
         exitCasualRunAfterSettle,
     ]);
 
@@ -521,6 +655,12 @@ const useActHandler = () => {
             void beginCasualPostSettleFlow(gs.gameId, score, {
                 tableSummary: extras?.tableSummary ?? undefined,
                 pendingOthers: extras?.pendingOthers,
+                ...(extras?.triathlonScoreReportOnly || extras?.deferTriathlonTableSummary
+                    ? { deferTriathlonTableSummary: true }
+                    : {}),
+                ...(typeof extras?.seedScoreThreshold === "number"
+                    ? { seedScoreThreshold: extras.seedScoreThreshold, success: extras.success }
+                    : {}),
             });
         },
         [casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]
@@ -568,6 +708,14 @@ const useActHandler = () => {
             const out: ManualSettleConfirmExtras = {};
             if (settled.tableSummary) out.tableSummary = settled.tableSummary;
             if (settled.pendingOthers) out.pendingOthers = true;
+            if (typeof settled.seedScoreThreshold === "number") {
+                out.seedScoreThreshold = settled.seedScoreThreshold;
+                out.success = Boolean(settled.success);
+            }
+            if (settled.triathlonScoreReportOnly) {
+                out.triathlonScoreReportOnly = true;
+                out.deferTriathlonTableSummary = true;
+            }
             return out;
         } catch (e) {
             console.error("[Solitaire] confirmSettleAndExit", e);
@@ -594,7 +742,12 @@ const useActHandler = () => {
                 typeof gameState.gameId === "string" &&
                 gameState.gameId.startsWith("game_");
             if (isCasualRun) {
-                const score = Math.max(0, Math.floor(gameState.score ?? 0));
+                if (r.triathlonScoreReportOnly) {
+                    await beginCasualPostSettleFlow(gameState.gameId, score, {
+                        deferTriathlonTableSummary: true,
+                    });
+                    return;
+                }
                 await beginCasualPostSettleFlow(gameState.gameId, score, r);
             } else {
                 onGameSubmit?.();
@@ -984,6 +1137,7 @@ const useActHandler = () => {
         dismissPostCasualScoreReport,
         postCasualSummaryOpen,
         postCasualTableSummary,
+        postCasualWeeklyLeagueSettle,
         postCasualWaitingForPeers,
         postCasualCanReplay,
         postCasualReplayOffered,

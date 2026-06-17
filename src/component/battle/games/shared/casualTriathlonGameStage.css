@@ -1,0 +1,80 @@
+/**
+ * 三场合战 / 混合战：统一 1:1.5（宽:高）战斗区，在可用空间内最大化并居中。
+ */
+.casual-triathlon-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: radial-gradient(ellipse 120% 80% at 50% 0%, #1a1f35 0%, #0a0c14 55%, #050608 100%);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.casual-triathlon-stage__badge {
+  flex-shrink: 0;
+  margin: clamp(6px, 1.5vw, 10px) 0 clamp(4px, 1vw, 8px);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.casual-triathlon-stage__viewport {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(4px, 1.2vw, 10px);
+  box-sizing: border-box;
+  container-type: size;
+}
+
+.casual-triathlon-stage__frame {
+  aspect-ratio: 1 / 1.5;
+  width: min(100cqw, calc(100cqh * 2 / 3));
+  height: min(100cqh, calc(100cqw * 1.5));
+  max-width: 100%;
+  max-height: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: clamp(10px, 2vw, 16px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+  background: #0f1118;
+  box-sizing: border-box;
+}
+
+.casual-triathlon-stage__game {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* 子游戏根容器填满舞台 */
+.casual-triathlon-stage__game .blockblast-game-container,
+.casual-triathlon-stage__game .solo-game-container,
+.casual-triathlon-stage__game .match3-game-root,
+.casual-triathlon-stage__game .match3-game-container {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+}
+
+.casual-triathlon-stage--error {
+  justify-content: center;
+  padding: 24px;
+  color: #fff;
+  text-align: center;
+}

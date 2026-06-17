@@ -21,6 +21,9 @@ import {
 } from "./casualTournamentJoinCore";
 import { findAnyGlobalOpenCasualMatch } from "./casualOpenTableGuard";
 import {
+  recoverStaleClaimingQueueRow,
+  reconcileCasualMatchQueueForJoin,
+  purgeExtraCasualMatchQueueRows,
   resolveQueueEffectiveHumans,
   resolveQueueExpireAction,
 } from "./casualMatchmakingCore";
@@ -35,6 +38,17 @@ export {
   resolveQueueEffectiveHumans,
   resolveQueueExpireAction,
 } from "./casualMatchmakingCore";
+
+export const recoverStaleClaimingQueueRowInternal = internalMutation({
+  args: {
+    queueRowId: v.id("casual_match_queue"),
+    staleMs: v.optional(v.number()),
+  },
+  handler: async (ctx, { queueRowId, staleMs }) => {
+    const { recovered } = await recoverStaleClaimingQueueRow(ctx, queueRowId, staleMs);
+    return { ok: true as const, recovered };
+  },
+});
 
 export const getQueueRowForOpen = internalQuery({
   args: { queueRowId: v.id("casual_match_queue") },
@@ -97,8 +111,15 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       return { ok: false as const, error: "unknown_tournament" };
     }
 
+    const now = Date.now();
+
     const existingOpen = await findAnyGlobalOpenCasualMatch(ctx, uid);
     if (existingOpen) {
+      await purgeExtraCasualMatchQueueRows(ctx, {
+        uid,
+        templateId: tournamentId,
+        now,
+      });
       const profile = await resolvePlayerBotStrategyContext(ctx, {
         uid,
         templateId: tournamentId,
@@ -120,7 +141,6 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       });
     }
 
-    const now = Date.now();
     const preview = await assertJoinEntryEligible(ctx, uid, tournamentId, now);
     if (!preview.ok) {
       return { ok: false as const, error: preview.error };
@@ -146,24 +166,22 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
     });
     const expiresAt = effectiveHumans > 1 ? now + CASUAL_MATCH_QUEUE_TIMEOUT_MS : undefined;
 
-    const dupWaiting = await ctx.db
-      .query("casual_match_queue")
-      .withIndex("by_uid_template_status", (q) =>
-        q.eq("uid", uid).eq("templateId", tournamentId).eq("status", "waiting")
-      )
-      .first();
+    const reconciled = await reconcileCasualMatchQueueForJoin(ctx, uid, tournamentId, now);
 
     let queueRowId: Id<"casual_match_queue">;
-    if (dupWaiting) {
-      await ctx.db.patch(dupWaiting._id, {
+    if (reconciled) {
+      await ctx.db.patch(reconciled._id, {
         effectiveHumans,
         matchedRuleId: matchedRuleId ?? undefined,
         queueExpireAction: effectiveHumans > 1 ? queueExpireAction : undefined,
         expiresAt,
-        skipEntryCharge: dupWaiting.skipEntryCharge,
+        skipEntryCharge: reconciled.skipEntryCharge,
         updatedAt: now,
+        ...(reconciled.status === "claiming"
+          ? { status: "waiting" as const }
+          : {}),
       });
-      queueRowId = dupWaiting._id;
+      queueRowId = reconciled._id;
     } else {
       queueRowId = await ctx.db.insert("casual_match_queue", {
         uid,
@@ -217,9 +235,19 @@ export const listCasualMatchQueueForUid = query({
       .collect();
     return rows
       .filter((r) => r.status === "waiting" || r.status === "claiming")
-      .map((r) => {
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .reduce<
+        Array<{
+          templateId: string;
+          status: "waiting" | "claiming";
+          createdAt: number;
+          waitingForPeer: boolean;
+          expiresAt?: number;
+        }>
+      >((acc, r) => {
+        if (acc.some((x) => x.templateId === r.templateId)) return acc;
         const eff = resolveQueueEffectiveHumans(r);
-        return {
+        acc.push({
           templateId: r.templateId,
           status: r.status as "waiting" | "claiming",
           createdAt: r.createdAt,
@@ -227,9 +255,9 @@ export const listCasualMatchQueueForUid = query({
             effectiveHumans: eff,
             expiresAt: r.expiresAt,
           }),
-        };
-      })
-      .sort((a, b) => b.createdAt - a.createdAt);
+        });
+        return acc;
+      }, []);
   },
 });
 
@@ -248,19 +276,43 @@ export const leaveCasualMatchQueue = mutation({
     const inScope = (rowTemplateId: string) =>
       !scopeTemplateId || rowTemplateId === scopeTemplateId;
 
-    const claiming = rows.filter((r) => r.status === "claiming" && inScope(r.templateId));
-    const waiting = rows.filter((r) => r.status === "waiting" && inScope(r.templateId));
+    const now = Date.now();
+    for (const row of rows.filter((r) => r.status === "claiming" && inScope(r.templateId))) {
+      if (now - row.updatedAt > 15_000) {
+        await ctx.db.patch(row._id, { status: "waiting", updatedAt: now });
+      }
+    }
 
-    if (claiming.length > 0 && waiting.length === 0) {
+    const claimingFresh = (
+      await ctx.db
+        .query("casual_match_queue")
+        .withIndex("by_uid", (q) => q.eq("uid", uid))
+        .collect()
+    ).filter((r) => r.status === "claiming" && inScope(r.templateId));
+    const waitingFresh = (
+      await ctx.db
+        .query("casual_match_queue")
+        .withIndex("by_uid", (q) => q.eq("uid", uid))
+        .collect()
+    ).filter((r) => r.status === "waiting" && inScope(r.templateId));
+
+    if (claimingFresh.length > 0 && waitingFresh.length === 0) {
+      const allStale = claimingFresh.every((r) => now - r.updatedAt > 15_000);
+      if (allStale) {
+        for (const row of claimingFresh) {
+          await ctx.db.delete(row._id);
+        }
+        return { ok: true as const, removed: claimingFresh.length };
+      }
       return { ok: false as const, error: "cannot_leave_claiming" as const };
     }
-    if (waiting.length === 0) {
+    if (waitingFresh.length === 0) {
       return { ok: false as const, error: "not_in_queue" as const };
     }
 
-    for (const row of waiting) {
+    for (const row of waitingFresh) {
       await ctx.db.delete(row._id);
     }
-    return { ok: true as const, removed: waiting.length };
+    return { ok: true as const, removed: waitingFresh.length };
   },
 });

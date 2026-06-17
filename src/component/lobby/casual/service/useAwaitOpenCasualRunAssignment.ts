@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import {
-  assignmentMatchesGameKind,
+  assignmentMatchesAwaitWatch,
   type CasualGameKind,
   type OpenCasualRunAssignment,
 } from "./casualOpenRunAssignment";
@@ -46,9 +46,7 @@ export function useAwaitOpenCasualRunAssignment(args: {
 
   useEffect(() => {
     if (!watch || settledRef.current || !enabled) return;
-    const hit = openRunAssignments.find(
-      (a) => a.templateId === watch.templateId && assignmentMatchesGameKind(a, watch.gameKind)
-    );
+    const hit = openRunAssignments.find((a) => assignmentMatchesAwaitWatch(a, watch));
     if (!hit) return;
     settledRef.current = true;
     onMatchedRef.current(hit);

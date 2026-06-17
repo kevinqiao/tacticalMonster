@@ -18,7 +18,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { clearSeedPoolFully, runConvexSolitaire } from "./run-convex-solitaire.mjs";
+import { clearSeedPoolFully } from "../seed-catalog/run-convex-catalog.mjs";
+import { CATALOG_GAME_TYPES } from "../seed-catalog/catalog-game-types.mjs";
 import { loadPoolDefaults } from "./solitaire-pool-defaults.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -30,6 +31,7 @@ const DEFAULT_MIN_SCORE_SPREAD = 100;
 const DEFAULT_OVERSAMPLE_FACTOR = 2;
 const DEFAULT_MIN_ENTRIES = 0; // 0 = 自动使用 index 实际条数
 const DEFAULT_BATCH_SIZE = process.platform === "win32" ? 2 : 8;
+const CATALOG_GAME_TYPE = CATALOG_GAME_TYPES.solitaire;
 
 function usage(defaults) {
   const { policyVersion, poolVersion, outDir } = defaults;
@@ -39,11 +41,11 @@ Usage:
   npx tsx scripts/solitaire/seed-pool.mjs <command> [options] [-- extra-args...]
 
 Commands:
-  clean     清空 Convex 中该 poolVersion 的数据（可选清本地 output）
+  clean     清空 casualPlatform seed pool（可选清本地 output）
   create    离线生成/续跑 index.json（generate-seed-pool.mjs）
-  load      全量导入 Convex（默认先 clean 再 import）
-  append    增量导入（仅 DB 中不存在的 seedId）
-  regen     仅重算 rolloutSummaries（+ metrics）写回 index；--sync 同步 Convex 子表
+  load      全量导入 casualPlatform（默认先 clean 再 import）
+  append    增量导入 platform seed pool（仅 DB 中不存在的 seedId）
+  regen     仅重算 rolloutSummaries（+ metrics）写回 index；--sync 同步 catalog rollout 子表
   help      显示本帮助
 
 Defaults (from HUMAN_STOCHASTIC_POLICY_VERSION=${policyVersion}):
@@ -61,12 +63,12 @@ Common options (before --):
   --no-reject-collapsed create：关闭 collapsed 布局拒绝
   --min-entries <n>     load：finalize 最少条数（默认 0=index 实际条数；显式设 500 可强制质量门槛）
   --batch-size <n>      load/append 批大小（默认 ${DEFAULT_BATCH_SIZE}，Windows 含 rollout 时建议 ≤2）
-  --no-clear            load 时不先 clean Convex
+  --no-clear            load 时不先 clean catalog
   --local               clean 时同时删除本地 --out 目录
   --resume              create 断点续跑（等同 generate --resume）
   --index-only          不写 rolloutSummaries / 仅 metrics 导入
   --seed <seedId>       regen：只更新该 seed
-  --sync                regen：本地更新后 upsert Convex rollout 子表
+  --sync                regen：本地更新后 upsert catalog rollout 子表
   --all                 regen：index 内全部 seed（慎用，耗时长）
 
 Examples:
@@ -151,7 +153,7 @@ async function readPoolVersionFromIndex(indexPath, fallback) {
 }
 
 function runTsx(scriptName, args) {
-  const script = path.join(__dirname, scriptName);
+  const script = path.isAbsolute(scriptName) ? scriptName : path.join(__dirname, scriptName);
   const result = spawnSync("npx", ["tsx", script, ...args], {
     cwd: repoRoot,
     stdio: "inherit",
@@ -165,8 +167,8 @@ function runTsx(scriptName, args) {
 async function cmdClean(opts) {
   const poolVersion =
     opts.poolVersion || (await readPoolVersionFromIndex(opts.index, opts.poolVersion));
-  console.log(`clean Convex poolVersion=${poolVersion}`);
-  const res = await clearSeedPoolFully(poolVersion);
+  console.log(`clean catalog pool gameType=${CATALOG_GAME_TYPE} poolVersion=${poolVersion}`);
+  const res = await clearSeedPoolFully(CATALOG_GAME_TYPE, poolVersion);
   console.log(res);
 
   if (opts.local) {
@@ -222,6 +224,8 @@ function cmdRegen(opts, extra) {
 
 function cmdLoad(opts, extra, { append = false } = {}) {
   const args = [
+    "--game-type",
+    CATALOG_GAME_TYPE,
     "--index",
     opts.index,
     "--pool-version",
@@ -238,8 +242,8 @@ function cmdLoad(opts, extra, { append = false } = {}) {
   }
   if (opts.indexOnly) args.push("--index-only");
   args.push(...extra);
-  console.log(`${append ? "append" : "load"} → import-seed-pool-to-convex.mjs`, args.join(" "));
-  runTsx("import-seed-pool-to-convex.mjs", args);
+  console.log(`${append ? "append" : "load"} → seed-catalog/import-seed-pool.mjs`, args.join(" "));
+  runTsx(path.join(repoRoot, "scripts/seed-catalog/import-seed-pool.mjs"), args);
 }
 
 async function main() {

@@ -12,6 +12,7 @@ import React, {
     useCallback,
     useContext,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -31,6 +32,7 @@ import {
     Shape,
 } from '../types/BlockBlastTypes';
 import BlockBlastRuleManager from './BlockBlastRuleManager';
+import { createRolloutReplayState } from '../replay/blockBlastRolloutReplay';
 import {
     buildBlockBlastScoreReport,
     shouldOpenCasualTableSummaryAfterScoreReport,
@@ -41,6 +43,15 @@ import {
     type CasualAsyncTableSummaryUI,
     type ManualSettleConfirmExtras,
 } from '../../../shared/casualAsyncTableSummaryUI';
+import type { WeeklyLeagueSettleUI } from '../../../shared/casualWeeklyLeagueScoreUI';
+import {
+    queueTriathlonMidSessionAdvance,
+    shouldDeferTriathlonTableSummaryForLeg,
+    tryAdvanceTriathlonMidSession,
+    type TriathlonMidSessionAdvanceHandler,
+    type TriathlonPendingAdvance,
+} from '../../../shared/casualTriathlonSubmitFlow';
+import type { TriathlonNextGame } from 'component/lobby/casual/service/useCasualTriathlonSession';
 import { useCasualTableSummaryPoll } from '../../../shared/useCasualTableSummaryPoll';
 
 function isTerminalBlockBlastStatus(status: number | undefined): boolean {
@@ -100,6 +111,7 @@ interface IBlockBlastGameContext {
     dismissPostCasualScoreReport: () => void;
     postCasualSummaryOpen: boolean;
     postCasualTableSummary: CasualAsyncTableSummaryUI | null;
+    postCasualWeeklyLeagueSettle: WeeklyLeagueSettleUI | null;
     postCasualWaitingForPeers: boolean;
     postCasualCanReplay: boolean;
     postCasualReplayOffered: boolean;
@@ -109,6 +121,8 @@ interface IBlockBlastGameContext {
     dismissPostCasualSummary: () => void;
     reloadCasualRun: () => Promise<boolean>;
     casualTournamentId?: string;
+    /** 回放/复盘模式：本地按 seed 重放，跳过 Convex 建局与结算流程 */
+    replayMode: boolean;
 }
 
 const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
@@ -136,6 +150,7 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     dismissPostCasualScoreReport: () => { },
     postCasualSummaryOpen: false,
     postCasualTableSummary: null,
+    postCasualWeeklyLeagueSettle: null,
     postCasualWaitingForPeers: false,
     postCasualCanReplay: false,
     postCasualReplayOffered: false,
@@ -145,6 +160,7 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     dismissPostCasualSummary: () => { },
     reloadCasualRun: async () => false,
     casualTournamentId: undefined,
+    replayMode: false,
 });
 
 export const useBlockBlastGameManager = () => {
@@ -158,21 +174,29 @@ export const useBlockBlastGameManager = () => {
 interface BlockBlastGameProviderProps {
     children: ReactNode;
     gameId?: string;
+    /** 回放/复盘：按 seed 本地重放，不走 Convex loadGame */
+    replaySeedId?: string;
     casualTournamentId?: string;
     config?: Partial<BlockBlastGameConfig>;
     onGameLoadComplete?: () => void;
     onGameSubmit?: () => void;
+    onTriathlonNextGame?: TriathlonMidSessionAdvanceHandler;
 }
 
 export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     children,
     gameId,
+    replaySeedId,
     casualTournamentId,
     config: customConfig,
     onGameLoadComplete,
     onGameSubmit,
+    onTriathlonNextGame,
 }) => {
-    const [gameState, setGameState] = useState<BlockBlastGameState | null>(null);
+    const replayMode = Boolean(replaySeedId && !gameId);
+    const [gameState, setGameState] = useState<BlockBlastGameState | null>(() =>
+        replaySeedId && !gameId ? createRolloutReplayState(replaySeedId) : null
+    );
     const [gameReport, setGameReport] = useState<GameReport | null>(null);
     const [boardDimension, setBoardDimension] = useState<BoardDimension | null>(null);
     const [interactionPhase, setInteractionPhase] = useState<GameInteractionPhase>(
@@ -196,6 +220,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     const [postCasualTableSummary, setPostCasualTableSummary] = useState<CasualAsyncTableSummaryUI | null>(
         null
     );
+    const [postCasualWeeklyLeagueSettle, setPostCasualWeeklyLeagueSettle] =
+        useState<WeeklyLeagueSettleUI | null>(null);
     const [postCasualWaitingForPeers, setPostCasualWaitingForPeers] = useState(false);
     const [postCasualCanReplay, setPostCasualCanReplay] = useState(false);
     const [postCasualReplayOffered, setPostCasualReplayOffered] = useState(false);
@@ -204,14 +230,17 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         undefined
     );
     const [casualReplayBusy, setCasualReplayBusy] = useState(false);
+    const [triathlonDeferTableSummary, setTriathlonDeferTableSummary] = useState(false);
 
     const casualRunSubmittedRef = useRef(false);
+    const pendingTriathlonAdvanceRef = useRef<TriathlonPendingAdvance | null>(null);
     const settleInFlightRef = useRef(false);
     const gameStateRef = useRef<BlockBlastGameState | null>(null);
     const interactionPhaseRef = useRef<GameInteractionPhase>(GameInteractionPhase.idle);
 
     useCasualTableSummaryPoll({
-        open: postCasualSummaryOpen || postCasualScoreReportOpen,
+        open:
+            (postCasualSummaryOpen || postCasualScoreReportOpen) && !triathlonDeferTableSummary,
         summary: postCasualTableSummary,
         matchGameId:
             typeof gameState?.gameId === 'string' && gameState.gameId.startsWith('game_')
@@ -237,14 +266,20 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         interactionPhaseRef.current = interactionPhase;
     }, [interactionPhase]);
 
+    const triathlonSessionActive = Boolean(onTriathlonNextGame);
+
     useEffect(() => {
         casualRunSubmittedRef.current = false;
+        pendingTriathlonAdvanceRef.current = null;
+        setTriathlonDeferTableSummary(false);
         setPostCasualScoreReportOpen(false);
         setPostCasualScoreReport(null);
         setPostCasualSummaryOpen(false);
         setPostCasualTableSummary(null);
         setPostCasualWaitingForPeers(false);
         setPostCasualCanReplay(false);
+        setPostCasualReplayOffered(false);
+        setPostCasualReplayTokenCount(0);
         setPostCasualReplayWindowEndsAt(undefined);
         setCasualReplayBusy(false);
     }, [gameState?.gameId]);
@@ -281,20 +316,64 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             settle: {
                 tableSummary?: CasualAsyncTableSummaryUI;
                 pendingOthers?: boolean;
+                weeklyLeagueSettle?: WeeklyLeagueSettleUI;
+                seedScoreThreshold?: number;
+                success?: boolean;
+                deferTriathlonTableSummary?: boolean;
             }
         ) => {
             if (gameStateRef.current?.reportElement) {
                 gsap.set(gameStateRef.current.reportElement, { autoAlpha: 0 });
             }
+            const deferTableSummary =
+                Boolean(settle.deferTriathlonTableSummary) ||
+                shouldDeferTriathlonTableSummaryForLeg(
+                    casualTournamentId,
+                    gameId,
+                    triathlonSessionActive
+                );
+            setTriathlonDeferTableSummary(deferTableSummary);
             const report = await resolveBlockBlastScoreReport(gameId, fallbackScore);
+            if (typeof settle.seedScoreThreshold === 'number') {
+                report.challenge = {
+                    targetScore: settle.seedScoreThreshold,
+                    achievedScore: report.totalScore,
+                    success: Boolean(settle.success),
+                };
+            }
+
+            if (
+                deferTableSummary &&
+                triathlonSessionActive &&
+                onTriathlonNextGame &&
+                tryAdvanceTriathlonMidSession({
+                    triathlonSessionActive,
+                    casualTournamentId,
+                    matchGameId: gameId,
+                    legScore: report.totalScore,
+                    pendingTriathlon: pendingTriathlonAdvanceRef.current,
+                    onTriathlonNextGame,
+                    scoreReport: report,
+                })
+            ) {
+                pendingTriathlonAdvanceRef.current = null;
+                setTriathlonDeferTableSummary(false);
+                return;
+            }
+
             setPostCasualScoreReport(report);
-            setPostCasualTableSummary(settle.tableSummary ?? null);
-            setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
+            setPostCasualTableSummary(deferTableSummary ? null : settle.tableSummary ?? null);
+            setPostCasualWeeklyLeagueSettle(settle.weeklyLeagueSettle ?? null);
+            setPostCasualWaitingForPeers(deferTableSummary ? false : Boolean(settle.pendingOthers));
             setPostCasualReplayOffered(false);
             setPostCasualReplayTokenCount(0);
             setPostCasualCanReplay(false);
             setPostCasualReplayWindowEndsAt(undefined);
             setPostCasualScoreReportOpen(true);
+
+            if (deferTableSummary) {
+                return;
+            }
 
             if (settle.tableSummary) {
                 applyCasualTableSummaryFromQuery(settle.tableSummary, {
@@ -321,7 +400,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 }
             }
         },
-        [resolveBlockBlastScoreReport, casual.fetchCasualTableSummaryForGame]
+        [resolveBlockBlastScoreReport, casual.fetchCasualTableSummaryForGame, casualTournamentId, triathlonSessionActive, onTriathlonNextGame]
     );
 
     const reloadCasualRun = useCallback(async (): Promise<boolean> => {
@@ -415,13 +494,45 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
 
     const dismissPostCasualScoreReport = useCallback(() => {
         const hadReplayOffer = postCasualReplayOffered;
+        const pendingTriathlon = pendingTriathlonAdvanceRef.current;
+        const gs = gameStateRef.current;
+        const matchGameId =
+            typeof gs?.gameId === 'string' && gs.gameId.startsWith('game_') ? gs.gameId : undefined;
+        const deferTableSummary = shouldDeferTriathlonTableSummaryForLeg(
+            casualTournamentId,
+            matchGameId,
+            triathlonSessionActive
+        );
+        const legScore =
+            postCasualScoreReport?.totalScore ?? Math.max(0, Math.floor(gs?.score ?? 0));
+        const scoreReportSnapshot = postCasualScoreReport;
         setPostCasualScoreReportOpen(false);
         setPostCasualScoreReport(null);
+        setTriathlonDeferTableSummary(false);
+        if (
+            tryAdvanceTriathlonMidSession({
+                triathlonSessionActive,
+                casualTournamentId,
+                matchGameId,
+                legScore,
+                pendingTriathlon,
+                onTriathlonNextGame,
+                scoreReport: scoreReportSnapshot ?? undefined,
+            })
+        ) {
+            pendingTriathlonAdvanceRef.current = null;
+            return;
+        }
         if (
             shouldOpenCasualTableSummaryAfterScoreReport(
                 casualTournamentId,
                 postCasualTableSummary,
-                postCasualWaitingForPeers
+                postCasualWaitingForPeers,
+                {
+                    deferTriathlonTableSummary: deferTableSummary,
+                    triathlonSessionActive,
+                    triathlonGameId: matchGameId,
+                }
             )
         ) {
             setPostCasualSummaryOpen(true);
@@ -433,6 +544,9 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         postCasualTableSummary,
         postCasualWaitingForPeers,
         postCasualReplayOffered,
+        postCasualScoreReport,
+        triathlonSessionActive,
+        onTriathlonNextGame,
         exitCasualRunAfterSettle,
     ]);
 
@@ -476,14 +590,17 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     }, [convex, gameId, onGameLoadComplete]);
 
     useEffect(() => {
+        if (replayMode) return;
         void loadGame();
-    }, [loadGame]);
+    }, [loadGame, replayMode]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!gameState?.grid?.length) return;
-        const n = inferGridSizeFromGrid(gameState.grid);
+        const n = gameState.gridSize ?? inferGridSizeFromGrid(gameState.grid);
+        const cur = gridCellRefs.current;
+        if (cur?.length === n && cur[0]?.length === n) return;
         gridCellRefs.current = allocateGridCellRefs(n);
-    }, [gameState?.gameId, gameState?.grid]);
+    }, [gameState?.gameId, gameState?.gridSize, gameState?.grid?.length]);
 
     const onGameOver = useCallback(async () => {
         if (!gameState || !convex) return;
@@ -562,6 +679,9 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                   ok: true;
                   tableSummary?: CasualAsyncTableSummaryUI;
                   pendingOthers?: boolean;
+                  seedScoreThreshold?: number;
+                  success?: boolean;
+                  triathlonScoreReportOnly?: boolean;
               }
             | { ok: false }
         > => {
@@ -585,11 +705,26 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                         error?: string;
                         tableSummary?: CasualAsyncTableSummaryUI;
                         pendingOthers?: boolean;
+                        weeklyLeagueSettle?: WeeklyLeagueSettleUI;
+                        seedScoreThreshold?: number;
+                        success?: boolean;
+                        gameComplete?: boolean;
+                        nextGame?: TriathlonNextGame;
                     };
                     if (!cr.ok) {
                         console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
                         casualRunSubmittedRef.current = false;
                         return { ok: false };
+                    }
+                    if (
+                        triathlonSessionActive &&
+                        queueTriathlonMidSessionAdvance(cr, score, pendingTriathlonAdvanceRef, {
+                            templateId: casualTournamentId,
+                            gameId: gs.gameId,
+                            triathlonSessionActive,
+                        })
+                    ) {
+                        return { ok: true, triathlonScoreReportOnly: true };
                     }
                     if (!deferHost) {
                         onGameSubmit?.();
@@ -598,6 +733,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                         ok: true,
                         ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
                         ...(cr.pendingOthers ? { pendingOthers: true } : {}),
+                        ...(cr.weeklyLeagueSettle ? { weeklyLeagueSettle: cr.weeklyLeagueSettle } : {}),
+                        ...(typeof cr.seedScoreThreshold === 'number'
+                            ? { seedScoreThreshold: cr.seedScoreThreshold }
+                            : {}),
+                        ...(typeof cr.success === 'boolean' ? { success: cr.success } : {}),
                     };
                 }
                 let proxyOk = false;
@@ -627,7 +767,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 return { ok: false };
             }
         },
-        [convex, casualTournamentId, user?.token, onGameSubmit]
+        [convex, casualTournamentId, user?.token, onGameSubmit, triathlonSessionActive]
     );
 
     const finishManualSettleSuccess = useCallback(
@@ -647,6 +787,12 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             void beginCasualPostSettleFlow(gs.gameId, score, {
                 tableSummary: extras?.tableSummary ?? undefined,
                 pendingOthers: extras?.pendingOthers,
+                ...(extras?.triathlonScoreReportOnly || extras?.deferTriathlonTableSummary
+                    ? { deferTriathlonTableSummary: true }
+                    : {}),
+                ...(typeof extras?.seedScoreThreshold === 'number'
+                    ? { seedScoreThreshold: extras.seedScoreThreshold, success: extras.success }
+                    : {}),
             });
         },
         [casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]
@@ -687,6 +833,14 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             const out: ManualSettleConfirmExtras = {};
             if (settled.tableSummary) out.tableSummary = settled.tableSummary;
             if (settled.pendingOthers) out.pendingOthers = true;
+            if (typeof settled.seedScoreThreshold === 'number') {
+                out.seedScoreThreshold = settled.seedScoreThreshold;
+                out.success = Boolean(settled.success);
+            }
+            if (settled.triathlonScoreReportOnly) {
+                out.triathlonScoreReportOnly = true;
+                out.deferTriathlonTableSummary = true;
+            }
             return out;
         } catch (e) {
             console.error('[BlockBlast] confirmSettleAndExit', e);
@@ -713,6 +867,12 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 typeof gameState.gameId === 'string' &&
                 gameState.gameId.startsWith('game_');
             if (isCasualRun) {
+                if (r.triathlonScoreReportOnly) {
+                    await beginCasualPostSettleFlow(gameState.gameId, score, {
+                        deferTriathlonTableSummary: true,
+                    });
+                    return;
+                }
                 await beginCasualPostSettleFlow(gameState.gameId, score, r);
             } else {
                 onGameSubmit?.();
@@ -747,15 +907,34 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                         error?: string;
                         tableSummary?: CasualAsyncTableSummaryUI;
                         pendingOthers?: boolean;
+                        weeklyLeagueSettle?: WeeklyLeagueSettleUI;
+                        seedScoreThreshold?: number;
+                        success?: boolean;
                     };
                     if (!cr.ok) {
                         console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
                         return;
                     }
                     casualRunSubmittedRef.current = true;
+                    if (
+                        triathlonSessionActive &&
+                        queueTriathlonMidSessionAdvance(cr, score, pendingTriathlonAdvanceRef, {
+                            templateId: casualTournamentId,
+                            gameId: gameState.gameId,
+                            triathlonSessionActive,
+                        })
+                    ) {
+                        await beginCasualPostSettleFlow(gameState.gameId, score, {
+                            deferTriathlonTableSummary: true,
+                        });
+                        return;
+                    }
                     await beginCasualPostSettleFlow(gameState.gameId, score, {
                         tableSummary: cr.tableSummary,
                         pendingOthers: cr.pendingOthers,
+                        ...(typeof cr.seedScoreThreshold === 'number'
+                            ? { seedScoreThreshold: cr.seedScoreThreshold, success: cr.success }
+                            : {}),
                     });
                     return;
                 }
@@ -780,7 +959,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 console.error('submitScore failed', e);
             }
         },
-        [gameState, convex, onGameSubmit, casualTournamentId, user?.token, beginCasualPostSettleFlow]
+        [gameState, convex, onGameSubmit, casualTournamentId, user?.token, beginCasualPostSettleFlow, triathlonSessionActive]
     );
 
     const value: IBlockBlastGameContext = {
@@ -808,6 +987,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         dismissPostCasualScoreReport,
         postCasualSummaryOpen,
         postCasualTableSummary,
+        postCasualWeeklyLeagueSettle,
         postCasualWaitingForPeers,
         postCasualCanReplay,
         postCasualReplayOffered,
@@ -817,6 +997,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         dismissPostCasualSummary,
         reloadCasualRun,
         casualTournamentId,
+        replayMode,
     };
 
     return (

@@ -21,6 +21,7 @@ import SoloDnDProvider from './service/SoloDnDProvider';
 import './style.css';
 
 import { SoloGameConfig } from './types/SoloTypes';
+import type { TriathlonMidSessionAdvanceHandler } from 'component/battle/games/shared/casualTriathlonSubmitFlow';
 
 
 
@@ -40,6 +41,7 @@ interface SoloGameProps {
 
     style?: React.CSSProperties;
     onGameSubmit?: () => void;
+    onTriathlonNextGame?: TriathlonMidSessionAdvanceHandler;
 }
 
 
@@ -58,6 +60,7 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
 
     config,
     onGameSubmit,
+    onTriathlonNextGame,
 }) => {
     const loadingRef = useRef<HTMLDivElement | null>(null)
     const playerRef = useRef<HTMLDivElement | null>(null)
@@ -90,6 +93,7 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
                     onGameLoadComplete={onGameLoadComplete}
 
                     onGameSubmit={onGameSubmit}
+                    onTriathlonNextGame={onTriathlonNextGame}
                 >
 
                     {/* <EventProvider> */}
@@ -127,8 +131,7 @@ const SolitaireGame: React.FC<SoloGameProps> = ({
 
     style,
     onGameSubmit,
-
-
+    onTriathlonNextGame,
 }) => {
 
     const client = React.useMemo(() => new ConvexReactClient(convex_url), []);
@@ -150,7 +153,7 @@ const SolitaireGame: React.FC<SoloGameProps> = ({
                     config={config}
 
                     onGameSubmit={onGameSubmit}
-
+                    onTriathlonNextGame={onTriathlonNextGame}
                 />
 
             </ConvexProvider>

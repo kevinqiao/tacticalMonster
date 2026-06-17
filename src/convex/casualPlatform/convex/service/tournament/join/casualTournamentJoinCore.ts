@@ -26,6 +26,9 @@ export function requiresDailySoloPlayCostAck(tournamentId: string, willChargeEnt
 }
 import { resolveInstanceWindow } from "../../../data/casualInstanceWindow";
 import { activeSeasonWindowForCtx, ensureInstancePlayerStateRow } from "../list/casualInstanceService";
+import { effectiveGameSequence } from "../../../data/casualTournamentConfigs";
+import { insertPlayerSessionForUid } from "../shared/casualSessionOpenCore";
+import type { CasualMatchSeedBinding } from "./casualMatchSeedBinding";
 
 export const RUN_TOURNAMENT_OPEN = 0;
 export const RUN_TOURNAMENT_COMPLETED = 1;
@@ -337,20 +340,26 @@ export async function insertCasualRunDocumentsForHumans(
   });
   const matchIdStr = String(matchConvexId);
   const byUid: Record<string, { gameId: string }> = {};
+  const sequence = effectiveGameSequence(def);
+  const placeholderSeed: CasualMatchSeedBinding = {
+    seedId: "legacy_join_pending",
+    poolVersion: "v0",
+    tier: "medium",
+  };
+  const seedBindingsByIndex = Object.fromEntries(
+    sequence.map((_, gameIndex) => [String(gameIndex), placeholderSeed])
+  );
   for (const uid of uids) {
-    const gameId = `game_${matchIdStr}_${uid}`;
-    await ctx.db.insert("casual_run_player_matches", {
+    const opened = await insertPlayerSessionForUid(ctx, {
       matchId: matchIdStr,
-      tournamentId: String(runTournamentId),
+      runTournamentId: String(runTournamentId),
       templateId,
+      def,
       uid,
-      gameId,
-      gameType: def.gameType,
-      status: "open",
-      createdAt: now,
-      updatedAt: now,
+      seedBindingsByIndex,
+      now,
     });
-    byUid[uid] = { gameId };
+    byUid[uid] = { gameId: opened.openGameId };
     await ctx.runMutation(internal.service.task.casualTaskService.notifyTournamentJoined, { uid });
   }
 

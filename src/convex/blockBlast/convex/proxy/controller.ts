@@ -7,6 +7,7 @@ import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
 import { resolveCasualBridgeEnv } from "../service/casualBridgeEnv";
 import { postCasualRunIngest } from "../service/casualBridgeIngest";
+import { computeBlockBlastTotalScore } from "../service/blockBlastScoreModel";
 import { buildCasualV2IngestPayload } from "../service/casualBotFill/computeBotFills";
 import { BlockBlastGameStatus } from "../types/BlockBlastTypes";
 
@@ -103,17 +104,35 @@ type CasualIngestParsed = {
   pendingOthers?: boolean;
   deduped?: boolean;
   finalized?: boolean;
+  gameComplete?: boolean;
+  weeklyLeagueSettle?: unknown;
+  nextGame?: { gameIndex: number; gameId: string; gameType: string };
 };
 
-function mapCasualIngestClientResponse(parsed: CasualIngestParsed) {
+function mapCasualIngestClientResponse(
+  parsed: CasualIngestParsed,
+  extra?: { seedScoreThreshold?: number; score?: number }
+) {
   const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
   const pendingOthers = parsed.pendingOthers === true;
+  const hasThreshold =
+    typeof extra?.seedScoreThreshold === "number" && Number.isFinite(extra.seedScoreThreshold);
+  const seedScoreThreshold = hasThreshold ? (extra!.seedScoreThreshold as number) : undefined;
+  const success =
+    seedScoreThreshold != null && typeof extra?.score === "number"
+      ? extra.score >= seedScoreThreshold
+      : undefined;
   return {
     ok: true as const,
     ...(tableSummary ? { tableSummary } : {}),
     ...(pendingOthers ? { pendingOthers: true as const } : {}),
     ...(parsed.deduped === true ? { deduped: true as const } : {}),
     ...(parsed.finalized === true ? { finalized: true as const } : {}),
+    ...(parsed.weeklyLeagueSettle ? { weeklyLeagueSettle: parsed.weeklyLeagueSettle } : {}),
+    ...(parsed.gameComplete === true ? { gameComplete: true as const } : {}),
+    ...(parsed.nextGame ? { nextGame: parsed.nextGame } : {}),
+    ...(seedScoreThreshold != null ? { seedScoreThreshold } : {}),
+    ...(success != null ? { success } : {}),
   };
 }
 
@@ -264,7 +283,12 @@ export const submitCasualPlatformRun = action({
       return { ok: false as const, error: "not_terminal" };
     }
 
-    const score = Math.max(0, Math.floor(Number((game as { score?: number }).score ?? 0)));
+    const g = game as { score?: number; lines?: number; moves?: number };
+    const score = computeBlockBlastTotalScore(
+      Number(g.score ?? 0),
+      Number(g.lines ?? 0),
+      Number(g.moves ?? 0)
+    );
 
     const built = await buildCasualV2IngestPayload({ ctx, uid, matchGameId: gameId, score });
     if (!built.ok) {
@@ -281,7 +305,10 @@ export const submitCasualPlatformRun = action({
       deduped: ingest.parsed.deduped,
       pendingOthers: ingest.parsed.pendingOthers,
     });
-    return mapCasualIngestClientResponse(ingest.parsed);
+    return mapCasualIngestClientResponse(ingest.parsed, {
+      seedScoreThreshold: built.payload.seedScoreThreshold,
+      score: built.payload.score,
+    });
   },
 });
 

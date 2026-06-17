@@ -24,7 +24,8 @@ function normalizeSettleExtras(maybe: unknown): ManualSettleConfirmExtras | unde
     m.canReplay === true ||
     typeof m.replayTokenCount === 'number' ||
     typeof m.replayWindowEndsAt === 'number';
-  const hasExtra = hasTable || m.pendingOthers === true || hasReplay;
+  const hasChallenge = typeof m.seedScoreThreshold === 'number';
+  const hasExtra = hasTable || m.pendingOthers === true || hasReplay || hasChallenge;
   if (!hasExtra) return undefined;
   return {
     tableSummary: hasTable ? ts : undefined,
@@ -33,6 +34,8 @@ function normalizeSettleExtras(maybe: unknown): ManualSettleConfirmExtras | unde
     ...(m.replayTokenCount != null ? { replayTokenCount: m.replayTokenCount } : {}),
     ...(m.canReplay ? { canReplay: true } : {}),
     ...(m.replayWindowEndsAt != null ? { replayWindowEndsAt: m.replayWindowEndsAt } : {}),
+    ...(hasChallenge ? { seedScoreThreshold: m.seedScoreThreshold } : {}),
+    ...(typeof m.success === 'boolean' ? { success: m.success } : {}),
   };
 }
 

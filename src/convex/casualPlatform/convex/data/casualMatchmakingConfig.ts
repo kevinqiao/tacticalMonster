@@ -48,7 +48,7 @@ export const MATCHMAKING_RULES: MatchmakingRule[] = [
     id: "early_game_solo",
     priority: 50,
     condition: (ctx) =>
-      ctx.completedMultiplayerMatches <= 5 && ctx.seasonLadderPoints <= 20,
+      ctx.completedMultiplayerMatches <= 5 && ctx.weeklyLeagueTier === "bronze",
     strategy: { effectiveHumans: 2, expireAction: "solo" },
   },
 ];

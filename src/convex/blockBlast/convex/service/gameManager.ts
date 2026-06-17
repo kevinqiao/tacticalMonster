@@ -6,6 +6,12 @@ import {
     type BlockBlastGridSize,
 } from "../types/BlockBlastTypes";
 import { BlockBlastGameEngine, randomUuidCompat } from "./BlockBlastGameEngine";
+import {
+    blockBlastLinesBonus,
+    blockBlastMovesBonus,
+    computeBlockBlastTotalScore,
+} from "./blockBlastScoreModel";
+import type { BlockBlastRecordedStep } from "./seedPool/blockBlastRecordedOpTypes";
 
 /** 同 `gameId` 多行时取最新；`collect`+排序避免依赖 `.order().first()` 在重复索引上的 `unique` 异常 */
 function latestBlockBlastGameRow<T extends { _creationTime: number }>(rows: T[]): T | undefined {
@@ -80,6 +86,20 @@ interface GameState {
     seed?: string;
     shapeCounter?: number; // 已生成的形状计数器（用于可重现性）
     lastUpdate?: number;
+    recordedOps?: BlockBlastRecordedStep[];
+    lastOpAt?: number;
+}
+
+/** 追加一条回放步骤；自动用 `lastOpAt` 估算 pacingMs（对齐 solitaireArena appendRecordedStep） */
+function appendRecordedStep(game: GameState, step: BlockBlastRecordedStep): void {
+    const now = Date.now();
+    const pacingMs =
+        step.pacingMs ??
+        (game.lastOpAt != null ? Math.max(50, now - game.lastOpAt) : undefined);
+    const withPacing =
+        pacingMs != null && step.pacingMs == null ? { ...step, pacingMs } : step;
+    game.recordedOps = [...(game.recordedOps ?? []), withPacing];
+    game.lastOpAt = now;
 }
 
 export class BlockBlastGameManager {
@@ -96,7 +116,7 @@ export class BlockBlastGameManager {
         const game = latestBlockBlastGameRow(rows);
         if (!game) return;
 
-        this.game = { ...game, _creationTime: undefined } as GameState;
+        this.game = { ...game, _creationTime: undefined, recordedOps: game.recordedOps ?? [] } as GameState;
         return this.game;
     }
 
@@ -112,9 +132,12 @@ export class BlockBlastGameManager {
         if (data.status !== undefined) this.game.status = data.status;
         if (data.moves !== undefined) this.game.moves = data.moves;
         if (data.shapeCounter !== undefined) this.game.shapeCounter = data.shapeCounter;
+        if (data.recordedOps !== undefined) this.game.recordedOps = data.recordedOps;
+        if (data.lastOpAt !== undefined) this.game.lastOpAt = data.lastOpAt;
+        if (this.game.recordedOps === undefined) this.game.recordedOps = [];
         this.game.lastUpdate = Date.now();
 
-        await this.dbCtx.db.patch(this.game._id, {
+        const patch: Record<string, unknown> = {
             grid: this.game.grid,
             gridSize: this.game.gridSize,
             shapes: this.game.shapes,
@@ -125,7 +148,12 @@ export class BlockBlastGameManager {
             moves: this.game.moves,
             shapeCounter: this.game.shapeCounter,
             lastUpdate: this.game.lastUpdate,
-        });
+            recordedOps: this.game.recordedOps,
+        };
+        if (this.game.lastOpAt != null) {
+            patch.lastOpAt = this.game.lastOpAt;
+        }
+        await this.dbCtx.db.patch(this.game._id, patch);
     }
 
     async createGame(
@@ -143,6 +171,7 @@ export class BlockBlastGameManager {
         const gameState: GameState = {
             ...base,
             lastUpdate: Date.now(),
+            recordedOps: [],
         } as GameState;
 
         const gid = await this.dbCtx.db.insert("blockBlast_game", gameState);
@@ -155,6 +184,9 @@ export class BlockBlastGameManager {
 
     async placeShape(shapeId: string, row: number, col: number): Promise<{ ok: boolean, data?: any }> {
         if (!this.game) return { ok: false };
+
+        /** 落子前手牌中的槽位（与确定性重放盘面同序）；apply 后 shapes 会变，故先取 */
+        const slot = this.game.shapes.findIndex((s) => s.id === shapeId);
 
         const res = BlockBlastGameEngine.applyPlaceShape(
             {
@@ -186,7 +218,14 @@ export class BlockBlastGameManager {
         this.game.status = res.data.status;
         this.game.shapeCounter = res.data.shapeCounter;
 
-        await this.save({});
+        if (slot >= 0) {
+            appendRecordedStep(this.game, { op: "place", slot, row, col });
+        }
+
+        await this.save({
+            recordedOps: this.game.recordedOps,
+            lastOpAt: this.game.lastOpAt,
+        });
         return {
             ok: true,
             data: {
@@ -224,6 +263,7 @@ export class BlockBlastGameManager {
                 gameStatus: st,
             };
         }
+        appendRecordedStep(this.game, { op: "concede" });
         await this.save({ status: BlockBlastGameStatus.CANCELLED });
         return {
             ok: true,
@@ -355,9 +395,9 @@ export const findReport = query({
             data: {
                 gameId,
                 baseScore: game.score,
-                linesBonus: game.lines * 5,
-                movesPenalty: Math.max(0, 100 - game.moves),
-                totalScore: game.score + game.lines * 5 + Math.max(0, 100 - game.moves),
+                linesBonus: blockBlastLinesBonus(game.lines),
+                movesPenalty: blockBlastMovesBonus(game.moves),
+                totalScore: computeBlockBlastTotalScore(game.score, game.lines, game.moves),
             },
         };
     },
@@ -369,6 +409,27 @@ export const getGameStatus = query({
         const gameManager = new BlockBlastGameManager(ctx);
         const game = await gameManager.load(gameId);
         return { status: game?.status ?? -1 };
+    },
+});
+
+/** 回放/复盘：返回某局录制的落子序列（对齐 solitaireArena getRecordedOps） */
+export const getRecordedOps = query({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const row = latestBlockBlastGameRow(rows);
+        if (!row) {
+            return { ok: false as const, error: "not_found" as const };
+        }
+        return {
+            ok: true as const,
+            gameId: row.gameId,
+            seedId: row.seed,
+            steps: row.recordedOps ?? [],
+            score: row.score,
+            moves: row.moves,
+            status: row.status,
+        };
     },
 });
 

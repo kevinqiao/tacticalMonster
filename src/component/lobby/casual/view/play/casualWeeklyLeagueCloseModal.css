@@ -1,0 +1,52 @@
+.casual-wl-close {
+  padding: 20px;
+  background: #121820;
+  color: #eef2f6;
+  border-radius: 12px;
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.casual-wl-close__title {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.casual-wl-close__sub,
+.casual-wl-close__tier,
+.casual-wl-close__empty {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.casual-wl-close__rewards {
+  margin: 12px 0;
+  padding-left: 18px;
+}
+
+.casual-wl-close__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.casual-wl-close__btn {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #3d8bfd;
+  color: #fff;
+  cursor: pointer;
+}
+
+.casual-wl-close__btn--ghost {
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+}
+
+.casual-wl-close__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

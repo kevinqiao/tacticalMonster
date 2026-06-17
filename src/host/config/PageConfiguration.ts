@@ -158,6 +158,21 @@ export const Modals: Record<string, ModalConfig> = {
             { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
         ],
     },
+    "casual_triathlon_lobby": {
+        name: "casual_triathlon_lobby",
+        path: "./lobby/casual/view/play/CasualTriathlonLobbyModal",
+        auth: 0,
+        effects: [
+            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
+            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
+        ],
+    },
+    "play_casual_triathlon_session": {
+        name: "play_casual_triathlon_session",
+        path: "./lobby/casual/view/play/PlayCasualTriathlonSession",
+        auth: 0,
+        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
+    },
     "casual_daily_solo_leaderboard": {
         name: "casual_daily_solo_leaderboard",
         path: "./lobby/casual/view/play/CasualDailySoloLeaderboardModal",
@@ -166,6 +181,21 @@ export const Modals: Record<string, ModalConfig> = {
             { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
             { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
         ],
+    },
+    "casual_weekly_league": {
+        name: "casual_weekly_league",
+        path: "./lobby/casual/view/play/CasualWeeklyLeagueModal",
+        auth: 0,
+        effects: [
+            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
+            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
+        ],
+    },
+    "casual_weekly_league_close": {
+        name: "casual_weekly_league_close",
+        path: "./lobby/casual/view/play/CasualWeeklyLeagueCloseModal",
+        auth: 0,
+        effects: [{ name: "popCenter", args: { width: "88%", maxWidth: "400px", height: "auto" } }],
     },
     "casual_season_leaderboard": {
         name: "casual_season_leaderboard",

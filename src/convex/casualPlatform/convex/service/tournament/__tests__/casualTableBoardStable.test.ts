@@ -13,7 +13,7 @@ function row(partial: Partial<Row> & Pick<Row, "uid">): Row {
     matchId: "match_1",
     tournamentId: "run_1",
     templateId: "tpl",
-    gameId: "game_1",
+    sessionKind: "single",
     gameType: "solitaire",
     status: "open",
     createdAt: 0,
@@ -22,8 +22,13 @@ function row(partial: Partial<Row> & Pick<Row, "uid">): Row {
   } as Row;
 }
 
+function botTiming(revealAt: number, duration: number) {
+  return new Map([["bot", { revealAt, duration }]]);
+}
+
 describe("computeCasualAsyncTableBoardStable", () => {
   const now = 10_000;
+  const botUid = `${CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE}match_1:r1`;
 
   it("true when allHumansSettled", () => {
     expect(
@@ -38,7 +43,6 @@ describe("computeCasualAsyncTableBoardStable", () => {
   });
 
   it("false when human still finished (再战窗口)", () => {
-    const botUid = `${CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE}match_1:r1`;
     expect(
       computeCasualAsyncTableBoardStable({
         rows: [
@@ -47,10 +51,9 @@ describe("computeCasualAsyncTableBoardStable", () => {
             uid: botUid,
             status: "settled",
             score: 40,
-            revealAt: 0,
-            duration: 1000,
           }),
         ],
+        botTimingByUid: botTiming(0, 1000),
         maxPlayers: 4,
         humanCountPlanned: 1,
         now,
@@ -69,17 +72,17 @@ describe("computeCasualAsyncTableBoardStable", () => {
             uid: bot0,
             status: "settled",
             score: 40,
-            revealAt: 1000,
-            duration: 5000,
           }),
           row({
             uid: bot1,
             status: "settled",
             score: 30,
-            revealAt: 2000,
-            duration: 5000,
           }),
         ],
+        botTimingByUid: new Map([
+          [bot0, { revealAt: 1000, duration: 5000 }],
+          [bot1, { revealAt: 2000, duration: 5000 }],
+        ]),
         maxPlayers: 4,
         humanCountPlanned: 1,
         now,
@@ -88,7 +91,6 @@ describe("computeCasualAsyncTableBoardStable", () => {
   });
 
   it("false when bot still playing", () => {
-    const botUid = `${CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE}match_1:r1`;
     expect(
       computeCasualAsyncTableBoardStable({
         rows: [
@@ -97,10 +99,9 @@ describe("computeCasualAsyncTableBoardStable", () => {
             uid: botUid,
             status: "settled",
             score: 40,
-            revealAt: 1000,
-            duration: 5000,
           }),
         ],
+        botTimingByUid: botTiming(1000, 5000),
         maxPlayers: 4,
         humanCountPlanned: 1,
         now: 4000,

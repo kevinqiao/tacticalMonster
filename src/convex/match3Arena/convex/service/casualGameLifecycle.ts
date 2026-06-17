@@ -14,7 +14,11 @@ import {
 
 export function parseCasualRunGameId(gameId: string): { uid: string; matchId: string } | null {
   if (!gameId.startsWith("game_")) return null;
-  const rest = gameId.slice("game_".length);
+  let rest = gameId.slice("game_".length);
+  const gameIndexSuffix = rest.match(/_g(\d+)$/);
+  if (gameIndexSuffix) {
+    rest = rest.slice(0, rest.length - gameIndexSuffix[0].length);
+  }
   const sep = rest.indexOf("_");
   if (sep <= 0 || sep >= rest.length - 1) return null;
   const matchId = rest.slice(0, sep);

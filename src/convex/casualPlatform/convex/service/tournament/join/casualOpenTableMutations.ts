@@ -9,10 +9,20 @@ import {
   effectiveEntryBilling,
   getTournamentDefinition,
   isPeriodScopedTournament,
+  seatGameTypeForTemplate,
   type CasualTournamentDefinition,
 } from "../../../data/casualTournamentConfigs";
 import { internalMutation } from "../../../_generated/server";
 import { getOrCreateOpenInstance } from "../list/casualInstanceService";
+import {
+  deletePlayerSessionsForMatch,
+  insertPlayerSessionForUid,
+  type SeedBindingByGameIndex,
+} from "../shared/casualSessionOpenCore";
+import {
+  findOpenPlayerGameForSeat,
+  listPlayerGamesForSeat,
+} from "../shared/casualPlayerGameTypes";
 import {
   applyCasualJoinEntryChargeWithInstance,
   refundCasualJoinEntryCharge,
@@ -27,6 +37,7 @@ import {
 import { assertNoGlobalOpenCasualMatch } from "./casualOpenTableGuard";
 import {
   computeMultiTableBatchSize,
+  purgeExtraCasualMatchQueueRows,
   releaseClaimingToWaiting,
   resolveQueueEffectiveHumans,
   type QueueRow,
@@ -247,7 +258,7 @@ export const insertMatchShell = internalMutation({
     const matchConvexId = await ctx.db.insert("casual_run_matches", {
       tournamentId: runTournamentId,
       templateId: args.templateId,
-      gameType: def.gameType,
+      gameType: seatGameTypeForTemplate(def),
       completed: false,
       minPlayers: uids.length,
       maxPlayers: def.maxPlayers,
@@ -266,32 +277,22 @@ export const insertMatchShell = internalMutation({
   },
 });
 
-/** M3：写入 seedBinding + player_matches */
+/** M3：写入 player_matches + player_games */
 export const finalizeOpenTable = internalMutation({
   args: {
     matchId: v.string(),
-    seedBinding: casualMatchSeedBindingValidator,
+    seedBindingsByIndex: v.record(v.string(), casualMatchSeedBindingValidator),
     queueRowIds: v.optional(v.array(v.id("casual_match_queue"))),
   },
-  handler: async (ctx, { matchId, seedBinding, queueRowIds }) => {
+  handler: async (ctx, { matchId, seedBindingsByIndex, queueRowIds }) => {
     const matchDoc = await ctx.db.get(matchId as Id<"casual_run_matches">);
     if (!matchDoc) {
       return { ok: false as const, error: "unknown_match" as const };
     }
-    if (readCasualMatchSeedBinding(matchDoc)) {
-      const existing = await ctx.db
-        .query("casual_run_player_matches")
-        .withIndex("by_matchId", (q) => q.eq("matchId", matchId))
-        .first();
-      if (existing) {
-        return { ok: true as const, alreadyFinalized: true as const };
-      }
-    }
-
-    const def = getTournamentDefinition(matchDoc.templateId);
-    if (!def) {
-      return { ok: false as const, error: "unknown_tournament" as const };
-    }
+    const existingPm = await ctx.db
+      .query("casual_run_player_matches")
+      .withIndex("by_matchId", (q) => q.eq("matchId", matchId))
+      .first();
 
     const ptRows = await ctx.db
       .query("casual_run_player_tournaments")
@@ -303,36 +304,13 @@ export const finalizeOpenTable = internalMutation({
     }
 
     const now = Date.now();
-    await ctx.db.patch(matchDoc._id, {
-      seedBinding,
-      seedResolveError: undefined,
-      openPhase: "ready",
-      updatedAt: now,
-    });
 
-    const byUid: Record<string, { gameId: string }> = {};
-    for (const uid of uids) {
-      const gameId = `game_${matchId}_${uid}`;
-      await ctx.db.insert("casual_run_player_matches", {
-        matchId,
-        tournamentId: String(matchDoc.tournamentId),
-        templateId: matchDoc.templateId,
-        uid,
-        gameId,
-        gameType: def.gameType,
-        status: "open",
-        createdAt: now,
-        updatedAt: now,
-      });
-      byUid[uid] = { gameId };
-      await ctx.runMutation(internal.service.task.casualTaskService.notifyTournamentJoined, { uid });
-    }
-
-    if (queueRowIds?.length) {
+    const markQueueMatched = async () => {
+      if (!queueRowIds?.length) return;
       const runId = matchDoc.tournamentId;
       for (const qid of queueRowIds) {
         const row = await ctx.db.get(qid);
-        if (row?.status === "claiming") {
+        if (row?.status === "claiming" || row?.status === "waiting") {
           await ctx.db.patch(qid, {
             status: "matched",
             matchedRunTournamentId: runId,
@@ -340,6 +318,76 @@ export const finalizeOpenTable = internalMutation({
           });
         }
       }
+    };
+
+    if (existingPm) {
+      const byUid: Record<string, { gameId: string; gameType: string; gameIndex: number }> = {};
+      const seatRows = await ctx.db
+        .query("casual_run_player_matches")
+        .withIndex("by_matchId", (q) => q.eq("matchId", matchId))
+        .collect();
+      for (const pm of seatRows) {
+        const openPg =
+          (await findOpenPlayerGameForSeat(ctx, pm._id)) ??
+          (await listPlayerGamesForSeat(ctx, pm._id)).find((g) => g.gameIndex === 0);
+        if (!openPg) continue;
+        byUid[pm.uid] = {
+          gameId: openPg.gameId,
+          gameType: openPg.gameType,
+          gameIndex: openPg.gameIndex,
+        };
+      }
+      await markQueueMatched();
+      for (const uid of Object.keys(byUid)) {
+        await purgeExtraCasualMatchQueueRows(ctx, {
+          uid,
+          templateId: matchDoc.templateId,
+          now,
+        });
+      }
+      return { ok: true as const, alreadyFinalized: true as const, byUid };
+    }
+
+    const def = getTournamentDefinition(matchDoc.templateId);
+    if (!def) {
+      return { ok: false as const, error: "unknown_tournament" as const };
+    }
+
+    await ctx.db.patch(matchDoc._id, {
+      seedResolveError: undefined,
+      openPhase: "ready",
+      updatedAt: now,
+    });
+
+    const byUid: Record<string, { gameId: string; gameType: string; gameIndex: number }> = {};
+    for (const uid of uids) {
+      const opened = await insertPlayerSessionForUid(ctx, {
+        matchId,
+        runTournamentId: String(matchDoc.tournamentId),
+        templateId: matchDoc.templateId,
+        def,
+        uid,
+        seedBindingsByIndex: seedBindingsByIndex as SeedBindingByGameIndex,
+        now,
+      });
+      byUid[uid] = {
+        gameId: opened.openGameId,
+        gameType: opened.openGameType,
+        gameIndex: 0,
+      };
+      await ctx.runMutation(internal.service.task.casualTaskService.notifyTournamentJoined, { uid });
+    }
+
+    if (queueRowIds?.length) {
+      await markQueueMatched();
+    }
+
+    for (const uid of uids) {
+      await purgeExtraCasualMatchQueueRows(ctx, {
+        uid,
+        templateId: matchDoc.templateId,
+        now,
+      });
     }
 
     return { ok: true as const, byUid };
@@ -400,13 +448,7 @@ export const abortOpenTable = internalMutation({
       return { ok: true as const };
     }
 
-    const playerMatches = await ctx.db
-      .query("casual_run_player_matches")
-      .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId!))
-      .collect();
-    for (const pm of playerMatches) {
-      await ctx.db.delete(pm._id);
-    }
+    await deletePlayerSessionsForMatch(ctx, args.matchId!);
 
     const playerTournaments = await ctx.db
       .query("casual_run_player_tournaments")

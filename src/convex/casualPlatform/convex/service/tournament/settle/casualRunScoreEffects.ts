@@ -10,9 +10,11 @@ import {
   findHighestScoreTierReward,
   type CasualTournamentDefinition,
 } from "../../../data/casualTournamentConfigs";
-import { applyCasualTemplateLadderDelta } from "../../season/casualSeasonLadder";
 import type { Id } from "../../../_generated/dataModel";
 import type { MutationCtx } from "../../../_generated/server";
+import { CASUAL_WEEKLY_LEAGUE_ENABLED } from "../../../data/casualWeeklyLeagueConfig";
+import { applyWeeklyLeagueOnMatchSettle } from "../../weeklyLeague/casualWeeklyLeagueSettle";
+import type { WeeklyLeagueSettlePayload } from "../../weeklyLeague/casualWeeklyLeagueService";
 export function prunePendingWalletRewards(p: {
   coins?: number;
   gems?: number;
@@ -82,6 +84,11 @@ export async function applyCasualTemplateScoreEffects(
     deferWalletRewards?: boolean;
     skipCasualAsyncBotSeed?: boolean;
     multiplayerFinalRank?: number;
+    /** 单人 p75 挑战：该 seed 的成功阈值分（由游戏服按 seed 分位解析后带入） */
+    seedScoreThreshold?: number;
+    /** 为 true 时跳过 League XP（异步多人 finalize 路径单独写入） */
+    skipWeeklyLeagueXp?: boolean;
+    sessionKind?: "single" | "triathlon";
   }
 ): Promise<{
   pendingWalletRewards?: {
@@ -89,6 +96,7 @@ export async function applyCasualTemplateScoreEffects(
     gems?: number;
     seasonVoucher?: number;
   };
+  weeklyLeagueSettle?: WeeklyLeagueSettlePayload;
 }> {
   const { uid, tournamentId, score } = args;
   const deferWallet = args.deferWalletRewards !== false;
@@ -98,15 +106,6 @@ export async function applyCasualTemplateScoreEffects(
     seasonVoucher?: number;
   } = {};
 
-  const seasonId = await activeSeasonId(ctx);
-  let pointsDelta = 0;
-  if (seasonId) {
-    pointsDelta = await applyCasualTemplateLadderDelta(ctx, seasonId, def, {
-      uid,
-      score,
-      multiplayerFinalRank: args.multiplayerFinalRank,
-    });
-  }
   const settleCoins = casualSettleBaseCoins(def);
   const settleGems = casualSettleBaseGems(def);
   const mpRank = args.multiplayerFinalRank;
@@ -133,6 +132,19 @@ export async function applyCasualTemplateScoreEffects(
     const tg = scoreTier.gems != null ? Math.max(0, Math.floor(scoreTier.gems)) : 0;
     if (tc > 0) pendingWallet.coins = (pendingWallet.coins ?? 0) + tc;
     if (tg > 0) pendingWallet.gems = (pendingWallet.gems ?? 0) + tg;
+  }
+  // 单人 p75 挑战：本局分数达到该 seed 的成功阈值（默认 p75）时叠加成功奖。
+  const successReward = def.seedQuantileSuccess;
+  if (
+    successReward &&
+    typeof args.seedScoreThreshold === "number" &&
+    Number.isFinite(args.seedScoreThreshold) &&
+    score >= args.seedScoreThreshold
+  ) {
+    const sc = successReward.coins != null ? Math.max(0, Math.floor(successReward.coins)) : 0;
+    const sg = successReward.gems != null ? Math.max(0, Math.floor(successReward.gems)) : 0;
+    if (sc > 0) pendingWallet.coins = (pendingWallet.coins ?? 0) + sc;
+    if (sg > 0) pendingWallet.gems = (pendingWallet.gems ?? 0) + sg;
   }
   if (settleCoins > 0) {
     if (deferWallet) {
@@ -175,21 +187,34 @@ export async function applyCasualTemplateScoreEffects(
     });
   }
 
-  const appliedSeasonPointsForTask =
-    def.matchType === "season_challenge" ? pointsDelta : 0;
-
   await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
     uid,
     matchType: def.matchType,
     platformGameType: def.gameType,
-    spotlightSeasonBoardGain: appliedSeasonPointsForTask,
+    spotlightSeasonBoardGain: 0,
     ...(typeof args.multiplayerFinalRank === "number" && args.multiplayerFinalRank >= 1
       ? { multiplayerFinalRank: args.multiplayerFinalRank }
       : {}),
   });
 
+  let weeklyLeagueSettle: WeeklyLeagueSettlePayload | null = null;
+  if (
+    CASUAL_WEEKLY_LEAGUE_ENABLED &&
+    !args.skipWeeklyLeagueXp &&
+    def.maxPlayers <= 1
+  ) {
+    weeklyLeagueSettle = await applyWeeklyLeagueOnMatchSettle(ctx, {
+      uid,
+      def,
+      seasonXpOnSettle: passXpDelta,
+      multiplayerFinalRank: args.multiplayerFinalRank ?? 1,
+      sessionKind: args.sessionKind,
+    });
+  }
+
   const pendingPruned = deferWallet ? prunePendingWalletRewards(pendingWallet) : undefined;
   return {
     ...(pendingPruned ? { pendingWalletRewards: pendingPruned } : {}),
+    ...(weeklyLeagueSettle ? { weeklyLeagueSettle } : {}),
   };
 }

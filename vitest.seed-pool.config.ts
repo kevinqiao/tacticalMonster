@@ -20,6 +20,9 @@ export default defineConfig({
       "src/convex/towerArena/convex/service/seedPool/__tests__/**/*.test.ts",
       "src/convex/match3Arena/convex/service/__tests__/**/*.test.ts",
       "src/convex/match3Arena/convex/service/seedPool/__tests__/**/*.test.ts",
+      "src/convex/blockBlast/convex/service/seedPool/__tests__/**/*.test.ts",
+      "src/convex/casualPlatform/convex/service/weeklyLeague/__tests__/**/*.test.ts",
+      "src/convex/casualPlatform/convex/service/botFill/__tests__/**/*.test.ts",
     ],
   },
 });

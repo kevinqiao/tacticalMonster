@@ -4,10 +4,16 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 
 import Match3LobbyWatchOverlay from "@/component/battle/games/match3/battle/replay/Match3LobbyWatchOverlay";
 import SolitaireLobbyWatchOverlay from "@/component/battle/games/solitaireSolo/battle/replay/SolitaireLobbyWatchOverlay";
+import BlockBlastLobbyWatchOverlay from "@/component/battle/games/blockBlast/battle/replay/BlockBlastLobbyWatchOverlay";
 import { CasualPostSettleSummaryOverlay } from "@/component/battle/games/shared/CasualPostSettleSummaryOverlay";
+import { CasualTriathlonHistoryReportOverlay } from "@/component/battle/games/shared/CasualTriathlonHistoryReportOverlay";
 import type {
   CasualAsyncTableSummaryUI,
   CasualWatchContext,
+} from "@/component/battle/games/shared/casualAsyncTableSummaryUI";
+import {
+  casualTableSummaryHasReplay,
+  isTriathlonTableSummary,
 } from "@/component/battle/games/shared/casualAsyncTableSummaryUI";
 import "@/component/battle/games/shared/manualSettleConfirmOverlay.css";
 
@@ -25,11 +31,24 @@ function formatMatchType(matchType: string): string {
       return "B 场";
     case "tournament_c":
       return "C 场";
+    case "triathlon_a":
+      return "合战 A";
+    case "triathlon_b":
+      return "合战 B";
+    case "triathlon_c":
+      return "合战 C";
     case "season_challenge":
       return "赛季专场";
+    case "solo_p75_challenge":
+      return "P75 挑战";
     default:
       return matchType;
   }
+}
+
+function formatHistoryGameType(gameType: string): string {
+  if (gameType === "triathlon") return "三场合战";
+  return gameType;
 }
 
 function formatPendingRewardsSummary(row: {
@@ -48,14 +67,12 @@ function formatPendingRewardsSummary(row: {
   return parts.length ? parts.join(" · ") : null;
 }
 
-const CASUAL_WATCH_GAME_TYPES = new Set(["match_3", "solitaire"]);
+const CASUAL_WATCH_GAME_TYPES = new Set(["match_3", "solitaire", "block_blast", "triathlon"]);
 
-function canOpenCasualHistoryReport(
-  row: CasualGameHistoryRow
-): row is CasualGameHistoryRow & { tableSummary: CasualAsyncTableSummaryUI } {
+function canOpenCasualHistoryReport(row: CasualGameHistoryRow): boolean {
   return (
     CASUAL_WATCH_GAME_TYPES.has(row.gameType) &&
-    Boolean(row.tableSummary?.rows?.some((r) => r.watchContext))
+    casualTableSummaryHasReplay(row.tableSummary)
   );
 }
 
@@ -73,7 +90,9 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
   const [reportSummary, setReportSummary] = useState<CasualAsyncTableSummaryUI | null>(null);
   const [watchTarget, setWatchTarget] = useState<CasualWatchContext | null>(null);
   const [watchLabel, setWatchLabel] = useState("");
-  const [watchGameType, setWatchGameType] = useState<"match_3" | "solitaire" | null>(null);
+  const [watchGameType, setWatchGameType] = useState<
+    "match_3" | "solitaire" | "block_blast" | null
+  >(null);
 
   const onClaim = useCallback(
     async (row: CasualGameHistoryRow) => {
@@ -101,9 +120,17 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
   );
 
   const openReport = useCallback((row: CasualGameHistoryRow) => {
-    if (!canOpenCasualHistoryReport(row)) return;
+    if (!canOpenCasualHistoryReport(row) || !row.tableSummary) return;
     setReportSummary(row.tableSummary);
-    setWatchGameType(row.gameType === "solitaire" ? "solitaire" : "match_3");
+    setWatchGameType(
+      row.gameType === "triathlon"
+        ? null
+        : row.gameType === "solitaire"
+          ? "solitaire"
+          : row.gameType === "block_blast"
+            ? "block_blast"
+            : "match_3"
+    );
     setWatchTarget(null);
     setWatchLabel("");
   }, []);
@@ -115,10 +142,18 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
     setWatchGameType(null);
   }, []);
 
-  const openWatchFromReport = useCallback((ctx: CasualWatchContext, displayLabel: string) => {
-    setWatchTarget(ctx);
-    setWatchLabel(displayLabel);
-  }, []);
+  const openWatchFromReport = useCallback(
+    (
+      ctx: CasualWatchContext,
+      displayLabel: string,
+      gameType?: "match_3" | "solitaire" | "block_blast"
+    ) => {
+      setWatchTarget(ctx);
+      setWatchLabel(displayLabel);
+      if (gameType) setWatchGameType(gameType);
+    },
+    []
+  );
 
   const closeWatch = useCallback(() => {
     setWatchTarget(null);
@@ -164,7 +199,7 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
                     <span>{formatMatchType(row.matchType)}</span>
                   </div>
                   <div className="casual-history-tab__meta">
-                    <span>游戏：{row.gameType}</span>
+                    <span>游戏：{formatHistoryGameType(row.gameType)}</span>
                     <span>分数：{row.score ?? "-"}</span>
                     <span>名次：{row.rank != null ? row.rank : "-"}</span>
                     <span>参与人数：{row.participantCount ?? "-"}</span>
@@ -236,16 +271,29 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
           </ul>
         ) : null}
       </section>
-      <CasualPostSettleSummaryOverlay
-        open={reportSummary != null && watchTarget == null}
-        title="对局报告"
-        subtitle="以下为本桌全部玩家得分与名次。点击各行「回放」可查看该玩家本局操作。"
-        summary={reportSummary}
-        onDismiss={closeReport}
-        dismissLabel="关闭"
-        onWatchRow={openWatchFromReport}
-        watchButtonLabel="回放"
-      />
+      {isTriathlonTableSummary(reportSummary) ? (
+        <CasualTriathlonHistoryReportOverlay
+          open={reportSummary != null && watchTarget == null}
+          title="对局报告"
+          summary={reportSummary}
+          onDismiss={closeReport}
+          dismissLabel="关闭"
+          onWatchRow={openWatchFromReport}
+          watchButtonLabel="回放"
+        />
+      ) : (
+        <CasualPostSettleSummaryOverlay
+          open={reportSummary != null && watchTarget == null}
+          title="对局报告"
+          subtitle="以下为本桌全部玩家得分与名次。点击各行「回放」可查看该玩家本局操作。"
+          summary={reportSummary}
+          onDismiss={closeReport}
+          dismissLabel="关闭"
+          onWatchRow={openWatchFromReport}
+          watchButtonLabel="回放"
+          pinFooter
+        />
+      )}
       {watchGameType === "match_3" ? (
         <Match3LobbyWatchOverlay
           open={watchTarget != null}
@@ -255,6 +303,13 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
         />
       ) : watchGameType === "solitaire" ? (
         <SolitaireLobbyWatchOverlay
+          open={watchTarget != null}
+          watchContext={watchTarget}
+          displayLabel={watchLabel}
+          onClose={closeWatch}
+        />
+      ) : watchGameType === "block_blast" ? (
+        <BlockBlastLobbyWatchOverlay
           open={watchTarget != null}
           watchContext={watchTarget}
           displayLabel={watchLabel}

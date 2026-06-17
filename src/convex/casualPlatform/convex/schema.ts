@@ -1,6 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+import {
+  catalogGameType,
+  catalogSeedTier,
+  rolloutDistributionMetrics,
+  rolloutTerminalReason,
+} from "./service/seedPool/seedPoolValidators";
+
 /** 活动作用域：`type` 与各分支字段绑定，避免 kind + scope 无效组合 */
 const casualActivityTarget = v.union(
   v.object({ type: v.literal("global") }),
@@ -153,7 +160,7 @@ export default defineSchema({
     maxPlayers: v.number(),
     /** 开局时真人数量（异步虚拟对手数 = maxPlayers - humanPlayerCount） */
     humanPlayerCount: v.optional(v.number()),
-    /** solitaire seed pool 绑定快照；未绑定时为 undefined */
+    /** @deprecated seed 改存 `casual_run_player_games`；保留字段供旧文档校验 */
     seedBinding: v.optional(
       v.object({
         seedId: v.string(),
@@ -190,6 +197,57 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_tournament", ["tournamentId"]),
+
+  /** 每局游戏一行：loadGame / ingest 主键；seed 快照在此表 */
+  casual_run_player_games: defineTable({
+    playerMatchId: v.id("casual_run_player_matches"),
+    matchId: v.string(),
+    uid: v.string(),
+    templateId: v.string(),
+    gameIndex: v.number(),
+    gameType: v.string(),
+    gameId: v.string(),
+    seedBinding: v.object({
+      seedId: v.string(),
+      poolVersion: v.string(),
+      tier: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+      scoreQuantiles: v.optional(
+        v.object({
+          p10: v.number(),
+          p25: v.number(),
+          p30: v.number(),
+          p33: v.number(),
+          p50: v.number(),
+          p66: v.number(),
+          p70: v.number(),
+          p75: v.number(),
+          p90: v.number(),
+        })
+      ),
+    }),
+    score: v.optional(v.number()),
+    status: v.union(
+      v.literal("locked"),
+      v.literal("open"),
+      v.literal("finished"),
+      v.literal("confirmed"),
+      v.literal("settled"),
+      v.literal("replaying")
+    ),
+    finishedAt: v.optional(v.number()),
+    replayEpoch: v.optional(v.number()),
+    revealAt: v.optional(v.number()),
+    duration: v.optional(v.number()),
+    rolloutIndex: v.optional(v.number()),
+    botRevealed: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_gameId", ["gameId"])
+    .index("by_playerMatch_gameIndex", ["playerMatchId", "gameIndex"])
+    .index("by_match_uid", ["matchId", "uid"])
+    .index("by_uid", ["uid"])
+    .index("by_matchId", ["matchId"]),
 
   /** 玩家在各异步模板下的终局名次累计（1–4 档；实际名次 >3 归入第 4 档，用于 rankRates 平衡抽样） */
   casual_player_tournament_rank_stats: defineTable({
@@ -233,8 +291,9 @@ export default defineSchema({
     tournamentId: v.string(),
     templateId: v.string(),
     uid: v.string(),
-    /** TM 对齐：`game_${matchId}_${uid}`，用于结算查找 */
-    gameId: v.string(),
+    sessionKind: v.union(v.literal("single"), v.literal("triathlon")),
+    /** 冗余当前 open 的 `player_games.gameId` */
+    gameId: v.optional(v.string()),
     gameType: v.string(),
     score: v.optional(v.number()),
     rank: v.optional(v.number()),
@@ -245,17 +304,7 @@ export default defineSchema({
       v.literal("settled"),
       v.literal("replaying")
     ),
-    /** 进入 `finished` 的时刻；再战重交后重置，用于再战窗口 */
     finishedAt: v.optional(v.number()),
-    /** 虚拟对手：入场时间（epoch ms） */
-    revealAt: v.optional(v.number()),
-    /** 虚拟对手：入场后对局时长（ms）；完赛 = revealAt + duration */
-    duration: v.optional(v.number()),
-    /** 虚拟对手：seed pool rollout 索引 */
-    rolloutIndex: v.optional(v.number()),
-    /** 虚拟对手：scheduler 在 revealAt 到点标记 */
-    botRevealed: v.optional(v.boolean()),
-    /** 再战次数；游戏服 `loadGame(resetCasualRun)` 可据此强制清档 */
     replayEpoch: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -386,9 +435,88 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_season_game_uid", ["seasonId", "gameId", "uid"]),
 
+  /** 周联赛 cohort：同 `weekKey` + `leagueTierId` 下按 `cohortIndex` 分组 */
+  casual_weekly_league_cohorts: defineTable({
+    weekKey: v.string(),
+    leagueTierId: v.string(),
+    cohortIndex: v.number(),
+    memberCount: v.number(),
+    /** 真人数量（≤15） */
+    humanCount: v.optional(v.number()),
+    /** 本 cohort 第一个真人入组时刻；用于 bot reveal 锚点 */
+    humanAnchorAt: v.optional(v.number()),
+    status: v.union(v.literal("open"), v.literal("closed")),
+    startsAt: v.number(),
+    endsAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_week_tier_status", ["weekKey", "leagueTierId", "status"])
+    .index("by_week_tier_cohortIndex", ["weekKey", "leagueTierId", "cohortIndex"]),
+
+  /** 周联赛成员：当周 cohort 内 League XP 与周尾结果 */
+  casual_weekly_league_members: defineTable({
+    weekKey: v.string(),
+    uid: v.string(),
+    cohortId: v.id("casual_weekly_league_cohorts"),
+    leagueTierId: v.string(),
+    weeklyLeagueXp: v.number(),
+    isBot: v.boolean(),
+    /** bot 上榜时刻（ms）；未到期在 UI 显示「匹配中」 */
+    revealAt: v.optional(v.number()),
+    finalRank: v.optional(v.number()),
+    outcome: v.optional(
+      v.union(v.literal("promote"), v.literal("safe"), v.literal("demote"))
+    ),
+    pendingRewards: v.optional(
+      v.object({
+        coins: v.optional(v.number()),
+        gems: v.optional(v.number()),
+        seasonVoucher: v.optional(v.number()),
+      })
+    ),
+    rewardsClaimedAt: v.optional(v.number()),
+    unreadClose: v.optional(v.boolean()),
+    /** 运营日 League XP 累计（单人软上限） */
+    dailyLeagueXpByPeriodKey: v.optional(v.record(v.string(), v.number())),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_week_uid", ["weekKey", "uid"])
+    .index("by_cohort", ["cohortId"])
+    .index("by_week_cohort_xp", ["weekKey", "cohortId", "weeklyLeagueXp"]),
+
+  /** 周联赛档案：跨周持久段位与历史峰值 */
+  casual_weekly_league_profile: defineTable({
+    uid: v.string(),
+    weeklyLeagueTier: v.string(),
+    peakLeagueTier: v.string(),
+    seasonPeakLeagueTier: v.optional(v.string()),
+    /** 累计周赛晋级次数（成就） */
+    totalWeeklyPromotions: v.optional(v.number()),
+    /** 异步多人第一名累计（成就） */
+    totalMultiplayerWins: v.optional(v.number()),
+    /** 有效结算胜场累计（成就） */
+    totalMatchWins: v.optional(v.number()),
+    /** 三合一完成累计（成就） */
+    totalTriathlonCompletes: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_uid", ["uid"]),
+
+  /** 玩家成就解锁记录 */
+  casual_player_achievements: defineTable({
+    uid: v.string(),
+    achievementId: v.string(),
+    unlockedAt: v.number(),
+    metadataJson: v.optional(v.string()),
+  })
+    .index("by_uid", ["uid"])
+    .index("by_uid_achievement", ["uid", "achievementId"]),
+
   /**
    * 赛季竞技天梯：每玩家每赛季一条 `(seasonId, uid)`；累计分下限 0（单场 Δ 仍可为负）。
    * 段位与段位内名次为读模型派生，不在此表单独存储。
+   * @deprecated Phase 2 起停止写入；读模型保留供迁移。
    */
   casual_player_season_ladder: defineTable({
     uid: v.string(),
@@ -502,4 +630,79 @@ export default defineSchema({
   })
     .index("by_activityId", ["activityId"])
     .index("by_active_startsAt", ["active", "startsAt"]),
+
+  /** Seed catalog（原 casualSeedCatalog，已并入 platform） */
+  seed_pool_meta: defineTable({
+    gameType: catalogGameType,
+    poolVersion: v.string(),
+    rolloutCount: v.number(),
+    matchTimeLimitSec: v.number(),
+    generatedAt: v.string(),
+    entryCount: v.number(),
+    isActive: v.boolean(),
+    importStatus: v.optional(v.union(v.literal("importing"), v.literal("ready"))),
+    importedAt: v.number(),
+  })
+    .index("by_gameType_and_poolVersion", ["gameType", "poolVersion"])
+    .index("by_gameType_and_isActive", ["gameType", "isActive"]),
+
+  seed_pool_entries: defineTable({
+    gameType: catalogGameType,
+    poolVersion: v.string(),
+    seedId: v.string(),
+    tier: catalogSeedTier,
+    difficultyScore: v.number(),
+    metrics: rolloutDistributionMetrics,
+  })
+    .index("by_gameType_and_poolVersion", ["gameType", "poolVersion"])
+    .index("by_gameType_poolVersion_seedId", ["gameType", "poolVersion", "seedId"])
+    .index("by_gameType_poolVersion_tier", ["gameType", "poolVersion", "tier"]),
+
+  seed_pool_rollout_summaries: defineTable({
+    gameType: catalogGameType,
+    poolVersion: v.string(),
+    seedId: v.string(),
+    rolloutIndex: v.number(),
+    finalScore: v.number(),
+    moves: v.number(),
+    completed: v.boolean(),
+    terminalReason: rolloutTerminalReason,
+    elapsedSimSeconds: v.number(),
+    opCount: v.number(),
+  })
+    .index("by_gameType_and_poolVersion", ["gameType", "poolVersion"])
+    .index("by_gameType_poolVersion_seedId", ["gameType", "poolVersion", "seedId"])
+    .index("by_gameType_poolVersion_seedId_rolloutIndex", [
+      "gameType",
+      "poolVersion",
+      "seedId",
+      "rolloutIndex",
+    ]),
+
+  match_seed_picks: defineTable({
+    gameType: catalogGameType,
+    matchId: v.string(),
+    seedId: v.string(),
+    poolVersion: v.string(),
+    uids: v.array(v.string()),
+    sessionKey: v.string(),
+    pickedAt: v.number(),
+  }).index("by_gameType_and_matchId", ["gameType", "matchId"]),
+
+  player_seeds: defineTable({
+    gameType: catalogGameType,
+    uid: v.string(),
+    seedId: v.string(),
+    poolVersion: v.string(),
+    matchId: v.optional(v.string()),
+    usedAt: v.number(),
+  })
+    .index("by_gameType_uid_poolVersion", ["gameType", "uid", "poolVersion"])
+    .index("by_gameType_uid_poolVersion_seedId", [
+      "gameType",
+      "uid",
+      "poolVersion",
+      "seedId",
+    ])
+    .index("by_matchId", ["matchId"]),
 });

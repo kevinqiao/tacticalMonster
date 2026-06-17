@@ -1,0 +1,5631 @@
+{
+  "poolVersion": "v3",
+  "rolloutCount": 24,
+  "matchTimeLimitSec": 300,
+  "generatedAt": "2026-06-16T13:55:38.683Z",
+  "tiers": {
+    "easy": [
+      {
+        "seedId": "blockblast-pool:v3:24295",
+        "layoutTier": "easy",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 113,
+          "max": 530,
+          "quantiles": {
+            "p10": 113,
+            "p25": 191,
+            "p30": 203,
+            "p33": 203,
+            "p50": 218,
+            "p66": 268,
+            "p70": 294,
+            "p75": 345,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 14,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 203,
+            "midMax": 294
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 417,
+        "playerEaseScore": 230.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:55682",
+        "layoutTier": "easy",
+        "difficultyScore": 230,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 525,
+          "quantiles": {
+            "p10": 164,
+            "p25": 165,
+            "p30": 179,
+            "p33": 179,
+            "p50": 230,
+            "p66": 260,
+            "p70": 284,
+            "p75": 284,
+            "p90": 497
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 1,
+            "150-349": 19,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 284
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 433,
+        "playerEaseScore": 223.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:72900",
+        "layoutTier": "easy",
+        "difficultyScore": 230,
+        "scoreDistribution": {
+          "min": 116,
+          "max": 528,
+          "quantiles": {
+            "p10": 125,
+            "p25": 176,
+            "p30": 190,
+            "p33": 190,
+            "p50": 230,
+            "p66": 335,
+            "p70": 350,
+            "p75": 433,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 12,
+            "350-699": 8,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 190,
+            "midMax": 350
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 412,
+        "playerEaseScore": 222.39999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:16829",
+        "layoutTier": "easy",
+        "difficultyScore": 270,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 556,
+          "quantiles": {
+            "p10": 107,
+            "p25": 140,
+            "p30": 179,
+            "p33": 179,
+            "p50": 270,
+            "p66": 347,
+            "p70": 360,
+            "p75": 450,
+            "p90": 453
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 10,
+            "350-699": 8,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 360
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 467,
+        "playerEaseScore": 221.1,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:10774",
+        "layoutTier": "easy",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 105,
+          "max": 495,
+          "quantiles": {
+            "p10": 141,
+            "p25": 180,
+            "p30": 194,
+            "p33": 194,
+            "p50": 218,
+            "p66": 233,
+            "p70": 245,
+            "p75": 245,
+            "p90": 481
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 3,
+            "150-349": 17,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 194,
+            "midMax": 245
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 390,
+        "playerEaseScore": 218.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:65558",
+        "layoutTier": "easy",
+        "difficultyScore": 219,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 559,
+          "quantiles": {
+            "p10": 116,
+            "p25": 131,
+            "p30": 132,
+            "p33": 132,
+            "p50": 219,
+            "p66": 245,
+            "p70": 245,
+            "p75": 323,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 11,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 132,
+            "midMax": 245
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 467,
+        "playerEaseScore": 216.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:13991",
+        "layoutTier": "easy",
+        "difficultyScore": 266,
+        "scoreDistribution": {
+          "min": 113,
+          "max": 540,
+          "quantiles": {
+            "p10": 129,
+            "p25": 155,
+            "p30": 176,
+            "p33": 176,
+            "p50": 266,
+            "p66": 344,
+            "p70": 359,
+            "p75": 381,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 11,
+            "350-699": 8,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 176,
+            "midMax": 359
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 427,
+        "playerEaseScore": 215.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:40104",
+        "layoutTier": "easy",
+        "difficultyScore": 230,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 494,
+          "quantiles": {
+            "p10": 156,
+            "p25": 170,
+            "p30": 179,
+            "p33": 179,
+            "p50": 230,
+            "p66": 257,
+            "p70": 272,
+            "p75": 296,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 2,
+            "150-349": 17,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 272
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 96,
+        "scoreSpread": 402,
+        "playerEaseScore": 215.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:66891",
+        "layoutTier": "easy",
+        "difficultyScore": 240,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 473,
+          "quantiles": {
+            "p10": 126,
+            "p25": 176,
+            "p30": 191,
+            "p33": 191,
+            "p50": 240,
+            "p66": 266,
+            "p70": 293,
+            "p75": 308,
+            "p90": 421
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 15,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 191,
+            "midMax": 293
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 381,
+        "playerEaseScore": 213.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:13074",
+        "layoutTier": "easy",
+        "difficultyScore": 239,
+        "scoreDistribution": {
+          "min": 113,
+          "max": 514,
+          "quantiles": {
+            "p10": 128,
+            "p25": 164,
+            "p30": 167,
+            "p33": 167,
+            "p50": 239,
+            "p66": 305,
+            "p70": 332,
+            "p75": 347,
+            "p90": 465
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 14,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 167,
+            "midMax": 332
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 401,
+        "playerEaseScore": 212.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:11303",
+        "layoutTier": "easy",
+        "difficultyScore": 233,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 558,
+          "quantiles": {
+            "p10": 116,
+            "p25": 131,
+            "p30": 131,
+            "p33": 131,
+            "p50": 233,
+            "p66": 296,
+            "p70": 297,
+            "p75": 297,
+            "p90": 465
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 10,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 131,
+            "midMax": 297
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 454,
+        "playerEaseScore": 212.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:47866",
+        "layoutTier": "easy",
+        "difficultyScore": 219,
+        "scoreDistribution": {
+          "min": 128,
+          "max": 495,
+          "quantiles": {
+            "p10": 140,
+            "p25": 180,
+            "p30": 190,
+            "p33": 190,
+            "p50": 219,
+            "p66": 305,
+            "p70": 386,
+            "p75": 386,
+            "p90": 481
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 3,
+            "150-349": 13,
+            "350-699": 8,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 190,
+            "midMax": 386
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 367,
+        "playerEaseScore": 210.89999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:45910",
+        "layoutTier": "easy",
+        "difficultyScore": 239,
+        "scoreDistribution": {
+          "min": 123,
+          "max": 450,
+          "quantiles": {
+            "p10": 167,
+            "p25": 203,
+            "p30": 203,
+            "p33": 203,
+            "p50": 239,
+            "p66": 266,
+            "p70": 293,
+            "p75": 306,
+            "p90": 436
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 1,
+            "150-349": 19,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 203,
+            "midMax": 293
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 327,
+        "playerEaseScore": 210.39999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:44273",
+        "layoutTier": "easy",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 480,
+          "quantiles": {
+            "p10": 128,
+            "p25": 165,
+            "p30": 165,
+            "p33": 165,
+            "p50": 218,
+            "p66": 233,
+            "p70": 257,
+            "p75": 257,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 15,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 165,
+            "midMax": 257
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 388,
+        "playerEaseScore": 209.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:55888",
+        "layoutTier": "easy",
+        "difficultyScore": 245,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 558,
+          "quantiles": {
+            "p10": 92,
+            "p25": 116,
+            "p30": 127,
+            "p33": 127,
+            "p50": 245,
+            "p66": 272,
+            "p70": 272,
+            "p75": 323,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 10,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 127,
+            "midMax": 272
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 466,
+        "playerEaseScore": 208.59999999999997,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:30544",
+        "layoutTier": "easy",
+        "difficultyScore": 239,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 461,
+          "quantiles": {
+            "p10": 143,
+            "p25": 179,
+            "p30": 191,
+            "p33": 191,
+            "p50": 239,
+            "p66": 308,
+            "p70": 308,
+            "p75": 369,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 3,
+            "150-349": 14,
+            "350-699": 7,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 191,
+            "midMax": 308
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 357,
+        "playerEaseScore": 207.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:50767",
+        "layoutTier": "easy",
+        "difficultyScore": 221,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 510,
+          "quantiles": {
+            "p10": 116,
+            "p25": 143,
+            "p30": 194,
+            "p33": 194,
+            "p50": 221,
+            "p66": 234,
+            "p70": 248,
+            "p75": 260,
+            "p90": 496
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 13,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 194,
+            "midMax": 248
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 96,
+        "scoreSpread": 418,
+        "playerEaseScore": 206.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:37377",
+        "layoutTier": "easy",
+        "difficultyScore": 233,
+        "scoreDistribution": {
+          "min": 95,
+          "max": 507,
+          "quantiles": {
+            "p10": 117,
+            "p25": 143,
+            "p30": 179,
+            "p33": 179,
+            "p50": 233,
+            "p66": 272,
+            "p70": 309,
+            "p75": 323,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 12,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 309
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 412,
+        "playerEaseScore": 205.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:47265",
+        "layoutTier": "easy",
+        "difficultyScore": 230,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 480,
+          "quantiles": {
+            "p10": 104,
+            "p25": 153,
+            "p30": 203,
+            "p33": 203,
+            "p50": 230,
+            "p66": 305,
+            "p70": 345,
+            "p75": 359,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 12,
+            "350-699": 7,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 203,
+            "midMax": 345
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 388,
+        "playerEaseScore": 203.89999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:23787",
+        "layoutTier": "easy",
+        "difficultyScore": 277,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 449,
+          "quantiles": {
+            "p10": 140,
+            "p25": 177,
+            "p30": 179,
+            "p33": 179,
+            "p50": 277,
+            "p66": 357,
+            "p70": 368,
+            "p75": 374,
+            "p90": 435
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 11,
+            "350-699": 9,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 368
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 345,
+        "playerEaseScore": 203.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:72469",
+        "layoutTier": "easy",
+        "difficultyScore": 234,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 545,
+          "quantiles": {
+            "p10": 104,
+            "p25": 119,
+            "p30": 143,
+            "p33": 143,
+            "p50": 234,
+            "p66": 302,
+            "p70": 302,
+            "p75": 326,
+            "p90": 497
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 9,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 143,
+            "midMax": 302
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 441,
+        "playerEaseScore": 202.59999999999997,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:21413",
+        "layoutTier": "easy",
+        "difficultyScore": 239,
+        "scoreDistribution": {
+          "min": 125,
+          "max": 459,
+          "quantiles": {
+            "p10": 152,
+            "p25": 179,
+            "p30": 191,
+            "p33": 191,
+            "p50": 239,
+            "p66": 354,
+            "p70": 377,
+            "p75": 392,
+            "p90": 420
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 1,
+            "150-349": 14,
+            "350-699": 9,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 191,
+            "midMax": 377
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 334,
+        "playerEaseScore": 200.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:16807",
+        "layoutTier": "easy",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 128,
+          "max": 482,
+          "quantiles": {
+            "p10": 143,
+            "p25": 167,
+            "p30": 191,
+            "p33": 191,
+            "p50": 218,
+            "p66": 270,
+            "p70": 272,
+            "p75": 284,
+            "p90": 480
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 14,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 191,
+            "midMax": 272
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 354,
+        "playerEaseScore": 200.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:24267",
+        "layoutTier": "easy",
+        "difficultyScore": 281,
+        "scoreDistribution": {
+          "min": 116,
+          "max": 466,
+          "quantiles": {
+            "p10": 140,
+            "p25": 167,
+            "p30": 179,
+            "p33": 179,
+            "p50": 281,
+            "p66": 293,
+            "p70": 294,
+            "p75": 294,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 16,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 294
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 350,
+        "playerEaseScore": 199.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:42646",
+        "layoutTier": "easy",
+        "difficultyScore": 266,
+        "scoreDistribution": {
+          "min": 125,
+          "max": 450,
+          "quantiles": {
+            "p10": 128,
+            "p25": 179,
+            "p30": 242,
+            "p33": 242,
+            "p50": 266,
+            "p66": 293,
+            "p70": 293,
+            "p75": 332,
+            "p90": 437
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 15,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 242,
+            "midMax": 293
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 325,
+        "playerEaseScore": 197.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:35",
+        "layoutTier": "easy",
+        "difficultyScore": 230,
+        "scoreDistribution": {
+          "min": 131,
+          "max": 482,
+          "quantiles": {
+            "p10": 155,
+            "p25": 156,
+            "p30": 203,
+            "p33": 203,
+            "p50": 230,
+            "p66": 281,
+            "p70": 293,
+            "p75": 308,
+            "p90": 479
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 2,
+            "150-349": 16,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 203,
+            "midMax": 293
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 351,
+        "playerEaseScore": 194.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:21049",
+        "layoutTier": "easy",
+        "difficultyScore": 228,
+        "scoreDistribution": {
+          "min": 119,
+          "max": 437,
+          "quantiles": {
+            "p10": 155,
+            "p25": 177,
+            "p30": 203,
+            "p33": 203,
+            "p50": 228,
+            "p66": 284,
+            "p70": 284,
+            "p75": 306,
+            "p90": 437
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 2,
+            "150-349": 16,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 203,
+            "midMax": 284
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 318,
+        "playerEaseScore": 194.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:30921",
+        "layoutTier": "easy",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 481,
+          "quantiles": {
+            "p10": 128,
+            "p25": 140,
+            "p30": 155,
+            "p33": 155,
+            "p50": 218,
+            "p66": 269,
+            "p70": 282,
+            "p75": 295,
+            "p90": 478
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 13,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 282
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 377,
+        "playerEaseScore": 193.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:43118",
+        "layoutTier": "easy",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 116,
+          "max": 467,
+          "quantiles": {
+            "p10": 116,
+            "p25": 153,
+            "p30": 179,
+            "p33": 179,
+            "p50": 218,
+            "p66": 308,
+            "p70": 308,
+            "p75": 323,
+            "p90": 464
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 14,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 308
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 351,
+        "playerEaseScore": 192.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:25853",
+        "layoutTier": "easy",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 481,
+          "quantiles": {
+            "p10": 104,
+            "p25": 129,
+            "p30": 152,
+            "p33": 152,
+            "p50": 218,
+            "p66": 257,
+            "p70": 296,
+            "p75": 320,
+            "p90": 467
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 13,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 152,
+            "midMax": 296
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 392,
+        "playerEaseScore": 192.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:26588",
+        "layoutTier": "easy",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 101,
+          "max": 450,
+          "quantiles": {
+            "p10": 128,
+            "p25": 152,
+            "p30": 191,
+            "p33": 191,
+            "p50": 218,
+            "p66": 293,
+            "p70": 320,
+            "p75": 359,
+            "p90": 436
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 13,
+            "350-699": 7,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 191,
+            "midMax": 320
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 349,
+        "playerEaseScore": 191.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:4765",
+        "layoutTier": "easy",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 107,
+          "max": 450,
+          "quantiles": {
+            "p10": 143,
+            "p25": 155,
+            "p30": 168,
+            "p33": 168,
+            "p50": 218,
+            "p66": 272,
+            "p70": 272,
+            "p75": 275,
+            "p90": 436
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 14,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 168,
+            "midMax": 272
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 343,
+        "playerEaseScore": 191.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:51413",
+        "layoutTier": "easy",
+        "difficultyScore": 230,
+        "scoreDistribution": {
+          "min": 113,
+          "max": 437,
+          "quantiles": {
+            "p10": 153,
+            "p25": 165,
+            "p30": 203,
+            "p33": 203,
+            "p50": 230,
+            "p66": 281,
+            "p70": 293,
+            "p75": 294,
+            "p90": 435
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 2,
+            "150-349": 18,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 203,
+            "midMax": 293
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 324,
+        "playerEaseScore": 190.9,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:29617",
+        "layoutTier": "easy",
+        "difficultyScore": 231,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 466,
+          "quantiles": {
+            "p10": 131,
+            "p25": 140,
+            "p30": 153,
+            "p33": 153,
+            "p50": 231,
+            "p66": 320,
+            "p70": 320,
+            "p75": 344,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 11,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 153,
+            "midMax": 320
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 362,
+        "playerEaseScore": 189.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:70491",
+        "layoutTier": "easy",
+        "difficultyScore": 242,
+        "scoreDistribution": {
+          "min": 102,
+          "max": 482,
+          "quantiles": {
+            "p10": 116,
+            "p25": 128,
+            "p30": 128,
+            "p33": 128,
+            "p50": 242,
+            "p66": 333,
+            "p70": 359,
+            "p75": 385,
+            "p90": 480
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 10,
+            "150-349": 6,
+            "350-699": 8,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 128,
+            "midMax": 359
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 380,
+        "playerEaseScore": 188.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:2671",
+        "layoutTier": "easy",
+        "difficultyScore": 228,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 450,
+          "quantiles": {
+            "p10": 92,
+            "p25": 141,
+            "p30": 155,
+            "p33": 155,
+            "p50": 228,
+            "p66": 267,
+            "p70": 281,
+            "p75": 306,
+            "p90": 438
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 13,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 281
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 96,
+        "scoreSpread": 358,
+        "playerEaseScore": 187.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:11991",
+        "layoutTier": "easy",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 438,
+          "quantiles": {
+            "p10": 126,
+            "p25": 140,
+            "p30": 203,
+            "p33": 203,
+            "p50": 218,
+            "p66": 284,
+            "p70": 356,
+            "p75": 410,
+            "p90": 436
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 10,
+            "350-699": 8,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 203,
+            "midMax": 356
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 349,
+        "playerEaseScore": 185.9,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:15119",
+        "layoutTier": "easy",
+        "difficultyScore": 266,
+        "scoreDistribution": {
+          "min": 116,
+          "max": 480,
+          "quantiles": {
+            "p10": 127,
+            "p25": 128,
+            "p30": 143,
+            "p33": 143,
+            "p50": 266,
+            "p66": 292,
+            "p70": 305,
+            "p75": 306,
+            "p90": 437
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 10,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 143,
+            "midMax": 305
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 364,
+        "playerEaseScore": 184.4,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:10907",
+        "layoutTier": "easy",
+        "difficultyScore": 243,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 465,
+          "quantiles": {
+            "p10": 116,
+            "p25": 129,
+            "p30": 146,
+            "p33": 146,
+            "p50": 243,
+            "p66": 257,
+            "p70": 269,
+            "p75": 269,
+            "p90": 453
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 11,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 146,
+            "midMax": 269
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 361,
+        "playerEaseScore": 184,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:9195",
+        "layoutTier": "easy",
+        "difficultyScore": 221,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 465,
+          "quantiles": {
+            "p10": 115,
+            "p25": 129,
+            "p30": 143,
+            "p33": 143,
+            "p50": 221,
+            "p66": 257,
+            "p70": 284,
+            "p75": 284,
+            "p90": 437
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 12,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 143,
+            "midMax": 284
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 361,
+        "playerEaseScore": 183.39999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:59930",
+        "layoutTier": "easy",
+        "difficultyScore": 219,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 452,
+          "quantiles": {
+            "p10": 104,
+            "p25": 119,
+            "p30": 165,
+            "p33": 165,
+            "p50": 219,
+            "p66": 233,
+            "p70": 269,
+            "p75": 272,
+            "p90": 438
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 12,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 165,
+            "midMax": 269
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 360,
+        "playerEaseScore": 177.9,
+        "rolloutCount": 24
+      }
+    ],
+    "medium": [
+      {
+        "seedId": "blockblast-pool:v3:66075",
+        "layoutTier": "medium",
+        "difficultyScore": 205,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 572,
+          "quantiles": {
+            "p10": 129,
+            "p25": 155,
+            "p30": 179,
+            "p33": 179,
+            "p50": 205,
+            "p66": 296,
+            "p70": 350,
+            "p75": 410,
+            "p90": 480
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 11,
+            "350-699": 8,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 350
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 480,
+        "playerEaseScore": 232.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:56579",
+        "layoutTier": "medium",
+        "difficultyScore": 216,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 479,
+          "quantiles": {
+            "p10": 128,
+            "p25": 188,
+            "p30": 191,
+            "p33": 191,
+            "p50": 216,
+            "p66": 293,
+            "p70": 304,
+            "p75": 359,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 13,
+            "350-699": 7,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 191,
+            "midMax": 304
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 387,
+        "playerEaseScore": 221.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:48650",
+        "layoutTier": "medium",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 567,
+          "quantiles": {
+            "p10": 104,
+            "p25": 131,
+            "p30": 155,
+            "p33": 155,
+            "p50": 218,
+            "p66": 279,
+            "p70": 279,
+            "p75": 305,
+            "p90": 436
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 12,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 279
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 478,
+        "playerEaseScore": 219.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:40633",
+        "layoutTier": "medium",
+        "difficultyScore": 182,
+        "scoreDistribution": {
+          "min": 113,
+          "max": 527,
+          "quantiles": {
+            "p10": 153,
+            "p25": 168,
+            "p30": 180,
+            "p33": 180,
+            "p50": 182,
+            "p66": 197,
+            "p70": 260,
+            "p75": 335,
+            "p90": 467
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 2,
+            "150-349": 16,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 180,
+            "midMax": 260
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 414,
+        "playerEaseScore": 218.79999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:36728",
+        "layoutTier": "medium",
+        "difficultyScore": 206,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 492,
+          "quantiles": {
+            "p10": 104,
+            "p25": 170,
+            "p30": 194,
+            "p33": 194,
+            "p50": 206,
+            "p66": 296,
+            "p70": 335,
+            "p75": 350,
+            "p90": 481
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 3,
+            "150-349": 14,
+            "350-699": 7,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 194,
+            "midMax": 335
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 400,
+        "playerEaseScore": 216.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:47464",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 140,
+          "max": 555,
+          "quantiles": {
+            "p10": 155,
+            "p25": 155,
+            "p30": 155,
+            "p33": 155,
+            "p50": 194,
+            "p66": 224,
+            "p70": 245,
+            "p75": 347,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 2,
+            "150-349": 16,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 245
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 415,
+        "playerEaseScore": 212.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:316",
+        "layoutTier": "medium",
+        "difficultyScore": 209,
+        "scoreDistribution": {
+          "min": 105,
+          "max": 556,
+          "quantiles": {
+            "p10": 119,
+            "p25": 131,
+            "p30": 155,
+            "p33": 155,
+            "p50": 209,
+            "p66": 296,
+            "p70": 350,
+            "p75": 398,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 9,
+            "350-699": 8,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 350
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 451,
+        "playerEaseScore": 212,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:36704",
+        "layoutTier": "medium",
+        "difficultyScore": 206,
+        "scoreDistribution": {
+          "min": 128,
+          "max": 558,
+          "quantiles": {
+            "p10": 140,
+            "p25": 143,
+            "p30": 181,
+            "p33": 181,
+            "p50": 206,
+            "p66": 306,
+            "p70": 321,
+            "p75": 347,
+            "p90": 467
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 12,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 181,
+            "midMax": 321
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 430,
+        "playerEaseScore": 210.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:12931",
+        "layoutTier": "medium",
+        "difficultyScore": 203,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 452,
+          "quantiles": {
+            "p10": 164,
+            "p25": 179,
+            "p30": 179,
+            "p33": 179,
+            "p50": 203,
+            "p66": 218,
+            "p70": 218,
+            "p75": 266,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 2,
+            "150-349": 18,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 218
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 363,
+        "playerEaseScore": 209,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:25034",
+        "layoutTier": "medium",
+        "difficultyScore": 180,
+        "scoreDistribution": {
+          "min": 113,
+          "max": 496,
+          "quantiles": {
+            "p10": 138,
+            "p25": 166,
+            "p30": 167,
+            "p33": 167,
+            "p50": 180,
+            "p66": 183,
+            "p70": 194,
+            "p75": 194,
+            "p90": 483
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 3,
+            "150-349": 17,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 167,
+            "midMax": 194
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 383,
+        "playerEaseScore": 208.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:56177",
+        "layoutTier": "medium",
+        "difficultyScore": 209,
+        "scoreDistribution": {
+          "min": 155,
+          "max": 509,
+          "quantiles": {
+            "p10": 155,
+            "p25": 182,
+            "p30": 194,
+            "p33": 194,
+            "p50": 209,
+            "p66": 248,
+            "p70": 248,
+            "p75": 338,
+            "p90": 497
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 0,
+            "150-349": 18,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 194,
+            "midMax": 248
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 354,
+        "playerEaseScore": 208.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:21174",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 101,
+          "max": 494,
+          "quantiles": {
+            "p10": 128,
+            "p25": 152,
+            "p30": 179,
+            "p33": 179,
+            "p50": 194,
+            "p66": 219,
+            "p70": 281,
+            "p75": 294,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 15,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 281
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 393,
+        "playerEaseScore": 205.1,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:51141",
+        "layoutTier": "medium",
+        "difficultyScore": 192,
+        "scoreDistribution": {
+          "min": 126,
+          "max": 500,
+          "quantiles": {
+            "p10": 140,
+            "p25": 164,
+            "p30": 165,
+            "p33": 165,
+            "p50": 192,
+            "p66": 243,
+            "p70": 244,
+            "p75": 335,
+            "p90": 464
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 3,
+            "150-349": 15,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 165,
+            "midMax": 244
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 374,
+        "playerEaseScore": 204.60000000000002,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:49562",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 90,
+          "max": 479,
+          "quantiles": {
+            "p10": 140,
+            "p25": 155,
+            "p30": 166,
+            "p33": 166,
+            "p50": 194,
+            "p66": 218,
+            "p70": 245,
+            "p75": 255,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 3,
+            "150-349": 15,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 166,
+            "midMax": 245
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 389,
+        "playerEaseScore": 204.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:59843",
+        "layoutTier": "medium",
+        "difficultyScore": 182,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 531,
+          "quantiles": {
+            "p10": 116,
+            "p25": 131,
+            "p30": 143,
+            "p33": 143,
+            "p50": 182,
+            "p66": 221,
+            "p70": 248,
+            "p75": 284,
+            "p90": 494
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 10,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 143,
+            "midMax": 248
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 427,
+        "playerEaseScore": 204.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:19993",
+        "layoutTier": "medium",
+        "difficultyScore": 197,
+        "scoreDistribution": {
+          "min": 103,
+          "max": 510,
+          "quantiles": {
+            "p10": 116,
+            "p25": 144,
+            "p30": 158,
+            "p33": 158,
+            "p50": 197,
+            "p66": 233,
+            "p70": 260,
+            "p75": 275,
+            "p90": 481
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 14,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 158,
+            "midMax": 260
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 407,
+        "playerEaseScore": 204.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:64927",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 128,
+          "max": 515,
+          "quantiles": {
+            "p10": 128,
+            "p25": 155,
+            "p30": 180,
+            "p33": 180,
+            "p50": 194,
+            "p66": 344,
+            "p70": 383,
+            "p75": 383,
+            "p90": 465
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 12,
+            "350-699": 8,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 180,
+            "midMax": 383
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 387,
+        "playerEaseScore": 204.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:40836",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 494,
+          "quantiles": {
+            "p10": 117,
+            "p25": 143,
+            "p30": 158,
+            "p33": 158,
+            "p50": 194,
+            "p66": 234,
+            "p70": 248,
+            "p75": 285,
+            "p90": 467
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 12,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 158,
+            "midMax": 248
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 405,
+        "playerEaseScore": 204,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:19028",
+        "layoutTier": "medium",
+        "difficultyScore": 191,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 480,
+          "quantiles": {
+            "p10": 116,
+            "p25": 152,
+            "p30": 167,
+            "p33": 167,
+            "p50": 191,
+            "p66": 206,
+            "p70": 230,
+            "p75": 231,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 14,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 167,
+            "midMax": 230
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 388,
+        "playerEaseScore": 203.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:37854",
+        "layoutTier": "medium",
+        "difficultyScore": 195,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 489,
+          "quantiles": {
+            "p10": 116,
+            "p25": 146,
+            "p30": 155,
+            "p33": 155,
+            "p50": 195,
+            "p66": 221,
+            "p70": 245,
+            "p75": 272,
+            "p90": 453
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 13,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 245
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 400,
+        "playerEaseScore": 203.4,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:54784",
+        "layoutTier": "medium",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 465,
+          "quantiles": {
+            "p10": 128,
+            "p25": 167,
+            "p30": 191,
+            "p33": 191,
+            "p50": 218,
+            "p66": 281,
+            "p70": 281,
+            "p75": 293,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 15,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 191,
+            "midMax": 281
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 361,
+        "playerEaseScore": 201.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:48651",
+        "layoutTier": "medium",
+        "difficultyScore": 206,
+        "scoreDistribution": {
+          "min": 103,
+          "max": 465,
+          "quantiles": {
+            "p10": 116,
+            "p25": 165,
+            "p30": 180,
+            "p33": 180,
+            "p50": 206,
+            "p66": 221,
+            "p70": 233,
+            "p75": 245,
+            "p90": 464
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 15,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 180,
+            "midMax": 233
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 362,
+        "playerEaseScore": 201.1,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:60214",
+        "layoutTier": "medium",
+        "difficultyScore": 204,
+        "scoreDistribution": {
+          "min": 95,
+          "max": 528,
+          "quantiles": {
+            "p10": 116,
+            "p25": 119,
+            "p30": 131,
+            "p33": 131,
+            "p50": 204,
+            "p66": 218,
+            "p70": 245,
+            "p75": 296,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 9,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 131,
+            "midMax": 245
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 433,
+        "playerEaseScore": 200,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:19872",
+        "layoutTier": "medium",
+        "difficultyScore": 203,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 461,
+          "quantiles": {
+            "p10": 140,
+            "p25": 155,
+            "p30": 167,
+            "p33": 167,
+            "p50": 203,
+            "p66": 280,
+            "p70": 281,
+            "p75": 282,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 3,
+            "150-349": 15,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 167,
+            "midMax": 281
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 372,
+        "playerEaseScore": 199.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:47782",
+        "layoutTier": "medium",
+        "difficultyScore": 180,
+        "scoreDistribution": {
+          "min": 116,
+          "max": 509,
+          "quantiles": {
+            "p10": 128,
+            "p25": 143,
+            "p30": 158,
+            "p33": 158,
+            "p50": 180,
+            "p66": 194,
+            "p70": 232,
+            "p75": 245,
+            "p90": 495
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 13,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 158,
+            "midMax": 232
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 393,
+        "playerEaseScore": 199.39999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:68282",
+        "layoutTier": "medium",
+        "difficultyScore": 203,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 524,
+          "quantiles": {
+            "p10": 104,
+            "p25": 117,
+            "p30": 155,
+            "p33": 155,
+            "p50": 203,
+            "p66": 270,
+            "p70": 272,
+            "p75": 284,
+            "p90": 483
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 13,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 272
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 432,
+        "playerEaseScore": 199.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:49745",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 494,
+          "quantiles": {
+            "p10": 119,
+            "p25": 134,
+            "p30": 155,
+            "p33": 155,
+            "p50": 194,
+            "p66": 231,
+            "p70": 244,
+            "p75": 245,
+            "p90": 481
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 13,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 244
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 405,
+        "playerEaseScore": 199.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:24173",
+        "layoutTier": "medium",
+        "difficultyScore": 191,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 482,
+          "quantiles": {
+            "p10": 128,
+            "p25": 141,
+            "p30": 143,
+            "p33": 143,
+            "p50": 191,
+            "p66": 257,
+            "p70": 272,
+            "p75": 308,
+            "p90": 481
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 11,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 143,
+            "midMax": 272
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 393,
+        "playerEaseScore": 199.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:13695",
+        "layoutTier": "medium",
+        "difficultyScore": 205,
+        "scoreDistribution": {
+          "min": 114,
+          "max": 480,
+          "quantiles": {
+            "p10": 128,
+            "p25": 155,
+            "p30": 179,
+            "p33": 179,
+            "p50": 205,
+            "p66": 245,
+            "p70": 269,
+            "p75": 272,
+            "p90": 467
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 15,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 269
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 366,
+        "playerEaseScore": 198.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:59569",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 116,
+          "max": 481,
+          "quantiles": {
+            "p10": 129,
+            "p25": 158,
+            "p30": 180,
+            "p33": 180,
+            "p50": 194,
+            "p66": 261,
+            "p70": 299,
+            "p75": 311,
+            "p90": 467
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 15,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 180,
+            "midMax": 299
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 365,
+        "playerEaseScore": 198.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:19995",
+        "layoutTier": "medium",
+        "difficultyScore": 182,
+        "scoreDistribution": {
+          "min": 116,
+          "max": 497,
+          "quantiles": {
+            "p10": 117,
+            "p25": 146,
+            "p30": 156,
+            "p33": 156,
+            "p50": 182,
+            "p66": 248,
+            "p70": 272,
+            "p75": 309,
+            "p90": 468
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 14,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 156,
+            "midMax": 272
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 381,
+        "playerEaseScore": 197.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:19144",
+        "layoutTier": "medium",
+        "difficultyScore": 180,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 509,
+          "quantiles": {
+            "p10": 104,
+            "p25": 119,
+            "p30": 141,
+            "p33": 141,
+            "p50": 180,
+            "p66": 246,
+            "p70": 260,
+            "p75": 272,
+            "p90": 454
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 10,
+            "150-349": 9,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 141,
+            "midMax": 260
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 420,
+        "playerEaseScore": 196.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:16067",
+        "layoutTier": "medium",
+        "difficultyScore": 204,
+        "scoreDistribution": {
+          "min": 102,
+          "max": 466,
+          "quantiles": {
+            "p10": 116,
+            "p25": 152,
+            "p30": 179,
+            "p33": 179,
+            "p50": 204,
+            "p66": 257,
+            "p70": 308,
+            "p75": 411,
+            "p90": 453
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 13,
+            "350-699": 7,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 308
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 364,
+        "playerEaseScore": 196.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:67335",
+        "layoutTier": "medium",
+        "difficultyScore": 206,
+        "scoreDistribution": {
+          "min": 102,
+          "max": 481,
+          "quantiles": {
+            "p10": 140,
+            "p25": 143,
+            "p30": 179,
+            "p33": 179,
+            "p50": 206,
+            "p66": 218,
+            "p70": 233,
+            "p75": 270,
+            "p90": 467
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 14,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 233
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 379,
+        "playerEaseScore": 195.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:68800",
+        "layoutTier": "medium",
+        "difficultyScore": 191,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 453,
+          "quantiles": {
+            "p10": 129,
+            "p25": 153,
+            "p30": 165,
+            "p33": 165,
+            "p50": 191,
+            "p66": 230,
+            "p70": 231,
+            "p75": 281,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 14,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 165,
+            "midMax": 231
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 364,
+        "playerEaseScore": 195.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:520",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 467,
+          "quantiles": {
+            "p10": 129,
+            "p25": 152,
+            "p30": 153,
+            "p33": 153,
+            "p50": 194,
+            "p66": 218,
+            "p70": 218,
+            "p75": 243,
+            "p90": 439
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 16,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 153,
+            "midMax": 218
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 363,
+        "playerEaseScore": 195.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:70079",
+        "layoutTier": "medium",
+        "difficultyScore": 212,
+        "scoreDistribution": {
+          "min": 114,
+          "max": 467,
+          "quantiles": {
+            "p10": 143,
+            "p25": 155,
+            "p30": 167,
+            "p33": 167,
+            "p50": 212,
+            "p66": 260,
+            "p70": 269,
+            "p75": 296,
+            "p90": 453
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 14,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 167,
+            "midMax": 269
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 353,
+        "playerEaseScore": 194.39999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:32907",
+        "layoutTier": "medium",
+        "difficultyScore": 216,
+        "scoreDistribution": {
+          "min": 90,
+          "max": 466,
+          "quantiles": {
+            "p10": 131,
+            "p25": 143,
+            "p30": 206,
+            "p33": 206,
+            "p50": 216,
+            "p66": 266,
+            "p70": 266,
+            "p75": 317,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 14,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 206,
+            "midMax": 266
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 376,
+        "playerEaseScore": 194.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:50248",
+        "layoutTier": "medium",
+        "difficultyScore": 215,
+        "scoreDistribution": {
+          "min": 125,
+          "max": 464,
+          "quantiles": {
+            "p10": 149,
+            "p25": 164,
+            "p30": 176,
+            "p33": 176,
+            "p50": 215,
+            "p66": 230,
+            "p70": 269,
+            "p75": 308,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 3,
+            "150-349": 15,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 176,
+            "midMax": 269
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 339,
+        "playerEaseScore": 193.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:59337",
+        "layoutTier": "medium",
+        "difficultyScore": 218,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 465,
+          "quantiles": {
+            "p10": 105,
+            "p25": 140,
+            "p30": 141,
+            "p33": 141,
+            "p50": 218,
+            "p66": 234,
+            "p70": 245,
+            "p75": 254,
+            "p90": 438
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 12,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 141,
+            "midMax": 245
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 373,
+        "playerEaseScore": 191.89999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:36478",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 101,
+          "max": 467,
+          "quantiles": {
+            "p10": 116,
+            "p25": 143,
+            "p30": 167,
+            "p33": 167,
+            "p50": 194,
+            "p66": 233,
+            "p70": 245,
+            "p75": 321,
+            "p90": 438
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 12,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 167,
+            "midMax": 245
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 366,
+        "playerEaseScore": 191.89999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:29414",
+        "layoutTier": "medium",
+        "difficultyScore": 191,
+        "scoreDistribution": {
+          "min": 107,
+          "max": 491,
+          "quantiles": {
+            "p10": 119,
+            "p25": 131,
+            "p30": 158,
+            "p33": 158,
+            "p50": 191,
+            "p66": 231,
+            "p70": 257,
+            "p75": 281,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 11,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 158,
+            "midMax": 257
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 384,
+        "playerEaseScore": 191.1,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:72740",
+        "layoutTier": "medium",
+        "difficultyScore": 204,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 495,
+          "quantiles": {
+            "p10": 104,
+            "p25": 116,
+            "p30": 164,
+            "p33": 164,
+            "p50": 204,
+            "p66": 309,
+            "p70": 323,
+            "p75": 323,
+            "p90": 482
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 13,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 164,
+            "midMax": 323
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 406,
+        "playerEaseScore": 190.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:15834",
+        "layoutTier": "medium",
+        "difficultyScore": 191,
+        "scoreDistribution": {
+          "min": 101,
+          "max": 468,
+          "quantiles": {
+            "p10": 131,
+            "p25": 140,
+            "p30": 143,
+            "p33": 143,
+            "p50": 191,
+            "p66": 294,
+            "p70": 308,
+            "p75": 335,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 11,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 143,
+            "midMax": 308
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 367,
+        "playerEaseScore": 190.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:67922",
+        "layoutTier": "medium",
+        "difficultyScore": 180,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 452,
+          "quantiles": {
+            "p10": 116,
+            "p25": 141,
+            "p30": 155,
+            "p33": 155,
+            "p50": 180,
+            "p66": 245,
+            "p70": 245,
+            "p75": 270,
+            "p90": 424
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 13,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 245
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 363,
+        "playerEaseScore": 190,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:15194",
+        "layoutTier": "medium",
+        "difficultyScore": 182,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 466,
+          "quantiles": {
+            "p10": 116,
+            "p25": 131,
+            "p30": 141,
+            "p33": 141,
+            "p50": 182,
+            "p66": 399,
+            "p70": 413,
+            "p75": 414,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 6,
+            "350-699": 9,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 141,
+            "midMax": 413
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 377,
+        "playerEaseScore": 189,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:14726",
+        "layoutTier": "medium",
+        "difficultyScore": 206,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 450,
+          "quantiles": {
+            "p10": 143,
+            "p25": 143,
+            "p30": 164,
+            "p33": 164,
+            "p50": 206,
+            "p66": 320,
+            "p70": 320,
+            "p75": 332,
+            "p90": 436
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 13,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 164,
+            "midMax": 320
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 346,
+        "playerEaseScore": 185.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:73273",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 102,
+          "max": 466,
+          "quantiles": {
+            "p10": 116,
+            "p25": 131,
+            "p30": 155,
+            "p33": 155,
+            "p50": 194,
+            "p66": 293,
+            "p70": 293,
+            "p75": 308,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 12,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 293
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 364,
+        "playerEaseScore": 184.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:65474",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 116,
+          "max": 480,
+          "quantiles": {
+            "p10": 116,
+            "p25": 128,
+            "p30": 158,
+            "p33": 158,
+            "p50": 194,
+            "p66": 281,
+            "p70": 294,
+            "p75": 307,
+            "p90": 439
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 12,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 158,
+            "midMax": 294
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 364,
+        "playerEaseScore": 184,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:61584",
+        "layoutTier": "medium",
+        "difficultyScore": 192,
+        "scoreDistribution": {
+          "min": 90,
+          "max": 451,
+          "quantiles": {
+            "p10": 128,
+            "p25": 128,
+            "p30": 140,
+            "p33": 140,
+            "p50": 192,
+            "p66": 230,
+            "p70": 230,
+            "p75": 269,
+            "p90": 450
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 12,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 140,
+            "midMax": 230
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 361,
+        "playerEaseScore": 183.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:14559",
+        "layoutTier": "medium",
+        "difficultyScore": 191,
+        "scoreDistribution": {
+          "min": 138,
+          "max": 436,
+          "quantiles": {
+            "p10": 152,
+            "p25": 167,
+            "p30": 176,
+            "p33": 176,
+            "p50": 191,
+            "p66": 218,
+            "p70": 228,
+            "p75": 243,
+            "p90": 435
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 2,
+            "150-349": 18,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 176,
+            "midMax": 228
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 298,
+        "playerEaseScore": 183.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:35204",
+        "layoutTier": "medium",
+        "difficultyScore": 203,
+        "scoreDistribution": {
+          "min": 125,
+          "max": 434,
+          "quantiles": {
+            "p10": 125,
+            "p25": 152,
+            "p30": 176,
+            "p33": 176,
+            "p50": 203,
+            "p66": 266,
+            "p70": 279,
+            "p75": 279,
+            "p90": 420
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 4,
+            "150-349": 16,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 176,
+            "midMax": 279
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 309,
+        "playerEaseScore": 179.9,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:67556",
+        "layoutTier": "medium",
+        "difficultyScore": 194,
+        "scoreDistribution": {
+          "min": 107,
+          "max": 451,
+          "quantiles": {
+            "p10": 116,
+            "p25": 131,
+            "p30": 179,
+            "p33": 179,
+            "p50": 194,
+            "p66": 284,
+            "p70": 293,
+            "p75": 323,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 11,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 179,
+            "midMax": 293
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 96,
+        "scoreSpread": 344,
+        "playerEaseScore": 178.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:26344",
+        "layoutTier": "medium",
+        "difficultyScore": 191,
+        "scoreDistribution": {
+          "min": 113,
+          "max": 435,
+          "quantiles": {
+            "p10": 137,
+            "p25": 138,
+            "p30": 140,
+            "p33": 140,
+            "p50": 191,
+            "p66": 215,
+            "p70": 239,
+            "p75": 245,
+            "p90": 408
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 12,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 140,
+            "midMax": 239
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 322,
+        "playerEaseScore": 176.2,
+        "rolloutCount": 24
+      }
+    ],
+    "hard": [
+      {
+        "seedId": "blockblast-pool:v3:59166",
+        "layoutTier": "hard",
+        "difficultyScore": 168,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 494,
+          "quantiles": {
+            "p10": 128,
+            "p25": 167,
+            "p30": 168,
+            "p33": 168,
+            "p50": 168,
+            "p66": 255,
+            "p70": 272,
+            "p75": 308,
+            "p90": 467
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 13,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 168,
+            "midMax": 272
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 405,
+        "playerEaseScore": 215.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:55164",
+        "layoutTier": "hard",
+        "difficultyScore": 169,
+        "scoreDistribution": {
+          "min": 95,
+          "max": 498,
+          "quantiles": {
+            "p10": 116,
+            "p25": 155,
+            "p30": 158,
+            "p33": 158,
+            "p50": 169,
+            "p66": 197,
+            "p70": 248,
+            "p75": 416,
+            "p90": 496
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 5,
+            "150-349": 12,
+            "350-699": 7,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 158,
+            "midMax": 248
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 403,
+        "playerEaseScore": 209.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:26966",
+        "layoutTier": "hard",
+        "difficultyScore": 176,
+        "scoreDistribution": {
+          "min": 101,
+          "max": 526,
+          "quantiles": {
+            "p10": 116,
+            "p25": 140,
+            "p30": 140,
+            "p33": 140,
+            "p50": 176,
+            "p66": 231,
+            "p70": 383,
+            "p75": 422,
+            "p90": 435
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 10,
+            "150-349": 6,
+            "350-699": 8,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 140,
+            "midMax": 383
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 425,
+        "playerEaseScore": 208.5,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:51466",
+        "layoutTier": "hard",
+        "difficultyScore": 131,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 529,
+          "quantiles": {
+            "p10": 104,
+            "p25": 126,
+            "p30": 131,
+            "p33": 131,
+            "p50": 131,
+            "p66": 269,
+            "p70": 270,
+            "p75": 282,
+            "p90": 450
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 14,
+            "150-349": 5,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 131,
+            "midMax": 270
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 440,
+        "playerEaseScore": 205.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:50725",
+        "layoutTier": "hard",
+        "difficultyScore": 152,
+        "scoreDistribution": {
+          "min": 113,
+          "max": 546,
+          "quantiles": {
+            "p10": 125,
+            "p25": 128,
+            "p30": 140,
+            "p33": 140,
+            "p50": 152,
+            "p66": 167,
+            "p70": 192,
+            "p75": 218,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 11,
+            "150-349": 8,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 140,
+            "midMax": 192
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.7916666666666666,
+        "exitedRate": 0,
+        "timeUpRate": 0.20833333333333334,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 433,
+        "playerEaseScore": 204.9,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:59292",
+        "layoutTier": "hard",
+        "difficultyScore": 143,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 513,
+          "quantiles": {
+            "p10": 116,
+            "p25": 129,
+            "p30": 142,
+            "p33": 142,
+            "p50": 143,
+            "p66": 208,
+            "p70": 248,
+            "p75": 269,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 12,
+            "150-349": 6,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 142,
+            "midMax": 248
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 421,
+        "playerEaseScore": 201.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:63167",
+        "layoutTier": "hard",
+        "difficultyScore": 179,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 480,
+          "quantiles": {
+            "p10": 115,
+            "p25": 143,
+            "p30": 167,
+            "p33": 167,
+            "p50": 179,
+            "p66": 281,
+            "p70": 284,
+            "p75": 318,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 14,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 167,
+            "midMax": 284
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 391,
+        "playerEaseScore": 200,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:36930",
+        "layoutTier": "hard",
+        "difficultyScore": 179,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 480,
+          "quantiles": {
+            "p10": 131,
+            "p25": 144,
+            "p30": 155,
+            "p33": 155,
+            "p50": 179,
+            "p66": 206,
+            "p70": 221,
+            "p75": 309,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 12,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 221
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 388,
+        "playerEaseScore": 199.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:64220",
+        "layoutTier": "hard",
+        "difficultyScore": 155,
+        "scoreDistribution": {
+          "min": 90,
+          "max": 479,
+          "quantiles": {
+            "p10": 103,
+            "p25": 141,
+            "p30": 141,
+            "p33": 141,
+            "p50": 155,
+            "p66": 194,
+            "p70": 194,
+            "p75": 209,
+            "p90": 465
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 10,
+            "150-349": 9,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 141,
+            "midMax": 194
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 389,
+        "playerEaseScore": 198.39999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:11684",
+        "layoutTier": "hard",
+        "difficultyScore": 179,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 495,
+          "quantiles": {
+            "p10": 116,
+            "p25": 129,
+            "p30": 131,
+            "p33": 131,
+            "p50": 179,
+            "p66": 218,
+            "p70": 244,
+            "p75": 258,
+            "p90": 482
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 11,
+            "150-349": 7,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 131,
+            "midMax": 244
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 406,
+        "playerEaseScore": 196.89999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:73833",
+        "layoutTier": "hard",
+        "difficultyScore": 155,
+        "scoreDistribution": {
+          "min": 101,
+          "max": 480,
+          "quantiles": {
+            "p10": 116,
+            "p25": 140,
+            "p30": 153,
+            "p33": 153,
+            "p50": 155,
+            "p66": 182,
+            "p70": 194,
+            "p75": 231,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 6,
+            "150-349": 14,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 153,
+            "midMax": 194
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 379,
+        "playerEaseScore": 194.9,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:20753",
+        "layoutTier": "hard",
+        "difficultyScore": 158,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 467,
+          "quantiles": {
+            "p10": 119,
+            "p25": 143,
+            "p30": 156,
+            "p33": 156,
+            "p50": 158,
+            "p66": 194,
+            "p70": 221,
+            "p75": 248,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 11,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 156,
+            "midMax": 221
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 375,
+        "playerEaseScore": 194.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:66324",
+        "layoutTier": "hard",
+        "difficultyScore": 167,
+        "scoreDistribution": {
+          "min": 90,
+          "max": 483,
+          "quantiles": {
+            "p10": 116,
+            "p25": 131,
+            "p30": 143,
+            "p33": 143,
+            "p50": 167,
+            "p66": 209,
+            "p70": 209,
+            "p75": 220,
+            "p90": 482
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 11,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 143,
+            "midMax": 209
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 393,
+        "playerEaseScore": 194.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:65038",
+        "layoutTier": "hard",
+        "difficultyScore": 170,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 482,
+          "quantiles": {
+            "p10": 116,
+            "p25": 128,
+            "p30": 129,
+            "p33": 129,
+            "p50": 170,
+            "p66": 311,
+            "p70": 321,
+            "p75": 323,
+            "p90": 480
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 11,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 129,
+            "midMax": 321
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 393,
+        "playerEaseScore": 192.89999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:26506",
+        "layoutTier": "hard",
+        "difficultyScore": 170,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 508,
+          "quantiles": {
+            "p10": 107,
+            "p25": 116,
+            "p30": 131,
+            "p33": 131,
+            "p50": 170,
+            "p66": 245,
+            "p70": 258,
+            "p75": 272,
+            "p90": 455
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 11,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 131,
+            "midMax": 258
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 416,
+        "playerEaseScore": 192.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:47103",
+        "layoutTier": "hard",
+        "difficultyScore": 155,
+        "scoreDistribution": {
+          "min": 102,
+          "max": 495,
+          "quantiles": {
+            "p10": 116,
+            "p25": 128,
+            "p30": 141,
+            "p33": 141,
+            "p50": 155,
+            "p66": 182,
+            "p70": 182,
+            "p75": 195,
+            "p90": 468
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 10,
+            "150-349": 9,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 141,
+            "midMax": 182
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 393,
+        "playerEaseScore": 192.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:74711",
+        "layoutTier": "hard",
+        "difficultyScore": 170,
+        "scoreDistribution": {
+          "min": 115,
+          "max": 483,
+          "quantiles": {
+            "p10": 128,
+            "p25": 142,
+            "p30": 155,
+            "p33": 155,
+            "p50": 170,
+            "p66": 257,
+            "p70": 284,
+            "p75": 311,
+            "p90": 481
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 13,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 284
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 368,
+        "playerEaseScore": 191.39999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:41039",
+        "layoutTier": "hard",
+        "difficultyScore": 152,
+        "scoreDistribution": {
+          "min": 102,
+          "max": 467,
+          "quantiles": {
+            "p10": 104,
+            "p25": 143,
+            "p30": 143,
+            "p33": 143,
+            "p50": 152,
+            "p66": 167,
+            "p70": 167,
+            "p75": 194,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 11,
+            "150-349": 9,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 143,
+            "midMax": 167
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 96,
+        "scoreSpread": 365,
+        "playerEaseScore": 190.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:69795",
+        "layoutTier": "hard",
+        "difficultyScore": 143,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 493,
+          "quantiles": {
+            "p10": 104,
+            "p25": 117,
+            "p30": 131,
+            "p33": 131,
+            "p50": 143,
+            "p66": 254,
+            "p70": 335,
+            "p75": 383,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 12,
+            "150-349": 5,
+            "350-699": 7,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 131,
+            "midMax": 335
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 404,
+        "playerEaseScore": 190.1,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:59018",
+        "layoutTier": "hard",
+        "difficultyScore": 153,
+        "scoreDistribution": {
+          "min": 99,
+          "max": 481,
+          "quantiles": {
+            "p10": 113,
+            "p25": 128,
+            "p30": 139,
+            "p33": 139,
+            "p50": 153,
+            "p66": 206,
+            "p70": 243,
+            "p75": 282,
+            "p90": 467
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 10,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 139,
+            "midMax": 243
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 382,
+        "playerEaseScore": 189.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:56500",
+        "layoutTier": "hard",
+        "difficultyScore": 166,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 465,
+          "quantiles": {
+            "p10": 128,
+            "p25": 131,
+            "p30": 141,
+            "p33": 141,
+            "p50": 166,
+            "p66": 192,
+            "p70": 194,
+            "p75": 194,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 11,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 141,
+            "midMax": 194
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 376,
+        "playerEaseScore": 189.1,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:49128",
+        "layoutTier": "hard",
+        "difficultyScore": 179,
+        "scoreDistribution": {
+          "min": 101,
+          "max": 480,
+          "quantiles": {
+            "p10": 104,
+            "p25": 128,
+            "p30": 129,
+            "p33": 129,
+            "p50": 179,
+            "p66": 236,
+            "p70": 257,
+            "p75": 282,
+            "p90": 452
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 10,
+            "150-349": 10,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 129,
+            "midMax": 257
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 379,
+        "playerEaseScore": 188.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:5057",
+        "layoutTier": "hard",
+        "difficultyScore": 143,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 488,
+          "quantiles": {
+            "p10": 116,
+            "p25": 117,
+            "p30": 129,
+            "p33": 129,
+            "p50": 143,
+            "p66": 257,
+            "p70": 294,
+            "p75": 358,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 12,
+            "150-349": 5,
+            "350-699": 7,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 129,
+            "midMax": 294
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 396,
+        "playerEaseScore": 188.1,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:32444",
+        "layoutTier": "hard",
+        "difficultyScore": 170,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 495,
+          "quantiles": {
+            "p10": 116,
+            "p25": 119,
+            "p30": 131,
+            "p33": 131,
+            "p50": 170,
+            "p66": 245,
+            "p70": 257,
+            "p75": 346,
+            "p90": 468
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 9,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 131,
+            "midMax": 257
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 391,
+        "playerEaseScore": 188,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:41077",
+        "layoutTier": "hard",
+        "difficultyScore": 176,
+        "scoreDistribution": {
+          "min": 87,
+          "max": 408,
+          "quantiles": {
+            "p10": 137,
+            "p25": 161,
+            "p30": 162,
+            "p33": 162,
+            "p50": 176,
+            "p66": 254,
+            "p70": 255,
+            "p75": 314,
+            "p90": 406
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 3,
+            "150-349": 15,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 162,
+            "midMax": 255
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 321,
+        "playerEaseScore": 187.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:21207",
+        "layoutTier": "hard",
+        "difficultyScore": 179,
+        "scoreDistribution": {
+          "min": 114,
+          "max": 465,
+          "quantiles": {
+            "p10": 128,
+            "p25": 143,
+            "p30": 152,
+            "p33": 152,
+            "p50": 179,
+            "p66": 233,
+            "p70": 282,
+            "p75": 323,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 11,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 152,
+            "midMax": 282
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 351,
+        "playerEaseScore": 187.39999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:18610",
+        "layoutTier": "hard",
+        "difficultyScore": 170,
+        "scoreDistribution": {
+          "min": 90,
+          "max": 482,
+          "quantiles": {
+            "p10": 104,
+            "p25": 117,
+            "p30": 143,
+            "p33": 143,
+            "p50": 170,
+            "p66": 243,
+            "p70": 257,
+            "p75": 297,
+            "p90": 480
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 9,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 143,
+            "midMax": 257
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 392,
+        "playerEaseScore": 187.3,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:23551",
+        "layoutTier": "hard",
+        "difficultyScore": 167,
+        "scoreDistribution": {
+          "min": 90,
+          "max": 462,
+          "quantiles": {
+            "p10": 104,
+            "p25": 128,
+            "p30": 129,
+            "p33": 129,
+            "p50": 167,
+            "p66": 293,
+            "p70": 303,
+            "p75": 305,
+            "p90": 422
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 9,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 129,
+            "midMax": 303
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 372,
+        "playerEaseScore": 186.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:34973",
+        "layoutTier": "hard",
+        "difficultyScore": 156,
+        "scoreDistribution": {
+          "min": 92,
+          "max": 498,
+          "quantiles": {
+            "p10": 92,
+            "p25": 105,
+            "p30": 119,
+            "p33": 119,
+            "p50": 156,
+            "p66": 222,
+            "p70": 236,
+            "p75": 236,
+            "p90": 495
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 11,
+            "150-349": 9,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 119,
+            "midMax": 236
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 406,
+        "playerEaseScore": 184.9,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:67769",
+        "layoutTier": "hard",
+        "difficultyScore": 168,
+        "scoreDistribution": {
+          "min": 102,
+          "max": 480,
+          "quantiles": {
+            "p10": 116,
+            "p25": 119,
+            "p30": 131,
+            "p33": 131,
+            "p50": 168,
+            "p66": 205,
+            "p70": 247,
+            "p75": 248,
+            "p90": 466
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 10,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 131,
+            "midMax": 247
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 378,
+        "playerEaseScore": 183.89999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:46942",
+        "layoutTier": "hard",
+        "difficultyScore": 165,
+        "scoreDistribution": {
+          "min": 114,
+          "max": 451,
+          "quantiles": {
+            "p10": 128,
+            "p25": 143,
+            "p30": 155,
+            "p33": 155,
+            "p50": 165,
+            "p66": 230,
+            "p70": 242,
+            "p75": 254,
+            "p90": 437
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 13,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 155,
+            "midMax": 242
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 337,
+        "playerEaseScore": 183.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:42214",
+        "layoutTier": "hard",
+        "difficultyScore": 158,
+        "scoreDistribution": {
+          "min": 104,
+          "max": 482,
+          "quantiles": {
+            "p10": 104,
+            "p25": 119,
+            "p30": 131,
+            "p33": 131,
+            "p50": 158,
+            "p66": 197,
+            "p70": 260,
+            "p75": 260,
+            "p90": 480
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 11,
+            "150-349": 9,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 131,
+            "midMax": 260
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 378,
+        "playerEaseScore": 183.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:22798",
+        "layoutTier": "hard",
+        "difficultyScore": 140,
+        "scoreDistribution": {
+          "min": 90,
+          "max": 465,
+          "quantiles": {
+            "p10": 101,
+            "p25": 119,
+            "p30": 128,
+            "p33": 128,
+            "p50": 140,
+            "p66": 167,
+            "p70": 167,
+            "p75": 182,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 13,
+            "150-349": 7,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 128,
+            "midMax": 167
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 375,
+        "playerEaseScore": 183,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:48560",
+        "layoutTier": "hard",
+        "difficultyScore": 132,
+        "scoreDistribution": {
+          "min": 102,
+          "max": 483,
+          "quantiles": {
+            "p10": 116,
+            "p25": 117,
+            "p30": 119,
+            "p33": 119,
+            "p50": 132,
+            "p66": 194,
+            "p70": 206,
+            "p75": 207,
+            "p90": 481
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 12,
+            "150-349": 8,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 119,
+            "midMax": 206
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 100,
+        "scoreSpread": 381,
+        "playerEaseScore": 182.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:2546",
+        "layoutTier": "hard",
+        "difficultyScore": 167,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 448,
+          "quantiles": {
+            "p10": 104,
+            "p25": 128,
+            "p30": 140,
+            "p33": 140,
+            "p50": 167,
+            "p66": 206,
+            "p70": 218,
+            "p75": 272,
+            "p90": 436
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 9,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 140,
+            "midMax": 218
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 359,
+        "playerEaseScore": 182.7,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:43184",
+        "layoutTier": "hard",
+        "difficultyScore": 164,
+        "scoreDistribution": {
+          "min": 87,
+          "max": 450,
+          "quantiles": {
+            "p10": 112,
+            "p25": 125,
+            "p30": 126,
+            "p33": 126,
+            "p50": 164,
+            "p66": 215,
+            "p70": 228,
+            "p75": 255,
+            "p90": 437
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 8,
+            "150-349": 11,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 126,
+            "midMax": 228
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 363,
+        "playerEaseScore": 182.39999999999998,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:66940",
+        "layoutTier": "hard",
+        "difficultyScore": 167,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 466,
+          "quantiles": {
+            "p10": 102,
+            "p25": 116,
+            "p30": 128,
+            "p33": 128,
+            "p50": 167,
+            "p66": 230,
+            "p70": 242,
+            "p75": 255,
+            "p90": 465
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 9,
+            "150-349": 10,
+            "350-699": 5,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 128,
+            "midMax": 242
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 377,
+        "playerEaseScore": 182.1,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:72812",
+        "layoutTier": "hard",
+        "difficultyScore": 167,
+        "scoreDistribution": {
+          "min": 128,
+          "max": 481,
+          "quantiles": {
+            "p10": 129,
+            "p25": 131,
+            "p30": 131,
+            "p33": 131,
+            "p50": 167,
+            "p66": 230,
+            "p70": 272,
+            "p75": 296,
+            "p90": 480
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 10,
+            "150-349": 10,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 131,
+            "midMax": 272
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 104,
+        "scoreSpread": 353,
+        "playerEaseScore": 181.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:50225",
+        "layoutTier": "hard",
+        "difficultyScore": 143,
+        "scoreDistribution": {
+          "min": 102,
+          "max": 476,
+          "quantiles": {
+            "p10": 104,
+            "p25": 116,
+            "p30": 129,
+            "p33": 129,
+            "p50": 143,
+            "p66": 170,
+            "p70": 209,
+            "p75": 321,
+            "p90": 453
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 14,
+            "150-349": 4,
+            "350-699": 6,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 129,
+            "midMax": 209
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 106,
+        "scoreSpread": 374,
+        "playerEaseScore": 180.8,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:1607",
+        "layoutTier": "hard",
+        "difficultyScore": 167,
+        "scoreDistribution": {
+          "min": 89,
+          "max": 465,
+          "quantiles": {
+            "p10": 90,
+            "p25": 114,
+            "p30": 116,
+            "p33": 116,
+            "p50": 167,
+            "p66": 233,
+            "p70": 254,
+            "p75": 257,
+            "p90": 451
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 10,
+            "150-349": 10,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 116,
+            "midMax": 254
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 108,
+        "scoreSpread": 376,
+        "playerEaseScore": 180.6,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:73780",
+        "layoutTier": "hard",
+        "difficultyScore": 153,
+        "scoreDistribution": {
+          "min": 88,
+          "max": 438,
+          "quantiles": {
+            "p10": 102,
+            "p25": 116,
+            "p30": 152,
+            "p33": 152,
+            "p50": 153,
+            "p66": 218,
+            "p70": 230,
+            "p75": 230,
+            "p90": 436
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 7,
+            "150-349": 13,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 152,
+            "midMax": 230
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 112,
+        "scoreSpread": 350,
+        "playerEaseScore": 174.2,
+        "rolloutCount": 24
+      },
+      {
+        "seedId": "blockblast-pool:v3:35836",
+        "layoutTier": "hard",
+        "difficultyScore": 155,
+        "scoreDistribution": {
+          "min": 116,
+          "max": 452,
+          "quantiles": {
+            "p10": 116,
+            "p25": 117,
+            "p30": 140,
+            "p33": 140,
+            "p50": 155,
+            "p66": 218,
+            "p70": 320,
+            "p75": 321,
+            "p90": 450
+          },
+          "histogram": {
+            "<0": 0,
+            "0-49": 0,
+            "50-149": 11,
+            "150-349": 9,
+            "350-699": 4,
+            "700+": 0
+          },
+          "bandThresholds": {
+            "lowMax": 140,
+            "midMax": 320
+          }
+        },
+        "completedRate": 0,
+        "stuckRate": 0.8333333333333334,
+        "exitedRate": 0,
+        "timeUpRate": 0.16666666666666666,
+        "layoutOutcome": "mixed",
+        "openingMoveCount": 110,
+        "scoreSpread": 336,
+        "playerEaseScore": 170.3,
+        "rolloutCount": 24
+      }
+    ]
+  }
+}

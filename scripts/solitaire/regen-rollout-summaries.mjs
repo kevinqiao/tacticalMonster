@@ -11,12 +11,14 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { runConvexSolitaire } from "./run-convex-solitaire.mjs";
+import { runConvexCatalog } from "../seed-catalog/run-convex-catalog.mjs";
+import { CATALOG_GAME_TYPES } from "../seed-catalog/catalog-game-types.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 
-const ADMIN = "service/seedPool/solitaireSeedPoolAdmin";
+const ADMIN = "service/seedPool/seedPoolAdmin";
+const CATALOG_GAME_TYPE = CATALOG_GAME_TYPES.solitaire;
 
 function parseArgs(argv) {
   const opts = {
@@ -72,9 +74,10 @@ function flattenRollouts(poolVersion, seedId, rolloutSummaries) {
   }));
 }
 
-async function syncSeedToConvex(poolVersion, entry, rolloutSummaries) {
+async function syncSeedToCatalog(poolVersion, entry, rolloutSummaries) {
   const seedId = entry.seedId;
-  await runConvexSolitaire(`${ADMIN}:importSeedPoolAppendBatch`, {
+  await runConvexCatalog(`${ADMIN}:importSeedPoolAppendBatch`, {
+    gameType: CATALOG_GAME_TYPE,
     poolVersion,
     entries: [
       {
@@ -154,8 +157,8 @@ async function main() {
         metrics: result.metrics,
         rolloutSummaries: result.rolloutSummaries,
       };
-      const syncRes = await syncSeedToConvex(poolVersion, patchedEntry, result.rolloutSummaries);
-      console.log(`  synced to Convex:`, syncRes);
+      const syncRes = await syncSeedToCatalog(poolVersion, patchedEntry, result.rolloutSummaries);
+      console.log(`  synced to catalog:`, syncRes);
     }
   }
 
@@ -205,7 +208,8 @@ async function main() {
   );
 
   if (opts.sync && updatedBySeed.size > 0) {
-    await runConvexSolitaire(`${ADMIN}:refreshSeedPoolMeta`, {
+    await runConvexCatalog(`${ADMIN}:refreshSeedPoolMeta`, {
+      gameType: CATALOG_GAME_TYPE,
       poolVersion,
       generatedAt: nextIndex.generatedAt,
       rolloutCount,

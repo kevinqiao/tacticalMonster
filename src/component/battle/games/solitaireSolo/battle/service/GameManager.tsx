@@ -41,6 +41,7 @@ interface ISoloGameContext {
     replayMode: boolean;
     casualTournamentId?: string;
     onGameSubmit?: () => void;
+    onTriathlonNextGame?: import('component/battle/games/shared/casualTriathlonSubmitFlow').TriathlonMidSessionAdvanceHandler;
 }
 
 const SoloGameContext = createContext<ISoloGameContext>({
@@ -60,6 +61,7 @@ const SoloGameContext = createContext<ISoloGameContext>({
     replayMode: false,
     casualTournamentId: undefined,
     onGameSubmit: undefined,
+    onTriathlonNextGame: undefined,
 });
 
 export const useSoloGameManager = () => {
@@ -79,6 +81,7 @@ interface SoloGameProviderProps {
     config?: Partial<SoloGameConfig>;
     onGameLoadComplete?: () => void;
     onGameSubmit?: () => void;
+    onTriathlonNextGame?: import('component/battle/games/shared/casualTriathlonSubmitFlow').TriathlonMidSessionAdvanceHandler;
 }
 
 export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
@@ -89,6 +92,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     config: customConfig,
     onGameLoadComplete,
     onGameSubmit,
+    onTriathlonNextGame,
 }) => {
     const replayMode = Boolean(replaySeedId && !gameId);
     const [gameState, setGameState] = useState<SoloGameState | null>(() =>
@@ -346,6 +350,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         replayMode,
         casualTournamentId,
         onGameSubmit,
+        onTriathlonNextGame,
     };
 
     return (

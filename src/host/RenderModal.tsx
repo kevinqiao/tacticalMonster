@@ -68,8 +68,12 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/casual/view/profile/CasualPlayerProfileModal': () => import('component/lobby/casual/view/profile/CasualPlayerProfileModal'),
   './lobby/casual/view/tasks/CasualTasksModal': () => import('component/lobby/casual/view/tasks/CasualTasksModal'),
   './lobby/casual/view/play/CasualTournamentLobbyModal': () => import('component/lobby/casual/view/play/CasualTournamentLobbyModal'),
+  './lobby/casual/view/play/CasualTriathlonLobbyModal': () => import('component/lobby/casual/view/play/CasualTriathlonLobbyModal'),
+  './lobby/casual/view/play/PlayCasualTriathlonSession': () => import('component/lobby/casual/view/play/PlayCasualTriathlonSession'),
   './lobby/casual/view/play/CasualDailySoloLeaderboardModal': () => import('component/lobby/casual/view/play/CasualDailySoloLeaderboardModal'),
   './lobby/casual/view/play/CasualSeasonLeaderboardModal': () => import('component/lobby/casual/view/play/CasualSeasonLeaderboardModal'),
+  './lobby/casual/view/play/CasualWeeklyLeagueModal': () => import('component/lobby/casual/view/play/CasualWeeklyLeagueModal'),
+  './lobby/casual/view/play/CasualWeeklyLeagueCloseModal': () => import('component/lobby/casual/view/play/CasualWeeklyLeagueCloseModal'),
 };
 
 // 错误边界组件

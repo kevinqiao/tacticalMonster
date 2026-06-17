@@ -40,12 +40,31 @@ export type CasualReferenceScoreQuantiles = {
 
 export type CasualRankRateEntry = { rank: number; odd: number };
 
+/** seed 动态分位达标奖励：本局分数 >= 该 seed `scoreQuantiles[quantile]` 时额外发放 */
+export type CasualSeedQuantileSuccessReward = {
+  quantile: "p75";
+  coins?: number;
+  gems?: number;
+};
+
 export interface CasualTournamentDefinition {
   tournamentId: string;
   title: string;
   gameType: string;
-  matchType: "tournament_a" | "tournament_b" | "tournament_c" | "season_challenge";
+  matchType:
+    | "tournament_a"
+    | "tournament_b"
+    | "tournament_c"
+    | "triathlon_a"
+    | "triathlon_b"
+    | "triathlon_c"
+    | "season_challenge"
+    | "solo_p75_challenge";
   status: string;
+  /** 有序玩法列表；缺省视为 `[gameType]`（单局） */
+  gameSequence?: string[];
+  /** 多局总分聚合；缺省 raw_sum */
+  sessionScoreMode?: "raw_sum" | "normalized_percentile";
   /** 周期桶；缺省 `single_match` 与现网一致 */
   instanceScope?: CasualInstanceScope;
   /** 周期榜聚合；缺省 `single_match` */
@@ -70,6 +89,11 @@ export interface CasualTournamentDefinition {
   rankRates?: CasualRankRateEntry[];
   /** Block Blast 等无 pool 时开桌 bind 写入 seedBinding 的静态分位 */
   referenceScoreQuantiles?: CasualReferenceScoreQuantiles;
+  /**
+   * 单人 p75 挑战：本局分数 >= 该 seed `scoreQuantiles[quantile]` 视为成功，额外发放此奖励。
+   * 阈值由游戏服交分时按 seed 解析后经 `seedScoreThreshold` 带入结算。
+   */
+  seedQuantileSuccess?: CasualSeedQuantileSuccessReward;
 }
 
 /** Play「日榜单人挑战」· Solitaire */
@@ -84,6 +108,12 @@ export const CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID =
 /** Play「日榜单人挑战」· Match-3 */
 export const CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID =
   "casual_daily_solo_challenge_match_3" as const;
+
+/** Play「p75 单人挑战」（非周期、单人无 bot；达 seed p75 发成功奖）· 四玩法 */
+export const CASUAL_SOLO_P75_CHALLENGE_SOLITAIRE_ID = "casual_solo_p75_solitaire" as const;
+export const CASUAL_SOLO_P75_CHALLENGE_BLOCK_BLAST_ID = "casual_solo_p75_block_blast" as const;
+export const CASUAL_SOLO_P75_CHALLENGE_MATCH_3_ID = "casual_solo_p75_match_3" as const;
+export const CASUAL_SOLO_P75_CHALLENGE_TOWER_ARENA_ID = "casual_solo_p75_tower_arena" as const;
 
 export function effectiveInstanceScope(def: CasualTournamentDefinition): CasualInstanceScope {
   return def.instanceScope ?? "single_match";
@@ -605,6 +635,71 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     seasonPointsMultiplier: 0.5,
     omitFromPlayLobby: true,
   },
+  /** p75 单人挑战：非周期、单人无 bot；本局分数 >= 该 seed p75 视为成功，发参与奖 + 成功奖 */
+  {
+    tournamentId: CASUAL_SOLO_P75_CHALLENGE_SOLITAIRE_ID,
+    title: "p75 挑战 · Solitaire",
+    gameType: "solitaire",
+    matchType: "solo_p75_challenge",
+    status: "open",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: {
+      type: "by_performance",
+      baseRewards: { coins: 8, gems: 0 },
+    },
+    seedQuantileSuccess: { quantile: "p75", coins: 40 },
+    seasonXpOnSettle: 8,
+    seasonPointsMultiplier: 0.5,
+  },
+  {
+    tournamentId: CASUAL_SOLO_P75_CHALLENGE_BLOCK_BLAST_ID,
+    title: "p75 挑战 · Block Blast",
+    gameType: "block_blast",
+    matchType: "solo_p75_challenge",
+    status: "open",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: {
+      type: "by_performance",
+      baseRewards: { coins: 8, gems: 0 },
+    },
+    seedQuantileSuccess: { quantile: "p75", coins: 40 },
+    seasonXpOnSettle: 8,
+    seasonPointsMultiplier: 0.5,
+  },
+  {
+    tournamentId: CASUAL_SOLO_P75_CHALLENGE_MATCH_3_ID,
+    title: "p75 挑战 · Match-3",
+    gameType: "match_3",
+    matchType: "solo_p75_challenge",
+    status: "open",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: {
+      type: "by_performance",
+      baseRewards: { coins: 8, gems: 0 },
+    },
+    seedQuantileSuccess: { quantile: "p75", coins: 40 },
+    seasonXpOnSettle: 8,
+    seasonPointsMultiplier: 0.5,
+  },
+  {
+    tournamentId: CASUAL_SOLO_P75_CHALLENGE_TOWER_ARENA_ID,
+    title: "p75 挑战 · Tower Defense",
+    gameType: "tower_arena",
+    matchType: "solo_p75_challenge",
+    status: "open",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: {
+      type: "by_performance",
+      baseRewards: { coins: 8, gems: 0 },
+    },
+    seedQuantileSuccess: { quantile: "p75", coins: 40 },
+    seasonXpOnSettle: 8,
+    seasonPointsMultiplier: 0.5,
+  },
   /** 赛季专场：赛季券入场、异步匹配同档 4 人桌；赛季分按名次，不参与挑战点/代金券档位 */
   {
     tournamentId: CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID,
@@ -673,6 +768,57 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     seasonPointsMultiplier: 0,
     hideLeaderboard: true,
   },
+  {
+    tournamentId: "casual_triathlon_a",
+    title: "三场合战 · A",
+    gameType: "triathlon",
+    matchType: "triathlon_a",
+    status: "open",
+    maxPlayers: 3,
+    gameSequence: ["block_blast", "solitaire", "match_3"],
+    entry: { kind: "coins", amount: 30 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 22, gems: 0 },
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
+    },
+    seasonXpOnSettle: 12,
+    seasonPointsMultiplier: 0,
+  },
+  {
+    tournamentId: "casual_triathlon_b",
+    title: "三场合战 · B",
+    gameType: "triathlon",
+    matchType: "triathlon_b",
+    status: "open",
+    maxPlayers: 4,
+    gameSequence: ["block_blast", "solitaire", "match_3"],
+    entry: { kind: "coins", amount: 40 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 58, gems: 1 },
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
+    },
+    seasonXpOnSettle: 18,
+    seasonPointsMultiplier: 0,
+  },
+  {
+    tournamentId: "casual_triathlon_c",
+    title: "三场合战 · C",
+    gameType: "triathlon",
+    matchType: "triathlon_c",
+    status: "open",
+    maxPlayers: 5,
+    gameSequence: ["block_blast", "solitaire", "match_3"],
+    entry: { kind: "gems", amount: 5 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 0, gems: 8 },
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
+    },
+    seasonXpOnSettle: 28,
+    seasonPointsMultiplier: 0,
+  },
 ];
 
 /** Block Blast 异步 A 档：演示 / 默认入口 */
@@ -682,6 +828,44 @@ export function getTournamentDefinition(
   tournamentId: string
 ): CasualTournamentDefinition | null {
   return TOURNAMENT_DEFS.find((t) => t.tournamentId === tournamentId) ?? null;
+}
+
+export function effectiveGameSequence(def: CasualTournamentDefinition): string[] {
+  if (def.gameSequence && def.gameSequence.length > 0) {
+    return [...def.gameSequence];
+  }
+  return [def.gameType];
+}
+
+export function isTriathlonTemplate(def: CasualTournamentDefinition): boolean {
+  return effectiveGameSequence(def).length > 1;
+}
+
+export function seatGameTypeForTemplate(def: CasualTournamentDefinition): string {
+  return isTriathlonTemplate(def) ? "triathlon" : def.gameType;
+}
+
+const TRIATHLON_LOBBY_MATCH_TYPES = ["triathlon_a", "triathlon_b", "triathlon_c"] as const;
+export type TriathlonLobbyMatchType = (typeof TRIATHLON_LOBBY_MATCH_TYPES)[number];
+
+/** 三场合战 Play 大厅 A/B/C 列表（不依赖 DB `casual_tournaments`） */
+export function listTriathlonLobbyTemplates(): Array<{
+  tournamentId: string;
+  title: string;
+  matchType: TriathlonLobbyMatchType;
+  status: string;
+}> {
+  return TOURNAMENT_DEFS.filter(
+    (t): t is CasualTournamentDefinition & { matchType: TriathlonLobbyMatchType } =>
+      t.gameType === "triathlon" &&
+      !t.omitFromPlayLobby &&
+      (TRIATHLON_LOBBY_MATCH_TYPES as readonly string[]).includes(t.matchType)
+  ).map((t) => ({
+    tournamentId: t.tournamentId,
+    title: t.title,
+    matchType: t.matchType,
+    status: t.status,
+  }));
 }
 
 export function listTournamentDefinitions(): CasualTournamentDefinition[] {

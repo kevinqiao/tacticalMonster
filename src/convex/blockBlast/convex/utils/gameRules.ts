@@ -13,6 +13,17 @@ function gridDimension(grid: number[][]): number {
     return n;
 }
 
+/** Pad ragged rows to a rectangle (horizontal T row2 must be `[0,1,0]` not `[0,1]`). */
+export function normalizeShapeMatrix(shape: number[][]): number[][] {
+    if (shape.length === 0) return [];
+    const width = Math.max(0, ...shape.map((row) => row.length));
+    return shape.map((row) => {
+        const out = row.slice();
+        while (out.length < width) out.push(0);
+        return out;
+    });
+}
+
 /**
  * 检查形状是否可以放置在指定位置
  */
@@ -24,9 +35,10 @@ export function canPlaceShape(
 ): boolean {
     const n = gridDimension(grid);
     if (n === 0) return false;
-    for (let r = 0; r < shape.length; r++) {
-        for (let c = 0; c < shape[r].length; c++) {
-            if (shape[r][c] === 1) {
+    const matrix = normalizeShapeMatrix(shape);
+    for (let r = 0; r < matrix.length; r++) {
+        for (let c = 0; c < matrix[r].length; c++) {
+            if (matrix[r][c] === 1) {
                 const gridRow = row + r;
                 const gridCol = col + c;
 
@@ -53,9 +65,10 @@ export function placeShapeOnGrid(
     row: number,
     col: number
 ): void {
-    for (let r = 0; r < shape.length; r++) {
-        for (let c = 0; c < shape[r].length; c++) {
-            if (shape[r][c] === 1) {
+    const matrix = normalizeShapeMatrix(shape);
+    for (let r = 0; r < matrix.length; r++) {
+        for (let c = 0; c < matrix[r].length; c++) {
+            if (matrix[r][c] === 1) {
                 grid[row + r][col + c] = color;
             }
         }
@@ -126,7 +139,7 @@ export function canPlaceAnyShape(
     if (n === 0) return false;
 
     for (const shapeObj of shapes) {
-        const shape = shapeObj.shape;
+        const shape = normalizeShapeMatrix(shapeObj.shape);
         const sh = shape.length;
         const sw = shape[0]?.length ?? 0;
         for (let row = 0; row <= n - sh; row++) {

@@ -52,18 +52,24 @@ function bridgeHeaders(): Record<string, string> {
 
 async function postJson<T>(
   url: string,
-  body: unknown
+  body: unknown,
+  timeoutMs = 20_000
 ): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
   let response: Response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     response = await fetch(url, {
       method: "POST",
       headers: bridgeHeaders(),
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
   } catch (e) {
     console.error("[casual] seed bridge fetch failed", url, e);
     return { ok: false, error: "game_unreachable" };
+  } finally {
+    clearTimeout(timer);
   }
   let parsed: { ok?: boolean; error?: string } & T = {} as typeof parsed;
   try {

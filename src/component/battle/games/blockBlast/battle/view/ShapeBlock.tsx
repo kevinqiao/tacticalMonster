@@ -10,6 +10,7 @@ import { getBlockTileSurfaceStyle } from '../utils/blockTileStyle';
 interface ShapeBlockProps {
     shape: Shape;
     cellSize: number;
+    gridGap?: number;
     className?: string;
     style?: React.CSSProperties;
     draggable?: boolean;
@@ -18,6 +19,7 @@ interface ShapeBlockProps {
 const ShapeBlock: React.FC<ShapeBlockProps> = ({
     shape,
     cellSize,
+    gridGap = 2,
     className = '',
     style,
     draggable = true,
@@ -47,13 +49,13 @@ const ShapeBlock: React.FC<ShapeBlockProps> = ({
             display: 'grid',
             gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
             gridTemplateRows: `repeat(${rows}, ${cellSize}px)`,
-            gap: '2px',
+            gap: `${gridGap}px`,
             backgroundColor: 'transparent',
             cursor: draggable ? 'grab' : 'default',
             touchAction: 'none' as const,
             ...style,
         };
-    }, [shape, style, cellSize, draggable]);
+    }, [shape, style, cellSize, gridGap, draggable]);
 
     const handlePointerDown = useCallback(
         (e: React.PointerEvent) => {
@@ -71,6 +73,7 @@ const ShapeBlock: React.FC<ShapeBlockProps> = ({
             className={`blockblast-shape ${className}`}
             style={shapeStyle}
             data-preview-cell-size={String(cellSize)}
+            data-preview-gap={String(gridGap)}
             onPointerDown={handlePointerDown}
         >
             {shape.shape.map((row, rowIndex) =>
@@ -79,6 +82,8 @@ const ShapeBlock: React.FC<ShapeBlockProps> = ({
                         <div
                             key={`${rowIndex}-${colIndex}`}
                             className="blockblast-tile"
+                            data-shape-row={String(rowIndex)}
+                            data-shape-col={String(colIndex)}
                             style={{
                                 width: `${cellSize}px`,
                                 height: `${cellSize}px`,
@@ -89,7 +94,16 @@ const ShapeBlock: React.FC<ShapeBlockProps> = ({
                             }}
                         />
                     ) : (
-                        <div key={`${rowIndex}-${colIndex}`} />
+                        <div
+                            key={`${rowIndex}-${colIndex}`}
+                            data-shape-row={String(rowIndex)}
+                            data-shape-col={String(colIndex)}
+                            style={{
+                                width: `${cellSize}px`,
+                                height: `${cellSize}px`,
+                            }}
+                            aria-hidden
+                        />
                     )
                 )
             )}

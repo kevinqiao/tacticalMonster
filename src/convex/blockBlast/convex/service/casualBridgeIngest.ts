@@ -10,6 +10,9 @@ export type CasualIngestParsed = {
   pendingOthers?: boolean;
   deduped?: boolean;
   finalized?: boolean;
+  gameComplete?: boolean;
+  weeklyLeagueSettle?: unknown;
+  nextGame?: { gameIndex: number; gameId: string; gameType: string };
 };
 
 export type BotFillPayload = {
@@ -25,6 +28,7 @@ export async function postCasualRunIngest(args: {
   score: number;
   botFills?: BotFillPayload[];
   replaceAllVirtual?: boolean;
+  seedScoreThreshold?: number;
 }): Promise<
   | { ok: true; parsed: CasualIngestParsed; status: number }
   | { ok: false; error: string; status?: number }
@@ -45,6 +49,9 @@ export async function postCasualRunIngest(args: {
         score: args.score,
         ...(args.botFills && args.botFills.length > 0 ? { botFills: args.botFills } : {}),
         ...(args.replaceAllVirtual ? { replaceAllVirtual: true } : {}),
+        ...(typeof args.seedScoreThreshold === "number"
+          ? { seedScoreThreshold: args.seedScoreThreshold }
+          : {}),
       }),
     });
   } catch (e) {

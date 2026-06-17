@@ -126,11 +126,21 @@
     display: flex;
     flex-direction: column;
     flex-wrap: nowrap;
-    justify-content: space-evenly;
-    align-items: center;
+    justify-content: stretch;
+    align-items: stretch;
     gap: 8px;
     padding: 8px 4px;
     box-sizing: border-box;
+}
+
+.blockblast-shape-preview-slot {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
 }
 
 /* 竖屏：仅 Hand，预览条内纵向铺满 */
@@ -157,11 +167,14 @@
     min-height: 0;
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: space-evenly;
-    align-items: center;
-    align-content: center;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    align-items: stretch;
     gap: 8px 10px;
+}
+
+.blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-slot {
+    flex: 1 1 0;
 }
 
 .blockblast-shape-preview--intrinsic-width .blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-col--hand {
@@ -462,5 +475,137 @@
     .blockblast-shape {
         padding: 5px;
     }
+}
+
+/* ===== 观战 / 复盘 overlay（对齐 solitaireSolo solo-watch-*） ===== */
+.blockblast-watch-overlay {
+    --blockblast-watch-gap: clamp(12px, 3vmin, 28px);
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(var(--blockblast-watch-gap), env(safe-area-inset-top))
+        max(var(--blockblast-watch-gap), env(safe-area-inset-right))
+        max(var(--blockblast-watch-gap), env(safe-area-inset-bottom))
+        max(var(--blockblast-watch-gap), env(safe-area-inset-left));
+    box-sizing: border-box;
+}
+
+.blockblast-watch-backdrop {
+    position: fixed;
+    inset: 0;
+    border: 0;
+    background: rgba(0, 0, 0, 0.72);
+    cursor: pointer;
+}
+
+.blockblast-watch-dialog {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: min(
+        calc(100vw - 2 * var(--blockblast-watch-gap)),
+        calc((100dvh - 2 * var(--blockblast-watch-gap)) * 2 / 3)
+    );
+    aspect-ratio: 2 / 3;
+    max-height: calc(100dvh - 2 * var(--blockblast-watch-gap));
+    overflow: hidden;
+    padding: clamp(10px, 2vmin, 16px);
+    border-radius: 16px;
+    background: linear-gradient(160deg, #11203a 0%, #1b2f5a 45%, #1e293b 100%);
+    color: #fff;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.blockblast-watch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+.blockblast-watch-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.blockblast-watch-close {
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    cursor: pointer;
+}
+
+.blockblast-watch-hud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    opacity: 0.92;
+    flex-shrink: 0;
+}
+
+.blockblast-watch-title-inline {
+    font-weight: 700;
+}
+
+.blockblast-watch-board {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.blockblast-watch-board .blockblast-player-container {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.blockblast-watch-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    flex-shrink: 0;
+}
+
+.blockblast-watch-controls button {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+}
+
+.blockblast-watch-controls button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.blockblast-watch-status {
+    margin: 12px 0 0;
+    font-size: 14px;
+    opacity: 0.85;
+}
+
+.blockblast-watch-status--error {
+    color: #fca5a5;
 }
 

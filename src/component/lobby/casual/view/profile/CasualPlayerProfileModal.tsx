@@ -1,7 +1,11 @@
 import { ModalProp } from "host/service/ModalManager";
 import type { User } from "host/service/UserManager";
 import { useUserManager } from "host/service/UserManager";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+
+import { useCasualPlatform } from "../../service/useCasualPlatformManager";
+import { casualLadderTierLabel } from "../play/casualSeasonLadderLabels";
+import { getAchievementTemplate } from "@/convex/casualPlatform/convex/data/casualAchievementTemplates";
 
 import avatarPlaceholderUrl from "../../../tactical/control/head/assets/avatar-placeholder.svg?url";
 import "./casualPlayerProfileModal.css";
@@ -36,6 +40,20 @@ function profileDisplayName(u: User): string {
 
 const CasualPlayerProfileModal: React.FC<ModalProp> = ({ visible, close }) => {
   const { user, cancelAuth, logout } = useUserManager();
+  const casual = useCasualPlatform();
+  const [achievements, setAchievements] = useState<Array<{ achievementId: string; unlockedAt: number }>>(
+    []
+  );
+  const [peakLeagueTier, setPeakLeagueTier] = useState("bronze");
+
+  useEffect(() => {
+    if (!visible) return;
+    void casual.listPlayerAchievements().then((r) => {
+      if (!r) return;
+      setAchievements(r.achievements);
+      setPeakLeagueTier(r.peakLeagueTier);
+    });
+  }, [visible, casual.listPlayerAchievements]);
 
   const u = useMemo(() => (user?.uid ? (user as User) : null), [user]);
   const photoUrl = useMemo(() => avatarPhotoUrlFromUser(u), [u]);
@@ -70,6 +88,21 @@ const CasualPlayerProfileModal: React.FC<ModalProp> = ({ visible, close }) => {
             </div>
             <p className="cpp__name">{displayName}</p>
             <p className="cpp__meta">等级 {level}</p>
+            <p className="cpp__meta">
+              周联赛最高：{casualLadderTierLabel(peakLeagueTier)}
+            </p>
+            {achievements.length > 0 ? (
+              <ul className="cpp__achievements" aria-label="成就">
+                {achievements.slice(0, 8).map((a) => {
+                  const tmpl = getAchievementTemplate(a.achievementId);
+                  return (
+                    <li key={a.achievementId} title={tmpl?.description}>
+                      {tmpl?.title ?? a.achievementId}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
             {u.uid ? <p className="cpp__uid">UID {u.uid}</p> : null}
           </div>
           <button type="button" className="cpp__logout" onClick={signOut}>

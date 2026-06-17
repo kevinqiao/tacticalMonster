@@ -6,10 +6,11 @@ import { internal } from "../../../_generated/api";
 import type { Id } from "../../../_generated/dataModel";
 import type { ActionCtx } from "../../../_generated/server";
 import { internalAction } from "../../../_generated/server";
-import { getTournamentDefinition } from "../../../data/casualTournamentConfigs";
+import { getTournamentDefinition, effectiveGameSequence } from "../../../data/casualTournamentConfigs";
 import { pickCasualMatchSeedBinding } from "../../bridge/casualSeedProvider";
 import type { CasualMatchSeedBinding } from "./casualMatchSeedBinding";
 import { type JoinChargeMeta } from "./casualOpenTableMutations";
+import type { SeedBindingByGameIndex } from "../shared/casualSessionOpenCore";
 
 type ClaimOk = {
   ok: true;
@@ -20,16 +21,60 @@ type ClaimOk = {
   activityIds?: string[];
 };
 
-async function pickSeedBindingForMatch(
+const OPEN_TABLE_RETRY_ERRORS = new Set([
+  "no_unused_seed_for_tier",
+  "no_active_pool",
+  "game_unreachable",
+  "open_table_failed",
+  "bad_response",
+]);
+
+async function scheduleSoloOpenRetry(
+  ctx: ActionCtx,
+  queueRowId: Id<"casual_match_queue">,
+  delayMs = 3_000
+) {
+  await ctx.scheduler.runAfter(
+    delayMs,
+    internal.service.tournament.join.casualOpenTableActions.openSoloAsyncTableFromQueue,
+    { queueRowId }
+  );
+}
+
+async function pickSeedBindingsForMatch(
+  ctx: ActionCtx,
   templateId: string,
   matchId: string,
   uids: string[]
-): Promise<{ ok: true; seedBinding: CasualMatchSeedBinding } | { ok: false; error: string }> {
+): Promise<{ ok: true; seedBindingsByIndex: SeedBindingByGameIndex } | { ok: false; error: string }> {
   const def = getTournamentDefinition(templateId);
   if (!def) {
     return { ok: false as const, error: "unknown_tournament" };
   }
-  return await pickCasualMatchSeedBinding({ templateId, matchId, uids, def });
+  const sequence = effectiveGameSequence(def);
+  const seedBindingsByIndex: SeedBindingByGameIndex = {};
+  for (let i = 0; i < sequence.length; i++) {
+    const gameType = sequence[i]!;
+    const picked = await pickCasualMatchSeedBinding(ctx, {
+      templateId,
+      matchId,
+      uids,
+      def,
+      gameType,
+    });
+    if (!picked.ok) {
+      console.error("[casual] pickSeedBindingsForMatch failed", {
+        templateId,
+        matchId,
+        gameIndex: i,
+        gameType,
+        error: picked.error,
+      });
+      return picked;
+    }
+    seedBindingsByIndex[String(i)] = picked.seedBinding;
+  }
+  return { ok: true as const, seedBindingsByIndex };
 }
 
 async function openCasualTableFromClaimHandler(
@@ -43,57 +88,71 @@ async function openCasualTableFromClaimHandler(
   | { ok: false; error: string }
 > {
   const { templateId, claim } = args;
+  let shellMatchId: string | undefined;
 
-  const shell = await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.insertMatchShell, {
-    templateId,
-    uids: claim.uids,
-    joinChargeByUid: claim.joinChargeByUid,
-    ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
-  });
-  if (!shell.ok) {
-    await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.abortOpenTable, {
-      queueRowIds: claim.queueRowIds,
-      joinChargeByUid: claim.joinChargeByUid,
+  try {
+    const shell = await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.insertMatchShell, {
       templateId,
+      uids: claim.uids,
+      joinChargeByUid: claim.joinChargeByUid,
       ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
     });
-    return shell;
-  }
+    if (!shell.ok) {
+      await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.abortOpenTable, {
+        queueRowIds: claim.queueRowIds,
+        joinChargeByUid: claim.joinChargeByUid,
+        templateId,
+        ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
+      });
+      return shell;
+    }
+    shellMatchId = shell.matchId;
 
-  const pick = await pickSeedBindingForMatch(templateId, shell.matchId, claim.uids);
-  if (!pick.ok) {
-    await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.abortOpenTable, {
+    const pick = await pickSeedBindingsForMatch(ctx, templateId, shell.matchId, claim.uids);
+    if (!pick.ok) {
+      await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.abortOpenTable, {
+        matchId: shell.matchId,
+        queueRowIds: claim.queueRowIds,
+        joinChargeByUid: claim.joinChargeByUid,
+        templateId,
+        ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
+      });
+      return pick;
+    }
+
+    const fin = await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.finalizeOpenTable, {
       matchId: shell.matchId,
+      seedBindingsByIndex: pick.seedBindingsByIndex,
       queueRowIds: claim.queueRowIds,
-      joinChargeByUid: claim.joinChargeByUid,
-      templateId,
-      ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
     });
-    return pick;
-  }
+    if (!fin.ok) {
+      await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.abortOpenTable, {
+        matchId: shell.matchId,
+        queueRowIds: claim.queueRowIds,
+        joinChargeByUid: claim.joinChargeByUid,
+        templateId,
+        ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
+      });
+      return fin;
+    }
 
-  const fin = await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.finalizeOpenTable, {
-    matchId: shell.matchId,
-    seedBinding: pick.seedBinding,
-    queueRowIds: claim.queueRowIds,
-  });
-  if (!fin.ok) {
-    await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.abortOpenTable, {
+    return {
+      ok: true as const,
       matchId: shell.matchId,
+      runTournamentId: shell.runTournamentId,
+      byUid: fin.byUid,
+    };
+  } catch (err) {
+    console.error("[casual] openCasualTableFromClaim threw", { templateId, err });
+    await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.abortOpenTable, {
+      ...(shellMatchId ? { matchId: shellMatchId } : {}),
       queueRowIds: claim.queueRowIds,
       joinChargeByUid: claim.joinChargeByUid,
       templateId,
       ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
     });
-    return fin;
+    return { ok: false as const, error: "open_table_failed" as const };
   }
-
-  return {
-    ok: true as const,
-    matchId: shell.matchId,
-    runTournamentId: shell.runTournamentId,
-    byUid: fin.byUid,
-  };
 }
 
 /** 队列开桌：M1 claim → M2 shell → pick → M3 finalize */
@@ -108,9 +167,26 @@ export const openCasualTableFromQueue = internalAction({
       { templateId, queueRowIds }
     );
     if (!claim.ok) {
+      console.warn("[casual] openCasualTableFromQueue claim failed", {
+        templateId,
+        queueRowIds,
+        error: claim.error,
+        ...( "uid" in claim ? { uid: claim.uid } : {}),
+      });
       return claim;
     }
-    return await openCasualTableFromClaimHandler(ctx, { templateId, claim });
+    const opened = await openCasualTableFromClaimHandler(ctx, { templateId, claim });
+    if (!opened.ok) {
+      console.error("[casual] openCasualTableFromQueue open failed", {
+        templateId,
+        queueRowIds,
+        error: opened.error,
+      });
+      if (queueRowIds.length === 1 && OPEN_TABLE_RETRY_ERRORS.has(opened.error)) {
+        await scheduleSoloOpenRetry(ctx, queueRowIds[0]!);
+      }
+    }
+    return opened;
   },
 });
 
@@ -189,17 +265,23 @@ export const processCasualMatchQueueForTemplate = internalAction({
   },
 });
 
-/** eff=1 单真人异步桌 */
+/** eff=1 异步 solo 开桌 */
 export const openSoloAsyncTableFromQueue = internalAction({
   args: { queueRowId: v.id("casual_match_queue") },
   handler: async (ctx, { queueRowId }) => {
+    await ctx.runMutation(
+      internal.service.tournament.join.casualMatchmaking.recoverStaleClaimingQueueRowInternal,
+      { queueRowId }
+    );
     const row = await ctx.runQuery(
       internal.service.tournament.join.casualMatchmaking.getQueueRowForOpen,
       { queueRowId }
     );
     if (!row) {
+      console.warn("[casual] openSoloAsyncTableFromQueue skipped", { queueRowId, reason: "no_waiting_row" });
       return { ok: true as const };
     }
+    console.log("[casual] openSoloAsyncTableFromQueue", { queueRowId, templateId: row.templateId });
     return await ctx.runAction(internal.service.tournament.join.casualOpenTableActions.openCasualTableFromQueue, {
       templateId: row.templateId,
       queueRowIds: [queueRowId],

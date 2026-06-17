@@ -1,24 +1,69 @@
 ﻿/** ingest 持久化 bot 分 + 按游戏服 revealAt 注册 scheduler（不写 bot 规划 / rank）。 */
 import { v } from "convex/values";
-import type { CasualTournamentDefinition } from "../../../../data/casualTournamentConfigs";
+import {
+  effectiveGameSequence,
+  getTournamentDefinition,
+  seatGameTypeForTemplate,
+  type CasualTournamentDefinition,
+} from "../../../../data/casualTournamentConfigs";
 import type { Id } from "../../../../_generated/dataModel";
 import type { MutationCtx } from "../../../../_generated/server";
 import { internalMutation } from "../../../../_generated/server";
-import {
-  getCasualGameRegistration,
-  virtualBotGameId,
-  virtualBotUid,
-} from "../../../../data/casualGameRegistry";
+import { virtualBotUid } from "../../../../data/casualGameRegistry";
 import {
   isCasualAsyncVirtualOpponentUid,
   type AsyncBotFill,
   type SeedVirtualOpponentArgs,
 } from "./casualAsyncTypes";
 import { installBotRevealSchedulersForMatch } from "./casualAsyncBotReveal";
+import {
+  listPlayerGamesForSeat,
+  playerGameId,
+  sessionKindFromDef,
+} from "../../shared/casualPlayerGameTypes";
 
 export type { AsyncBotFill, SeedVirtualOpponentArgs } from "./casualAsyncTypes";
 
-/** 同 mutation 内写入虚拟对手（勿 `runMutation`，否则父事务读榜可能缺行） */
+async function deleteBotSessionsForMatch(ctx: MutationCtx, matchId: string): Promise<void> {
+  const seats = await ctx.db
+    .query("casual_run_player_matches")
+    .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
+    .collect();
+  for (const seat of seats) {
+    if (!isCasualAsyncVirtualOpponentUid(seat.uid)) continue;
+    const games = await listPlayerGamesForSeat(ctx, seat._id);
+    for (const g of games) {
+      await ctx.db.delete(g._id);
+    }
+    await ctx.db.delete(seat._id);
+  }
+}
+
+async function sampleHumanSeedBindings(
+  ctx: MutationCtx,
+  matchId: string,
+  sequence: string[]
+) {
+  const humanSeat = (
+    await ctx.db
+      .query("casual_run_player_matches")
+      .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
+      .collect()
+  ).find((r) => !isCasualAsyncVirtualOpponentUid(r.uid));
+  if (!humanSeat) {
+    throw new Error("missing_human_seat_for_bot_seed");
+  }
+  const humanGames = await listPlayerGamesForSeat(ctx, humanSeat._id);
+  return sequence.map((gameType, gameIndex) => {
+    const row = humanGames.find((g) => g.gameIndex === gameIndex);
+    if (!row) {
+      throw new Error(`missing_human_game_seed:${gameIndex}`);
+    }
+    return row.seedBinding;
+  });
+}
+
+/** 同 mutation 内写入虚拟对手（席位 + player_games） */
 export async function seedCasualAsyncVirtualOpponentsCore(
   ctx: MutationCtx,
   args: SeedVirtualOpponentArgs
@@ -32,63 +77,67 @@ export async function seedCasualAsyncVirtualOpponentsCore(
     updatedAt,
     replaceAllVirtual = true,
   } = args;
-  const reg = getCasualGameRegistration(matchGameType);
-  if (!reg) {
-    throw new Error(`unregistered_game_type:${matchGameType}`);
+  const def = getTournamentDefinition(templateId);
+  if (!def) {
+    throw new Error(`unknown_tournament:${templateId}`);
   }
+  const sequence = effectiveGameSequence(def);
+  const sessionKind = sessionKindFromDef(def);
+  const seedBindings = await sampleHumanSeedBindings(ctx, matchId, sequence);
 
   if (replaceAllVirtual) {
-    const prior = await ctx.db
-      .query("casual_run_player_matches")
-      .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
-      .collect();
-    for (const row of prior) {
-      if (isCasualAsyncVirtualOpponentUid(row.uid)) {
-        await ctx.db.delete(row._id);
-      }
-    }
+    await deleteBotSessionsForMatch(ctx, matchId);
   }
 
   for (const fill of botFills) {
     const slot = fill.rank;
-    const score = fill.score;
     const uid = virtualBotUid(matchId, slot, matchGameType);
-    const gameId = virtualBotGameId(matchId, slot, matchGameType);
-    const existing = await ctx.db
-      .query("casual_run_player_matches")
-      .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
-      .unique();
     const revealAt = fill.revealAt;
     const botRevealed =
       revealAt != null && Number.isFinite(revealAt) && revealAt <= updatedAt;
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        score,
-        status: "settled",
-        updatedAt,
-        ...(fill.duration != null ? { duration: fill.duration } : {}),
-        rolloutIndex: fill.rolloutIndex,
-        ...(revealAt != null ? { revealAt } : {}),
-        ...(revealAt != null ? { botRevealed } : {}),
-      });
-      continue;
-    }
-    await ctx.db.insert("casual_run_player_matches", {
+
+    const seatId = await ctx.db.insert("casual_run_player_matches", {
       matchId,
       tournamentId: runTournamentId,
       templateId,
       uid,
-      gameId,
-      gameType: matchGameType,
-      score,
+      sessionKind,
+      gameType: seatGameTypeForTemplate(def),
+      gameId: playerGameId(matchId, uid, sequence.length - 1),
+      score: fill.score,
       status: "settled",
-      ...(fill.duration != null ? { duration: fill.duration } : {}),
-      ...(fill.rolloutIndex != null ? { rolloutIndex: fill.rolloutIndex } : {}),
-      ...(revealAt != null ? { revealAt } : {}),
-      ...(revealAt != null ? { botRevealed } : {}),
       createdAt: updatedAt,
       updatedAt,
     });
+
+    for (let gameIndex = 0; gameIndex < sequence.length; gameIndex++) {
+      const isLast = gameIndex >= sequence.length - 1;
+      const legFill = fill.legs?.find((l) => l.gameIndex === gameIndex);
+      const legScore = legFill?.score ?? (isLast ? fill.score : 0);
+      await ctx.db.insert("casual_run_player_games", {
+        playerMatchId: seatId,
+        matchId,
+        uid,
+        templateId,
+        gameIndex,
+        gameType: sequence[gameIndex]!,
+        gameId: playerGameId(matchId, uid, gameIndex),
+        seedBinding: seedBindings[gameIndex]!,
+        score: legScore,
+        status: "settled",
+        ...(isLast && fill.duration != null ? { duration: fill.duration } : {}),
+        ...(legFill?.duration != null ? { duration: legFill.duration } : {}),
+        ...(legFill?.rolloutIndex != null
+          ? { rolloutIndex: legFill.rolloutIndex }
+          : isLast && fill.rolloutIndex != null
+            ? { rolloutIndex: fill.rolloutIndex }
+            : {}),
+        ...(isLast && revealAt != null ? { revealAt } : {}),
+        ...(isLast && revealAt != null ? { botRevealed } : {}),
+        createdAt: updatedAt,
+        updatedAt,
+      });
+    }
   }
 }
 
@@ -105,6 +154,16 @@ export const seedCasualAsyncVirtualOpponents = internalMutation({
         duration: v.optional(v.number()),
         rolloutIndex: v.optional(v.number()),
         revealAt: v.optional(v.number()),
+        legs: v.optional(
+          v.array(
+            v.object({
+              gameIndex: v.number(),
+              score: v.number(),
+              rolloutIndex: v.optional(v.number()),
+              duration: v.optional(v.number()),
+            })
+          )
+        ),
       })
     ),
     updatedAt: v.number(),

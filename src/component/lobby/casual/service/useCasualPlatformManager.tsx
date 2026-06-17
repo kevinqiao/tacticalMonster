@@ -8,6 +8,7 @@ import type { CasualActivityPublicRow } from "./casualActivityTypes";
 import { getMockCasualActivitiesForUiDemo, shouldUseMockCasualActivities } from "./casualActivityMock";
 import type { OpenCasualRunAssignment } from "./casualOpenRunAssignment";
 import { casualInstanceFns, casualSkinFns, casualTournamentFns } from "./casualConvexFunctionRefs";
+import type { TriathlonSessionProgress } from "component/battle/games/shared/casualTriathlonSubmitFlow";
 
 const _casualUrlRaw = import.meta.env.VITE_CONVEX_URL_CASUAL;
 const CASUAL_CONVEX_URL =
@@ -142,13 +143,29 @@ export interface CasualPlatformValue {
     tracksPurchased?: { standard?: boolean; deluxe?: boolean };
     claimed?: Array<{ track: "free" | "standard" | "deluxe"; level: number }>;
   } | null;
-  /** 赛季竞技：积分 · 段位 · 段位内名次（`casual_player_season_ladder`） */
+  /** @deprecated 赛季天梯 UI 已替换为周联赛 */
   seasonLadderSnapshot: {
     seasonId: string;
     points: number;
     tierId: string;
     rankInTier: number;
     tierSize: number;
+  } | null;
+  /** 周联赛快照（cohort 排名 / 当周 XP） */
+  weeklyLeagueSnapshot: {
+    weekKey: string;
+    leagueTierId: string;
+    peakLeagueTier: string;
+    weeklyLeagueXp: number;
+    cohortRank: number;
+    cohortSize: number;
+    unreadCloseResult: boolean;
+    pendingRewards?: {
+      coins?: number;
+      gems?: number;
+      seasonVoucher?: number;
+    };
+    lastOutcome?: "promote" | "safe" | "demote";
   } | null;
   shopSkus: Array<{
     skuId: string;
@@ -220,6 +237,10 @@ export interface CasualPlatformValue {
   ) => Promise<import("../../battle/games/shared/casualAsyncTableSummaryUI").CasualAsyncTableSummaryUI | null>;
   /** 一次性 HTTP 读开放 run（并写入 store）；日常请用 `openRunAssignments` 订阅 */
   fetchOpenCasualRunAssignments: () => Promise<OpenCasualRunAssignment[]>;
+  /** 三场合战：已完成局分数 + 当前 open 局（重进 session 恢复累计分） */
+  fetchTriathlonSessionProgress: (
+    matchGameId: string
+  ) => Promise<TriathlonSessionProgress | null>;
   /** 退出匹配队列（仅 `waiting`；`claiming` 时返回 `cannot_leave_claiming`） */
   leaveCasualMatchQueue: (
     templateId?: string
@@ -268,6 +289,24 @@ export interface CasualPlatformValue {
     gameId: string,
     limit?: number
   ) => Promise<Array<{ rank: number; uid: string; points: number }>>;
+  fetchWeeklyLeagueCohort: () => Promise<{
+    members: Array<{
+      uid: string;
+      weeklyLeagueXp: number;
+      rank: number;
+      isBot?: boolean;
+      rowState?: "active" | "matching";
+    }>;
+    matching: { total: number; bots: number; humans: number };
+  }>;
+  ensureWeeklyLeagueMember: () => Promise<{ ok: boolean }>;
+  claimWeeklyLeagueRewards: () => Promise<{ ok: boolean; error?: string }>;
+  dismissWeeklyLeagueClose: () => Promise<{ ok: boolean }>;
+  listPlayerAchievements: () => Promise<{
+    achievements: Array<{ achievementId: string; unlockedAt: number }>;
+    peakLeagueTier: string;
+    seasonPeakLeagueTier?: string;
+  } | null>;
   /** 已禁用：run 结算仅允许各游戏 Convex `submitCasualPlatformRun` → casual ingest */
   submitCasualRun: (input: {
     tournamentId: string;
@@ -352,6 +391,7 @@ type CasualDataSnapshot = Pick<
   | "seasons"
   | "passProgress"
   | "seasonLadderSnapshot"
+  | "weeklyLeagueSnapshot"
   | "missions"
   | "checkinStreak"
   | "shopSkus"
@@ -370,6 +410,7 @@ function emptyData(): CasualDataSnapshot {
     seasons: [],
     passProgress: null,
     seasonLadderSnapshot: null,
+    weeklyLeagueSnapshot: null,
     missions: [],
     checkinStreak: null,
     shopSkus: [],
@@ -553,6 +594,15 @@ function startLiveSubscriptions(uid: string | undefined) {
       "getPassProgress"
     );
     sub(
+      casualPlatformApi.service.weeklyLeague.casualWeeklyLeagueQueries.getWeeklyLeagueSnapshot,
+      { uid },
+      (row) =>
+        patchData({
+          weeklyLeagueSnapshot: (row as CasualPlatformValue["weeklyLeagueSnapshot"]) ?? null,
+        }),
+      "getWeeklyLeagueSnapshot"
+    );
+    sub(
       casualPlatformApi.service.season.casualSeasonService.getSeasonLadderSnapshot,
       { uid },
       (row) =>
@@ -614,6 +664,8 @@ function startLiveSubscriptions(uid: string | undefined) {
   } else {
     patchData({
       passProgress: null,
+      weeklyLeagueSnapshot: null,
+      seasonLadderSnapshot: null,
       missions: [],
       checkinStreak: null,
       gameHistory: [],
@@ -856,6 +908,24 @@ export function useCasualPlatform(): CasualPlatformValue {
     }
   }, [user?.uid]);
 
+  const fetchTriathlonSessionProgress = useCallback(
+    async (matchGameId: string): Promise<TriathlonSessionProgress | null> => {
+      const http = getCasualHttpClient();
+      if (!http || !user?.uid || !matchGameId.trim()) return null;
+      try {
+        const row = await http.query(casualTournamentFns.getTriathlonSessionProgress, {
+          uid: user.uid,
+          matchGameId: matchGameId.trim(),
+        });
+        return (row as TriathlonSessionProgress | null) ?? null;
+      } catch (e) {
+        console.error("[CasualPlatform] getTriathlonSessionProgress", e);
+        return null;
+      }
+    },
+    [user?.uid]
+  );
+
   const leaveCasualMatchQueue = useCallback(
     async (templateId?: string) => {
       const http = getCasualHttpClient();
@@ -1039,6 +1109,99 @@ export function useCasualPlatform(): CasualPlatformValue {
     },
     []
   );
+
+  const fetchWeeklyLeagueCohort = useCallback(async () => {
+    const http = getCasualHttpClient();
+    if (!http || !user?.uid) {
+      return { members: [], matching: { total: 0, bots: 0, humans: 0 } };
+    }
+    try {
+      const res = await http.query(
+        casualPlatformApi.service.weeklyLeague.casualWeeklyLeagueQueries.listWeeklyLeagueCohort,
+        { uid: user.uid }
+      );
+      const payload = res as {
+        members?: Array<{
+          uid: string;
+          weeklyLeagueXp: number;
+          rank: number;
+          isBot?: boolean;
+          rowState?: "active" | "matching";
+        }>;
+        matching?: { total: number; bots: number; humans: number };
+      };
+      return {
+        members: Array.isArray(payload.members) ? payload.members : [],
+        matching: payload.matching ?? { total: 0, bots: 0, humans: 0 },
+      };
+    } catch (e) {
+      console.error("[CasualPlatform] listWeeklyLeagueCohort", e);
+      return { members: [], matching: { total: 0, bots: 0, humans: 0 } };
+    }
+  }, [user?.uid]);
+
+  const ensureWeeklyLeagueMember = useCallback(async () => {
+    const http = getCasualHttpClient();
+    if (!http || !user?.uid) return { ok: false };
+    try {
+      const r = await http.mutation(
+        casualPlatformApi.service.weeklyLeague.casualWeeklyLeagueQueries.ensureWeeklyLeagueMemberMutation,
+        { uid: user.uid }
+      );
+      return (r as { ok?: boolean }) ?? { ok: false };
+    } catch (e) {
+      console.error("[CasualPlatform] ensureWeeklyLeagueMember", e);
+      return { ok: false };
+    }
+  }, [user?.uid]);
+
+  const claimWeeklyLeagueRewards = useCallback(async () => {
+    const http = getCasualHttpClient();
+    if (!http || !user?.uid) return { ok: false, error: "not_authenticated" };
+    try {
+      const r = await http.mutation(
+        casualPlatformApi.service.weeklyLeague.casualWeeklyLeagueQueries.claimWeeklyLeagueRewards,
+        { uid: user.uid }
+      );
+      await refreshCasualPlayer();
+      return r as { ok: boolean; error?: string };
+    } catch (e) {
+      console.error("[CasualPlatform] claimWeeklyLeagueRewards", e);
+      return { ok: false, error: "claim_failed" };
+    }
+  }, [user?.uid, refreshCasualPlayer]);
+
+  const dismissWeeklyLeagueClose = useCallback(async () => {
+    const http = getCasualHttpClient();
+    if (!http || !user?.uid) return { ok: false };
+    try {
+      return (await http.mutation(
+        casualPlatformApi.service.weeklyLeague.casualWeeklyLeagueQueries.dismissWeeklyLeagueClose,
+        { uid: user.uid }
+      )) as { ok: boolean };
+    } catch (e) {
+      console.error("[CasualPlatform] dismissWeeklyLeagueClose", e);
+      return { ok: false };
+    }
+  }, [user?.uid]);
+
+  const listPlayerAchievements = useCallback(async () => {
+    const http = getCasualHttpClient();
+    if (!http || !user?.uid) return null;
+    try {
+      return (await http.query(
+        casualPlatformApi.service.achievement.casualAchievementService.listPlayerAchievements,
+        { uid: user.uid }
+      )) as {
+        achievements: Array<{ achievementId: string; unlockedAt: number }>;
+        peakLeagueTier: string;
+        seasonPeakLeagueTier?: string;
+      };
+    } catch (e) {
+      console.error("[CasualPlatform] listPlayerAchievements", e);
+      return null;
+    }
+  }, [user?.uid]);
 
   const submitCasualRun = useCallback(async (_input: {
     tournamentId: string;
@@ -1250,6 +1413,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       fetchPeriodInstanceSelfStanding,
       fetchGameHistory,
       fetchOpenCasualRunAssignments,
+      fetchTriathlonSessionProgress,
       leaveCasualMatchQueue,
       claimCasualRunRewards,
       claimCasualScoreTierPendingReward,
@@ -1258,6 +1422,11 @@ export function useCasualPlatform(): CasualPlatformValue {
       fetchMainSeasonLeaderboard,
       fetchCArenaLeaderboard,
       fetchGameSeasonLeaderboard,
+      fetchWeeklyLeagueCohort,
+      ensureWeeklyLeagueMember,
+      claimWeeklyLeagueRewards,
+      dismissWeeklyLeagueClose,
+      listPlayerAchievements,
       submitCasualRun,
       claimSeasonMission,
       touchDailyLoginMission,
@@ -1285,6 +1454,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       fetchPeriodInstanceSelfStanding,
       fetchGameHistory,
       fetchOpenCasualRunAssignments,
+      fetchTriathlonSessionProgress,
       leaveCasualMatchQueue,
       claimCasualRunRewards,
       claimCasualScoreTierPendingReward,
@@ -1293,6 +1463,11 @@ export function useCasualPlatform(): CasualPlatformValue {
       fetchMainSeasonLeaderboard,
       fetchCArenaLeaderboard,
       fetchGameSeasonLeaderboard,
+      fetchWeeklyLeagueCohort,
+      ensureWeeklyLeagueMember,
+      claimWeeklyLeagueRewards,
+      dismissWeeklyLeagueClose,
+      listPlayerAchievements,
       submitCasualRun,
       claimSeasonMission,
       touchDailyLoginMission,

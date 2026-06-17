@@ -1,6 +1,9 @@
 ﻿/** 异步同桌榜 query 构建（partial / settled；名次仅按 score 降序）。 */
 import type { CasualTournamentDefinition } from "../../../../data/casualTournamentConfigs";
-import { getTournamentDefinition } from "../../../../data/casualTournamentConfigs";
+import {
+  effectiveGameSequence,
+  getTournamentDefinition,
+} from "../../../../data/casualTournamentConfigs";
 import type { Doc, Id } from "../../../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../../../_generated/server";
 import { resolveAsyncLeaderboardRowState } from "../../../../data/casualAsyncLeaderboardRowState";
@@ -8,6 +11,7 @@ import {
   casualAsyncVirtualOpponentCount,
   isCasualAsyncVirtualOpponentUid,
 } from "./casualAsyncTypes";
+import type { PlayerGameRow } from "../../shared/casualPlayerGameTypes";
 
 export { resolveAsyncLeaderboardRowState } from "../../../../data/casualAsyncLeaderboardRowState";
 
@@ -41,12 +45,22 @@ export type CasualAsyncTableLeaderboardRow = {
   watchContext?: Match3WatchContext;
 };
 
+/** 三场合战历史/报告：单局榜 + 各 leg 回放 */
+export type CasualTriathlonLegTableSummary = {
+  gameIndex: number;
+  gameType: string;
+  label: string;
+  rows: CasualAsyncTableLeaderboardRow[];
+};
+
 /** 本会话异步桌结算结果（赛后 UI：完整名次表） */
 export type CasualAsyncTableSummary = {
   maxPlayers: number;
   rows: CasualAsyncTableLeaderboardRow[];
   /** true：真人 confirmed/settled + bot 已 reveal 且结束；榜不再变化，客户端可停 poll */
   isBoardStable?: boolean;
+  /** 三场合战：各局单局榜（含 watchContext）；`rows` 为总分榜 */
+  triathlonLegs?: CasualTriathlonLegTableSummary[];
 };
 
 type PlayerMatchRow = Doc<"casual_run_player_matches">;
@@ -55,13 +69,44 @@ type WatchAttachOpts = {
   gameType?: string;
   seedId?: string;
   pmByUid: Map<string, PlayerMatchRow>;
+  pgByUid: Map<string, PlayerGameRow>;
 };
+
+type BotTiming = Pick<PlayerGameRow, "revealAt" | "duration">;
 
 function pmByUidFromRows(rows: PlayerMatchRow[]): Map<string, PlayerMatchRow> {
   return new Map(rows.map((r) => [r.uid, r]));
 }
 
-const CASUAL_WATCH_GAME_TYPES = new Set(["match_3", "solitaire"]);
+function buildWatchGameByUid(games: PlayerGameRow[]): Map<string, PlayerGameRow> {
+  const out = new Map<string, PlayerGameRow>();
+  for (const g of games) {
+    const prev = out.get(g.uid);
+    if (!prev || g.gameIndex >= prev.gameIndex) {
+      out.set(g.uid, g);
+    }
+  }
+  return out;
+}
+
+function buildBotTimingByUid(games: PlayerGameRow[]): Map<string, BotTiming> {
+  const latestByUid = new Map<string, PlayerGameRow>();
+  for (const g of games) {
+    if (!isCasualAsyncVirtualOpponentUid(g.uid)) continue;
+    if (g.revealAt == null && g.duration == null) continue;
+    const prev = latestByUid.get(g.uid);
+    if (!prev || g.gameIndex > prev.gameIndex) {
+      latestByUid.set(g.uid, g);
+    }
+  }
+  const out = new Map<string, BotTiming>();
+  for (const [uid, g] of latestByUid) {
+    out.set(uid, { revealAt: g.revealAt, duration: g.duration });
+  }
+  return out;
+}
+
+const CASUAL_WATCH_GAME_TYPES = new Set(["match_3", "solitaire", "block_blast"]);
 
 function attachCasualWatchContext(
   pm: PlayerMatchRow | undefined,
@@ -71,20 +116,22 @@ function attachCasualWatchContext(
   if (!opts || !opts.gameType || !CASUAL_WATCH_GAME_TYPES.has(opts.gameType) || !pm) {
     return undefined;
   }
+  const pg = opts.pgByUid.get(pm.uid);
   if (isCasualAsyncVirtualOpponentUid(pm.uid)) {
-    if (!opts.seedId || pm.rolloutIndex == null) return undefined;
+    if (!opts.seedId || pg?.rolloutIndex == null) return undefined;
     return {
       kind: "rollout",
       seedId: opts.seedId,
-      rolloutIndex: pm.rolloutIndex,
-      expectedScore: extras?.expectedScore ?? pm.score,
-      revealAt: extras?.revealAt ?? pm.revealAt,
-      duration: extras?.duration ?? pm.duration,
+      rolloutIndex: pg.rolloutIndex,
+      expectedScore: extras?.expectedScore ?? pg.score ?? pm.score,
+      revealAt: extras?.revealAt ?? pg.revealAt,
+      duration: extras?.duration ?? pg.duration,
     };
   }
+  if (!pg?.gameId) return undefined;
   return {
     kind: "recorded",
-    gameId: pm.gameId,
+    gameId: pg.gameId,
   };
 }
 
@@ -92,18 +139,22 @@ async function resolveWatchAttachOpts(
   ctx: QueryCtx,
   templateId: string,
   matchId: string,
-  rows: PlayerMatchRow[]
+  rows: PlayerMatchRow[],
+  games: PlayerGameRow[]
 ): Promise<WatchAttachOpts | undefined> {
   const def = getTournamentDefinition(templateId);
-  if (!def || !CASUAL_WATCH_GAME_TYPES.has(def.gameType)) return undefined;
-  const matchDoc = matchId.trim()
-    ? await ctx.db.get(matchId as Id<"casual_run_matches">)
-    : null;
-  const seedId = matchDoc?.seedBinding?.seedId;
+  if (!def) return undefined;
+  const watchGameType = effectiveGameSequence(def)[0];
+  if (!watchGameType || !CASUAL_WATCH_GAME_TYPES.has(watchGameType)) return undefined;
+  const humanGame = games.find(
+    (g) => !isCasualAsyncVirtualOpponentUid(g.uid) && g.gameIndex === 0
+  );
+  const seedId = humanGame?.seedBinding.seedId;
   return {
-    gameType: def.gameType,
+    gameType: watchGameType,
     seedId,
     pmByUid: pmByUidFromRows(rows),
+    pgByUid: buildWatchGameByUid(games),
   };
 }
 
@@ -116,13 +167,15 @@ function allHumansConfirmedOrSettled(humanRows: PlayerMatchRow[]): boolean {
 
 function allBotsRevealedAndEnded(
   botRows: PlayerMatchRow[],
+  botTimingByUid: Map<string, BotTiming>,
   targetBotCount: number,
   now: number
 ): boolean {
   if (botRows.length < targetBotCount) return false;
   for (const b of botRows) {
+    const timing = botTimingByUid.get(b.uid) ?? {};
     const state = resolveAsyncLeaderboardRowState(
-      { kind: "bot", revealAt: b.revealAt, duration: b.duration },
+      { kind: "bot", revealAt: timing.revealAt, duration: timing.duration },
       now
     );
     if (state !== "scored") return false;
@@ -134,6 +187,7 @@ function allBotsRevealedAndEnded(
 /** 与 partial 榜同一 `now`，判定同桌榜展示是否已稳定 */
 export function computeCasualAsyncTableBoardStable(args: {
   rows: PlayerMatchRow[];
+  botTimingByUid?: Map<string, BotTiming>;
   maxPlayers: number;
   humanCountPlanned: number;
   now: number;
@@ -142,13 +196,14 @@ export function computeCasualAsyncTableBoardStable(args: {
   if (args.allHumansSettled === true) return true;
   const humans = args.rows.filter((r) => !isCasualAsyncVirtualOpponentUid(r.uid));
   const bots = args.rows.filter((r) => isCasualAsyncVirtualOpponentUid(r.uid));
+  const botTimingByUid = args.botTimingByUid ?? new Map<string, BotTiming>();
   const targetBotCount = casualAsyncVirtualOpponentCount(
     args.maxPlayers,
     args.humanCountPlanned
   );
   return (
     allHumansConfirmedOrSettled(humans) &&
-    allBotsRevealedAndEnded(bots, targetBotCount, args.now)
+    allBotsRevealedAndEnded(bots, botTimingByUid, targetBotCount, args.now)
   );
 }
 
@@ -263,13 +318,14 @@ function buildLeaderboardRowsFromScored(
 
 function buildPartialAsyncTableSummaryRows(args: {
   rows: PlayerMatchRow[];
+  botTimingByUid: Map<string, BotTiming>;
   uid: string;
   maxPlayers: number;
   humanCountPlanned: number;
   now: number;
   watchOpts?: WatchAttachOpts;
 }): CasualAsyncTableLeaderboardRow[] {
-  const { rows, uid, maxPlayers, humanCountPlanned, now, watchOpts } = args;
+  const { rows, botTimingByUid, uid, maxPlayers, humanCountPlanned, now, watchOpts } = args;
   const targetBotCount = casualAsyncVirtualOpponentCount(maxPlayers, humanCountPlanned);
 
   const scoredEntries: Array<{ uid: string; score: number }> = [];
@@ -303,11 +359,12 @@ function buildPartialAsyncTableSummaryRows(args: {
   }
 
   for (const b of bots) {
+    const timing = botTimingByUid.get(b.uid) ?? {};
     const state = resolveAsyncLeaderboardRowState(
       {
         kind: "bot",
-        revealAt: b.revealAt,
-        duration: b.duration,
+        revealAt: timing.revealAt,
+        duration: timing.duration,
       },
       now
     );
@@ -318,8 +375,8 @@ function buildPartialAsyncTableSummaryRows(args: {
     const label = `补位 ${++botPeerIdx}`;
     if (state === "playing") {
       const watchContext = attachCasualWatchContext(b, watchOpts, {
-        revealAt: b.revealAt,
-        duration: b.duration,
+        revealAt: timing.revealAt,
+        duration: timing.duration,
       });
       playingRows.push({
         rank: 0,
@@ -327,7 +384,9 @@ function buildPartialAsyncTableSummaryRows(args: {
         displayLabel: label,
         isBot: true,
         isYou: false,
-        ...(b.revealAt != null && Number.isFinite(b.revealAt) ? { revealAt: b.revealAt } : {}),
+        ...(timing.revealAt != null && Number.isFinite(timing.revealAt)
+          ? { revealAt: timing.revealAt }
+          : {}),
         ...(watchContext ? { watchContext } : {}),
       });
       continue;
@@ -352,6 +411,102 @@ function buildPartialAsyncTableSummaryRows(args: {
     });
   }
   return outRows;
+}
+
+function triathlonLegDisplayLabel(gameType: string): string {
+  switch (gameType) {
+    case "block_blast":
+      return "Block Blast";
+    case "match_3":
+      return "Match-3";
+    case "solitaire":
+      return "Solitaire";
+    default:
+      return gameType;
+  }
+}
+
+/** 历史页：三场合战总分榜 + 各局单局榜（含回放元数据） */
+export async function buildCasualTriathlonHistoryTableSummary(
+  ctx: QueryCtx,
+  args: {
+    templateId: string;
+    uid: string;
+    maxPlayers: number;
+    matchId: string;
+  }
+): Promise<CasualAsyncTableSummary | null> {
+  const def = getTournamentDefinition(args.templateId);
+  if (!def || def.gameType !== "triathlon") return null;
+
+  const sequence = effectiveGameSequence(def);
+  if (sequence.length === 0) return null;
+
+  const { templateId, uid, maxPlayers, matchId } = args;
+  if (!matchId.trim()) return null;
+
+  const pmRows = await ctx.db
+    .query("casual_run_player_matches")
+    .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
+    .collect();
+  if (!pmRows.some((r) => r.uid === uid)) return null;
+
+  const playerGames = await ctx.db
+    .query("casual_run_player_games")
+    .withIndex("by_matchId", (q) => q.eq("matchId", matchId))
+    .collect();
+
+  const totalScored = pmRows
+    .filter((r) => r.score != null && Number.isFinite(r.score))
+    .map((r) => ({ uid: r.uid, score: r.score as number }));
+  if (totalScored.length === 0) return null;
+
+  const overallRows = buildLeaderboardRowsFromScored(totalScored, uid, undefined);
+  const pmByUid = pmByUidFromRows(pmRows);
+
+  const triathlonLegs: CasualTriathlonLegTableSummary[] = [];
+  for (let gameIndex = 0; gameIndex < sequence.length; gameIndex++) {
+    const gameType = sequence[gameIndex]!;
+    if (!CASUAL_WATCH_GAME_TYPES.has(gameType)) continue;
+
+    const legGames = playerGames.filter((g) => g.gameIndex === gameIndex);
+    const pgByUid = new Map(legGames.map((g) => [g.uid, g]));
+    const humanLeg = legGames.find((g) => !isCasualAsyncVirtualOpponentUid(g.uid));
+    const seedId = humanLeg?.seedBinding.seedId ?? legGames[0]?.seedBinding.seedId;
+
+    const legScored: Array<{ uid: string; score: number }> = [];
+    for (const pm of pmRows) {
+      const pg = pgByUid.get(pm.uid);
+      const legScore = pg?.score;
+      if (legScore == null || !Number.isFinite(legScore)) continue;
+      legScored.push({ uid: pm.uid, score: legScore });
+    }
+    if (legScored.length === 0) continue;
+
+    const watchOpts: WatchAttachOpts = {
+      gameType,
+      seedId,
+      pmByUid,
+      pgByUid,
+    };
+    triathlonLegs.push({
+      gameIndex,
+      gameType,
+      label: triathlonLegDisplayLabel(gameType),
+      rows: buildLeaderboardRowsFromScored(legScored, uid, watchOpts),
+    });
+  }
+
+  if (!triathlonLegs.some((leg) => leg.rows.some((r) => r.watchContext))) {
+    return null;
+  }
+
+  return {
+    maxPlayers,
+    rows: overallRows,
+    triathlonLegs,
+    isBoardStable: true,
+  };
 }
 
 export async function buildCasualAsyncTableSummary(
@@ -390,9 +545,15 @@ export async function buildCasualAsyncTableSummary(
   }
 
   const now = Date.now();
-  const watchOpts = await resolveWatchAttachOpts(ctx, templateId, matchId, rows);
+  const playerGames = await ctx.db
+    .query("casual_run_player_games")
+    .withIndex("by_matchId", (q) => q.eq("matchId", matchId))
+    .collect();
+  const botTimingByUid = buildBotTimingByUid(playerGames);
+  const watchOpts = await resolveWatchAttachOpts(ctx, templateId, matchId, rows, playerGames);
   const boardStableArgs = {
     rows,
+    botTimingByUid,
     maxPlayers,
     humanCountPlanned,
     now,
@@ -402,6 +563,7 @@ export async function buildCasualAsyncTableSummary(
   if (!allHumansSettled && maxPlayers > 1) {
     const outRows = buildPartialAsyncTableSummaryRows({
       rows,
+      botTimingByUid,
       uid,
       maxPlayers,
       humanCountPlanned,

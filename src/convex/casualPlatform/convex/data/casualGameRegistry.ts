@@ -2,10 +2,10 @@
  * 已接入 casual 平台的游戏注册表。新游戏在此登记，避免平台核心散落 gameType 分支。
  */
 
-export type CasualSeedStrategy = "remote_http";
+export type CasualSeedStrategy = "remote_http" | "catalog_internal";
 
 /** 异步桌 bot 分由谁写入 */
-export type CasualBotPolicy = "game_ingest" | "none";
+export type CasualBotPolicy = "game_ingest" | "platform_ingest" | "none";
 
 /** find-match-by-game 返回 seed 的方式 */
 export type CasualBridgeLoadGameSeed = "seed_binding_id" | "synthetic_session";
@@ -14,7 +14,7 @@ export type CasualGameRegistration = {
   gameType: string;
   displayName: string;
   seedStrategy: CasualSeedStrategy;
-  /** remote_http：环境变量名（如 SOLITAIRE_HTTP_ORIGIN） */
+  /** remote_http：环境变量名（如 SOLITAIRE_HTTP_ORIGIN）；catalog_internal 忽略 */
   seedRemoteOriginEnv?: string;
   seedRemoteDevDefault?: string;
   botPolicy: CasualBotPolicy;
@@ -40,10 +40,10 @@ export const CASUAL_GAME_REGISTRY = {
   solitaire: {
     gameType: "solitaire",
     displayName: "Solitaire",
-    seedStrategy: "remote_http",
+    seedStrategy: "catalog_internal",
     seedRemoteOriginEnv: "SOLITAIRE_HTTP_ORIGIN",
     seedRemoteDevDefault: DEV_SOLITAIRE_SITE_ORIGIN,
-    botPolicy: "game_ingest",
+    botPolicy: "platform_ingest",
     virtualUidPrefix: "__vp_solitaire:",
     virtualGameIdInfix: "",
     bridgeLoadGameSeed: "seed_binding_id",
@@ -53,22 +53,22 @@ export const CASUAL_GAME_REGISTRY = {
   block_blast: {
     gameType: "block_blast",
     displayName: "Block Blast",
-    seedStrategy: "remote_http",
+    seedStrategy: "catalog_internal",
     seedRemoteOriginEnv: "BLOCK_BLAST_HTTP_ORIGIN",
     seedRemoteDevDefault: DEV_BLOCK_BLAST_SITE_ORIGIN,
-    botPolicy: "game_ingest",
+    botPolicy: "platform_ingest",
     virtualUidPrefix: "__vp_block_blast:",
     virtualGameIdInfix: "_bb",
-    bridgeLoadGameSeed: "synthetic_session",
+    bridgeLoadGameSeed: "seed_binding_id",
     spotlightEligible: true,
   },
   tower_arena: {
     gameType: "tower_arena",
     displayName: "Tower Defense",
-    seedStrategy: "remote_http",
+    seedStrategy: "catalog_internal",
     seedRemoteOriginEnv: "TOWER_HTTP_ORIGIN",
     seedRemoteDevDefault: DEV_TOWER_SITE_ORIGIN,
-    botPolicy: "game_ingest",
+    botPolicy: "platform_ingest",
     virtualUidPrefix: "__vp_tower:",
     virtualGameIdInfix: "_ta",
     bridgeLoadGameSeed: "seed_binding_id",
@@ -78,14 +78,26 @@ export const CASUAL_GAME_REGISTRY = {
   match_3: {
     gameType: "match_3",
     displayName: "Match-3",
-    seedStrategy: "remote_http",
+    seedStrategy: "catalog_internal",
     seedRemoteOriginEnv: "MATCH3_HTTP_ORIGIN",
     seedRemoteDevDefault: DEV_MATCH3_SITE_ORIGIN,
-    botPolicy: "game_ingest",
+    botPolicy: "platform_ingest",
     virtualUidPrefix: "__vp_match_3:",
     virtualGameIdInfix: "_m3",
     bridgeLoadGameSeed: "seed_binding_id",
     spotlightEligible: true,
+  },
+  /** 三场合战：seat 级 composite；各局 seed/bot 仍走 sequence 内已注册 gameType */
+  triathlon: {
+    gameType: "triathlon",
+    displayName: "Triathlon",
+    seedStrategy: "catalog_internal",
+    botPolicy: "platform_ingest",
+    virtualUidPrefix: "__vp_triathlon:",
+    virtualGameIdInfix: "_tri",
+    bridgeLoadGameSeed: "synthetic_session",
+    spotlightEligible: false,
+    lobbyVisible: true,
   },
 } as const satisfies Record<string, CasualGameRegistration>;
 
@@ -168,4 +180,8 @@ export function virtualBotUid(matchId: string, slot: number, gameType: string): 
 
 export function usesGameIngestBotPolicy(gameType: string): boolean {
   return getCasualGameRegistration(gameType)?.botPolicy === "game_ingest";
+}
+
+export function usesPlatformIngestBotPolicy(gameType: string): boolean {
+  return getCasualGameRegistration(gameType)?.botPolicy === "platform_ingest";
 }

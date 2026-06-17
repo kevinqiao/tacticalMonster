@@ -30,17 +30,50 @@ export type CasualAsyncTableLeaderboardRowUI = {
   watchContext?: Match3WatchContext;
 };
 
+export type CasualTriathlonLegTableSummaryUI = {
+  gameIndex: number;
+  gameType: string;
+  label: string;
+  rows: CasualAsyncTableLeaderboardRowUI[];
+};
+
 export type CasualAsyncTableSummaryUI = {
   maxPlayers: number;
   rows: CasualAsyncTableLeaderboardRowUI[];
   /** true：榜展示已稳定，不再随时间变化；客户端可停止 poll */
   isBoardStable?: boolean;
+  /** 三场合战：各局单局榜（含回放）；`rows` 为三局总分榜 */
+  triathlonLegs?: CasualTriathlonLegTableSummaryUI[];
   /** `getCasualAsyncTableSummaryForGame` 附带（非 ingest 响应） */
   replayOffered?: boolean;
   replayTokenCount?: number;
   canReplay?: boolean;
   replayWindowEndsAt?: number;
 };
+
+export function isTriathlonTableSummary(
+  summary: CasualAsyncTableSummaryUI | null | undefined
+): summary is CasualAsyncTableSummaryUI & {
+  triathlonLegs: CasualTriathlonLegTableSummaryUI[];
+} {
+  return Boolean(summary?.triathlonLegs?.length);
+}
+
+export function casualTableSummaryHasReplay(
+  summary: CasualAsyncTableSummaryUI | null | undefined
+): boolean {
+  if (!summary) return false;
+  if (isTriathlonTableSummary(summary)) {
+    return summary.triathlonLegs.some((leg) => leg.rows.some((r) => r.watchContext));
+  }
+  return Boolean(summary.rows?.some((r) => r.watchContext));
+}
+
+export type CasualWatchRowHandler = (
+  ctx: Match3WatchContext,
+  displayLabel: string,
+  gameType?: 'match_3' | 'solitaire' | 'block_blast'
+) => void;
 
 export type ManualSettleConfirmExtras = {
   tableSummary?: CasualAsyncTableSummaryUI | null;
@@ -51,6 +84,13 @@ export type ManualSettleConfirmExtras = {
   canReplay?: boolean;
   /** epoch ms；再战窗口结束时刻，供同桌摘要倒计时 */
   replayWindowEndsAt?: number;
+  /** solo_p75_challenge：目标分（P75） */
+  seedScoreThreshold?: number;
+  /** solo_p75_challenge：是否达标成功 */
+  success?: boolean;
+  /** 三场合战非最后一局：得分明细后进入局间过渡，不展示同桌榜 */
+  triathlonScoreReportOnly?: boolean;
+  deferTriathlonTableSummary?: boolean;
 };
 
 /** 从 `getCasualAsyncTableSummaryForGame` 同步榜 + 再战 UI 状态 */

@@ -83,6 +83,24 @@
   color: rgba(26, 26, 46, 0.55);
 }
 
+.cpp__achievements {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.cpp__achievements li {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 200, 80, 0.2);
+  color: rgba(26, 26, 46, 0.75);
+}
+
 .cpp__uid {
   font-size: 12px;
   font-variant-numeric: tabular-nums;

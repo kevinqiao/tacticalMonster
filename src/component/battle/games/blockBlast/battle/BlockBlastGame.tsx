@@ -10,6 +10,8 @@ import BlockBlastGameProvider from './service/GameManager';
 import './style.css';
 import { BlockBlastGameConfig, normalizeBlockBlastGridSize } from './types/BlockBlastTypes';
 
+import type { TriathlonMidSessionAdvanceHandler } from 'component/battle/games/shared/casualTriathlonSubmitFlow';
+
 interface BlockBlastGameProps {
     gameId?: string;
     /** 若设置，局末在 Block Blast 原有上报之外调用 casualPlatform `submitScore`（Phase A） */
@@ -20,6 +22,7 @@ interface BlockBlastGameProps {
     style?: React.CSSProperties;
     onGameLoadComplete?: () => void;
     onGameSubmit?: () => void;
+    onTriathlonNextGame?: TriathlonMidSessionAdvanceHandler;
 }
 
 /** Must match `CONVEX_URL` in `src/convex/blockBlast/.env.local` after `npx convex dev`. */
@@ -35,6 +38,7 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
     config,
     onGameLoadComplete,
     onGameSubmit,
+    onTriathlonNextGame,
 }) => {
     /** 与 Solitaire：`game_${matchId}_${uid}` 由 `proxy.controller.loadGame` action 从 casual 拉 seed 后建局，勿在此 mutation 重复 insert */
     const [activeGameId, setActiveGameId] = React.useState<string | undefined>(
@@ -103,6 +107,7 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
             casualTournamentId={casualTournamentId}
             onGameLoadComplete={onGameLoadComplete}
             onGameSubmit={onGameSubmit}
+            onTriathlonNextGame={onTriathlonNextGame}
         >
             <BlockBlastDnDProvider>
                 <GamePlayer />
@@ -120,6 +125,7 @@ const BlockBlastGame: React.FC<BlockBlastGameProps> = ({
     style,
     onGameLoadComplete,
     onGameSubmit,
+    onTriathlonNextGame,
 }) => {
     const client = React.useMemo(() => new ConvexReactClient(convex_url), []);
 
@@ -133,6 +139,7 @@ const BlockBlastGame: React.FC<BlockBlastGameProps> = ({
                     config={config}
                     onGameLoadComplete={onGameLoadComplete}
                     onGameSubmit={onGameSubmit}
+                    onTriathlonNextGame={onTriathlonNextGame}
                 />
             </ConvexProvider>
         </div>

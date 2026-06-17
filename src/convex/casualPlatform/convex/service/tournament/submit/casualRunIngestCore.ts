@@ -5,6 +5,7 @@ import { internal } from "../../../_generated/api";
 import {
   getTournamentDefinition,
   isPeriodScopedTournament,
+  effectiveGameSequence,
   type CasualTournamentDefinition,
 } from "../../../data/casualTournamentConfigs";
 import type { Doc, Id } from "../../../_generated/dataModel";
@@ -27,9 +28,6 @@ import {
 } from "../settle/casualRunSettlementFill";
 import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes";
 import { botFinalizeDelayMs } from "../settle/async/casualAsyncBotDueTime";
-import { internal } from "../../../_generated/api";
-import type { Id } from "../../../_generated/dataModel";
-import type { MutationCtx } from "../../../_generated/server";
 import {
   allHumansConfirmed,
   allHumansSubmitted,
@@ -37,14 +35,16 @@ import {
   promoteExpiredFinishedInMatch,
 } from "../shared/casualPlayerMatchStatus";
 import { buildPartialIngestResponse } from "./casualRunIngestHelpers";
+import { resolvePlayerGameIngestContext } from "./casualPlayerGameIngest";
+import { playerGameId } from "../shared/casualPlayerGameTypes";
 import { incrementRankCountsForSettledHumans } from "../shared/casualPlayerTournamentRankStats";
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
-import { applyCasualTemplateLadderDelta } from "../../season/casualSeasonLadder";
 import {
-  activeSeasonId,
   applyCasualTemplateScoreEffects,
   persistPendingRunRewards,
 } from "../settle/casualRunScoreEffects";
+import { applyWeeklyLeagueOnMatchSettle } from "../../weeklyLeague/casualWeeklyLeagueSettle";
+import { CASUAL_WEEKLY_LEAGUE_ENABLED } from "../../../data/casualWeeklyLeagueConfig";
 export async function settleSoloMaxPlayersOneCasualRun(
   ctx: MutationCtx,
   args: {
@@ -55,6 +55,7 @@ export async function settleSoloMaxPlayersOneCasualRun(
     score: number;
     now: number;
     gameType: string;
+    seedScoreThreshold?: number;
   }
 ) {
   const { def, pm, matchDoc, uid, score, now, gameType } = args;
@@ -108,24 +109,25 @@ export async function settleSoloMaxPlayersOneCasualRun(
       uid,
       def,
       now,
-      matchGameId: pm.gameId,
+      matchGameId: playerGameId(pm.matchId, uid, 0),
       gameType: def.gameType,
     });
-    const seasonIdPeriod = await activeSeasonId(ctx);
-    let periodLadderDelta = 0;
-    if (seasonIdPeriod) {
-      periodLadderDelta = await applyCasualTemplateLadderDelta(ctx, seasonIdPeriod, def, {
+    let weeklyLeagueSettlePeriod: Awaited<ReturnType<typeof applyWeeklyLeagueOnMatchSettle>> = null;
+    if (CASUAL_WEEKLY_LEAGUE_ENABLED) {
+      weeklyLeagueSettlePeriod = await applyWeeklyLeagueOnMatchSettle(ctx, {
         uid,
-        score,
+        def,
+        seasonXpOnSettle: def.seasonXpOnSettle,
         multiplayerFinalRank: 1,
+        sessionKind: pm.sessionKind,
+        now,
       });
     }
     await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
       uid,
       matchType: def.matchType,
       platformGameType: def.gameType,
-      spotlightSeasonBoardGain:
-        def.matchType === "season_challenge" ? periodLadderDelta : 0,
+      spotlightSeasonBoardGain: 0,
       multiplayerFinalRank: 1,
     });
     const tableSummaryPeriodSolo = casualTableSummarySolo(def.maxPlayers, score);
@@ -133,6 +135,7 @@ export async function settleSoloMaxPlayersOneCasualRun(
       ok: true as const,
       periodSettled: true as const,
       tableSummary: tableSummaryPeriodSolo,
+      ...(weeklyLeagueSettlePeriod ? { weeklyLeagueSettle: weeklyLeagueSettlePeriod } : {}),
     };
   }
 
@@ -144,6 +147,10 @@ export async function settleSoloMaxPlayersOneCasualRun(
     matchId: pm.matchId,
     runTournamentId: pm.tournamentId,
     multiplayerFinalRank: 1,
+    sessionKind: pm.sessionKind,
+    ...(typeof args.seedScoreThreshold === "number"
+      ? { seedScoreThreshold: args.seedScoreThreshold }
+      : {}),
   });
   await persistPendingRunRewards(ctx, runTid, uid, extra.pendingWalletRewards);
 
@@ -241,6 +248,7 @@ export async function finalizeCasualAsyncMatchIngest(
   }
 
   if (skipPeriodWallet && runRow?.instanceId) {
+    let lastWeeklyLeague: Awaited<ReturnType<typeof applyWeeklyLeagueOnMatchSettle>> = null;
     for (const hp of sortedHumans) {
       if (hp.score == null) continue;
       await ensureInstancePlayerStateRow(ctx, {
@@ -261,14 +269,29 @@ export async function finalizeCasualAsyncMatchIngest(
         uid: hp.uid,
         def,
         now,
-        matchGameId: hp.gameId,
+        matchGameId: playerGameId(hp.matchId, hp.uid, 0),
         gameType: def.gameType,
       });
+      const freshPm = await ctx.db.get(hp._id);
+      const finalRank = freshPm?.rank;
+      if (CASUAL_WEEKLY_LEAGUE_ENABLED) {
+        lastWeeklyLeague = await applyWeeklyLeagueOnMatchSettle(ctx, {
+          uid: hp.uid,
+          def,
+          seasonXpOnSettle: def.seasonXpOnSettle,
+          multiplayerFinalRank: finalRank ?? undefined,
+          sessionKind: hp.sessionKind,
+          now,
+        });
+      }
       await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
         uid: hp.uid,
         matchType: def.matchType,
         platformGameType: def.gameType,
         spotlightSeasonBoardGain: 0,
+        ...(typeof finalRank === "number" && finalRank >= 1
+          ? { multiplayerFinalRank: finalRank }
+          : {}),
       });
     }
     const tableSummaryPeriodMulti = await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
@@ -285,10 +308,12 @@ export async function finalizeCasualAsyncMatchIngest(
       finalized: true as const,
       periodSettled: true as const,
       ...(tableSummaryPeriodMulti ? { tableSummary: tableSummaryPeriodMulti } : {}),
+      ...(lastWeeklyLeague ? { weeklyLeagueSettle: lastWeeklyLeague } : {}),
     };
   }
 
   let lastExtra: Awaited<ReturnType<typeof applyCasualTemplateScoreEffects>> = {};
+  let lastWeeklyLeague: Awaited<ReturnType<typeof applyWeeklyLeagueOnMatchSettle>> = null;
   for (const hp of sortedHumans) {
     if (hp.score == null) continue;
     const freshPm = await ctx.db.get(hp._id);
@@ -301,12 +326,26 @@ export async function finalizeCasualAsyncMatchIngest(
       matchId: pm.matchId,
       runTournamentId: pm.tournamentId,
       skipCasualAsyncBotSeed: true,
+      skipWeeklyLeagueXp: def.maxPlayers > 1,
+      sessionKind: hp.sessionKind,
       ...(typeof finalRank === "number" && finalRank >= 1
         ? { multiplayerFinalRank: finalRank }
         : {}),
     });
     await persistPendingRunRewards(ctx, runTid, hp.uid, extra.pendingWalletRewards);
     lastExtra = extra;
+    if (CASUAL_WEEKLY_LEAGUE_ENABLED && def.maxPlayers > 1) {
+      lastWeeklyLeague = await applyWeeklyLeagueOnMatchSettle(ctx, {
+        uid: hp.uid,
+        def,
+        seasonXpOnSettle: def.seasonXpOnSettle,
+        multiplayerFinalRank: finalRank ?? undefined,
+        sessionKind: hp.sessionKind,
+        now,
+      });
+    } else if (extra.weeklyLeagueSettle) {
+      lastWeeklyLeague = extra.weeklyLeagueSettle;
+    }
   }
 
   const tableSummaryReturn = await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
@@ -324,6 +363,7 @@ export async function finalizeCasualAsyncMatchIngest(
     finalized: true as const,
     ...(tableSummaryReturn ? { tableSummary: tableSummaryReturn } : {}),
     ...lastExtra,
+    ...(lastWeeklyLeague ? { weeklyLeagueSettle: lastWeeklyLeague } : {}),
   };
 }
 
@@ -376,7 +416,11 @@ export async function tryFinalizeCasualAsyncMatch(
   }
 
   if (!opts?.skipBotDueWait) {
-    const interval = botFinalizeDelayMs(refreshed, now);
+    const botGames = await ctx.db
+      .query("casual_run_player_games")
+      .withIndex("by_matchId", (q) => q.eq("matchId", matchId))
+      .collect();
+    const interval = botFinalizeDelayMs(botGames, now);
     if (interval > 0) {
       await ctx.scheduler.runAfter(
         interval,
@@ -393,7 +437,8 @@ export async function tryFinalizeCasualAsyncMatch(
     humanPms[0]!;
   const pmFresh = (await ctx.db.get(anchor._id)) ?? anchor;
   const humanCountPlanned = Math.max(1, matchDoc.humanPlayerCount ?? 1);
-  const gameTypeCheck = assertRegisteredMatchGameType(pmFresh.gameType);
+  const sequence = effectiveGameSequence(def);
+  const gameTypeCheck = assertRegisteredMatchGameType(sequence[0] ?? def.gameType);
   if (!gameTypeCheck.ok) {
     return { finalized: false, promotedOnly: false };
   }
@@ -417,20 +462,13 @@ export async function runConfirmCasualRunWithoutReplay(
   ctx: MutationCtx,
   { uid, matchGameId }: { uid: string; matchGameId: string }
 ) {
-    const pm = await ctx.db
-      .query("casual_run_player_matches")
-      .withIndex("by_gameId", (q) => q.eq("gameId", matchGameId))
-      .unique();
-    if (!pm) {
-      return { ok: false as const, error: "unknown_match_game" };
+    const resolved = await resolvePlayerGameIngestContext(ctx, uid, matchGameId);
+    if (!resolved.ok) {
+      return { ok: false as const, error: resolved.error };
     }
-    if (pm.uid !== uid) {
-      return { ok: false as const, error: "forbidden" };
-    }
-    const def = getTournamentDefinition(pm.templateId);
-    if (!def) {
-      return { ok: false as const, error: "bad_tournament" };
-    }
+    const pm = resolved.ctx.pm;
+    const def = resolved.ctx.def;
+    const gameType = resolved.ctx.gameType;
 
     const now = Date.now();
     const sessionExternalId = canonicalCasualRunSessionExternalId(pm.matchId);
@@ -473,11 +511,10 @@ export async function runConfirmCasualRunWithoutReplay(
     }
 
     const pmFresh = (await ctx.db.get(pm._id)) ?? pm;
-    const gameTypeCheck = assertRegisteredMatchGameType(pmFresh.gameType);
+    const gameTypeCheck = assertRegisteredMatchGameType(gameType);
     if (!gameTypeCheck.ok) {
       return { ok: false as const, error: gameTypeCheck.error };
     }
-    const gameType = gameTypeCheck.gameType;
 
     if (
       def.maxPlayers <= 1 &&

@@ -1,5 +1,6 @@
 ﻿import { v } from "convex/values";
 import {
+  effectiveGameSequence,
   getTournamentDefinition,
 } from "../../../data/casualTournamentConfigs";
 import { internalMutation, internalQuery, mutation, query } from "../../../_generated/server";
@@ -14,6 +15,11 @@ import {
   maybeGrantDevReplayTokensOnSubmit,
 } from "./casualRunIngestHelpers";
 import {
+  finalizeSeatScoreFromGames,
+  resolvePlayerGameIngestContext,
+  unlockNextPlayerGame,
+} from "./casualPlayerGameIngest";
+import {
   applyAsyncBotFillPlanToMatch,
   buildCasualAsyncTableSummary,
   isCasualAsyncVirtualOpponentUid,
@@ -22,22 +28,25 @@ import {
 import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes";
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
 import type { Id } from "../../../_generated/dataModel";
+import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
 import {
   finalizeCasualAsyncMatchIngest,
   runConfirmCasualRunWithoutReplay,
   settleSoloMaxPlayersOneCasualRun,
 } from "./casualRunIngestCore";
+
 export const getCasualAsyncTableSummaryForGame = query({
   args: {
     uid: v.string(),
     matchGameId: v.string(),
   },
   handler: async (ctx, { uid, matchGameId }) => {
-    const pm = await ctx.db
-      .query("casual_run_player_matches")
-      .withIndex("by_gameId", (q) => q.eq("gameId", matchGameId))
-      .unique();
-    if (!pm || pm.uid !== uid) {
+    const pg = await findPlayerGameByGameId(ctx, matchGameId);
+    if (!pg || pg.uid !== uid) {
+      return null;
+    }
+    const pm = await ctx.db.get(pg.playerMatchId);
+    if (!pm) {
       return null;
     }
     const def = getTournamentDefinition(pm.templateId);
@@ -76,16 +85,9 @@ export const getCasualAsyncTableSummaryForGame = query({
     };
   },
 });
-export const getCasualRunMatchGameType = internalQuery({
-  args: { matchGameId: v.string() },
-  handler: async (ctx, { matchGameId }) => {
-    const pm = await ctx.db
-      .query("casual_run_player_matches")
-      .withIndex("by_gameId", (q) => q.eq("gameId", matchGameId))
-      .unique();
-    return pm?.gameType ?? null;
-  },
-});
+
+export { getCasualRunMatchGameType } from "./casualRunBridgeQueries";
+
 export const submitCasualRunScoreCore = internalMutation({
   args: {
     uid: v.string(),
@@ -99,31 +101,33 @@ export const submitCasualRunScoreCore = internalMutation({
           duration: v.optional(v.number()),
           rolloutIndex: v.optional(v.number()),
           revealAt: v.optional(v.number()),
+          legs: v.optional(
+            v.array(
+              v.object({
+                gameIndex: v.number(),
+                score: v.number(),
+                rolloutIndex: v.optional(v.number()),
+                duration: v.optional(v.number()),
+              })
+            )
+          ),
         })
       )
     ),
     replaceAllVirtual: v.optional(v.boolean()),
+    seedScoreThreshold: v.optional(v.number()),
   },
-  handler: async (ctx, { uid, matchGameId, score, botFills, replaceAllVirtual }) => {
-    const pm = await ctx.db
-      .query("casual_run_player_matches")
-      .withIndex("by_gameId", (q) => q.eq("gameId", matchGameId))
-      .unique();
-    if (!pm) {
-      return { ok: false as const, error: "unknown_match_game" };
+  handler: async (ctx, { uid, matchGameId, score, botFills, replaceAllVirtual, seedScoreThreshold }) => {
+    const resolved = await resolvePlayerGameIngestContext(ctx, uid, matchGameId);
+    if (!resolved.ok) {
+      return { ok: false as const, error: resolved.error };
     }
-    if (pm.uid !== uid) {
-      return { ok: false as const, error: "forbidden" };
-    }
-    const def = getTournamentDefinition(pm.templateId);
-    if (!def || def.gameType !== pm.gameType) {
-      return { ok: false as const, error: "bad_tournament" };
-    }
-    const regCheck = assertRegisteredMatchGameType(pm.gameType);
+    const { pg, pm, def, gameType, isLastGame } = resolved.ctx;
+
+    const regCheck = assertRegisteredMatchGameType(gameType);
     if (!regCheck.ok) {
       return regCheck;
     }
-    const gameType = regCheck.gameType;
     const sessionExternalId = canonicalCasualRunSessionExternalId(pm.matchId);
     if (!Number.isFinite(score) || score < 0) {
       return { ok: false as const, error: "bad_score" };
@@ -132,13 +136,6 @@ export const submitCasualRunScoreCore = internalMutation({
     if (pm.status === "settled") {
       return { ok: true as const, deduped: true as const };
     }
-
-    const now = Date.now();
-    const defEarly = getTournamentDefinition(pm.templateId);
-    if (!defEarly) {
-      return { ok: false as const, error: "bad_tournament" };
-    }
-
     if (pm.status === "confirmed") {
       return { ok: true as const, deduped: true as const };
     }
@@ -158,22 +155,45 @@ export const submitCasualRunScoreCore = internalMutation({
       };
     }
 
+    if (pg.status !== "open" && pg.status !== "replaying") {
+      return { ok: false as const, error: "match_not_submittable" };
+    }
     if (pm.status !== "open" && pm.status !== "replaying") {
       return { ok: false as const, error: "match_not_submittable" };
     }
+
     const matchDoc = await ctx.db.get(pm.matchId as Id<"casual_run_matches">);
     if (!matchDoc) {
       return { ok: false as const, error: "match_not_found" };
     }
 
-    await ctx.db.patch(pm._id, {
+    const now = Date.now();
+    await ctx.db.patch(pg._id, {
       score,
       status: "finished",
       finishedAt: now,
       updatedAt: now,
     });
 
+    if (!isLastGame) {
+      const next = await unlockNextPlayerGame(ctx, { pm, pg, now });
+      if (!next) {
+        return { ok: false as const, error: "missing_next_game" };
+      }
+      return {
+        ok: true as const,
+        gameComplete: true as const,
+        nextGame: {
+          gameIndex: next.gameIndex,
+          gameId: next.gameId,
+          gameType: next.gameType,
+        },
+      };
+    }
+
+    const totalScore = await finalizeSeatScoreFromGames(ctx, pm._id, now);
     const pmAfterFinish = (await ctx.db.get(pm._id)) ?? pm;
+
     await maybeGrantDevReplayTokensOnSubmit(ctx, {
       def,
       pm: pmAfterFinish,
@@ -181,20 +201,20 @@ export const submitCasualRunScoreCore = internalMutation({
       now,
     });
 
-    /** 虚拟对手一经 seed（botsSeeded）即不可替换；再战等重交分仅更新真人成绩 */
     if (
       def.maxPlayers > 1 &&
       botFills &&
       botFills.length > 0 &&
       !matchDoc.botsSeeded
     ) {
+      const botGameType = effectiveGameSequence(def)[0] ?? gameType;
       await applyAsyncBotFillPlanToMatch(ctx, {
         def,
         templateId: pm.templateId,
         matchId: pm.matchId,
         runTournamentId: pm.tournamentId,
         sessionExternalId,
-        matchGameType: gameType,
+        matchGameType: botGameType,
         botFills: botFills as AsyncBotFill[],
         updatedAt: now,
         replaceAllVirtual: replaceAllVirtual ?? true,
@@ -211,7 +231,6 @@ export const submitCasualRunScoreCore = internalMutation({
     const humanPms = refreshed.filter((p) => !isCasualAsyncVirtualOpponentUid(p.uid));
     const humanCountPlanned = Math.max(1, matchDoc.humanPlayerCount ?? 1);
 
-    /** 异步桌：任一真人仍在 `finished` 再战窗口内 → 不立刻全员 settled（再战由 query 拉取） */
     const anyHumanInReplayWindow =
       def.maxPlayers > 1 &&
       humanPms.some(
@@ -226,22 +245,22 @@ export const submitCasualRunScoreCore = internalMutation({
       };
     }
 
-    /** 仅真正单人桌（`maxPlayers === 1`，如日榜）走简路；A/B/C 即使仅 1 真人也需虚拟对手 + 名次赛季分 */
     if (def.maxPlayers <= 1) {
       return await settleSoloMaxPlayersOneCasualRun(ctx, {
         def,
-        pm,
+        pm: pmAfterFinish,
         matchDoc,
         uid,
-        score,
+        score: totalScore,
         now,
         gameType,
+        ...(typeof seedScoreThreshold === "number" ? { seedScoreThreshold } : {}),
       });
     }
 
     return await finalizeCasualAsyncMatchIngest(ctx, {
       def,
-      pm,
+      pm: pmAfterFinish,
       uid,
       now,
       gameType,
@@ -251,8 +270,8 @@ export const submitCasualRunScoreCore = internalMutation({
     });
   },
 });
+
 export const confirmCasualRunWithoutReplay = mutation({
   args: { uid: v.string(), matchGameId: v.string() },
   handler: runConfirmCasualRunWithoutReplay,
 });
-

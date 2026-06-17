@@ -137,6 +137,13 @@
   color: #0369a1;
 }
 
+.casual-game-tour__badge--p75 {
+  width: auto;
+  padding: 0 6px;
+  background: rgba(244, 63, 94, 0.18);
+  color: #be123c;
+}
+
 .casual-game-tour__main {
   flex: 1;
   min-width: 0;

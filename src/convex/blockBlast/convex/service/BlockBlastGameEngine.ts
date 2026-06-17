@@ -15,26 +15,12 @@ import {
     checkLines,
     clearLines,
     createEmptyGrid,
+    normalizeShapeMatrix,
     placeShapeOnGrid,
 } from '../utils/gameRules';
+import { pickWeightedShapeTemplate } from './blockBlastShapeCatalog';
 
-/** 常见 1010 形状模板 */
-export const SHAPE_TEMPLATES: number[][][] = [
-    [[1]],
-    [[1, 0], [1, 1]],
-    [[1, 1], [0, 1]],
-    [[0, 1], [1, 1]],
-    [[1, 1], [1, 0]],
-    [[1, 1]],
-    [[1], [1]],
-    [[1, 1, 1]],
-    [[1], [1], [1]],
-    [[1, 1], [1, 1]],
-    [[1, 1, 1], [0, 1, 0]],
-    [[0, 1], [1, 1], [0, 1]],
-    [[1, 1, 0], [0, 1, 1]],
-    [[0, 1], [1, 1], [1, 0]],
-];
+export { SHAPE_TEMPLATES } from './blockBlastShapeCatalog';
 
 function createSeededRandom(seed: string | number): () => number {
     if (typeof seed === 'number') {
@@ -95,7 +81,7 @@ export function generateDeterministicId(seed: string, index: number): string {
 export function generateShape(template: number[][], color: number, shapeIndex: number, seed?: string): Shape {
     return {
         id: seed ? generateDeterministicId(seed, shapeIndex) : randomUuidCompat(),
-        shape: template,
+        shape: normalizeShapeMatrix(template.map((row) => [...row])),
         color,
     };
 }
@@ -111,10 +97,10 @@ export function generateShapes(count: number, seed?: string, startIndex: number 
     }
 
     for (let i = 0; i < count; i++) {
-        const templateIndex = Math.floor(rng() * SHAPE_TEMPLATES.length);
-        const color = Math.floor(rng() * 7) + 1;
         const shapeIndex = startIndex + i;
-        shapes.push(generateShape(SHAPE_TEMPLATES[templateIndex], color, shapeIndex, seed));
+        const template = pickWeightedShapeTemplate(rng, shapeIndex);
+        const color = Math.floor(rng() * 7) + 1;
+        shapes.push(generateShape(template, color, shapeIndex, seed));
     }
     return shapes;
 }

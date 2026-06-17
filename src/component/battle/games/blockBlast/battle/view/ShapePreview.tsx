@@ -1,8 +1,14 @@
 /**
  * 当前可放置形状（Hand）预览
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useBlockBlastGameManager } from '../service/GameManager';
+import {
+    computeHandPreviewSlots,
+    fitPreviewCellSizeForShape,
+    previewCellSizeCap,
+    type HandPreviewLayout,
+} from '../utils/blockBlastPreviewLayout';
 import ShapeBlock from './ShapeBlock';
 
 interface ShapePreviewProps {
@@ -10,7 +16,7 @@ interface ShapePreviewProps {
 }
 
 const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
-    const { gameState, boardDimension } = useBlockBlastGameManager();
+    const { gameState, boardDimension, replayMode } = useBlockBlastGameManager();
     const previewRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -47,15 +53,24 @@ const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
         preview.classList.toggle('blockblast-shape-preview--intrinsic-height', intrinsicH);
     }, [boardDimension]);
 
-    if (!gameState) return null;
-
-    const previewCellSize = Math.max(
-        22,
-        Math.min(44, Math.floor((boardDimension?.cellSize ?? 36) * 0.85))
-    );
-
+    const gridGap = boardDimension?.spacing ?? 2;
     const previewPortrait =
         boardDimension !== null && boardDimension.height >= boardDimension.width;
+    const handLayout: HandPreviewLayout = previewPortrait ? 'portraitRow' : 'landscapeColumn';
+
+    const sp = boardDimension?.shapePreview;
+    const previewW = typeof sp?.width === 'number' ? sp.width : boardDimension?.width ?? 0;
+    const previewH = typeof sp?.height === 'number' ? sp.height : 120;
+
+    const slots = useMemo(
+        () => computeHandPreviewSlots(handLayout, previewW, previewH),
+        [handLayout, previewW, previewH]
+    );
+
+    const maxCellCap = previewCellSizeCap(boardDimension?.cellSize ?? 36);
+    const minPreviewCell = 14;
+
+    if (!gameState) return null;
 
     return (
         <div
@@ -72,9 +87,29 @@ const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
             >
                 <div className="blockblast-shape-preview-col blockblast-shape-preview-col--hand">
                     <div className="blockblast-shape-preview-hand-shapes">
-                        {gameState.shapes.map((shape) => (
-                            <ShapeBlock key={shape.id} shape={shape} cellSize={previewCellSize} />
-                        ))}
+                        {gameState.shapes.map((shape, index) => {
+                            const slot = slots[index] ?? slots[0] ?? { width: 80, height: 80 };
+                            const cellSize = fitPreviewCellSizeForShape(
+                                shape.shape,
+                                slot,
+                                gridGap,
+                                minPreviewCell,
+                                maxCellCap
+                            );
+                            return (
+                                <div
+                                    key={shape.id}
+                                    className="blockblast-shape-preview-slot"
+                                >
+                                    <ShapeBlock
+                                        shape={shape}
+                                        cellSize={cellSize}
+                                        gridGap={gridGap}
+                                        draggable={!replayMode}
+                                    />
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>

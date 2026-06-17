@@ -26,6 +26,8 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   const titleId = useId();
   if (!open || !report) return null;
 
+  const challenge = report.challenge;
+
   return (
     <div className="msc-overlay" role="presentation">
       <button
@@ -43,8 +45,36 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
       >
         <div className="ssc">
           <h2 id={titleId} className="ssc__title msc-successTitle">
-            {title}
+            {challenge ? (challenge.success ? '挑战成功' : '未达成目标') : title}
           </h2>
+          {challenge ? (
+            <div
+              className={
+                challenge.success
+                  ? 'msc-challengeResult msc-challengeResult--success'
+                  : 'msc-challengeResult msc-challengeResult--fail'
+              }
+              role="status"
+            >
+              <span className="msc-challengeResult__badge">
+                {challenge.success ? '成功' : '未达成'}
+              </span>
+              <div className="msc-challengeResult__rows">
+                <div className="msc-challengeResult__row">
+                  <span>目标分（P75）</span>
+                  <span className="msc-challengeResult__val">
+                    {challenge.targetScore.toLocaleString()}
+                  </span>
+                </div>
+                <div className="msc-challengeResult__row">
+                  <span>游戏分数</span>
+                  <span className="msc-challengeResult__val">
+                    {challenge.achievedScore.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <p className="ssc__body msc-scoreReportSub">
             {report.gameLabel} · 以下为当局得分明细
           </p>

@@ -21,8 +21,17 @@ import {
 import {
   applyCasualTableSummaryFromQuery,
   type CasualAsyncTableSummaryUI,
+  type ManualSettleConfirmExtras,
   type Match3WatchContext,
 } from '../../../shared/casualAsyncTableSummaryUI';
+import {
+  queueTriathlonMidSessionAdvance,
+  shouldDeferTriathlonTableSummaryForLeg,
+  tryAdvanceTriathlonMidSession,
+  type TriathlonMidSessionAdvanceHandler,
+  type TriathlonPendingAdvance,
+} from '../../../shared/casualTriathlonSubmitFlow';
+import type { TriathlonNextGame } from 'component/lobby/casual/service/useCasualTriathlonSession';
 import { useCasualTableSummaryPoll } from '../../../shared/useCasualTableSummaryPoll';
 import { allocateGridCellRefs, type GridCellRefs } from '../animation/gridCellRefs';
 import {
@@ -84,6 +93,7 @@ interface Props {
   casualTournamentId?: string;
   onGameLoadComplete?: () => void;
   onGameSubmit?: () => void;
+  onTriathlonNextGame?: TriathlonMidSessionAdvanceHandler;
 }
 
 export const Match3GameProvider: React.FC<Props> = ({
@@ -92,6 +102,7 @@ export const Match3GameProvider: React.FC<Props> = ({
   casualTournamentId,
   onGameLoadComplete,
   onGameSubmit,
+  onTriathlonNextGame,
 }) => {
   const convex = useConvex();
   const casual = useCasualPlatform();
@@ -110,17 +121,32 @@ export const Match3GameProvider: React.FC<Props> = ({
   const [postCasualSummaryOpen, setPostCasualSummaryOpen] = useState(false);
   const [postCasualTableSummary, setPostCasualTableSummary] = useState<CasualAsyncTableSummaryUI | null>(null);
   const [postCasualWaitingForPeers, setPostCasualWaitingForPeers] = useState(false);
+  const [triathlonDeferTableSummary, setTriathlonDeferTableSummary] = useState(false);
   const [watchTarget, setWatchTarget] = useState<Match3WatchContext | null>(null);
   const [watchTargetLabel, setWatchTargetLabel] = useState('');
   const casualRunSubmittedRef = useRef(false);
+  const pendingTriathlonAdvanceRef = useRef<TriathlonPendingAdvance | null>(null);
   const gameStateRef = useRef<Match3GameState | null>(null);
+  const triathlonSessionActive = Boolean(onTriathlonNextGame);
 
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
+  useEffect(() => {
+    casualRunSubmittedRef.current = false;
+    pendingTriathlonAdvanceRef.current = null;
+    setTriathlonDeferTableSummary(false);
+    setPostCasualScoreReportOpen(false);
+    setPostCasualScoreReport(null);
+    setPostCasualSummaryOpen(false);
+    setPostCasualTableSummary(null);
+    setPostCasualWaitingForPeers(false);
+  }, [gameState?.gameId]);
+
   useCasualTableSummaryPoll({
-    open: postCasualSummaryOpen || postCasualScoreReportOpen,
+    open:
+      (postCasualSummaryOpen || postCasualScoreReportOpen) && !triathlonDeferTableSummary,
     summary: postCasualTableSummary,
     matchGameId: gameState?.gameId?.startsWith('game_') ? gameState.gameId : undefined,
     fetchSummary: casual.fetchCasualTableSummaryForGame,
@@ -165,7 +191,17 @@ export const Match3GameProvider: React.FC<Props> = ({
   }, []);
 
   const beginCasualPostSettleFlow = useCallback(
-    async (gid: string, fallbackScore: number, settle: { tableSummary?: CasualAsyncTableSummaryUI; pendingOthers?: boolean }) => {
+    async (
+      gid: string,
+      fallbackScore: number,
+      settle: {
+        tableSummary?: CasualAsyncTableSummaryUI;
+        pendingOthers?: boolean;
+        seedScoreThreshold?: number;
+        success?: boolean;
+        deferTriathlonTableSummary?: boolean;
+      }
+    ) => {
       let report: CasualGameScoreReportUI = {
         gameLabel: 'Match-3',
         lines: [{ label: '本局得分', value: fallbackScore }],
@@ -180,11 +216,57 @@ export const Match3GameProvider: React.FC<Props> = ({
       } catch (e) {
         console.warn('[match3] findReport', e);
       }
+      if (typeof settle.seedScoreThreshold === 'number') {
+        report.challenge = {
+          targetScore: settle.seedScoreThreshold,
+          achievedScore: report.totalScore,
+          success: Boolean(settle.success),
+        };
+      }
+      const deferTableSummary =
+        Boolean(settle.deferTriathlonTableSummary) ||
+        shouldDeferTriathlonTableSummaryForLeg(
+          casualTournamentId,
+          gid,
+          triathlonSessionActive
+        );
+      setTriathlonDeferTableSummary(deferTableSummary);
+
+      if (
+        deferTableSummary &&
+        triathlonSessionActive &&
+        onTriathlonNextGame &&
+        tryAdvanceTriathlonMidSession({
+          triathlonSessionActive,
+          casualTournamentId,
+          matchGameId: gid,
+          legScore: report.totalScore,
+          pendingTriathlon: pendingTriathlonAdvanceRef.current,
+          onTriathlonNextGame,
+          scoreReport: report,
+        })
+      ) {
+        pendingTriathlonAdvanceRef.current = null;
+        setTriathlonDeferTableSummary(false);
+        return;
+      }
+
       setPostCasualScoreReport(report);
-      setPostCasualTableSummary(settle.tableSummary ?? null);
-      setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
+      setPostCasualTableSummary(deferTableSummary ? null : settle.tableSummary ?? null);
+      setPostCasualWaitingForPeers(deferTableSummary ? false : Boolean(settle.pendingOthers));
       setPostCasualScoreReportOpen(true);
-      if (!settle.tableSummary) {
+      if (deferTableSummary) {
+        return;
+      }
+      if (settle.tableSummary) {
+        applyCasualTableSummaryFromQuery(settle.tableSummary, {
+          setTableSummary: setPostCasualTableSummary,
+          setReplayOffered: () => {},
+          setReplayTokenCount: () => {},
+          setCanReplay: () => {},
+          setReplayWindowEndsAt: () => {},
+        });
+      } else {
         try {
           const summary = await casual.fetchCasualTableSummaryForGame(gid);
           if (summary?.rows?.length) {
@@ -201,7 +283,7 @@ export const Match3GameProvider: React.FC<Props> = ({
         }
       }
     },
-    [convex, casual]
+    [convex, casual, casualTournamentId, triathlonSessionActive, onTriathlonNextGame]
   );
 
   const completeCasualRun = useCallback(async () => {
@@ -212,18 +294,42 @@ export const Match3GameProvider: React.FC<Props> = ({
       const res = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
         token: user.token,
         gameId: gs.gameId,
-      })) as { ok?: boolean; tableSummary?: CasualAsyncTableSummaryUI; pendingOthers?: boolean };
+      })) as {
+        ok?: boolean;
+        tableSummary?: CasualAsyncTableSummaryUI;
+        pendingOthers?: boolean;
+        seedScoreThreshold?: number;
+        success?: boolean;
+        gameComplete?: boolean;
+        nextGame?: TriathlonNextGame;
+      };
       if (res?.ok) {
+        if (
+          triathlonSessionActive &&
+          queueTriathlonMidSessionAdvance(res, gs.score ?? 0, pendingTriathlonAdvanceRef, {
+            templateId: casualTournamentId,
+            gameId: gs.gameId,
+            triathlonSessionActive,
+          })
+        ) {
+          await beginCasualPostSettleFlow(gs.gameId, gs.score ?? 0, {
+            deferTriathlonTableSummary: true,
+          });
+          return;
+        }
         await beginCasualPostSettleFlow(gs.gameId, gs.score ?? 0, {
           tableSummary: res.tableSummary,
           pendingOthers: res.pendingOthers,
+          ...(typeof res.seedScoreThreshold === 'number'
+            ? { seedScoreThreshold: res.seedScoreThreshold, success: res.success }
+            : {}),
         });
       }
     } catch (e) {
       console.error('[match3] submitCasualPlatformRun', e);
       casualRunSubmittedRef.current = false;
     }
-  }, [convex, user?.token, beginCasualPostSettleFlow]);
+  }, [convex, user?.token, beginCasualPostSettleFlow, triathlonSessionActive]);
 
   const settleManuallyAndExit = useCallback(async () => {
     const gs = gameStateRef.current;
@@ -243,32 +349,94 @@ export const Match3GameProvider: React.FC<Props> = ({
     const res = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
       token: user.token,
       gameId: gs.gameId,
-    })) as { ok?: boolean; tableSummary?: CasualAsyncTableSummaryUI; pendingOthers?: boolean };
+    })) as {
+      ok?: boolean;
+      tableSummary?: CasualAsyncTableSummaryUI;
+      pendingOthers?: boolean;
+      seedScoreThreshold?: number;
+      success?: boolean;
+    };
     if (res?.ok) {
       casualRunSubmittedRef.current = true;
       setGameState((prev) => (prev ? { ...prev, status: Match3GameStatus.CANCELLED } : prev));
+      if (
+        triathlonSessionActive &&
+        queueTriathlonMidSessionAdvance(res, gs.score ?? 0, pendingTriathlonAdvanceRef, {
+          templateId: casualTournamentId,
+          gameId: gs.gameId,
+          triathlonSessionActive,
+        })
+      ) {
+        await beginCasualPostSettleFlow(gs.gameId, gs.score ?? 0, {
+          deferTriathlonTableSummary: true,
+        });
+        return;
+      }
       await beginCasualPostSettleFlow(gs.gameId, gs.score ?? 0, {
         tableSummary: res.tableSummary,
         pendingOthers: res.pendingOthers,
+        ...(typeof res.seedScoreThreshold === 'number'
+          ? { seedScoreThreshold: res.seedScoreThreshold, success: res.success }
+          : {}),
       });
     }
-  }, [convex, user?.token, beginCasualPostSettleFlow]);
+  }, [convex, user?.token, beginCasualPostSettleFlow, triathlonSessionActive]);
 
   const dismissPostCasualScoreReport = useCallback(() => {
+    const pendingTriathlon = pendingTriathlonAdvanceRef.current;
+    const gs = gameStateRef.current;
+    const matchGameId =
+      typeof gs?.gameId === 'string' && gs.gameId.startsWith('game_') ? gs.gameId : undefined;
+    const deferTableSummary = shouldDeferTriathlonTableSummaryForLeg(
+      casualTournamentId,
+      matchGameId,
+      triathlonSessionActive
+    );
+    const legScore =
+      postCasualScoreReport?.totalScore ?? Math.max(0, Math.floor(gs?.score ?? 0));
+    const scoreReportSnapshot = postCasualScoreReport;
     setPostCasualScoreReportOpen(false);
     setPostCasualScoreReport(null);
+    setTriathlonDeferTableSummary(false);
+    if (
+      tryAdvanceTriathlonMidSession({
+        triathlonSessionActive,
+        casualTournamentId,
+        matchGameId,
+        legScore,
+        pendingTriathlon,
+        onTriathlonNextGame,
+        scoreReport: scoreReportSnapshot ?? undefined,
+      })
+    ) {
+      pendingTriathlonAdvanceRef.current = null;
+      return;
+    }
     if (
       shouldOpenCasualTableSummaryAfterScoreReport(
         casualTournamentId,
         postCasualTableSummary,
-        postCasualWaitingForPeers
+        postCasualWaitingForPeers,
+        {
+          deferTriathlonTableSummary: deferTableSummary,
+          triathlonSessionActive,
+          triathlonGameId: matchGameId,
+        }
       )
     ) {
       setPostCasualSummaryOpen(true);
     } else {
       onGameSubmit?.();
     }
-  }, [casualTournamentId, postCasualTableSummary, postCasualWaitingForPeers, onGameSubmit]);
+  }, [
+    casualTournamentId,
+    postCasualTableSummary,
+    postCasualWaitingForPeers,
+    postCasualScoreReport,
+    triathlonSessionActive,
+    onTriathlonNextGame,
+    onGameSubmit,
+  ]);
 
   const dismissPostCasualSummary = useCallback(() => {
     setPostCasualSummaryOpen(false);

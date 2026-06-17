@@ -1,13 +1,11 @@
-import type { SeedPoolEntry, RolloutSummary } from "./solitaireRecordedOpTypes";
+import type { RolloutSummary, SeedPoolEntry } from "./solitaireRecordedOpTypes";
 import {
   simulateSeedRollouts,
   type SimulateSeedRolloutsOptions,
 } from "./solitaireSeedSimulator";
 import { toRolloutSummaries } from "./solitaireSeedPoolRunner";
 
-/**
- * Index-only pools store metrics in index.json; full rollouts are simulated on demand.
- */
+/** index-only 池在 index.json 存 metrics；完整 rollouts 按需重模拟。 */
 export function simulateRolloutsForSeedEntry(
   entry: Pick<SeedPoolEntry, "seedId" | "metrics">,
   rolloutCount?: number,

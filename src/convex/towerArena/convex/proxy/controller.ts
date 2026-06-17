@@ -34,15 +34,27 @@ function verifyCasualRunToken(token: string): { ok: true; uid: string } | { ok: 
     }
 }
 
-function mapCasualIngestClientResponse(parsed: CasualIngestParsed) {
+function mapCasualIngestClientResponse(
+    parsed: CasualIngestParsed,
+    extra?: { seedScoreThreshold?: number; score?: number }
+) {
     const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
     const pendingOthers = parsed.pendingOthers === true;
+    const hasThreshold =
+        typeof extra?.seedScoreThreshold === "number" && Number.isFinite(extra.seedScoreThreshold);
+    const seedScoreThreshold = hasThreshold ? (extra!.seedScoreThreshold as number) : undefined;
+    const success =
+        seedScoreThreshold != null && typeof extra?.score === "number"
+            ? extra.score >= seedScoreThreshold
+            : undefined;
     return {
         ok: true as const,
         ...(tableSummary ? { tableSummary } : {}),
         ...(pendingOthers ? { pendingOthers: true as const } : {}),
         ...(parsed.deduped === true ? { deduped: true as const } : {}),
         ...(parsed.finalized === true ? { finalized: true as const } : {}),
+        ...(seedScoreThreshold != null ? { seedScoreThreshold } : {}),
+        ...(success != null ? { success } : {}),
     };
 }
 
@@ -314,7 +326,10 @@ export const submitCasualPlatformRun = action({
             deduped: ingest.parsed.deduped,
             pendingOthers: ingest.parsed.pendingOthers,
         });
-        return mapCasualIngestClientResponse(ingest.parsed);
+        return mapCasualIngestClientResponse(ingest.parsed, {
+            seedScoreThreshold: built.payload.seedScoreThreshold,
+            score: built.payload.score,
+        });
     },
 });
 
@@ -375,7 +390,10 @@ export const forceEndCasualPlatformRun = action({
         }
 
         console.log("[tower] forceEndCasualPlatformRun", { gameId, deduped: ingest.parsed.deduped });
-        return mapCasualIngestClientResponse(ingest.parsed);
+        return mapCasualIngestClientResponse(ingest.parsed, {
+            seedScoreThreshold: built.payload.seedScoreThreshold,
+            score: built.payload.score,
+        });
     },
 });
 

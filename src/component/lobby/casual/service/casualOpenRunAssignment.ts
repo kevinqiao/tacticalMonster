@@ -1,4 +1,7 @@
-import { getTournamentDefinition } from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
+import {
+  effectiveGameSequence,
+  getTournamentDefinition,
+} from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
 import {
   CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
   CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
@@ -16,15 +19,30 @@ export type CasualPlayModalName =
   | "play_solitaire_solo"
   | "play_block_blast"
   | "play_tower_arena"
-  | "play_match_3";
+  | "play_match_3"
+  | "play_casual_triathlon_session";
 
 export interface OpenCasualRunAssignment {
   templateId: string;
   gameId: string;
   gameType?: string;
+  gameIndex?: number;
+  sessionKind?: "single" | "triathlon";
   matchId: string;
   runTournamentId: string;
   createdAt: number;
+}
+
+export function isTriathlonAssignment(a: OpenCasualRunAssignment): boolean {
+  return a.sessionKind === "triathlon";
+}
+
+export function pickLatestOpenTriathlonAssignment(
+  assigns: OpenCasualRunAssignment[]
+): OpenCasualRunAssignment | null {
+  const matched = assigns.filter((x) => isTriathlonAssignment(x));
+  matched.sort((a, b) => b.createdAt - a.createdAt);
+  return matched[0] ?? null;
 }
 
 export function casualPlayModalForKind(kind: CasualGameKind): CasualPlayModalName {
@@ -77,9 +95,47 @@ export function hasAnyOpenCasualRunAssignment(assigns: OpenCasualRunAssignment[]
   return assigns.length > 0;
 }
 
-export function gameKindFromTemplateId(templateId: string): CasualGameKind {
+export function isTriathlonTemplateId(templateId: string): boolean {
+  return getTournamentDefinition(templateId)?.gameType === "triathlon";
+}
+
+/** join 后订阅 open 行：triathlon 用 sequence 首局 gameKind，单局用模板 gameType */
+export function awaitWatchGameKindForTemplate(templateId: string): CasualGameKind {
   const def = getTournamentDefinition(templateId);
+  if (def?.gameType === "triathlon") {
+    return casualGameKindFromGameType(effectiveGameSequence(def)[0]);
+  }
   return casualGameKindFromGameType(def?.gameType);
+}
+
+export function gameKindFromTemplateId(templateId: string): CasualGameKind {
+  return awaitWatchGameKindForTemplate(templateId);
+}
+
+/** 匹配 join 等待中的 open assignment（triathlon 按 templateId + 首局 gameType） */
+export function assignmentMatchesAwaitWatch(
+  a: OpenCasualRunAssignment,
+  watch: { templateId: string; gameKind: CasualGameKind }
+): boolean {
+  if (a.templateId !== watch.templateId) return false;
+  if (isTriathlonTemplateId(watch.templateId)) {
+    return isTriathlonAssignment(a) || assignmentMatchesGameKind(a, watch.gameKind);
+  }
+  return assignmentMatchesGameKind(a, watch.gameKind);
+}
+
+export function casualPlayModalForAssignment(a: OpenCasualRunAssignment): CasualPlayModalName {
+  if (isTriathlonAssignment(a) || isTriathlonTemplateId(a.templateId)) {
+    return "play_casual_triathlon_session";
+  }
+  return casualPlayModalForKind(inferCasualGameKindFromAssignment(a));
+}
+
+export function modalDataForOpenAssignment(a: OpenCasualRunAssignment): Record<string, string> {
+  return {
+    casualTournamentId: a.templateId,
+    casualMatchGameId: a.gameId,
+  };
 }
 
 export function dailySoloTournamentIdForKind(kind: CasualGameKind): string {

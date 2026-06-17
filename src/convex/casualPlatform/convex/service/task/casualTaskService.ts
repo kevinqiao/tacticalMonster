@@ -355,6 +355,8 @@ function deltaForObjective(
       return isSpotlight ? 1 : 0;
     case "earn_spotlight_season_board_points":
       return isSpotlight ? Math.max(0, Math.floor(args.spotlightSeasonBoardGain)) : 0;
+    case "weekly_league_promote":
+      return 0;
     case "submit_pvp_settled":
       return isPvp ? 1 : 0;
     case "submit_pvp_win":
@@ -870,6 +872,19 @@ export const notifyScoreSubmitted = internalMutation({
       weeklyPk,
       seasonPk,
     });
+    return { ok: true as const };
+  },
+});
+
+/** 周联赛周尾晋级时调用（`closeExpiredWeeks`）。 */
+export const notifyWeeklyLeaguePromote = internalMutation({
+  args: { uid: v.string(), weekKey: v.string() },
+  handler: async (ctx, { uid, weekKey }) => {
+    const template = CASUAL_MISSION_TEMPLATES.find(
+      (t) => t.objectiveKind === "weekly_league_promote"
+    );
+    if (!template) return { ok: true as const };
+    await upsertTaskProgress(ctx, template, uid, template.taskId, weekKey, 1, {});
     return { ok: true as const };
   },
 });

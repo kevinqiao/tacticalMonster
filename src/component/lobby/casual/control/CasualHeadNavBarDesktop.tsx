@@ -245,6 +245,9 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
     openModal({ name: "solitaire_rollout_replay_dev" });
   }, [openModal]);
 
+  /** 顶栏 Rollout 入口（隐藏；功能仍可通过 openModal 打开） */
+  const showRolloutDevNavEntry = false;
+
   const openPlayerProfile = useCallback(() => {
     openModal({
       name: CASUAL_PLAYER_PROFILE_MODAL_OPEN.name,
@@ -271,7 +274,8 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
 
   const stretch = <div className="head-nav-hud__stretch" aria-hidden />;
 
-  const rolloutReplayDevEntry = import.meta.env.DEV ? (
+  const rolloutReplayDevEntry =
+    import.meta.env.DEV && showRolloutDevNavEntry ? (
     <button
       type="button"
       className="head-nav-hud__casual-dev-rollout"

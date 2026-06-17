@@ -27,11 +27,7 @@ import type { MutationCtx, QueryCtx } from "../../../_generated/server";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "./casualTournamentJoinCore";
 import { isCasualAsyncVirtualOpponentUid } from "../settle/async/casualAsyncTypes";
 
-async function activeSeasonId(ctx: QueryCtx | MutationCtx): Promise<string | null> {
-  const seasons = await ctx.db.query("casual_seasons").collect();
-  const s = seasons.find((r) => r.active) ?? seasons[0];
-  return s?.seasonId ?? null;
-}
+import { readWeeklyLeagueTier } from "../../weeklyLeague/casualWeeklyLeagueProfile";
 
 /** 该名次是否视为「无奖励失败」（连续失败 streak） */
 function isCasualMultiplayerRankLoss(
@@ -40,14 +36,18 @@ function isCasualMultiplayerRankLoss(
 ): boolean {
   const rr = findCasualRankRewardEntry(def.rewards.rankRewards, rank);
   if (rr) {
-    const seasonPoints = rr.seasonPoints ?? 0;
     const coins = (rr as { coins?: number }).coins ?? 0;
     const gems = rr.gems ?? 0;
-    const hasPositiveRankReward = seasonPoints > 0 || coins > 0 || gems > 0;
+    const hasPositiveRankReward = coins > 0 || gems > 0;
     return !hasPositiveRankReward;
   }
-  const penalty = def.rewards.seasonPointsRankMissPenalty ?? 0;
-  return penalty <= 0;
+  return true;
+}
+
+async function activeSeasonId(ctx: QueryCtx | MutationCtx): Promise<string | null> {
+  const seasons = await ctx.db.query("casual_seasons").collect();
+  const s = seasons.find((r) => r.active) ?? seasons[0];
+  return s?.seasonId ?? null;
 }
 
 async function computeConsecutiveLossStreak(
@@ -89,14 +89,8 @@ export async function resolvePlayerBotStrategyContext(
     : getDefaultPrimaryGameType();
 
   let seasonLadderPoints = 0;
+  const weeklyLeagueTier = await readWeeklyLeagueTier(ctx, uid);
   const seasonId = await activeSeasonId(ctx);
-  if (seasonId) {
-    const ladder = await ctx.db
-      .query("casual_player_season_ladder")
-      .withIndex("by_season_uid", (q) => q.eq("seasonId", seasonId).eq("uid", uid))
-      .unique();
-    seasonLadderPoints = ladder?.points ?? 0;
-  }
 
   const player = await ctx.db
     .query("casual_players")
@@ -149,6 +143,7 @@ export async function resolvePlayerBotStrategyContext(
     gameType,
     maxPlayers: def.maxPlayers,
     seasonLadderPoints,
+    weeklyLeagueTier,
     completedMultiplayerMatches,
     coinsBalance: player?.coins ?? 0,
     daysSinceLastMatch,
@@ -220,6 +215,7 @@ export function logJoinMatchmakingProfileResult(args: {
       maxPlayers: profile.maxPlayers,
       profile: {
         seasonLadderPoints: profile.seasonLadderPoints,
+        weeklyLeagueTier: profile.weeklyLeagueTier,
         completedMultiplayerMatches: profile.completedMultiplayerMatches,
         coinsBalance: profile.coinsBalance,
         daysSinceLastMatch: profile.daysSinceLastMatch,
