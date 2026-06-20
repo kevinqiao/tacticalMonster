@@ -18,6 +18,11 @@ export interface CasualAchievementTemplate {
   threshold: number;
   /** 可选皮肤 token（经 achievement source 发放） */
   skinToken?: string;
+  /**
+   * 可选解锁小额钻（非付费玩家硬币补给）。仅段位首达里程碑使用，保守投放，
+   * 避免与对局水龙头叠加通胀（见 docs 经济循环设计 §8 建议4）。
+   */
+  rewardGems?: number;
 }
 
 const TIER_ORDER: Record<string, number> = {
@@ -39,6 +44,7 @@ export const CASUAL_ACHIEVEMENT_TEMPLATES: CasualAchievementTemplate[] = [
     description: "周联赛历史最高段位达到白银",
     eventKind: "peak_league_tier",
     threshold: leagueTierOrder("silver"),
+    rewardGems: 2,
   },
   {
     achievementId: "peak_league_gold",
@@ -46,6 +52,7 @@ export const CASUAL_ACHIEVEMENT_TEMPLATES: CasualAchievementTemplate[] = [
     description: "周联赛历史最高段位达到黄金",
     eventKind: "peak_league_tier",
     threshold: leagueTierOrder("gold"),
+    rewardGems: 3,
   },
   {
     achievementId: "peak_league_platinum",
@@ -53,6 +60,7 @@ export const CASUAL_ACHIEVEMENT_TEMPLATES: CasualAchievementTemplate[] = [
     description: "周联赛历史最高段位达到铂金",
     eventKind: "peak_league_tier",
     threshold: leagueTierOrder("platinum"),
+    rewardGems: 5,
   },
   {
     achievementId: "peak_league_diamond",
@@ -61,6 +69,7 @@ export const CASUAL_ACHIEVEMENT_TEMPLATES: CasualAchievementTemplate[] = [
     eventKind: "peak_league_tier",
     threshold: leagueTierOrder("diamond"),
     skinToken: "platform_avatar_deluxe",
+    rewardGems: 8,
   },
   {
     achievementId: "weekly_promote_1",

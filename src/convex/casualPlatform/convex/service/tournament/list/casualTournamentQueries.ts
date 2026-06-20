@@ -1,8 +1,9 @@
-﻿import { v } from "convex/values";
+import { v } from "convex/values";
 import {
   getTournamentDefinition,
   isPeriodScopedTournament,
   listPlayCasualTournaments,
+  shouldAppearInCasualPlayLobby,
 } from "../../../data/casualTournamentConfigs";
 import { resolveInstanceWindow } from "../../../data/casualInstanceWindow";
 import type { Doc, Id } from "../../../_generated/dataModel";
@@ -78,7 +79,8 @@ async function attachCasualHistoryTableSummary(
   if (
     opts.gameType !== "match_3" &&
     opts.gameType !== "solitaire" &&
-    opts.gameType !== "block_blast"
+    opts.gameType !== "block_blast" &&
+    opts.gameType !== "yatz"
   ) {
     return undefined;
   }
@@ -128,7 +130,7 @@ async function resolveRunHistoryRank(
   return null;
 }
 
-/** 模板榜：从 `casual_run_player_matches` 聚合每人最高「已结算」分 */
+/** ???:? `casual_run_player_matches` ???????????? */
 async function leaderboardRowsFromRuns(
   ctx: QueryCtx,
   templateId: string,
@@ -181,7 +183,7 @@ export const listTournaments = query({
         : {};
     };
 
-    /** ä¸Žã€Œåº“é‡Œæœ‰ç§å­ã€è§£è€¦ï¼šé™æ€ Play åˆ—è¡¨å§‹ç»ˆå®Œæ•´ï¼ŒDB ä»…è¦†ç›– title/statusï¼ˆè¿è¥æ”¹è¡¨æ—¶ç”Ÿæ•ˆï¼‰ */
+    /** ????????????? Play ???????DB ??? title/status????????? */
     const staticPlay = listPlayCasualTournaments();
     const staticIds = new Set(staticPlay.map((s) => s.tournamentId));
     const fromStatic = staticPlay.map((s) => {
@@ -205,11 +207,10 @@ export const listTournaments = query({
         matchType: r.matchType,
         status: r.status,
         ...defMeta(r.tournamentId),
-      }));
+      }))
+      .filter((r) => shouldAppearInCasualPlayLobby(getTournamentDefinition(r.tournamentId)));
 
-    return [...fromStatic, ...orphans].filter(
-      (r) => getTournamentDefinition(r.tournamentId)?.matchType !== "season_challenge"
-    );
+    return [...fromStatic, ...orphans];
   },
 });
 
@@ -217,7 +218,7 @@ export const leaderboard = query({
   args: {
     tournamentId: v.string(),
     limit: v.optional(v.number()),
-    /** æŒ‡å®šåŽ†å²æ¡¶ï¼›ç¼ºçœä¸ºå½“å‰è§£æžåˆ°çš„å¼€æ”¾æ¡¶ï¼ˆå·²å…³é—­æ¡¶å¯æŸ¥æ¦œæ—¶ä¼ æ­¤å‚ï¼‰ */
+    /** ??????????????????????????????? */
     instanceKey: v.optional(v.string()),
   },
   handler: async (ctx, { tournamentId, limit, instanceKey }) => {
@@ -270,7 +271,7 @@ export const leaderboard = query({
   },
 });
 
-/** å½“å‰å‘¨æœŸæ¡¶å†…ã€Œæˆ‘çš„ã€èšåˆåˆ†ä¸Žåæ¬¡ï¼ˆä¸Ž `leaderboard` åŒå®žä¾‹è§£æžï¼›ä¸ä¾èµ– Top N æ˜¯å¦å«æœ¬äººï¼‰ã€‚ */
+/** ?????????????????? `leaderboard` ????????? Top N ??????? */
 export const periodInstanceSelfStanding = query({
   args: {
     tournamentId: v.string(),
@@ -304,7 +305,7 @@ export const periodInstanceSelfStanding = query({
   },
 });
 
-/** å•åœº Solitaireï¼šä»…æŸ¥ `casual_run_player_matches`ï¼ˆæœºå™¨äººä¸ŽçœŸäººåŒè¡¨ï¼Œuid å‰ç¼€åŒºåˆ†è™šæ‹Ÿå¯¹æ‰‹ï¼‰ */
+/** ?? Solitaire??? `casual_run_player_matches`??????????uid ????????? */
 export const solitaireSessionStandings = query({
   args: { matchId: v.string() },
   handler: async (ctx, { matchId }) => {
@@ -332,11 +333,9 @@ export const solitaireSessionStandings = query({
 });
 
 /**
- * æ¸¸æˆåŽ†å²ï¼šéžå‘¨æœŸåž‹å¼‚æ­¥ run ä¸€æ¡ `casual_run_player_tournaments`ï¼›
- * å‘¨æœŸåž‹åˆ†æ¡£é¢„å‘å¥–ï¼šåŒä¸€å±€ç»“ç®—å†™å…¥çš„å¤šæ¡ `casual_score_tier_pending`ï¼ˆåŒ instance+run+matchGame+createdAtï¼‰åˆå¹¶ä¸ºä¸€æ¡ï¼›
- * å‘¨æœŸæ¡¶å…³æ¡¶åŽçš„ base/åæ¬¡å¥–å¹¶å…¥ `historyRewardKind: "instance_close_pending"`ï¼ˆä¸Žä¸Šä¸¤ç±»åŒä¸€åˆ—è¡¨ï¼‰ã€‚
- * å‘¨æœŸåœºï¼ˆå¦‚æ—¥æ¦œï¼‰ï¼š`run_pending` ä¸å…¥åˆ—è¡¨ï¼›æœªè¾¾ä»»ä½•æœ‰å¥–åŠ±åˆ†æ¡£æ—¶ä¸å‡ºçŽ°ï¼›ä»…å½“ç»“ç®—å†™å…¥åˆ†æ¡£å¾…é¢†ï¼ˆå„æ¡£æ¯æ¡¶é¦–æ¬¡è¾¾æˆï¼‰æˆ–å…³æ¡¶ç»“ç®—è¡Œæ‰å±•ç¤ºã€‚
- * åˆ—è¡¨åˆå¹¶åŽæŒ‰ `historySortAt`ï¼ˆæ–°â†’æ—§ï¼‰æŽ’åºï¼šéžå‘¨æœŸ run ä¸Žåˆ†æ¡£è¡Œä»¥ **åˆ›å»ºæ—¶é—´**ï¼ˆ`casual_run_tournaments.createdAt` / `casual_run_player_tournaments.createdAt`ï¼‰ä¸ºå‡†ï¼Œä¸ç”¨ `updatedAt`ï¼ˆé¢†å–å¥–åŠ±ä¼šåˆ·æ–°ï¼‰ï¼›å‘¨æœŸå…³æ¡¶è¡Œä»ä»¥æ¡¶ `endsAt`ï¼›åŒæ¯«ç§’ç”¨ `entryId` ç¨³å®šæ¬¡åºã€‚
+ * Game history: completed async runs (`casual_run_player_tournaments`).
+ * Daily/period leaderboards are retired; no longer reads
+ * `casual_score_tier_pending` or `casual_instance_player_state`.
  */
 export const gameHistory = query({
   args: { uid: v.string(), limit: v.optional(v.number()) },
@@ -348,176 +347,6 @@ export const gameHistory = query({
       .withIndex("by_uid_template", (q) => q.eq("uid", uid))
       .collect();
     pts.sort((a, b) => (b.createdAt ?? b._creationTime) - (a.createdAt ?? a._creationTime));
-
-    const tierPendings = await ctx.db
-      .query("casual_score_tier_pending")
-      .withIndex("by_uid", (q) => q.eq("uid", uid))
-      .collect();
-    tierPendings.sort((a, b) => b.createdAt - a.createdAt);
-
-    const scoreTierBundleKey = (tr: Doc<"casual_score_tier_pending">) =>
-      `${String(tr.instanceId)}|${String(tr.runTournamentId)}|${tr.matchGameId}|${String(tr.createdAt)}`;
-
-    const bundleMap = new Map<string, Doc<"casual_score_tier_pending">[]>();
-    for (const tr of tierPendings) {
-      const k = scoreTierBundleKey(tr);
-      const arr = bundleMap.get(k) ?? [];
-      arr.push(tr);
-      bundleMap.set(k, arr);
-    }
-    const tierGroups = [...bundleMap.values()].map((arr) => {
-      arr.sort((a, b) => a.minScore - b.minScore);
-      return arr;
-    });
-    tierGroups.sort((a, b) => b[0].createdAt - a[0].createdAt);
-
-    const runCache = new Map<string, Doc<"casual_run_tournaments"> | null>();
-    for (const group of tierGroups) {
-      for (const tr of group) {
-        const rid = String(tr.runTournamentId);
-        if (!runCache.has(rid)) {
-          runCache.set(rid, await ctx.db.get(tr.runTournamentId));
-        }
-      }
-    }
-
-    const tierRows = await Promise.all(
-      tierGroups.map(async (group) => {
-        const tr = group[0];
-        const run = runCache.get(String(tr.runTournamentId)) ?? null;
-        const pt = await ctx.db
-          .query("casual_run_player_tournaments")
-          .withIndex("by_tournament_uid", (q) =>
-            q.eq("tournamentId", tr.runTournamentId).eq("uid", uid)
-          )
-          .unique();
-        const def = getTournamentDefinition(tr.templateId);
-        const inst = run?.instanceId ? await ctx.db.get(run.instanceId) : null;
-        const runIdStr = String(tr.runTournamentId);
-        const pmForRun = await ctx.db
-          .query("casual_run_player_matches")
-          .withIndex("by_run_tournament", (q) => q.eq("tournamentId", runIdStr))
-          .collect();
-        const participantCount = pmForRun.length;
-        const isMulti = group.length > 1;
-        const sortedMinScores = [...new Set(group.map((g) => g.minScore))].sort((a, b) => a - b);
-        const pendingOnly = group.filter((g) => g.status === "pending");
-        const sumCoins = pendingOnly.reduce((s, g) => s + Math.max(0, Math.floor(g.coins ?? 0)), 0);
-        const sumGems = pendingOnly.reduce((s, g) => s + Math.max(0, Math.floor(g.gems ?? 0)), 0);
-        const pr = prunePendingWalletRewards({
-          coins: sumCoins,
-          gems: sumGems,
-        });
-        const canClaimReward = Boolean(pendingOnly.length && pr);
-        const allClaimed = group.every((g) => g.status === "claimed");
-        const rewardsClaimedAt = allClaimed
-          ? Math.max(...group.map((g) => (g.claimedAt != null ? g.claimedAt : g.createdAt)))
-          : null;
-        const submittedAt = allClaimed
-          ? Math.max(...group.map((g) => (g.claimedAt != null ? g.claimedAt : g.createdAt)))
-          : tr.createdAt;
-        const ptDone = pt?.status === RUN_PLAYER_TOURNAMENT_COMPLETED;
-        const idKeys = [...group]
-          .sort((a, b) => String(a._id).localeCompare(String(b._id)))
-          .map((g) => String(g._id));
-        const entryId = isMulti ? `score_tier_bundle:${idKeys.join(":")}` : String(tr._id);
-        const titleTiers = sortedMinScores.map((m) => `â‰¥${m}`).join("ã€");
-        const pendingSortedIds = [...pendingOnly]
-          .sort((a, b) => String(a._id).localeCompare(String(b._id)))
-          .map((g) => String(g._id));
-        const historySortAt = Math.min(...group.map((g) => g.createdAt));
-        const tableSummary = await attachCasualHistoryTableSummary(ctx, {
-          uid,
-          templateId: tr.templateId,
-          gameType: tr.gameType,
-          matchGameId: tr.matchGameId,
-          runTournamentId: tr.runTournamentId,
-        });
-        return {
-          historySortAt,
-          entryId,
-          historyRewardKind: "score_tier_pending" as const,
-          runTournamentId: String(tr.runTournamentId),
-          tournamentId: tr.templateId,
-          title: `${def?.title ?? tr.templateId} Â· åˆ†æ¡£ ${titleTiers}`,
-          gameType: tr.gameType,
-          matchType: def?.matchType ?? "unknown",
-          score: pt?.score ?? null,
-          submittedAt,
-          entryStatus: ptDone ? ("submitted" as const) : ("joined" as const),
-          runStartedAt: run?.createdAt ?? tr.createdAt,
-          rank: null as number | null,
-          participantCount,
-          canClaimReward,
-          pendingRunRewards: pr ?? null,
-          rewardsClaimedAt,
-          periodTournament: true,
-          periodInstanceKey: inst?.instanceKey,
-          matchGameId: tr.matchGameId,
-          scoreTierMinScore: isMulti ? undefined : tr.minScore,
-          scoreTierMinScores: isMulti ? sortedMinScores : undefined,
-          scoreTierPendingIds: isMulti && pendingSortedIds.length > 0 ? pendingSortedIds : undefined,
-          ...(tableSummary ? { tableSummary } : {}),
-        };
-      })
-    );
-
-    const mine = await ctx.db
-      .query("casual_instance_player_state")
-      .withIndex("by_uid", (q) => q.eq("uid", uid))
-      .collect();
-    const instanceCloseRows: Array<{
-      historySortAt: number;
-      entryId: string;
-      historyRewardKind: "instance_close_pending";
-      tournamentId: string;
-      title: string;
-      gameType: string;
-      matchType: string;
-      score: number | null;
-      submittedAt: number;
-      entryStatus: "submitted";
-      runStartedAt: number;
-      rank: number | null;
-      canClaimReward: boolean;
-      pendingRunRewards: ReturnType<typeof prunePendingWalletRewards> | null;
-      rewardsClaimedAt: number | null;
-      periodTournament: boolean;
-      periodInstanceKey: string | undefined;
-    }> = [];
-    for (const s of mine) {
-      if (s.matchCount <= 0) continue;
-      const inst = await ctx.db.get(s.instanceId);
-      if (!inst) continue;
-      const def = getTournamentDefinition(inst.templateId);
-      if (!def || !isPeriodScopedTournament(def)) continue;
-      if (inst.status !== "closed") continue;
-      const pr = prunePendingWalletRewards({
-        coins: s.pendingInstanceRewards?.coins,
-        gems: s.pendingInstanceRewards?.gems,
-        seasonVoucher: s.pendingInstanceRewards?.seasonVoucher,
-      });
-      const canClaimReward = Boolean(pr && s.instanceRewardsClaimedAt == null);
-      instanceCloseRows.push({
-        historySortAt: inst.endsAt,
-        entryId: String(s._id),
-        historyRewardKind: "instance_close_pending",
-        tournamentId: inst.templateId,
-        title: `${def.title ?? inst.templateId} Â· å‘¨æœŸç»“ç®—`,
-        gameType: def.gameType,
-        matchType: def.matchType ?? "unknown",
-        score: s.aggregatedScore ?? null,
-        submittedAt: inst.endsAt,
-        entryStatus: "submitted",
-        runStartedAt: inst.startsAt ?? inst.endsAt,
-        rank: s.finalRank ?? null,
-        canClaimReward,
-        pendingRunRewards: pr ?? null,
-        rewardsClaimedAt: s.instanceRewardsClaimedAt ?? null,
-        periodTournament: true,
-        periodInstanceKey: inst.instanceKey,
-      });
-    }
 
     const sliced = pts
       .filter((pt) => pt.status === RUN_PLAYER_TOURNAMENT_COMPLETED)
@@ -594,18 +423,16 @@ export const gameHistory = query({
     );
     const filteredRunRows = runRows.filter((r) => !r.periodTournament);
 
-    const merged = [...filteredRunRows, ...tierRows, ...instanceCloseRows].sort((a, b) => {
+    const merged = filteredRunRows.sort((a, b) => {
       const d = b.historySortAt - a.historySortAt;
       if (d !== 0) return d;
       return String(a.entryId).localeCompare(String(b.entryId));
     });
-    return merged
-      .slice(0, n)
-      .map(({ historySortAt: _historySortAt, ...row }) => row);
+    return merged.map(({ historySortAt: _historySortAt, ...row }) => row);
   },
 });
 
-/** 前端匹配中轮询：是否有已开出的 `open` 对局 assignment */
+/** ???????:??????? `open` ?? assignment */
 export const listOpenCasualRunAssignments = query({
   args: { uid: v.string() },
   handler: async (ctx, { uid }) => {
@@ -633,7 +460,7 @@ export const listOpenCasualRunAssignments = query({
   },
 });
 
-/** 三场合战 session：已完成局分数 + 当前 open 局（用于重进恢复累计分） */
+/** ???? session:?????? + ?? open ?(?????????) */
 export const getTriathlonSessionProgress = query({
   args: {
     uid: v.string(),

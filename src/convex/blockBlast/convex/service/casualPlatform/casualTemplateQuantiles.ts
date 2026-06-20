@@ -51,7 +51,7 @@ const TEMPLATE_QUANTILES: Record<string, ScoreQuantiles> = {
   casual_async_b_bb: CASUAL_BB_QUANTILES_B,
   casual_async_c_bb: CASUAL_BB_QUANTILES_C,
   season_challenge_bb_1: CASUAL_BB_QUANTILES_SEASON_4P,
-  /** 日榜无 reference quantiles；bot 不参与，pick 仍须返回合法 payload */
+  /** @deprecated 日榜已下线；历史 run 回放仍用 A 档分位 */
   casual_daily_solo_challenge_block_blast: CASUAL_BB_QUANTILES_A,
 };
 

@@ -6,6 +6,7 @@ import {
   getTournamentDefinition,
   isPeriodScopedTournament,
   effectiveGameSequence,
+  type CasualReferenceScoreQuantiles,
   type CasualTournamentDefinition,
 } from "../../../data/casualTournamentConfigs";
 import type { Doc, Id } from "../../../_generated/dataModel";
@@ -36,7 +37,7 @@ import {
 } from "../shared/casualPlayerMatchStatus";
 import { buildPartialIngestResponse } from "./casualRunIngestHelpers";
 import { resolvePlayerGameIngestContext } from "./casualPlayerGameIngest";
-import { playerGameId } from "../shared/casualPlayerGameTypes";
+import { playerGameId, loadSeedScoreQuantilesForSeat } from "../shared/casualPlayerGameTypes";
 import { incrementRankCountsForSettledHumans } from "../shared/casualPlayerTournamentRankStats";
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
 import {
@@ -56,6 +57,7 @@ export async function settleSoloMaxPlayersOneCasualRun(
     now: number;
     gameType: string;
     seedScoreThreshold?: number;
+    seedScoreQuantiles?: CasualReferenceScoreQuantiles;
   }
 ) {
   const { def, pm, matchDoc, uid, score, now, gameType } = args;
@@ -127,7 +129,6 @@ export async function settleSoloMaxPlayersOneCasualRun(
       uid,
       matchType: def.matchType,
       platformGameType: def.gameType,
-      spotlightSeasonBoardGain: 0,
       multiplayerFinalRank: 1,
     });
     const tableSummaryPeriodSolo = casualTableSummarySolo(def.maxPlayers, score);
@@ -151,6 +152,7 @@ export async function settleSoloMaxPlayersOneCasualRun(
     ...(typeof args.seedScoreThreshold === "number"
       ? { seedScoreThreshold: args.seedScoreThreshold }
       : {}),
+    ...(args.seedScoreQuantiles ? { seedScoreQuantiles: args.seedScoreQuantiles } : {}),
   });
   await persistPendingRunRewards(ctx, runTid, uid, extra.pendingWalletRewards);
 
@@ -166,6 +168,12 @@ export async function settleSoloMaxPlayersOneCasualRun(
     ok: true as const,
     tableSummary,
     ...extra,
+    ...(typeof args.seedScoreThreshold === "number"
+      ? {
+          seedScoreThreshold: args.seedScoreThreshold,
+          success: score >= args.seedScoreThreshold,
+        }
+      : {}),
   };
 }
 
@@ -288,7 +296,6 @@ export async function finalizeCasualAsyncMatchIngest(
         uid: hp.uid,
         matchType: def.matchType,
         platformGameType: def.gameType,
-        spotlightSeasonBoardGain: 0,
         ...(typeof finalRank === "number" && finalRank >= 1
           ? { multiplayerFinalRank: finalRank }
           : {}),
@@ -312,7 +319,9 @@ export async function finalizeCasualAsyncMatchIngest(
     };
   }
 
-  let lastExtra: Awaited<ReturnType<typeof applyCasualTemplateScoreEffects>> = {};
+  let lastExtra: Awaited<ReturnType<typeof applyCasualTemplateScoreEffects>> = {
+    xpDecayMultiplier: 1,
+  };
   let lastWeeklyLeague: Awaited<ReturnType<typeof applyWeeklyLeagueOnMatchSettle>> = null;
   for (const hp of sortedHumans) {
     if (hp.score == null) continue;
@@ -328,6 +337,7 @@ export async function finalizeCasualAsyncMatchIngest(
       skipCasualAsyncBotSeed: true,
       skipWeeklyLeagueXp: def.maxPlayers > 1,
       sessionKind: hp.sessionKind,
+      seedScoreQuantiles: await loadSeedScoreQuantilesForSeat(ctx, hp._id),
       ...(typeof finalRank === "number" && finalRank >= 1
         ? { multiplayerFinalRank: finalRank }
         : {}),
@@ -342,6 +352,7 @@ export async function finalizeCasualAsyncMatchIngest(
         multiplayerFinalRank: finalRank ?? undefined,
         sessionKind: hp.sessionKind,
         now,
+        xpDecayMultiplier: extra.xpDecayMultiplier,
       });
     } else if (extra.weeklyLeagueSettle) {
       lastWeeklyLeague = extra.weeklyLeagueSettle;

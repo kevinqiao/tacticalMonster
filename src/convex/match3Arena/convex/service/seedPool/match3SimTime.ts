@@ -1,4 +1,4 @@
-export const DEFAULT_MATCH_TIME_LIMIT_SEC = 180;
+export { MATCH3_MATCH_TIME_LIMIT_SEC as DEFAULT_MATCH_TIME_LIMIT_SEC } from "../match3Scoring";
 
 export type SimTimeContext = {
   rolloutIndex: number;

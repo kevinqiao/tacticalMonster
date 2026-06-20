@@ -46,15 +46,11 @@ function displayNameFromUser(u: User | null): string {
     return '玩家';
 }
 
-function formatElapsed(totalSec: number): string {
-    const sec = Math.max(0, Math.floor(totalSec));
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = sec % 60;
-    if (h > 0) {
-        return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    }
-    return `${m}:${s.toString().padStart(2, '0')}`;
+function formatMatchRemainingSec(sec: number): string {
+    const s = Math.max(0, Math.ceil(sec));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${r.toString().padStart(2, '0')}`;
 }
 
 export interface BlockBlastStatusBarProps {
@@ -63,6 +59,10 @@ export interface BlockBlastStatusBarProps {
     /** 与 solitaire「结束并结算」一致 */
     onEndGame?: () => void;
     endGameDisabled?: boolean;
+    /** 休闲 run 倒计时；复盘模式不传 */
+    dueTime?: number;
+    /** P75 挑战：本局 seed 分位目标分 */
+    targetScore?: number;
 }
 
 const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
@@ -70,6 +70,8 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
     gameState,
     onEndGame,
     endGameDisabled,
+    dueTime,
+    targetScore,
 }) => {
     const { user } = useUserManager();
     const { boardDimension } = useBlockBlastGameManager();
@@ -85,18 +87,22 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
     const avatarUrl = useMemo(() => avatarPhotoUrlFromUser(user as User | null), [user]);
     const playerLabel = useMemo(() => displayNameFromUser(user as User | null), [user]);
 
-    const [elapsedSec, setElapsedSec] = useState(0);
-
+    const [remainingSec, setRemainingSec] = useState<number | null>(null);
     useEffect(() => {
-        setElapsedSec(0);
-        const t0 = Date.now();
-        const id = window.setInterval(() => {
-            setElapsedSec(Math.floor((Date.now() - t0) / 1000));
-        }, 1000);
+        if (dueTime == null || !Number.isFinite(dueTime)) {
+            setRemainingSec(null);
+            return;
+        }
+        const tick = () => {
+            setRemainingSec(Math.max(0, (dueTime - Date.now()) / 1000));
+        };
+        tick();
+        const id = window.setInterval(tick, 1000);
         return () => window.clearInterval(id);
-    }, [gameState.gameId]);
+    }, [dueTime]);
 
-    const timerText = formatElapsed(elapsedSec);
+    const timerText =
+        remainingSec != null ? formatMatchRemainingSec(remainingSec) : null;
 
     const avatarEl = (
         <div className="blockblast-status__avatar" aria-hidden>
@@ -143,9 +149,16 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
                             结束并结算
                         </button>
                     ) : null}
-                    <time className="blockblast-status__timer" dateTime={`PT${elapsedSec}S`}>
-                        {timerText}
-                    </time>
+                    {timerText != null ? (
+                        <time className="blockblast-status__timer" aria-label="剩余时间">
+                            {timerText}
+                        </time>
+                    ) : null}
+                    {targetScore != null ? (
+                        <span className="blockblast-status__target" aria-label="目标分数">
+                            目标 {targetScore}
+                        </span>
+                    ) : null}
                     <span className="blockblast-status__score-main">{gameState.score}</span>
                     {statsSecondary}
                 </div>
@@ -173,9 +186,16 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
                         结束
                     </button>
                 ) : null}
-                <time className="blockblast-status__timer" dateTime={`PT${elapsedSec}S`}>
-                    {timerText}
-                </time>
+                {timerText != null ? (
+                    <time className="blockblast-status__timer" aria-label="剩余时间">
+                        {timerText}
+                    </time>
+                ) : null}
+                {targetScore != null ? (
+                    <span className="blockblast-status__target" aria-label="目标分数">
+                        目标 {targetScore}
+                    </span>
+                ) : null}
                 <div className="blockblast-status__score-main">{gameState.score}</div>
                 {statsSecondary}
             </div>

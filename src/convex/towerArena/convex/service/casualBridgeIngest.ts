@@ -11,6 +11,8 @@ export type CasualIngestParsed = {
   pendingOthers?: boolean;
   deduped?: boolean;
   finalized?: boolean;
+  seedScoreThreshold?: number;
+  success?: boolean;
 };
 
 export type BotFillPayload = {

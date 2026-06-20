@@ -128,8 +128,8 @@ export function weeklyLeagueRewardsForFinalRank(rank: number): WeeklyLeaguePendi
 /** 晋级成功额外券（与 Pass 券桥衔接） */
 export const WEEKLY_LEAGUE_PROMOTION_VOUCHER = 1;
 
-/** 日榜 / p75 等单人模式每日 League XP 软上限 */
+/** p75 挑战：达标才计 League XP；日软顶见下 */
 export const DAILY_LEAGUE_XP_SOFT_CAP = 40;
 
-/** 单人模式每场 League XP 底座（无名次加成） */
+/** p75 达标单场 League XP（未达标 0） */
 export const SOLO_CASUAL_LEAGUE_BASE_XP = 4;

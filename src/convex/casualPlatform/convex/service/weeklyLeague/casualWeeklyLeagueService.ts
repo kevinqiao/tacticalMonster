@@ -75,6 +75,10 @@ export async function addLeagueXp(
     seasonXpOnSettle: number;
     multiplayerFinalRank?: number;
     now?: number;
+    /** 当日 async/专场 bucket League XP 递减乘子（p75 不使用）。 */
+    xpDecayMultiplier?: number;
+    /** p75 挑战是否达标（未达标 0 League XP）。 */
+    p75ChallengeSuccess?: boolean;
   }
 ): Promise<WeeklyLeagueSettlePayload | null> {
   if (!CASUAL_WEEKLY_LEAGUE_ENABLED) return null;
@@ -89,12 +93,27 @@ export async function addLeagueXp(
   const dailyMap = { ...(member.dailyLeagueXpByPeriodKey ?? {}) };
   const dailyGranted = dailyMap[dayKey] ?? 0;
 
-  const { delta, lines } = resolveLeagueXpDelta({
+  const resolved = resolveLeagueXpDelta({
     def: args.def,
     seasonXpOnSettle: args.seasonXpOnSettle,
     multiplayerFinalRank: args.multiplayerFinalRank,
     dailyLeagueXpGranted: dailyGranted,
+    p75ChallengeSuccess: args.p75ChallengeSuccess,
   });
+  const lines = resolved.lines;
+  let delta = resolved.delta;
+  // p75 / 专场：不叠 async bucket ordinal 递减（专场另见 usesXpOrdinalDecay）。
+  const skipOrdinalDecay =
+    args.def.matchType === "solo_p75_challenge" ||
+    args.def.matchType === "season_challenge";
+  const decayMult = skipOrdinalDecay ? 1 : (args.xpDecayMultiplier ?? 1);
+  if (decayMult < 1 && delta > 0) {
+    const decayed = Math.max(0, Math.floor(delta * decayMult));
+    if (decayed !== delta) {
+      lines.push({ label: "当日多局递减", value: decayed - delta });
+      delta = decayed;
+    }
+  }
   if (delta <= 0) {
     const { rank, size } = await cohortRankForMember(
       ctx,

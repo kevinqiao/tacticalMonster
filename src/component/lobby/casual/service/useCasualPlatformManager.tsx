@@ -143,14 +143,6 @@ export interface CasualPlatformValue {
     tracksPurchased?: { standard?: boolean; deluxe?: boolean };
     claimed?: Array<{ track: "free" | "standard" | "deluxe"; level: number }>;
   } | null;
-  /** @deprecated 赛季天梯 UI 已替换为周联赛 */
-  seasonLadderSnapshot: {
-    seasonId: string;
-    points: number;
-    tierId: string;
-    rankInTier: number;
-    tierSize: number;
-  } | null;
   /** 周联赛快照（cohort 排名 / 当周 XP） */
   weeklyLeagueSnapshot: {
     weekKey: string;
@@ -178,6 +170,7 @@ export interface CasualPlatformValue {
     grantGems?: number;
     grantSkinId?: string;
     grantReplayTokenCount?: number;
+    weeklyPurchaseLimit?: number;
   }>;
   missions: Array<{
     taskId: string;
@@ -197,6 +190,20 @@ export interface CasualPlatformValue {
     lastClaimPeriodKey?: string;
     upcomingDayInCycle: number;
   } | null;
+  /** `getDailyGrowthProgress`：三 bucket 当日 Pass/League 递减与 p75 金币软顶 */
+  dailyGrowthProgress: {
+    periodKey: string;
+    buckets: Array<{
+      bucket: "async" | "season_challenge" | "solo_p75";
+      settledCount: number;
+      nextXpDecayMultiplier: number;
+      fullXpSlotsUsed: number;
+      fullXpSlotsTotal: number;
+      xpOrdinalDecayEnabled: boolean;
+      coinsGrantedToday?: number;
+      coinsDailyCap?: number;
+    }>;
+  } | null;
   /** `service.tournament.casualTournamentService.gameHistory`：非周期 run、周期分档预发奖、周期桶关桶待领（同一列表） */
   gameHistory: CasualGameHistoryRow[];
   /** `listOpenCasualRunAssignments`：Convex live 订阅，匹配开出 `open` 对局时自动更新 */
@@ -215,8 +222,7 @@ export interface CasualPlatformValue {
   refreshSeasonMissions: () => Promise<void>;
   refreshCheckinStreak: () => Promise<void>;
   joinTournament: (
-    tournamentId: string,
-    opts?: { dailySoloCostAck?: true }
+    tournamentId: string
   ) => Promise<import("./casualJoinTournamentFlow").CasualJoinTournamentMutationResult>;
   /** 与 join 一致的入场扣费预览（有消耗时 Play 先弹窗） */
   fetchJoinEntryChargePreview: (tournamentId: string) => Promise<
@@ -275,18 +281,8 @@ export interface CasualPlatformValue {
   claimCasualInstanceRewards: (
     instancePlayerStateId: string
   ) => Promise<{ ok: boolean; error?: string }>;
-  fetchMainSeasonLeaderboard: (
-    seasonId: string,
-    limit?: number
-  ) => Promise<Array<{ rank: number; uid: string; points: number }>>;
   fetchCArenaLeaderboard: (
     seasonId: string,
-    limit?: number
-  ) => Promise<Array<{ rank: number; uid: string; points: number }>>;
-  /** 指定 `gameId` 在本赛季的累计积分榜（`seasonId` 可省略，用当前激活赛季） */
-  fetchGameSeasonLeaderboard: (
-    seasonId: string | undefined,
-    gameId: string,
     limit?: number
   ) => Promise<Array<{ rank: number; uid: string; points: number }>>;
   fetchWeeklyLeagueCohort: () => Promise<{
@@ -337,7 +333,7 @@ export interface CasualPlatformValue {
     error?: string;
     activityIds?: string[];
   }>;
-  /** 法币 IAP 成功后发放钻石（须支付渠道唯一 paymentRef）；活动修正见 `iapGrantGems*` */
+  /** 法币 IAP 成功后发放钻石 + 赠送金币（须支付渠道唯一 paymentRef）；钻活动修正见 `iapGrantGems*` */
   fulfillIapShopPurchase: (
     skuId: string,
     paymentRef: string
@@ -346,6 +342,7 @@ export interface CasualPlatformValue {
     error?: string;
     gemsGranted?: number;
     baseGems?: number;
+    coinsGranted?: number;
     activityIds?: string[];
   }>;
   openFixedChest: (chestId: string) => Promise<{ ok: boolean; error?: string; grants?: unknown }>;
@@ -390,10 +387,10 @@ type CasualDataSnapshot = Pick<
   | "tournaments"
   | "seasons"
   | "passProgress"
-  | "seasonLadderSnapshot"
   | "weeklyLeagueSnapshot"
   | "missions"
   | "checkinStreak"
+  | "dailyGrowthProgress"
   | "shopSkus"
   | "gameHistory"
   | "openRunAssignments"
@@ -409,10 +406,10 @@ function emptyData(): CasualDataSnapshot {
     tournaments: [],
     seasons: [],
     passProgress: null,
-    seasonLadderSnapshot: null,
     weeklyLeagueSnapshot: null,
     missions: [],
     checkinStreak: null,
+    dailyGrowthProgress: null,
     shopSkus: [],
     gameHistory: [],
     openRunAssignments: [],
@@ -533,6 +530,7 @@ function startLiveSubscriptions(uid: string | undefined) {
       passProgress: null,
       missions: [],
       checkinStreak: null,
+      dailyGrowthProgress: null,
       shopSkus: [],
       activities: [],
       gameHistory: [],
@@ -603,15 +601,6 @@ function startLiveSubscriptions(uid: string | undefined) {
       "getWeeklyLeagueSnapshot"
     );
     sub(
-      casualPlatformApi.service.season.casualSeasonService.getSeasonLadderSnapshot,
-      { uid },
-      (row) =>
-        patchData({
-          seasonLadderSnapshot: (row as CasualPlatformValue["seasonLadderSnapshot"]) ?? null,
-        }),
-      "getSeasonLadderSnapshot"
-    );
-    sub(
       casualPlatformApi.service.task.casualTaskService.listSeasonMissions,
       { uid },
       (rows) => patchData({ missions: (rows as CasualPlatformValue["missions"]) ?? [] }),
@@ -625,6 +614,15 @@ function startLiveSubscriptions(uid: string | undefined) {
           checkinStreak: (row as CasualPlatformValue["checkinStreak"]) ?? null,
         }),
       "getCheckinStreak"
+    );
+    sub(
+      casualPlatformApi.service.payout.casualPayoutDailyQueries.getDailyGrowthProgress,
+      { uid },
+      (row) =>
+        patchData({
+          dailyGrowthProgress: (row as CasualPlatformValue["dailyGrowthProgress"]) ?? null,
+        }),
+      "getDailyGrowthProgress"
     );
     sub(
       casualTournamentFns.gameHistory,
@@ -665,7 +663,6 @@ function startLiveSubscriptions(uid: string | undefined) {
     patchData({
       passProgress: null,
       weeklyLeagueSnapshot: null,
-      seasonLadderSnapshot: null,
       missions: [],
       checkinStreak: null,
       gameHistory: [],
@@ -764,14 +761,13 @@ export function useCasualPlatform(): CasualPlatformValue {
   }, [user?.uid]);
 
   const joinTournament = useCallback(
-    async (tournamentId: string, opts?: { dailySoloCostAck?: true }) => {
+    async (tournamentId: string) => {
       const http = getCasualHttpClient();
       if (!http || !user?.uid) return null;
       try {
         const result = await http.action(casualTournamentFns.joinTournament, {
           uid: user.uid,
           tournamentId,
-          ...(opts?.dailySoloCostAck ? { dailySoloCostAck: true as const } : {}),
         });
         if (result?.ok === true && result.queued === false) {
           const m = result as {
@@ -1046,25 +1042,6 @@ export function useCasualPlatform(): CasualPlatformValue {
     [user?.uid, refreshCasualPlayer]
   );
 
-  const fetchMainSeasonLeaderboard = useCallback(async (seasonId: string, limit?: number) => {
-    const http = getCasualHttpClient();
-    if (!http) return [];
-    try {
-      const rows = await http.query(
-        casualPlatformApi.service.season.casualSeasonService.seasonLadderLeaderboard,
-        { seasonId, limit }
-      );
-      return (rows as Array<{ rank: number; uid: string; points: number }>).map((r) => ({
-        rank: r.rank,
-        uid: r.uid,
-        points: r.points,
-      }));
-    } catch (e) {
-      console.error("[CasualPlatform] seasonLadderLeaderboard", e);
-      return [];
-    }
-  }, []);
-
   const fetchCArenaLeaderboard = useCallback(async (_seasonId: string, limit?: number) => {
     const http = getCasualHttpClient();
     if (!http) return [];
@@ -1084,31 +1061,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       return [];
     }
   }, []);
-
-  const fetchGameSeasonLeaderboard = useCallback(
-    async (seasonId: string | undefined, _gameId: string, limit?: number) => {
-      const http = getCasualHttpClient();
-      if (!http) return [];
-      try {
-        const rows = await http.query(
-          casualPlatformApi.service.season.casualSeasonService.seasonLadderLeaderboard,
-          {
-            seasonId: seasonId?.trim() ? seasonId : undefined,
-            limit,
-          }
-        );
-        return (rows as Array<{ rank: number; uid: string; points: number }>).map((r) => ({
-          rank: r.rank,
-          uid: r.uid,
-          points: r.points,
-        }));
-      } catch (e) {
-        console.error("[CasualPlatform] seasonLadderLeaderboard", e);
-        return [];
-      }
-    },
-    []
-  );
 
   const fetchWeeklyLeagueCohort = useCallback(async () => {
     const http = getCasualHttpClient();
@@ -1419,9 +1371,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       claimCasualScoreTierPendingReward,
       claimCasualScoreTierPendingRewardsBatch,
       claimCasualInstanceRewards,
-      fetchMainSeasonLeaderboard,
       fetchCArenaLeaderboard,
-      fetchGameSeasonLeaderboard,
       fetchWeeklyLeagueCohort,
       ensureWeeklyLeagueMember,
       claimWeeklyLeagueRewards,
@@ -1460,9 +1410,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       claimCasualScoreTierPendingReward,
       claimCasualScoreTierPendingRewardsBatch,
       claimCasualInstanceRewards,
-      fetchMainSeasonLeaderboard,
       fetchCArenaLeaderboard,
-      fetchGameSeasonLeaderboard,
       fetchWeeklyLeagueCohort,
       ensureWeeklyLeagueMember,
       claimWeeklyLeagueRewards,

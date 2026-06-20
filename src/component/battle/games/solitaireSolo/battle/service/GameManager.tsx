@@ -40,6 +40,8 @@ interface ISoloGameContext {
     syncReplayScore: (source: SoloGameState) => void;
     replayMode: boolean;
     casualTournamentId?: string;
+    /** P75 挑战等：本局 seed 分位目标分 */
+    targetScore?: number;
     onGameSubmit?: () => void;
     onTriathlonNextGame?: import('component/battle/games/shared/casualTriathlonSubmitFlow').TriathlonMidSessionAdvanceHandler;
 }
@@ -60,6 +62,7 @@ const SoloGameContext = createContext<ISoloGameContext>({
     syncReplayScore: () => { },
     replayMode: false,
     casualTournamentId: undefined,
+    targetScore: undefined,
     onGameSubmit: undefined,
     onTriathlonNextGame: undefined,
 });
@@ -101,6 +104,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     const [dealEvent, setDealEvent] = useState<{ cards: Card[], name: string } | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const [interactionPhase, setInteractionPhase] = useState<GameInteractionPhase>(GameInteractionPhase.idle);
+    const [targetScore, setTargetScore] = useState<number | undefined>(undefined);
     const boardDimensionRef = useRef<SoloBoardDimension | null>(null);
     const timelinesRef = useRef<{ [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }>({});
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
@@ -172,6 +176,10 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         }
         onGameLoadComplete?.();
         setGameState(game);
+        const threshold = (res as { seedScoreThreshold?: number }).seedScoreThreshold;
+        if (typeof threshold === "number" && Number.isFinite(threshold)) {
+            setTargetScore(threshold);
+        }
     }, [convex, gameId, onGameLoadComplete]);
 
     const reloadCasualRun = useCallback(async (): Promise<boolean> => {
@@ -201,6 +209,10 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             setInteractionPhase(GameInteractionPhase.idle);
         }
         setGameState(game);
+        const threshold = (res as { seedScoreThreshold?: number }).seedScoreThreshold;
+        if (typeof threshold === "number" && Number.isFinite(threshold)) {
+            setTargetScore(threshold);
+        }
         return true;
     }, [convex, gameId]);
 
@@ -349,6 +361,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         syncReplayScore,
         replayMode,
         casualTournamentId,
+        targetScore,
         onGameSubmit,
         onTriathlonNextGame,
     };

@@ -10,6 +10,7 @@ export interface CasualShopSkuRow {
   grantGems?: number;
   grantSkinId?: string;
   grantReplayTokenCount?: number;
+  weeklyPurchaseLimit?: number;
 }
 
 export interface CasualShopWalletMock {
@@ -17,35 +18,15 @@ export interface CasualShopWalletMock {
   gems: number;
 }
 
-/** 三档钻→币 + 三档法币→钻（IAP 占位，`purchaseSku` 不可用） */
+/** 法币→钻 + 单币种 discretionary（与 `CASUAL_SHOP_SKU_CATALOG` 一致） */
 export const MOCK_SHOP_SKUS: CasualShopSkuRow[] = [
-  {
-    skuId: "shop_coin_tier_1",
-    title: "Coin pack I",
-    skuKind: "virtual",
-    priceGems: 10,
-    grantCoins: 220,
-  },
-  {
-    skuId: "shop_coin_tier_2",
-    title: "Coin pack II",
-    skuKind: "virtual",
-    priceGems: 48,
-    grantCoins: 1200,
-  },
-  {
-    skuId: "shop_coin_tier_3",
-    title: "Coin pack III",
-    skuKind: "virtual",
-    priceGems: 198,
-    grantCoins: 5200,
-  },
   {
     skuId: "iap_gem_tier_1",
     title: "Gem pack I (IAP)",
     skuKind: "iap",
     iapPriceLabel: "¥6",
     grantGems: 60,
+    grantCoins: 350,
   },
   {
     skuId: "iap_gem_tier_2",
@@ -53,6 +34,7 @@ export const MOCK_SHOP_SKUS: CasualShopSkuRow[] = [
     skuKind: "iap",
     iapPriceLabel: "¥30",
     grantGems: 330,
+    grantCoins: 1800,
   },
   {
     skuId: "iap_gem_tier_3",
@@ -60,17 +42,33 @@ export const MOCK_SHOP_SKUS: CasualShopSkuRow[] = [
     skuKind: "iap",
     iapPriceLabel: "¥98",
     grantGems: 1200,
+    grantCoins: 7200,
   },
   {
     skuId: "shop_replay_pass_3pack",
     title: "Replay Pass × 3",
     skuKind: "virtual",
-    priceGems: 15,
+    priceGems: 18,
     grantReplayTokenCount: 3,
+    weeklyPurchaseLimit: 2,
+  },
+  {
+    skuId: "shop_profile_flair_coin",
+    title: "Weekly lobby flair",
+    skuKind: "virtual",
+    priceCoins: 75,
+    weeklyPurchaseLimit: 1,
+  },
+  {
+    skuId: "shop_emote_pack_gems",
+    title: "Emote pack",
+    skuKind: "virtual",
+    priceGems: 12,
+    weeklyPurchaseLimit: 3,
   },
 ];
 
-/** 预览钱包：能买部分钻→币、不足以买完大三档 */
+/** 预览钱包：足以购买再战令与周饰 */
 export function createInitialShopWallet(): CasualShopWalletMock {
   return { coins: 8200, gems: 120 };
 }

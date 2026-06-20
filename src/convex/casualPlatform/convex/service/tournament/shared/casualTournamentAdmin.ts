@@ -1,7 +1,89 @@
-﻿import { internal } from "../../../_generated/api";
+﻿import { v } from "convex/values";
+import { internal } from "../../../_generated/api";
 import { listTournamentDefinitions } from "../../../data/casualTournamentConfigs";
+import type { PayoutBucket } from "../../../data/casualPayoutPolicy";
 import { internalMutation } from "../../../_generated/server";
-/** ä¸€æ¬¡æ€§ï¼š`casual_tournaments.gameId` â†’ `gameType` */
+
+const LEGACY_ASYNC_PAYOUT_BUCKETS = new Set([
+  "tournament_a",
+  "tournament_b",
+  "tournament_c",
+  "triathlon_a",
+  "triathlon_b",
+  "triathlon_c",
+]);
+
+function normalizePayoutBucket(bucket: string): PayoutBucket {
+  if (bucket === "async" || bucket === "season_challenge" || bucket === "solo_p75") {
+    return bucket;
+  }
+  if (LEGACY_ASYNC_PAYOUT_BUCKETS.has(bucket)) return "async";
+  return "async";
+}
+
+/** One-off: strip seasonPointsGrantedToday and merge legacy payout buckets. */
+export const migrateCasualPayoutDailyCounters = internalMutation({
+  args: { dryRun: v.optional(v.boolean()) },
+  handler: async (ctx, { dryRun }) => {
+    const rows = await ctx.db.query("casual_payout_daily_counters").collect();
+    type Acc = {
+      uid: string;
+      periodKey: string;
+      bucket: PayoutBucket;
+      settledCount: number;
+      coinsGrantedToday: number;
+      updatedAt: number;
+    };
+    const merged = new Map<string, Acc>();
+
+    for (const row of rows) {
+      const bucket = normalizePayoutBucket(row.bucket);
+      const key = `${row.uid}|${row.periodKey}|${bucket}`;
+      const prev = merged.get(key);
+      if (prev) {
+        prev.settledCount += row.settledCount;
+        prev.coinsGrantedToday += row.coinsGrantedToday;
+        prev.updatedAt = Math.max(prev.updatedAt, row.updatedAt);
+      } else {
+        merged.set(key, {
+          uid: row.uid,
+          periodKey: row.periodKey,
+          bucket,
+          settledCount: row.settledCount,
+          coinsGrantedToday: row.coinsGrantedToday,
+          updatedAt: row.updatedAt,
+        });
+      }
+    }
+
+    if (dryRun) {
+      return {
+        ok: true as const,
+        dryRun: true as const,
+        scanned: rows.length,
+        merged: merged.size,
+      };
+    }
+
+    for (const row of rows) {
+      await ctx.db.delete(row._id);
+    }
+    let inserted = 0;
+    for (const acc of merged.values()) {
+      await ctx.db.insert("casual_payout_daily_counters", acc);
+      inserted += 1;
+    }
+    return {
+      ok: true as const,
+      scanned: rows.length,
+      deleted: rows.length,
+      inserted,
+      merged: merged.size,
+    };
+  },
+});
+
+/** 一次性：`casual_tournaments.gameId` → `gameType` */
 export const migrateCasualTournamentsGameType = internalMutation({
   args: {},
   handler: async (ctx) => {

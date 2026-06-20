@@ -7,7 +7,7 @@ type Props = {
   children: React.ReactNode;
 };
 
-/** 混合战统一战斗视口：宽高比 1:1.5，最大化居中 */
+/** 休闲对局统一战斗视口：宽高比 1:1.5，最大化居中（单局 / 合战共用） */
 export const CasualTriathlonGameStage: React.FC<Props> = ({ badge, children }) => (
   <div className="casual-triathlon-stage">
     {badge ? <div className="casual-triathlon-stage__badge">{badge}</div> : null}

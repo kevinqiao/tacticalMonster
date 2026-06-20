@@ -50,6 +50,8 @@ export type Match3GameState = {
   lastUpdate?: number;
   recordedOps?: import("../service/seedPool/match3RecordedOpTypes").Match3RecordedStep[];
   lastOpAt?: number;
+  /** loadGame 注入：P75 挑战目标分（非 DB 字段） */
+  targetScore?: number;
 };
 
 export type Match3Rule = {

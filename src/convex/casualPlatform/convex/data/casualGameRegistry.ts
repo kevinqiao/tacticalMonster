@@ -35,6 +35,7 @@ const DEV_SOLITAIRE_SITE_ORIGIN = "https://artful-chipmunk-59.convex.site";
 const DEV_BLOCK_BLAST_SITE_ORIGIN = "https://spotted-marten-367.convex.site";
 const DEV_TOWER_SITE_ORIGIN = "https://tower-arena-dev.convex.site";
 const DEV_MATCH3_SITE_ORIGIN = "https://strong-condor-681.convex.site";
+const DEV_YATZ_SITE_ORIGIN = "https://precious-retriever-7.convex.site";
 
 export const CASUAL_GAME_REGISTRY = {
   solitaire: {
@@ -84,6 +85,19 @@ export const CASUAL_GAME_REGISTRY = {
     botPolicy: "platform_ingest",
     virtualUidPrefix: "__vp_match_3:",
     virtualGameIdInfix: "_m3",
+    bridgeLoadGameSeed: "seed_binding_id",
+    spotlightEligible: true,
+  },
+  yatz: {
+    gameType: "yatz",
+    displayName: "Yatz",
+    /** catalog seedId → yatzSeedManifest（13 轮 roll1 + reroll pool）；全员同表 */
+    seedStrategy: "catalog_internal",
+    seedRemoteOriginEnv: "YATZ_HTTP_ORIGIN",
+    seedRemoteDevDefault: DEV_YATZ_SITE_ORIGIN,
+    botPolicy: "platform_ingest",
+    virtualUidPrefix: "__vp_yatz:",
+    virtualGameIdInfix: "_yz",
     bridgeLoadGameSeed: "seed_binding_id",
     spotlightEligible: true,
   },
@@ -157,7 +171,9 @@ export function resolveSeedRemoteOrigin(reg: CasualGameRegistration): string {
             ? process.env.TOWER_CONVEX_SITE_URL
             : envKey === "MATCH3_HTTP_ORIGIN"
               ? process.env.MATCH3_CONVEX_SITE_URL
-              : undefined));
+              : envKey === "YATZ_HTTP_ORIGIN"
+                ? process.env.YATZ_CONVEX_SITE_URL
+                : undefined));
   const origin = (typeof fromEnv === "string" ? fromEnv : "").trim().replace(/\/$/, "");
   if (origin) return origin;
   return (reg.seedRemoteDevDefault ?? "").trim().replace(/\/$/, "");

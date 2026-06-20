@@ -12,6 +12,9 @@ export type Match3WatchContext =
       kind: 'recorded';
       gameId: string;
       opCount?: number;
+      seedId?: string;
+      /** 交分写入 casualPlatform 的快照；历史页可不查游戏服 */
+      steps?: ReadonlyArray<Record<string, unknown>>;
     };
 
 export type CasualWatchContext = Match3WatchContext;
@@ -72,7 +75,7 @@ export function casualTableSummaryHasReplay(
 export type CasualWatchRowHandler = (
   ctx: Match3WatchContext,
   displayLabel: string,
-  gameType?: 'match_3' | 'solitaire' | 'block_blast'
+  gameType?: 'match_3' | 'solitaire' | 'block_blast' | 'yatz'
 ) => void;
 
 export type ManualSettleConfirmExtras = {

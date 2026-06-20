@@ -13,7 +13,10 @@
 
 | 主题 | 文档 |
 |------|------|
-| 经济、锦标 A/B/C、钻/软币、赛季分口径、默认 PVE 异步竞技 | [`casual-platform-system-design.md`](./casual-platform-system-design.md) |
+| 经济循环、产出/消耗、XP 递减、Play 模式矩阵 | [`casual-platform-economy-loop-design.md`](./casual-platform-economy-loop-design.md) |
+| 经济平衡 `sync` / `balance` / `tune` | [`casual-platform-economy-balance-script.md`](./casual-platform-economy-balance-script.md) |
+| 周联赛 cohort / League XP / 周尾 | [`casual-platform-weekly-league-design.md`](./casual-platform-weekly-league-design.md) |
+| 经济、锦标 A/B/C、钻/软币（历史） | [`casual-platform-system-design.md`](./casual-platform-system-design.md) |
 | 统一赛季、任务、Pass、榜单、专场、商店动线 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | CasualTown（展示与轻社交；非第二养成主循环） | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
 | CasualTown 美术技法与 AI 交付规范（一页纸） | [`casual-town-art-brief.md`](./casual-town-art-brief.md) |
@@ -84,7 +87,10 @@
 
 | 想改的内容 | 优先阅读 |
 |------------|----------|
-| 锦标档位、门票、奖池、赛季分、钻闭环 | [`casual-platform-system-design.md`](./casual-platform-system-design.md) |
+| 经济循环、XP 递减、券/币闭环 | [`casual-platform-economy-loop-design.md`](./casual-platform-economy-loop-design.md) |
+| 跑经济平衡工具链、产销比回归 | [`casual-platform-economy-balance-script.md`](./casual-platform-economy-balance-script.md) |
+| 周联赛、League XP、cohort | [`casual-platform-weekly-league-design.md`](./casual-platform-weekly-league-design.md) |
+| 锦标档位、门票、钻闭环 | [`casual-platform-system-design.md`](./casual-platform-system-design.md) |
 | Pass 等级、任务、专场券、榜单重置 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | 小镇布局、拜访、异步挑战、与 ingest 边界 | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
 | 成就、称号、展示 | [`casual-platform-achievement-system-design.md`](./casual-platform-achievement-system-design.md) |

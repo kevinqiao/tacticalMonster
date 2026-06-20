@@ -35,5 +35,6 @@ export async function findAnyGlobalOpenCasualMatch(
     gameId: open.gameId,
     matchId: open.matchId,
     templateId: open.templateId,
+    runTournamentId: String(open.tournamentId),
   };
 }

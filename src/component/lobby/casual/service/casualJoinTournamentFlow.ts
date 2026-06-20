@@ -23,7 +23,7 @@ export type ResolvedJoinTournamentOutcome =
     }
   | { kind: "failed"; error: string };
 
-/** 将 `joinTournament` 返回值规范为 ready / queued / failed（A/B/C 与日榜共用） */
+/** 将 `joinTournament` 返回值规范为 ready / queued / failed（A/B/C / p75 / 专场共用） */
 export function resolveJoinTournamentOutcome(
   result: CasualJoinTournamentMutationResult
 ): ResolvedJoinTournamentOutcome {

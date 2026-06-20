@@ -5,6 +5,7 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import Match3LobbyWatchOverlay from "@/component/battle/games/match3/battle/replay/Match3LobbyWatchOverlay";
 import SolitaireLobbyWatchOverlay from "@/component/battle/games/solitaireSolo/battle/replay/SolitaireLobbyWatchOverlay";
 import BlockBlastLobbyWatchOverlay from "@/component/battle/games/blockBlast/battle/replay/BlockBlastLobbyWatchOverlay";
+import YatzLobbyWatchOverlay from "@/component/battle/games/yatz/battle/replay/YatzLobbyWatchOverlay";
 import { CasualPostSettleSummaryOverlay } from "@/component/battle/games/shared/CasualPostSettleSummaryOverlay";
 import { CasualTriathlonHistoryReportOverlay } from "@/component/battle/games/shared/CasualTriathlonHistoryReportOverlay";
 import type {
@@ -67,7 +68,7 @@ function formatPendingRewardsSummary(row: {
   return parts.length ? parts.join(" · ") : null;
 }
 
-const CASUAL_WATCH_GAME_TYPES = new Set(["match_3", "solitaire", "block_blast", "triathlon"]);
+const CASUAL_WATCH_GAME_TYPES = new Set(["match_3", "solitaire", "block_blast", "yatz", "triathlon"]);
 
 function canOpenCasualHistoryReport(row: CasualGameHistoryRow): boolean {
   return (
@@ -91,7 +92,7 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
   const [watchTarget, setWatchTarget] = useState<CasualWatchContext | null>(null);
   const [watchLabel, setWatchLabel] = useState("");
   const [watchGameType, setWatchGameType] = useState<
-    "match_3" | "solitaire" | "block_blast" | null
+    "match_3" | "solitaire" | "block_blast" | "yatz" | null
   >(null);
 
   const onClaim = useCallback(
@@ -129,7 +130,9 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
           ? "solitaire"
           : row.gameType === "block_blast"
             ? "block_blast"
-            : "match_3"
+            : row.gameType === "yatz"
+              ? "yatz"
+              : "match_3"
     );
     setWatchTarget(null);
     setWatchLabel("");
@@ -146,7 +149,7 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
     (
       ctx: CasualWatchContext,
       displayLabel: string,
-      gameType?: "match_3" | "solitaire" | "block_blast"
+      gameType?: "match_3" | "solitaire" | "block_blast" | "yatz"
     ) => {
       setWatchTarget(ctx);
       setWatchLabel(displayLabel);
@@ -310,6 +313,13 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
         />
       ) : watchGameType === "block_blast" ? (
         <BlockBlastLobbyWatchOverlay
+          open={watchTarget != null}
+          watchContext={watchTarget}
+          displayLabel={watchLabel}
+          onClose={closeWatch}
+        />
+      ) : watchGameType === "yatz" ? (
+        <YatzLobbyWatchOverlay
           open={watchTarget != null}
           watchContext={watchTarget}
           displayLabel={watchLabel}

@@ -77,6 +77,7 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         dismissPostCasualSummary,
         interactionPhase,
         replayMode,
+        targetScore,
     } = useBlockBlastGameManager();
 
     const [watchTarget, setWatchTarget] = useState<CasualWatchContext | null>(null);
@@ -381,6 +382,8 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
             <BlockBlastStatusBar
                 isPortrait={isPortrait}
                 gameState={gameState}
+                dueTime={replayMode ? undefined : gameState.dueTime}
+                targetScore={replayMode ? undefined : targetScore}
                 endGameDisabled={endGameDisabled}
                 onEndGame={
                     replayMode

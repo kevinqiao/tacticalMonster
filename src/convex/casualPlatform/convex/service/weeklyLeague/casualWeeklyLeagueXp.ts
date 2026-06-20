@@ -3,7 +3,6 @@
  */
 import type { CasualTournamentDefinition } from "../../data/casualTournamentConfigs";
 import {
-  effectiveInstanceScope,
   isTriathlonTemplate,
 } from "../../data/casualTournamentConfigs";
 import {
@@ -17,13 +16,27 @@ export type ResolveLeagueXpArgs = {
   def: CasualTournamentDefinition;
   seasonXpOnSettle: number;
   multiplayerFinalRank?: number;
-  /** 今日已计入 League XP（单人软上限） */
+  /** 今日已计入 League XP（p75 日软顶） */
   dailyLeagueXpGranted?: number;
+  /** p75 挑战：分数 >= seed 成功阈值（未达标则 0 League XP） */
+  p75ChallengeSuccess?: boolean;
 };
 
+/** 单人 p75：本局是否达到 seed 分位成功线（与钱包成功奖同口径）。 */
+export function isP75ChallengeSuccess(
+  def: CasualTournamentDefinition,
+  score: number,
+  seedScoreThreshold?: number
+): boolean {
+  if (def.matchType !== "solo_p75_challenge") return false;
+  if (!def.seedQuantileSuccess) return false;
+  if (typeof seedScoreThreshold !== "number" || !Number.isFinite(seedScoreThreshold)) {
+    return false;
+  }
+  return score >= seedScoreThreshold;
+}
+
 function isSoloLowLeagueMode(def: CasualTournamentDefinition): boolean {
-  const scope = effectiveInstanceScope(def);
-  if (scope === "daily") return true;
   if (def.matchType === "solo_p75_challenge") return true;
   if (def.maxPlayers <= 1) return true;
   return false;
@@ -56,6 +69,18 @@ export function resolveLeagueXpDelta(args: ResolveLeagueXpArgs): {
 } {
   const { def, seasonXpOnSettle } = args;
   const lines: LeagueXpLine[] = [];
+
+  if (def.matchType === "solo_p75_challenge") {
+    if (!args.p75ChallengeSuccess) {
+      return { delta: 0, lines };
+    }
+    const dailyGranted = Math.max(0, args.dailyLeagueXpGranted ?? 0);
+    const capLeft = Math.max(0, DAILY_LEAGUE_XP_SOFT_CAP - dailyGranted);
+    const raw = SOLO_CASUAL_LEAGUE_BASE_XP;
+    const delta = Math.min(raw, capLeft);
+    if (delta > 0) lines.push({ label: "达标", value: delta });
+    return { delta, lines };
+  }
 
   if (isSoloLowLeagueMode(def)) {
     const dailyGranted = Math.max(0, args.dailyLeagueXpGranted ?? 0);

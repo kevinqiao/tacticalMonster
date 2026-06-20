@@ -27,13 +27,12 @@ import {
 import CasualPageShell from "../shell/CasualPageShell";
 
 const SHOP_TITLE_ZH: Record<string, string> = {
-  shop_coin_tier_1: "金币补给 · 小",
-  shop_coin_tier_2: "金币补给 · 中",
-  shop_coin_tier_3: "金币补给 · 大",
   iap_gem_tier_1: "钻石 · 入门档",
   iap_gem_tier_2: "钻石 · 进阶档",
   iap_gem_tier_3: "钻石 · 尊享档",
   shop_replay_pass_3pack: "再战令 × 3",
+  shop_profile_flair_coin: "大厅周饰",
+  shop_emote_pack_gems: "表情包",
 };
 
 function displayTitle(skuId: string, serverTitle: string): string {
@@ -107,6 +106,7 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
             grantGems: s.grantGems,
             grantSkinId: s.grantSkinId,
             grantReplayTokenCount: s.grantReplayTokenCount,
+            weeklyPurchaseLimit: s.weeklyPurchaseLimit,
           }))
         : [];
     if (serverRows.length > 0) {
@@ -210,9 +210,12 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
   const grantLine = (sku: CasualShopSkuRow) => {
     if (sku.skuKind === "iap" && (sku.grantGems ?? 0) > 0) {
       const p = previewIapGrantGems(activitiesForOrdinaryShop, { shopSkuId: sku.skuId }, sku.grantGems!);
-      return p.changed
-        ? `活动到账 ${p.effective} 钻（基准 ${sku.grantGems}）`
-        : `到账 ${sku.grantGems} 钻`;
+      const gemPart = p.changed
+        ? `${p.effective} 钻（活动，基准 ${sku.grantGems}）`
+        : `${sku.grantGems} 钻`;
+      const coinBonus =
+        sku.grantCoins && sku.grantCoins > 0 ? ` · 赠送 ${sku.grantCoins} 金币` : "";
+      return `到账 ${gemPart}${coinBonus}`;
     }
     const parts: string[] = [];
     if (sku.grantCoins && sku.grantCoins > 0) parts.push(`金币 +${sku.grantCoins}`);
@@ -220,8 +223,13 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
     if (sku.grantReplayTokenCount && sku.grantReplayTokenCount > 0) {
       parts.push(`再战令 +${sku.grantReplayTokenCount}`);
     }
-    return parts.length ? `获得 ${parts.join("，")}` : "即时到账";
+    return parts.length ? `获得 ${parts.join("，")}` : "纯消耗（装饰/表情，无资源到账）";
   };
+
+  const weeklyLimitLine = (sku: CasualShopSkuRow) =>
+    sku.weeklyPurchaseLimit && sku.weeklyPurchaseLimit > 0
+      ? `本周限购 ${sku.weeklyPurchaseLimit} 次`
+      : null;
 
   const mockBannerText = !casual.convexUrl
     ? "未配置休闲后端：普通商店为静态演示货架，购买仅更新本页预览钱包。"
@@ -270,14 +278,14 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
           </>
         ) : (
           <div className="casual-econ__mockBanner" role="note" style={{ marginBottom: 12 }}>
-            货架含钻→币、再战令、法币→钻；虚拟货币购买走{" "}
+            货架含再战令、外观消耗与法币→钻；虚拟货币购买走{" "}
             <code style={{ fontSize: 12 }}>purchaseSku</code>。首次打开商店会自动同步配表 SKU 到数据库。
           </div>
         )}
 
-        <h2 className="casual-econ__sectionTitle">钻石换金币</h2>
+        <h2 className="casual-econ__sectionTitle">外观与便利</h2>
         <p className="casual-econ__sectionHint">
-          三档静态演示（钻石→金币）；价格可被商店定向活动修正。不设「金币买金币」。
+          金币与钻分轨消耗（大厅周饰用金币，表情/再战令用钻）；不设钻→币兑换与双标价同款。
         </p>
 
         <div className="casual-econ__linkRow">
@@ -340,6 +348,9 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
                   </div>
                 ) : null}
                 <p className="casual-shop__grant">{grantLine(sku)}</p>
+                {weeklyLimitLine(sku) ? (
+                  <p className="casual-shop__grant casual-shop__grant--muted">{weeklyLimitLine(sku)}</p>
+                ) : null}
                 <button
                   type="button"
                   className={`casual-shop__buy${loading ? " casual-shop__buy--busy" : ""}`}
@@ -446,6 +457,9 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
                       </div>
                     ) : null}
                     <p className="casual-shop__grant">{grantLine(sku)}</p>
+                {weeklyLimitLine(sku) ? (
+                  <p className="casual-shop__grant casual-shop__grant--muted">{weeklyLimitLine(sku)}</p>
+                ) : null}
                     <button
                       type="button"
                       className={`casual-shop__buy${loading ? " casual-shop__buy--busy" : ""}`}
@@ -504,10 +518,7 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
           钻石充值（法币）
         </h2>
         <p className="casual-econ__sectionHint">
-          三档静态演示（法币→钻）：标价 + 到账钻数；活动可通过 <code style={{ fontSize: 12 }}>iapGrantGemsMultiplier</code> /{" "}
-          <code style={{ fontSize: 12 }}>iapGrantGemsDelta</code> 修正到账（与{" "}
-          <code style={{ fontSize: 12 }}>fulfillIapShopPurchase</code> 一致）。生产环境须由支付回调带唯一{" "}
-          <code style={{ fontSize: 12 }}>paymentRef</code> 调用发货。
+          三档法币→钻；每档含固定赠送金币（约可打数场 A/B），钻到账可受活动倍率修正，赠送金不变。
         </p>
 
         <div className="casual-shop__grid">
@@ -566,6 +577,9 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
                   </div>
                 ) : null}
                 <p className="casual-shop__grant">{grantLine(sku)}</p>
+                {weeklyLimitLine(sku) ? (
+                  <p className="casual-shop__grant casual-shop__grant--muted">{weeklyLimitLine(sku)}</p>
+                ) : null}
                 <button
                   type="button"
                   className={`casual-shop__buy${loading ? " casual-shop__buy--busy" : ""}`}
@@ -583,9 +597,13 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
                               r.activityIds
                             );
                             const actHint = titles.length ? ` · ${titles.join("、")}` : "";
+                            const coinHint =
+                              r.coinsGranted && r.coinsGranted > 0
+                                ? ` · 赠送 +${r.coinsGranted} 金`
+                                : "";
                             setToast({
                               ok: true,
-                              text: `开发：IAP 已发放 +${r.gemsGranted ?? 0} 钻（基准 ${r.baseGems ?? "—"}）${actHint}`,
+                              text: `开发：IAP 已发放 +${r.gemsGranted ?? 0} 钻（基准 ${r.baseGems ?? "—"}）${coinHint}${actHint}`,
                             });
                           } else {
                             setToast({ ok: false, text: shopErrorMessage(r.error) });

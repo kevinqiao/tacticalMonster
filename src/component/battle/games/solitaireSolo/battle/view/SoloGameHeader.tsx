@@ -1,5 +1,5 @@
 /**
- * 单人纸牌顶栏：头像、昵称、分数、步数；可选「收到基础」紧挨分数。
+ * 单人纸牌顶栏：头像、昵称、分数、步数；P75 挑战可选目标分。
  */
 
 import type { User } from 'host/service/UserManager';
@@ -39,8 +39,8 @@ export interface SoloGameHeaderProps {
     displayMoves: number | null;
     /** 休闲 run 绝对截止（epoch ms）；重载后仍准确 */
     dueTime?: number;
-    showAutoComplete: boolean;
-    onAutoComplete: () => void;
+    /** P75 挑战：本局 seed 分位目标分 */
+    targetScore?: number;
     /** 主动结束本局并按当前分数触发上报（锦标 / proxy） */
     onEndGame?: () => void;
     endGameDisabled?: boolean;
@@ -50,8 +50,7 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
     displayScore,
     displayMoves,
     dueTime,
-    showAutoComplete,
-    onAutoComplete,
+    targetScore,
     onEndGame,
     endGameDisabled,
 }) => {
@@ -96,17 +95,6 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
             </div>
             <div className="solo-game-header__stats">
                 <div className="solo-game-header__score-row">
-                    <button
-                        type="button"
-                        className="solo-game-header__autocomplete"
-                        aria-label="自动将可收牌全部收到基础堆"
-                        disabled={!showAutoComplete}
-                        onClick={() => {
-                            onAutoComplete();
-                        }}
-                    >
-                        收到基础
-                    </button>
                     {onEndGame ? (
                         <button
                             type="button"
@@ -119,6 +107,12 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
                         >
                             结束并结算
                         </button>
+                    ) : null}
+                    {targetScore != null ? (
+                        <div className="solo-game-header__stat">
+                            <span className="solo-game-header__stat-label">目标</span>
+                            <span className="solo-game-header__stat-value">{targetScore}</span>
+                        </div>
                     ) : null}
                     <div className="solo-game-header__stat">
                         <span className="solo-game-header__stat-label">分数</span>

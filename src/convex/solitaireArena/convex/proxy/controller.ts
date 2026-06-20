@@ -39,13 +39,18 @@ function mapCasualIngestClientResponse(
 ) {
     const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
     const pendingOthers = parsed.pendingOthers === true;
-    const hasThreshold =
-        typeof extra?.seedScoreThreshold === "number" && Number.isFinite(extra.seedScoreThreshold);
-    const seedScoreThreshold = hasThreshold ? (extra!.seedScoreThreshold as number) : undefined;
+    const seedScoreThreshold =
+        typeof parsed.seedScoreThreshold === "number" && Number.isFinite(parsed.seedScoreThreshold)
+            ? parsed.seedScoreThreshold
+            : typeof extra?.seedScoreThreshold === "number" && Number.isFinite(extra.seedScoreThreshold)
+              ? extra.seedScoreThreshold
+              : undefined;
     const success =
-        seedScoreThreshold != null && typeof extra?.score === "number"
-            ? extra.score >= seedScoreThreshold
-            : undefined;
+        typeof parsed.success === "boolean"
+            ? parsed.success
+            : seedScoreThreshold != null && typeof extra?.score === "number"
+              ? extra.score >= seedScoreThreshold
+              : undefined;
     return {
         ok: true as const,
         ...(tableSummary ? { tableSummary } : {}),
@@ -132,6 +137,48 @@ function casualTableSummaryFromParsed(v: unknown):
     };
 }
 
+type CasualFindMatchResult = {
+    ok?: boolean;
+    match?: {
+        gameId?: string;
+        seed?: string;
+        seedScoreThreshold?: number;
+    };
+    error?: string;
+};
+
+async function fetchCasualMatchByGame(
+    gameId: string,
+    options?: { skipRecordSeed?: boolean }
+): Promise<CasualFindMatchResult> {
+    const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
+    const matchURL = `${casualOrigin}/internal/find-match-by-game`;
+    let response: Response;
+    try {
+        response = await fetch(matchURL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Casual-Bridge-Secret": bridge,
+            },
+            body: JSON.stringify({
+                gameId,
+                ...(options?.skipRecordSeed ? { skipRecordSeed: true } : {}),
+            }),
+        });
+    } catch (e) {
+        console.error("[solitaire] find-match-by-game fetch failed", e);
+        return { ok: false, error: "casual_unreachable" };
+    }
+    try {
+        const text = await response.text();
+        if (!text) return { ok: false, error: `casual_find_${response.status}` };
+        return JSON.parse(text) as CasualFindMatchResult;
+    } catch {
+        return { ok: false, error: `casual_find_${response.status}` };
+    }
+}
+
 export const loadGame = action({
     args: {
         gameId: v.string(),
@@ -139,7 +186,7 @@ export const loadGame = action({
         resetCasualRun: v.optional(v.literal(true)),
     },
     handler: async (ctx, { gameId, resetCasualRun }): Promise<any> => {
-        const res: { ok: boolean; game?: any; events?: any; error?: string } = { ok: false };
+        const res: { ok: boolean; game?: any; events?: any; error?: string; seedScoreThreshold?: number } = { ok: false };
         if (resetCasualRun === true && gameId.startsWith("game_")) {
             await ctx.runMutation(internal.service.gameManager.deleteCasualGameForReplay, { gameId });
         } else {
@@ -147,50 +194,35 @@ export const loadGame = action({
             if (existing) {
                 res.ok = true;
                 res.game = existing;
+                if (gameId.startsWith("game_")) {
+                    const meta = await fetchCasualMatchByGame(gameId, { skipRecordSeed: true });
+                    const threshold = meta.match?.seedScoreThreshold;
+                    if (typeof threshold === "number" && Number.isFinite(threshold)) {
+                        res.seedScoreThreshold = threshold;
+                    }
+                }
                 return res;
             }
         }
 
         const createArgs: { seed?: string; gameId: string } = { gameId };
+        let seedScoreThreshold: number | undefined;
 
         if (gameId.startsWith("game_")) {
-            const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
-            const matchURL = `${casualOrigin}/internal/find-match-by-game`;
-            let response: Response;
-            try {
-                response = await fetch(matchURL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Casual-Bridge-Secret": bridge,
-                    },
-                    body: JSON.stringify({ gameId }),
-                });
-            } catch (e) {
-                console.error("[solitaire] find-match-by-game fetch failed", e);
-                return { ok: false, error: "casual_unreachable" };
-            }
-            let matchGameResult: {
-                ok?: boolean;
-                match?: { gameId?: string; seed?: string };
-                error?: string;
-            } = {};
-            try {
-                const text = await response.text();
-                if (text) matchGameResult = JSON.parse(text) as typeof matchGameResult;
-            } catch {
-                matchGameResult = {};
-            }
-            if (!response.ok || !matchGameResult.ok || !matchGameResult.match) {
+            const matchGameResult = await fetchCasualMatchByGame(gameId);
+            if (!matchGameResult.ok || !matchGameResult.match) {
                 return {
                     ok: false,
-                    error: matchGameResult.error ?? `casual_find_${response.status}`,
+                    error: matchGameResult.error ?? "casual_find_failed",
                 };
             }
             const data = matchGameResult.match;
             const rawSeed = data?.seed ?? data?.gameId;
             if (typeof rawSeed === "string") {
                 createArgs.seed = rawSeed;
+            }
+            if (typeof data?.seedScoreThreshold === "number" && Number.isFinite(data.seedScoreThreshold)) {
+                seedScoreThreshold = data.seedScoreThreshold;
             }
         }
 
@@ -206,6 +238,9 @@ export const loadGame = action({
             res.ok = true;
             res.game = fresh ?? gameResult.data;
             res.events = gameResult.events;
+            if (seedScoreThreshold != null) {
+                res.seedScoreThreshold = seedScoreThreshold;
+            }
         } else {
             res.ok = false;
             res.error = gameResult?.error ?? "create_failed";
@@ -421,7 +456,7 @@ export const replayCasualRun = action({
             return { ok: false as const, error: "casual_unreachable" };
         }
 
-        let parsed: { ok?: boolean; error?: string; replayEpoch?: number } = {};
+        let parsed: { ok?: boolean; error?: string; replayEpoch?: number; gameId?: string } = {};
         try {
             const text = await res.text();
             if (text) parsed = JSON.parse(text) as typeof parsed;
@@ -436,6 +471,7 @@ export const replayCasualRun = action({
         return {
             ok: true as const,
             replayEpoch: parsed.replayEpoch,
+            ...(typeof parsed.gameId === "string" ? { gameId: parsed.gameId } : {}),
         };
     },
 });

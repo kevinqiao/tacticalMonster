@@ -107,38 +107,31 @@ export const Modals: Record<string, ModalConfig> = {
         name: "play_solitaire_solo",
         path: "./battle/games/solitaireSolo/battle/PlaySolitaireSolo",
         auth: 1,
-        /** 默认横屏 35% / 竖屏全宽侧栏；其它入口可 `openModal({ effect: { name: "popCenter", ... } })` 覆盖 */
-        effects: [
-            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
-            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
-        ],
+        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
     },
     "play_block_blast": {
         name: "play_block_blast",
         path: "./battle/games/blockBlast/battle/PlayBlockBlast",
         auth: 1,
-        effects: [
-            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
-            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
-        ],
+        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
     },
     "play_match_3": {
         name: "play_match_3",
         path: "./battle/games/match3/battle/PlayMatch3",
         auth: 1,
-        effects: [
-            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
-            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
-        ],
+        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
+    },
+    "play_yatz": {
+        name: "play_yatz",
+        path: "./battle/games/yatz/battle/PlayYatz",
+        auth: 1,
+        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
     },
     "play_tower_arena": {
         name: "play_tower_arena",
         path: "./battle/games/towerArena/battle/PlayTowerArena",
         auth: 1,
-        effects: [
-            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
-            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
-        ],
+        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
     },
     "casual_tasks_sheet": {
         name: "casual_tasks_sheet",
@@ -172,15 +165,6 @@ export const Modals: Record<string, ModalConfig> = {
         path: "./lobby/casual/view/play/PlayCasualTriathlonSession",
         auth: 0,
         effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
-    },
-    "casual_daily_solo_leaderboard": {
-        name: "casual_daily_solo_leaderboard",
-        path: "./lobby/casual/view/play/CasualDailySoloLeaderboardModal",
-        auth: 0,
-        effects: [
-            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
-            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
-        ],
     },
     "casual_weekly_league": {
         name: "casual_weekly_league",

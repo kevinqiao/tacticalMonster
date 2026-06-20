@@ -16,7 +16,7 @@ import {
   resolveQueueEffectiveHumans,
   resolveQueueExpireAction,
 } from "../join/casualMatchmakingCore";
-import { toCasualMatchQueueClientFlags } from "../casualTournamentTypes";
+import { toCasualMatchQueueClientFlags } from "../shared/casualTournamentTypes";
 
 function baseProfile(
   overrides: Partial<BotStrategyPlayerContext> = {}
@@ -28,7 +28,7 @@ function baseProfile(
     matchType: "tournament_b",
     gameType: "solitaire",
     maxPlayers: 5,
-    seasonLadderPoints: 100,
+    weeklyLeagueTier: "bronze",
     completedMultiplayerMatches: 20,
     coinsBalance: 500,
     daysSinceLastMatch: 1,
@@ -66,7 +66,7 @@ describe("evaluateEffectiveHumans", () => {
       baseProfile({ daysSinceLastMatch: 15 }),
       def!
     );
-    expect(result.effectiveHumans).toBe(1);
+    expect(result.effectiveHumans).toBe(2);
     expect(result.matchedRuleId).toBe("returning_player_solo");
     expect(result.queueExpireAction).toBe("solo");
   });
@@ -74,10 +74,10 @@ describe("evaluateEffectiveHumans", () => {
   it("early game → effectiveHumans 1, expire solo", () => {
     const def = getTournamentDefinition("casual_async_b_solitaire");
     const result = evaluateEffectiveHumans(
-      baseProfile({ completedMultiplayerMatches: 3, seasonLadderPoints: 10 }),
+      baseProfile({ completedMultiplayerMatches: 3, weeklyLeagueTier: "bronze" }),
       def!
     );
-    expect(result.effectiveHumans).toBe(1);
+    expect(result.effectiveHumans).toBe(2);
     expect(result.matchedRuleId).toBe("early_game_solo");
     expect(result.queueExpireAction).toBe("solo");
   });

@@ -92,6 +92,14 @@ export const checkAndUnlockAchievements = internalMutation({
           source: "achievement",
         });
       }
+      if (tmpl.rewardGems && tmpl.rewardGems > 0) {
+        await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
+          uid,
+          kind: "gems",
+          amount: tmpl.rewardGems,
+          source: "achievement",
+        });
+      }
     }
     return { unlocked };
   },

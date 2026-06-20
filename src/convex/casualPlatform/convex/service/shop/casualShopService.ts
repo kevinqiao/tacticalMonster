@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import {
   CASUAL_SHOP_SKU_CATALOG,
+  DEPRECATED_CASUAL_SHOP_SKU_IDS,
   mapCasualShopSkuRow,
   type CasualShopSkuSeed,
 } from "../../data/casualShopCatalog";
@@ -9,13 +10,18 @@ import { grantReplayTokens } from "../tournament/replay/casualReplayTokens";
 import { applyScaledCurrencyCost } from "../../data/casualTournamentConfigs";
 import type { Doc } from "../../_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx } from "../../_generated/server";
+import { reserveWeeklyShopPurchase } from "./casualShopPurchaseLimit";
 
 function catalogSeedForSkuId(skuId: string): CasualShopSkuSeed | undefined {
   return CASUAL_SHOP_SKU_CATALOG.find((c) => c.skuId === skuId);
 }
 
 async function insertShopSkuFromSeed(ctx: MutationCtx, s: CasualShopSkuSeed) {
-  await ctx.db.insert("casual_shop_skus", {
+  await ctx.db.insert("casual_shop_skus", shopSkuDbPayload(s));
+}
+
+function shopSkuDbPayload(s: CasualShopSkuSeed) {
+  return {
     skuId: s.skuId,
     title: s.title,
     skuKind: s.skuKind ?? "virtual",
@@ -27,7 +33,32 @@ async function insertShopSkuFromSeed(ctx: MutationCtx, s: CasualShopSkuSeed) {
     grantSkinId: s.grantSkinId,
     grantReplayTokenCount: s.grantReplayTokenCount,
     active: true,
-  });
+  };
+}
+
+async function upsertShopSkuFromSeed(ctx: MutationCtx, s: CasualShopSkuSeed) {
+  const existing = await ctx.db
+    .query("casual_shop_skus")
+    .withIndex("by_skuId", (q) => q.eq("skuId", s.skuId))
+    .unique();
+  const payload = shopSkuDbPayload(s);
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      title: payload.title,
+      skuKind: payload.skuKind,
+      iapPriceLabel: payload.iapPriceLabel,
+      priceCoins: payload.priceCoins,
+      priceGems: payload.priceGems,
+      grantCoins: payload.grantCoins,
+      grantGems: payload.grantGems,
+      grantSkinId: payload.grantSkinId,
+      grantReplayTokenCount: payload.grantReplayTokenCount,
+      active: true,
+    });
+    return "updated" as const;
+  }
+  await ctx.db.insert("casual_shop_skus", payload);
+  return "inserted" as const;
 }
 
 function shopSkuFromDbRow(r: Doc<"casual_shop_skus">) {
@@ -43,31 +74,39 @@ function shopSkuFromDbRow(r: Doc<"casual_shop_skus">) {
     grantGems: r.grantGems ?? cat?.grantGems,
     grantSkinId: r.grantSkinId ?? cat?.grantSkinId,
     grantReplayTokenCount: r.grantReplayTokenCount ?? cat?.grantReplayTokenCount,
+    weeklyPurchaseLimit: cat?.weeklyPurchaseLimit,
   });
 }
 
-/** DB 已有旧种子时，把配表里缺失的 SKU（如再战令）补进 `casual_shop_skus`。 */
+/** DB 已有旧种子时，把配表里缺失的 SKU 补进 DB，并将已有 SKU 价格/标题与配表对齐。 */
 async function ensureShopCatalogInDb(ctx: MutationCtx) {
   let inserted = 0;
+  let updated = 0;
   const any = await ctx.db.query("casual_shop_skus").first();
   if (!any) {
     for (const s of CASUAL_SHOP_SKU_CATALOG) {
       await insertShopSkuFromSeed(ctx, s);
       inserted++;
     }
-    return { ok: true as const, seeded: true as const, inserted };
+    return { ok: true as const, seeded: true as const, inserted, updated };
   }
   for (const s of CASUAL_SHOP_SKU_CATALOG) {
-    const existing = await ctx.db
+    const result = await upsertShopSkuFromSeed(ctx, s);
+    if (result === "inserted") inserted++;
+    else updated++;
+  }
+  let deactivated = 0;
+  for (const skuId of DEPRECATED_CASUAL_SHOP_SKU_IDS) {
+    const row = await ctx.db
       .query("casual_shop_skus")
-      .withIndex("by_skuId", (q) => q.eq("skuId", s.skuId))
+      .withIndex("by_skuId", (q) => q.eq("skuId", skuId))
       .unique();
-    if (!existing) {
-      await insertShopSkuFromSeed(ctx, s);
-      inserted++;
+    if (row?.active) {
+      await ctx.db.patch(row._id, { active: false });
+      deactivated++;
     }
   }
-  return { ok: true as const, seeded: inserted > 0, inserted };
+  return { ok: true as const, seeded: inserted > 0, inserted, updated, deactivated };
 }
 
 export const listActiveShopSkus = query({
@@ -148,19 +187,32 @@ export const purchaseSku = mutation({
       );
     }
 
+    const pc = player.coins ?? 0;
+    const pg = player.gems ?? 0;
+    if (priceCoins != null && pc < priceCoins) {
+      return { ok: false as const, error: "insufficient_coins" };
+    }
+    if (priceGems != null && pg < priceGems) {
+      return { ok: false as const, error: "insufficient_gems" };
+    }
+
+    const catalogRow = catalogSeedForSkuId(skuId);
+    const reserve = await reserveWeeklyShopPurchase(
+      ctx,
+      uid,
+      skuId,
+      catalogRow?.weeklyPurchaseLimit,
+      Date.now()
+    );
+    if (!reserve.ok) {
+      return { ok: false as const, error: reserve.error };
+    }
+
     if (sku.skuKind === "skin" && sku.grantSkinId) {
-      const pcSkin = player.coins ?? 0;
-      const pgSkin = player.gems ?? 0;
-      if (priceGems != null && pgSkin < priceGems) {
-        return { ok: false as const, error: "insufficient_gems" };
-      }
-      if (priceCoins != null && pcSkin < priceCoins) {
-        return { ok: false as const, error: "insufficient_coins" };
-      }
       await ctx.runMutation(internal.dao.casualPlayerDao.patchByUid, {
         uid,
-        coins: priceCoins != null ? pcSkin - priceCoins : pcSkin,
-        gems: priceGems != null ? pgSkin - priceGems : pgSkin,
+        coins: priceCoins != null ? pc - priceCoins : pc,
+        gems: priceGems != null ? pg - priceGems : pg,
       });
       const gr = await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
         uid,
@@ -173,14 +225,6 @@ export const purchaseSku = mutation({
       return { ok: true as const, activityIds: modifiers.activityIds };
     }
 
-    const pc = player.coins ?? 0;
-    const pg = player.gems ?? 0;
-    if (priceCoins != null && pc < priceCoins) {
-      return { ok: false as const, error: "insufficient_coins" };
-    }
-    if (priceGems != null && pg < priceGems) {
-      return { ok: false as const, error: "insufficient_gems" };
-    }
     let nextCoins = pc;
     let nextGems = pg;
     if (priceCoins != null) nextCoins -= priceCoins;
@@ -204,7 +248,6 @@ export const purchaseSku = mutation({
         amount: sku.grantGems,
       });
     }
-    const catalogRow = CASUAL_SHOP_SKU_CATALOG.find((s) => s.skuId === skuId);
     const replayGrant =
       sku.grantReplayTokenCount ?? catalogRow?.grantReplayTokenCount ?? 0;
     if (replayGrant > 0) {
@@ -215,8 +258,8 @@ export const purchaseSku = mutation({
 });
 
 /**
- * 法币 IAP 成功后发放钻石（须带支付渠道唯一 paymentRef 幂等）。
- * 活动：`casual_shop_sku` / `global` 命中下对 `grantGems` 基数应用 `iapGrantGemsMultiplier`（连乘）与 `iapGrantGemsDelta`（求和），再 `floor(base×mult+delta)`。
+ * 法币 IAP 成功后发放钻石 + 配表赠送金币（须带支付渠道唯一 paymentRef 幂等）。
+ * 活动：`iapGrantGems*` 仅修正钻到账；赠送金为固定 bundle，不参与活动倍率。
  */
 export const fulfillIapShopPurchase = mutation({
   args: {
@@ -251,6 +294,8 @@ export const fulfillIapShopPurchase = mutation({
     if (baseGems <= 0) {
       return { ok: false as const, error: "iap_no_grant_gems" };
     }
+    const catalogRow = catalogSeedForSkuId(skuId);
+    const bonusCoins = Math.max(0, sku.grantCoins ?? catalogRow?.grantCoins ?? 0);
 
     const player = await ctx.runQuery(internal.dao.casualPlayerDao.findByUid, { uid });
     if (!player) return { ok: false as const, error: "no_player" };
@@ -273,11 +318,19 @@ export const fulfillIapShopPurchase = mutation({
       kind: "gems",
       amount: gemsGranted,
     });
+    if (bonusCoins > 0) {
+      await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
+        uid,
+        kind: "coins",
+        amount: bonusCoins,
+      });
+    }
     await ctx.db.insert("casual_shop_iap_fulfillments", {
       paymentRef,
       uid,
       skuId,
       gemsGranted,
+      coinsGranted: bonusCoins > 0 ? bonusCoins : undefined,
       activityIdsJson:
         modifiers.activityIds.length > 0 ? JSON.stringify(modifiers.activityIds) : undefined,
       fulfilledAt: Date.now(),
@@ -287,6 +340,7 @@ export const fulfillIapShopPurchase = mutation({
       ok: true as const,
       gemsGranted,
       baseGems,
+      coinsGranted: bonusCoins > 0 ? bonusCoins : undefined,
       activityIds: modifiers.activityIds,
     };
   },

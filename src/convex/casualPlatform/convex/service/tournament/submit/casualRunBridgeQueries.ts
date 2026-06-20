@@ -1,6 +1,7 @@
 ﻿import { v } from "convex/values";
 import { internalQuery } from "../../../_generated/server";
 import { getCasualGameRegistration } from "../../../data/casualGameRegistry";
+import { getTournamentDefinition } from "../../../data/casualTournamentConfigs";
 import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes";
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
 import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
@@ -32,6 +33,16 @@ export const findMatchByGameForBridge = internalQuery({
     const replayEpoch = pg.replayEpoch ?? pm.replayEpoch ?? 0;
     const reg = getCasualGameRegistration(pg.gameType)!;
 
+    const templateDef = getTournamentDefinition(pg.templateId);
+    const inlineP75 =
+      templateDef?.seedQuantileSuccess?.quantile === "p75"
+        ? pg.seedBinding?.scoreQuantiles?.p75
+        : undefined;
+    const seedScoreThreshold =
+      typeof inlineP75 === "number" && Number.isFinite(inlineP75)
+        ? Math.floor(inlineP75)
+        : undefined;
+
     if (reg.bridgeLoadGameSeed === "seed_binding_id") {
       return {
         ok: true as const,
@@ -41,10 +52,12 @@ export const findMatchByGameForBridge = internalQuery({
           seed: pg.seedBinding.seedId,
           seedId: pg.seedBinding.seedId,
           poolVersion: pg.seedBinding.poolVersion,
+          seedBinding: pg.seedBinding,
           templateId: pg.templateId,
           replayEpoch,
           uid: pg.uid,
           matchId: pg.matchId,
+          ...(seedScoreThreshold != null ? { seedScoreThreshold } : {}),
         },
         recordSeedOnHttp: reg.seedStrategy === "remote_http",
       };

@@ -15,6 +15,9 @@ export async function applyWeeklyLeagueOnMatchSettle(
     multiplayerFinalRank?: number;
     sessionKind?: "single" | "triathlon";
     now?: number;
+    /** 当日 async/专场 bucket League XP 递减乘子（p75 不使用）。 */
+    xpDecayMultiplier?: number;
+    p75ChallengeSuccess?: boolean;
   }
 ): Promise<WeeklyLeagueSettlePayload | null> {
   const settle = await addLeagueXp(ctx, {
@@ -23,6 +26,8 @@ export async function applyWeeklyLeagueOnMatchSettle(
     seasonXpOnSettle: args.seasonXpOnSettle,
     multiplayerFinalRank: args.multiplayerFinalRank,
     now: args.now,
+    xpDecayMultiplier: args.xpDecayMultiplier,
+    p75ChallengeSuccess: args.p75ChallengeSuccess,
   });
 
   const profile = await ctx.db

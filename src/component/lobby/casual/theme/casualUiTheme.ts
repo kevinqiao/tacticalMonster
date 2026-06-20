@@ -8,12 +8,9 @@ export type CasualUiThemeDataset = "s1-midnight-sky" | "s2-edo-sakura";
 export type CasualUiBpTier = "env" | "standard" | "deluxe";
 
 export function pickSeasonIdForUiTheme(casual: {
-  seasonLadderSnapshot: { seasonId: string } | null;
   passProgress: { seasonId: string } | null;
   seasons: Array<{ seasonId: string; active?: boolean }>;
 }): string | null {
-  const ladder = casual.seasonLadderSnapshot?.seasonId?.trim();
-  if (ladder) return ladder;
   const pass = casual.passProgress?.seasonId?.trim();
   if (pass) return pass;
   const active = casual.seasons?.find((s) => s.active);

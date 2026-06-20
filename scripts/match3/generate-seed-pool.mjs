@@ -21,7 +21,7 @@ function parseArgs(argv) {
     count: 50,
     start: 1,
     rollouts: 20,
-    matchSeconds: 180,
+    matchSeconds: 300,
     out: path.join(repoRoot, "scripts/match3/output/pool-v1"),
     minOpeningMoves: 3,
     minScoreP25: 100,

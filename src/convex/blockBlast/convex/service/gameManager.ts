@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
 import {
     BlockBlastGameStatus,
@@ -7,10 +8,12 @@ import {
 } from "../types/BlockBlastTypes";
 import { BlockBlastGameEngine, randomUuidCompat } from "./BlockBlastGameEngine";
 import {
+    BLOCK_BLAST_MATCH_TIME_LIMIT_SEC,
     blockBlastLinesBonus,
     blockBlastMovesBonus,
     computeBlockBlastTotalScore,
 } from "./blockBlastScoreModel";
+import { parseCasualRunGameId } from "./casualGameLifecycle";
 import type { BlockBlastRecordedStep } from "./seedPool/blockBlastRecordedOpTypes";
 
 /** 同 `gameId` 多行时取最新；`collect`+排序避免依赖 `.order().first()` 在重复索引上的 `unique` 异常 */
@@ -58,6 +61,9 @@ export const loadGameRowAfterHeal = internalMutation({
 export const deleteCasualGameForReplay = internalMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
+        await ctx.runMutation(internal.service.casualGameLifecycle.cancelCasualTimeoutJob, {
+            gameId,
+        });
         const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
         for (const row of rows) {
             await ctx.db.delete(row._id);
@@ -88,6 +94,33 @@ interface GameState {
     lastUpdate?: number;
     recordedOps?: BlockBlastRecordedStep[];
     lastOpAt?: number;
+    dueTime?: number;
+    casualTimeoutScheduledId?: string;
+}
+
+async function scheduleBlockBlastCasualTimeout(
+    ctx: { db: any; scheduler: any },
+    gameId: string,
+    gameRowId: string
+): Promise<void> {
+    if (!gameId.startsWith("game_")) return;
+    const parsed = parseCasualRunGameId(gameId);
+    if (!parsed?.uid || !gameRowId) return;
+    const now = Date.now();
+    const dueTime = now + BLOCK_BLAST_MATCH_TIME_LIMIT_SEC * 1000;
+    try {
+        const jobId = await ctx.scheduler.runAfter(
+            BLOCK_BLAST_MATCH_TIME_LIMIT_SEC * 1000,
+            internal.service.casualGameTimeoutAction.checkCasualGameTimeoutAndIngest,
+            { gameRowId, gameId, uid: parsed.uid }
+        );
+        await ctx.db.patch(gameRowId, {
+            dueTime,
+            casualTimeoutScheduledId: jobId,
+        });
+    } catch (scheduleErr) {
+        console.warn("[blockBlast] casual timeout schedule failed", gameId, scheduleErr);
+    }
 }
 
 /** 追加一条回放步骤；自动用 `lastOpAt` 估算 pacingMs（对齐 solitaireArena appendRecordedStep） */
@@ -184,6 +217,15 @@ export class BlockBlastGameManager {
 
     async placeShape(shapeId: string, row: number, col: number): Promise<{ ok: boolean, data?: any }> {
         if (!this.game) return { ok: false };
+
+        if (
+            this.game.dueTime != null &&
+            Date.now() >= this.game.dueTime &&
+            this.game.status === BlockBlastGameStatus.PLAYING
+        ) {
+            await this.save({ status: BlockBlastGameStatus.CANCELLED });
+            return { ok: false, data: { error: "time_expired" } };
+        }
 
         /** 落子前手牌中的槽位（与确定性重放盘面同序）；apply 后 shapes 会变，故先取 */
         const slot = this.game.shapes.findIndex((s) => s.id === shapeId);
@@ -290,8 +332,10 @@ export const createGame = internalMutation({
         }
         const gameManager = new BlockBlastGameManager(ctx);
         const game = await gameManager.createGame(seed, gameId, gridSize);
-        if (game) {
-            return { ok: true, data: game };
+        if (game && game._id) {
+            await scheduleBlockBlastCasualTimeout(ctx, gameId, game._id);
+            const fresh = await gameManager.load(gameId);
+            return { ok: true, data: fresh ?? game };
         }
         return { ok: false };
     },
@@ -323,6 +367,11 @@ export const createBlockBlastGame = mutation({
         );
         if (!game) {
             return { ok: false as const };
+        }
+        if (game._id) {
+            await scheduleBlockBlastCasualTimeout(ctx, gameId, game._id);
+            const fresh = await gameManager.load(gameId);
+            return { ok: true as const, gameId, data: fresh ?? game };
         }
         return { ok: true as const, gameId, data: game };
     },

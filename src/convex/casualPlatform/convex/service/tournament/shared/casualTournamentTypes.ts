@@ -1,6 +1,6 @@
 ﻿/** Shared result types for casual tournament join / queue flows. */
 
-/** 日榜等 `openCasualDailySoloTable`：同步建局，立即返回 `gameId` */
+/** 单人模板（p75 等）同步开桌：立即返回 `gameId` */
 export type JoinCasualRunReadyResult = {
   ok: true;
   queued: false;

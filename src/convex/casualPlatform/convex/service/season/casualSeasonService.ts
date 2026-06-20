@@ -13,11 +13,6 @@ import {
   PASS_MAX_LEVEL,
   passRewardForLevel,
 } from "../../data/casualPassRewards.js";
-import {
-  buildSeasonLadderSnapshot,
-  seasonLadderLeaderboardRows,
-} from "./casualSeasonLadder.js";
-import { CASUAL_LADDER_TIER_THRESHOLDS } from "../../data/casualSeasonLadderConfig.js";
 import { deluxeInstantSkinIds } from "../../data/casualSkinCatalog.js";
 
 /** 当前激活赛季（无则退回首条），用于 Pass 子表读写的单一入口 */
@@ -226,71 +221,6 @@ export const applySeasonWalletBalanceDelta = internalMutation({
     }
     return { ok: true as const };
   },
-});
-
-/** 平台赛季竞技积分榜（`(seasonId, uid)` 一条；`gameId` 保留兼容，不参与过滤） */
-export const seasonLadderLeaderboard = query({
-  args: {
-    seasonId: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { seasonId, limit }) => {
-    const n = Math.min(Math.max(limit ?? 50, 1), 200);
-    const trimmed = seasonId?.trim();
-    const resolved =
-      trimmed && trimmed.length > 0
-        ? trimmed
-        : ((await resolveActiveSeason(ctx))?.seasonId ?? null);
-    if (!resolved) {
-      return [];
-    }
-    return await seasonLadderLeaderboardRows(ctx, resolved, n);
-  },
-});
-
-/** @deprecated 请用 `seasonLadderLeaderboard`；`gameId` 已忽略 */
-export const gameSeasonLeaderboard = query({
-  args: {
-    seasonId: v.optional(v.string()),
-    gameId: v.string(),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { seasonId, limit }) => {
-    const n = Math.min(Math.max(limit ?? 50, 1), 200);
-    const trimmed = seasonId?.trim();
-    const resolved =
-      trimmed && trimmed.length > 0
-        ? trimmed
-        : ((await resolveActiveSeason(ctx))?.seasonId ?? null);
-    if (!resolved) {
-      return [];
-    }
-    const rows = await seasonLadderLeaderboardRows(ctx, resolved, n);
-    return rows.map(({ rank, uid, points }) => ({ rank, uid, points }));
-  },
-});
-
-/** @deprecated 赛季天梯已停用；保留 query 供旧 UI 只读 */
-export const getSeasonLadderSnapshot = query({
-  args: {
-    uid: v.optional(v.string()),
-    seasonId: v.optional(v.string()),
-  },
-  handler: async (ctx, { uid, seasonId }) => {
-    if (!uid) return null;
-    const trimmed = seasonId?.trim();
-    const resolved =
-      trimmed && trimmed.length > 0
-        ? trimmed
-        : ((await resolveActiveSeason(ctx))?.seasonId ?? null);
-    if (!resolved) return null;
-    return await buildSeasonLadderSnapshot(ctx, resolved, uid);
-  },
-});
-
-export const listLadderTierThresholds = query({
-  args: {},
-  handler: async () => CASUAL_LADDER_TIER_THRESHOLDS,
 });
 
 async function autoClaimPassLevelsUpTo(

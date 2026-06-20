@@ -240,6 +240,9 @@ export default defineSchema({
     duration: v.optional(v.number()),
     rolloutIndex: v.optional(v.number()),
     botRevealed: v.optional(v.boolean()),
+    /** 真人交分快照：历史/榜复盘不依赖游戏服库 */
+    watchReplaySeedId: v.optional(v.string()),
+    watchReplayStepsJson: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -379,14 +382,13 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_uid", ["uid"]),
 
-  /** 运营日计奖场次计数（历史；当场结算路径已停用递减/日顶） */
+  /** 当日 XP 递减与 p75 金币软顶计数（`async` / `season_challenge` / `solo_p75`） */
   casual_payout_daily_counters: defineTable({
     uid: v.string(),
     periodKey: v.string(),
     bucket: v.string(),
     settledCount: v.number(),
     coinsGrantedToday: v.number(),
-    seasonPointsGrantedToday: v.number(),
     updatedAt: v.number(),
   }).index("by_uid_period_bucket", ["uid", "periodKey", "bucket"]),
 
@@ -425,15 +427,6 @@ export default defineSchema({
     level: v.number(),
     claimedAt: v.number(),
   }).index("by_uid_season_track_level", ["uid", "seasonId", "track", "level"]),
-
-  /** 每赛季、每游戏（solitaire / block_blast）一条：跨对局累加赛季积分（与 C 场分榜无关） */
-  casual_player_season_stats: defineTable({
-    uid: v.string(),
-    seasonId: v.string(),
-    gameId: v.string(),
-    seasonPoints: v.number(),
-    updatedAt: v.number(),
-  }).index("by_season_game_uid", ["seasonId", "gameId", "uid"]),
 
   /** 周联赛 cohort：同 `weekKey` + `leagueTierId` 下按 `cohortIndex` 分组 */
   casual_weekly_league_cohorts: defineTable({
@@ -513,20 +506,6 @@ export default defineSchema({
     .index("by_uid", ["uid"])
     .index("by_uid_achievement", ["uid", "achievementId"]),
 
-  /**
-   * 赛季竞技天梯：每玩家每赛季一条 `(seasonId, uid)`；累计分下限 0（单场 Δ 仍可为负）。
-   * 段位与段位内名次为读模型派生，不在此表单独存储。
-   * @deprecated Phase 2 起停止写入；读模型保留供迁移。
-   */
-  casual_player_season_ladder: defineTable({
-    uid: v.string(),
-    seasonId: v.string(),
-    points: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_season_uid", ["seasonId", "uid"])
-    .index("by_season", ["seasonId"]),
-
   casual_shop_skus: defineTable({
     skuId: v.string(),
     title: v.string(),
@@ -542,6 +521,15 @@ export default defineSchema({
     grantReplayTokenCount: v.optional(v.number()),
     active: v.boolean(),
   }).index("by_skuId", ["skuId"]),
+
+  /** 商店 discretionary SKU 周购买计数（配表 `weeklyPurchaseLimit` 对齐） */
+  casual_shop_weekly_purchase_counters: defineTable({
+    uid: v.string(),
+    periodKey: v.string(),
+    skuId: v.string(),
+    purchaseCount: v.number(),
+    updatedAt: v.number(),
+  }).index("by_uid_period_sku", ["uid", "periodKey", "skuId"]),
 
   casual_season_snapshots: defineTable({
     seasonId: v.string(),
@@ -562,6 +550,7 @@ export default defineSchema({
     uid: v.string(),
     skuId: v.string(),
     gemsGranted: v.number(),
+    coinsGranted: v.optional(v.number()),
     activityIdsJson: v.optional(v.string()),
     fulfilledAt: v.number(),
   }).index("by_paymentRef", ["paymentRef"]),

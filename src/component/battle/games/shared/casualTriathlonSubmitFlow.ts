@@ -15,6 +15,8 @@ export type TriathlonMidSessionAdvanceHandler = (
   scoreReport?: CasualGameScoreReportUI
 ) => void;
 
+export type TriathlonSessionReplayHandler = (restartGameId: string) => void;
+
 export type CasualPlatformSubmitResponse = {
   ok?: boolean;
   error?: string;
@@ -102,6 +104,21 @@ export function triathlonNextLegFromGameId(
   const gameType = sequence[nextIndex];
   if (!gameType) return null;
   return { gameIndex: nextIndex, gameId: nextGameId, gameType };
+}
+
+/** 合战 session 内各局 `gameId`（按 `gameIndex` 顺序） */
+export function triathlonLegGameIds(templateId: string, anyLegGameId: string): string[] {
+  const def = getTournamentDefinition(templateId);
+  if (!def || def.gameType !== 'triathlon') return [anyLegGameId];
+  const sequence = effectiveGameSequence(def);
+  if (!/_g\d+$/.test(anyLegGameId)) return [anyLegGameId];
+  return sequence.map((_, index) => anyLegGameId.replace(/_g\d+$/, `_g${index}`));
+}
+
+/** 合战整场再战后的首局 `gameId` */
+export function triathlonFirstLegGameId(templateId: string, anyLegGameId: string): string {
+  const legs = triathlonLegGameIds(templateId, anyLegGameId);
+  return legs[0] ?? anyLegGameId;
 }
 
 /** 三场合战 session 内非最后一局：仅展示本局得分，不展示同桌榜 */

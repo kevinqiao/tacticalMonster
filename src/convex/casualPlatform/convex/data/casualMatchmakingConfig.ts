@@ -36,19 +36,19 @@ export const MATCHMAKING_RULES: MatchmakingRule[] = [
     id: "consecutive_loss_solo_table",
     priority: 110,
     condition: (ctx) => ctx.consecutiveLossStreak >= CASUAL_CONSECUTIVE_LOSS_THRESHOLD,
-    strategy: { effectiveHumans: 2, expireAction: "solo" },
+    strategy: { effectiveHumans: 1, expireAction: "solo" },
   },
   {
     id: "returning_player_solo",
     priority: 100,
     condition: (ctx) => ctx.daysSinceLastMatch > 14,
-    strategy: { effectiveHumans: 2, expireAction: "solo" },
+    strategy: { effectiveHumans: 1, expireAction: "solo" },
   },
   {
     id: "early_game_solo",
     priority: 50,
     condition: (ctx) =>
       ctx.completedMultiplayerMatches <= 5 && ctx.weeklyLeagueTier === "bronze",
-    strategy: { effectiveHumans: 2, expireAction: "solo" },
+    strategy: { effectiveHumans: 1, expireAction: "solo" },
   },
 ];

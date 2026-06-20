@@ -5,53 +5,47 @@ import jwt from "jsonwebtoken";
 import { internal } from "../../../_generated/api";
 import { action } from "../../../_generated/server";
 import { jwtAccessSecret } from "../../auth/jwtAccessSecret";
-import { getTournamentDefinition } from "../../../data/casualTournamentConfigs";
+import {
+  getTournamentDefinition,
+  isDeprecatedDailySoloTournament,
+  isJoinableCasualTournament,
+} from "../../../data/casualTournamentConfigs";
 import { isCasualGameLobbyVisible } from "../../../data/casualGameRegistry";
 import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
-import { requiresDailySoloPlayCostAck } from "./casualTournamentJoinCore";
 
 /**
- * 日榜（maxPlayers<=1）：openCasualDailySoloTable；异步场仅入队。
+ * 单人（maxPlayers<=1，如 p75）：openCasualSoloTable 同步开桌；多人异步仅入队。
  */
 export const joinTournament = action({
   args: {
     uid: v.string(),
     tournamentId: v.string(),
-    dailySoloCostAck: v.optional(v.literal(true)),
   },
-  handler: async (ctx, { uid, tournamentId, dailySoloCostAck }): Promise<JoinCasualRunResult> => {
+  handler: async (ctx, { uid, tournamentId }): Promise<JoinCasualRunResult> => {
     const def = getTournamentDefinition(tournamentId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
+    }
+    if (isDeprecatedDailySoloTournament(tournamentId)) {
+      return { ok: false as const, error: "tournament_closed" };
+    }
+    if (!isJoinableCasualTournament(def)) {
+      return { ok: false as const, error: "tournament_closed" };
     }
     if (!isCasualGameLobbyVisible(def.gameType)) {
       return { ok: false as const, error: "game_not_available" };
     }
 
     if (def.maxPlayers <= 1) {
-      const preview = await ctx.runQuery(
-        internal.service.tournament.join.casualJoinMutations.previewJoinEntryChargeInternal,
-        { uid, tournamentId }
-      );
-      if (!preview.ok) {
-        return { ok: false as const, error: preview.error };
-      }
-      if (
-        requiresDailySoloPlayCostAck(tournamentId, preview.willChargeEntry) &&
-        dailySoloCostAck !== true
-      ) {
-        return { ok: false as const, error: "needs_cost_ack" };
-      }
-
       return await ctx.runAction(
-        internal.service.tournament.join.casualOpenTableActions.openCasualDailySoloTable,
+        internal.service.tournament.join.casualOpenTableActions.openCasualSoloTable,
         { uid, templateId: tournamentId }
       );
     }
 
     return await ctx.runMutation(
       internal.service.tournament.join.casualMatchmaking.enqueueCasualMatchmakingAndTryMatch,
-      { uid, tournamentId, dailySoloCostAck }
+      { uid, tournamentId }
     );
   },
 });

@@ -15,11 +15,7 @@ export type {
 
 export type GameReport = {
   baseScore: number;
-  timeBonus: number;
   totalScore: number;
-  elapsedSec: number;
-  timeRemainingSec: number;
-  matchLimitSec: number;
 };
 
 export const CANDY_COLORS = [

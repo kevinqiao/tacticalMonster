@@ -256,7 +256,7 @@ async function clearPool(gameType, poolVersion) {
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (!opts.gameType) {
-    console.error("missing required --game-type (block_blast | solitaire | match_3 | tower_arena)");
+    console.error("missing required --game-type (block_blast | solitaire | match_3 | tower_arena | yatz)");
     process.exit(1);
   }
   const gameType = assertCatalogGameType(opts.gameType);

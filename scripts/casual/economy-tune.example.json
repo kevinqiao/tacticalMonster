@@ -1,0 +1,28 @@
+{
+  "profileKey": "custom",
+  "profile": {
+    "label": "中度 8 局/日 · 前 8 场满额",
+    "daily": {
+      "A": 4,
+      "B": 3,
+      "C": 1,
+      "p75": 0,
+      "signIn": true,
+      "winRate": 0.45
+    },
+    "spotlightPerWeek": 1,
+    "completesWeeklyMissions": 0.7
+  },
+  "fullXpGames": 8,
+  "targets": {
+    "passSeasonLevels": 12,
+    "passSeasonMin": 11,
+    "passSeasonMax": 13,
+    "coinsIdeal": 62,
+    "coinsMin": -200,
+    "coinsMax": 700,
+    "gemsIdeal": -3.6,
+    "vouchersIdeal": 2.3
+  },
+  "includeShopSink": true
+}

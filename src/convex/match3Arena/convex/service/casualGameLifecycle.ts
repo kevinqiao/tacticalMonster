@@ -6,11 +6,7 @@ import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation } from "../_generated/server";
 import { Match3GameStatus } from "../types/Match3Types";
-import {
-  buildMatch3GameReport,
-  MATCH3_MATCH_TIME_LIMIT_SEC,
-  resolveLiveGameElapsedSec,
-} from "./match3Scoring";
+import { computeMatch3TotalScore } from "./match3Scoring";
 
 export function parseCasualRunGameId(gameId: string): { uid: string; matchId: string } | null {
   if (!gameId.startsWith("game_")) return null;
@@ -40,16 +36,8 @@ type GameRow = {
   casualTimeoutScheduledId?: Id<"_scheduled_functions">;
 };
 
-export function resolveCasualIngestScoreFromRow(game: {
-  score?: number;
-  playStartedAt?: number;
-}): number {
-  const baseScore = Math.max(0, Math.floor(Number(game.score ?? 0)));
-  const elapsedSec = Math.min(
-    MATCH3_MATCH_TIME_LIMIT_SEC,
-    resolveLiveGameElapsedSec(game.playStartedAt)
-  );
-  return buildMatch3GameReport(baseScore, elapsedSec).totalScore;
+export function resolveCasualIngestScoreFromRow(game: { score?: number }): number {
+  return computeMatch3TotalScore(Number(game.score ?? 0));
 }
 
 export const cancelCasualTimeoutJob = internalMutation({

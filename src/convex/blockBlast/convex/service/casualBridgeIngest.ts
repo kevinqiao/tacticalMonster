@@ -13,6 +13,8 @@ export type CasualIngestParsed = {
   gameComplete?: boolean;
   weeklyLeagueSettle?: unknown;
   nextGame?: { gameIndex: number; gameId: string; gameType: string };
+  seedScoreThreshold?: number;
+  success?: boolean;
 };
 
 export type BotFillPayload = {

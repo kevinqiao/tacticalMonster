@@ -4,7 +4,8 @@ export const catalogGameType = v.union(
   v.literal("block_blast"),
   v.literal("solitaire"),
   v.literal("match_3"),
-  v.literal("tower_arena")
+  v.literal("tower_arena"),
+  v.literal("yatz")
 );
 
 export const catalogSeedTier = v.union(

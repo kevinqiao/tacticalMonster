@@ -173,6 +173,12 @@ export const openCasualTableFromQueue = internalAction({
         error: claim.error,
         ...( "uid" in claim ? { uid: claim.uid } : {}),
       });
+      if (
+        queueRowIds.length === 1 &&
+        (claim.error === "charge_failed" || OPEN_TABLE_RETRY_ERRORS.has(claim.error))
+      ) {
+        await scheduleSoloOpenRetry(ctx, queueRowIds[0]!);
+      }
       return claim;
     }
     const opened = await openCasualTableFromClaimHandler(ctx, { templateId, claim });
@@ -190,15 +196,15 @@ export const openCasualTableFromQueue = internalAction({
   },
 });
 
-/** 日榜 solo：charge → shell → pick → finalize */
-export const openCasualDailySoloTable = internalAction({
+/** 单人模板（p75 等）：charge → shell → pick → finalize */
+export const openCasualSoloTable = internalAction({
   args: {
     uid: v.string(),
     templateId: v.string(),
   },
   handler: async (ctx, { uid, templateId }) => {
     const charge = await ctx.runMutation(
-      internal.service.tournament.join.casualOpenTableMutations.chargeSoloDailyJoin,
+      internal.service.tournament.join.casualOpenTableMutations.chargeSoloJoin,
       { uid, templateId }
     );
     if (!charge.ok) {

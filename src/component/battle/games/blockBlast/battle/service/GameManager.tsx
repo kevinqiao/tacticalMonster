@@ -121,6 +121,8 @@ interface IBlockBlastGameContext {
     dismissPostCasualSummary: () => void;
     reloadCasualRun: () => Promise<boolean>;
     casualTournamentId?: string;
+    /** P75 挑战等：本局 seed 分位目标分 */
+    targetScore?: number;
     /** 回放/复盘模式：本地按 seed 重放，跳过 Convex 建局与结算流程 */
     replayMode: boolean;
 }
@@ -160,6 +162,7 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     dismissPostCasualSummary: () => { },
     reloadCasualRun: async () => false,
     casualTournamentId: undefined,
+    targetScore: undefined,
     replayMode: false,
 });
 
@@ -202,6 +205,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     const [interactionPhase, setInteractionPhase] = useState<GameInteractionPhase>(
         GameInteractionPhase.idle
     );
+    const [targetScore, setTargetScore] = useState<number | undefined>(undefined);
     const boardDimensionRef = useRef<BoardDimension | null>(null);
     const gridCellRefs = useRef<GridCellRefs | null>(null);
     if (!gridCellRefs.current) {
@@ -425,6 +429,10 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             setGameState(game);
             setInteractionPhase(GameInteractionPhase.idle);
             terminalReportKeyRef.current = null;
+            const threshold = (res as { seedScoreThreshold?: number }).seedScoreThreshold;
+            if (typeof threshold === 'number' && Number.isFinite(threshold)) {
+                setTargetScore(threshold);
+            }
             return true;
         }
         return false;
@@ -586,6 +594,10 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             setGameState(game);
             setInteractionPhase(GameInteractionPhase.idle);
             onGameLoadComplete?.();
+            const threshold = (res as { seedScoreThreshold?: number }).seedScoreThreshold;
+            if (typeof threshold === 'number' && Number.isFinite(threshold)) {
+                setTargetScore(threshold);
+            }
         }
     }, [convex, gameId, onGameLoadComplete]);
 
@@ -890,6 +902,89 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         beginCasualPostSettleFlow,
     ]);
 
+    const completeCasualRunOnTimeout = useCallback(async () => {
+        const gs = gameStateRef.current;
+        if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
+        if (gs.status !== BlockBlastGameStatus.PLAYING) return;
+        if (gs.dueTime == null || Date.now() < gs.dueTime) return;
+        if (!user?.token || typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
+        if (interactionPhaseRef.current !== GameInteractionPhase.idle) return;
+
+        settleInFlightRef.current = true;
+        try {
+            const res = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
+                token: user.token,
+                gameId: gs.gameId,
+            })) as {
+                ok?: boolean;
+                error?: string;
+                tableSummary?: CasualAsyncTableSummaryUI;
+                pendingOthers?: boolean;
+                seedScoreThreshold?: number;
+                success?: boolean;
+            };
+            if (!res?.ok) {
+                console.warn('[BlockBlast] forceEndCasualPlatformRun on timeout', res?.error);
+                return;
+            }
+            casualRunSubmittedRef.current = true;
+            commitGameState({ status: BlockBlastGameStatus.CANCELLED });
+            const score = Math.max(0, Math.floor(gs.score ?? 0));
+            if (
+                triathlonSessionActive &&
+                queueTriathlonMidSessionAdvance(res, score, pendingTriathlonAdvanceRef, {
+                    templateId: casualTournamentId,
+                    gameId: gs.gameId,
+                    triathlonSessionActive,
+                })
+            ) {
+                await beginCasualPostSettleFlow(gs.gameId, score, {
+                    deferTriathlonTableSummary: true,
+                });
+                return;
+            }
+            await beginCasualPostSettleFlow(gs.gameId, score, {
+                tableSummary: res.tableSummary,
+                pendingOthers: res.pendingOthers,
+                ...(typeof res.seedScoreThreshold === 'number'
+                    ? { seedScoreThreshold: res.seedScoreThreshold, success: res.success }
+                    : {}),
+            });
+        } catch (e) {
+            console.error('[BlockBlast] completeCasualRunOnTimeout', e);
+        } finally {
+            settleInFlightRef.current = false;
+        }
+    }, [
+        convex,
+        user?.token,
+        commitGameState,
+        beginCasualPostSettleFlow,
+        triathlonSessionActive,
+        casualTournamentId,
+    ]);
+
+    useEffect(() => {
+        if (replayMode) return;
+        const gs = gameState;
+        if (!gs?.dueTime || gs.status !== BlockBlastGameStatus.PLAYING) return;
+        const ms = gs.dueTime - Date.now();
+        if (ms <= 0) {
+            void completeCasualRunOnTimeout();
+            return;
+        }
+        const t = window.setTimeout(() => {
+            void completeCasualRunOnTimeout();
+        }, ms);
+        return () => window.clearTimeout(t);
+    }, [
+        replayMode,
+        gameState?.gameId,
+        gameState?.dueTime,
+        gameState?.status,
+        completeCasualRunOnTimeout,
+    ]);
+
     const submitScore = useCallback(
         async (score: number) => {
             if (!gameState || casualRunSubmittedRef.current) return;
@@ -997,6 +1092,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         dismissPostCasualSummary,
         reloadCasualRun,
         casualTournamentId,
+        targetScore,
         replayMode,
     };
 

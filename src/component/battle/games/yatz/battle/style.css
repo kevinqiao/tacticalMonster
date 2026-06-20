@@ -1,0 +1,567 @@
+.yatz-game-root {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -20%, rgba(59, 130, 246, 0.22), transparent 55%),
+    radial-gradient(ellipse 80% 60% at 100% 100%, rgba(168, 85, 247, 0.12), transparent 50%),
+    linear-gradient(165deg, #0c1424 0%, #111827 45%, #0b1220 100%);
+  color: #f8fafc;
+}
+
+.yatz-layout {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  overflow: hidden;
+}
+
+.yatz-playfield {
+  flex-shrink: 0;
+}
+
+.yatz-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.yatz-header-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+}
+
+.yatz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yatz-stat-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.yatz-stat-value {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  color: #f8fafc;
+}
+
+.yatz-stat-value--accent {
+  color: #fbbf24;
+}
+
+.yatz-stat-value--timer {
+  font-variant-numeric: tabular-nums;
+  color: #93c5fd;
+}
+
+.yatz-stat--timer .yatz-stat-label {
+  color: #94a3b8;
+}
+
+.yatz-stat-value--target {
+  color: #7dd3fc;
+}
+
+.yatz-header-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.yatz-progress-wrap {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.yatz-progress-ring {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.yatz-progress-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.yatz-progress-ring-bg {
+  fill: none;
+  stroke: rgba(148, 163, 184, 0.2);
+  stroke-width: 4;
+}
+
+.yatz-progress-ring-fg {
+  fill: none;
+  stroke: #3b82f6;
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.35s ease;
+}
+
+.yatz-progress-label {
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.yatz-dice-stage {
+  position: relative;
+  padding: 12px 10px 10px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.65) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px rgba(0, 0, 0, 0.25);
+}
+
+.yatz-dice-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  min-height: clamp(52px, 14vw, 62px);
+}
+
+.yatz-die {
+  position: relative;
+  width: clamp(48px, 12vw, 58px);
+  height: clamp(48px, 12vw, 58px);
+  border: none;
+  padding: 0;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.yatz-die:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+
+.yatz-die:not(:disabled):active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.yatz-die:disabled {
+  cursor: default;
+}
+
+.yatz-die-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #ffffff 0%, #e2e8f0 55%, #cbd5e1 100%);
+  box-shadow:
+    0 4px 0 #94a3b8,
+    0 10px 22px rgba(0, 0, 0, 0.35),
+    inset 0 2px 0 rgba(255, 255, 255, 0.95);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.yatz-die--held .yatz-die-inner {
+  background: linear-gradient(145deg, #fef3c7 0%, #fde68a 55%, #fbbf24 100%);
+  box-shadow:
+    0 4px 0 #d97706,
+    0 0 0 3px rgba(251, 191, 36, 0.45),
+    0 10px 22px rgba(217, 119, 6, 0.35),
+    inset 0 2px 0 rgba(255, 255, 255, 0.85);
+}
+
+.yatz-die--empty .yatz-die-inner {
+  opacity: 0.35;
+  background: linear-gradient(145deg, #64748b 0%, #475569 100%);
+  box-shadow:
+    0 3px 0 #334155,
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.yatz-die--empty .yatz-die-placeholder {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: rgba(248, 250, 252, 0.55);
+}
+
+.yatz-die--rolling {
+  animation: yatz-die-shake 0.45s ease-in-out;
+}
+
+.yatz-die--held::after {
+  content: '锁定';
+  position: absolute;
+  top: -8px;
+  right: -4px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #1c1917;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.yatz-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ef4444, #b91c1c);
+  box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.25);
+  place-self: center;
+}
+
+.yatz-die--held .yatz-pip {
+  background: radial-gradient(circle at 35% 35%, #92400e, #78350f);
+}
+
+@keyframes yatz-die-shake {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  20% {
+    transform: rotate(-8deg) translateY(-3px);
+  }
+  40% {
+    transform: rotate(8deg) translateY(-1px);
+  }
+  60% {
+    transform: rotate(-6deg) translateY(-2px);
+  }
+  80% {
+    transform: rotate(5deg) translateY(0);
+  }
+}
+
+.yatz-round-hint {
+  text-align: center;
+  font-size: 13px;
+  color: #cbd5e1;
+  margin: 8px 0 0;
+}
+
+.yatz-round-hint--pick {
+  color: #fde68a;
+  font-weight: 600;
+}
+
+.yatz-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.yatz-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.yatz-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.yatz-btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.yatz-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.yatz-btn--primary {
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
+  box-shadow: 0 4px 0 #1d4ed8, 0 8px 18px rgba(37, 99, 235, 0.35);
+}
+
+.yatz-btn--end {
+  background: linear-gradient(180deg, #475569 0%, #334155 100%);
+  color: #f8fafc;
+  box-shadow: 0 3px 0 #1e293b;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.yatz-scorecard-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.yatz-scorecard-section {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.yatz-scorecard-title {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.8);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.yatz-scorecard-title--lower {
+  color: #c4b5fd;
+}
+
+.yatz-scorecard {
+  display: flex;
+  flex-direction: column;
+}
+
+.yatz-score-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  font-size: 12px;
+  transition: background 0.15s ease;
+}
+
+.yatz-score-row:last-child {
+  border-bottom: none;
+}
+
+.yatz-score-row button {
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+.yatz-score-row--used {
+  opacity: 0.5;
+}
+
+.yatz-score-row--pickable {
+  background: rgba(37, 99, 235, 0.12);
+  cursor: pointer;
+}
+
+.yatz-score-row--pickable:hover {
+  background: rgba(37, 99, 235, 0.28);
+}
+
+.yatz-score-row--yahtzee:not(.yatz-score-row--used) {
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.yatz-score-row--yahtzee.yatz-score-row--pickable:hover {
+  background: rgba(168, 85, 247, 0.28);
+}
+
+.yatz-score-value {
+  min-width: 28px;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #e2e8f0;
+}
+
+.yatz-score-subtotal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.65);
+  border-top: 1px dashed rgba(148, 163, 184, 0.2);
+}
+
+.yatz-score-subtotal strong {
+  color: #fbbf24;
+  font-weight: 700;
+  text-align: right;
+}
+
+.yatz-error {
+  color: #fca5a5;
+  text-align: center;
+  font-size: 13px;
+  padding: 24px;
+}
+
+.yatz-die--static {
+  pointer-events: none;
+}
+
+.yatz-die--static.yatz-die--held::after {
+  content: none;
+}
+
+.yatz-dice-stage--replay {
+  padding: 14px 10px 10px;
+}
+
+.yatz-scorecard-wrap--compact {
+  gap: 8px;
+}
+
+.yatz-replay-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.yatz-watch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.yatz-watch-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(2, 6, 23, 0.72);
+  cursor: pointer;
+}
+
+.yatz-watch-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 480px);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  border-radius: 16px;
+  padding: 14px;
+  background: linear-gradient(165deg, #111827 0%, #0f172a 100%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+.yatz-watch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.yatz-watch-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.yatz-watch-close {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: rgba(148, 163, 184, 0.15);
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.yatz-watch-hud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 13px;
+  color: #cbd5e1;
+  margin-bottom: 10px;
+}
+
+.yatz-watch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.yatz-watch-controls button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #334155;
+  color: #f8fafc;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.yatz-watch-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.yatz-watch-status {
+  text-align: center;
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 10px 0 0;
+}
+
+.yatz-watch-status--error {
+  color: #fca5a5;
+}

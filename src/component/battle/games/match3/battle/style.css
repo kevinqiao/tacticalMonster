@@ -54,6 +54,20 @@
 
 
 
+.match3-target {
+
+  font-size: clamp(0.85rem, 3vw, 1rem);
+
+  font-weight: 700;
+
+  font-variant-numeric: tabular-nums;
+
+  color: rgba(255, 220, 160, 0.95);
+
+}
+
+
+
 .match3-timer {
 
   font-variant-numeric: tabular-nums;

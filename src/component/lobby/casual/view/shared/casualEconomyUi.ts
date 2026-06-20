@@ -77,6 +77,8 @@ export function joinEntryErrorMessage(code: string | undefined): string {
       return "无权操作该对局";
     case "join_failed":
       return "加入失败，请重试";
+    case "already_in_open_match":
+      return "有未结束的锦标对局，请先完成或放弃后再加入新场";
     default:
       return code ? `无法加入：${code}` : "无法加入";
   }
@@ -95,7 +97,7 @@ export function shopErrorMessage(code: string | undefined): string {
     case "gems_grant_requires_fiat":
       return "钻石获取请通过法币充值渠道，虚拟商店不支持金币/钻石购买钻石";
     case "coin_for_coin_shop_disabled":
-      return "当前设计不提供「花金币买金币」，请调整 SKU 或改用钻石购买金币包";
+      return "当前设计不提供「花金币买金币」";
     case "iap_use_payment_provider":
       return "钻石充值请在收银台完成支付（需接入 IAP / 第三方支付 SDK）";
     case "iap_payment_ref_required":
@@ -112,6 +114,8 @@ export function shopErrorMessage(code: string | undefined): string {
       return "请先登录";
     case "purchase_failed":
       return "购买失败，请重试";
+    case "weekly_purchase_limit":
+      return "本周购买次数已达上限";
     default:
       return code ? `商店：${code}` : "购买失败";
   }
@@ -143,8 +147,7 @@ export const MISSION_TITLE_ZH: Record<string, string> = {
   season_platform_polyglot: "3 个不同游戏各累计至少 5 局",
   weekly_pvp_any_3: "任意 PVP 完成 3 局",
   season_pvp_win_10: "PVP 累计获得 10 胜",
-  season_spotlight_10: "本赛季累计完成赛季专场结算 10 次",
-  season_spotlight_season_pts_80: "本赛季专场对局累计获得 80 赛季分（仅正分计入）",
+  season_spotlight_6: "本赛季累计完成赛季专场结算 6 次",
   mock_preview_mission_claimed: "赛季：累计邀请 3 位好友（示例）",
 };
 
@@ -207,7 +210,6 @@ export interface MissionRewardChipSource {
   rewardCoins?: number;
   rewardSeasonXp?: number;
   rewardVouchers?: number;
-  rewardSeasonPoints?: number;
   rewardSeasonChallengePoints?: number;
 }
 
@@ -248,7 +250,6 @@ export function missionRewardChipsFromTemplate(t: MissionRewardChipSource | unde
   if (t.rewardCoins && t.rewardCoins > 0) chips.push(`金币 +${t.rewardCoins}`);
   if (t.rewardSeasonXp && t.rewardSeasonXp > 0) chips.push(`赛季 XP +${t.rewardSeasonXp}`);
   if (t.rewardVouchers && t.rewardVouchers > 0) chips.push(`赛季券 +${t.rewardVouchers}`);
-  if (t.rewardSeasonPoints && t.rewardSeasonPoints > 0) chips.push(`赛季积分 +${t.rewardSeasonPoints}`);
   if (t.rewardSeasonChallengePoints && t.rewardSeasonChallengePoints > 0) {
     chips.push(`赛季点 +${t.rewardSeasonChallengePoints}`);
   }

@@ -32,8 +32,15 @@ const Child3: React.FC<PageProp> = ({ visible }) => {
   }, [casual, demoId]);
 
   const loadMainLb = useCallback(async () => {
-    const rows = await casual.fetchGameSeasonLeaderboard(undefined, "solitaire", 30);
-    setMainLb(rows);
+    await casual.ensureWeeklyLeagueMember();
+    const cohort = await casual.fetchWeeklyLeagueCohort();
+    setMainLb(
+      cohort.members.map((m) => ({
+        rank: m.rank,
+        uid: m.uid,
+        points: m.weeklyLeagueXp,
+      }))
+    );
   }, [casual]);
 
   useEffect(() => {
@@ -164,12 +171,12 @@ const Child3: React.FC<PageProp> = ({ visible }) => {
                 type="button"
                 style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ccc" }}
                 onClick={async () => {
-                  const r = await casual.purchaseShopSku("shop_coin_tier_1");
-                  setNote(r.ok ? "Purchased coin bundle" : `Shop: ${r.error ?? "fail"}`);
+                  const r = await casual.purchaseShopSku("shop_replay_pass_3pack");
+                  setNote(r.ok ? "Purchased replay pass" : `Shop: ${r.error ?? "fail"}`);
                   await casual.refreshCasualPlayer();
                 }}
               >
-                Buy coin bundle (gems)
+                Buy replay pass (gems)
               </button>
             </div>
           )}

@@ -40,13 +40,18 @@ function mapCasualIngestClientResponse(
 ) {
     const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
     const pendingOthers = parsed.pendingOthers === true;
-    const hasThreshold =
-        typeof extra?.seedScoreThreshold === "number" && Number.isFinite(extra.seedScoreThreshold);
-    const seedScoreThreshold = hasThreshold ? (extra!.seedScoreThreshold as number) : undefined;
+    const seedScoreThreshold =
+        typeof parsed.seedScoreThreshold === "number" && Number.isFinite(parsed.seedScoreThreshold)
+            ? parsed.seedScoreThreshold
+            : typeof extra?.seedScoreThreshold === "number" && Number.isFinite(extra.seedScoreThreshold)
+              ? extra.seedScoreThreshold
+              : undefined;
     const success =
-        seedScoreThreshold != null && typeof extra?.score === "number"
-            ? extra.score >= seedScoreThreshold
-            : undefined;
+        typeof parsed.success === "boolean"
+            ? parsed.success
+            : seedScoreThreshold != null && typeof extra?.score === "number"
+              ? extra.score >= seedScoreThreshold
+              : undefined;
     return {
         ok: true as const,
         ...(tableSummary ? { tableSummary } : {}),

@@ -47,6 +47,13 @@ export type CasualSeedQuantileSuccessReward = {
   gems?: number;
 };
 
+/** 异步 A/B/C 分位奖：阈值取自 seed / 参考分位，奖励额固定 */
+export type CasualScoreTierQuantileSpec = {
+  quantile: keyof CasualReferenceScoreQuantiles;
+  coins?: number;
+  gems?: number;
+};
+
 export interface CasualTournamentDefinition {
   tournamentId: string;
   title: string;
@@ -78,9 +85,8 @@ export interface CasualTournamentDefinition {
   entry: EntryCost;
   /** 与 TacticalMonster 锦标赛 `RewardConfig` 同构；休闲扩展见 `CasualPlatformRewardConfig` */
   rewards: CasualPlatformRewardConfig;
-  /** 每场结算固定 Pass XP（含 A/B/C/专场/日榜；不受当日钱包递减影响） */
+  /** 每场结算固定 Pass XP（对局 + 任务共同喂满 Pass；见 casualSeasonEconomyConstants） */
   seasonXpOnSettle: number;
-  seasonPointsMultiplier: number;
   /** 真 · 专场可不展示异步排行榜（仍写入 score 供运营/扩展） */
   hideLeaderboard?: boolean;
   /** 日榜单人挑战等：仅 Play 专区入口，不出现在多人竞技列表 */
@@ -96,16 +102,16 @@ export interface CasualTournamentDefinition {
   seedQuantileSuccess?: CasualSeedQuantileSuccessReward;
 }
 
-/** Play「日榜单人挑战」· Solitaire */
+/** @deprecated 日榜已下线；仅历史 run / 回放解析保留 ID */
 export const CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID =
   "casual_daily_solo_challenge_solitaire" as const;
-/** Play「日榜单人挑战」· Block Blast */
+/** @deprecated 日榜已下线 */
 export const CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID =
   "casual_daily_solo_challenge_block_blast" as const;
-/** Play「日榜单人挑战」· Tower Arena */
+/** @deprecated 日榜已下线 */
 export const CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID =
   "casual_daily_solo_challenge_tower_arena" as const;
-/** Play「日榜单人挑战」· Match-3 */
+/** @deprecated 日榜已下线 */
 export const CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID =
   "casual_daily_solo_challenge_match_3" as const;
 
@@ -114,6 +120,7 @@ export const CASUAL_SOLO_P75_CHALLENGE_SOLITAIRE_ID = "casual_solo_p75_solitaire
 export const CASUAL_SOLO_P75_CHALLENGE_BLOCK_BLAST_ID = "casual_solo_p75_block_blast" as const;
 export const CASUAL_SOLO_P75_CHALLENGE_MATCH_3_ID = "casual_solo_p75_match_3" as const;
 export const CASUAL_SOLO_P75_CHALLENGE_TOWER_ARENA_ID = "casual_solo_p75_tower_arena" as const;
+export const CASUAL_SOLO_P75_CHALLENGE_YATZ_ID = "casual_solo_p75_yatz" as const;
 
 export function effectiveInstanceScope(def: CasualTournamentDefinition): CasualInstanceScope {
   return def.instanceScope ?? "single_match";
@@ -151,8 +158,90 @@ export function findHighestScoreTierReward(
   return sorted.find((t) => score >= t.minScore);
 }
 
+const CASUAL_ASYNC_SCORE_TIER_SPEC_A: CasualScoreTierQuantileSpec[] = [
+  { quantile: "p33", coins: 3 },
+  { quantile: "p66", coins: 8 },
+  { quantile: "p90", coins: 15 },
+];
+const CASUAL_ASYNC_SCORE_TIER_SPEC_B: CasualScoreTierQuantileSpec[] = [
+  { quantile: "p33", coins: 5 },
+  { quantile: "p66", coins: 12 },
+  { quantile: "p90", coins: 25 },
+];
+const CASUAL_ASYNC_SCORE_TIER_SPEC_C: CasualScoreTierQuantileSpec[] = [
+  { quantile: "p33", gems: 1 },
+  { quantile: "p66", gems: 2 },
+  { quantile: "p90", gems: 3 },
+];
+
+export function buildScoreTierRewardsFromQuantiles(
+  quantiles: CasualReferenceScoreQuantiles,
+  spec: CasualScoreTierQuantileSpec[]
+): CasualScoreTierRewardEntry[] {
+  return spec
+    .map((s) => ({
+      minScore: quantiles[s.quantile],
+      ...(s.coins != null ? { coins: s.coins } : {}),
+      ...(s.gems != null ? { gems: s.gems } : {}),
+    }))
+    .filter((t) => Number.isFinite(t.minScore) && t.minScore > 0);
+}
+
+function scoreTierQuantileSpecForMatchType(
+  matchType: CasualTournamentDefinition["matchType"]
+): CasualScoreTierQuantileSpec[] | undefined {
+  switch (matchType) {
+    case "tournament_a":
+      return CASUAL_ASYNC_SCORE_TIER_SPEC_A;
+    case "tournament_b":
+      return CASUAL_ASYNC_SCORE_TIER_SPEC_B;
+    case "tournament_c":
+      return CASUAL_ASYNC_SCORE_TIER_SPEC_C;
+    default:
+      return undefined;
+  }
+}
+
+/** 结算分位奖：优先 seed 分位，其次配表 `referenceScoreQuantiles`；仅命中最高一档。 */
+export function resolveAsyncScoreTierRewards(
+  def: CasualTournamentDefinition,
+  quantiles?: CasualReferenceScoreQuantiles | null
+): CasualScoreTierRewardEntry[] | undefined {
+  const spec = scoreTierQuantileSpecForMatchType(def.matchType);
+  const q = quantiles ?? def.referenceScoreQuantiles;
+  if (spec && q) {
+    return buildScoreTierRewardsFromQuantiles(q, spec);
+  }
+  return def.rewards.scoreTierRewards;
+}
+
+function asyncScoreTiersFromReference(
+  matchType: "tournament_a" | "tournament_b" | "tournament_c",
+  quantiles: CasualReferenceScoreQuantiles
+): CasualScoreTierRewardEntry[] {
+  const spec = scoreTierQuantileSpecForMatchType(matchType)!;
+  return buildScoreTierRewardsFromQuantiles(quantiles, spec);
+}
+
 export function isPeriodScopedTournament(def: CasualTournamentDefinition): boolean {
   return effectiveInstanceScope(def) !== "single_match";
+}
+
+const DEPRECATED_DAILY_SOLO_TEMPLATE_IDS: ReadonlySet<string> = new Set([
+  CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
+  CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
+  CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID,
+  CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID,
+]);
+
+/** 已下线的四玩法 UTC 日榜；不可 join，仅 `getTournamentDefinition` 供历史 run 解析。 */
+export function isDeprecatedDailySoloTournament(tournamentId: string): boolean {
+  return DEPRECATED_DAILY_SOLO_TEMPLATE_IDS.has(tournamentId);
+}
+
+export function isJoinableCasualTournament(def: CasualTournamentDefinition): boolean {
+  if (isDeprecatedDailySoloTournament(def.tournamentId)) return false;
+  return def.status === "open";
 }
 
 /** 结算时「参与即得」金币（当前取自 `rewards.baseRewards.coins`） */
@@ -169,8 +258,11 @@ export function casualSettleBaseGems(def: CasualTournamentDefinition): number {
 export const CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID = "season_challenge_bb_1";
 /** Solitaire 赛季专场 tournamentId */
 export const CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID = "season_challenge_solitaire_1";
+/** Match-3 赛季专场 tournamentId */
+export const CASUAL_SEASON_CHALLENGE_MATCH_3_ID = "season_challenge_match_3_1";
 /** Tower Arena 赛季专场 tournamentId */
 export const CASUAL_SEASON_CHALLENGE_TOWER_ARENA_ID = "season_challenge_tower_arena_1";
+export const CASUAL_SEASON_CHALLENGE_YATZ_ID = "season_challenge_yatz_1";
 
 /** 通用：`floor(base * multiplier + delta)`，下限 0（入场券 / Pass XP / 金币钻扣除共用） */
 export function applyScaledCurrencyCost(base: number, multiplier: number, delta: number): number {
@@ -187,50 +279,9 @@ export function applyPassXpFromModifiers(base: number, multiplier: number, delta
 }
 
 /**
- * 异步 A/B/C 名次赛季分：同档位跨 `solitaire` / `block_blast` 必须一致（避免 A 场末名有时 -1 有时 -3）。
+ * 专场 / 异步 A/B/C 钱包结算仅看 baseRewards + scoreTierRewards（无 rankRewards.seasonPoints）。
+ * 分位阈值：本局 seed `scoreQuantiles`（或 BB 参考分位）的 p33 / p66 / p90；仅命中最高一档。
  */
-const CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P: CasualRankRewardEntry[] = [
-  { rankRange: [1, 1], multiplier: 1, seasonPoints: 6 },
-  { rankRange: [2, 2], multiplier: 1, seasonPoints: 2 },
-  { rankRange: [3, 3], multiplier: 1, seasonPoints: -3 },
-];
-const CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P: CasualRankRewardEntry[] = [
-  { rankRange: [1, 1], multiplier: 1, seasonPoints: 10 },
-  { rankRange: [2, 2], multiplier: 1, seasonPoints: 5 },
-  { rankRange: [3, 3], multiplier: 1, seasonPoints: 2 },
-  { rankRange: [4, 4], multiplier: 1, seasonPoints: -5 },
-];
-const CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P: CasualRankRewardEntry[] = [
-  { rankRange: [1, 1], multiplier: 1, seasonPoints: 14 },
-  { rankRange: [2, 2], multiplier: 1, seasonPoints: 8 },
-  { rankRange: [3, 3], multiplier: 1, seasonPoints: 5 },
-  { rankRange: [4, 4], multiplier: 1, seasonPoints: 2 },
-  { rankRange: [5, 5], multiplier: 1, seasonPoints: -8 },
-];
-
-/**
- * 单场 A/B/C 分位奖（叠加在底奖 + 名次奖之上，每局按本局终分发放）。
- * 阈值刻意取较低值并跨 4 玩法通用（BB/纸牌/塔防/消除分制不同），便于核查发奖是否生效：
- * - A：最低档 minScore=1 必中 +3 金；越界往上叠到 +8 / +15。
- * - B：+5 / +12 / +25 金。
- * - C：+1 / +2 / +4 钻。
- * 上线正式调参时按各玩法实际分位（见 `CASUAL_BB_QUANTILES_*`）替换阈值即可。
- */
-const CASUAL_ASYNC_SCORE_TIER_A: CasualScoreTierRewardEntry[] = [
-  { minScore: 1, coins: 3 },
-  { minScore: 300, coins: 8 },
-  { minScore: 1000, coins: 15 },
-];
-const CASUAL_ASYNC_SCORE_TIER_B: CasualScoreTierRewardEntry[] = [
-  { minScore: 1, coins: 5 },
-  { minScore: 800, coins: 12 },
-  { minScore: 2500, coins: 25 },
-];
-const CASUAL_ASYNC_SCORE_TIER_C: CasualScoreTierRewardEntry[] = [
-  { minScore: 1, gems: 1 },
-  { minScore: 1500, gems: 2 },
-  { minScore: 5000, gems: 4 },
-];
 
 const CASUAL_RANK_RATES_4B = [
   { rank: 1, odd: 35 },
@@ -290,7 +341,7 @@ const CASUAL_BB_QUANTILES_SEASON_4P: CasualReferenceScoreQuantiles = {
   p90: 14_000,
 };
 
-/** Play 异步 A/B/C：`maxPlayers` 3 / 4 / 5；多人赛季分按名次 `rankRewards.seasonPoints`（可负）；日榜单机仍用 `seasonPointsMultiplier`。 */
+/** Play 异步 A/B/C：`maxPlayers` 3 / 4 / 5；钱包=底奖+分位奖；League XP 按名次（见 weeklyLeague）。 */
 const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: "casual_async_a_bb",
@@ -299,15 +350,13 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_a",
     status: "open",
     maxPlayers: 3,
-    entry: { kind: "coins", amount: 30 },
+    entry: { kind: "coins", amount: 35 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 22, gems: 0 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_A],
+      baseRewards: { coins: 23, gems: 0 },
+      scoreTierRewards: asyncScoreTiersFromReference("tournament_a", CASUAL_BB_QUANTILES_A),
     },
-    seasonXpOnSettle: 12,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 4,
     referenceScoreQuantiles: CASUAL_BB_QUANTILES_A,
   },
   {
@@ -317,15 +366,13 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_b",
     status: "open",
     maxPlayers: 4,
-    entry: { kind: "coins", amount: 40 },
+    entry: { kind: "coins", amount: 45 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 58, gems: 1 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_B],
+      baseRewards: { coins: 52, gems: 0 },
+      scoreTierRewards: asyncScoreTiersFromReference("tournament_b", CASUAL_BB_QUANTILES_B),
     },
-    seasonXpOnSettle: 18,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 5,
     referenceScoreQuantiles: CASUAL_BB_QUANTILES_B,
   },
   {
@@ -335,15 +382,13 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_c",
     status: "open",
     maxPlayers: 5,
-    entry: { kind: "gems", amount: 5 },
+    entry: { kind: "gems", amount: 7 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 0, gems: 8 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_C],
+      baseRewards: { coins: 0, gems: 6 },
+      scoreTierRewards: asyncScoreTiersFromReference("tournament_c", CASUAL_BB_QUANTILES_C),
     },
-    seasonXpOnSettle: 28,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 8,
     referenceScoreQuantiles: CASUAL_BB_QUANTILES_C,
   },
   {
@@ -353,15 +398,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_a",
     status: "open",
     maxPlayers: 3,
-    entry: { kind: "coins", amount: 30 },
+    entry: { kind: "coins", amount: 35 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 22, gems: 0 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_A],
+      baseRewards: { coins: 23, gems: 0 },
     },
-    seasonXpOnSettle: 12,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 4,
   },
   {
     tournamentId: "casual_async_b_solitaire",
@@ -370,15 +412,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_b",
     status: "open",
     maxPlayers: 4,
-    entry: { kind: "coins", amount: 40 },
+    entry: { kind: "coins", amount: 45 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 58, gems: 1 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_B],
+      baseRewards: { coins: 52, gems: 0 },
     },
-    seasonXpOnSettle: 18,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 5,
   },
   {
     tournamentId: "casual_async_c_solitaire",
@@ -387,15 +426,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_c",
     status: "open",
     maxPlayers: 5,
-    entry: { kind: "gems", amount: 5 },
+    entry: { kind: "gems", amount: 7 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 0, gems: 8 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_C],
+      baseRewards: { coins: 0, gems: 6 },
     },
-    seasonXpOnSettle: 28,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 8,
   },
   {
     tournamentId: "casual_async_a_match_3",
@@ -404,15 +440,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_a",
     status: "open",
     maxPlayers: 3,
-    entry: { kind: "coins", amount: 30 },
+    entry: { kind: "coins", amount: 35 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 22, gems: 0 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_A],
+      baseRewards: { coins: 23, gems: 0 },
     },
-    seasonXpOnSettle: 12,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 4,
   },
   {
     tournamentId: "casual_async_b_match_3",
@@ -421,15 +454,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_b",
     status: "open",
     maxPlayers: 4,
-    entry: { kind: "coins", amount: 40 },
+    entry: { kind: "coins", amount: 45 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 58, gems: 1 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_B],
+      baseRewards: { coins: 52, gems: 0 },
     },
-    seasonXpOnSettle: 18,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 5,
   },
   {
     tournamentId: "casual_async_c_match_3",
@@ -438,15 +468,54 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_c",
     status: "open",
     maxPlayers: 5,
-    entry: { kind: "gems", amount: 5 },
+    entry: { kind: "gems", amount: 7 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 0, gems: 8 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_C],
+      baseRewards: { coins: 0, gems: 6 },
     },
-    seasonXpOnSettle: 28,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 8,
+  },
+  {
+    tournamentId: "casual_async_a_yatz",
+    title: "A · Yatz (金币入门)",
+    gameType: "yatz",
+    matchType: "tournament_a",
+    status: "open",
+    maxPlayers: 3,
+    entry: { kind: "coins", amount: 35 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 23, gems: 0 },
+    },
+    seasonXpOnSettle: 4,
+  },
+  {
+    tournamentId: "casual_async_b_yatz",
+    title: "B · Yatz (coins in / pool)",
+    gameType: "yatz",
+    matchType: "tournament_b",
+    status: "open",
+    maxPlayers: 4,
+    entry: { kind: "coins", amount: 45 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 52, gems: 0 },
+    },
+    seasonXpOnSettle: 5,
+  },
+  {
+    tournamentId: "casual_async_c_yatz",
+    title: "C · Yatz (gems in / pool)",
+    gameType: "yatz",
+    matchType: "tournament_c",
+    status: "open",
+    maxPlayers: 5,
+    entry: { kind: "gems", amount: 7 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 0, gems: 6 },
+    },
+    seasonXpOnSettle: 8,
   },
   {
     tournamentId: "casual_async_a_tower_arena",
@@ -455,15 +524,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_a",
     status: "open",
     maxPlayers: 3,
-    entry: { kind: "coins", amount: 30 },
+    entry: { kind: "coins", amount: 35 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 22, gems: 0 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_A],
+      baseRewards: { coins: 23, gems: 0 },
     },
-    seasonXpOnSettle: 12,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 4,
   },
   {
     tournamentId: "casual_async_b_tower_arena",
@@ -472,15 +538,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_b",
     status: "open",
     maxPlayers: 4,
-    entry: { kind: "coins", amount: 40 },
+    entry: { kind: "coins", amount: 45 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 58, gems: 1 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_B],
+      baseRewards: { coins: 52, gems: 0 },
     },
-    seasonXpOnSettle: 18,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 5,
   },
   {
     tournamentId: "casual_async_c_tower_arena",
@@ -489,151 +552,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_c",
     status: "open",
     maxPlayers: 5,
-    entry: { kind: "gems", amount: 5 },
+    entry: { kind: "gems", amount: 7 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 0, gems: 8 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
-      scoreTierRewards: [...CASUAL_ASYNC_SCORE_TIER_C],
-    },
-    seasonXpOnSettle: 28,
-    seasonPointsMultiplier: 0,
-  },
-  {
-    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
-    title: "Daily · Solitaire 日榜最高分",
-    gameType: "solitaire",
-    matchType: "tournament_a",
-    status: "open",
-    instanceScope: "daily",
-    scoreAggregation: "best_score",
-    entryBilling: "per_instance",
-    instanceTimezone: "UTC",
-    maxPlayers: 1,
-    entry: { kind: "none" },
-    rewards: {
-      type: "by_performance",
-      baseRewards: { coins: 10, gems: 0 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, coins: 80, gems: 0 },
-        { rankRange: [2, 3], multiplier: 1, coins: 50, gems: 0 },
-        { rankRange: [4, 10], multiplier: 1, coins: 30, gems: 0 },
-        { rankRange: [11, 50], multiplier: 1, coins: 15, gems: 0 },
-        { rankRange: [51, 999_999], multiplier: 1, coins: 5, gems: 0 },
-      ],
-      scoreTierRewardsGrantTiming: "on_each_run_settled",
-      scoreTierRewards: [
-        { minScore: 800, coins: 40, gems: 0 },
-        { minScore: 600, coins: 25, gems: 0 },
-        { minScore: 400, coins: 15, gems: 0 },
-        { minScore: 200, coins: 5, gems: 0 },
-      ],
+      baseRewards: { coins: 0, gems: 6 },
     },
     seasonXpOnSettle: 8,
-    seasonPointsMultiplier: 0.5,
-    omitFromPlayLobby: true,
-  },
-  {
-    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
-    title: "Daily · Block Blast 日榜最高分",
-    gameType: "block_blast",
-    matchType: "tournament_a",
-    status: "open",
-    instanceScope: "daily",
-    scoreAggregation: "best_score",
-    entryBilling: "per_instance",
-    instanceTimezone: "UTC",
-    maxPlayers: 1,
-    entry: { kind: "none" },
-    rewards: {
-      type: "by_performance",
-      baseRewards: { coins: 10, gems: 0 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, coins: 100, gems: 0 },
-        { rankRange: [2, 3], multiplier: 1, coins: 60, gems: 0 },
-        { rankRange: [4, 10], multiplier: 1, coins: 35, gems: 0 },
-        { rankRange: [11, 50], multiplier: 1, coins: 18, gems: 0 },
-        { rankRange: [51, 999_999], multiplier: 1, coins: 6, gems: 0 },
-      ],
-      scoreTierRewardsGrantTiming: "on_each_run_settled",
-      scoreTierRewards: [
-        { minScore: 800, coins: 50, gems: 0 },
-        { minScore: 600, coins: 35, gems: 0 },
-        { minScore: 400, coins: 20, gems: 0 },
-        { minScore: 200, coins: 8, gems: 0 },
-      ],
-    },
-    seasonXpOnSettle: 8,
-    seasonPointsMultiplier: 0.5,
-    omitFromPlayLobby: true,
-  },
-  {
-    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID,
-    title: "Daily · Tower Defense 日榜最高分",
-    gameType: "tower_arena",
-    matchType: "tournament_a",
-    status: "open",
-    instanceScope: "daily",
-    scoreAggregation: "best_score",
-    entryBilling: "per_instance",
-    instanceTimezone: "UTC",
-    maxPlayers: 1,
-    entry: { kind: "none" },
-    rewards: {
-      type: "by_performance",
-      baseRewards: { coins: 10, gems: 0 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, coins: 90, gems: 0 },
-        { rankRange: [2, 3], multiplier: 1, coins: 55, gems: 0 },
-        { rankRange: [4, 10], multiplier: 1, coins: 32, gems: 0 },
-        { rankRange: [11, 50], multiplier: 1, coins: 16, gems: 0 },
-        { rankRange: [51, 999_999], multiplier: 1, coins: 6, gems: 0 },
-      ],
-      scoreTierRewardsGrantTiming: "on_each_run_settled",
-      scoreTierRewards: [
-        { minScore: 2500, coins: 45, gems: 0 },
-        { minScore: 1800, coins: 30, gems: 0 },
-        { minScore: 1200, coins: 18, gems: 0 },
-        { minScore: 600, coins: 8, gems: 0 },
-      ],
-    },
-    seasonXpOnSettle: 8,
-    seasonPointsMultiplier: 0.5,
-    omitFromPlayLobby: true,
-  },
-  {
-    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID,
-    title: "Daily · Match-3 日榜最高分",
-    gameType: "match_3",
-    matchType: "tournament_a",
-    status: "open",
-    instanceScope: "daily",
-    scoreAggregation: "best_score",
-    entryBilling: "per_instance",
-    instanceTimezone: "UTC",
-    maxPlayers: 1,
-    entry: { kind: "none" },
-    rewards: {
-      type: "by_performance",
-      baseRewards: { coins: 10, gems: 0 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, coins: 85, gems: 0 },
-        { rankRange: [2, 3], multiplier: 1, coins: 52, gems: 0 },
-        { rankRange: [4, 10], multiplier: 1, coins: 30, gems: 0 },
-        { rankRange: [11, 50], multiplier: 1, coins: 15, gems: 0 },
-        { rankRange: [51, 999_999], multiplier: 1, coins: 5, gems: 0 },
-      ],
-      scoreTierRewardsGrantTiming: "on_each_run_settled",
-      scoreTierRewards: [
-        { minScore: 1200, coins: 42, gems: 0 },
-        { minScore: 900, coins: 28, gems: 0 },
-        { minScore: 600, coins: 16, gems: 0 },
-        { minScore: 300, coins: 6, gems: 0 },
-      ],
-    },
-    seasonXpOnSettle: 8,
-    seasonPointsMultiplier: 0.5,
-    omitFromPlayLobby: true,
   },
   /** p75 单人挑战：非周期、单人无 bot；本局分数 >= 该 seed p75 视为成功，发参与奖 + 成功奖 */
   {
@@ -649,8 +573,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       baseRewards: { coins: 8, gems: 0 },
     },
     seedQuantileSuccess: { quantile: "p75", coins: 40 },
-    seasonXpOnSettle: 8,
-    seasonPointsMultiplier: 0.5,
+    seasonXpOnSettle: 2,
   },
   {
     tournamentId: CASUAL_SOLO_P75_CHALLENGE_BLOCK_BLAST_ID,
@@ -665,8 +588,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       baseRewards: { coins: 8, gems: 0 },
     },
     seedQuantileSuccess: { quantile: "p75", coins: 40 },
-    seasonXpOnSettle: 8,
-    seasonPointsMultiplier: 0.5,
+    seasonXpOnSettle: 2,
   },
   {
     tournamentId: CASUAL_SOLO_P75_CHALLENGE_MATCH_3_ID,
@@ -681,8 +603,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       baseRewards: { coins: 8, gems: 0 },
     },
     seedQuantileSuccess: { quantile: "p75", coins: 40 },
-    seasonXpOnSettle: 8,
-    seasonPointsMultiplier: 0.5,
+    seasonXpOnSettle: 2,
   },
   {
     tournamentId: CASUAL_SOLO_P75_CHALLENGE_TOWER_ARENA_ID,
@@ -697,10 +618,24 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
       baseRewards: { coins: 8, gems: 0 },
     },
     seedQuantileSuccess: { quantile: "p75", coins: 40 },
-    seasonXpOnSettle: 8,
-    seasonPointsMultiplier: 0.5,
+    seasonXpOnSettle: 2,
   },
-  /** 赛季专场：赛季券入场、异步匹配同档 4 人桌；赛季分按名次，不参与挑战点/代金券档位 */
+  {
+    tournamentId: CASUAL_SOLO_P75_CHALLENGE_YATZ_ID,
+    title: "p75 挑战 · Yatz",
+    gameType: "yatz",
+    matchType: "solo_p75_challenge",
+    status: "open",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: {
+      type: "by_performance",
+      baseRewards: { coins: 8, gems: 0 },
+    },
+    seedQuantileSuccess: { quantile: "p75", coins: 40 },
+    seasonXpOnSettle: 2,
+  },
+  /** 赛季专场：赛季券入场、异步 4 人桌；零钱包，专产 Pass + League XP */
   {
     tournamentId: CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID,
     title: "专场对局 · Block Blast",
@@ -712,15 +647,8 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     rewards: {
       type: "by_rank",
       baseRewards: { coins: 0, gems: 0 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, seasonPoints: 12 },
-        { rankRange: [2, 2], multiplier: 1, seasonPoints: 7 },
-        { rankRange: [3, 3], multiplier: 1, seasonPoints: 3 },
-        { rankRange: [4, 4], multiplier: 1, seasonPoints: -6 },
-      ],
     },
-    seasonXpOnSettle: 18,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 14,
     hideLeaderboard: true,
     referenceScoreQuantiles: CASUAL_BB_QUANTILES_SEASON_4P,
   },
@@ -735,15 +663,8 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     rewards: {
       type: "by_rank",
       baseRewards: { coins: 0, gems: 0 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, seasonPoints: 12 },
-        { rankRange: [2, 2], multiplier: 1, seasonPoints: 7 },
-        { rankRange: [3, 3], multiplier: 1, seasonPoints: 3 },
-        { rankRange: [4, 4], multiplier: 1, seasonPoints: -6 },
-      ],
     },
-    seasonXpOnSettle: 18,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 14,
     hideLeaderboard: true,
   },
   {
@@ -757,15 +678,38 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     rewards: {
       type: "by_rank",
       baseRewards: { coins: 0, gems: 0 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, seasonPoints: 12 },
-        { rankRange: [2, 2], multiplier: 1, seasonPoints: 7 },
-        { rankRange: [3, 3], multiplier: 1, seasonPoints: 3 },
-        { rankRange: [4, 4], multiplier: 1, seasonPoints: -6 },
-      ],
     },
-    seasonXpOnSettle: 18,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 14,
+    hideLeaderboard: true,
+  },
+  {
+    tournamentId: CASUAL_SEASON_CHALLENGE_MATCH_3_ID,
+    title: "专场对局 · Match-3",
+    gameType: "match_3",
+    matchType: "season_challenge",
+    status: "open",
+    maxPlayers: 4,
+    entry: { kind: "seasonVouchers", amount: 2 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 0, gems: 0 },
+    },
+    seasonXpOnSettle: 14,
+    hideLeaderboard: true,
+  },
+  {
+    tournamentId: CASUAL_SEASON_CHALLENGE_YATZ_ID,
+    title: "专场对局 · Yatz",
+    gameType: "yatz",
+    matchType: "season_challenge",
+    status: "open",
+    maxPlayers: 4,
+    entry: { kind: "seasonVouchers", amount: 2 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 0, gems: 0 },
+    },
+    seasonXpOnSettle: 14,
     hideLeaderboard: true,
   },
   {
@@ -776,14 +720,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     status: "open",
     maxPlayers: 3,
     gameSequence: ["block_blast", "solitaire", "match_3"],
-    entry: { kind: "coins", amount: 30 },
+    entry: { kind: "coins", amount: 35 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 22, gems: 0 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
+      baseRewards: { coins: 23, gems: 0 },
     },
-    seasonXpOnSettle: 12,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 4,
   },
   {
     tournamentId: "casual_triathlon_b",
@@ -793,14 +735,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     status: "open",
     maxPlayers: 4,
     gameSequence: ["block_blast", "solitaire", "match_3"],
-    entry: { kind: "coins", amount: 40 },
+    entry: { kind: "coins", amount: 45 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 58, gems: 1 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
+      baseRewards: { coins: 52, gems: 0 },
     },
-    seasonXpOnSettle: 18,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 5,
   },
   {
     tournamentId: "casual_triathlon_c",
@@ -810,14 +750,80 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     status: "open",
     maxPlayers: 5,
     gameSequence: ["block_blast", "solitaire", "match_3"],
-    entry: { kind: "gems", amount: 5 },
+    entry: { kind: "gems", amount: 7 },
     rewards: {
       type: "by_rank",
-      baseRewards: { coins: 0, gems: 8 },
-      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
+      baseRewards: { coins: 0, gems: 6 },
     },
-    seasonXpOnSettle: 28,
-    seasonPointsMultiplier: 0,
+    seasonXpOnSettle: 8,
+  },
+];
+
+/** 已下线日榜模板（只读；不参与 list/join） */
+const DEPRECATED_DAILY_SOLO_TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
+  {
+    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
+    title: "[已下线] Daily · Solitaire",
+    gameType: "solitaire",
+    matchType: "tournament_a",
+    status: "closed",
+    instanceScope: "daily",
+    scoreAggregation: "best_score",
+    entryBilling: "per_instance",
+    instanceTimezone: "UTC",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: { type: "by_performance", baseRewards: { coins: 10, gems: 0 } },
+    seasonXpOnSettle: 4,
+    omitFromPlayLobby: true,
+  },
+  {
+    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
+    title: "[已下线] Daily · Block Blast",
+    gameType: "block_blast",
+    matchType: "tournament_a",
+    status: "closed",
+    instanceScope: "daily",
+    scoreAggregation: "best_score",
+    entryBilling: "per_instance",
+    instanceTimezone: "UTC",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: { type: "by_performance", baseRewards: { coins: 10, gems: 0 } },
+    seasonXpOnSettle: 4,
+    omitFromPlayLobby: true,
+  },
+  {
+    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID,
+    title: "[已下线] Daily · Tower Defense",
+    gameType: "tower_arena",
+    matchType: "tournament_a",
+    status: "closed",
+    instanceScope: "daily",
+    scoreAggregation: "best_score",
+    entryBilling: "per_instance",
+    instanceTimezone: "UTC",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: { type: "by_performance", baseRewards: { coins: 10, gems: 0 } },
+    seasonXpOnSettle: 4,
+    omitFromPlayLobby: true,
+  },
+  {
+    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID,
+    title: "[已下线] Daily · Match-3",
+    gameType: "match_3",
+    matchType: "tournament_a",
+    status: "closed",
+    instanceScope: "daily",
+    scoreAggregation: "best_score",
+    entryBilling: "per_instance",
+    instanceTimezone: "UTC",
+    maxPlayers: 1,
+    entry: { kind: "none" },
+    rewards: { type: "by_performance", baseRewards: { coins: 10, gems: 0 } },
+    seasonXpOnSettle: 4,
+    omitFromPlayLobby: true,
   },
 ];
 
@@ -827,7 +833,11 @@ export const DEFAULT_CASUAL_TOURNAMENT_ID = "casual_async_a_bb";
 export function getTournamentDefinition(
   tournamentId: string
 ): CasualTournamentDefinition | null {
-  return TOURNAMENT_DEFS.find((t) => t.tournamentId === tournamentId) ?? null;
+  return (
+    TOURNAMENT_DEFS.find((t) => t.tournamentId === tournamentId) ??
+    DEPRECATED_DAILY_SOLO_TOURNAMENT_DEFS.find((t) => t.tournamentId === tournamentId) ??
+    null
+  );
 }
 
 export function effectiveGameSequence(def: CasualTournamentDefinition): string[] {
@@ -872,6 +882,23 @@ export function listTournamentDefinitions(): CasualTournamentDefinition[] {
   return TOURNAMENT_DEFS;
 }
 
+/** Play 单款游戏锦标赛列表：不含日榜、不含 `omitFromPlayLobby`、不含 season 专场（专场由 modal 单独注入） */
+export function shouldAppearInCasualPlayLobby(
+  def: CasualTournamentDefinition | null | undefined
+): boolean {
+  if (!def) return false;
+  if (def.omitFromPlayLobby) return false;
+  if (def.instanceScope === "daily") return false;
+  if (def.matchType === "season_challenge") return false;
+  if (!isCasualGameLobbyVisible(def.gameType)) return false;
+  return (
+    def.matchType === "tournament_a" ||
+    def.matchType === "tournament_b" ||
+    def.matchType === "tournament_c" ||
+    def.matchType === "solo_p75_challenge"
+  );
+}
+
 /** Play 大厅异步锦标列表（不含赛季专场；专场由 `listSeasonChallengeMatches` 单独露出） */
 export function listPlayCasualTournaments(): Array<{
   tournamentId: string;
@@ -883,12 +910,7 @@ export function listPlayCasualTournaments(): Array<{
   scoreAggregation?: CasualScoreAggregation;
   entryBilling?: CasualEntryBilling;
 }> {
-  return TOURNAMENT_DEFS.filter(
-    (t) =>
-      t.matchType !== "season_challenge" &&
-      !t.omitFromPlayLobby &&
-      isCasualGameLobbyVisible(t.gameType)
-  ).map((t) => ({
+  return TOURNAMENT_DEFS.filter((t) => shouldAppearInCasualPlayLobby(t)).map((t) => ({
     tournamentId: t.tournamentId,
     title: t.title,
     gameType: t.gameType,
@@ -919,15 +941,3 @@ export function listSeasonChallengeMatchCatalog(): Array<{
   }));
 }
 
-/**
- * 赛季竞技积分增量（日榜 `seasonPointsMultiplier` 路径）；持久化见 `casual_player_season_ladder`。
- * 高分仍按「千分位 × 倍率」拉开差距；终局分 < 1000 时原先恒为 0，赛季榜会长期空白，
- * 故在「有正分且倍率 > 0」且 floor 为 0 时记 1 点，保证每场有贡献的结算都会上榜。
- */
-export function seasonPointsFromScore(score: number, multiplier: number): number {
-  const clamped = Math.max(0, Math.min(score, 10_000_000));
-  const mult = Math.max(0, multiplier);
-  if (clamped <= 0 || mult <= 0) return 0;
-  const floored = Math.floor((clamped / 1000) * mult);
-  return floored > 0 ? floored : 1;
-}

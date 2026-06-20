@@ -24,6 +24,8 @@ import type * as service_casualBotFill_soloRankRecommend from "../service/casual
 import type * as service_casualBridgeEnv from "../service/casualBridgeEnv.js";
 import type * as service_casualBridgeIngest from "../service/casualBridgeIngest.js";
 import type * as service_casualBridgeResolve from "../service/casualBridgeResolve.js";
+import type * as service_casualGameLifecycle from "../service/casualGameLifecycle.js";
+import type * as service_casualGameTimeoutAction from "../service/casualGameTimeoutAction.js";
 import type * as service_casualPlatform_casualTemplateQuantiles from "../service/casualPlatform/casualTemplateQuantiles.js";
 import type * as service_gameManager from "../service/gameManager.js";
 import type * as service_seedPool_blockBlastHumanPersonas from "../service/seedPool/blockBlastHumanPersonas.js";
@@ -84,6 +86,8 @@ declare const fullApi: ApiFromModules<{
   "service/casualBridgeEnv": typeof service_casualBridgeEnv;
   "service/casualBridgeIngest": typeof service_casualBridgeIngest;
   "service/casualBridgeResolve": typeof service_casualBridgeResolve;
+  "service/casualGameLifecycle": typeof service_casualGameLifecycle;
+  "service/casualGameTimeoutAction": typeof service_casualGameTimeoutAction;
   "service/casualPlatform/casualTemplateQuantiles": typeof service_casualPlatform_casualTemplateQuantiles;
   "service/gameManager": typeof service_gameManager;
   "service/seedPool/blockBlastHumanPersonas": typeof service_seedPool_blockBlastHumanPersonas;

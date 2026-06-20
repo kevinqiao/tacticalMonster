@@ -29,6 +29,7 @@ import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes"
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
 import type { Id } from "../../../_generated/dataModel";
 import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
+import { serializeWatchReplaySnapshot } from "../shared/casualWatchReplaySnapshot";
 import {
   finalizeCasualAsyncMatchIngest,
   runConfirmCasualRunWithoutReplay,
@@ -116,8 +117,17 @@ export const submitCasualRunScoreCore = internalMutation({
     ),
     replaceAllVirtual: v.optional(v.boolean()),
     seedScoreThreshold: v.optional(v.number()),
+    watchReplay: v.optional(
+      v.object({
+        seedId: v.string(),
+        steps: v.array(v.any()),
+      })
+    ),
   },
-  handler: async (ctx, { uid, matchGameId, score, botFills, replaceAllVirtual, seedScoreThreshold }) => {
+  handler: async (
+    ctx,
+    { uid, matchGameId, score, botFills, replaceAllVirtual, seedScoreThreshold, watchReplay }
+  ) => {
     const resolved = await resolvePlayerGameIngestContext(ctx, uid, matchGameId);
     if (!resolved.ok) {
       return { ok: false as const, error: resolved.error };
@@ -168,11 +178,19 @@ export const submitCasualRunScoreCore = internalMutation({
     }
 
     const now = Date.now();
+    const replayPatch =
+      watchReplay != null
+        ? serializeWatchReplaySnapshot({
+            seedId: watchReplay.seedId,
+            steps: watchReplay.steps,
+          })
+        : undefined;
     await ctx.db.patch(pg._id, {
       score,
       status: "finished",
       finishedAt: now,
       updatedAt: now,
+      ...(replayPatch ?? {}),
     });
 
     if (!isLastGame) {
@@ -255,6 +273,9 @@ export const submitCasualRunScoreCore = internalMutation({
         now,
         gameType,
         ...(typeof seedScoreThreshold === "number" ? { seedScoreThreshold } : {}),
+        ...(pg.seedBinding?.scoreQuantiles
+          ? { seedScoreQuantiles: pg.seedBinding.scoreQuantiles }
+          : {}),
       });
     }
 

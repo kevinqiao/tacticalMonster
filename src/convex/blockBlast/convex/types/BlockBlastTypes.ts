@@ -56,6 +56,8 @@ export interface GameModel {
     seed?: string;
     shapeCounter?: number;
     lastUpdate?: number;
+    /** 休闲 run：对局截止时间（ms） */
+    dueTime?: number;
 }
 
 export interface BlockBlastRule {

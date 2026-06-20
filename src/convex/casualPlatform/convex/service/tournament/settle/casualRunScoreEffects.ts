@@ -8,6 +8,8 @@ import {
   casualSettleBaseGems,
   findCasualRankRewardEntry,
   findHighestScoreTierReward,
+  resolveAsyncScoreTierRewards,
+  type CasualReferenceScoreQuantiles,
   type CasualTournamentDefinition,
 } from "../../../data/casualTournamentConfigs";
 import type { Id } from "../../../_generated/dataModel";
@@ -15,6 +17,13 @@ import type { MutationCtx } from "../../../_generated/server";
 import { CASUAL_WEEKLY_LEAGUE_ENABLED } from "../../../data/casualWeeklyLeagueConfig";
 import { applyWeeklyLeagueOnMatchSettle } from "../../weeklyLeague/casualWeeklyLeagueSettle";
 import type { WeeklyLeagueSettlePayload } from "../../weeklyLeague/casualWeeklyLeagueService";
+import { isP75ChallengeSuccess } from "../../weeklyLeague/casualWeeklyLeagueXp";
+import { payoutBucketFromDef, scaleFloor, usesXpOrdinalDecay } from "../../../data/casualPayoutPolicy";
+import {
+  recordPayoutRollupApplied,
+  resolvePayoutRollup,
+  applyP75DailyCoinCap,
+} from "../../payout/casualPayoutDailyService";
 export function prunePendingWalletRewards(p: {
   coins?: number;
   gems?: number;
@@ -86,6 +95,8 @@ export async function applyCasualTemplateScoreEffects(
     multiplayerFinalRank?: number;
     /** 单人 p75 挑战：该 seed 的成功阈值分（由游戏服按 seed 分位解析后带入） */
     seedScoreThreshold?: number;
+    /** 本局 seed 分位（异步 A/B/C 分位奖阈值） */
+    seedScoreQuantiles?: CasualReferenceScoreQuantiles;
     /** 为 true 时跳过 League XP（异步多人 finalize 路径单独写入） */
     skipWeeklyLeagueXp?: boolean;
     sessionKind?: "single" | "triathlon";
@@ -97,8 +108,11 @@ export async function applyCasualTemplateScoreEffects(
     seasonVoucher?: number;
   };
   weeklyLeagueSettle?: WeeklyLeagueSettlePayload;
+  /** 本场当日同 bucket 的 XP 递减乘子（供异步多人 finalize 透传给周联赛 League XP）。 */
+  xpDecayMultiplier: number;
 }> {
   const { uid, tournamentId, score } = args;
+  const now = Date.now();
   const deferWallet = args.deferWalletRewards !== false;
   const pendingWallet: {
     coins?: number;
@@ -126,7 +140,10 @@ export async function applyCasualTemplateScoreEffects(
   // 单场（single_match）分位奖：按本局终分命中最高满足档，叠加到待发钱包。
   // 周期型（daily/weekly/season）由 `grantCasualScoreTierRewardsOnEachRunSettled` / 桶收尾处理，
   // 不走本函数，故此处不会重复发放。
-  const scoreTier = findHighestScoreTierReward(def.rewards.scoreTierRewards, score);
+  const scoreTier = findHighestScoreTierReward(
+    resolveAsyncScoreTierRewards(def, args.seedScoreQuantiles),
+    score
+  );
   if (scoreTier) {
     const tc = scoreTier.coins != null ? Math.max(0, Math.floor(scoreTier.coins)) : 0;
     const tg = scoreTier.gems != null ? Math.max(0, Math.floor(scoreTier.gems)) : 0;
@@ -134,18 +151,15 @@ export async function applyCasualTemplateScoreEffects(
     if (tg > 0) pendingWallet.gems = (pendingWallet.gems ?? 0) + tg;
   }
   // 单人 p75 挑战：本局分数达到该 seed 的成功阈值（默认 p75）时叠加成功奖。
+  const p75ChallengeSuccess = isP75ChallengeSuccess(def, score, args.seedScoreThreshold);
   const successReward = def.seedQuantileSuccess;
-  if (
-    successReward &&
-    typeof args.seedScoreThreshold === "number" &&
-    Number.isFinite(args.seedScoreThreshold) &&
-    score >= args.seedScoreThreshold
-  ) {
+  if (successReward && p75ChallengeSuccess) {
     const sc = successReward.coins != null ? Math.max(0, Math.floor(successReward.coins)) : 0;
     const sg = successReward.gems != null ? Math.max(0, Math.floor(successReward.gems)) : 0;
     if (sc > 0) pendingWallet.coins = (pendingWallet.coins ?? 0) + sc;
     if (sg > 0) pendingWallet.gems = (pendingWallet.gems ?? 0) + sg;
   }
+  // 币 / 钻：A/B/C/专场 入场费已是水槽，结算产出「不衰减、不封顶」。
   if (settleCoins > 0) {
     if (deferWallet) {
       pendingWallet.coins = (pendingWallet.coins ?? 0) + settleCoins;
@@ -168,18 +182,41 @@ export async function applyCasualTemplateScoreEffects(
       });
     }
   }
-  let passXpDelta = def.seasonXpOnSettle;
+
+  if (def.matchType === "solo_p75_challenge") {
+    const proposedCoins = pendingWallet.coins ?? 0;
+    if (proposedCoins > 0) {
+      const granted = await applyP75DailyCoinCap(ctx, uid, proposedCoins, now);
+      if (granted > 0) pendingWallet.coins = granted;
+      else delete pendingWallet.coins;
+    }
+  }
+
+  // --- 防刷：成长线 XP 当日场次递减（League XP + Pass XP），币/钻/券不参与 ---
+  // async / season_challenge / solo_p75 各自独立序号；首 3 局满额，第 4 局起递减。
+  // async / solo_p75：bucket 场次递减；专场券已是水槽，满额 Pass/League XP。
+  let xpDecayMultiplier = 1;
+  if (usesXpOrdinalDecay(def)) {
+    const payoutBucket = payoutBucketFromDef(def);
+    const rollup = await resolvePayoutRollup(ctx, uid, payoutBucket, now);
+    xpDecayMultiplier = rollup.xpDecay;
+    await recordPayoutRollupApplied(ctx, uid, payoutBucket, now);
+  }
+
+  // Pass XP 底座（含活动修正，未衰减）；League XP 复用同一底座，避免重复衰减。
+  let passXpBase = def.seasonXpOnSettle;
   if (def.seasonXpOnSettle > 0) {
     const xpMods = await ctx.runQuery(
       internal.service.activity.casualActivityService.resolveSeasonActivityModifiers,
       { tournamentId }
     );
-    passXpDelta = applyPassXpFromModifiers(
+    passXpBase = applyPassXpFromModifiers(
       def.seasonXpOnSettle,
       xpMods.passXpMultiplier,
       xpMods.passXpDelta
     );
   }
+  const passXpDelta = scaleFloor(passXpBase, xpDecayMultiplier);
   if (passXpDelta > 0) {
     await ctx.runMutation(internal.service.season.casualSeasonService.addPassXpFromRun, {
       uid,
@@ -191,7 +228,6 @@ export async function applyCasualTemplateScoreEffects(
     uid,
     matchType: def.matchType,
     platformGameType: def.gameType,
-    spotlightSeasonBoardGain: 0,
     ...(typeof args.multiplayerFinalRank === "number" && args.multiplayerFinalRank >= 1
       ? { multiplayerFinalRank: args.multiplayerFinalRank }
       : {}),
@@ -206,14 +242,19 @@ export async function applyCasualTemplateScoreEffects(
     weeklyLeagueSettle = await applyWeeklyLeagueOnMatchSettle(ctx, {
       uid,
       def,
-      seasonXpOnSettle: passXpDelta,
+      seasonXpOnSettle: passXpBase,
       multiplayerFinalRank: args.multiplayerFinalRank ?? 1,
       sessionKind: args.sessionKind,
+      xpDecayMultiplier,
+      ...(def.matchType === "solo_p75_challenge"
+        ? { p75ChallengeSuccess }
+        : {}),
     });
   }
 
   const pendingPruned = deferWallet ? prunePendingWalletRewards(pendingWallet) : undefined;
   return {
+    xpDecayMultiplier,
     ...(pendingPruned ? { pendingWalletRewards: pendingPruned } : {}),
     ...(weeklyLeagueSettle ? { weeklyLeagueSettle } : {}),
   };

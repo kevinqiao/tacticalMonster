@@ -4,6 +4,7 @@ export const CATALOG_GAME_TYPES = {
   solitaire: "solitaire",
   match_3: "match_3",
   tower_arena: "tower_arena",
+  yatz: "yatz",
 };
 
 export const VALID_CATALOG_GAME_TYPES = new Set(Object.values(CATALOG_GAME_TYPES));

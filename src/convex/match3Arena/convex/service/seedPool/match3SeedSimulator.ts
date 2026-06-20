@@ -107,7 +107,7 @@ export function simulateRollout(
     }
   }
 
-  const finalScore = computeMatch3TotalScore(state.score, elapsed.value, matchSeconds);
+  const finalScore = computeMatch3TotalScore(state.score);
 
   return {
     rolloutIndex,

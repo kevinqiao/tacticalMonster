@@ -72,9 +72,16 @@ const CasualLeaderboardsTab: React.FC<PageProp> = ({ visible }) => {
 
   const loadMainLb = useCallback(async () => {
     if (!casual.convexUrl) return;
-    const rows = await casual.fetchMainSeasonLeaderboard(seasonId, 30);
-    setMainLb(rows);
-  }, [casual, seasonId]);
+    await casual.ensureWeeklyLeagueMember();
+    const cohort = await casual.fetchWeeklyLeagueCohort();
+    setMainLb(
+      cohort.members.map((m) => ({
+        rank: m.rank,
+        uid: m.uid,
+        points: m.weeklyLeagueXp,
+      }))
+    );
+  }, [casual]);
 
   const loadCLb = useCallback(async () => {
     if (!casual.convexUrl) return;
@@ -118,7 +125,7 @@ const CasualLeaderboardsTab: React.FC<PageProp> = ({ visible }) => {
 
   const mockBannerMain = useMemo(() => {
     if (!casual.convexUrl) return "未配置休闲后端：以下为界面演示数据。";
-    if (mainLb.length === 0) return "暂无主赛季榜数据：以下为样式演示。";
+    if (mainLb.length === 0) return "暂无周联赛 cohort 数据：以下为样式演示。";
     return null;
   }, [casual.convexUrl, mainLb.length]);
 
@@ -157,7 +164,7 @@ const CasualLeaderboardsTab: React.FC<PageProp> = ({ visible }) => {
       <div className="casual-econ">
         <div className="casual-lb__tabs" role="tablist" aria-label="排行榜类型">
           {tabBtn("tournament", "单锦标")}
-          {tabBtn("mainSeason", "主赛季")}
+          {tabBtn("mainSeason", "周联赛")}
           {tabBtn("cArena", "C 场")}
         </div>
 
@@ -219,7 +226,7 @@ const CasualLeaderboardsTab: React.FC<PageProp> = ({ visible }) => {
             ) : null}
             <div className="casual-lb__panelHead">
               <h2 id="casual-lb-main-title" className="casual-econ__sectionTitle" style={{ margin: 0 }}>
-                赛季竞技积分（全玩法）· {seasonId}
+                周联赛 · 本组排名
               </h2>
               {casual.convexUrl ? (
                 <button type="button" className="casual-econ__textBtn" onClick={() => void loadMainLb()}>
@@ -241,7 +248,7 @@ const CasualLeaderboardsTab: React.FC<PageProp> = ({ visible }) => {
                     </div>
                     <div className="casual-lb__mid">
                       <div className="casual-lb__name">{rowLabel(r.uid, selfUid)}</div>
-                      <div className="casual-lb__sub">赛季累计</div>
+                      <div className="casual-lb__sub">本周 League XP</div>
                     </div>
                     <div className="casual-lb__score">
                       <span className="casual-lb__scoreVal">{r.points.toLocaleString()}</span>

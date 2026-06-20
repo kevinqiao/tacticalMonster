@@ -343,3 +343,102 @@ export async function deleteEntriesBatch(
   }
   return { deleted: rows.length, done: rows.length < batchSize };
 }
+
+export type ListSeedEntriesOpts = {
+  gameType: CatalogGameType;
+  poolVersion: string;
+  tier?: CatalogSeedTier;
+  minDifficulty?: number;
+  maxDifficulty?: number;
+  cursor?: string;
+  limit?: number;
+};
+
+export type ListSeedEntriesResult = {
+  entries: Array<{
+    seedId: string;
+    poolVersion: string;
+    tier: CatalogSeedTier;
+    difficultyScore: number;
+    metrics: SeedPoolEntryDoc["metrics"];
+  }>;
+  continueCursor?: string;
+  isDone: boolean;
+};
+
+const DEFAULT_LIST_LIMIT = 50;
+const MAX_LIST_LIMIT = 100;
+
+function paginateEntryDocs(
+  rows: SeedPoolEntryDoc[],
+  cursorSeedId: string | undefined,
+  limit: number,
+  minDifficulty?: number,
+  maxDifficulty?: number
+): ListSeedEntriesResult {
+  const sorted = [...rows].sort((a, b) => {
+    if (a.difficultyScore !== b.difficultyScore) {
+      return a.difficultyScore - b.difficultyScore;
+    }
+    return a.seedId.localeCompare(b.seedId);
+  });
+
+  let filtered = sorted;
+  if (minDifficulty != null) {
+    filtered = filtered.filter((e) => e.difficultyScore >= minDifficulty);
+  }
+  if (maxDifficulty != null) {
+    filtered = filtered.filter((e) => e.difficultyScore <= maxDifficulty);
+  }
+
+  let start = 0;
+  if (cursorSeedId) {
+    const idx = filtered.findIndex((e) => e.seedId === cursorSeedId);
+    start = idx >= 0 ? idx + 1 : 0;
+  }
+
+  const page = filtered.slice(start, start + limit);
+  const last = page[page.length - 1];
+  const hasMore = start + limit < filtered.length;
+
+  return {
+    entries: page.map((e) => ({
+      seedId: e.seedId,
+      poolVersion: e.poolVersion,
+      tier: e.tier,
+      difficultyScore: e.difficultyScore,
+      metrics: e.metrics,
+    })),
+    continueCursor: hasMore && last ? last.seedId : undefined,
+    isDone: !hasMore,
+  };
+}
+
+export async function listSeedEntries(
+  db: DbReader,
+  opts: ListSeedEntriesOpts
+): Promise<ListSeedEntriesResult> {
+  const limit = Math.min(Math.max(1, opts.limit ?? DEFAULT_LIST_LIMIT), MAX_LIST_LIMIT);
+  const cursorSeedId = opts.cursor;
+
+  if (opts.tier != null) {
+    const rows = await db
+      .query("seed_pool_entries")
+      .withIndex("by_gameType_poolVersion_tier", (iq) =>
+        iq
+          .eq("gameType", opts.gameType)
+          .eq("poolVersion", opts.poolVersion)
+          .eq("tier", opts.tier!)
+      )
+      .collect();
+    return paginateEntryDocs(rows, cursorSeedId, limit, opts.minDifficulty, opts.maxDifficulty);
+  }
+
+  const rows = await db
+    .query("seed_pool_entries")
+    .withIndex("by_gameType_and_poolVersion", (iq) =>
+      iq.eq("gameType", opts.gameType).eq("poolVersion", opts.poolVersion)
+    )
+    .collect();
+  return paginateEntryDocs(rows, cursorSeedId, limit, opts.minDifficulty, opts.maxDifficulty);
+}

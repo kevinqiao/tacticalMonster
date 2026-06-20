@@ -8,6 +8,7 @@ import type { Doc, Id } from "../../../_generated/dataModel";
 import {
   effectiveEntryBilling,
   getTournamentDefinition,
+  isDeprecatedDailySoloTournament,
   isPeriodScopedTournament,
   seatGameTypeForTemplate,
   type CasualTournamentDefinition,
@@ -142,7 +143,9 @@ export const claimQueueAndCharge = internalMutation({
       chargedRows.push(row);
     }
 
-    const requiredHumans = resolveQueueEffectiveHumans(rows[0]!);
+    const storedRequired = resolveQueueEffectiveHumans(rows[0]!);
+    /** 超时 solo 开桌 / 单人行 batch：只要求本批人数，不能仍用排队时的 effectiveHumans=2 */
+    const requiredHumans = Math.min(storedRequired, rows.length);
     if (chargedRows.length < requiredHumans) {
       for (const row of chargedRows) {
         const meta = joinChargeByUid[row.uid];
@@ -170,8 +173,8 @@ export const claimQueueAndCharge = internalMutation({
   },
 });
 
-/** M1'：日榜 solo 扣费（无 queue） */
-export const chargeSoloDailyJoin = internalMutation({
+/** 单人模板 join 扣费（p75 等；无 queue） */
+export const chargeSoloJoin = internalMutation({
   args: {
     uid: v.string(),
     templateId: v.string(),
@@ -180,6 +183,9 @@ export const chargeSoloDailyJoin = internalMutation({
     const def = getTournamentDefinition(templateId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" as const };
+    }
+    if (isDeprecatedDailySoloTournament(templateId)) {
+      return { ok: false as const, error: "tournament_closed" as const };
     }
 
     const openGuard = await assertNoGlobalOpenCasualMatch(ctx, [uid]);

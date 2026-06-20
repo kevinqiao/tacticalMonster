@@ -1,12 +1,17 @@
+import { api } from "@/convex/casualPlatform/convex/_generated/api";
+import type { RolloutSummary } from "@/convex/solitaireArena/convex/service/seedPool/solitaireRecordedOpTypes";
 import { ConvexProvider, ConvexReactClient, useQuery } from "convex/react";
 import { ModalProp } from "host/service/ModalManager";
 import React, { useMemo, useState } from "react";
-import { api } from "../../../../../../convex/solitaireArena/convex/_generated/api";
-import type { RolloutSummary } from "@/convex/solitaireArena/convex/service/seedPool/solitaireRecordedOpTypes";
 import SolitaireRolloutAnimatedPanel from "./SolitaireRolloutAnimatedPanel";
 
+const _casualUrlRaw = import.meta.env.VITE_CONVEX_URL_CASUAL;
 const convex_url =
-  import.meta.env.VITE_CONVEX_URL_SOLITAIRE ?? "https://artful-chipmunk-59.convex.cloud";
+  typeof _casualUrlRaw === "string" && _casualUrlRaw.trim() !== ""
+    ? _casualUrlRaw.trim()
+    : "https://amicable-alpaca-980.convex.cloud";
+
+const SOLITAIRE_GAME_TYPE = "solitaire" as const;
 
 type TierFilter = "all" | "easy" | "medium" | "hard";
 
@@ -182,10 +187,13 @@ const SolitaireRolloutReplayInner: React.FC<ModalProp> = ({ visible, close }) =>
   const [scoreMax, setScoreMax] = useState("");
   const [rolloutListExpanded, setRolloutListExpanded] = useState(false);
 
-  const poolMeta = useQuery(api.service.seedPool.solitaireSeedPoolDevQueries.getActivePoolMetaDev);
+  const poolMeta = useQuery(api.service.seedPool.seedPoolDevQueries.getActivePoolMetaDev, {
+    gameType: SOLITAIRE_GAME_TYPE,
+  });
 
   const tierArg = tierFilter === "all" ? undefined : tierFilter;
-  const page = useQuery(api.service.seedPool.solitaireSeedPoolDevQueries.listPoolSeedEntriesDev, {
+  const page = useQuery(api.service.seedPool.seedPoolDevQueries.listPoolSeedEntriesDev, {
+    gameType: SOLITAIRE_GAME_TYPE,
     tier: tierArg,
     cursor,
     limit: 50,
@@ -218,8 +226,10 @@ const SolitaireRolloutReplayInner: React.FC<ModalProp> = ({ visible, close }) =>
   }, [selectedSeedId]);
 
   const summaries = useQuery(
-    api.service.seedPool.solitaireSeedPoolDevQueries.listRolloutSummariesDev,
-    selectedSeedId ? { seedId: selectedSeedId } : "skip"
+    api.service.seedPool.seedPoolDevQueries.listRolloutSummariesDev,
+    selectedSeedId
+      ? { gameType: SOLITAIRE_GAME_TYPE, seedId: selectedSeedId }
+      : "skip"
   );
 
   const filteredSummaries = useMemo(() => {

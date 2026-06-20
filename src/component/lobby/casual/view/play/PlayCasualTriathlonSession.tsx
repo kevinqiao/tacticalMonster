@@ -114,6 +114,19 @@ const PlayCasualTriathlonSession: React.FC<ModalProp> = ({ visible, data, close 
     setLastCompletedScoreReport(null);
   }, [pendingNext]);
 
+  const onTriathlonSessionReplay = useCallback(
+    (restartGameId: string) => {
+      if (!casualTournamentId) return;
+      const leg = resolveTriathlonSessionLeg(casualTournamentId, restartGameId);
+      setActiveLeg(leg);
+      setLegScores([]);
+      setPendingNext(null);
+      setLastCompletedLeg(null);
+      setLastCompletedScoreReport(null);
+    },
+    [casualTournamentId]
+  );
+
   if (!visible) return null;
 
   if (!casualTournamentId || !initialLeg || !activeLeg) {
@@ -166,7 +179,13 @@ const PlayCasualTriathlonSession: React.FC<ModalProp> = ({ visible, data, close 
   return (
     <CasualTriathlonGameStage badge={badge}>
       {kind === 'block_blast' ? <BlockBlastGame key={activeLeg.gameId} {...gameProps} /> : null}
-      {kind === 'match_3' ? <Match3Game key={activeLeg.gameId} {...gameProps} /> : null}
+      {kind === 'match_3' ? (
+        <Match3Game
+          key={activeLeg.gameId}
+          {...gameProps}
+          onTriathlonSessionReplay={onTriathlonSessionReplay}
+        />
+      ) : null}
       {kind !== 'block_blast' && kind !== 'match_3' ? (
         <SolitaireGame key={activeLeg.gameId} {...gameProps} />
       ) : null}

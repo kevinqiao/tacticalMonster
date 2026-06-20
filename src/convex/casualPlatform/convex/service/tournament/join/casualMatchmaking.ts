@@ -17,7 +17,6 @@ import {
 } from "./casualMatchmakingProfile";
 import {
   assertJoinEntryEligible,
-  requiresDailySoloPlayCostAck,
 } from "./casualTournamentJoinCore";
 import { findAnyGlobalOpenCasualMatch } from "./casualOpenTableGuard";
 import {
@@ -103,9 +102,8 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
   args: {
     uid: v.string(),
     tournamentId: v.string(),
-    dailySoloCostAck: v.optional(v.literal(true)),
   },
-  handler: async (ctx, { uid, tournamentId, dailySoloCostAck }): Promise<JoinCasualRunResult> => {
+  handler: async (ctx, { uid, tournamentId }): Promise<JoinCasualRunResult> => {
     const def = getTournamentDefinition(tournamentId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
@@ -120,33 +118,22 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         templateId: tournamentId,
         now,
       });
-      const profile = await resolvePlayerBotStrategyContext(ctx, {
-        uid,
+      if (existingOpen.templateId !== tournamentId) {
+        return { ok: false as const, error: "already_in_open_match" as const };
+      }
+      return {
+        ok: true as const,
+        queued: false as const,
         templateId: tournamentId,
-        def,
-      });
-      const { effectiveHumans, matchedRuleId, queueExpireAction } = evaluateEffectiveHumans(profile, def);
-      logJoinMatchmakingProfileResult({
-        uid,
-        templateId: tournamentId,
-        profile,
-        effectiveHumans,
-        matchedRuleId,
-        queueExpireAction,
-        source: "existing_open",
-      });
-      return buildQueuedResponse({
-        templateId: tournamentId,
-        effectiveHumans,
-      });
+        gameId: existingOpen.gameId,
+        matchId: existingOpen.matchId,
+        runTournamentId: existingOpen.runTournamentId,
+      };
     }
 
     const preview = await assertJoinEntryEligible(ctx, uid, tournamentId, now);
     if (!preview.ok) {
       return { ok: false as const, error: preview.error };
-    }
-    if (requiresDailySoloPlayCostAck(tournamentId, preview.willChargeEntry) && dailySoloCostAck !== true) {
-      return { ok: false as const, error: "needs_cost_ack" };
     }
 
     const profile = await resolvePlayerBotStrategyContext(ctx, {

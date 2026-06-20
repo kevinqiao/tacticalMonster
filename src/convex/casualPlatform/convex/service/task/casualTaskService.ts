@@ -8,13 +8,13 @@ import {
   missionPoolLabelZh,
 } from "../../data/casualMissionTemplates";
 import { resolvePrimaryPlatformGameType } from "./casualPrimaryGame.js";
+import { deltaForMissionObjective } from "./casualMissionObjectiveDelta";
 import { internal } from "../../_generated/api";
 import type { MutationCtx } from "../../_generated/server";
 import { dailyPeriodKey, seasonPeriodKey, weeklyPeriodKey } from "../../utils/casualTaskPeriod";
 import { internalMutation, mutation, query } from "../../_generated/server";
 
 const ASYNC_MATCH_TYPES = new Set(["tournament_a", "tournament_b", "tournament_c"]);
-const PVP_MATCH_TYPES = new Set(["pvp", "tournament_pvp"]);
 type TaskEventType =
   | "task_progressed"
   | "task_completed"
@@ -327,47 +327,6 @@ async function updatePlatformGameDerivedTasks(
       await bumpTaskGameCount(ctx, uid, t.taskId, pk, platformGameType);
       await syncDistinctGameTaskProgress(ctx, t, uid, pk, { matchType });
     }
-  }
-}
-
-function deltaForObjective(
-  template: CasualMissionTemplate,
-  args: {
-    matchType: string;
-    platformGameType: string;
-    primaryGameType: string;
-    spotlightGameType: string;
-    /** 专场单场结算写入 `casual_player_season_ladder` 的实际增量（已含累计分不低于 0 的裁剪） */
-    spotlightSeasonBoardGain: number;
-    multiplayerFinalRank?: number;
-  }
-): number {
-  const isAsync = ASYNC_MATCH_TYPES.has(args.matchType);
-  const isSpotlight = args.matchType === "season_challenge";
-  const isPvp = PVP_MATCH_TYPES.has(args.matchType);
-
-  switch (template.objectiveKind) {
-    case "submit_any_score":
-      return 1;
-    case "submit_async_score":
-      return isAsync ? 1 : 0;
-    case "submit_spotlight_score":
-      return isSpotlight ? 1 : 0;
-    case "earn_spotlight_season_board_points":
-      return isSpotlight ? Math.max(0, Math.floor(args.spotlightSeasonBoardGain)) : 0;
-    case "weekly_league_promote":
-      return 0;
-    case "submit_pvp_settled":
-      return isPvp ? 1 : 0;
-    case "submit_pvp_win":
-      return isPvp && args.multiplayerFinalRank === 1 ? 1 : 0;
-    case "submit_non_primary_score":
-    case "submit_spotlight_game_score":
-    case "submit_spotlight_game_top3":
-    case "submit_distinct_games":
-      return 0;
-    default:
-      return 0;
   }
 }
 
@@ -821,12 +780,10 @@ export const notifyScoreSubmitted = internalMutation({
     platformGameType: v.string(),
     /** 多人异步终局名次（1-based） */
     multiplayerFinalRank: v.optional(v.number()),
-    /** 赛季专场：`casual_player_season_stats` 本局正向赛季分增量（负局传 0） */
-    spotlightSeasonBoardGain: v.optional(v.number()),
   },
   handler: async (
     ctx,
-    { uid, matchType, platformGameType, multiplayerFinalRank, spotlightSeasonBoardGain = 0 }
+    { uid, matchType, platformGameType, multiplayerFinalRank }
   ) => {
     const now = Date.now();
     const dailyPk = dailyPeriodKey(now);
@@ -842,7 +799,6 @@ export const notifyScoreSubmitted = internalMutation({
       platformGameType,
       primaryGameType,
       spotlightGameType,
-      spotlightSeasonBoardGain: Math.max(0, spotlightSeasonBoardGain),
       multiplayerFinalRank,
     };
 
@@ -853,7 +809,7 @@ export const notifyScoreSubmitted = internalMutation({
       ) {
         continue;
       }
-      const delta = deltaForObjective(t, args);
+      const delta = deltaForMissionObjective(t, args);
       if (delta <= 0) continue;
       const pk =
         t.tier === "daily" ? dailyPk : t.tier === "weekly" ? weeklyPk : seasonPk;

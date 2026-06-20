@@ -12,7 +12,6 @@ export type MissionObjectiveKind =
   | "submit_any_score"
   | "submit_async_score"
   | "submit_spotlight_score"
-  | "earn_spotlight_season_board_points"
   | "weekly_league_promote"
   | "submit_spotlight_game_score"
   | "submit_spotlight_game_top3"
@@ -46,7 +45,7 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     objectiveKind: "login_daily",
     missionPool: "platform",
     rewardCoins: 15,
-    rewardSeasonXp: 10,
+    rewardSeasonXp: 8,
   },
   {
     taskId: "daily_platform_async_1",
@@ -55,7 +54,7 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     tier: "daily",
     objectiveKind: "submit_async_score",
     missionPool: "platform",
-    rewardSeasonXp: 40,
+    rewardSeasonXp: 25,
   },
   {
     taskId: "daily_platform_runs_3",
@@ -64,7 +63,7 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     tier: "daily",
     objectiveKind: "submit_any_score",
     missionPool: "platform",
-    rewardSeasonXp: 60,
+    rewardSeasonXp: 40,
   },
   {
     taskId: "weekly_platform_async_8",
@@ -73,7 +72,7 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     tier: "weekly",
     objectiveKind: "submit_async_score",
     missionPool: "platform",
-    rewardSeasonXp: 250,
+    rewardSeasonXp: 170,
   },
   {
     taskId: "weekly_platform_runs_15",
@@ -82,8 +81,8 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     tier: "weekly",
     objectiveKind: "submit_any_score",
     missionPool: "platform",
-    rewardVouchers: 2,
-    rewardSeasonXp: 120,
+    rewardVouchers: 4,
+    rewardSeasonXp: 70,
   },
   {
     taskId: "season_first_tournament",
@@ -93,7 +92,7 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     objectiveKind: "join_tournament_once",
     missionPool: "platform",
     rewardVouchers: 1,
-    rewardSeasonXp: 20,
+    rewardSeasonXp: 12,
   },
   {
     taskId: "season_platform_runs_60",
@@ -102,7 +101,7 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     tier: "season",
     objectiveKind: "submit_any_score",
     missionPool: "platform",
-    rewardSeasonXp: 500,
+    rewardSeasonXp: 320,
   },
   // --- 板 B：主题游戏周 ---
   {
@@ -190,18 +189,18 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     tier: "weekly",
     objectiveKind: "weekly_league_promote",
     missionPool: "platform",
-    rewardSeasonXp: 80,
+    rewardSeasonXp: 50,
     rewardVouchers: 1,
   },
   {
-    taskId: "season_spotlight_10",
-    title: "本赛季累计完成赛季专场结算 10 次",
-    target: 10,
+    taskId: "season_spotlight_6",
+    title: "本赛季累计完成赛季专场结算 6 次",
+    target: 6,
     tier: "season",
     objectiveKind: "submit_spotlight_score",
     missionPool: "spotlight",
     rewardVouchers: 3,
-    rewardSeasonXp: 200,
+    rewardSeasonXp: 120,
   },
 ];
 
@@ -213,6 +212,7 @@ export const LEGACY_MISSION_TASK_ID_ALIASES: Record<string, string> = {
   weekly_runs_15: "weekly_platform_runs_15",
   season_join_tournament_1: "season_first_tournament",
   season_runs_60: "season_platform_runs_60",
+  season_spotlight_10: "season_spotlight_6",
 };
 
 export function missionPoolLabelZh(pool: MissionPool): string {

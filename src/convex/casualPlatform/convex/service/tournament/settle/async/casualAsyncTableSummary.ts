@@ -12,6 +12,7 @@ import {
   isCasualAsyncVirtualOpponentUid,
 } from "./casualAsyncTypes";
 import type { PlayerGameRow } from "../../shared/casualPlayerGameTypes";
+import { parseWatchReplayStepsFromPlayerGame } from "../../shared/casualWatchReplaySnapshot";
 
 export { resolveAsyncLeaderboardRowState } from "../../../../data/casualAsyncLeaderboardRowState";
 
@@ -106,7 +107,7 @@ function buildBotTimingByUid(games: PlayerGameRow[]): Map<string, BotTiming> {
   return out;
 }
 
-const CASUAL_WATCH_GAME_TYPES = new Set(["match_3", "solitaire", "block_blast"]);
+const CASUAL_WATCH_GAME_TYPES = new Set(["match_3", "solitaire", "block_blast", "yatz"]);
 
 function attachCasualWatchContext(
   pm: PlayerMatchRow | undefined,
@@ -129,9 +130,14 @@ function attachCasualWatchContext(
     };
   }
   if (!pg?.gameId) return undefined;
+  const replay = parseWatchReplayStepsFromPlayerGame(pg);
   return {
     kind: "recorded",
     gameId: pg.gameId,
+    ...(replay.seedId ? { seedId: replay.seedId } : {}),
+    ...(replay.steps.length > 0
+      ? { steps: replay.steps, opCount: replay.steps.length }
+      : {}),
   };
 }
 

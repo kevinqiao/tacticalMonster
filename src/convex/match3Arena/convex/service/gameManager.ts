@@ -156,14 +156,8 @@ export class GameManager {
     return { ok: true, ...this.progressSnapshot() };
   }
 
-  buildScoreReport(nowMs: number = Date.now()) {
-    const baseScore = Math.max(0, Math.floor(this.game?.score ?? 0));
-    const playStartedAt = this.game?.playStartedAt;
-    const elapsedSec =
-      playStartedAt == null
-        ? 0
-        : Math.max(0, Math.min(MATCH3_MATCH_TIME_LIMIT_SEC, (nowMs - playStartedAt) / 1000));
-    return buildMatch3GameReport(baseScore, elapsedSec);
+  buildScoreReport() {
+    return buildMatch3GameReport(this.game?.score ?? 0);
   }
 }
 

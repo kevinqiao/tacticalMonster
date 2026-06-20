@@ -4,7 +4,10 @@ import GamePlayer from './GamePlayer';
 import Match3GameProvider from './service/GameManager';
 import './style.css';
 
-import type { TriathlonMidSessionAdvanceHandler } from 'component/battle/games/shared/casualTriathlonSubmitFlow';
+import type {
+  TriathlonMidSessionAdvanceHandler,
+  TriathlonSessionReplayHandler,
+} from 'component/battle/games/shared/casualTriathlonSubmitFlow';
 
 interface Match3GameProps {
   gameId?: string;
@@ -12,6 +15,7 @@ interface Match3GameProps {
   casualMatchGameId?: string;
   onGameSubmit?: () => void;
   onTriathlonNextGame?: TriathlonMidSessionAdvanceHandler;
+  onTriathlonSessionReplay?: TriathlonSessionReplayHandler;
 }
 
 const convexUrl =
@@ -22,6 +26,7 @@ const Match3GameInner: React.FC<Omit<Match3GameProps, 'className' | 'style'>> = 
   casualMatchGameId,
   onGameSubmit,
   onTriathlonNextGame,
+  onTriathlonSessionReplay,
 }) => {
   const activeGameId = casualMatchGameId;
   if (!activeGameId) {
@@ -33,6 +38,7 @@ const Match3GameInner: React.FC<Omit<Match3GameProps, 'className' | 'style'>> = 
       casualTournamentId={casualTournamentId}
       onGameSubmit={onGameSubmit}
       onTriathlonNextGame={onTriathlonNextGame}
+      onTriathlonSessionReplay={onTriathlonSessionReplay}
     >
       <GamePlayer />
     </Match3GameProvider>
@@ -44,6 +50,7 @@ const Match3Game: React.FC<Match3GameProps> = ({
   casualMatchGameId,
   onGameSubmit,
   onTriathlonNextGame,
+  onTriathlonSessionReplay,
 }) => {
   const client = React.useMemo(() => new ConvexReactClient(convexUrl), []);
   return (
@@ -54,6 +61,7 @@ const Match3Game: React.FC<Match3GameProps> = ({
           casualMatchGameId={casualMatchGameId}
           onGameSubmit={onGameSubmit}
           onTriathlonNextGame={onTriathlonNextGame}
+          onTriathlonSessionReplay={onTriathlonSessionReplay}
         />
       </ConvexProvider>
     </div>

@@ -17,7 +17,10 @@ import {
   promoteFinishedToConfirmedIfExpired,
 } from "../shared/casualPlayerMatchStatus";
 import { findOldestUnusedReplayTokenId } from "./casualReplayPassService";
-import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
+import {
+  findPlayerGameByGameId,
+  listPlayerGamesForSeat,
+} from "../shared/casualPlayerGameTypes";
 
 export type AuthorizeCasualRunReplayResult =
   | {
@@ -164,25 +167,57 @@ export async function authorizeCasualRunReplayCore(
   const priorScore = freshPm.score ?? 0;
   const nextEpoch = (pg.replayEpoch ?? freshPm.replayEpoch ?? 0) + 1;
 
-  await deleteScoreTierPendingForMatchGame(ctx, args.uid, pg.gameId);
+  const seatGames = await listPlayerGamesForSeat(ctx, freshPm._id);
+  seatGames.sort((a, b) => a.gameIndex - b.gameIndex);
+  const isTriathlonReplay = freshPm.sessionKind === "triathlon" && seatGames.length > 1;
+  const firstLeg = seatGames[0];
 
-  await ctx.db.patch(pg._id, {
-    status: "replaying",
-    score: undefined,
-    finishedAt: undefined,
-    replayEpoch: nextEpoch,
-    updatedAt: now,
-  });
+  if (isTriathlonReplay) {
+    if (!firstLeg) {
+      return { ok: false, error: "missing_triathlon_legs" };
+    }
+    for (const leg of seatGames) {
+      await deleteScoreTierPendingForMatchGame(ctx, args.uid, leg.gameId);
+    }
+    for (const leg of seatGames) {
+      await ctx.db.patch(leg._id, {
+        status: leg.gameIndex === 0 ? "replaying" : "locked",
+        score: undefined,
+        finishedAt: undefined,
+        replayEpoch: nextEpoch,
+        updatedAt: now,
+      });
+    }
+    await ctx.db.patch(freshPm._id, {
+      status: "replaying",
+      score: undefined,
+      rank: undefined,
+      finishedAt: undefined,
+      replayEpoch: nextEpoch,
+      gameId: firstLeg.gameId,
+      updatedAt: now,
+    });
+  } else {
+    await deleteScoreTierPendingForMatchGame(ctx, args.uid, pg.gameId);
 
-  await ctx.db.patch(freshPm._id, {
-    status: "replaying",
-    score: undefined,
-    rank: undefined,
-    finishedAt: undefined,
-    replayEpoch: nextEpoch,
-    gameId: pg.gameId,
-    updatedAt: now,
-  });
+    await ctx.db.patch(pg._id, {
+      status: "replaying",
+      score: undefined,
+      finishedAt: undefined,
+      replayEpoch: nextEpoch,
+      updatedAt: now,
+    });
+
+    await ctx.db.patch(freshPm._id, {
+      status: "replaying",
+      score: undefined,
+      rank: undefined,
+      finishedAt: undefined,
+      replayEpoch: nextEpoch,
+      gameId: pg.gameId,
+      updatedAt: now,
+    });
+  }
 
   const runTid = pm.tournamentId as Id<"casual_run_tournaments">;
   const runRow = await ctx.db.get(runTid);
@@ -216,9 +251,11 @@ export async function authorizeCasualRunReplayCore(
     });
   }
 
+  const restartGameId = isTriathlonReplay && firstLeg ? firstLeg.gameId : pg.gameId;
+
   return {
     ok: true,
-    gameId: pg.gameId,
+    gameId: restartGameId,
     templateId: pm.templateId,
     matchId: pm.matchId,
     replayEpoch: nextEpoch,

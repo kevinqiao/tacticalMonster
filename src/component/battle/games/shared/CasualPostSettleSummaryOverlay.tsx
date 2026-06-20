@@ -33,6 +33,8 @@ export type CasualPostSettleSummaryOverlayProps = {
   weeklyLeagueSettle?: WeeklyLeagueSettleUI | null;
   /** 内容区滚动时底部操作栏固定可见（历史 LeaderBoard 等） */
   pinFooter?: boolean;
+  /** 三场合战整场再战：定制说明文案 */
+  triathlonSessionReplay?: boolean;
 };
 
 /**
@@ -57,6 +59,7 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
   watchButtonLabel,
   weeklyLeagueSettle,
   pinFooter = false,
+  triathlonSessionReplay = false,
 }) => {
   const titleId = useId();
   const countdown = useReplayWindowCountdown(replayWindowEndsAt);
@@ -68,7 +71,9 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
 
   const defaultSub =
     showTable
-      ? '你已提交成绩，以下为本桌全部玩家得分与名次。'
+      ? triathlonSessionReplay
+        ? '三局累计总分如下。再战将消耗 1 枚再战令，三局从头重打（同 seed），bot 与同桌不变。'
+        : '你已提交成绩，以下为本桌全部玩家得分与名次。'
       : showPending
         ? '你的成绩已记录。本桌尚有同桌未完成，暂无法计算名次与分差。'
         : '本局成绩已成功提交。';

@@ -5,6 +5,9 @@
  * findReport、休闲提交路径、种子池 bot 计分三处统一复用，避免公式漂移。
  */
 
+/** 休闲对局时长上限（秒）；与种子池模拟、服务端 timeout scheduler 一致 */
+export const BLOCK_BLAST_MATCH_TIME_LIMIT_SEC = 300;
+
 export const BLOCK_BLAST_LINES_BONUS_PER_LINE = 5;
 export const BLOCK_BLAST_MOVES_BONUS_BASE = 100;
 

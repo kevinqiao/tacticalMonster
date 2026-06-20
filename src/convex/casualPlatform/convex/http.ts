@@ -4,9 +4,10 @@ import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { casualGameBridgeSecret } from "./service/bridge/casualGameBridgeSecret";
 import { bridgeRecordSeed } from "./service/botFill/seedRolloutBridge";
-import { computePlatformBotFillsIfNeeded } from "./service/botFill/computeBotFillsCore";
+import { computePlatformBotFillsIfNeeded, resolvePlatformSeedScoreThreshold } from "./service/botFill/computeBotFillsCore";
 import { bridgeOkBody } from "./service/bridge/casualGameBridgeContract";
 import { getCasualGameRegistration } from "./data/casualGameRegistry";
+import { getTournamentDefinition } from "./data/casualTournamentConfigs";
 
 const http = httpRouter();
 
@@ -217,6 +218,17 @@ http.route({
         ? b.seedScoreThreshold
         : undefined;
 
+    let watchReplay: { seedId: string; steps: unknown[] } | undefined;
+    const watchReplayRaw = b.watchReplay;
+    if (watchReplayRaw && typeof watchReplayRaw === "object") {
+      const wr = watchReplayRaw as Record<string, unknown>;
+      const wrSeed = typeof wr.seedId === "string" ? wr.seedId : "";
+      const wrSteps = Array.isArray(wr.steps) ? wr.steps : [];
+      if (wrSeed && wrSteps.length > 0) {
+        watchReplay = { seedId: wrSeed, steps: wrSteps };
+      }
+    }
+
     const gameType = await ctx.runQuery(
       internal.service.tournament.submit.casualRunIngestMutations.getCasualRunMatchGameType,
       { matchGameId }
@@ -279,6 +291,17 @@ http.route({
       }
     }
 
+    if (submitCtx.ok && mergedSeedScoreThreshold == null) {
+      const computedThreshold = await resolvePlatformSeedScoreThreshold(ctx, {
+        successThresholdQuantile: submitCtx.successThresholdQuantile,
+        seedBinding: submitCtx.seedBinding,
+        gameType: submitCtx.primaryGameType ?? submitCtx.gameType,
+      });
+      if (computedThreshold != null) {
+        mergedSeedScoreThreshold = computedThreshold;
+      }
+    }
+
     const result = await ctx.runMutation(
       internal.service.tournament.submit.casualRunIngestMutations.submitCasualRunScoreCore,
       {
@@ -288,6 +311,7 @@ http.route({
         ...(mergedBotFills && mergedBotFills.length > 0 ? { botFills: mergedBotFills } : {}),
         ...(mergedReplaceAllVirtual ? { replaceAllVirtual: true } : {}),
         ...(mergedSeedScoreThreshold != null ? { seedScoreThreshold: mergedSeedScoreThreshold } : {}),
+        ...(watchReplay ? { watchReplay } : {}),
       }
     );
 
@@ -316,6 +340,15 @@ http.route({
     }
     if (r.weeklyLeagueSettle != null) {
       okBody.weeklyLeagueSettle = r.weeklyLeagueSettle;
+    }
+    const responseThreshold =
+      mergedSeedScoreThreshold ??
+      (typeof r.seedScoreThreshold === "number" && Number.isFinite(r.seedScoreThreshold)
+        ? r.seedScoreThreshold
+        : undefined);
+    if (responseThreshold != null) {
+      okBody.seedScoreThreshold = responseThreshold;
+      okBody.success = Math.floor(score) >= responseThreshold;
     }
     return new Response(JSON.stringify(bridgeOkBody(okBody)), {
       status: 200,
@@ -355,7 +388,9 @@ http.route({
         headers: { "Content-Type": "application/json" },
       });
     }
-    const gameId = typeof (body as Record<string, unknown>).gameId === "string" ? (body as Record<string, unknown>).gameId as string : "";
+    const b = body as Record<string, unknown>;
+    const gameId = typeof b.gameId === "string" ? b.gameId : "";
+    const skipRecordSeed = b.skipRecordSeed === true;
     if (!gameId) {
       return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
         status: 400,
@@ -384,15 +419,50 @@ http.route({
         seed?: string;
         seedId?: string;
         poolVersion?: string;
+        seedBinding?: import("./service/botFill/seedRolloutBridge").SlimSeedBinding;
         uid?: string;
         matchId?: string;
         templateId?: string;
         replayEpoch?: number;
+        seedScoreThreshold?: number;
       };
     };
     const match = bridgeRow.match;
 
+    const templateDef = match.templateId ? getTournamentDefinition(match.templateId) : undefined;
+    const successQuantile = templateDef?.seedQuantileSuccess?.quantile;
+    let seedScoreThreshold: number | undefined =
+      typeof match.seedScoreThreshold === "number" && Number.isFinite(match.seedScoreThreshold)
+        ? match.seedScoreThreshold
+        : undefined;
+    if (seedScoreThreshold == null && successQuantile === "p75" && match.seedBinding) {
+      const inline = match.seedBinding.scoreQuantiles?.p75;
+      if (typeof inline === "number" && Number.isFinite(inline)) {
+        seedScoreThreshold = Math.floor(inline);
+      }
+    }
     if (
+      seedScoreThreshold == null &&
+      successQuantile === "p75" &&
+      match.seedBinding &&
+      bridgeRow.gameType
+    ) {
+      try {
+        const threshold = await resolvePlatformSeedScoreThreshold(ctx, {
+          successThresholdQuantile: "p75",
+          seedBinding: match.seedBinding,
+          gameType: bridgeRow.gameType,
+        });
+        if (threshold != null) {
+          seedScoreThreshold = threshold;
+        }
+      } catch (e) {
+        console.warn("[casual] resolvePlatformSeedScoreThreshold failed", bridgeRow.gameType, e);
+      }
+    }
+
+    if (
+      !skipRecordSeed &&
       bridgeRow.recordSeedOnHttp &&
       match.uid &&
       match.matchId &&
@@ -425,6 +495,7 @@ http.route({
             seedId: match.seedId,
             templateId: match.templateId,
             replayEpoch: match.replayEpoch,
+            ...(seedScoreThreshold != null ? { seedScoreThreshold } : {}),
           },
         })
       ),

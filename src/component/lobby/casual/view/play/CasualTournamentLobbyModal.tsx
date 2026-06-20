@@ -1,6 +1,7 @@
 import {
   getDefaultCasualTournaments,
   getTournamentDefinition,
+  shouldAppearInCasualPlayLobby,
   type CasualTournamentDefinition,
 } from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
 import { ModalProp, useModalManager } from "host/service/ModalManager";
@@ -86,14 +87,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
     const baseRows = tournaments
       .filter((t) => {
         const def = getTournamentDefinition(t.tournamentId);
-        return (
-          def?.gameType === targetGameKind &&
-          (def.matchType === "tournament_a" ||
-            def.matchType === "tournament_b" ||
-            def.matchType === "tournament_c" ||
-            def.matchType === "season_challenge" ||
-            def.matchType === "solo_p75_challenge")
-        );
+        return def?.gameType === targetGameKind && shouldAppearInCasualPlayLobby(def);
       })
       .map((t) => {
         const def = getTournamentDefinition(t.tournamentId);
@@ -276,7 +270,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
     <div className="casual-game-tour">
       <div className="casual-game-tour__head">
         <h2 className="casual-game-tour__title">{gameTitle} 锦标赛</h2>
-        <p className="casual-game-tour__sub">A / B / C 专场列表</p>
+        <p className="casual-game-tour__sub">A / B / C / P75</p>
       </div>
       {note ? <p className="casual-game-tour__note">{note}</p> : null}
       {hasOpenRun ? (

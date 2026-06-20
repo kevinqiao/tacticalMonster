@@ -6,8 +6,6 @@ import { internal } from "../../../_generated/api";
 import type { Id } from "../../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
 import {
-  CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
-  CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
   applyScaledCurrencyCost,
   applyVoucherCost,
   effectiveEntryBilling,
@@ -16,14 +14,6 @@ import {
   type CasualTournamentDefinition,
   type EntryCost,
 } from "../../../data/casualTournamentConfigs";
-
-export function requiresDailySoloPlayCostAck(tournamentId: string, willChargeEntry: boolean): boolean {
-  if (!willChargeEntry) return false;
-  return (
-    tournamentId === CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID ||
-    tournamentId === CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID
-  );
-}
 import { resolveInstanceWindow } from "../../../data/casualInstanceWindow";
 import { activeSeasonWindowForCtx, ensureInstancePlayerStateRow } from "../list/casualInstanceService";
 import { effectiveGameSequence } from "../../../data/casualTournamentConfigs";

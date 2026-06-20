@@ -113,11 +113,20 @@ const Match3Player: React.FC = () => {
     postCasualSummaryOpen,
     postCasualTableSummary,
     dismissPostCasualSummary,
+    postCasualWaitingForPeers,
+    postCasualCanReplay,
+    postCasualReplayOffered,
+    postCasualReplayWindowEndsAt,
+    casualReplayBusy,
+    replayCasualRun,
+    triathlonSessionActive,
+    casualTournamentId,
     watchTarget,
     watchTargetLabel,
     openWatch,
     closeWatch,
     openSelfReplay,
+    targetScore,
   } = useMatch3GameManager();
   const { trySwap } = useActHandler({
     onSwapCommitted: () => setDragVisual(null),
@@ -396,6 +405,11 @@ const Match3Player: React.FC = () => {
     <div className="match3-game-container" ref={containerRef}>
       <header className="match3-header">
         <div className="match3-score">Score: {gameState.score}</div>
+        {(targetScore ?? gameState.targetScore) != null ? (
+          <div className="match3-target" aria-label="目标分数">
+            目标 {targetScore ?? gameState.targetScore}
+          </div>
+        ) : null}
         {dueRemainingSec != null && <div className="match3-timer">{dueRemainingSec}s</div>}
         <div className="match3-actions">
           <button
@@ -471,7 +485,15 @@ const Match3Player: React.FC = () => {
       <CasualPostSettleSummaryOverlay
         open={postCasualSummaryOpen && watchTarget == null}
         summary={postCasualTableSummary}
+        waitingForPeers={postCasualWaitingForPeers}
         onDismiss={dismissPostCasualSummary}
+        replayAvailable={postCasualReplayOffered}
+        replayDisabled={!postCasualCanReplay}
+        replayWindowEndsAt={postCasualReplayWindowEndsAt}
+        replayBusy={casualReplayBusy}
+        onReplay={() => void replayCasualRun()}
+        replayLabel={triathlonSessionActive ? '三局再战' : '再战'}
+        triathlonSessionReplay={triathlonSessionActive}
         onWatchRow={openWatch}
       />
       <Match3WatchOverlay

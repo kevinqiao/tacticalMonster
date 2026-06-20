@@ -2,7 +2,7 @@ import { v } from "convex/values";
 
 import type { Doc, Id } from "../../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
-import type { CasualTournamentDefinition } from "../../../data/casualTournamentConfigs";
+import type { CasualReferenceScoreQuantiles, CasualTournamentDefinition } from "../../../data/casualTournamentConfigs";
 import { casualMatchSeedBindingValidator } from "../join/casualMatchSeedBinding";
 
 export const casualSessionKindValidator = v.union(v.literal("single"), v.literal("triathlon"));
@@ -91,6 +91,19 @@ export async function sumPlayerGameScores(
     if (row.score == null || !Number.isFinite(row.score)) return sum;
     return sum + row.score;
   }, 0);
+}
+
+/** 取该 seat 首个带 seed 分位的 game 快照（异步分位奖阈值用）。 */
+export async function loadSeedScoreQuantilesForSeat(
+  ctx: QueryCtx | MutationCtx,
+  playerMatchId: Id<"casual_run_player_matches">
+): Promise<CasualReferenceScoreQuantiles | undefined> {
+  const rows = await listPlayerGamesForSeat(ctx, playerMatchId);
+  for (const row of rows) {
+    const q = row.seedBinding?.scoreQuantiles;
+    if (q) return q;
+  }
+  return undefined;
 }
 
 export { casualMatchSeedBindingValidator };

@@ -370,6 +370,14 @@
     color: #bfe8ff;
 }
 
+.blockblast-status__target {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255, 220, 160, 0.95);
+    white-space: nowrap;
+}
+
 .blockblast-status__score-main {
     font-size: 20px;
     font-weight: 800;

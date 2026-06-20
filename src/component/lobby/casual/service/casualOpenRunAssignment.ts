@@ -3,23 +3,27 @@ import {
   getTournamentDefinition,
 } from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
 import {
-  CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
-  CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
-  CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID,
-  CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID,
+  CASUAL_SOLO_P75_CHALLENGE_BLOCK_BLAST_ID,
+  CASUAL_SOLO_P75_CHALLENGE_MATCH_3_ID,
+  CASUAL_SOLO_P75_CHALLENGE_SOLITAIRE_ID,
+  CASUAL_SOLO_P75_CHALLENGE_TOWER_ARENA_ID,
+  CASUAL_SOLO_P75_CHALLENGE_YATZ_ID,
   CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID,
   CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID,
   CASUAL_SEASON_CHALLENGE_TOWER_ARENA_ID,
+  CASUAL_SEASON_CHALLENGE_MATCH_3_ID,
+  CASUAL_SEASON_CHALLENGE_YATZ_ID,
 } from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
 import { isCasualGameLobbyVisible } from "@/convex/casualPlatform/convex/data/casualGameRegistry";
 /** 与 `listOpenCasualRunAssignments` 返回项一致（`gameType` 旧部署可能缺省） */
-export type CasualGameKind = "solitaire" | "block_blast" | "tower_arena" | "match_3";
+export type CasualGameKind = "solitaire" | "block_blast" | "tower_arena" | "match_3" | "yatz";
 
 export type CasualPlayModalName =
   | "play_solitaire_solo"
   | "play_block_blast"
   | "play_tower_arena"
   | "play_match_3"
+  | "play_yatz"
   | "play_casual_triathlon_session";
 
 export interface OpenCasualRunAssignment {
@@ -49,6 +53,7 @@ export function casualPlayModalForKind(kind: CasualGameKind): CasualPlayModalNam
   if (kind === "block_blast") return "play_block_blast";
   if (kind === "tower_arena") return "play_tower_arena";
   if (kind === "match_3") return "play_match_3";
+  if (kind === "yatz") return "play_yatz";
   return "play_solitaire_solo";
 }
 
@@ -56,6 +61,7 @@ export function casualGameKindFromGameType(gameType: string | undefined): Casual
   if (gameType === "block_blast") return "block_blast";
   if (gameType === "tower_arena") return "tower_arena";
   if (gameType === "match_3") return "match_3";
+  if (gameType === "yatz") return "yatz";
   return "solitaire";
 }
 
@@ -138,23 +144,28 @@ export function modalDataForOpenAssignment(a: OpenCasualRunAssignment): Record<s
   };
 }
 
-export function dailySoloTournamentIdForKind(kind: CasualGameKind): string {
-  if (kind === "block_blast") return CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID;
-  if (kind === "tower_arena") return CASUAL_DAILY_SOLO_CHALLENGE_TOWER_ARENA_ID;
-  if (kind === "match_3") return CASUAL_DAILY_SOLO_CHALLENGE_MATCH_3_ID;
-  return CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID;
+/** Play「单人挑战」：p75 模板 */
+export function soloP75TournamentIdForKind(kind: CasualGameKind): string {
+  if (kind === "block_blast") return CASUAL_SOLO_P75_CHALLENGE_BLOCK_BLAST_ID;
+  if (kind === "tower_arena") return CASUAL_SOLO_P75_CHALLENGE_TOWER_ARENA_ID;
+  if (kind === "match_3") return CASUAL_SOLO_P75_CHALLENGE_MATCH_3_ID;
+  if (kind === "yatz") return CASUAL_SOLO_P75_CHALLENGE_YATZ_ID;
+  return CASUAL_SOLO_P75_CHALLENGE_SOLITAIRE_ID;
 }
 
 export function casualGameKindDisplayName(kind: CasualGameKind): string {
   if (kind === "block_blast") return "Block Blast";
   if (kind === "tower_arena") return "Tower Defense";
   if (kind === "match_3") return "Match-3";
+  if (kind === "yatz") return "Yatz";
   return "Solitaire";
 }
 
 export function seasonChallengeTournamentIdForKind(kind: CasualGameKind): string {
   if (kind === "block_blast") return CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID;
   if (kind === "tower_arena") return CASUAL_SEASON_CHALLENGE_TOWER_ARENA_ID;
+  if (kind === "match_3") return CASUAL_SEASON_CHALLENGE_MATCH_3_ID;
+  if (kind === "yatz") return CASUAL_SEASON_CHALLENGE_YATZ_ID;
   return CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID;
 }
 

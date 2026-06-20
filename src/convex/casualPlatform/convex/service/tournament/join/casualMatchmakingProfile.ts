@@ -3,7 +3,6 @@
  * （V3：bot 难度 / 目标名次在 solitaireArena，不在此模块。）
  */
 import {
-  findCasualRankRewardEntry,
   getTournamentDefinition,
   type CasualTournamentDefinition,
 } from "../../../data/casualTournamentConfigs";
@@ -34,14 +33,13 @@ function isCasualMultiplayerRankLoss(
   def: CasualTournamentDefinition,
   rank: number
 ): boolean {
-  const rr = findCasualRankRewardEntry(def.rewards.rankRewards, rank);
-  if (rr) {
-    const coins = (rr as { coins?: number }).coins ?? 0;
-    const gems = rr.gems ?? 0;
-    const hasPositiveRankReward = coins > 0 || gems > 0;
-    return !hasPositiveRankReward;
+  if (rank < 1) return true;
+  // rankRewards 已停用；按名次判定连败（1 名视为未失利）
+  if (rank === 1) return false;
+  if (def.matchType === "season_challenge") {
+    return rank >= def.maxPlayers;
   }
-  return true;
+  return rank > 1;
 }
 
 async function activeSeasonId(ctx: QueryCtx | MutationCtx): Promise<string | null> {
@@ -88,7 +86,6 @@ export async function resolvePlayerBotStrategyContext(
     ? def.gameType
     : getDefaultPrimaryGameType();
 
-  let seasonLadderPoints = 0;
   const weeklyLeagueTier = await readWeeklyLeagueTier(ctx, uid);
   const seasonId = await activeSeasonId(ctx);
 
@@ -142,7 +139,6 @@ export async function resolvePlayerBotStrategyContext(
     matchType: def.matchType,
     gameType,
     maxPlayers: def.maxPlayers,
-    seasonLadderPoints,
     weeklyLeagueTier,
     completedMultiplayerMatches,
     coinsBalance: player?.coins ?? 0,
@@ -168,7 +164,7 @@ export function evaluateEffectiveHumans(
     if (!rule.condition(ctx)) continue;
     const effective = Math.min(cap, Math.max(1, rule.strategy.effectiveHumans));
     return {
-      effectiveHumans:1,
+      effectiveHumans: effective,
       matchedRuleId: rule.id,
       queueExpireAction: resolveMatchmakingExpireAction(rule.strategy),
     };
@@ -214,7 +210,6 @@ export function logJoinMatchmakingProfileResult(args: {
       matchType: profile.matchType,
       maxPlayers: profile.maxPlayers,
       profile: {
-        seasonLadderPoints: profile.seasonLadderPoints,
         weeklyLeagueTier: profile.weeklyLeagueTier,
         completedMultiplayerMatches: profile.completedMultiplayerMatches,
         coinsBalance: profile.coinsBalance,

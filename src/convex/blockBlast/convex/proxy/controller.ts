@@ -7,14 +7,29 @@ import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
 import { resolveCasualBridgeEnv } from "../service/casualBridgeEnv";
 import { postCasualRunIngest } from "../service/casualBridgeIngest";
-import { computeBlockBlastTotalScore } from "../service/blockBlastScoreModel";
 import { buildCasualV2IngestPayload } from "../service/casualBotFill/computeBotFills";
+import {
+  parseCasualRunGameId,
+  resolveCasualIngestScoreFromRow,
+} from "../service/casualGameLifecycle";
 import { BlockBlastGameStatus } from "../types/BlockBlastTypes";
 
 const tournament_url = "https://beloved-mouse-699.convex.site";
 
 function jwtAccessSecret(): string {
   return process.env.JWT_ACCESS_SECRET ?? "12222222";
+}
+
+function verifyCasualRunToken(token: string): { ok: true; uid: string } | { ok: false; error: string } {
+  try {
+    const payload = jwt.verify(token, jwtAccessSecret());
+    if (!payload || typeof payload !== "object" || !("uid" in payload)) {
+      return { ok: false, error: "invalid_token" };
+    }
+    return { ok: true, uid: String((payload as { uid: unknown }).uid) };
+  } catch {
+    return { ok: false, error: "verify_failed" };
+  }
 }
 
 function isTerminalBlockBlast(status: number): boolean {
@@ -107,6 +122,8 @@ type CasualIngestParsed = {
   gameComplete?: boolean;
   weeklyLeagueSettle?: unknown;
   nextGame?: { gameIndex: number; gameId: string; gameType: string };
+  seedScoreThreshold?: number;
+  success?: boolean;
 };
 
 function mapCasualIngestClientResponse(
@@ -115,13 +132,18 @@ function mapCasualIngestClientResponse(
 ) {
   const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
   const pendingOthers = parsed.pendingOthers === true;
-  const hasThreshold =
-    typeof extra?.seedScoreThreshold === "number" && Number.isFinite(extra.seedScoreThreshold);
-  const seedScoreThreshold = hasThreshold ? (extra!.seedScoreThreshold as number) : undefined;
+  const seedScoreThreshold =
+    typeof parsed.seedScoreThreshold === "number" && Number.isFinite(parsed.seedScoreThreshold)
+      ? parsed.seedScoreThreshold
+      : typeof extra?.seedScoreThreshold === "number" && Number.isFinite(extra.seedScoreThreshold)
+        ? extra.seedScoreThreshold
+        : undefined;
   const success =
-    seedScoreThreshold != null && typeof extra?.score === "number"
-      ? extra.score >= seedScoreThreshold
-      : undefined;
+    typeof parsed.success === "boolean"
+      ? parsed.success
+      : seedScoreThreshold != null && typeof extra?.score === "number"
+        ? extra.score >= seedScoreThreshold
+        : undefined;
   return {
     ok: true as const,
     ...(tableSummary ? { tableSummary } : {}),
@@ -136,6 +158,49 @@ function mapCasualIngestClientResponse(
   };
 }
 
+type CasualFindMatchResult = {
+  ok?: boolean;
+  match?: {
+    gameId?: string;
+    seed?: string;
+    gridSize?: number;
+    seedScoreThreshold?: number;
+  };
+  error?: string;
+};
+
+async function fetchCasualMatchByGame(
+  gameId: string,
+  options?: { skipRecordSeed?: boolean }
+): Promise<CasualFindMatchResult> {
+  const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
+  const matchURL = `${casualOrigin}/internal/find-match-by-game`;
+  let response: Response;
+  try {
+    response = await fetch(matchURL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Casual-Bridge-Secret": bridge,
+      },
+      body: JSON.stringify({
+        gameId,
+        ...(options?.skipRecordSeed ? { skipRecordSeed: true } : {}),
+      }),
+    });
+  } catch (e) {
+    console.error("[blockBlast] find-match-by-game fetch failed", e);
+    return { ok: false, error: "casual_unreachable" };
+  }
+  try {
+    const text = await response.text();
+    if (!text) return { ok: false, error: `casual_find_${response.status}` };
+    return JSON.parse(text) as CasualFindMatchResult;
+  } catch {
+    return { ok: false, error: `casual_find_${response.status}` };
+  }
+}
+
 /** 与 solitaireArena `proxy/controller:loadGame` 对齐：休闲 run 走 casual `/internal/find-match-by-game` + bridge secret */
 export const loadGame = action({
   args: {
@@ -143,7 +208,7 @@ export const loadGame = action({
     resetCasualRun: v.optional(v.literal(true)),
   },
   handler: async (ctx, { gameId, resetCasualRun }): Promise<any> => {
-    const res: { ok: boolean; game?: any; events?: any; error?: string } = { ok: false };
+    const res: { ok: boolean; game?: any; events?: any; error?: string; seedScoreThreshold?: number } = { ok: false };
     if (resetCasualRun === true && gameId.startsWith("game_")) {
       await ctx.runMutation(internal.service.gameManager.deleteCasualGameForReplay, { gameId });
     } else {
@@ -153,44 +218,26 @@ export const loadGame = action({
       if (existing) {
         res.ok = true;
         res.game = existing;
+        if (gameId.startsWith("game_")) {
+          const meta = await fetchCasualMatchByGame(gameId, { skipRecordSeed: true });
+          const threshold = meta.match?.seedScoreThreshold;
+          if (typeof threshold === "number" && Number.isFinite(threshold)) {
+            res.seedScoreThreshold = threshold;
+          }
+        }
         return res;
       }
     }
 
     const createArgs: { seed?: string; gameId: string; gridSize?: number } = { gameId };
+    let seedScoreThreshold: number | undefined;
 
     if (gameId.startsWith("game_")) {
-      const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
-      const matchURL = `${casualOrigin}/internal/find-match-by-game`;
-      let response: Response;
-      try {
-        response = await fetch(matchURL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Casual-Bridge-Secret": bridge,
-          },
-          body: JSON.stringify({ gameId }),
-        });
-      } catch (e) {
-        console.error("[blockBlast] find-match-by-game fetch failed", e);
-        return { ok: false, error: "casual_unreachable" };
-      }
-      let matchGameResult: {
-        ok?: boolean;
-        match?: { gameId?: string; seed?: string; gridSize?: number };
-        error?: string;
-      } = {};
-      try {
-        const text = await response.text();
-        if (text) matchGameResult = JSON.parse(text) as typeof matchGameResult;
-      } catch {
-        matchGameResult = {};
-      }
-      if (!response.ok || !matchGameResult.ok || !matchGameResult.match) {
+      const matchGameResult = await fetchCasualMatchByGame(gameId);
+      if (!matchGameResult.ok || !matchGameResult.match) {
         return {
           ok: false,
-          error: matchGameResult.error ?? `casual_find_${response.status}`,
+          error: matchGameResult.error ?? "casual_find_failed",
         };
       }
       const data = matchGameResult.match;
@@ -201,6 +248,9 @@ export const loadGame = action({
       const gs = data?.gridSize;
       if (typeof gs === "number") {
         createArgs.gridSize = gs;
+      }
+      if (typeof data?.seedScoreThreshold === "number" && Number.isFinite(data.seedScoreThreshold)) {
+        seedScoreThreshold = data.seedScoreThreshold;
       }
     } else {
       const matchURL = `${tournament_url}/findMatchGame`;
@@ -227,6 +277,9 @@ export const loadGame = action({
     if (gameResult && gameResult.ok) {
       res.ok = true;
       res.game = gameResult.data;
+      if (seedScoreThreshold != null) {
+        res.seedScoreThreshold = seedScoreThreshold;
+      }
     } else {
       res.ok = false;
       res.error = "create_failed";
@@ -260,15 +313,19 @@ export const submitCasualPlatformRun = action({
       return { ok: false as const, error: "not_casual_run_game_id" };
     }
 
-    let uid: string;
-    try {
-      const payload = jwt.verify(token, jwtAccessSecret());
-      if (!payload || typeof payload !== "object" || !("uid" in payload)) {
-        return { ok: false as const, error: "invalid_token" };
-      }
-      uid = String((payload as { uid: unknown }).uid);
-    } catch {
-      return { ok: false as const, error: "verify_failed" };
+    const auth = verifyCasualRunToken(token);
+    if (!auth.ok) {
+      return { ok: false as const, error: auth.error };
+    }
+    const uid = auth.uid;
+    const parsedId = parseCasualRunGameId(gameId);
+    if (!parsedId || parsedId.uid !== uid) {
+      console.warn("[blockBlast] submitCasualPlatformRun forbidden", {
+        gameId,
+        tokenUid: uid,
+        parsedUid: parsedId?.uid ?? null,
+      });
+      return { ok: false as const, error: "forbidden" };
     }
 
     const game = await ctx.runMutation(internal.service.gameManager.loadGameRowAfterHeal, {
@@ -283,11 +340,8 @@ export const submitCasualPlatformRun = action({
       return { ok: false as const, error: "not_terminal" };
     }
 
-    const g = game as { score?: number; lines?: number; moves?: number };
-    const score = computeBlockBlastTotalScore(
-      Number(g.score ?? 0),
-      Number(g.lines ?? 0),
-      Number(g.moves ?? 0)
+    const score = resolveCasualIngestScoreFromRow(
+      game as { score?: number; lines?: number; moves?: number }
     );
 
     const built = await buildCasualV2IngestPayload({ ctx, uid, matchGameId: gameId, score });
@@ -300,11 +354,77 @@ export const submitCasualPlatformRun = action({
       return { ok: false as const, error: ingest.error };
     }
 
+    await ctx.runMutation(internal.service.casualGameLifecycle.cancelCasualTimeoutJob, { gameId });
+
     console.log("[blockBlast] casual-run-ingest v2", {
       gameId,
       deduped: ingest.parsed.deduped,
       pendingOthers: ingest.parsed.pendingOthers,
     });
+    return mapCasualIngestClientResponse(ingest.parsed, {
+      seedScoreThreshold: built.payload.seedScoreThreshold,
+      score: built.payload.score,
+    });
+  },
+});
+
+/**
+ * 玩家强行结束或客户端超时：取消 scheduler、终局写 game 表、ingest casual。
+ */
+export const forceEndCasualPlatformRun = action({
+  args: { token: v.string(), gameId: v.string() },
+  handler: async (ctx, { token, gameId }) => {
+    if (!gameId.startsWith("game_")) {
+      return { ok: false as const, error: "not_casual_run_game_id" };
+    }
+
+    const auth = verifyCasualRunToken(token);
+    if (!auth.ok) {
+      return { ok: false as const, error: auth.error };
+    }
+    const uid = auth.uid;
+    const parsedId = parseCasualRunGameId(gameId);
+    if (!parsedId || parsedId.uid !== uid) {
+      console.warn("[blockBlast] forceEndCasualPlatformRun forbidden", {
+        gameId,
+        tokenUid: uid,
+        parsedUid: parsedId?.uid ?? null,
+      });
+      return { ok: false as const, error: "forbidden" };
+    }
+
+    await ctx.runMutation(internal.service.casualGameLifecycle.cancelCasualTimeoutJob, { gameId });
+
+    const settled = await ctx.runMutation(
+      internal.service.casualGameLifecycle.settleCasualGameFromTable,
+      { gameId, uid }
+    );
+    if (!settled.ok || !settled.shouldIngest) {
+      const err =
+        settled.ok === false && "error" in settled
+          ? settled.error
+          : "reason" in settled && settled.reason === "gone"
+            ? "no_game"
+            : "settle_failed";
+      return { ok: false as const, error: err };
+    }
+
+    const built = await buildCasualV2IngestPayload({
+      ctx,
+      uid: settled.uid,
+      matchGameId: settled.gameId,
+      score: settled.score,
+    });
+    if (!built.ok) {
+      return { ok: false as const, error: built.error };
+    }
+
+    const ingest = await postCasualRunIngest(built.payload);
+    if (!ingest.ok) {
+      return { ok: false as const, error: ingest.error };
+    }
+
+    console.log("[blockBlast] forceEndCasualPlatformRun", { gameId, deduped: ingest.parsed.deduped });
     return mapCasualIngestClientResponse(ingest.parsed, {
       seedScoreThreshold: built.payload.seedScoreThreshold,
       score: built.payload.score,
@@ -348,7 +468,7 @@ export const replayCasualRun = action({
       return { ok: false as const, error: "casual_unreachable" };
     }
 
-    let parsed: { ok?: boolean; error?: string; replayEpoch?: number } = {};
+    let parsed: { ok?: boolean; error?: string; replayEpoch?: number; gameId?: string } = {};
     try {
       const text = await res.text();
       if (text) parsed = JSON.parse(text) as typeof parsed;
@@ -363,6 +483,7 @@ export const replayCasualRun = action({
     return {
       ok: true as const,
       replayEpoch: parsed.replayEpoch,
+      ...(typeof parsed.gameId === "string" ? { gameId: parsed.gameId } : {}),
     };
   },
 });

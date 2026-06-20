@@ -3,7 +3,6 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 
-import { SoloGameEngine } from '@/convex/solitaireArena/convex/service/SoloGameEngine';
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
@@ -52,12 +51,12 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     const tableauColRefs = useRef<(HTMLDivElement | null)[]>(Array.from({ length: 7 }, () => null));
     const {
         gameState,
-        config,
         updateBoardDimension,
         interactionPhase,
         boardDimension,
         boardDimensionRef,
         replayMode,
+        targetScore,
     } = useSoloGameManager();
     const { cards } = gameState || {};
     /** Solitaire Cash：局中 base 可因 recycle 暂为负，展示与结算一致不低于 0 */
@@ -69,7 +68,6 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
 
     const {
         recycle,
-        runAutoCompleteToFoundation,
         settleManuallyAndExit,
         settleConfirmOpen,
         cancelSettleConfirm,
@@ -279,17 +277,6 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     }, [gameState, boardDimension, boardDimensionRef, interactionPhase, cardMountEpoch]);
 
 
-    /** 与 `useActHandler.runAutoCompleteToFoundation` 同条件：已发牌、空闲、开启配置且引擎判定可贪心收齐 */
-    const showAutoComplete = useMemo(() => {
-        if (!gameState || !config.autoComplete) return false;
-        const st = Number(gameState.status);
-        if (st === SoloGameStatus.COMPLETED || st === SoloGameStatus.CANCELLED) return false;
-        if (!isSolitairePlayableStatus(gameState.status) || interactionPhase !== GameInteractionPhase.idle) {
-            return false;
-        }
-        return SoloGameEngine.canAutoCompleteWithFoundationOnly(gameState);
-    }, [gameState, config.autoComplete, interactionPhase]);
-
     const loadZone = useCallback((zoneId: string, ele: HTMLDivElement | null) => {
         if (!gameState) return;
         const zone = gameState.zones.find(z => z.id === zoneId);
@@ -411,10 +398,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 displayScore={displayScore}
                 displayMoves={displayMoves}
                 dueTime={replayMode ? undefined : gameState?.dueTime}
-                showAutoComplete={replayMode ? false : showAutoComplete}
-                onAutoComplete={() => {
-                    if (!replayMode) void runAutoCompleteToFoundation();
-                }}
+                targetScore={replayMode ? undefined : targetScore}
                 endGameDisabled={endGameDisabled}
                 onEndGame={
                     replayMode

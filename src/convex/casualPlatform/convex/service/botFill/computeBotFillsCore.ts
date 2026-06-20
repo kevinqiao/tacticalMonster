@@ -467,11 +467,11 @@ export async function computePlatformBotFillsIfNeeded(
 
   let seedScoreThreshold: number | undefined;
   if (context.successThresholdQuantile && context.seedBinding) {
-    const quantiles = await resolveSeedQuantiles(ctx, context.seedBinding, gameType);
-    const threshold = quantiles[context.successThresholdQuantile];
-    if (typeof threshold === "number" && Number.isFinite(threshold)) {
-      seedScoreThreshold = threshold;
-    }
+    seedScoreThreshold = await resolvePlatformSeedScoreThreshold(ctx, {
+      successThresholdQuantile: context.successThresholdQuantile,
+      seedBinding: context.seedBinding,
+      gameType,
+    });
   }
 
   return {
@@ -479,4 +479,22 @@ export async function computePlatformBotFillsIfNeeded(
     replaceAllVirtual: true,
     ...(seedScoreThreshold != null ? { seedScoreThreshold } : {}),
   };
+}
+
+/** 单人 p75 等：从 seed 分位解析成功阈值（与 bot fill 无关，maxPlayers=1 时也需调用）。 */
+export async function resolvePlatformSeedScoreThreshold(
+  ctx: SeedPoolRuntimeCtx,
+  args: {
+    successThresholdQuantile?: "p75";
+    seedBinding?: SlimSeedBinding;
+    gameType: string;
+  }
+): Promise<number | undefined> {
+  if (!args.successThresholdQuantile || !args.seedBinding) return undefined;
+  const quantiles = await resolveSeedQuantiles(ctx, args.seedBinding, args.gameType);
+  const threshold = quantiles[args.successThresholdQuantile];
+  if (typeof threshold === "number" && Number.isFinite(threshold)) {
+    return threshold;
+  }
+  return undefined;
 }

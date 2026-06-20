@@ -7,7 +7,7 @@ import { leaderboardDisplayName } from "../leaderboards/casualLeaderboardsMock";
 import "./casualSeasonLeaderboardModal.css";
 
 export type CasualSeasonLeaderboardModalData = {
-  /** 保留兼容；平台赛季榜不再按玩法分轨 */
+  /** 保留兼容；周联赛榜不再按玩法分轨 */
   gameId?: "solitaire" | "block_blast";
 };
 
@@ -29,9 +29,7 @@ const CasualSeasonLeaderboardModal: React.FC<ModalProp> = ({ visible, close, dat
   const payload = data as CasualSeasonLeaderboardModalData | undefined;
   void payload?.gameId;
 
-  const activeSeason = casual.seasons.find((s) => s.active) ?? casual.seasons[0];
-  const seasonLabel =
-    activeSeason?.seasonId ?? casual.passProgress?.seasonId ?? "当前赛季";
+  const weekLabel = casual.weeklyLeagueSnapshot?.weekKey ?? "本周";
 
   const [rows, setRows] = useState<PtsRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,7 +46,13 @@ const CasualSeasonLeaderboardModal: React.FC<ModalProp> = ({ visible, close, dat
     setLoading(true);
     setError(null);
     try {
-      const list = (await casual.fetchGameSeasonLeaderboard(undefined, "solitaire", 50)) as PtsRow[];
+      await casual.ensureWeeklyLeagueMember();
+      const cohort = await casual.fetchWeeklyLeagueCohort();
+      const list = cohort.members.map((m) => ({
+        rank: m.rank,
+        uid: m.uid,
+        points: m.weeklyLeagueXp,
+      }));
       setRows(Array.isArray(list) ? list : []);
     } catch {
       setError("加载失败");
@@ -56,7 +60,7 @@ const CasualSeasonLeaderboardModal: React.FC<ModalProp> = ({ visible, close, dat
     } finally {
       setLoading(false);
     }
-  }, [casual.convexUrl, casual.fetchGameSeasonLeaderboard]);
+  }, [casual]);
 
   useEffect(() => {
     if (!visible) return;
@@ -73,40 +77,42 @@ const CasualSeasonLeaderboardModal: React.FC<ModalProp> = ({ visible, close, dat
     <div className="casual-season-lb">
       <header className="casual-season-lb__head">
         <div>
-          <h1 className="casual-season-lb__title">赛季竞技榜</h1>
-          <p className="casual-season-lb__sub">平台累计积分（全玩法合计）· {seasonLabel}</p>
+          <h1 className="casual-season-lb__title">周联赛排名</h1>
+          <p className="casual-season-lb__sub">本 cohort · {weekLabel}</p>
         </div>
         <button type="button" className="casual-season-lb__close" onClick={close} aria-label="关闭">
           关闭
         </button>
       </header>
 
-      {error ? <p className="casual-season-lb__note casual-season-lb__note--err">{error}</p> : null}
+      {loading ? <p className="casual-season-lb__status">加载中…</p> : null}
+      {error ? <p className="casual-season-lb__status casual-season-lb__status--err">{error}</p> : null}
       {showEmptyHint ? (
-        <p className="casual-season-lb__hint" role="note">
-          暂无上榜记录（当前激活赛季下尚无赛季竞技积分数据）。
-        </p>
+        <p className="casual-season-lb__status">暂无排名数据（需先加入本周周联赛）。</p>
       ) : null}
 
-      {loading ? (
-        <p className="casual-season-lb__loading">加载中…</p>
-      ) : (
-        <ul className="casual-season-lb__list" aria-label="赛季榜">
-          {displayRows.map((r) => {
-            const self = Boolean(selfUid && r.uid === selfUid);
-            return (
-              <li
-                key={`${r.rank}-${r.uid}`}
-                className={`casual-season-lb__row${self ? " casual-season-lb__row--self" : ""}`}
-              >
-                <span className="casual-season-lb__rank">{r.rank}</span>
-                <span className="casual-season-lb__name">{rowLabel(r.uid, selfUid)}</span>
-                <span className="casual-season-lb__pts">{r.points.toLocaleString()}</span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <div className="casual-season-lb__list" role="list">
+        {displayRows.map((r) => {
+          const self = Boolean(selfUid && r.uid === selfUid);
+          return (
+            <div
+              key={`${r.rank}-${r.uid}`}
+              className={`casual-season-lb__row${self ? " casual-season-lb__row--self" : ""}`}
+              role="listitem"
+            >
+              <span className="casual-season-lb__rank">{r.rank}</span>
+              <span className="casual-season-lb__name">{rowLabel(r.uid, selfUid)}</span>
+              <span className="casual-season-lb__pts">{r.points.toLocaleString()} XP</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {casual.convexUrl ? (
+        <button type="button" className="casual-season-lb__refresh" onClick={() => void load()}>
+          刷新
+        </button>
+      ) : null}
     </div>
   );
 };

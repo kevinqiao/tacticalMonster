@@ -135,6 +135,7 @@ export const DEFAULT_GAME_CONFIG: BlockBlastGameConfig = {
         movePenalty: -1,
     },
     gridSize: BLOCK_BLAST_DEFAULT_GRID_SIZE,
+    timeLimit: 300,
 };
 
 export const SHAPE_COLORS = [

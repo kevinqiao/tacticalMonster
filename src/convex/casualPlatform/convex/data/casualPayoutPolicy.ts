@@ -1,38 +1,31 @@
 /**
- * 计奖场次递减与软币日上限（历史政策表）。
- * 当场对局结算（`applyCasualTemplateScoreEffects`）已停用；防刷靠门票 + 名次赛季分 ±。
- * 表 `casual_payout_daily_counters` 可保留供日后运营实验复用。
+ * 当日场次递减政策表。
+ *
+ * 设计口径（见 docs/casual-platform-economy-loop-design.md §6）：
+ * - A/B/C/专场 均有**入场费**（金币 / 钻 / 券），入场费本身已是水槽，
+ *   故对局结算的**币 / 钻 / 券产出不衰减、不封顶**；
+ * - 真正需要防「多打刷量」的是**成长线 XP**：League XP 与 Battle Pass XP，
+ *   按当日 **payout bucket** 场次序号递减（首 3 局满额，第 4 局起衰减，下限 0.1）。
+ * - 三条计数线：`async`（A/B/C/三合一统一）、`season_challenge`（专场）、`solo_p75`（p75）。
  */
 
 import type { CasualTournamentDefinition } from "./casualTournamentConfigs";
 
-/** 当日第 1～N 场计奖的币/钻/Pass XP 乘子（0 基：首场用 [0]） */
-export const WALLET_DECAY_BY_ORDINAL: readonly number[] = [1, 1, 1, 0.75, 0.5, 0.35, 0.2, 0.1];
+/** 当日第 1～N 场 League XP / Pass XP 乘子（0 基：首场用 [0]）。币/钻/券不参与。 */
+export const XP_DECAY_BY_ORDINAL: readonly number[] = [1, 1, 1, 1, 1, 1, 1, 1, 0];
 
-/** 赛季分乘子（较钱包更宽松，避免榜完全 stagnate） */
-export const SEASON_POINTS_DECAY_BY_ORDINAL: readonly number[] = [1, 1, 1, 0.85, 0.7, 0.55, 0.4, 0.25];
+export type PayoutBucket = "async" | "season_challenge" | "solo_p75";
 
-/** 当日软币产出硬顶（仅 tournament_a / b；C 场钻不走此表） */
-export const DAILY_COINS_CAP: Record<string, number> = {
-  tournament_a: 180,
-  tournament_b: 400,
-};
-
-/** 当日赛季分硬顶（按 matchType）；专场按名次±分，与 B 档同级参考上限 */
-export const DAILY_SEASON_POINTS_CAP: Record<string, number> = {
-  tournament_a: 24,
-  tournament_b: 40,
-  tournament_c: 80,
-  season_challenge: 40,
-};
-
-export type PayoutBucket = "tournament_a" | "tournament_b" | "tournament_c" | "season_challenge";
-
+/** 当日 XP 递减 bucket：async 统一计 A/B/C/三合一；专场与 p75 各独立。 */
 export function payoutBucketFromDef(def: CasualTournamentDefinition): PayoutBucket {
   if (def.matchType === "season_challenge") return "season_challenge";
-  if (def.matchType === "tournament_c") return "tournament_c";
-  if (def.matchType === "tournament_b") return "tournament_b";
-  return "tournament_a";
+  if (def.matchType === "solo_p75_challenge") return "solo_p75";
+  return "async";
+}
+
+/** 专场：券已是水槽，Pass/League 不做当日场次 ordinal 递减。 */
+export function usesXpOrdinalDecay(def: CasualTournamentDefinition): boolean {
+  return def.matchType !== "season_challenge";
 }
 
 export function decayMultiplier(ordinal: number, table: readonly number[]): number {
