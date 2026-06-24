@@ -25,7 +25,9 @@ export const CasualTableSummaryPanel: React.FC<{
   s: CasualAsyncTableSummaryUI;
   onWatchRow?: (ctx: Match3WatchContext, displayLabel: string) => void;
   watchButtonLabel?: string;
-}> = ({ s, onWatchRow, watchButtonLabel = '观战' }) => {
+  /** 覆盖默认「本桌至多 N 席 · 已计分 M 人」（历史战报等） */
+  metaNote?: string;
+}> = ({ s, onWatchRow, watchButtonLabel = '观战', metaNote }) => {
   const hasPlayingBot = s.rows.some(
     (r) => r.isBot && r.rowState === 'playing' && r.revealAt != null
   );
@@ -41,9 +43,10 @@ export const CasualTableSummaryPanel: React.FC<{
   const tickNow = hasPlayingBot ? now : Date.now();
   const scoredCount = s.rows.filter((r) => r.rowState !== 'playing' && r.rowState !== 'matching').length;
   const slotNote =
-    s.maxPlayers > 0
+    metaNote ??
+    (s.maxPlayers > 0
       ? `本桌至多 ${s.maxPlayers} 席 · 已计分 ${scoredCount} 人`
-      : `已计分 ${scoredCount} 人`;
+      : `已计分 ${scoredCount} 人`);
 
   const scoreCell = (row: CasualAsyncTableSummaryUI['rows'][number]) => {
     if (row.rowState === 'matching') return '正在匹配中';

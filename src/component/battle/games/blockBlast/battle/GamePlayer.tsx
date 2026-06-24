@@ -1,8 +1,7 @@
 /**
- * Block Blast 主界面（对齐 solitaireSolo：测量 board、结束战报、layout effect 触发 onGameOver）
+ * Block Blast 主界面（对齐 solitaireSolo：测量 board、终局自动进入休闲结算弹窗）
  */
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import GameOverReport from './GameOverReport';
 import { useBlockBlastGameManager } from './service/GameManager';
 import {
     BLOCK_BLAST_DEFAULT_GRID_SIZE,
@@ -56,8 +55,8 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
     const {
         gameState,
         updateBoardDimension,
-        onGameOver,
         settleManuallyAndExit,
+        completeCasualRunOnTimeout,
         settleConfirmOpen,
         cancelSettleConfirm,
         confirmSettleAndExit,
@@ -351,12 +350,6 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         };
     }, [calculateBoardDimension, updateBoardDimension, gameState?.gameId, gridDimension]);
 
-    useLayoutEffect(() => {
-        if (replayMode) return;
-        if (!gameState || gameState.status === BlockBlastGameStatus.PLAYING) return;
-        void onGameOver();
-    }, [replayMode, gameState?.status, gameState?.gameId, onGameOver]);
-
     if (!gameState) {
         return (
             <div className="blockblast-loading">
@@ -392,12 +385,18 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                               void settleManuallyAndExit();
                           }
                 }
+                onMatchTimeout={
+                    replayMode
+                        ? undefined
+                        : () => {
+                              void completeCasualRunOnTimeout();
+                          }
+                }
             />
             <GridView />
             <ShapePreview />
             {!replayMode && (
                 <>
-                    <GameOverReport />
                     <ManualSettleConfirmOverlay
                         open={settleConfirmOpen}
                         defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST}
@@ -424,7 +423,6 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                         onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
                         onDismiss={dismissPostCasualSummary}
                         weeklyLeagueSettle={postCasualWeeklyLeagueSettle}
-                        onWatchRow={openWatch}
                     />
                     <BlockBlastWatchOverlay
                         open={watchTarget != null}

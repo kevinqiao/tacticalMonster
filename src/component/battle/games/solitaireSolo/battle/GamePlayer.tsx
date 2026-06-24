@@ -458,7 +458,6 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                         onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
                         onDismiss={dismissPostCasualSummary}
                         weeklyLeagueSettle={postCasualWeeklyLeagueSettle}
-                        onWatchRow={openWatch}
                     />
                     <SolitaireWatchOverlay
                         open={watchTarget != null}

@@ -7,6 +7,7 @@ import {
 import type { Doc, Id } from "../../../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../../../_generated/server";
 import { resolveAsyncLeaderboardRowState } from "../../../../data/casualAsyncLeaderboardRowState";
+import { isReplayableFinished } from "../../shared/casualPlayerMatchStatus";
 import {
   casualAsyncVirtualOpponentCount,
   isCasualAsyncVirtualOpponentUid,
@@ -79,9 +80,10 @@ function pmByUidFromRows(rows: PlayerMatchRow[]): Map<string, PlayerMatchRow> {
   return new Map(rows.map((r) => [r.uid, r]));
 }
 
-function buildWatchGameByUid(games: PlayerGameRow[]): Map<string, PlayerGameRow> {
+function buildWatchGameByUid(games: PlayerGameRow[], gameType?: string): Map<string, PlayerGameRow> {
   const out = new Map<string, PlayerGameRow>();
   for (const g of games) {
+    if (gameType && g.gameType !== gameType) continue;
     const prev = out.get(g.uid);
     if (!prev || g.gameIndex >= prev.gameIndex) {
       out.set(g.uid, g);
@@ -119,11 +121,11 @@ function attachCasualWatchContext(
   }
   const pg = opts.pgByUid.get(pm.uid);
   if (isCasualAsyncVirtualOpponentUid(pm.uid)) {
-    if (!opts.seedId || pg?.rolloutIndex == null) return undefined;
+    if (!opts.seedId || !pg) return undefined;
     return {
       kind: "rollout",
       seedId: opts.seedId,
-      rolloutIndex: pg.rolloutIndex,
+      rolloutIndex: pg.rolloutIndex ?? 0,
       expectedScore: extras?.expectedScore ?? pg.score ?? pm.score,
       revealAt: extras?.revealAt ?? pg.revealAt,
       duration: extras?.duration ?? pg.duration,
@@ -152,22 +154,34 @@ async function resolveWatchAttachOpts(
   if (!def) return undefined;
   const watchGameType = effectiveGameSequence(def)[0];
   if (!watchGameType || !CASUAL_WATCH_GAME_TYPES.has(watchGameType)) return undefined;
-  const humanGame = games.find(
-    (g) => !isCasualAsyncVirtualOpponentUid(g.uid) && g.gameIndex === 0
-  );
+  const humanGame =
+    games.find(
+      (g) => !isCasualAsyncVirtualOpponentUid(g.uid) && g.gameType === watchGameType
+    ) ??
+    games.find((g) => !isCasualAsyncVirtualOpponentUid(g.uid) && g.gameIndex === 0);
   const seedId = humanGame?.seedBinding.seedId;
   return {
     gameType: watchGameType,
     seedId,
     pmByUid: pmByUidFromRows(rows),
-    pgByUid: buildWatchGameByUid(games),
+    pgByUid: buildWatchGameByUid(games, watchGameType),
   };
 }
 
-function allHumansConfirmedOrSettled(humanRows: PlayerMatchRow[]): boolean {
+function allHumansReadyForBoardStable(humanRows: PlayerMatchRow[], now: number): boolean {
   return (
     humanRows.length > 0 &&
-    humanRows.every((h) => h.status === "confirmed" || h.status === "settled")
+    humanRows.every((h) => {
+      if (h.status === "confirmed" || h.status === "settled") return true;
+      if (h.status === "finished") {
+        return !isReplayableFinished(
+          { status: h.status, finishedAt: h.finishedAt },
+          h.templateId,
+          now
+        );
+      }
+      return false;
+    })
   );
 }
 
@@ -190,16 +204,16 @@ function allBotsRevealedAndEnded(
   return true;
 }
 
-/** 与 partial 榜同一 `now`，判定同桌榜展示是否已稳定 */
+/** 与 partial 榜同一 `now`，判定同桌榜展示是否已稳定（含 bot reveal 窗口） */
 export function computeCasualAsyncTableBoardStable(args: {
   rows: PlayerMatchRow[];
   botTimingByUid?: Map<string, BotTiming>;
   maxPlayers: number;
   humanCountPlanned: number;
   now: number;
+  /** @deprecated 不再因真人 settled 而跳过 bot reveal 判定 */
   allHumansSettled?: boolean;
 }): boolean {
-  if (args.allHumansSettled === true) return true;
   const humans = args.rows.filter((r) => !isCasualAsyncVirtualOpponentUid(r.uid));
   const bots = args.rows.filter((r) => isCasualAsyncVirtualOpponentUid(r.uid));
   const botTimingByUid = args.botTimingByUid ?? new Map<string, BotTiming>();
@@ -208,7 +222,7 @@ export function computeCasualAsyncTableBoardStable(args: {
     args.humanCountPlanned
   );
   return (
-    allHumansConfirmedOrSettled(humans) &&
+    allHumansReadyForBoardStable(humans, args.now) &&
     allBotsRevealedAndEnded(bots, botTimingByUid, targetBotCount, args.now)
   );
 }
@@ -524,10 +538,11 @@ export async function buildCasualAsyncTableSummary(
     matchId: string;
     /** false：未全员 settled；已交分真人仍展示分数/暂名，仅 open/replaying 等为 Playing */
     allHumansSettled?: boolean;
+    /** 历史战报：已结算场次，按 DB 最终分数展示，不走 bot reveal 时间线 */
+    historical?: boolean;
   }
 ): Promise<CasualAsyncTableSummary | null> {
-  const { templateId, uid, maxPlayers, matchId } = args;
-  const allHumansSettled = args.allHumansSettled === true;
+  const { templateId, uid, maxPlayers, matchId, historical } = args;
 
   if (!matchId.trim()) return null;
   const rows = await ctx.db
@@ -563,10 +578,22 @@ export async function buildCasualAsyncTableSummary(
     maxPlayers,
     humanCountPlanned,
     now,
-    allHumansSettled,
   };
 
-  if (!allHumansSettled && maxPlayers > 1) {
+  if (maxPlayers > 1) {
+    if (historical) {
+      const withScore = rows
+        .filter((r) => r.score != null && Number.isFinite(r.score))
+        .map((r) => ({ uid: r.uid, score: r.score as number }));
+      if (withScore.length === 0) return null;
+      const outRows = buildLeaderboardRowsFromScored(withScore, uid, watchOpts);
+      return {
+        maxPlayers,
+        rows: outRows,
+        isBoardStable: true,
+      };
+    }
+
     const outRows = buildPartialAsyncTableSummaryRows({
       rows,
       botTimingByUid,

@@ -1,7 +1,7 @@
 import { findContainer, getURLParams } from "@/host/util/PageUtils";
 import { useModalManager } from "host/service/ModalManager";
 import { User, useUserManager } from "host/service/UserManager";
-import React, { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { usePageManager } from "../service/PageManager";
 import { PANELS } from "./config";
@@ -68,9 +68,10 @@ const SSOController: React.FC = () => {
   }, [panelConfig]);
   const authLevel = useMemo(() => {
     if (!user) return -1;
+    if (user.authReq) return 1;
     if (user.uid) return 0;
     const container = currentPage ? findContainer(pageContainers, currentPage.uri) : null;
-    return container?.auth === 1 ? 2 : user.authReq ? 1 : 0;
+    return container?.auth === 1 ? 2 : 0;
   }, [user, currentPage, pageContainers]);
 
   const { playOpen, playClose } = useAuthAnimate({ container: authContainer });
@@ -104,10 +105,24 @@ const SSOController: React.FC = () => {
     [playClose, authComplete, sumbitPage, user]
   );
 
-  useEffect(() => {
-    if (authLevel > 0) {
-      playOpen({ closeAble: authLevel < 2, onComplete: () => console.log("playOpen finished") });
-    }
+  useLayoutEffect(() => {
+    if (authLevel <= 0) return;
+    let cancelled = false;
+    const tryOpen = () => {
+      if (cancelled) return;
+      if (!authContainer.ele) {
+        requestAnimationFrame(tryOpen);
+        return;
+      }
+      playOpen({
+        closeAble: authLevel < 2,
+        onComplete: () => console.log("playOpen finished"),
+      });
+    };
+    tryOpen();
+    return () => {
+      cancelled = true;
+    };
   }, [authContainer, playOpen, authLevel]);
 
   const layer = useMemo(

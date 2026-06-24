@@ -20,22 +20,22 @@ export const CASUAL_F2P_PASS_TARGET_XP =
   CASUAL_F2P_PASS_TARGET_LEVELS * PASS_XP_PER_LEVEL;
 
 /** p75 单人挑战：当日钱包金币软顶（参与+成功合计；League/Pass 不受影响） */
-export const DAILY_P75_COINS_SOFT_CAP = 200;
+export const DAILY_P75_COINS_SOFT_CAP = 32;
 
 /** Play 异步 A/B/C 入场与 B 底奖（`economy-balance.mjs` 与 `casualTournamentConfigs` 应对齐） */
-export const ASYNC_ENTRY_COINS_A = 35;
-export const ASYNC_ENTRY_COINS_B = 45;
-export const ASYNC_ENTRY_GEMS_C = 7;
-export const ASYNC_BASE_COINS_A = 23;
-export const ASYNC_BASE_COINS_B = 52;
-export const ASYNC_BASE_GEMS_C = 6;
+export const ASYNC_ENTRY_COINS_A = 70;
+export const ASYNC_ENTRY_COINS_B = 90;
+export const ASYNC_ENTRY_GEMS_C = 24;
+export const ASYNC_BASE_COINS_A = 36;
+export const ASYNC_BASE_COINS_B = 103;
+export const ASYNC_BASE_GEMS_C = 12;
 
 /**
  * 平衡脚本「discretionary 商店消耗」假设（再战令/外观等，非强制；金币/钻分轨、无钻→币包）。
  * 周上限见 `casualShopCatalog.weeklyPurchaseLimit`；Town 建设点不可购买，故无 Town coin sink。
  */
 export const ECONOMY_SHOP_SINK_BY_PROFILE = {
-  casual: { coinsPerWeek: 35, gemsPerWeek: 6 },
-  active: { coinsPerWeek: 55, gemsPerWeek: 8 },
-  grinder: { coinsPerWeek: 75, gemsPerWeek: 12 },
+  casual: { coinsPerWeek: 70, gemsPerWeek: 12 },
+  active: { coinsPerWeek: 110, gemsPerWeek: 16 },
+  grinder: { coinsPerWeek: 150, gemsPerWeek: 24 },
 } as const;

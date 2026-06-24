@@ -325,7 +325,7 @@ function main() {
   console.log("\n下一步:");
   console.log("  npm run casual:economy:sync");
   console.log("  npm run casual:economy:balance");
-  console.log("\n未自动修改: 任务 Pass XP、底奖/入场、商店 SKU（见 tune 金币/钻建议）");
+  console.log("\n未自动修改: 任务 Pass XP、商店 SKU（钻/券见 apply-gem / apply-voucher）");
 }
 
 main();

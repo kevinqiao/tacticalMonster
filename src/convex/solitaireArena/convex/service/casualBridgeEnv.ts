@@ -1,12 +1,24 @@
 /**
- * Casual HTTP bridge for solitaire Convex actions (`find-match-by-game`, `casual-run-ingest`).
- * Any missing env is filled from repo-aligned dev defaults (same as `casualPlatform/.env.local`).
- * Production: set both `CASUAL_HTTP_ORIGIN` (`.convex.site`) and `CASUAL_GAME_BRIDGE_SECRET` on this deployment.
+ * Platform HTTP bridge: prefers Portal when `PORTAL_HTTP_ORIGIN` is set, else Casual.
  */
+const DEV_PORTAL_SITE_ORIGIN = "http://127.0.0.1:3210";
 const DEV_CASUAL_SITE_ORIGIN = "https://amicable-alpaca-980.convex.site";
+const DEV_PORTAL_BRIDGE_SECRET = "dev-local-portal-bridge";
 const DEV_CASUAL_BRIDGE_SECRET = "dev-local-casual-bridge";
 
 export function resolveCasualBridgeEnv(): { origin: string; secret: string } {
+  const portalOrigin = (process.env.PORTAL_HTTP_ORIGIN ?? process.env.PORTAL_CONVEX_SITE_URL ?? "")
+    .trim()
+    .replace(/\/$/, "");
+  const portalSecret = (process.env.PORTAL_GAME_BRIDGE_SECRET ?? "").trim();
+
+  if (portalOrigin) {
+    return {
+      origin: portalOrigin,
+      secret: portalSecret || DEV_PORTAL_BRIDGE_SECRET,
+    };
+  }
+
   let origin = (process.env.CASUAL_HTTP_ORIGIN ?? process.env.CASUAL_CONVEX_SITE_URL ?? "")
     .trim()
     .replace(/\/$/, "");
@@ -27,7 +39,6 @@ export function resolveCasualBridgeEnv(): { origin: string; secret: string } {
   return { origin, secret };
 }
 
-/** HTTP routes from casualPlatform (`X-Casual-Bridge-Secret`). */
 export function casualGameBridgeSecret(): string {
   return resolveCasualBridgeEnv().secret;
 }

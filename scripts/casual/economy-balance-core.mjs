@@ -41,8 +41,8 @@ export {
 
 export const PROFILES = {
   casual: {
-    label: "中度 8 局/日 · 前 8 场满额",
-    daily: { A: 4, B: 3, C: 1, p75: 0, signIn: true, winRate: 0.45 },
+    label: "中度 8 局 async + 3 局 p75/日",
+    daily: { A: 4, B: 3, C: 1, p75: 3, signIn: true, winRate: 0.45 },
     spotlightPerWeek: 1,
     completesWeeklyMissions: 0.7,
   },
@@ -125,7 +125,8 @@ export function computeDaily(profile, opts = {}) {
   }
 
   const p75SuccessRate = d.winRate * 0.5 + 0.25;
-  coins += simulateP75Coins(d.p75 ?? 0, p75SuccessRate, DAILY_P75_COINS_SOFT_CAP, p75Cfg);
+  const p75Cap = opts.p75DailyCap ?? DAILY_P75_COINS_SOFT_CAP;
+  coins += simulateP75Coins(d.p75 ?? 0, p75SuccessRate, p75Cap, p75Cfg);
   gamesByTier.p75 = d.p75 ?? 0;
   let p75Ordinal = 0;
   for (let i = 0; i < (d.p75 ?? 0); i++) {

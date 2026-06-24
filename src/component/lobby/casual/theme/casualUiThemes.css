@@ -7,6 +7,8 @@
 @import "./casualFooterNavTheme.css";
 
 :root {
+  --motion-fast: 120ms ease-out;
+  --motion-normal: 280ms ease-out;
   --ui-color-primary: #2d6cdf;
   --ui-color-primary-glow: rgba(45, 108, 223, 0.28);
   --ui-color-ink: #1a1a2e;

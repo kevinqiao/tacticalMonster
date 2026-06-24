@@ -114,6 +114,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     // const loadingBGRef = useRef<{ ele: HTMLDivElement | null; status: number }>({ ele: null, status: 1 });
     const historiesRef = useRef<PageItem[]>([]);
     const currentPageRef = useRef<PageItem | null>(null);
+    const [currentPage, setCurrentPage] = useState<PageItem | null>(null);
     // const [initCompleted, setInitCompleted] = useState(false);
     const [pageUpdated, setPageUpdated] = useState<PageItem | null>(null);
     const [pageEvent, setPageEvent] = useState<PageEvent | null>(null);
@@ -164,7 +165,8 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         const prepage = currentPageRef.current;
         setPageEvent({ name: "pageOpen", prepage, page: page });
         currentPageRef.current = page;
-    }, [currentPageRef]);
+        setCurrentPage(page);
+    }, []);
     const openPage = useCallback(
         (page: PageItem) => {
             const container = findContainer(pageContainers, page.uri);
@@ -208,6 +210,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
                 const prepage = currentPageRef.current;
                 setPageEvent({ name: "pageOpen", prepage, page });
                 currentPageRef.current = page;
+                setCurrentPage(page);
             }
         };
         handlePopState();
@@ -219,7 +222,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
     const value = {
         histories: historiesRef.current,
-        currentPage: currentPageRef.current,
+        currentPage,
         pageUpdated,
         pageEvent,
         pageContainers,

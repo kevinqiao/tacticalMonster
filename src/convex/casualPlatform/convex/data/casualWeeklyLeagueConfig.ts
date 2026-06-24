@@ -117,11 +117,11 @@ export function scaleWeeklyLeagueRewards(
 
 /** 按 cohort 最终名次发放（Bronze 未乘倍率） */
 export function weeklyLeagueRewardsForFinalRank(rank: number): WeeklyLeaguePendingRewards {
-  if (rank === 1) return { coins: 120, gems: 3 };
-  if (rank === 2) return { coins: 80, gems: 2 };
-  if (rank === 3) return { coins: 50, gems: 1 };
-  if (rank >= 4 && rank <= 10) return { coins: 30 };
-  if (rank >= 11 && rank <= 25) return { coins: 10 };
+  if (rank === 1) return { coins: 240, gems: 6 };
+  if (rank === 2) return { coins: 160, gems: 4 };
+  if (rank === 3) return { coins: 100, gems: 2 };
+  if (rank >= 4 && rank <= 10) return { coins: 60 };
+  if (rank >= 11 && rank <= 25) return { coins: 20 };
   return {};
 }
 

@@ -26,19 +26,20 @@ import { loadPoolDefaults } from "./blockblast-pool-defaults.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 
-const DEFAULT_COUNT = 500;
-const DEFAULT_ROLLOUTS = 24;
+const DEFAULT_COUNT = 5000;
+const DEFAULT_ROLLOUTS = 48;
 const DEFAULT_MATCH_SECONDS = 300;
 /** v3 推荐：挑战与易上瘾平衡（见 scripts/blockblast/README.md） */
-const DEFAULT_MIN_OPENING_MOVES = 42;
-const DEFAULT_MAX_OPENING_MOVES = 112;
-const DEFAULT_MIN_SCORE_P25 = 80;
-const DEFAULT_MIN_SCORE_SPREAD = 95;
-const DEFAULT_OVERSAMPLE_FACTOR = 15;
+const DEFAULT_MIN_OPENING_MOVES = 32;
+/** 实测 blockblast-pool:v3:* 的 openingMoveCount 下限为 96，低于此值永远 0 接纳 */
+const DEFAULT_MAX_OPENING_MOVES = 96;
+const DEFAULT_MIN_SCORE_P25 = 40;
+const DEFAULT_MIN_SCORE_SPREAD = 80;
+const DEFAULT_OVERSAMPLE_FACTOR = 30;
 /** v3：matchSeconds=300 下池均 timeUp≈15% 的推荐缩放 */
-const DEFAULT_THINK_TIME_SCALE = 1.5;
+const DEFAULT_THINK_TIME_SCALE = 1;
 /** 拒绝 stuckRate 高于此值的 seed（0.85 ≈ 至少 15% timeUp） */
-const DEFAULT_MAX_STUCK_RATE = 0.85;
+const DEFAULT_MAX_STUCK_RATE = 0.9;
 const DEFAULT_MIN_ENTRIES = 0;
 const DEFAULT_BATCH_SIZE = process.platform === "win32" ? 2 : 8;
 const CATALOG_GAME_TYPE = CATALOG_GAME_TYPES.block_blast;

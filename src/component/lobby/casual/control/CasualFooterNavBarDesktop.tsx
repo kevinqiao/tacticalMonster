@@ -1,8 +1,8 @@
 import React from "react";
 import { usePageManager } from "host/service/PageManager";
 import "../../tactical/control/footer/FooterNavControl.css";
+import { CASUAL_LOBBY_NAV_ICONS } from "../assets/casualLobbyIcons";
 import { CASUAL_NAV_MENU_ITEMS } from "./NavSharedCasual";
-import { FOOTER_NAV_DESKTOP_ICONS } from "../../tactical/control/footer/FooterNavDesktopConfig";
 
 /** 桌面：底栏仅 5 个 Tab（登出见顶栏） */
 export const CasualFooterNavBarDesktop: React.FC = () => {
@@ -25,7 +25,7 @@ export const CasualFooterNavBarDesktop: React.FC = () => {
             >
               <img
                 className="footer-nav-desktop__icon"
-                src={FOOTER_NAV_DESKTOP_ICONS[index]}
+                src={CASUAL_LOBBY_NAV_ICONS[index]}
                 alt=""
                 draggable={false}
               />

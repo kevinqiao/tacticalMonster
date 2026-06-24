@@ -494,7 +494,6 @@ const Match3Player: React.FC = () => {
         onReplay={() => void replayCasualRun()}
         replayLabel={triathlonSessionActive ? '三局再战' : '再战'}
         triathlonSessionReplay={triathlonSessionActive}
-        onWatchRow={openWatch}
       />
       <Match3WatchOverlay
         open={watchTarget != null}

@@ -63,15 +63,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const convex = useConvex();
 
   const askAuth = useCallback(({ page, modal }: { page?: PageItem; modal?: ModalItem }) => {
-
-    // setAuthReq({ page, modal })
     setUser((prev) => {
-      if (prev && !prev.uid && !prev.authReq) {
-        return { ...prev, authReq: { page, modal } };
-      }
-      return prev;
-    })
-
+      const base = prev ?? {};
+      if (base.authReq) return base;
+      return { ...base, authReq: { page, modal } };
+    });
   }, []);
 
   const cancelAuth = useCallback(() => {

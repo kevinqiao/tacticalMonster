@@ -62,6 +62,24 @@ export const CasualPlace =
 
 }
 
+export const PortalPlace =
+{
+    name: "portalPlace",
+    entry: "portal",
+    context: "/portal",
+    navs: [
+        {
+            name: "game",
+            auth: 1,
+            path: "./lobby/portal/PortalGamePage",
+            uri: "",
+            class: "page_container",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        }
+    ]
+}
+
 export const W3Home =
 {
     name: "w3",
@@ -255,5 +273,5 @@ export interface ModalConfig {
     class?: string;
     effects?: ModalEffect[];
 }
-export const AppsConfiguration: AppConfig[] = [TacticalPlace, CasualPlace];
+export const AppsConfiguration: AppConfig[] = [TacticalPlace, CasualPlace, PortalPlace];
 

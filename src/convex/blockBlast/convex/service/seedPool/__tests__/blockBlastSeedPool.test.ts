@@ -397,13 +397,9 @@ describe("blockBlastSeedScoreLookup", () => {
 });
 
 describe("blockBlastScoring", () => {
-  it("total = base + lines*5 + max(0,100-moves)", () => {
-    expect(computeBlockBlastTotalScore(340, 5, 30)).toBe(340 + 25 + 70);
-    expect(computeBlockBlastTotalScore(0, 0, 0)).toBe(100);
-  });
-
-  it("moves bonus floors at zero for long games", () => {
-    expect(computeBlockBlastTotalScore(200, 4, 120)).toBe(200 + 20 + 0);
-    expect(computeBlockBlastTotalScore(0, 0, 100)).toBe(0);
+  it("total score equals in-game accumulated score", () => {
+    expect(computeBlockBlastTotalScore(340)).toBe(340);
+    expect(computeBlockBlastTotalScore(0)).toBe(0);
+    expect(computeBlockBlastTotalScore(200.7)).toBe(200);
   });
 });

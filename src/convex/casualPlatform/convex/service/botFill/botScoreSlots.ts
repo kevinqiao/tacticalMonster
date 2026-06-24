@@ -75,28 +75,29 @@ export function computeFixedTopBotScoreSlots(args: {
   return slots;
 }
 
+/** v3 solo：bot slot 仅由 humanRank + humanScore 划分；below-bot 下界用 seed p10。 */
 export function computeSoloBotScoreSlots(args: {
   humanScore: number;
   effectiveRank: number;
-  rankFloors: RankScoreFloorsByRank;
+  scoreLow: number;
   maxPlayers: number;
   gameType: BotFillGameType;
 }): BotScoreSlot[] {
-  const { humanScore, effectiveRank, rankFloors, maxPlayers, gameType } = args;
+  const { humanScore, effectiveRank, scoreLow, maxPlayers, gameType } = args;
+  const humanRank = effectiveRank;
   const eps = scoreEpsilon(gameType);
   const span = scoreSpan(gameType);
   const slots: BotScoreSlot[] = [];
   for (let r = 1; r <= maxPlayers; r++) {
-    if (r === effectiveRank) continue;
-    const minS = rankFloors[r] ?? 0;
+    if (r === humanRank) continue;
     let low: number;
     let high: number;
-    if (r < effectiveRank) {
-      low = Math.max(minS, humanScore + eps);
+    if (r < humanRank) {
+      low = humanScore + eps;
       high = low + Math.max(eps * 20, span);
     } else {
-      low = minS;
-      high = Math.max(minS + eps, humanScore - eps);
+      low = scoreLow;
+      high = humanScore - eps;
       if (high <= low) high = low + eps;
     }
     slots.push({ rank: r, low, high });
@@ -107,7 +108,7 @@ export function computeSoloBotScoreSlots(args: {
 export function generateSoloBotScores(args: {
   humanScore: number;
   effectiveRank: number;
-  rankFloors: RankScoreFloorsByRank;
+  scoreLow: number;
   maxPlayers: number;
   gameType: BotFillGameType;
   sessionSeed: number;

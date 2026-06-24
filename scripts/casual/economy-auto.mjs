@@ -23,6 +23,9 @@ function parseArgs(argv) {
     write: false,
     skipPass: false,
     skipWallet: false,
+    skipGem: false,
+    skipVoucher: false,
+    skipCoins: false,
     applyProfile: "casual",
     help: false,
   };
@@ -33,6 +36,9 @@ function parseArgs(argv) {
     else if (a === "--config") out.config = argv[++i];
     else if (a === "--skip-pass") out.skipPass = true;
     else if (a === "--skip-wallet") out.skipWallet = true;
+    else if (a === "--skip-gem") out.skipGem = true;
+    else if (a === "--skip-voucher") out.skipVoucher = true;
+    else if (a === "--skip-coins") out.skipCoins = true;
     else if (a === "--apply-profile") out.applyProfile = argv[++i];
     else if (a === "--help" || a === "-h") out.help = true;
   }
@@ -80,15 +86,21 @@ Casual 经济 · 一键调优闭环
 步骤（--write 时写运行时配表 + PROFILES.casual）：
   1. tune 诊断
   2. apply-tune（Pass 衰减 / seasonXpOnSettle）
-  3. apply-wallet（A 底奖补金币周净流）
-  4. sync 镜像
-  5. balance --profile casual --fail 验收
+  3. apply-wallet（A 底奖，仅金币不足时抬）
+  4. apply-coins（p75 软顶/奖励 + A/B 底奖，金币偏高时降压）
+  5. apply-gem（C 入场钻）
+  6. apply-voucher（周任务券 + 专场券耗）
+  7. sync 镜像
+  8. balance --profile casual --fail 验收
 
 选项：
   --config <json>       画像与锚点（默认 economy-tune.example.json）
   --write / --dry-run   是否写入配表（默认 dry-run）
   --skip-pass           跳过 apply-tune
   --skip-wallet         跳过 apply-wallet
+  --skip-coins          跳过 apply-coins（金币降压）
+  --skip-gem            跳过 apply-gem
+  --skip-voucher        跳过 apply-voucher
   --apply-profile casual  同步画像到 PROFILES.casual（默认 casual）
 `);
 }
@@ -127,6 +139,21 @@ function main() {
     run("economy-apply-wallet.mjs", walletArgs, { allowFail: true });
   }
 
+  if (!cli.skipCoins) {
+    const coinsArgs = [...tuneArgs, ...(cli.write ? ["--write"] : [])];
+    run("economy-apply-coins.mjs", coinsArgs, { allowFail: true });
+  }
+
+  if (!cli.skipGem) {
+    const gemArgs = [...tuneArgs, ...(cli.write ? ["--write"] : [])];
+    run("economy-apply-gem.mjs", gemArgs, { allowFail: true });
+  }
+
+  if (!cli.skipVoucher) {
+    const voucherArgs = [...tuneArgs, ...(cli.write ? ["--write"] : [])];
+    run("economy-apply-voucher.mjs", voucherArgs, { allowFail: true });
+  }
+
   if (cli.write) {
     run("economy-sync.mjs", []);
   }
@@ -147,7 +174,7 @@ function main() {
     printSnapshot(after);
 
     if (!allHealthOk(after.health)) {
-      console.error("\n验收未通过：部分 health 非 ok。请查看上方 tune 复核或手调钻/券。");
+      console.error("\n验收未通过：部分 health 非 ok。请查看上方 tune 复核或手调剩余旋钮。");
       process.exit(1);
     }
     console.log("\n✓ 四维 health 均为 ok");
@@ -155,7 +182,7 @@ function main() {
   } else {
     console.log("\n以上为 dry-run 计划。确认后加 --write 执行写表 + sync + 验收。");
     console.log(
-      "将执行: apply-tune → apply-wallet → sync → balance --fail（以 PROFILES." +
+      "将执行: apply-tune → apply-wallet → apply-coins → apply-gem → apply-voucher → sync → balance --fail（以 PROFILES." +
         verifyProfile +
         " 验收）"
     );

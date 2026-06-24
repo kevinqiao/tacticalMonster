@@ -196,6 +196,8 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
+    asyncMatchFinalizeScheduledId: v.optional(v.id("_scheduled_functions")),
+    asyncMatchFinalizeDueAt: v.optional(v.number()),
   }).index("by_tournament", ["tournamentId"]),
 
   /** 每局游戏一行：loadGame / ingest 主键；seed 快照在此表 */
@@ -243,6 +245,8 @@ export default defineSchema({
     /** 真人交分快照：历史/榜复盘不依赖游戏服库 */
     watchReplaySeedId: v.optional(v.string()),
     watchReplayStepsJson: v.optional(v.string()),
+    openSettleCheckScheduledId: v.optional(v.id("_scheduled_functions")),
+    openSettleCheckDueAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

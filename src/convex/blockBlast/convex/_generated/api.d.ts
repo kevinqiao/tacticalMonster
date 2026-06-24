@@ -14,6 +14,7 @@ import type * as service_BlockBlastGameEngine from "../service/BlockBlastGameEng
 import type * as service_BlockBlastRuleManager from "../service/BlockBlastRuleManager.js";
 import type * as service_blockBlastScoreModel from "../service/blockBlastScoreModel.js";
 import type * as service_blockBlastShapeCatalog from "../service/blockBlastShapeCatalog.js";
+import type * as service_blockBlastWatchReplayPayload from "../service/blockBlastWatchReplayPayload.js";
 import type * as service_casualBotFill_botDifficulty from "../service/casualBotFill/botDifficulty.js";
 import type * as service_casualBotFill_botDifficultyConfig from "../service/casualBotFill/botDifficultyConfig.js";
 import type * as service_casualBotFill_botRevealSchedule from "../service/casualBotFill/botRevealSchedule.js";
@@ -76,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   "service/BlockBlastRuleManager": typeof service_BlockBlastRuleManager;
   "service/blockBlastScoreModel": typeof service_blockBlastScoreModel;
   "service/blockBlastShapeCatalog": typeof service_blockBlastShapeCatalog;
+  "service/blockBlastWatchReplayPayload": typeof service_blockBlastWatchReplayPayload;
   "service/casualBotFill/botDifficulty": typeof service_casualBotFill_botDifficulty;
   "service/casualBotFill/botDifficultyConfig": typeof service_casualBotFill_botDifficultyConfig;
   "service/casualBotFill/botRevealSchedule": typeof service_casualBotFill_botRevealSchedule;

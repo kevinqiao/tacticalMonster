@@ -28,7 +28,11 @@ import {
   isCasualAsyncVirtualOpponentUid,
 } from "../settle/casualRunSettlementFill";
 import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes";
-import { botFinalizeDelayMs } from "../settle/async/casualAsyncBotDueTime";
+import { asyncMatchFinalizeDelayMs } from "../settle/async/casualAsyncBotDueTime";
+import {
+  clearAsyncMatchFinalizeSchedule,
+  scheduleAsyncMatchFinalizeIfNeeded,
+} from "../settle/casualAsyncMatchFinalizeSchedule";
 import {
   allHumansConfirmed,
   allHumansSubmitted,
@@ -216,6 +220,7 @@ export async function finalizeCasualAsyncMatchIngest(
       completed: true,
       updatedAt: now,
     });
+    await clearAsyncMatchFinalizeSchedule(ctx, matchDoc._id, now);
   } else {
     await assignMatchRanksByScoreDesc(ctx, {
       matchId: pm.matchId,
@@ -382,6 +387,7 @@ export type TryFinalizeCasualAsyncMatchResult = {
   finalized: boolean;
   promotedOnly: boolean;
   scheduled?: boolean;
+  scheduleSkippedDuplicate?: boolean;
   fin?: Awaited<ReturnType<typeof finalizeCasualAsyncMatchIngest>>;
 };
 
@@ -431,14 +437,26 @@ export async function tryFinalizeCasualAsyncMatch(
       .query("casual_run_player_games")
       .withIndex("by_matchId", (q) => q.eq("matchId", matchId))
       .collect();
-    const interval = botFinalizeDelayMs(botGames, now);
+    const interval = asyncMatchFinalizeDelayMs({
+      humanRows: humanPms,
+      botRows: botGames,
+      now,
+    });
     if (interval > 0) {
-      await ctx.scheduler.runAfter(
-        interval,
-        internal.service.tournament.settle.casualRunMatchFinalize.runScheduledCasualAsyncMatchFinalize,
-        { matchId }
-      );
-      return { finalized: false, promotedOnly: false, scheduled: true };
+      const matchFresh = (await ctx.db.get(matchDoc._id)) ?? matchDoc;
+      const scheduleResult = await scheduleAsyncMatchFinalizeIfNeeded(ctx, {
+        matchDoc: matchFresh,
+        matchId,
+        humanRows: humanPms,
+        botRows: botGames,
+        now,
+      });
+      return {
+        finalized: false,
+        promotedOnly: false,
+        scheduled: scheduleResult.scheduled,
+        scheduleSkippedDuplicate: scheduleResult.skippedDuplicate,
+      };
     }
   }
 

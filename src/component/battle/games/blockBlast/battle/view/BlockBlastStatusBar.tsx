@@ -3,7 +3,7 @@
  */
 import type { User } from 'host/service/UserManager';
 import { useUserManager } from 'host/service/UserManager';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { BlockBlastGameState } from '../types/BlockBlastTypes';
 import { useBlockBlastGameManager } from '../service/GameManager';
 
@@ -61,6 +61,8 @@ export interface BlockBlastStatusBarProps {
     endGameDisabled?: boolean;
     /** 休闲 run 倒计时；复盘模式不传 */
     dueTime?: number;
+    /** 倒计时归零时触发强制结束（与 GameManager 定时器互为兜底） */
+    onMatchTimeout?: () => void;
     /** P75 挑战：本局 seed 分位目标分 */
     targetScore?: number;
 }
@@ -71,6 +73,7 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
     onEndGame,
     endGameDisabled,
     dueTime,
+    onMatchTimeout,
     targetScore,
 }) => {
     const { user } = useUserManager();
@@ -88,18 +91,25 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
     const playerLabel = useMemo(() => displayNameFromUser(user as User | null), [user]);
 
     const [remainingSec, setRemainingSec] = useState<number | null>(null);
+    const matchTimeoutFiredRef = useRef(false);
     useEffect(() => {
+        matchTimeoutFiredRef.current = false;
         if (dueTime == null || !Number.isFinite(dueTime)) {
             setRemainingSec(null);
             return;
         }
         const tick = () => {
-            setRemainingSec(Math.max(0, (dueTime - Date.now()) / 1000));
+            const sec = Math.max(0, (dueTime - Date.now()) / 1000);
+            setRemainingSec(sec);
+            if (sec <= 0 && onMatchTimeout && !matchTimeoutFiredRef.current) {
+                matchTimeoutFiredRef.current = true;
+                onMatchTimeout();
+            }
         };
         tick();
         const id = window.setInterval(tick, 1000);
         return () => window.clearInterval(id);
-    }, [dueTime]);
+    }, [dueTime, onMatchTimeout]);
 
     const timerText =
         remainingSec != null ? formatMatchRemainingSec(remainingSec) : null;

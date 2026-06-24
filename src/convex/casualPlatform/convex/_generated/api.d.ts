@@ -45,6 +45,7 @@ import type * as service_botFill_gameTypeConfig from "../service/botFill/gameTyp
 import type * as service_botFill_rankSampling from "../service/botFill/rankSampling.js";
 import type * as service_botFill_rolloutPick from "../service/botFill/rolloutPick.js";
 import type * as service_botFill_seedRolloutBridge from "../service/botFill/seedRolloutBridge.js";
+import type * as service_botFill_soloRankBand from "../service/botFill/soloRankBand.js";
 import type * as service_botFill_soloRankRecommend from "../service/botFill/soloRankRecommend.js";
 import type * as service_botFill_triathlonBotFill from "../service/botFill/triathlonBotFill.js";
 import type * as service_bridge_casualGameBridgeContract from "../service/bridge/casualGameBridgeContract.js";
@@ -91,6 +92,9 @@ import type * as service_tournament_settle_async_casualAsyncBotPersist from "../
 import type * as service_tournament_settle_async_casualAsyncBotReveal from "../service/tournament/settle/async/casualAsyncBotReveal.js";
 import type * as service_tournament_settle_async_casualAsyncTableSummary from "../service/tournament/settle/async/casualAsyncTableSummary.js";
 import type * as service_tournament_settle_async_casualAsyncTypes from "../service/tournament/settle/async/casualAsyncTypes.js";
+import type * as service_tournament_settle_casualAsyncMatchFinalizeSchedule from "../service/tournament/settle/casualAsyncMatchFinalizeSchedule.js";
+import type * as service_tournament_settle_casualOpenRunSettleCheck from "../service/tournament/settle/casualOpenRunSettleCheck.js";
+import type * as service_tournament_settle_casualOpenRunSettleCheckAction from "../service/tournament/settle/casualOpenRunSettleCheckAction.js";
 import type * as service_tournament_settle_casualRunExpireCron from "../service/tournament/settle/casualRunExpireCron.js";
 import type * as service_tournament_settle_casualRunMatchFinalize from "../service/tournament/settle/casualRunMatchFinalize.js";
 import type * as service_tournament_settle_casualRunRewardsMutations from "../service/tournament/settle/casualRunRewardsMutations.js";
@@ -183,6 +187,7 @@ declare const fullApi: ApiFromModules<{
   "service/botFill/rankSampling": typeof service_botFill_rankSampling;
   "service/botFill/rolloutPick": typeof service_botFill_rolloutPick;
   "service/botFill/seedRolloutBridge": typeof service_botFill_seedRolloutBridge;
+  "service/botFill/soloRankBand": typeof service_botFill_soloRankBand;
   "service/botFill/soloRankRecommend": typeof service_botFill_soloRankRecommend;
   "service/botFill/triathlonBotFill": typeof service_botFill_triathlonBotFill;
   "service/bridge/casualGameBridgeContract": typeof service_bridge_casualGameBridgeContract;
@@ -229,6 +234,9 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/settle/async/casualAsyncBotReveal": typeof service_tournament_settle_async_casualAsyncBotReveal;
   "service/tournament/settle/async/casualAsyncTableSummary": typeof service_tournament_settle_async_casualAsyncTableSummary;
   "service/tournament/settle/async/casualAsyncTypes": typeof service_tournament_settle_async_casualAsyncTypes;
+  "service/tournament/settle/casualAsyncMatchFinalizeSchedule": typeof service_tournament_settle_casualAsyncMatchFinalizeSchedule;
+  "service/tournament/settle/casualOpenRunSettleCheck": typeof service_tournament_settle_casualOpenRunSettleCheck;
+  "service/tournament/settle/casualOpenRunSettleCheckAction": typeof service_tournament_settle_casualOpenRunSettleCheckAction;
   "service/tournament/settle/casualRunExpireCron": typeof service_tournament_settle_casualRunExpireCron;
   "service/tournament/settle/casualRunMatchFinalize": typeof service_tournament_settle_casualRunMatchFinalize;
   "service/tournament/settle/casualRunRewardsMutations": typeof service_tournament_settle_casualRunRewardsMutations;

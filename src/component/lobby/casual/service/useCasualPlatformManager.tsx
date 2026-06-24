@@ -489,6 +489,75 @@ function enqueueCasualAuthenticate(run: () => Promise<void>): Promise<void> {
   return next;
 }
 
+/** 避免每个 `useCasualPlatform()` 实例各打一次 authenticate */
+let lastAutoAuthKey = "";
+let authFailedKey = "";
+let authReauthPromptedKey = "";
+
+async function executeCasualAuthenticate(
+  uid: string,
+  token: string,
+  opts?: { force?: boolean; onAuthFailed?: () => void }
+): Promise<void> {
+  const key = `${uid}:${token}`;
+  if (!opts?.force && authFailedKey === key) return;
+
+  const http = getCasualHttpClient();
+  if (!http) return;
+
+  await enqueueCasualAuthenticate(async () => {
+    try {
+      const result = await http.action(casualPlatformApi.service.auth.casualAuth.authenticate, {
+        uid,
+        token,
+      });
+      if (result && typeof result === "object" && "uid" in result) {
+        authFailedKey = "";
+        patchData({ casualPlayer: casualPlayerSummaryFromAuth(result) });
+      } else {
+        authFailedKey = key;
+        patchData({ casualPlayer: null });
+        opts?.onAuthFailed?.();
+      }
+    } catch (e) {
+      console.error("[CasualPlatform] authenticate", e);
+      authFailedKey = key;
+      patchData({ casualPlayer: null });
+      opts?.onAuthFailed?.();
+    }
+  });
+}
+
+function syncCasualAuth(
+  uid: string | undefined,
+  token: string | undefined,
+  onAuthFailed?: () => void
+) {
+  if (!uid || !token) {
+    lastAutoAuthKey = "";
+    authFailedKey = "";
+    authReauthPromptedKey = "";
+    patchData({ casualPlayer: null });
+    return;
+  }
+  const key = `${uid}:${token}`;
+  if (lastAutoAuthKey !== key) {
+    authFailedKey = "";
+    authReauthPromptedKey = "";
+  }
+  if (authFailedKey === key) return;
+  if (lastAutoAuthKey === key) return;
+
+  lastAutoAuthKey = key;
+  void executeCasualAuthenticate(uid, token, {
+    onAuthFailed: () => {
+      if (authReauthPromptedKey === key) return;
+      authReauthPromptedKey = key;
+      onAuthFailed?.();
+    },
+  });
+}
+
 function getDataSnapshot(): CasualDataSnapshot {
   return dataSnapshot;
 }
@@ -684,7 +753,7 @@ function syncLive(uid: string | undefined) {
  * 单例 Convex + 集中订阅；任何页面调用 `useCasualPlatform()` 即可（无需 Provider）。
  */
 export function useCasualPlatform(): CasualPlatformValue {
-  const { user } = useUserManager();
+  const { user, askAuth } = useUserManager();
   const uid = user?.uid;
   const token = user?.token;
 
@@ -692,31 +761,26 @@ export function useCasualPlatform(): CasualPlatformValue {
     syncLive(uid);
   }, [uid]);
 
+  const onAuthFailed = useCallback(() => {
+    askAuth({});
+  }, [askAuth]);
+
+  useEffect(() => {
+    syncCasualAuth(uid, token, onAuthFailed);
+  }, [uid, token, onAuthFailed]);
+
   const snap = useSyncExternalStore(subscribeStore, getDataSnapshot, getServerDataSnapshot);
 
   const refreshCasualPlayer = useCallback(async () => {
-    const http = getCasualHttpClient();
-    if (!http || !user?.uid || !user?.token) {
+    if (!user?.uid || !user?.token) {
       patchData({ casualPlayer: null });
       return;
     }
-    await enqueueCasualAuthenticate(async () => {
-      try {
-        const result = await http.action(casualPlatformApi.service.auth.casualAuth.authenticate, {
-          uid: user.uid,
-          token: user.token,
-        });
-        patchData({ casualPlayer: casualPlayerSummaryFromAuth(result) });
-      } catch (e) {
-        console.error("[CasualPlatform] authenticate", e);
-        patchData({ casualPlayer: null });
-      }
+    await executeCasualAuthenticate(user.uid, user.token, {
+      force: true,
+      onAuthFailed,
     });
-  }, [user?.uid, user?.token]);
-
-  useEffect(() => {
-    void refreshCasualPlayer();
-  }, [refreshCasualPlayer]);
+  }, [user?.uid, user?.token, onAuthFailed]);
 
   const refreshPassProgress = useCallback(async () => {
     const http = getCasualHttpClient();

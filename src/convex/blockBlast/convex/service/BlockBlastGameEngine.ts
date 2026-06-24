@@ -19,6 +19,9 @@ import {
     placeShapeOnGrid,
 } from '../utils/gameRules';
 import { pickWeightedShapeTemplate } from './blockBlastShapeCatalog';
+import {
+    computeBlockBlastStepScoreFromClear,
+} from './blockBlastScoreModel';
 
 export { SHAPE_TEMPLATES } from './blockBlastShapeCatalog';
 
@@ -232,6 +235,9 @@ export class BlockBlastGameEngine {
 
         let score = game.score;
         let lines = game.lines;
+        const gridSize =
+            game.gridSize ??
+            normalizeBlockBlastGridSize(game.grid.length || BLOCK_BLAST_DEFAULT_GRID_SIZE);
         const { rows, cols } = checkLines(grid);
         const clearedRows = [...rows];
         const clearedCols = [...cols];
@@ -239,7 +245,7 @@ export class BlockBlastGameEngine {
         if (clearedCount > 0) {
             clearLines(grid, clearedRows, clearedCols);
             lines += clearedCount;
-            score += clearedCount * 10;
+            score += computeBlockBlastStepScoreFromClear(clearedRows, clearedCols, gridSize);
         }
 
         let status = game.status;

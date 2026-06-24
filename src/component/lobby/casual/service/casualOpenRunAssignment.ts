@@ -35,6 +35,8 @@ export interface OpenCasualRunAssignment {
   matchId: string;
   runTournamentId: string;
   createdAt: number;
+  /** epoch ms；Portal `listOpenCasualRunAssignments` 返回，用于超时自动结算 */
+  dueAt?: number;
 }
 
 export function isTriathlonAssignment(a: OpenCasualRunAssignment): boolean {
@@ -141,6 +143,7 @@ export function modalDataForOpenAssignment(a: OpenCasualRunAssignment): Record<s
   return {
     casualTournamentId: a.templateId,
     casualMatchGameId: a.gameId,
+    casualSessionKey: `${a.gameId}:${Date.now()}`,
   };
 }
 

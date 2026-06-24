@@ -359,7 +359,6 @@ const GamePlayer: React.FC = () => {
         replayBusy={yatz.casualReplayBusy}
         onReplay={() => void yatz.replayCasualRun()}
         replayLabel="再战"
-        onWatchRow={yatz.openWatch}
       />
       <YatzWatchOverlay
         open={yatz.watchTarget != null}

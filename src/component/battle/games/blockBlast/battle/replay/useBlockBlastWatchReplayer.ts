@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 
 import type { BlockBlastRolloutScript } from '@/convex/blockBlast/convex/service/seedPool/blockBlastRecordedOpTypes';
+import { computeBlockBlastStepScoreFromClear } from '@/convex/blockBlast/convex/service/blockBlastScoreModel';
 
 import { PlayEffects } from '../animation/PlayEffects';
 import type { GameStateCommitPatch, GridCellRefs } from '../service/GameManager';
 import {
     BlockBlastGameStatus,
     GameInteractionPhase,
+    inferGridSizeFromGrid,
     type BlockBlastGameState,
 } from '../types/BlockBlastTypes';
 import {
@@ -15,9 +17,6 @@ import {
     createRolloutReplayState,
     pacingMsForRolloutStep,
 } from './blockBlastRolloutReplay';
-
-/** 消除一行/一列的得分（与 BlockBlastGameEngine 内一致） */
-const LINE_SCORE = 10;
 
 /** 落子后稍停，便于看到「放下」再播消除 */
 const PLACE_DWELL_MS = 120;
@@ -166,11 +165,17 @@ export function useBlockBlastWatchReplayer({
         setPhaseRef.current(GameInteractionPhase.animating);
 
         if (lineCount > 0 && applied.throughGrid) {
+            const gridSize = next.gridSize ?? inferGridSizeFromGrid(next.grid);
+            const stepScore = computeBlockBlastStepScoreFromClear(
+                cleared!.rows,
+                cleared!.cols,
+                gridSize
+            );
             // 与 live play 一致：先展示落子后、尚未消除的盘面，再播消行动画
             commitRef.current({
                 grid: applied.throughGrid,
                 ...shapeMeta,
-                score: next.score - lineCount * LINE_SCORE,
+                score: next.score - stepScore,
                 lines: next.lines - lineCount,
             });
             await dwellMs(PLACE_DWELL_MS, playbackSpeed);

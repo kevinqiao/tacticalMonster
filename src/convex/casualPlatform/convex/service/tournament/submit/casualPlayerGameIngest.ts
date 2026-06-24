@@ -12,6 +12,7 @@ import {
   type PlayerGameRow,
   type PlayerMatchRow,
 } from "../shared/casualPlayerGameTypes";
+import { scheduleOpenRunSettleCheckForPlayerGame } from "../settle/casualOpenRunSettleCheck";
 
 export type ResolvedPlayerGameContext = {
   pg: PlayerGameRow;
@@ -75,6 +76,13 @@ export async function unlockNextPlayerGame(
   await ctx.db.patch(args.pm._id, {
     gameId: next.gameId,
     updatedAt: args.now,
+  });
+  await scheduleOpenRunSettleCheckForPlayerGame(ctx, {
+    playerGameId: next._id,
+    gameId: next.gameId,
+    uid: next.uid,
+    gameType: next.gameType,
+    createdAt: args.now,
   });
   return (await ctx.db.get(next._id)) ?? next;
 }

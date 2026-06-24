@@ -1,0 +1,14 @@
+{
+  "deckId": "deck_starter_sim",
+  "name": "S1 Sim Starter",
+  "cardIds": [
+    "s1_strike_1",
+    "s1_strike_1",
+    "s1_strike_2",
+    "s1_flame_imp_1",
+    "s1_flame_imp_1",
+    "s1_guard_2",
+    "s1_bolt_3",
+    "s1_soldier_2"
+  ]
+}

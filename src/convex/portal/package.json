@@ -1,0 +1,17 @@
+{
+  "name": "portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Convex backend for portal ranked play (solo P75 + multi 5-player)",
+  "scripts": {
+    "dev": "convex dev",
+    "test": "echo \"No tests\" && exit 0"
+  },
+  "dependencies": {
+    "convex": "^1.24.8",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "bossId": "boss_01",
+  "name": "Ice Golem",
+  "hp": 35,
+  "turnScript": [
+    { "op": "deal_damage_hero", "amount": 3 },
+    { "op": "deal_damage_hero", "amount": 4 },
+    { "op": "gain_armor", "amount": 4 },
+    { "op": "deal_damage_hero", "amount": 5 },
+    { "op": "deal_damage_hero", "amount": 3 }
+  ]
+}

@@ -5,9 +5,14 @@ import jwt from "jsonwebtoken";
 
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
-import { resolveCasualBridgeEnv } from "../service/casualBridgeEnv";
+import {
+  casualBridgeRequestHeaders,
+  resolveCasualBridgeEnv,
+  type PlatformBridge,
+} from "../service/casualBridgeEnv";
 import { postCasualRunIngest } from "../service/casualBridgeIngest";
 import { buildCasualV2IngestPayload } from "../service/casualBotFill/computeBotFills";
+import { buildBlockBlastWatchReplayPayload } from "../service/blockBlastWatchReplayPayload";
 import {
   parseCasualRunGameId,
   resolveCasualIngestScoreFromRow,
@@ -165,24 +170,33 @@ type CasualFindMatchResult = {
     seed?: string;
     gridSize?: number;
     seedScoreThreshold?: number;
+    replayEpoch?: number;
   };
   error?: string;
 };
 
+function shouldRebuildCasualArenaGame(
+  existing: { status: number; replayEpoch?: number },
+  match: { replayEpoch?: number } | undefined
+): boolean {
+  if (!match) return false;
+  const platformEpoch = match.replayEpoch ?? 0;
+  const storedEpoch = existing.replayEpoch ?? 0;
+  if (platformEpoch !== storedEpoch) return true;
+  return isTerminalBlockBlast(Number(existing.status));
+}
+
 async function fetchCasualMatchByGame(
   gameId: string,
-  options?: { skipRecordSeed?: boolean }
+  options?: { skipRecordSeed?: boolean; platformBridge?: PlatformBridge }
 ): Promise<CasualFindMatchResult> {
-  const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
-  const matchURL = `${casualOrigin}/internal/find-match-by-game`;
+  const bridgeEnv = resolveCasualBridgeEnv(options?.platformBridge ?? "casual");
+  const matchURL = `${bridgeEnv.origin}/internal/find-match-by-game`;
   let response: Response;
   try {
     response = await fetch(matchURL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Casual-Bridge-Secret": bridge,
-      },
+      headers: casualBridgeRequestHeaders(bridgeEnv),
       body: JSON.stringify({
         gameId,
         ...(options?.skipRecordSeed ? { skipRecordSeed: true } : {}),
@@ -206,12 +220,49 @@ export const loadGame = action({
   args: {
     gameId: v.string(),
     resetCasualRun: v.optional(v.literal(true)),
+    platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
   },
-  handler: async (ctx, { gameId, resetCasualRun }): Promise<any> => {
+  handler: async (ctx, { gameId, resetCasualRun, platformBridge }): Promise<any> => {
+    const bridge = platformBridge ?? "casual";
     const res: { ok: boolean; game?: any; events?: any; error?: string; seedScoreThreshold?: number } = { ok: false };
-    if (resetCasualRun === true && gameId.startsWith("game_")) {
-      await ctx.runMutation(internal.service.gameManager.deleteCasualGameForReplay, { gameId });
-    } else {
+
+    let recreate = resetCasualRun === true;
+    if (!recreate && gameId.startsWith("game_")) {
+      let existing = await ctx.runMutation(internal.service.gameManager.loadGameRowAfterHeal, {
+        gameId,
+      });
+      if (existing) {
+        const meta = await fetchCasualMatchByGame(gameId, {
+          skipRecordSeed: true,
+          platformBridge: bridge,
+        });
+        if (!meta.ok) {
+          return { ok: false, error: meta.error ?? "casual_find_failed" };
+        }
+        if (shouldRebuildCasualArenaGame(existing, meta.match)) {
+          recreate = true;
+        } else {
+          if (existing.dueTime == null) {
+            await ctx.runMutation(internal.service.gameManager.ensureCasualTimeoutScheduled, {
+              gameId,
+            });
+            const healed = await ctx.runMutation(internal.service.gameManager.loadGameRowAfterHeal, {
+              gameId,
+            });
+            if (healed) {
+              existing = healed;
+            }
+          }
+          res.ok = true;
+          res.game = existing;
+          const threshold = meta.match?.seedScoreThreshold;
+          if (typeof threshold === "number" && Number.isFinite(threshold)) {
+            res.seedScoreThreshold = threshold;
+          }
+          return res;
+        }
+      }
+    } else if (!recreate) {
       const existing = await ctx.runMutation(internal.service.gameManager.loadGameRowAfterHeal, {
         gameId,
       });
@@ -219,7 +270,10 @@ export const loadGame = action({
         res.ok = true;
         res.game = existing;
         if (gameId.startsWith("game_")) {
-          const meta = await fetchCasualMatchByGame(gameId, { skipRecordSeed: true });
+          const meta = await fetchCasualMatchByGame(gameId, {
+            skipRecordSeed: true,
+            platformBridge: bridge,
+          });
           const threshold = meta.match?.seedScoreThreshold;
           if (typeof threshold === "number" && Number.isFinite(threshold)) {
             res.seedScoreThreshold = threshold;
@@ -229,11 +283,20 @@ export const loadGame = action({
       }
     }
 
-    const createArgs: { seed?: string; gameId: string; gridSize?: number } = { gameId };
+    if (recreate && gameId.startsWith("game_")) {
+      await ctx.runMutation(internal.service.gameManager.deleteCasualGameForReplay, { gameId });
+    }
+
+    const createArgs: {
+      seed?: string;
+      gameId: string;
+      gridSize?: number;
+      replayEpoch?: number;
+    } = { gameId };
     let seedScoreThreshold: number | undefined;
 
     if (gameId.startsWith("game_")) {
-      const matchGameResult = await fetchCasualMatchByGame(gameId);
+      const matchGameResult = await fetchCasualMatchByGame(gameId, { platformBridge: bridge });
       if (!matchGameResult.ok || !matchGameResult.match) {
         return {
           ok: false,
@@ -251,6 +314,9 @@ export const loadGame = action({
       }
       if (typeof data?.seedScoreThreshold === "number" && Number.isFinite(data.seedScoreThreshold)) {
         seedScoreThreshold = data.seedScoreThreshold;
+      }
+      if (typeof data?.replayEpoch === "number" && Number.isFinite(data.replayEpoch)) {
+        createArgs.replayEpoch = data.replayEpoch;
       }
     } else {
       const matchURL = `${tournament_url}/findMatchGame`;
@@ -307,8 +373,12 @@ export const submitScore = action({
 });
 
 export const submitCasualPlatformRun = action({
-  args: { token: v.string(), gameId: v.string() },
-  handler: async (ctx, { token, gameId }) => {
+  args: {
+    token: v.string(),
+    gameId: v.string(),
+    platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
+  },
+  handler: async (ctx, { token, gameId, platformBridge }) => {
     if (!gameId.startsWith("game_")) {
       return { ok: false as const, error: "not_casual_run_game_id" };
     }
@@ -344,12 +414,28 @@ export const submitCasualPlatformRun = action({
       game as { score?: number; lines?: number; moves?: number }
     );
 
-    const built = await buildCasualV2IngestPayload({ ctx, uid, matchGameId: gameId, score });
+    const bridge = platformBridge ?? "casual";
+
+    const built = await buildCasualV2IngestPayload({
+      ctx,
+      uid,
+      matchGameId: gameId,
+      score,
+      platformBridge: bridge,
+    });
     if (!built.ok) {
       return { ok: false as const, error: built.error };
     }
 
-    const ingest = await postCasualRunIngest(built.payload);
+    const watchReplay = buildBlockBlastWatchReplayPayload(
+      game as { seed?: string; gameId: string; recordedOps?: unknown[] }
+    );
+
+    const ingest = await postCasualRunIngest({
+      ...built.payload,
+      platformBridge: bridge,
+      ...(watchReplay ? { watchReplay } : {}),
+    });
     if (!ingest.ok) {
       return { ok: false as const, error: ingest.error };
     }
@@ -372,8 +458,12 @@ export const submitCasualPlatformRun = action({
  * 玩家强行结束或客户端超时：取消 scheduler、终局写 game 表、ingest casual。
  */
 export const forceEndCasualPlatformRun = action({
-  args: { token: v.string(), gameId: v.string() },
-  handler: async (ctx, { token, gameId }) => {
+  args: {
+    token: v.string(),
+    gameId: v.string(),
+    platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
+  },
+  handler: async (ctx, { token, gameId, platformBridge }) => {
     if (!gameId.startsWith("game_")) {
       return { ok: false as const, error: "not_casual_run_game_id" };
     }
@@ -409,33 +499,33 @@ export const forceEndCasualPlatformRun = action({
       return { ok: false as const, error: err };
     }
 
-    const built = await buildCasualV2IngestPayload({
-      ctx,
+    const bridge = platformBridge ?? "casual";
+
+    // Portal ingest resolves submit context itself; skip resolve HTTP to cut forceEnd latency.
+    const ingest = await postCasualRunIngest({
       uid: settled.uid,
       matchGameId: settled.gameId,
       score: settled.score,
+      platformBridge: bridge,
     });
-    if (!built.ok) {
-      return { ok: false as const, error: built.error };
-    }
-
-    const ingest = await postCasualRunIngest(built.payload);
     if (!ingest.ok) {
+      console.warn("[blockBlast] forceEndCasualPlatformRun ingest failed", gameId, ingest.error);
       return { ok: false as const, error: ingest.error };
     }
 
     console.log("[blockBlast] forceEndCasualPlatformRun", { gameId, deduped: ingest.parsed.deduped });
-    return mapCasualIngestClientResponse(ingest.parsed, {
-      seedScoreThreshold: built.payload.seedScoreThreshold,
-      score: built.payload.score,
-    });
+    return mapCasualIngestClientResponse(ingest.parsed, { score: settled.score });
   },
 });
 
 export const replayCasualRun = action({
-  args: { token: v.string(), gameId: v.string() },
-  handler: async (ctx, { token, gameId }) => {
-    const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
+  args: {
+    token: v.string(),
+    gameId: v.string(),
+    platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
+  },
+  handler: async (ctx, { token, gameId, platformBridge }) => {
+    const bridgeEnv = resolveCasualBridgeEnv(platformBridge ?? "casual");
 
     if (!gameId.startsWith("game_")) {
       return { ok: false as const, error: "not_casual_run_game_id" };
@@ -452,15 +542,12 @@ export const replayCasualRun = action({
       return { ok: false as const, error: "verify_failed" };
     }
 
-    const url = `${casualOrigin}/internal/casual-replay-authorize`;
+    const url = `${bridgeEnv.origin}/internal/casual-replay-authorize`;
     let res: Response;
     try {
       res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Casual-Bridge-Secret": bridge,
-        },
+        headers: casualBridgeRequestHeaders(bridgeEnv),
         body: JSON.stringify({ uid, matchGameId: gameId }),
       });
     } catch (e) {

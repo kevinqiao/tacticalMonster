@@ -44,7 +44,7 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     tier: "daily",
     objectiveKind: "login_daily",
     missionPool: "platform",
-    rewardCoins: 15,
+    rewardCoins: 30,
     rewardSeasonXp: 8,
   },
   {
@@ -81,7 +81,7 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     tier: "weekly",
     objectiveKind: "submit_any_score",
     missionPool: "platform",
-    rewardVouchers: 4,
+    rewardVouchers: 1,
     rewardSeasonXp: 70,
   },
   {

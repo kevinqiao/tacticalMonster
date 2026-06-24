@@ -30,7 +30,7 @@ describe("computeCasualAsyncTableBoardStable", () => {
   const now = 10_000;
   const botUid = `${CASUAL_ASYNC_VIRTUAL_BOT_UID_SOLITAIRE}match_1:r1`;
 
-  it("true when allHumansSettled", () => {
+  it("false when only human settled and bots not yet revealed", () => {
     expect(
       computeCasualAsyncTableBoardStable({
         rows: [row({ uid: "u1", status: "settled", score: 50 })],
@@ -39,7 +39,7 @@ describe("computeCasualAsyncTableBoardStable", () => {
         now,
         allHumansSettled: true,
       })
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("false when human still finished (再战窗口)", () => {

@@ -1,8 +1,14 @@
 /**
  * Casual resolve-match-submit-context HTTP client.
  */
-import { resolveCasualBridgeEnv } from "./casualBridgeEnv";
+import {
+  casualBridgeRequestHeaders,
+  resolveCasualBridgeEnv,
+  type PlatformBridge,
+} from "./casualBridgeEnv";
 import type { ResolveSubmitContext } from "./casualBotFill/computeBotFills";
+
+const CASUAL_BRIDGE_FETCH_TIMEOUT_MS = 90_000;
 
 export type ResolveContextResult =
   | { ok: true; context: ResolveSubmitContext }
@@ -12,17 +18,16 @@ export async function fetchCasualMatchSubmitContext(args: {
   uid: string;
   matchGameId: string;
   score?: number;
+  platformBridge?: PlatformBridge;
 }): Promise<ResolveContextResult> {
-  const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
-  const url = `${casualOrigin}/internal/resolve-match-submit-context`;
+  const bridgeEnv = resolveCasualBridgeEnv(args.platformBridge ?? "casual");
+  const url = `${bridgeEnv.origin}/internal/resolve-match-submit-context`;
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Casual-Bridge-Secret": bridge,
-      },
+      headers: casualBridgeRequestHeaders(bridgeEnv),
+      signal: AbortSignal.timeout(CASUAL_BRIDGE_FETCH_TIMEOUT_MS),
       body: JSON.stringify({
         uid: args.uid,
         matchGameId: args.matchGameId,

@@ -16,6 +16,7 @@ export type CasualTriathlonHistoryReportOverlayProps = {
   dismissLabel?: string;
   onWatchRow?: CasualWatchRowHandler;
   watchButtonLabel?: string;
+  tableMetaNote?: string;
 };
 
 /** 历史页三场合战：总分榜 + 各局单局榜与回放 */
@@ -30,6 +31,7 @@ export const CasualTriathlonHistoryReportOverlay: React.FC<
   dismissLabel = '关闭',
   onWatchRow,
   watchButtonLabel = '回放',
+  tableMetaNote,
 }) => {
   const titleId = useId();
   const legs = summary?.triathlonLegs ?? [];
@@ -60,7 +62,7 @@ export const CasualTriathlonHistoryReportOverlay: React.FC<
             {showOverall && summary ? (
               <div className="msc-triathlonSection">
                 <h3 className="msc-triathlonSection__title">三局累计总分</h3>
-                <CasualTableSummaryPanel s={summary} />
+                <CasualTableSummaryPanel s={summary} metaNote={tableMetaNote} />
               </div>
             ) : null}
             {legs.map((leg) => (

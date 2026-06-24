@@ -34,6 +34,8 @@ export default defineSchema({
         dueTime: v.optional(v.number()),
         /** 休闲 run：Convex scheduler 超时任务 id */
         casualTimeoutScheduledId: v.optional(v.id("_scheduled_functions")),
+        /** 与平台 `replayEpoch` 对齐；不匹配时 loadGame 重建 */
+        replayEpoch: v.optional(v.number()),
     }).index("by_gameId", ["gameId"]),
 });
-
+

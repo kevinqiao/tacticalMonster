@@ -96,6 +96,7 @@ const componentMap: Record<string, () => Promise<any>> = {
     import('component/lobby/casual/view/leaderboards/CasualLeaderboardsTab'),
   './lobby/casual/view/battlePass/CasualBattlePassTab': () => import('component/lobby/casual/view/battlePass/CasualBattlePassTab'),
   './lobby/casual/view/town/CasualTownTab': () => import('component/lobby/casual/view/town/CasualTownTab'),
+  './lobby/portal/PortalGamePage': () => import('component/lobby/portal/PortalGamePage'),
 };
 
 // 获取缓存的组件

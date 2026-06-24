@@ -14,6 +14,7 @@ import type {
 } from "@/component/battle/games/shared/casualAsyncTableSummaryUI";
 import {
   casualTableSummaryHasReplay,
+  formatHistoryReportTableMetaNote,
   isTriathlonTableSummary,
 } from "@/component/battle/games/shared/casualAsyncTableSummaryUI";
 import "@/component/battle/games/shared/manualSettleConfirmOverlay.css";
@@ -89,6 +90,7 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimErrorId, setClaimErrorId] = useState<string | null>(null);
   const [reportSummary, setReportSummary] = useState<CasualAsyncTableSummaryUI | null>(null);
+  const [reportTableMetaNote, setReportTableMetaNote] = useState<string | undefined>();
   const [watchTarget, setWatchTarget] = useState<CasualWatchContext | null>(null);
   const [watchLabel, setWatchLabel] = useState("");
   const [watchGameType, setWatchGameType] = useState<
@@ -123,6 +125,11 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
   const openReport = useCallback((row: CasualGameHistoryRow) => {
     if (!canOpenCasualHistoryReport(row) || !row.tableSummary) return;
     setReportSummary(row.tableSummary);
+    setReportTableMetaNote(
+      formatHistoryReportTableMetaNote({
+        rank: row.rank,
+      })
+    );
     setWatchGameType(
       row.gameType === "triathlon"
         ? null
@@ -140,6 +147,7 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
 
   const closeReport = useCallback(() => {
     setReportSummary(null);
+    setReportTableMetaNote(undefined);
     setWatchTarget(null);
     setWatchLabel("");
     setWatchGameType(null);
@@ -279,6 +287,7 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
           open={reportSummary != null && watchTarget == null}
           title="对局报告"
           summary={reportSummary}
+          tableMetaNote={reportTableMetaNote}
           onDismiss={closeReport}
           dismissLabel="关闭"
           onWatchRow={openWatchFromReport}
@@ -290,6 +299,7 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
           title="对局报告"
           subtitle="以下为本桌全部玩家得分与名次。点击各行「回放」可查看该玩家本局操作。"
           summary={reportSummary}
+          tableMetaNote={reportTableMetaNote}
           onDismiss={closeReport}
           dismissLabel="关闭"
           onWatchRow={openWatchFromReport}

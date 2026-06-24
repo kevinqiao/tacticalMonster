@@ -2,7 +2,7 @@ import { usePageManager } from "host/service/PageManager";
 import React, { useCallback } from "react";
 
 import { formatResourceAmount, HeadHudResourceChip } from "../../tactical/control/head/HeadHudResourceChip";
-import { HEAD_NAV_DESKTOP_ICONS } from "../../tactical/control/head/HeadNavDesktopConfig";
+import { CASUAL_LOBBY_CURRENCY_ICONS } from "../assets/casualLobbyIcons";
 import type { CasualPlayerSummary } from "../service/useCasualPlatformManager";
 import { CASUAL_HEAD_NAV_URI } from "./HeadNavSharedCasual";
 
@@ -17,8 +17,8 @@ export const CasualHudCurrencyBars: React.FC<{ player: CasualPlayerSummary | nul
     openPage({ uri: shopUri });
   }, [openPage, shopUri]);
 
-  const coinIcon = HEAD_NAV_DESKTOP_ICONS[0] ?? "";
-  const gemIcon = HEAD_NAV_DESKTOP_ICONS[1] ?? "";
+  const coinIcon = CASUAL_LOBBY_CURRENCY_ICONS.coin;
+  const gemIcon = CASUAL_LOBBY_CURRENCY_ICONS.gem;
 
   return (
     <div className="head-nav-hud__currencies" aria-label="Currencies">

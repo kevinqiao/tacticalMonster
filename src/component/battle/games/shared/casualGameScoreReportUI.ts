@@ -1,4 +1,5 @@
 import { getTournamentDefinition } from '@/convex/casualPlatform/convex/data/casualTournamentConfigs';
+import { getPortalTournamentDefinition } from '@/convex/portal/convex/data/portalTournamentConfigs';
 import type { GameReport as BlockBlastGameReport } from '../blockBlast/battle/types/BlockBlastTypes';
 import type { GameReport as Match3GameReport } from '../match3/battle/types/Match3Types';
 import type { GameReport as SolitaireGameReport } from '../solitaireSolo/battle/types/SoloTypes';
@@ -8,7 +9,8 @@ import { isTriathlonFinalLeg } from './casualTriathlonSubmitFlow';
 /** P75 单人挑战模板：单人无同桌，结算只展示是否成功 + 目标分 + 游戏分。 */
 export function isCasualSoloP75ChallengeTemplate(templateId: string | undefined): boolean {
   if (!templateId) return false;
-  return getTournamentDefinition(templateId)?.matchType === 'solo_p75_challenge';
+  if (getTournamentDefinition(templateId)?.matchType === 'solo_p75_challenge') return true;
+  return getPortalTournamentDefinition(templateId)?.matchType === 'solo_p75';
 }
 
 export type CasualGameScoreReportLine = {
@@ -50,18 +52,9 @@ export function buildSolitaireScoreReport(report: SolitaireGameReport): CasualGa
 }
 
 export function buildBlockBlastScoreReport(report: BlockBlastGameReport): CasualGameScoreReportUI {
-  const lines: CasualGameScoreReportLine[] = [
-    { label: '基础分', value: report.baseScore },
-  ];
-  if (typeof report.linesBonus === 'number' && report.linesBonus !== 0) {
-    lines.push({ label: '消行奖励', value: report.linesBonus });
-  }
-  if (typeof report.movesPenalty === 'number' && report.movesPenalty !== 0) {
-    lines.push({ label: '步数调整', value: report.movesPenalty });
-  }
   return {
     gameLabel: 'Block Blast',
-    lines,
+    lines: [{ label: '本局得分', value: report.totalScore }],
     totalScore: report.totalScore,
   };
 }

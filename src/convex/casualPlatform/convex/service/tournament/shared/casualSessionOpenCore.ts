@@ -6,6 +6,8 @@ import {
   type CasualTournamentDefinition,
 } from "../../../data/casualTournamentConfigs";
 import type { CasualMatchSeedBinding } from "../join/casualMatchSeedBinding";
+import { scheduleOpenRunSettleCheckForPlayerGame } from "../settle/casualOpenRunSettleCheck";
+import { isCasualAsyncVirtualOpponentUid } from "../settle/async/casualAsyncTypes";
 import {
   playerGameId,
   sessionKindFromDef,
@@ -51,7 +53,7 @@ export async function insertPlayerSessionForUid(
       throw new Error(`missing_seed_binding:${gameIndex}`);
     }
     const status: CasualPlayerGameStatus = gameIndex === 0 ? "open" : "locked";
-    await ctx.db.insert("casual_run_player_games", {
+    const openGameRowId = await ctx.db.insert("casual_run_player_games", {
       playerMatchId,
       matchId,
       uid,
@@ -64,6 +66,19 @@ export async function insertPlayerSessionForUid(
       createdAt: now,
       updatedAt: now,
     });
+    if (
+      gameIndex === 0 &&
+      status === "open" &&
+      !isCasualAsyncVirtualOpponentUid(uid)
+    ) {
+      await scheduleOpenRunSettleCheckForPlayerGame(ctx, {
+        playerGameId: openGameRowId,
+        gameId: playerGameId(matchId, uid, gameIndex),
+        uid,
+        gameType,
+        createdAt: now,
+      });
+    }
   }
 
   return { playerMatchId, openGameId, openGameType: sequence[0]! };

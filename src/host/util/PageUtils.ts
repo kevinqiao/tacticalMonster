@@ -6,6 +6,11 @@ export const parseLocation = (): PageItem | undefined => {
     const page: { [k: string]: any } = {}
     page.uri = window.location.pathname;
 
+    const ps = window.location.pathname.split("/");
+    if (ps[1] === "portal" && ps[2]) {
+        page.data = { gameType: ps[2] };
+    }
+
     if (location.search) {
         const params: { [key: string]: string } = {};
         const searchParams = new URLSearchParams(window.location.search);
@@ -34,7 +39,10 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
 
         const uri = res['ctx'] === "/" ? location.pathname : location.pathname.substring(res['ctx'].length);
         // console.log(uri)
-        const navCfg: any = app.navs.find((nav: any) => uri.includes(nav.uri));
+        let navCfg: any = app.navs.find((nav: any) => uri.includes(nav.uri));
+        if (!navCfg && res["ctx"] === "portal" && app.navs.length > 0) {
+            navCfg = app.navs[0];
+        }
         // if (!navCfg) {
         //     navCfg = app.navs[0]
         // }
@@ -61,6 +69,13 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
                 }
                 navItem.data = params;
                 navItem.params = params
+            }
+            if (res["ctx"] === "portal") {
+                const gameType = ps[2]?.trim();
+                if (gameType) {
+                    navItem.data = { ...(navItem.data ?? {}), gameType };
+                    navItem.params = { ...(navItem.params ?? {}), gameType };
+                }
             }
             if (location.hash) {
                 const params: { [key: string]: string } = {};
@@ -123,11 +138,13 @@ export function normalizePageUri(uri: string): string {
 }
 
 export const findContainerByURI = (container: PageContainer, uri: string): PageContainer | null => {
-    const u = normalizePageUri(uri);
-    // 如果当前节点的 id 匹配，返回当前节点
-    if (normalizePageUri(container.uri) === u) {
-        return container;
-    }
+  const u = normalizePageUri(uri);
+  if (normalizePageUri(container.uri) === "/portal" && u.startsWith("/portal/")) {
+    return container;
+  }
+  if (normalizePageUri(container.uri) === u) {
+    return container;
+  }
 
     // 如果当前节点有子节点，递归搜索子节点
     if (container.children && Array.isArray(container.children)) {

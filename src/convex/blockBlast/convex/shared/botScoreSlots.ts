@@ -66,7 +66,7 @@ export function computeFixedTopBotScoreSlots(args: {
 }): BotScoreSlot[] {
   const { botCount, rankFloors, gameType } = args;
   const eps = scoreEpsilon(gameType);
-  const span = gameType === "block_blast" ? 5000 : 500;
+  const span = gameType === "block_blast" ? 400 : 500;
   const slots: BotScoreSlot[] = [];
   for (let r = 1; r <= botCount; r++) {
     const minS = rankFloors[r] ?? 0;
@@ -92,7 +92,7 @@ export function computeSoloBotScoreSlots(args: {
 }): BotScoreSlot[] {
   const { humanScore, effectiveRank, rankFloors, maxPlayers, gameType } = args;
   const eps = scoreEpsilon(gameType);
-  const span = gameType === "block_blast" ? 5000 : 500;
+  const span = gameType === "block_blast" ? 400 : 500;
   const slots: BotScoreSlot[] = [];
   for (let r = 1; r <= maxPlayers; r++) {
     if (r === effectiveRank) continue;

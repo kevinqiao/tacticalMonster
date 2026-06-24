@@ -90,7 +90,7 @@ async function attachCasualHistoryTableSummary(
     uid: opts.uid,
     maxPlayers: Math.max(1, def.maxPlayers),
     matchId: pm.matchId,
-    allHumansSettled: true,
+    historical: true,
   });
   if (!summary?.rows.some((r) => r.watchContext)) return undefined;
   return {

@@ -110,6 +110,64 @@ function durationMsFromRollout(
   return pickDurationFallbackMs(sessionSeed, slotIndex);
 }
 
+/** 在 slot + 单调约束内，选 finalScore 最接近 targetScore 的未用 rollout */
+function pickFallbackRolloutInSlot(
+  globalPool: RolloutPick[],
+  usedRolloutIndices: Set<number>,
+  slot: BotScoreSlot,
+  maxScoreExclusive: number | undefined,
+  targetScore: number
+): RolloutPick | undefined {
+  const available = globalPool.filter(
+    (r) =>
+      !usedRolloutIndices.has(r.rolloutIndex) &&
+      matchesSlotScore(r.finalScore, slot, maxScoreExclusive)
+  );
+  if (available.length === 0) return undefined;
+  return available.reduce((a, b) =>
+    Math.abs(a.finalScore - targetScore) <= Math.abs(b.finalScore - targetScore) ? a : b
+  );
+}
+
+/** 无 slot 匹配时：从未用 pool 中挑 finalScore 最接近 targetScore 的 rollout（仅绑 replay） */
+function pickNearestRolloutInPool(
+  globalPool: RolloutPick[],
+  usedRolloutIndices: Set<number>,
+  targetScore: number
+): RolloutPick | undefined {
+  const available = globalPool.filter((r) => !usedRolloutIndices.has(r.rolloutIndex));
+  if (available.length === 0) return undefined;
+  return available.reduce((a, b) =>
+    Math.abs(a.finalScore - targetScore) <= Math.abs(b.finalScore - targetScore) ? a : b
+  );
+}
+
+function syntheticScoreForSlot(args: {
+  slot: BotScoreSlot;
+  slotIndex: number;
+  sessionSeed: number;
+  gameType: BotFillGameType;
+  maxScoreExclusive: number | undefined;
+  usedScores: Set<number>;
+}): number {
+  const eps = scoreEpsilon(args.gameType);
+  let score = fallbackScoreForSlot(
+    args.slot,
+    args.slotIndex,
+    args.sessionSeed,
+    args.gameType
+  );
+  if (args.maxScoreExclusive != null && score >= args.maxScoreExclusive) {
+    score = args.maxScoreExclusive - eps;
+  }
+  score = clampScoreToSlot(score, args.slot, args.gameType);
+  while (args.usedScores.has(score) && score > args.slot.low) {
+    score -= eps;
+    score = clampScoreToSlot(score, args.slot, args.gameType);
+  }
+  return score;
+}
+
 export function pickScoresFromRolloutBands(args: {
   slots: BotScoreSlot[];
   bands: Array<{ min: number; max?: number; rollouts: RolloutPick[] }>;
@@ -117,7 +175,6 @@ export function pickScoresFromRolloutBands(args: {
   gameType: BotFillGameType;
   localFills?: LocalBotFillRef[];
 }): AsyncBotFillFromRollout[] {
-  const eps = scoreEpsilon(args.gameType);
   const globalPool = mergeGlobalRolloutPool(args.bands);
   const localByRank = new Map((args.localFills ?? []).map((f) => [f.rank, f] as const));
   const usedRolloutIndices = new Set<number>();
@@ -139,46 +196,64 @@ export function pickScoresFromRolloutBands(args: {
       )
       .sort((a, b) => b.finalScore - a.finalScore);
 
-    let pick: RolloutPick | undefined;
-    let local: LocalBotFillRef | undefined;
+    /** 分数与 replay 同源（slot 内 rollout 命中） */
+    let scorePick: RolloutPick | undefined;
+    /** 仅 replay：slot 无匹配时按 bot 分数就近绑 rolloutIndex */
+    let replayPick: RolloutPick | undefined;
     let score: number;
 
     if (candidates.length > 0) {
-      pick = candidates[0]!;
-      usedRolloutIndices.add(pick.rolloutIndex);
-      score = clampScoreToSlot(pick.finalScore, slot, args.gameType);
+      scorePick = candidates[0]!;
+      usedRolloutIndices.add(scorePick.rolloutIndex);
+      score = clampScoreToSlot(scorePick.finalScore, slot, args.gameType);
     } else {
-      local = localByRank.get(slot.rank);
-      if (local && matchesSlotScore(local.score, slot, maxScoreExclusive)) {
+      const local = localByRank.get(slot.rank);
+      const targetHint =
+        local?.score ??
+        fallbackScoreForSlot(slot, slot.rank + i, args.sessionSeed, args.gameType);
+      const fallbackPick = pickFallbackRolloutInSlot(
+        globalPool,
+        usedRolloutIndices,
+        slot,
+        maxScoreExclusive,
+        targetHint
+      );
+      if (fallbackPick) {
+        scorePick = fallbackPick;
+        usedRolloutIndices.add(scorePick.rolloutIndex);
+        score = clampScoreToSlot(scorePick.finalScore, slot, args.gameType);
+      } else if (local && matchesSlotScore(local.score, slot, maxScoreExclusive)) {
         score = clampScoreToSlot(local.score, slot, args.gameType);
       } else {
-        score = fallbackScoreForSlot(slot, slot.rank + i, args.sessionSeed, args.gameType);
-        if (maxScoreExclusive != null && score >= maxScoreExclusive) {
-          score = maxScoreExclusive - eps;
-        }
-        score = clampScoreToSlot(score, slot, args.gameType);
-        while (usedScores.has(score) && score > slot.low) {
-          score -= eps;
-          score = clampScoreToSlot(score, slot, args.gameType);
+        score = syntheticScoreForSlot({
+          slot,
+          slotIndex: slot.rank + i,
+          sessionSeed: args.sessionSeed,
+          gameType: args.gameType,
+          maxScoreExclusive,
+          usedScores,
+        });
+      }
+
+      if (!scorePick) {
+        replayPick = pickNearestRolloutInPool(globalPool, usedRolloutIndices, score);
+        if (replayPick) {
+          usedRolloutIndices.add(replayPick.rolloutIndex);
         }
       }
     }
 
     usedScores.add(score);
-    nextMaxScore = score - eps;
+    nextMaxScore = score - scoreEpsilon(args.gameType);
 
-    const duration =
-      pick != null
-        ? durationMsFromRollout(pick, args.sessionSeed, i)
-        : local?.duration != null && Number.isFinite(local.duration)
-          ? Math.round(local.duration)
-          : pickDurationFallbackMs(args.sessionSeed, i);
+    const rolloutForDuration = scorePick ?? replayPick;
+    const duration = durationMsFromRollout(rolloutForDuration, args.sessionSeed, i);
 
     fills.push({
       rank: slot.rank,
       score,
       duration,
-      ...(pick?.rolloutIndex != null ? { rolloutIndex: pick.rolloutIndex } : {}),
+      rolloutIndex: scorePick?.rolloutIndex ?? replayPick?.rolloutIndex ?? 0,
     });
   }
 

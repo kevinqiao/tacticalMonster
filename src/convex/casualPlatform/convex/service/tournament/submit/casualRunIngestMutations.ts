@@ -29,11 +29,12 @@ import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes"
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
 import type { Id } from "../../../_generated/dataModel";
 import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
+import { cancelOpenRunSettleCheckForGameId } from "../settle/casualOpenRunSettleCheck";
 import { serializeWatchReplaySnapshot } from "../shared/casualWatchReplaySnapshot";
 import {
-  finalizeCasualAsyncMatchIngest,
   runConfirmCasualRunWithoutReplay,
   settleSoloMaxPlayersOneCasualRun,
+  tryFinalizeCasualAsyncMatch,
 } from "./casualRunIngestCore";
 
 export const getCasualAsyncTableSummaryForGame = query({
@@ -172,6 +173,8 @@ export const submitCasualRunScoreCore = internalMutation({
       return { ok: false as const, error: "match_not_submittable" };
     }
 
+    await cancelOpenRunSettleCheckForGameId(ctx, matchGameId);
+
     const matchDoc = await ctx.db.get(pm.matchId as Id<"casual_run_matches">);
     if (!matchDoc) {
       return { ok: false as const, error: "match_not_found" };
@@ -279,16 +282,21 @@ export const submitCasualRunScoreCore = internalMutation({
       });
     }
 
-    return await finalizeCasualAsyncMatchIngest(ctx, {
-      def,
-      pm: pmAfterFinish,
-      uid,
-      now,
-      gameType,
-      humanPms,
-      matchDoc,
-      humanCountPlanned,
+    const finAttempt = await tryFinalizeCasualAsyncMatch(ctx, pm.matchId, now, {
+      viewerUid: uid,
+      skipPromote: true,
     });
+
+    if (finAttempt.finalized && finAttempt.fin) {
+      return finAttempt.fin;
+    }
+
+    return {
+      ok: true as const,
+      finalized: false as const,
+      deferredFinalize: true as const,
+      ...(finAttempt.scheduled ? { scheduledFinalize: true as const } : {}),
+    };
   },
 });
 

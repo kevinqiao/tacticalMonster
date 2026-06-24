@@ -20,6 +20,8 @@
 | 统一赛季、任务、Pass、榜单、专场、商店动线 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | CasualTown（展示与轻社交；非第二养成主循环） | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
 | CasualTown 美术技法与 AI 交付规范（一页纸） | [`casual-town-art-brief.md`](./casual-town-art-brief.md) |
+| 大厅 UI / 皮肤 / token SSOT | [`skin/SKIN_DESIGN.md`](./skin/SKIN_DESIGN.md) |
+| 大厅与局内 AI 资产清单（非 Town 主插画） | [`casual-lobby-game-art-brief.md`](./casual-lobby-game-art-brief.md) |
 | 成就、徽章与长期身份展示 | [`casual-platform-achievement-system-design.md`](./casual-platform-achievement-system-design.md) |
 | **周联赛**（cohort 分组、League XP、Bot 填充、周尾升降；**含完整一周测试剧本 §16**） | [`casual-platform-weekly-league-design.md`](./casual-platform-weekly-league-design.md) |
 | Battle Pass、皮肤、成就 | [`casual-platform-battle-pass-skins-achievements.md`](./casual-platform-battle-pass-skins-achievements.md) |

@@ -171,3 +171,23 @@
 }
 
 /* 竖屏触摸底栏：与 tactical 相同 5 列网格（`FooterNavControl.css`），勿覆盖为 3 列 */
+
+/* S1 顶栏货币条：与深夜星空主题对齐 */
+html[data-casual-ui-theme="s1-midnight-sky"] .head-nav-hud.head-nav-hud--casual .head-nav-hud__res-frame rect:first-of-type {
+  stroke: rgba(200, 216, 240, 0.42);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"] .head-nav-hud.head-nav-hud--casual .head-nav-hud__res-amount {
+  color: #e8f0fc;
+  text-shadow: 0 1px 2px rgba(4, 10, 28, 0.85);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"] .head-nav-hud.head-nav-hud--casual .head-nav-hud__res-add {
+  color: #ffd700;
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"] .head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass {
+  background: linear-gradient(145deg, rgba(26, 42, 58, 0.95), rgba(15, 23, 42, 0.98));
+  border-color: rgba(255, 215, 0, 0.45);
+  color: #ffd700;
+}

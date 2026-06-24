@@ -271,14 +271,10 @@ export async function computeSoloPlatformBotFills(
       sessionSeed,
     });
 
-    const rankFloors = deriveRankScoreFloorsFromQuantiles(
-      scoreQuantiles,
-      context.maxPlayers
-    );
     const slots = computeSoloBotScoreSlots({
       humanScore,
       effectiveRank: recommended.effectiveRank,
-      rankFloors,
+      scoreLow: scoreQuantiles.p10,
       maxPlayers: context.maxPlayers,
       gameType: primaryGameType,
     });
@@ -309,11 +305,10 @@ export async function computeSoloPlatformBotFills(
     sessionSeed,
   });
 
-  const rankFloors = deriveRankScoreFloorsFromQuantiles(scoreQuantiles, context.maxPlayers);
   const localFills = generateSoloBotScores({
     humanScore,
     effectiveRank: recommended.effectiveRank,
-    rankFloors,
+    scoreLow: scoreQuantiles.p10,
     maxPlayers: context.maxPlayers,
     gameType: primaryGameType,
     sessionSeed,
@@ -325,7 +320,7 @@ export async function computeSoloPlatformBotFills(
   const slots = computeSoloBotScoreSlots({
     humanScore,
     effectiveRank: recommended.effectiveRank,
-    rankFloors,
+    scoreLow: scoreQuantiles.p10,
     maxPlayers: context.maxPlayers,
     gameType: primaryGameType,
   });

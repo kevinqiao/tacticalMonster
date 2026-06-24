@@ -1,0 +1,108 @@
+{
+  "seasonId": "season_1",
+  "cards": [
+    {
+      "cardId": "s1_strike_1",
+      "name": "Strike",
+      "cost": 1,
+      "type": "spell",
+      "effectId": "deal_damage",
+      "params": { "amount": 2, "target": "boss" },
+      "rarity": "common",
+      "faction": "fire"
+    },
+    {
+      "cardId": "s1_strike_2",
+      "name": "Heavy Strike",
+      "cost": 2,
+      "type": "spell",
+      "effectId": "deal_damage",
+      "params": { "amount": 3, "target": "boss" },
+      "rarity": "common",
+      "faction": "fire"
+    },
+    {
+      "cardId": "s1_bolt_3",
+      "name": "Flame Bolt",
+      "cost": 3,
+      "type": "spell",
+      "effectId": "deal_damage",
+      "params": { "amount": 5, "target": "boss" },
+      "rarity": "rare",
+      "faction": "fire"
+    },
+    {
+      "cardId": "s1_fireball_4",
+      "name": "Fireball",
+      "cost": 4,
+      "type": "spell",
+      "effectId": "deal_damage",
+      "params": { "amount": 6, "target": "boss" },
+      "rarity": "rare",
+      "faction": "fire"
+    },
+    {
+      "cardId": "s1_guard_2",
+      "name": "Ember Shield",
+      "cost": 2,
+      "type": "spell",
+      "effectId": "gain_armor",
+      "params": { "amount": 3 },
+      "rarity": "common",
+      "faction": "fire"
+    },
+    {
+      "cardId": "s1_draw_2",
+      "name": "Kindling",
+      "cost": 2,
+      "type": "spell",
+      "effectId": "draw",
+      "params": { "amount": 2 },
+      "rarity": "common",
+      "faction": "neutral"
+    },
+    {
+      "cardId": "s1_heal_2",
+      "name": "Warmth",
+      "cost": 2,
+      "type": "spell",
+      "effectId": "heal_hero",
+      "params": { "amount": 4 },
+      "rarity": "common",
+      "faction": "neutral"
+    },
+    {
+      "cardId": "s1_flame_imp_1",
+      "name": "Flame Imp",
+      "cost": 1,
+      "type": "minion",
+      "attack": 2,
+      "health": 1,
+      "keywords": [],
+      "rarity": "common",
+      "faction": "fire"
+    },
+    {
+      "cardId": "s1_soldier_2",
+      "name": "Ash Guard",
+      "cost": 2,
+      "type": "minion",
+      "attack": 2,
+      "health": 3,
+      "keywords": ["taunt"],
+      "rarity": "common",
+      "faction": "fire"
+    },
+    {
+      "cardId": "s1_pyrologist_3",
+      "name": "Pyrologist",
+      "cost": 3,
+      "type": "minion",
+      "attack": 3,
+      "health": 4,
+      "keywords": [],
+      "rarity": "rare",
+      "faction": "fire"
+    }
+  ]
+}

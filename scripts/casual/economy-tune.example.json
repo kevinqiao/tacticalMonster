@@ -1,12 +1,12 @@
 {
   "profileKey": "custom",
   "profile": {
-    "label": "中度 8 局/日 · 前 8 场满额",
+    "label": "中度 8 局 async + 3 局 p75/日",
     "daily": {
       "A": 4,
       "B": 3,
       "C": 1,
-      "p75": 0,
+      "p75": 3,
       "signIn": true,
       "winRate": 0.45
     },

@@ -33,6 +33,8 @@ export type CasualPostSettleSummaryOverlayProps = {
   weeklyLeagueSettle?: WeeklyLeagueSettleUI | null;
   /** 内容区滚动时底部操作栏固定可见（历史 LeaderBoard 等） */
   pinFooter?: boolean;
+  /** 历史战报等：覆盖同桌榜表头说明 */
+  tableMetaNote?: string;
   /** 三场合战整场再战：定制说明文案 */
   triathlonSessionReplay?: boolean;
 };
@@ -59,6 +61,7 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
   watchButtonLabel,
   weeklyLeagueSettle,
   pinFooter = false,
+  tableMetaNote,
   triathlonSessionReplay = false,
 }) => {
   const titleId = useId();
@@ -120,6 +123,7 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
                 s={summary}
                 onWatchRow={onWatchRow}
                 watchButtonLabel={watchButtonLabel}
+                metaNote={tableMetaNote}
               />
             ) : null}
             {showPending ? (

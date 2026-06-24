@@ -102,6 +102,7 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
 
     return (
         <BlockBlastGameProvider
+            key={activeGameId}
             config={config}
             gameId={activeGameId}
             casualTournamentId={casualTournamentId}

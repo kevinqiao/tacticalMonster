@@ -3,22 +3,23 @@ import { expandStatBucketToTargetRank } from "../../shared/rankStatBuckets";
 import type { CasualRankRateEntry } from "../../data/casualTournamentConfigs";
 import type { BotStrategyPlayerContext } from "../../data/casualPlayerStrategyTypes";
 import {
-  deriveRankScoreFloorsFromQuantiles,
   recommendTargetRankFromQuantileProximity,
-  type RankScoreFloorsByRank,
   type ScoreQuantiles,
 } from "../../shared/scoreQuantiles";
-import {
-  clampTargetRank,
-} from "./botScoreSlots";
 import { evaluateBotDifficultyRulesWithMeta } from "./botDifficultyConfig";
 import { buildBalancedRankWeights, sampleTargetRank } from "./rankSampling";
+import {
+  rankBandFromScore,
+  resolveEffectiveRank,
+  type SoloRankBand,
+} from "./soloRankBand";
 
 export type SoloRankRecommendSource = "quantile" | "profile" | "rank_rates";
 
 export type SoloRankRecommendResult = {
   targetRank: number;
   effectiveRank: number;
+  rankBand: SoloRankBand;
   source: SoloRankRecommendSource;
   matchedRuleId?: string;
 };
@@ -42,7 +43,7 @@ export function recommendSoloEffectiveRank(args: {
     sessionSeed,
   } = args;
 
-  const rankFloors = deriveRankScoreFloorsFromQuantiles(scoreQuantiles, maxPlayers);
+  const rankBand = rankBandFromScore(humanScore, scoreQuantiles, maxPlayers);
   const p50 = scoreQuantiles.p50;
 
   let targetRank: number;
@@ -74,8 +75,12 @@ export function recommendSoloEffectiveRank(args: {
     }
   }
 
-  const effectiveRank = clampTargetRank(targetRank, humanScore, rankFloors, maxPlayers);
-  return { targetRank, effectiveRank, source, matchedRuleId };
+  const effectiveRank = resolveEffectiveRank({
+    targetRank,
+    band: rankBand,
+    maxPlayers,
+  });
+  return { targetRank, effectiveRank, rankBand, source, matchedRuleId };
 }
 
-export type { RankScoreFloorsByRank };
+export type { SoloRankBand };

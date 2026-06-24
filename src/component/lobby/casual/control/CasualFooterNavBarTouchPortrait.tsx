@@ -2,9 +2,7 @@ import { normalizePageUri, parseLocation } from "@/host/util/PageUtils";
 import { usePageManager } from "host/service/PageManager";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "../../tactical/control/footer/FooterNavControl.css";
-import {
-  FOOTER_NAV_DESKTOP_ICONS,
-} from "../../tactical/control/footer/FooterNavDesktopConfig";
+import { CASUAL_LOBBY_NAV_ICONS } from "../assets/casualLobbyIcons";
 import { CASUAL_FOOTER_NAV_LABEL, CASUAL_FOOTER_NAV_URI } from "./FooterNavCasual";
 
 const getActiveIndexFromLocation = (): number => {
@@ -53,7 +51,7 @@ export const CasualFooterNavBarTouchPortrait: React.FC = () => {
       CASUAL_FOOTER_NAV_URI.map((uri, index) => ({
         uri,
         label: CASUAL_FOOTER_NAV_LABEL[index],
-        icon: FOOTER_NAV_DESKTOP_ICONS[index] ?? FOOTER_NAV_DESKTOP_ICONS[0],
+        icon: CASUAL_LOBBY_NAV_ICONS[index] ?? CASUAL_LOBBY_NAV_ICONS[0],
       })),
     []
   );

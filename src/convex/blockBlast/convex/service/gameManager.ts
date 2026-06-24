@@ -9,8 +9,6 @@ import {
 import { BlockBlastGameEngine, randomUuidCompat } from "./BlockBlastGameEngine";
 import {
     BLOCK_BLAST_MATCH_TIME_LIMIT_SEC,
-    blockBlastLinesBonus,
-    blockBlastMovesBonus,
     computeBlockBlastTotalScore,
 } from "./blockBlastScoreModel";
 import { parseCasualRunGameId } from "./casualGameLifecycle";
@@ -96,6 +94,7 @@ interface GameState {
     lastOpAt?: number;
     dueTime?: number;
     casualTimeoutScheduledId?: string;
+    replayEpoch?: number;
 }
 
 async function scheduleBlockBlastCasualTimeout(
@@ -122,6 +121,26 @@ async function scheduleBlockBlastCasualTimeout(
         console.warn("[blockBlast] casual timeout schedule failed", gameId, scheduleErr);
     }
 }
+
+/** loadGame 时补挂缺失的 dueTime / 服务端 timeout job */
+export const ensureCasualTimeoutScheduled = internalMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        if (!gameId.startsWith("game_")) {
+            return { ok: true as const, scheduled: false as const };
+        }
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const row = latestBlockBlastGameRow(rows);
+        if (!row?._id) {
+            return { ok: true as const, scheduled: false as const };
+        }
+        if (row.dueTime != null && row.casualTimeoutScheduledId != null) {
+            return { ok: true as const, scheduled: false as const };
+        }
+        await scheduleBlockBlastCasualTimeout(ctx, gameId, row._id);
+        return { ok: true as const, scheduled: true as const };
+    },
+});
 
 /** 追加一条回放步骤；自动用 `lastOpAt` 估算 pacingMs（对齐 solitaireArena appendRecordedStep） */
 function appendRecordedStep(game: GameState, step: BlockBlastRecordedStep): void {
@@ -192,7 +211,8 @@ export class BlockBlastGameManager {
     async createGame(
         seed?: string,
         gameId?: string,
-        gridSizeArg?: BlockBlastGridSize | number
+        gridSizeArg?: BlockBlastGridSize | number,
+        replayEpoch?: number
     ): Promise<GameState | null> {
         const normalizedSeed = seed !== undefined ? String(seed) : undefined;
         const gridSize = normalizeBlockBlastGridSize(gridSizeArg);
@@ -205,6 +225,9 @@ export class BlockBlastGameManager {
             ...base,
             lastUpdate: Date.now(),
             recordedOps: [],
+            ...(typeof replayEpoch === "number" && Number.isFinite(replayEpoch)
+                ? { replayEpoch }
+                : {}),
         } as GameState;
 
         const gid = await this.dbCtx.db.insert("blockBlast_game", gameState);
@@ -224,7 +247,18 @@ export class BlockBlastGameManager {
             this.game.status === BlockBlastGameStatus.PLAYING
         ) {
             await this.save({ status: BlockBlastGameStatus.CANCELLED });
-            return { ok: false, data: { error: "time_expired" } };
+            return {
+                ok: false,
+                data: {
+                    error: "time_expired",
+                    mustEnd: true,
+                    endReason: "time_expired",
+                    status: BlockBlastGameStatus.CANCELLED,
+                    score: this.game.score,
+                    lines: this.game.lines,
+                    moves: this.game.moves,
+                },
+            };
         }
 
         /** 落子前手牌中的槽位（与确定性重放盘面同序）；apply 后 shapes 会变，故先取 */
@@ -268,6 +302,7 @@ export class BlockBlastGameManager {
             recordedOps: this.game.recordedOps,
             lastOpAt: this.game.lastOpAt,
         });
+        const mustEnd = this.game.status !== BlockBlastGameStatus.PLAYING;
         return {
             ok: true,
             data: {
@@ -279,6 +314,15 @@ export class BlockBlastGameManager {
                 status: this.game.status,
                 shapeCounter: this.game.shapeCounter,
                 cleared: res.data.cleared,
+                ...(mustEnd
+                    ? {
+                          mustEnd: true as const,
+                          endReason:
+                              this.game.status === BlockBlastGameStatus.LOST
+                                  ? ("stuck" as const)
+                                  : ("terminal" as const),
+                      }
+                    : {}),
             },
         };
     }
@@ -322,8 +366,9 @@ export const createGame = internalMutation({
         seed: v.optional(v.string()),
         gameId: v.string(),
         gridSize: v.optional(v.number()),
+        replayEpoch: v.optional(v.number()),
     },
-    handler: async (ctx, { seed, gameId, gridSize }) => {
+    handler: async (ctx, { seed, gameId, gridSize, replayEpoch }) => {
         await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
         const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
         const keep = latestBlockBlastGameRow(rows);
@@ -331,7 +376,7 @@ export const createGame = internalMutation({
             return { ok: true as const, data: { ...keep, _creationTime: undefined } };
         }
         const gameManager = new BlockBlastGameManager(ctx);
-        const game = await gameManager.createGame(seed, gameId, gridSize);
+        const game = await gameManager.createGame(seed, gameId, gridSize, replayEpoch);
         if (game && game._id) {
             await scheduleBlockBlastCasualTimeout(ctx, gameId, game._id);
             const fresh = await gameManager.load(gameId);
@@ -444,9 +489,7 @@ export const findReport = query({
             data: {
                 gameId,
                 baseScore: game.score,
-                linesBonus: blockBlastLinesBonus(game.lines),
-                movesPenalty: blockBlastMovesBonus(game.moves),
-                totalScore: computeBlockBlastTotalScore(game.score, game.lines, game.moves),
+                totalScore: computeBlockBlastTotalScore(game.score),
             },
         };
     },

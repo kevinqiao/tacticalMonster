@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { api } from '@/convex/blockBlast/convex/_generated/api';
 import type { BlockBlastRolloutScript } from '@/convex/blockBlast/convex/service/seedPool/blockBlastRecordedOpTypes';
 
+import type { BlockBlastRecordedStep } from '@/convex/blockBlast/convex/service/seedPool/blockBlastRecordedOpTypes';
+
 import type { CasualWatchContext } from '../../../shared/casualAsyncTableSummaryUI';
 import BlockBlastGameProvider from '../service/GameManager';
 import BlockBlastDnDProvider from '../service/BlockBlastDnDProvider';
@@ -19,6 +21,34 @@ type Props = {
     displayLabel: string;
     onClose: () => void;
 };
+
+function asRecordedSteps(
+    steps: ReadonlyArray<Record<string, unknown>> | undefined
+): BlockBlastRecordedStep[] {
+    if (!steps?.length) return [];
+    return steps as BlockBlastRecordedStep[];
+}
+
+function applyRecordedReplay(args: {
+    seedId: string;
+    steps: BlockBlastRecordedStep[];
+    setSeedId: (v: string) => void;
+    setRollout: (v: BlockBlastRolloutScript) => void;
+    setLoadError: (v: string | null) => void;
+}) {
+    const resolved = resolveWatchRollout({
+        kind: 'recorded',
+        seedId: args.seedId,
+        steps: args.steps,
+    });
+    if (resolved.rollout.ops.length === 0) {
+        args.setLoadError('暂无回放数据');
+        return;
+    }
+    args.setLoadError(null);
+    args.setSeedId(resolved.seedId);
+    args.setRollout(resolved.rollout);
+}
 
 export const BlockBlastWatchOverlay: React.FC<Props> = ({
     open,
@@ -47,6 +77,10 @@ export const BlockBlastWatchOverlay: React.FC<Props> = ({
                 seedId: watchContext.seedId,
                 rolloutIndex: watchContext.rolloutIndex,
             });
+            if (resolved.rollout.ops.length === 0) {
+                setLoadError('暂无回放数据');
+                return;
+            }
             setSeedId(resolved.seedId);
             setRollout(resolved.rollout);
             if (watchContext.revealAt != null && watchContext.duration != null) {
@@ -61,6 +95,18 @@ export const BlockBlastWatchOverlay: React.FC<Props> = ({
             return;
         }
 
+        const inlineSteps = asRecordedSteps(watchContext.steps);
+        if (inlineSteps.length > 0) {
+            applyRecordedReplay({
+                seedId: watchContext.seedId ?? watchContext.gameId,
+                steps: inlineSteps,
+                setSeedId,
+                setRollout,
+                setLoadError,
+            });
+            return;
+        }
+
         setLoading(true);
         void convex
             .query(api.service.gameManager.getRecordedOps, { gameId: watchContext.gameId })
@@ -69,18 +115,13 @@ export const BlockBlastWatchOverlay: React.FC<Props> = ({
                     setLoadError('暂无回放数据');
                     return;
                 }
-                const seed = res.seedId ?? watchContext.gameId;
-                const resolved = resolveWatchRollout({
-                    kind: 'recorded',
-                    seedId: seed,
-                    steps: res.steps ?? [],
+                applyRecordedReplay({
+                    seedId: res.seedId ?? watchContext.gameId,
+                    steps: (res.steps ?? []) as BlockBlastRecordedStep[],
+                    setSeedId,
+                    setRollout,
+                    setLoadError,
                 });
-                if (resolved.rollout.ops.length === 0) {
-                    setLoadError('暂无回放数据');
-                    return;
-                }
-                setSeedId(resolved.seedId);
-                setRollout(resolved.rollout);
             })
             .catch(() => {
                 setLoadError('加载回放失败');

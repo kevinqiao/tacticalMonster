@@ -11,7 +11,7 @@ export const CASUAL_F2P_PASS_TARGET_BAND = {
   min: 11,
   max: 13,
 };
-export const DAILY_P75_COINS_SOFT_CAP = 200;
+export const DAILY_P75_COINS_SOFT_CAP = 32;
 
 export const NET_FLOW_BANDS = {
   coins: {
@@ -30,36 +30,36 @@ export const NET_FLOW_BANDS = {
 
 export const DEFAULT_TOURNAMENTS = {
   A: {
-    entryCoins: 35,
-    baseCoins: 23,
+    entryCoins: 70,
+    baseCoins: 36,
     baseGems: 0,
     passXp: 4,
-    expectScoreTierCoins: 3.4,
+    expectScoreTierCoins: 5.7,
   },
   B: {
-    entryCoins: 45,
-    baseCoins: 52,
+    entryCoins: 90,
+    baseCoins: 103,
     baseGems: 0,
     passXp: 5,
-    expectScoreTierCoins: 5.4,
+    expectScoreTierCoins: 10.8,
   },
   C: {
-    entryGems: 7,
+    entryGems: 24,
     baseCoins: 0,
-    baseGems: 6,
+    baseGems: 24,
     passXp: 8,
-    expectScoreTierGems: 0.82,
+    expectScoreTierGems: 1.64,
   },
 };
 
 export const DEFAULT_P75 = {
-  baseCoins: 8,
-  successCoins: 40,
+  baseCoins: 2,
+  successCoins: 16,
   passXp: 2,
 };
 
 export const SIGN_IN = {
-  coins: 15,
+  coins: 30,
   passXp: 8,
 };
 
@@ -69,29 +69,29 @@ export const DEFAULT_XP_DECAY_BY_ORDINAL = [1, 1, 1, 1, 1, 1, 1, 1, 0];
 export const DAILY_MISSION_PASS_XP = 65;
 
 export const DEFAULT_WEEKLY = {
-  leagueEndCoinsExpect: 25,
-  leagueEndGemsExpect: 0.4,
+  leagueEndCoinsExpect: 50,
+  leagueEndGemsExpect: 0.8,
   leaguePromoteVoucherExpect: 0.5,
-  missionVouchersExpect: 4.5,
+  missionVouchersExpect: 6,
   passFreeVouchersPerWeek: 0.6,
-  passFreeCoinsPerWeek: 35,
+  passFreeCoinsPerWeek: 70,
   missionPassXp: 290,
   seasonMissionPassXpPerWeek: 26.666666666666668 /* season_runs_60 / CASUAL_SEASON_NOMINAL_WEEKS */,
 };
 
-export const SEASON_CHALLENGE_VOUCHER_COST = 2;
+export const SEASON_CHALLENGE_VOUCHER_COST = 3;
 
 export const SHOP_SINK_BY_PROFILE = {
   casual: {
-    coinsPerWeek: 35,
-    gemsPerWeek: 6,
+    coinsPerWeek: 70,
+    gemsPerWeek: 12,
   },
   active: {
-    coinsPerWeek: 55,
-    gemsPerWeek: 8,
+    coinsPerWeek: 110,
+    gemsPerWeek: 16,
   },
   grinder: {
-    coinsPerWeek: 75,
-    gemsPerWeek: 12,
+    coinsPerWeek: 150,
+    gemsPerWeek: 24,
   },
 };

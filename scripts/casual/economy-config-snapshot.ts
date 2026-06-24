@@ -38,13 +38,13 @@ const SCORE_TIER_HIT_RATES = { p33: 0.45, p66: 0.28, p90: 0.09 } as const;
 
 /** 平衡脚本专用周尺度锚点（运行时配表未单独暴露时在此维护） */
 const BALANCE_WEEKLY_ANCHORS = {
-  leagueEndCoinsExpect: 25,
-  leagueEndGemsExpect: 0.4,
+  leagueEndCoinsExpect: 50,
+  leagueEndGemsExpect: 0.8,
   leaguePromoteVoucherExpect: 0.5,
   /** runs_15 4 券 + league 1 券 × ~50% 完成 */
-  missionVouchersExpect: 4.5,
+  missionVouchersExpect: 6,
   passFreeVouchersPerWeek: 0.6,
-  passFreeCoinsPerWeek: 35,
+  passFreeCoinsPerWeek: 70,
 };
 
 const NET_FLOW_BANDS = {

@@ -17,15 +17,15 @@ import {
 } from "../../../shared/scoreQuantiles";
 
 const BB_QUANTILES_A: ScoreQuantiles = {
-  p10: 3_000,
-  p25: 4_500,
-  p30: 5_500,
-  p33: 6_000,
-  p50: 7_000,
-  p66: 8_500,
-  p70: 9_500,
-  p75: 10_500,
-  p90: 12_000,
+  p10: 24,
+  p25: 48,
+  p30: 64,
+  p33: 72,
+  p50: 104,
+  p66: 152,
+  p70: 168,
+  p75: 203,
+  p90: 304,
 };
 
 describe("casualRankStatBuckets", () => {
@@ -54,9 +54,9 @@ describe("casualRankStatBuckets", () => {
 describe("deriveRankScoreFloorsFromQuantiles", () => {
   it("maps first maxPlayers reverse quantiles to rank floors", () => {
     expect(deriveRankScoreFloorsFromQuantiles(BB_QUANTILES_A, 3)).toEqual({
-      1: 12_000,
-      2: 10_500,
-      3: 9_500,
+      1: 304,
+      2: 203,
+      3: 168,
     });
   });
 

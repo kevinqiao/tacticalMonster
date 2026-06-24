@@ -163,14 +163,7 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
 
   useEffect(() => {
     const m = modals.find((modal) => modal.name === container.name);
-    setModal((prev) => {
-      if (!m)
-        return undefined;
-      else if (!prev)
-        return m;
-      else
-        return prev;
-    });
+    setModal(() => (m ?? undefined));
   }, [modals, container]);
 
   useEffect(() => {

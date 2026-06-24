@@ -118,3 +118,26 @@ export function applyCasualTableSummaryFromQuery(
     typeof summary.replayWindowEndsAt === 'number' ? summary.replayWindowEndsAt : undefined
   );
 }
+
+/** 历史战报表头：本局名次 + 获得积分（替代「本桌至多 N 席 · 已计分 M 人」） */
+export function formatHistoryReportTableMetaNote(args: {
+  rank?: number | null;
+  pointDelta?: number | null;
+  settlementPending?: boolean;
+}): string {
+  if (args.settlementPending) {
+    return '等待结算中';
+  }
+  const parts: string[] = [];
+  if (args.rank != null && args.rank >= 1) {
+    parts.push(`本局第 ${args.rank} 名`);
+  }
+  if (args.pointDelta != null) {
+    const sign = args.pointDelta >= 0 ? '+' : '';
+    parts.push(`获得 ${sign}${args.pointDelta} 积分`);
+  }
+  if (parts.length === 0) {
+    return '名次与积分待结算';
+  }
+  return parts.join(' · ');
+}

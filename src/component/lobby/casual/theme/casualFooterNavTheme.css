@@ -58,6 +58,30 @@ html[data-casual-ui-theme="s1-midnight-sky"]
   .footer-nav-touch-portrait--casual
   .footer-nav-touch-portrait__btn {
   color: var(--footer-nav-btn-ink);
+  transition: transform var(--motion-fast, 120ms ease-out);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__btn--pressed {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-casual-ui-theme="s1-midnight-sky"]
+    .footer-nav-root--casual
+    .footer-nav-touch-portrait--casual
+    .footer-nav-touch-portrait__btn {
+    transition: none;
+  }
+
+  html[data-casual-ui-theme="s1-midnight-sky"]
+    .footer-nav-root--casual
+    .footer-nav-touch-portrait--casual
+    .footer-nav-touch-portrait__btn--pressed {
+    transform: none;
+  }
 }
 
 html[data-casual-ui-theme="s1-midnight-sky"]
@@ -127,10 +151,18 @@ html[data-casual-ui-theme="s1-midnight-sky"]
   border-color: var(--footer-nav-desktop-border);
   background: var(--footer-nav-desktop-bg);
   color: var(--footer-nav-desktop-ink);
+  transition: transform var(--motion-fast, 120ms ease-out), filter 0.15s ease;
   box-shadow:
     inset 0 1px 0 rgba(200, 216, 240, 0.14),
     0 2px 0 rgba(4, 10, 28, 0.5),
     0 4px 12px rgba(4, 10, 28, 0.4);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-desktop--casual
+  .footer-nav-desktop__btn:active {
+  transform: scale(0.97);
 }
 
 html[data-casual-ui-theme="s1-midnight-sky"]
