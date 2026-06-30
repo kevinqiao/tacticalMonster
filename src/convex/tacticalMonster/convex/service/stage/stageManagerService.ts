@@ -5,7 +5,8 @@
 
 import { v } from "convex/values";
 import { Stage } from "../../../../../component/battle/games/tacticalMonster/types/StageTypes";
-import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
+import { internalMutation, internalQuery, query } from "../../_generated/server";
 import { bossScalingTuningFromDifficultyAdjustment } from "../../data/adaptiveBossScaling";
 import { calculateScaleBoss, getBossConfig } from "../../data/bossConfigs";
 import { getMapTemplateConfig, getMapTemplateConfigsByTier } from "../../data/mapTemplateConfigs";
@@ -538,10 +539,11 @@ export const findStage = query({
 /**
  * 编队页：lobby 的 `stageId` 可能尚未同步；在已解锁前提下 getOrCreate 并返回 Stage。
  */
-export const ensureChallengeStageForPlay = mutation({
-    args: { uid: v.string(), typeId: v.string() },
-    handler: async (ctx: any, args: { uid: string; typeId: string }) => {
-        const { uid, typeId } = args;
+export const ensureChallengeStageForPlay = authedMutation({
+    args: { typeId: v.string() },
+    handler: async (ctx, args) => {
+        const uid = ctx.uid;
+        const { typeId } = args;
         const ruleConfig = GameRuleConfigService.getGameRuleConfig(typeId);
         if (!ruleConfig) {
             return { ok: false as const, errorCode: "NO_RULE" };
@@ -568,10 +570,11 @@ export const ensureChallengeStageForPlay = mutation({
     },
 });
 
-export const findPowerStage = query({
-    args: { uid: v.string(), stageId: v.string(), ruleId: v.optional(v.string()) },
-    handler: async (ctx: any, args: any) => {
-        const { uid, stageId, ruleId } = args;
+export const findPowerStage = authedQuery({
+    args: { stageId: v.string(), ruleId: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        const uid = ctx.uid;
+        const { stageId, ruleId } = args;
         const stage = await StageManagerService.findStage(ctx, { stageId });
         if (!stage) {
             return null;

@@ -4,6 +4,7 @@
  */
 
 import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
+import { tournamentBridgeHeaders } from "../bridge/tournamentBridgeSecret";
 import { MonsterService } from "../monster/monsterService";
 
 /**
@@ -31,9 +32,7 @@ export class TaskIntegration {
                 getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.PROCESS_TASK_EVENT),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify(params),
                 }
             );
@@ -74,9 +73,7 @@ export class TaskIntegration {
                 getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.MANAGE_PLAYER_TASKS),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify({ uid }),
                 }
             );
@@ -117,9 +114,7 @@ export class TaskIntegration {
                 getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.GET_PLAYER_ACTIVE_TASKS),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify({ uid }),
                 }
             );
@@ -164,9 +159,7 @@ export class TaskIntegration {
                 getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.CLAIM_TASK_REWARDS),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify(params),
                 }
             );

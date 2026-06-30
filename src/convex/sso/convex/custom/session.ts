@@ -1,53 +1,111 @@
 import { customAction, customMutation, customQuery } from "convex-helpers/server/customFunctions";
-import { v } from "convex/values";
+
 import { action, mutation, query } from "../_generated/server";
+import { findIdentityByUid } from "../dao/authIdentityHelpers";
 
-export const sessionAction = customAction(action, {
-    // Argument validation for sessionMutation: two named args here.
-    args: { uid: v.string(), token: v.string() },
-    // The function handler, taking the validated arguments and context.
-    input: async (ctx, { uid, token }) => {
- 
-        // const u: any = await ctx.runQuery(internal.user.find, { uid });
-        // const user = u && u.uid === uid ? u : null;
-        // const user = { uid, token };
-        // Note: we're passing args through, so they'll be available below
-        return { ctx: { user:{uid,token} }, args: {} };
+
+
+async function resolveUserFromIdentity(ctx: {
+
+  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
+
+  db: any;
+
+}) {
+
+  const identity = await ctx.auth.getUserIdentity();
+
+  if (!identity?.subject) {
+
+    throw new Error("unauthenticated");
+
+  }
+
+  const row = await findIdentityByUid(ctx, identity.subject);
+
+  if (!row?.uid) {
+
+    throw new Error("unauthenticated");
+
+  }
+
+  return row;
+
+}
+
+
+
+/** Convex JWT (platform setAuth) → ctx.user from auth_identities (uid = JWT subject). */
+
+export const authedQuery = customQuery(query, {
+
+  args: {},
+
+  input: async (ctx, args) => {
+
+    const user = await resolveUserFromIdentity(ctx);
+
+    return { ctx: { ...ctx, user }, args };
+
+  },
+
+});
+
+
+
+export const authedMutation = customMutation(mutation, {
+
+  args: {},
+
+  input: async (ctx, args) => {
+
+    const user = await resolveUserFromIdentity(ctx);
+
+    return { ctx: { ...ctx, user }, args };
+
+  },
+
+});
+
+
+
+export const authedAction = customAction(action, {
+
+  args: {},
+
+  input: async (ctx, args) => {
+
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity?.subject) {
+
+      throw new Error("unauthenticated");
+
     }
-})
+
+    return { ctx: { ...ctx, identity }, args };
+
+  },
+
+});
 
 
-export const sessionQuery = customQuery(
-    query, // The base function we're extending
 
-    {
-        // Argument validation for sessionMutation: two named args here.
-        args: { uid: v.string(), token: v.optional(v.string()) },
-        // The function handler, taking the validated arguments and context.
-        input: async (ctx, { uid, token }) => {
-            try {
-                // console.log(uid,token)  // const u = await ctx.db.get(uid as Id<"user">);
+export const whoami = authedQuery({
 
-                const u = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
-                // console.log("u",u);
-                return { ctx: { ...ctx, user: u }, args: {} };
-            } catch (error) {
-                return { ctx: { ...ctx, user: null }, args: {} };
-            }
-          
-        }
+  args: {},
 
-    }
-);
-export const sessionMutation = customMutation(mutation,
-    {
-        args: { uid: v.string(), token: v.string() },
-        input: async (ctx, { uid, token }) => {
-            try {
-                const u = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
-                return { ctx: { ...ctx, user: u }, args: {} };
-            } catch (error) {
-                return { ctx: { ...ctx, user: null }, args: {} };
-            }
-        }
-    })
+  handler: async (ctx) => {
+
+    return {
+
+      uid: ctx.user.uid,
+
+      email: ctx.user.email,
+
+    };
+
+  },
+
+});
+

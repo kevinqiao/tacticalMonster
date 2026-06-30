@@ -40,4 +40,10 @@ export const portalTournamentFns = {
   authenticatePlayer: makeFunctionReference<"action">(
     "service/auth/portalAuth:authenticate"
   ),
+  getCampaignDailyPlayQuota: makeFunctionReference<"query">(
+    "service/tournament/join/campaignDailyPlayLimit:getCampaignDailyPlayQuota"
+  ),
+  listCampaignPlayHistory: makeFunctionReference<"query">(
+    "service/tournament/join/campaignPlayHistory:listCampaignPlayHistory"
+  ),
 } as const;

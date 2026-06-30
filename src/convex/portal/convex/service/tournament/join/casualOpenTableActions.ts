@@ -19,6 +19,10 @@ type ClaimOk = {
   joinChargeByUid: Record<string, JoinChargeMeta>;
   instanceId?: Id<"portal_tournament_instances">;
   activityIds?: string[];
+  campaignId?: string;
+  merchantId?: string;
+  maxPlaysPerDay?: number;
+  dayTimezone?: string;
 };
 
 const OPEN_TABLE_RETRY_ERRORS = new Set([
@@ -96,6 +100,10 @@ async function openCasualTableFromClaimHandler(
       uids: claim.uids,
       joinChargeByUid: claim.joinChargeByUid,
       ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
+      ...(claim.campaignId ? { campaignId: claim.campaignId } : {}),
+      ...(claim.merchantId ? { merchantId: claim.merchantId } : {}),
+      ...(claim.maxPlaysPerDay != null ? { maxPlaysPerDay: claim.maxPlaysPerDay } : {}),
+      ...(claim.dayTimezone ? { dayTimezone: claim.dayTimezone } : {}),
     });
     if (!shell.ok) {
       await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.abortOpenTable, {
@@ -201,8 +209,12 @@ export const openCasualSoloTable = internalAction({
   args: {
     uid: v.string(),
     templateId: v.string(),
+    campaignId: v.optional(v.string()),
+    merchantId: v.optional(v.string()),
+    maxPlaysPerDay: v.optional(v.number()),
+    dayTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { uid, templateId }) => {
+  handler: async (ctx, { uid, templateId, campaignId, merchantId, maxPlaysPerDay, dayTimezone }) => {
     const existingOpen = await ctx.runQuery(
       internal.service.tournament.join.casualOpenTableGuard.getAnyGlobalOpenCasualMatch,
       { uid }
@@ -236,6 +248,10 @@ export const openCasualSoloTable = internalAction({
       joinChargeByUid: charge.joinChargeByUid,
       instanceId: charge.instanceId,
       activityIds: charge.activityIds,
+      ...(campaignId ? { campaignId } : {}),
+      ...(merchantId ? { merchantId } : {}),
+      ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
+      ...(dayTimezone ? { dayTimezone } : {}),
     };
 
     const opened = await openCasualTableFromClaimHandler(ctx, { templateId, claim });

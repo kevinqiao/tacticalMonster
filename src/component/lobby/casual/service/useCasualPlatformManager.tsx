@@ -2,6 +2,8 @@ import { api as casualPlatformApi } from "@/convex/casualPlatform/convex/_genera
 import type { Id } from "@/convex/casualPlatform/convex/_generated/dataModel";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import { useUserManager } from "host/service/UserManager";
+import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
+import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
 import type { CasualActivityPublicRow } from "./casualActivityTypes";
@@ -9,6 +11,7 @@ import { getMockCasualActivitiesForUiDemo, shouldUseMockCasualActivities } from 
 import type { OpenCasualRunAssignment } from "./casualOpenRunAssignment";
 import { casualInstanceFns, casualSkinFns, casualTournamentFns } from "./casualConvexFunctionRefs";
 import type { TriathlonSessionProgress } from "component/battle/games/shared/casualTriathlonSubmitFlow";
+import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
 
 const _casualUrlRaw = import.meta.env.VITE_CONVEX_URL_CASUAL;
 const CASUAL_CONVEX_URL =
@@ -23,6 +26,16 @@ export interface CasualPlayerSummary {
   seasonXp?: number;
   seasonVouchers?: number;
 }
+
+function isPortalPlayRoute(): boolean {
+  if (typeof window === "undefined") return false;
+  return parsePortalPathFromPathname(window.location.pathname).gameType != null;
+}
+
+export type UseCasualPlatformOptions = {
+  /** When false, skip casualPlatform authenticate + live subscriptions (Portal runs use portal Convex). */
+  enabled?: boolean;
+};
 
 function casualPlayerSummaryFromAuth(result: unknown): CasualPlayerSummary | null {
   if (result == null || typeof result !== "object") return null;
@@ -258,8 +271,7 @@ export interface CasualPlatformValue {
   ) => Promise<Array<{ rank: number; uid: string; score: number; submittedAt?: number }>>;
   /** 当前周期桶内本人聚合分与名次（周期型模板；与榜同源） */
   fetchPeriodInstanceSelfStanding: (
-    tournamentId: string,
-    uid: string
+    tournamentId: string
   ) => Promise<{
     instanceKey: string | null;
     myBestScore: number | null;
@@ -495,11 +507,10 @@ let authFailedKey = "";
 let authReauthPromptedKey = "";
 
 async function executeCasualAuthenticate(
-  uid: string,
-  token: string,
+  platformAccessToken: string,
   opts?: { force?: boolean; onAuthFailed?: () => void }
 ): Promise<void> {
-  const key = `${uid}:${token}`;
+  const key = platformAccessToken;
   if (!opts?.force && authFailedKey === key) return;
 
   const http = getCasualHttpClient();
@@ -507,10 +518,7 @@ async function executeCasualAuthenticate(
 
   await enqueueCasualAuthenticate(async () => {
     try {
-      const result = await http.action(casualPlatformApi.service.auth.casualAuth.authenticate, {
-        uid,
-        token,
-      });
+      const result = await http.action(casualPlatformApi.service.auth.casualAuth.authenticate, {});
       if (result && typeof result === "object" && "uid" in result) {
         authFailedKey = "";
         patchData({ casualPlayer: casualPlayerSummaryFromAuth(result) });
@@ -529,18 +537,17 @@ async function executeCasualAuthenticate(
 }
 
 function syncCasualAuth(
-  uid: string | undefined,
-  token: string | undefined,
+  platformAccessToken: string | undefined,
   onAuthFailed?: () => void
 ) {
-  if (!uid || !token) {
+  if (!platformAccessToken) {
     lastAutoAuthKey = "";
     authFailedKey = "";
     authReauthPromptedKey = "";
     patchData({ casualPlayer: null });
     return;
   }
-  const key = `${uid}:${token}`;
+  const key = platformAccessToken;
   if (lastAutoAuthKey !== key) {
     authFailedKey = "";
     authReauthPromptedKey = "";
@@ -549,7 +556,7 @@ function syncCasualAuth(
   if (lastAutoAuthKey === key) return;
 
   lastAutoAuthKey = key;
-  void executeCasualAuthenticate(uid, token, {
+  void executeCasualAuthenticate(platformAccessToken, {
     onAuthFailed: () => {
       if (authReauthPromptedKey === key) return;
       authReauthPromptedKey = key;
@@ -571,13 +578,19 @@ let liveSingleton: ConvexClient | null = null;
 
 function getCasualHttpClient(): ConvexHttpClient | null {
   if (!CASUAL_CONVEX_URL) return null;
-  if (!httpSingleton) httpSingleton = new ConvexHttpClient(CASUAL_CONVEX_URL);
+  if (!httpSingleton) {
+    httpSingleton = new ConvexHttpClient(CASUAL_CONVEX_URL);
+    registerConvexAuthClient(httpSingleton);
+  }
   return httpSingleton;
 }
 
 function getCasualLiveClient(): ConvexClient | null {
   if (!CASUAL_CONVEX_URL) return null;
-  if (!liveSingleton) liveSingleton = new ConvexClient(CASUAL_CONVEX_URL);
+  if (!liveSingleton) {
+    liveSingleton = new ConvexClient(CASUAL_CONVEX_URL);
+    registerConvexAuthClient(liveSingleton);
+  }
   return liveSingleton;
 }
 
@@ -656,13 +669,13 @@ function startLiveSubscriptions(uid: string | undefined) {
   if (uid) {
     sub(
       casualPlatformApi.service.season.casualSeasonService.getPassProgress,
-      { uid },
+      {},
       (row) => patchData({ passProgress: (row as CasualPlatformValue["passProgress"]) ?? null }),
       "getPassProgress"
     );
     sub(
       casualPlatformApi.service.weeklyLeague.casualWeeklyLeagueQueries.getWeeklyLeagueSnapshot,
-      { uid },
+      {},
       (row) =>
         patchData({
           weeklyLeagueSnapshot: (row as CasualPlatformValue["weeklyLeagueSnapshot"]) ?? null,
@@ -671,13 +684,13 @@ function startLiveSubscriptions(uid: string | undefined) {
     );
     sub(
       casualPlatformApi.service.task.casualTaskService.listSeasonMissions,
-      { uid },
+      {},
       (rows) => patchData({ missions: (rows as CasualPlatformValue["missions"]) ?? [] }),
       "listSeasonMissions"
     );
     sub(
       casualPlatformApi.service.task.casualTaskService.getCheckinStreak,
-      { uid },
+      {},
       (row) =>
         patchData({
           checkinStreak: (row as CasualPlatformValue["checkinStreak"]) ?? null,
@@ -686,7 +699,7 @@ function startLiveSubscriptions(uid: string | undefined) {
     );
     sub(
       casualPlatformApi.service.payout.casualPayoutDailyQueries.getDailyGrowthProgress,
-      { uid },
+      {},
       (row) =>
         patchData({
           dailyGrowthProgress: (row as CasualPlatformValue["dailyGrowthProgress"]) ?? null,
@@ -695,7 +708,7 @@ function startLiveSubscriptions(uid: string | undefined) {
     );
     sub(
       casualTournamentFns.gameHistory,
-      { uid, limit: 50 },
+      { limit: 50 },
       (rows) =>
         patchData({
           gameHistory: Array.isArray(rows) ? (rows as CasualGameHistoryRow[]) : [],
@@ -704,7 +717,7 @@ function startLiveSubscriptions(uid: string | undefined) {
     );
     sub(
       casualTournamentFns.listOpenCasualRunAssignments,
-      { uid },
+      {},
       (rows) =>
         patchData({
           openRunAssignments: Array.isArray(rows) ? (rows as OpenCasualRunAssignment[]) : [],
@@ -713,7 +726,7 @@ function startLiveSubscriptions(uid: string | undefined) {
     );
     sub(
       casualTournamentFns.listCasualMatchQueueForUid,
-      { uid },
+      {},
       (rows) =>
         patchData({
           matchQueueEntries: Array.isArray(rows)
@@ -724,7 +737,7 @@ function startLiveSubscriptions(uid: string | undefined) {
     );
     sub(
       casualSkinFns.getPlayerSkinState,
-      { uid },
+      {},
       (row) => patchData({ skinState: (row as CasualPlayerSkinState) ?? null }),
       "getPlayerSkinState"
     );
@@ -752,35 +765,41 @@ function syncLive(uid: string | undefined) {
 /**
  * 单例 Convex + 集中订阅；任何页面调用 `useCasualPlatform()` 即可（无需 Provider）。
  */
-export function useCasualPlatform(): CasualPlatformValue {
+export function useCasualPlatform(opts?: UseCasualPlatformOptions): CasualPlatformValue {
   const { user, askAuth } = useUserManager();
   const uid = user?.uid;
-  const token = user?.token;
+  const platformAccessToken = user?.platformAccessToken;
+  const casualLobbyEnabled = opts?.enabled !== false && !isPortalPlayRoute();
 
   useEffect(() => {
+    if (!casualLobbyEnabled) {
+      syncLive(undefined);
+      return;
+    }
     syncLive(uid);
-  }, [uid]);
+  }, [casualLobbyEnabled, uid]);
 
   const onAuthFailed = useCallback(() => {
     askAuth({});
   }, [askAuth]);
 
   useEffect(() => {
-    syncCasualAuth(uid, token, onAuthFailed);
-  }, [uid, token, onAuthFailed]);
+    if (!casualLobbyEnabled) return;
+    syncCasualAuth(platformAccessToken, onAuthFailed);
+  }, [casualLobbyEnabled, platformAccessToken, onAuthFailed]);
 
   const snap = useSyncExternalStore(subscribeStore, getDataSnapshot, getServerDataSnapshot);
 
   const refreshCasualPlayer = useCallback(async () => {
-    if (!user?.uid || !user?.token) {
+    if (!isPlatformAuthed(user) || !user?.platformAccessToken) {
       patchData({ casualPlayer: null });
       return;
     }
-    await executeCasualAuthenticate(user.uid, user.token, {
+    await executeCasualAuthenticate(user.platformAccessToken, {
       force: true,
       onAuthFailed,
     });
-  }, [user?.uid, user?.token, onAuthFailed]);
+  }, [user, onAuthFailed]);
 
   const refreshPassProgress = useCallback(async () => {
     const http = getCasualHttpClient();
@@ -789,9 +808,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       return;
     }
     try {
-      const row = await http.query(casualPlatformApi.service.season.casualSeasonService.getPassProgress, {
-        uid: user.uid,
-      });
+      const row = await http.query(casualPlatformApi.service.season.casualSeasonService.getPassProgress, {});
       patchData({ passProgress: (row as CasualPlatformValue["passProgress"]) ?? null });
     } catch (e) {
       console.error("[CasualPlatform] getPassProgress refresh", e);
@@ -802,9 +819,7 @@ export function useCasualPlatform(): CasualPlatformValue {
     const http = getCasualHttpClient();
     if (!http || !user?.uid) return;
     try {
-      const rows = await http.query(casualPlatformApi.service.task.casualTaskService.listSeasonMissions, {
-        uid: user.uid,
-      });
+      const rows = await http.query(casualPlatformApi.service.task.casualTaskService.listSeasonMissions, {});
       patchData({ missions: (rows as CasualPlatformValue["missions"]) ?? [] });
     } catch (e) {
       console.error("[CasualPlatform] listSeasonMissions refresh", e);
@@ -815,9 +830,7 @@ export function useCasualPlatform(): CasualPlatformValue {
     const http = getCasualHttpClient();
     if (!http || !user?.uid) return;
     try {
-      const row = await http.query(casualPlatformApi.service.task.casualTaskService.getCheckinStreak, {
-        uid: user.uid,
-      });
+      const row = await http.query(casualPlatformApi.service.task.casualTaskService.getCheckinStreak, {});
       patchData({ checkinStreak: (row as CasualPlatformValue["checkinStreak"]) ?? null });
     } catch (e) {
       console.error("[CasualPlatform] getCheckinStreak refresh", e);
@@ -830,7 +843,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return null;
       try {
         const result = await http.action(casualTournamentFns.joinTournament, {
-          uid: user.uid,
           tournamentId,
         });
         if (result?.ok === true && result.queued === false) {
@@ -862,7 +874,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return null;
       try {
         return await http.query(casualTournamentFns.previewJoinEntryCharge, {
-          uid: user.uid,
           tournamentId,
         });
       } catch (e) {
@@ -879,7 +890,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return null;
       try {
         const row = await http.query(casualTournamentFns.getCasualAsyncTableSummaryForGame, {
-          uid: user.uid,
           matchGameId,
         });
         if (!row || typeof row !== "object" || !Array.isArray((row as { rows?: unknown }).rows)) {
@@ -910,15 +920,14 @@ export function useCasualPlatform(): CasualPlatformValue {
   }, []);
 
   const fetchPeriodInstanceSelfStanding = useCallback(
-    async (tournamentId: string, uid: string) => {
+    async (tournamentId: string) => {
       const http = getCasualHttpClient();
-      if (!http) {
+      if (!http || !user?.uid) {
         return { instanceKey: null, myBestScore: null, myRank: null };
       }
       try {
         const row = await http.query(casualTournamentFns.periodInstanceSelfStanding, {
           tournamentId,
-          uid,
         });
         const r = row as {
           instanceKey?: string | null;
@@ -935,7 +944,7 @@ export function useCasualPlatform(): CasualPlatformValue {
         return { instanceKey: null, myBestScore: null, myRank: null };
       }
     },
-    []
+    [user?.uid]
   );
 
   const fetchGameHistory = useCallback(async (limit?: number) => {
@@ -943,7 +952,6 @@ export function useCasualPlatform(): CasualPlatformValue {
     if (!http || !user?.uid) return [];
     try {
       return await http.query(casualTournamentFns.gameHistory, {
-        uid: user.uid,
         limit,
       });
     } catch (e) {
@@ -956,9 +964,7 @@ export function useCasualPlatform(): CasualPlatformValue {
     const http = getCasualHttpClient();
     if (!http || !user?.uid) return [];
     try {
-      const rows = await http.query(casualTournamentFns.listOpenCasualRunAssignments, {
-        uid: user.uid,
-      });
+      const rows = await http.query(casualTournamentFns.listOpenCasualRunAssignments, {});
       const list = Array.isArray(rows) ? (rows as OpenCasualRunAssignment[]) : [];
       patchData({ openRunAssignments: list });
       return list;
@@ -974,7 +980,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid || !matchGameId.trim()) return null;
       try {
         const row = await http.query(casualTournamentFns.getTriathlonSessionProgress, {
-          uid: user.uid,
           matchGameId: matchGameId.trim(),
         });
         return (row as TriathlonSessionProgress | null) ?? null;
@@ -992,7 +997,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false as const, error: "no_auth" };
       try {
         const res = await http.mutation(casualTournamentFns.leaveCasualMatchQueue, {
-          uid: user.uid,
           ...(templateId?.trim() ? { templateId: templateId.trim() } : {}),
         });
         const r = res as { ok?: boolean; error?: string; removed?: number };
@@ -1020,7 +1024,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false as const, error: "no_auth" };
       try {
         const res = await http.mutation(casualTournamentFns.claimCasualRunRewards, {
-          uid: user.uid,
           playerTournamentId: playerTournamentId as Id<"casual_run_player_tournaments">,
         });
         const r = res as { ok?: boolean; error?: string };
@@ -1043,7 +1046,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (pendingRewardIds.length === 0) return { ok: false as const, error: "empty_batch" };
       try {
         const res = await http.mutation(casualTournamentFns.claimCasualScoreTierPendingRewardsBatch, {
-          uid: user.uid,
           pendingRewardIds: pendingRewardIds as Id<"casual_score_tier_pending">[],
         });
         const r = res as { ok?: boolean; error?: string };
@@ -1065,7 +1067,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false as const, error: "no_auth" };
       try {
         const res = await http.mutation(casualTournamentFns.claimCasualScoreTierPendingReward, {
-          uid: user.uid,
           pendingRewardId: pendingRewardId as Id<"casual_score_tier_pending">,
         });
         const r = res as { ok?: boolean; error?: string };
@@ -1089,7 +1090,6 @@ export function useCasualPlatform(): CasualPlatformValue {
         const res = await http.mutation(
           casualInstanceFns.claimCasualInstanceRewards,
           {
-            uid: user.uid,
             instancePlayerStateId: instancePlayerStateId as Id<"casual_instance_player_state">,
           }
         );
@@ -1134,7 +1134,7 @@ export function useCasualPlatform(): CasualPlatformValue {
     try {
       const res = await http.query(
         casualPlatformApi.service.weeklyLeague.casualWeeklyLeagueQueries.listWeeklyLeagueCohort,
-        { uid: user.uid }
+        {}
       );
       const payload = res as {
         members?: Array<{
@@ -1162,7 +1162,7 @@ export function useCasualPlatform(): CasualPlatformValue {
     try {
       const r = await http.mutation(
         casualPlatformApi.service.weeklyLeague.casualWeeklyLeagueQueries.ensureWeeklyLeagueMemberMutation,
-        { uid: user.uid }
+        {}
       );
       return (r as { ok?: boolean }) ?? { ok: false };
     } catch (e) {
@@ -1177,7 +1177,7 @@ export function useCasualPlatform(): CasualPlatformValue {
     try {
       const r = await http.mutation(
         casualPlatformApi.service.weeklyLeague.casualWeeklyLeagueQueries.claimWeeklyLeagueRewards,
-        { uid: user.uid }
+        {}
       );
       await refreshCasualPlayer();
       return r as { ok: boolean; error?: string };
@@ -1193,7 +1193,7 @@ export function useCasualPlatform(): CasualPlatformValue {
     try {
       return (await http.mutation(
         casualPlatformApi.service.weeklyLeague.casualWeeklyLeagueQueries.dismissWeeklyLeagueClose,
-        { uid: user.uid }
+        {}
       )) as { ok: boolean };
     } catch (e) {
       console.error("[CasualPlatform] dismissWeeklyLeagueClose", e);
@@ -1207,7 +1207,7 @@ export function useCasualPlatform(): CasualPlatformValue {
     try {
       return (await http.query(
         casualPlatformApi.service.achievement.casualAchievementService.listPlayerAchievements,
-        { uid: user.uid }
+        {}
       )) as {
         achievements: Array<{ achievementId: string; unlockedAt: number }>;
         peakLeagueTier: string;
@@ -1237,7 +1237,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false, error: "no_auth" };
       try {
         return await http.mutation(casualPlatformApi.service.task.casualTaskService.claimSeasonMission, {
-          uid: user.uid,
           taskId,
         });
       } catch (e) {
@@ -1252,9 +1251,7 @@ export function useCasualPlatform(): CasualPlatformValue {
     const http = getCasualHttpClient();
     if (!http || !user?.uid) return { ok: false, error: "no_auth" };
     try {
-      return await http.mutation(casualPlatformApi.service.task.casualTaskService.touchDailyLoginMission, {
-        uid: user.uid,
-      });
+      return await http.mutation(casualPlatformApi.service.task.casualTaskService.touchDailyLoginMission, {});
     } catch (e) {
       console.error("[CasualPlatform] touchDailyLoginMission", e);
       return { ok: false, error: "touch_failed" };
@@ -1267,7 +1264,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false, error: "no_auth" };
       try {
         return await http.mutation(casualPlatformApi.service.season.casualSeasonService.claimPassLevel, {
-          uid: user.uid,
           ...input,
         });
       } catch (e) {
@@ -1284,7 +1280,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false, error: "no_auth" };
       try {
         return await http.mutation(casualTournamentFns.confirmCasualRunWithoutReplay, {
-          uid: user.uid,
           matchGameId,
         });
       } catch (e) {
@@ -1312,7 +1307,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false, error: "no_auth" };
       try {
         return await http.mutation((casualPlatformApi.service.shop.casualShopService as any).purchaseSku, {
-          uid: user.uid,
           skuId,
         });
       } catch (e) {
@@ -1329,7 +1323,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false, error: "no_auth" };
       try {
         return await http.mutation((casualPlatformApi.service.shop.casualShopService as any).fulfillIapShopPurchase, {
-          uid: user.uid,
           skuId,
           paymentRef,
         });
@@ -1347,7 +1340,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false, error: "no_auth" };
       try {
         return await http.mutation(casualPlatformApi.service.chest.casualFixedChestService.openFixedChest, {
-          uid: user.uid,
           chestId,
         });
       } catch (e) {
@@ -1364,7 +1356,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false, error: "no_auth" };
       try {
         return await http.mutation(casualPlatformApi.service.season.casualSeasonService.devUnlockPassTrack, {
-          uid: user.uid,
           ...input,
         });
       } catch (e) {
@@ -1382,7 +1373,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       return;
     }
     try {
-      const row = await http.query(casualSkinFns.getPlayerSkinState, { uid: user.uid });
+      const row = await http.query(casualSkinFns.getPlayerSkinState, {});
       patchData({ skinState: (row as CasualPlayerSkinState) ?? null });
     } catch (e) {
       console.error("[CasualPlatform] getPlayerSkinState refresh", e);
@@ -1395,7 +1386,6 @@ export function useCasualPlatform(): CasualPlatformValue {
       if (!http || !user?.uid) return { ok: false, error: "no_auth" };
       try {
         const res = await http.mutation(casualSkinFns.equipSkin, {
-          uid: user.uid,
           slot: input.slot,
           skinId: input.skinId,
         });

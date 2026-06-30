@@ -36,7 +36,7 @@ http.route({
     console.log("debit");
     const debit = await request.json();
     console.log("debit: ", debit);
-    const user = await ctx.runQuery(internal.dao.userDao.find, { uid: debit.uid });
+    const user = await ctx.runQuery(internal.dao.authIdentityDao.findByUid, { uid: debit.uid });
     console.log("user: ", user);
     // if (!user) return new Response("Unauthorized", { status: 401 });
     // if (!user || user.token !== debit.token) return new Response("Unauthorized", { status: 401 });
@@ -55,9 +55,20 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const credit = await request.json();
-    const user = await ctx.runQuery(internal.dao.userDao.find, { uid: credit.uid });
-    // if (!user) return new Response("Unauthorized", { status: 401 });
-    if (!user || user.token !== credit.token) return new Response("Unauthorized", { status: 401 });
+    const platformAccessToken =
+      typeof credit.platformAccessToken === "string"
+        ? credit.platformAccessToken
+        : typeof credit.token === "string"
+          ? credit.token
+          : null;
+    if (!platformAccessToken || typeof credit.uid !== "string") {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    const ok = await ctx.runAction(api.service.auth.platformAuth.verifyPlatformTokenForUid, {
+      uid: credit.uid,
+      platformAccessToken,
+    });
+    if (!ok) return new Response("Unauthorized", { status: 401 });
 
     // console.log("result",result);
     return new Response(JSON.stringify({ ok: true }), {

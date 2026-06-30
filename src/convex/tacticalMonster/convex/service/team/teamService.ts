@@ -8,7 +8,8 @@
  */
 
 import { v } from "convex/values";
-import { internalQuery, mutation, query } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
+import { internalQuery } from "../../_generated/server";
 import { calculatePower, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
 
 export class TeamService {
@@ -481,83 +482,79 @@ export class TeamService {
 /**
  * 获取玩家的上场队伍
  */
-export const getPlayerTeam = query({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await TeamService.getPlayerTeam(ctx, args.uid);
+export const getPlayerTeam = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        return await TeamService.getPlayerTeam(ctx, ctx.uid);
     },
 });
 
 /**
  * 设置上场队伍
  */
-export const setPlayerTeam = mutation({
+export const setPlayerTeam = authedMutation({
     args: {
-        uid: v.string(),
         monsterIds: v.array(v.string()), // 最多4个
     },
     handler: async (ctx, args) => {
-        return await TeamService.setPlayerTeam(ctx, args);
+        return await TeamService.setPlayerTeam(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 添加怪物到队伍
  */
-export const addMonsterToTeam = mutation({
+export const addMonsterToTeam = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
         q: v.optional(v.number()), // Hex 坐标 q
         r: v.optional(v.number()), // Hex 坐标 r
     },
     handler: async (ctx, args) => {
-        return await TeamService.addMonsterToTeam(ctx, args);
+        return await TeamService.addMonsterToTeam(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 设置队伍中怪物的位置
  */
-export const setMonsterPosition = mutation({
-    args: { uid: v.string(), monsterId: v.string(), q: v.number(), r: v.number() },
-    handler: async (ctx, args) => TeamService.setMonsterPosition(ctx, args),
+export const setMonsterPosition = authedMutation({
+    args: { monsterId: v.string(), q: v.number(), r: v.number() },
+    handler: async (ctx, args) => TeamService.setMonsterPosition(ctx, { ...args, uid: ctx.uid }),
 });
 
 /**
  * 从队伍中移除怪物
  */
-export const removeMonsterFromTeam = mutation({
+export const removeMonsterFromTeam = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
     },
     handler: async (ctx, args) => {
-        return await TeamService.removeMonsterFromTeam(ctx, args);
+        return await TeamService.removeMonsterFromTeam(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 交换队伍位置
  */
-export const swapTeamPositions = mutation({
+export const swapTeamPositions = authedMutation({
     args: {
-        uid: v.string(),
         monsterId1: v.string(),
         monsterId2: v.string(),
     },
     handler: async (ctx, args) => {
-        return await TeamService.swapTeamPositions(ctx, args);
+        return await TeamService.swapTeamPositions(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 验证队伍是否有效
  */
-export const validateTeam = query({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await TeamService.validateTeam(ctx, args.uid);
+export const validateTeam = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        return await TeamService.validateTeam(ctx, ctx.uid);
     },
 });
 

@@ -1,70 +1,43 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { internalMutation, query } from "../_generated/server";
+import { authedQuery } from "../custom/session";
+import { internalMutation } from "../_generated/server";
 
 export class PlayerManager {
-    /**
-     * 验证玩家
-     */
-    static async authenticate(ctx: any, params: {
-        uid: string;
-        token: string;
-    }) {
+    static async ensurePlayer(ctx: any, params: { uid: string }) {
         const player: any = await ctx.runQuery(internal.dao.playerDao.find, { uid: params.uid });
-        console.log("authenticate", params.uid, player);
-        // const token = generateRandomString(36);
         const nowISO = new Date().toISOString();
         if (!player) {
-
             await ctx.runMutation(internal.dao.playerDao.create, {
                 uid: params.uid,
-                token: params.token,
                 coins: 1000,
                 gems: 100,
                 expire: Date.now() + 1000 * 60 * 60 * 24 * 30,
             });
-
-            // await ctx.db.insert("player_inventory", {
-            //     uid: params.uid,
-            //     coins: 1000,
-            //     props: [],
-            //     tickets: [],
-            //     createdAt: nowISO,
-            //     updatedAt: nowISO
-            // });
-
         } else {
             await ctx.runMutation(internal.dao.playerDao.update, {
                 uid: params.uid,
-                token: params.token,
                 expire: Date.now() + 1000 * 60 * 60 * 24 * 30,
             });
         }
-        return player;
+        return await ctx.runQuery(internal.dao.playerDao.find, { uid: params.uid });
     }
-
-
 }
 
-// Convex 函数接口
-export const authenticate = internalMutation({
-    args: {
-        uid: v.string(),
-        token: v.string(),
-    },
+export const ensurePlayer = internalMutation({
+    args: { uid: v.string() },
     handler: async (ctx: any, args: any): Promise<any> => {
-        return await PlayerManager.authenticate(ctx, args);
+        return await PlayerManager.ensurePlayer(ctx, args);
     },
 });
 
-export const getPlayerTournamentStatus = (query as any)({
-    args: {
-        uid: v.string(),
-    },
-    handler: async (ctx: any, args: any): Promise<any> => {
-        console.log("getPlayerTournamentStatus", args);
+/** @deprecated use ensurePlayer via platform JWT */
+export const authenticate = ensurePlayer;
+
+export const getPlayerTournamentStatus = authedQuery({
+    args: {},
+    handler: async (ctx: any): Promise<any> => {
+        console.log("getPlayerTournamentStatus", ctx.uid);
         return [];
     },
 });
-
-

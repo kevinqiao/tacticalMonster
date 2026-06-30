@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 
 import { mutation, query } from "../../_generated/server";
+import { authedQuery } from "../../custom/session";
 
 import { weeklyPeriodKey, weeklyWindowMsShanghai } from "../../utils/casualTaskPeriod";
 
@@ -114,17 +115,17 @@ export const getWeeklyLeaderboard = query({
 
 
 
-export const getMyWeeklyPoints = query({
+export const getMyWeeklyPoints = authedQuery({
 
   args: {
-
-    uid: v.string(),
 
     gameType: v.string(),
 
   },
 
-  handler: async (ctx, { uid, gameType }) => {
+  handler: async (ctx, { gameType }) => {
+
+    const uid = ctx.uid;
 
     const now = Date.now();
 

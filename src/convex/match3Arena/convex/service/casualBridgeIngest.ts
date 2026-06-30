@@ -1,7 +1,11 @@
 /**
  * Shared casual `/internal/casual-run-ingest` client (Node actions only).
  */
-import { resolveCasualBridgeEnv } from "./casualBridgeEnv";
+import {
+  casualBridgeRequestHeaders,
+  resolveCasualBridgeEnv,
+  type PlatformBridge,
+} from "./casualBridgeEnv";
 
 export type CasualIngestParsed = {
   ok?: boolean;
@@ -31,20 +35,18 @@ export async function postCasualRunIngest(args: {
   botFills?: BotFillPayload[];
   replaceAllVirtual?: boolean;
   seedScoreThreshold?: number;
+  platformBridge?: PlatformBridge;
 }): Promise<
   | { ok: true; parsed: CasualIngestParsed; status: number }
   | { ok: false; error: string; status?: number }
 > {
-  const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
-  const url = `${casualOrigin}/internal/casual-run-ingest`;
+  const bridgeEnv = resolveCasualBridgeEnv(args.platformBridge ?? "casual");
+  const url = `${bridgeEnv.origin}/internal/casual-run-ingest`;
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Casual-Bridge-Secret": bridge,
-      },
+      headers: casualBridgeRequestHeaders(bridgeEnv),
       body: JSON.stringify({
         uid: args.uid,
         matchGameId: args.matchGameId,
@@ -57,7 +59,7 @@ export async function postCasualRunIngest(args: {
       }),
     });
   } catch (e) {
-    console.error("[solitaire] casual ingest fetch failed", e);
+    console.error("[match3] casual ingest fetch failed", e);
     return { ok: false, error: "casual_unreachable" };
   }
 

@@ -9,6 +9,7 @@ import { resolveInstanceWindow } from "../../../data/portalInstanceWindow";
 import type { Doc, Id } from "../../../_generated/dataModel";
 import type { QueryCtx } from "../../../_generated/server";
 import { query } from "../../../_generated/server";
+import { authedQuery } from "../../../custom/session";
 import {
   activeSeasonWindowForCtx,
   computePeriodInstanceSelfStanding,
@@ -274,12 +275,12 @@ export const leaderboard = query({
 });
 
 /** ?????????????????? `leaderboard` ????????? Top N ??????? */
-export const periodInstanceSelfStanding = query({
+export const periodInstanceSelfStanding = authedQuery({
   args: {
     tournamentId: v.string(),
-    uid: v.string(),
   },
-  handler: async (ctx, { tournamentId, uid }) => {
+  handler: async (ctx, { tournamentId }) => {
+    const uid = ctx.uid;
     const defLb = getPortalTournamentDefinition(tournamentId);
     if (!defLb || defLb.hideLeaderboard || !isPeriodScopedTournament(defLb)) {
       return { instanceKey: null, myBestScore: null, myRank: null };
@@ -338,13 +339,13 @@ export const solitaireSessionStandings = query({
  * Game history: completed runs + human-submitted runs awaiting settlement.
  * Unsettled rows stay in the reactive query until `RUN_PLAYER_TOURNAMENT_COMPLETED`.
  */
-export const gameHistory = query({
+export const gameHistory = authedQuery({
   args: {
-    uid: v.string(),
     gameType: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { uid, gameType, limit }) => {
+  handler: async (ctx, { gameType, limit }) => {
+    const uid = ctx.uid;
     const n = Math.min(Math.max(limit ?? 30, 1), 100);
 
     const pts = await ctx.db
@@ -456,9 +457,10 @@ export const gameHistory = query({
 });
 
 /** ???????:??????? `open` ?? assignment */
-export const listOpenCasualRunAssignments = query({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
+export const listOpenCasualRunAssignments = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const openGames = await ctx.db
       .query("portal_run_player_games")
       .withIndex("by_uid", (q) => q.eq("uid", uid))
@@ -483,6 +485,7 @@ export const listOpenCasualRunAssignments = query({
         runTournamentId: pm.tournamentId,
         createdAt: pg.createdAt,
         dueAt,
+        ...(pm.campaignId ? { campaignId: pm.campaignId } : {}),
       });
     }
     return assignments.sort((a, b) => b.createdAt - a.createdAt);
@@ -490,12 +493,12 @@ export const listOpenCasualRunAssignments = query({
 });
 
 /** ???? session:?????? + ?? open ?(?????????) */
-export const getTriathlonSessionProgress = query({
+export const getTriathlonSessionProgress = authedQuery({
   args: {
-    uid: v.string(),
     matchGameId: v.string(),
   },
-  handler: async (ctx, { uid, matchGameId }) => {
+  handler: async (ctx, { matchGameId }) => {
+    const uid = ctx.uid;
     const pg = await findPlayerGameByGameId(ctx, matchGameId);
     if (!pg || pg.uid !== uid) {
       return null;

@@ -1,94 +1,155 @@
 "use node"
+
 import { v } from "convex/values";
-import jwt from "jsonwebtoken";
+
 import type { User } from "../../../../host/service/UserManager";
+
 import { internal } from "../_generated/api";
+
 import { action } from "../_generated/server";
-import { AuthenticatorFactory } from "./provider/AuthenticatorFactory";
-const REFRESH_TOKEN_EXPIRE = 600 * 1000;
-const ACCESS_TOKEN_SECRET = "12222222";
-const TELEGRAM_BOT_TOKEN_SECRET = "5369641667:AAGdoOdBJaZVi2QsAHOunEX0DuEhezjFYLQ";
+
+import { authenticateWithChannel } from "./auth/authenticateWithChannel";
+
+import { verifyPlatformAccessToken } from "./auth/platformJwtVerify";
+
+
 
 export const authenticate = action({
-    args: { cid: v.number(), partner: v.optional(v.number()), data: v.any() },
-    handler: async (ctx, { cid, partner, data }): Promise<User | null> => {
-        const channel = cid === 0 ? { cid: 0, provider: "web" } : await ctx.runQuery(internal.dao.authChannelDao.find, { cid });
-        if (channel) {
-            const authenticator = AuthenticatorFactory.createAuthenticator(channel);
-            if (authenticator) {
-                return authenticator.signIn(ctx, partner, data);
-            }
-        }
-        return null;
-    }
-});
-export const refreshToken = action({
-    args: { uid: v.string(), token: v.string() },
-    handler: async (ctx, { uid, token }): Promise<User | null> => {
-        const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
-        console.log("refreshToken", user?.token, token, user?.expire, Date.now());
-        if (user?.token === token && user?.expire && user.expire > Date.now()) {
-            const refreshToken = jwt.sign({ uid: user.uid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
-            if (refreshToken) {
-                await ctx.runMutation(internal.dao.userDao.updateToken, { uid, token: refreshToken });
-                return Object.assign({}, user, { token: refreshToken, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });
-            }
-        }
-        return null;
-    }
-})
-export const authByToken = action({
-    args: { uid: v.string(), token: v.string() },
-    handler: async (ctx, { uid, token }): Promise<User | null> => {
-        try {
-            const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
-            console.log("authByToken", user?.token, token);
-            if (user?.token === token) {
-                await ctx.runMutation(internal.dao.userDao.refreshExpire, { uid });
-                return Object.assign({}, user, { _id: undefined, _creationTime: undefined, cuid: undefined, cid: undefined, data: undefined });
-            }
-            return null;
-        } catch (err) {
-            console.error("[authByToken] error", err);
-            return null;
-        }
-    }
-})
-export const signUp = action({
-    args: { cid: v.number(), partner: v.optional(v.number()), data: v.any() },
-    handler: async (ctx, { cid, partner, data }) => {
-        const channel = cid === 0 ? { cid: 0, provider: "web" } : await ctx.runQuery(internal.dao.authChannelDao.find, { cid });
-        if (channel) {
-            const authenticator = AuthenticatorFactory.createAuthenticator(channel);
-            if (authenticator && authenticator.signUp) {
-                return authenticator.signUp(ctx, partner, data);
-            }
-        }
-        return null;
-    }
-});
-export const signOut = action({
-    args: { uid: v.string(), token: v.string() },
-    handler: async (ctx, { uid, token }): Promise<boolean> => {
-        const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
-        if (user?.token === token) {
-            await ctx.runMutation(internal.dao.userDao.logout, { uid });
-            return true;
-        }
-        return false;
-    }
-})
-export const updateData = action({
-    args: { uid: v.string(), token: v.string(), data: v.any() },
-    handler: async (ctx, { uid, token, data }): Promise<boolean> => {
 
-        const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
-        console.log("updateData", uid, token, user?.token, data);
-        if (user?.token === token) {
-            console.log("updateData start", uid, data);
-            await ctx.runMutation(internal.dao.userDao.updateUserData, { uid, data });
-            return true;
-        }
-        return false;
+    args: { cid: v.number(), partner: v.optional(v.number()), data: v.any() },
+
+    handler: async (ctx, { cid, partner, data }): Promise<User | null> => {
+
+        return authenticateWithChannel(ctx, cid, partner, data);
+
     }
-})
+
+});
+
+
+
+export const signUp = action({
+
+    args: { cid: v.number(), partner: v.optional(v.number()), data: v.any() },
+
+    handler: async (ctx, { cid, partner, data }) => {
+
+        const channel = await ctx.runQuery(internal.dao.authChannelDao.find, { cid });
+
+        if (!channel) return null;
+
+
+
+        const { AuthenticatorFactory } = await import("./provider/AuthenticatorFactory");
+
+        const authenticator = AuthenticatorFactory.createAuthenticator(channel);
+
+        if (!authenticator?.signUp) return null;
+
+
+
+        const user = await authenticator.signUp(ctx, partner, data);
+
+        if (user?.uid) {
+
+            const { attachPlatformAccess, stripUserForClient } = await import("./auth/platformClientUser");
+
+            return attachPlatformAccess(stripUserForClient(user as Record<string, unknown>));
+
+        }
+
+        return user;
+
+    }
+
+});
+
+
+
+export const signOut = action({
+
+    args: { platformAccessToken: v.string() },
+
+    handler: async (ctx, { platformAccessToken }): Promise<boolean> => {
+
+        const uid = verifyPlatformAccessToken(platformAccessToken);
+
+        if (!uid) return false;
+
+        await ctx.runMutation(internal.dao.authIdentityDao.logout, { uid });
+
+        return true;
+
+    }
+
+});
+
+
+
+export const updateData = action({
+
+    args: { platformAccessToken: v.string(), data: v.any() },
+
+    handler: async (ctx, { platformAccessToken, data }): Promise<boolean> => {
+
+        const uid = verifyPlatformAccessToken(platformAccessToken);
+
+        if (!uid) return false;
+
+
+
+        const payload = data && typeof data === "object" ? data as Record<string, unknown> : {};
+
+        const name = typeof payload.name === "string" ? payload.name : undefined;
+
+        const phone = typeof payload.phone === "string" ? payload.phone : undefined;
+
+
+
+        const { name: _n, phone: _p, ...rest } = payload;
+
+
+
+        const identity = await ctx.runQuery(internal.dao.authIdentityDao.findByUid, { uid });
+
+        if (
+
+            identity?.provider === "web" &&
+
+            typeof identity.subject === "string" &&
+
+            (name !== undefined || phone !== undefined)
+
+        ) {
+
+            await ctx.runMutation(internal.dao.userDao.updateProfile, {
+
+                accountId: identity.subject,
+
+                name,
+
+                phone,
+
+            });
+
+        }
+
+
+
+        await ctx.runMutation(internal.dao.authIdentityDao.updateIdentityProfile, {
+
+            uid,
+
+            name,
+
+            phone,
+
+            ...(Object.keys(rest).length > 0 ? { data: rest } : {}),
+
+        });
+
+        return true;
+
+    }
+
+});

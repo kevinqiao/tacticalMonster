@@ -2,19 +2,20 @@ import { v } from "convex/values";
 
 import type { Id } from "../../../_generated/dataModel";
 import { mutation } from "../../../_generated/server";
+import { authedMutation } from "../../../custom/session";
 import { getPortalTournamentDefinition } from "../../../data/portalTournamentConfigs";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "../join/casualTournamentJoinCore";
 import { isHumanSubmittedStatus } from "../shared/casualPlayerMatchStatus";
 import { tryFinalizeCasualAsyncMatch } from "../submit/casualRunIngestCore";
 
 /** 历史页兜底：对已交分但未完成 run 的异步桌尝试 finalize / 补 schedule */
-export const reconcilePendingCasualHistorySettlements = mutation({
+export const reconcilePendingCasualHistorySettlements = authedMutation({
   args: {
-    uid: v.string(),
     gameType: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { uid, gameType, limit }) => {
+  handler: async (ctx, { gameType, limit }) => {
+    const uid = ctx.uid;
     const n = Math.min(Math.max(limit ?? 15, 1), 40);
     const now = Date.now();
 

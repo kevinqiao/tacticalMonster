@@ -21,14 +21,15 @@ export type ResolvedJoinTournamentOutcome =
       waitingForPeer: boolean;
       expiresAt?: number;
     }
-  | { kind: "failed"; error: string };
+  | { kind: "failed"; error: string; errorCode?: string };
 
 /** 将 `joinTournament` 返回值规范为 ready / queued / failed（A/B/C / p75 / 专场共用） */
 export function resolveJoinTournamentOutcome(
   result: CasualJoinTournamentMutationResult
 ): ResolvedJoinTournamentOutcome {
   if (!result || !result.ok) {
-    return { kind: "failed", error: joinEntryErrorMessage(result?.error) };
+    const errorCode = result?.error ?? "join_failed";
+    return { kind: "failed", error: joinEntryErrorMessage(errorCode), errorCode };
   }
   if (result.queued) {
     return {

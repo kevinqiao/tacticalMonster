@@ -1,3 +1,4 @@
+import "@/i18n";
 import React from "react";
 import { AppProviders } from "./AppProviders";
 import { MainApp } from "./MainApp";

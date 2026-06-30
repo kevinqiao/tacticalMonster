@@ -1,4 +1,4 @@
-﻿import { v } from "convex/values";
+import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import {
   internalMutation,
@@ -8,6 +8,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
 import {
   PASS_LEVEL_REWARDS,
   PASS_MAX_LEVEL,
@@ -110,10 +111,10 @@ export const upsertSeason = mutation({
   },
 });
 
-export const getPassProgress = query({
-  args: { uid: v.optional(v.string()) },
-  handler: async (ctx, { uid }) => {
-    if (!uid) return null;
+export const getPassProgress = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const season = await resolveActiveSeason(ctx);
     if (!season) return null;
     const row = await ctx.db
@@ -320,14 +321,14 @@ type ClaimPassLevelResult =
         | "claim_failed";
     };
 
-export const claimPassLevel = mutation({
+export const claimPassLevel = authedMutation({
   args: {
-    uid: v.string(),
     seasonId: v.string(),
     track: v.union(v.literal("free"), v.literal("standard"), v.literal("deluxe")),
     level: v.number(),
   },
-  handler: async (ctx, { uid, seasonId, track, level }): Promise<ClaimPassLevelResult> => {
+  handler: async (ctx, { seasonId, track, level }): Promise<ClaimPassLevelResult> => {
+    const uid = ctx.uid;
     const progress = await ctx.db
       .query("casual_pass_progress")
       .withIndex("by_uid_season", (q) => q.eq("uid", uid).eq("seasonId", seasonId))
@@ -386,13 +387,13 @@ export const claimPassLevel = mutation({
 });
 
 /** 开发/占位：解锁付费轨（真实环境由 IAP webhook 调用） */
-export const devUnlockPassTrack = mutation({
+export const devUnlockPassTrack = authedMutation({
   args: {
-    uid: v.string(),
     seasonId: v.string(),
     track: v.union(v.literal("standard"), v.literal("deluxe")),
   },
-  handler: async (ctx, { uid, seasonId, track }) => {
+  handler: async (ctx, { seasonId, track }) => {
+    const uid = ctx.uid;
     const row = await ctx.db
       .query("casual_pass_progress")
       .withIndex("by_uid_season", (q) => q.eq("uid", uid).eq("seasonId", seasonId))

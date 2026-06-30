@@ -1,12 +1,11 @@
 // @ts-nocheck
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { mutation } from "../_generated/server";
+import { authedMutation } from "../custom/session";
 
 // 更新玩家资料并重新分配任务
-export const updatePlayerProfile = mutation({
+export const updatePlayerProfile = authedMutation({
   args: {
-    uid: v.string(), // 玩家 ID
     displayName: v.optional(v.string()), // 显示名称
     avatar: v.optional(v.string()), // 头像
     email: v.optional(v.string()), // 邮箱
@@ -14,7 +13,7 @@ export const updatePlayerProfile = mutation({
   handler: async (ctx, args) => {
     try {
       // 验证玩家存在
-      const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", args.uid)).first();
+      const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", ctx.uid)).first();
       if (!player) throw new Error("玩家不存在");
 
       // 准备更新数据（段位系统已移除）
@@ -26,7 +25,7 @@ export const updatePlayerProfile = mutation({
       // 更新玩家资料
       await ctx.db.patch(player._id, updateData);
       // 异步调用 assignTasks 重新分配任务
-      await ctx.scheduler.runAfter(0, internal.service.task.assignTasks.assignTasks, { uid: args.uid });
+      await ctx.scheduler.runAfter(0, internal.service.task.assignTasks.assignTasks, { uid: ctx.uid });
 
       return { success: true, message: "玩家资料更新成功，任务重新分配已调度" };
     } catch (error) {
@@ -34,7 +33,7 @@ export const updatePlayerProfile = mutation({
       await ctx.db.insert("error_logs", {
         error: error instanceof Error ? error.message : String(error),
         context: "updatePlayerProfile",
-        uid: args.uid,
+        uid: ctx.uid,
         createdAt: new Date().toISOString(),
       });
       return { success: false, message: `玩家资料更新失败: ${error instanceof Error ? error.message : String(error)}` };

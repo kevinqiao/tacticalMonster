@@ -1,22 +1,45 @@
 /**
- * Platform HTTP bridge: prefers Portal when `PORTAL_HTTP_ORIGIN` is set, else Casual.
+ * Platform HTTP bridge: explicit `portal` | `casual` (default casual).
+ * Portal routes require header `X-Portal-Bridge-Secret`.
  */
-const DEV_PORTAL_SITE_ORIGIN = "http://127.0.0.1:3210";
+export type PlatformBridge = "portal" | "casual";
+
+const DEV_PORTAL_SITE_ORIGIN = "https://merry-skunk-952.convex.site";
 const DEV_CASUAL_SITE_ORIGIN = "https://amicable-alpaca-980.convex.site";
 const DEV_PORTAL_BRIDGE_SECRET = "dev-local-portal-bridge";
 const DEV_CASUAL_BRIDGE_SECRET = "dev-local-casual-bridge";
 
-export function resolveCasualBridgeEnv(): { origin: string; secret: string } {
-  const portalOrigin = (process.env.PORTAL_HTTP_ORIGIN ?? process.env.PORTAL_CONVEX_SITE_URL ?? "")
-    .trim()
-    .replace(/\/$/, "");
-  const portalSecret = (process.env.PORTAL_GAME_BRIDGE_SECRET ?? "").trim();
+export type ResolvedCasualBridgeEnv = {
+  origin: string;
+  secret: string;
+  platform: PlatformBridge;
+};
 
-  if (portalOrigin) {
-    return {
-      origin: portalOrigin,
-      secret: portalSecret || DEV_PORTAL_BRIDGE_SECRET,
-    };
+export function platformBridgeFromTemplateId(templateId?: string): PlatformBridge {
+  return templateId?.startsWith("portal_") ? "portal" : "casual";
+}
+
+export function resolveCasualBridgeEnv(platform: PlatformBridge = "casual"): ResolvedCasualBridgeEnv {
+  if (platform === "portal") {
+    let origin = (process.env.PORTAL_HTTP_ORIGIN ?? process.env.PORTAL_CONVEX_SITE_URL ?? "")
+      .trim()
+      .replace(/\/$/, "");
+    let secret = (process.env.PORTAL_GAME_BRIDGE_SECRET ?? "").trim();
+
+    const usedDefaultOrigin = !origin;
+    const usedDefaultSecret = !secret;
+
+    if (!origin) origin = DEV_PORTAL_SITE_ORIGIN;
+    if (!secret) secret = DEV_PORTAL_BRIDGE_SECRET;
+
+    if (usedDefaultOrigin || usedDefaultSecret) {
+      console.warn("[solitaire] portal bridge env: using dev defaults", {
+        usedDefaultOrigin,
+        usedDefaultSecret,
+      });
+    }
+
+    return { origin, secret, platform: "portal" };
   }
 
   let origin = (process.env.CASUAL_HTTP_ORIGIN ?? process.env.CASUAL_CONVEX_SITE_URL ?? "")
@@ -36,9 +59,40 @@ export function resolveCasualBridgeEnv(): { origin: string; secret: string } {
     });
   }
 
-  return { origin, secret };
+  return { origin, secret, platform: "casual" };
+}
+
+export function casualBridgeRequestHeaders(env: ResolvedCasualBridgeEnv): Record<string, string> {
+  const headerName =
+    env.platform === "portal" ? "X-Portal-Bridge-Secret" : "X-Casual-Bridge-Secret";
+  return {
+    "Content-Type": "application/json",
+    [headerName]: env.secret,
+  };
 }
 
 export function casualGameBridgeSecret(): string {
   return resolveCasualBridgeEnv().secret;
+}
+
+/** Portal run 的 match 只在 portal HTTP；casual 同理。用于服务端 timeout ingest 选 bridge。 */
+export async function resolvePlatformBridgeForCasualGameId(
+  gameId: string
+): Promise<PlatformBridge> {
+  for (const platform of ["portal", "casual"] as const) {
+    const bridgeEnv = resolveCasualBridgeEnv(platform);
+    try {
+      const res = await fetch(`${bridgeEnv.origin}/internal/find-match-by-game`, {
+        method: "POST",
+        headers: casualBridgeRequestHeaders(bridgeEnv),
+        body: JSON.stringify({ gameId }),
+      });
+      if (!res.ok) continue;
+      const parsed = (await res.json()) as { ok?: boolean; match?: unknown };
+      if (parsed.ok && parsed.match) return platform;
+    } catch {
+      // try next bridge
+    }
+  }
+  return "casual";
 }

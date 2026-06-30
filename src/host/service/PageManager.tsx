@@ -1,9 +1,10 @@
 import {
     collectRootBootCriticalUrls,
     resolveColdBootRootShells,
+    resolveMountedRootShells,
     useColdBootPreload,
 } from "@/host/service/useColdBootPreload";
-import { findContainer, isSameTree, normalizePageUri, parseLocation } from "@/host/util/PageUtils";
+import { findContainer, isSameTree, normalizePageUri, parseLocation, resolveMountedRootShells } from "@/host/util/PageUtils";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppsConfiguration, PageConfig } from "../config/PageConfiguration";
 import { PageStatus } from "../config/PageProps";
@@ -15,6 +16,7 @@ export type { UseColdBootPreloadResult } from "@/host/service/useColdBootPreload
 export {
     collectRootBootCriticalUrls,
     resolveColdBootRootShells,
+    resolveMountedRootShells,
     useColdBootPreload
 };
 
@@ -59,8 +61,10 @@ interface IPageContext {
     pageUpdated: PageItem | null;
     pageEvent: PageEvent | null;
     app: App | null;
-    /** 展平的顶层壳列表 */
+    /** 展平的顶层壳列表（全量，供路由/鉴权/动画） */
     pageContainers: PageContainer[];
+    /** 当前 URL context 下应挂载的顶层壳子集（供 RenderApp） */
+    mountedPageContainers: PageContainer[];
     /**
      * 首屏壳 `bootCriticalAssetUrls` 已跑完预加载（由 {@link useColdBootPreload} 驱动；无 URL 时为 true）。
      * BootLoadingOverlay 与此项组合决定是否结束冷启动遮罩。
@@ -79,6 +83,7 @@ const PageContext = createContext<IPageContext>({
     app: null,
     // authReq: null,
     pageContainers: [],
+    mountedPageContainers: [],
     coldBootAssetsReady: false,
     sumbitPage: (p: PageItem) => null,
     // cancelAuth: () => null,
@@ -144,6 +149,13 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const { coldBootAssetsReady } = useColdBootPreload(pageContainers);
+
+    const mountedPageContainers = useMemo(() => {
+        const uri =
+            currentPage?.uri ??
+            (typeof window !== "undefined" ? window.location.pathname : "");
+        return resolveMountedRootShells(pageContainers, uri);
+    }, [pageContainers, currentPage?.uri]);
 
     const requireAuth = useCallback(
         (page: PageItem) => {
@@ -226,6 +238,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         pageUpdated,
         pageEvent,
         pageContainers,
+        mountedPageContainers,
         coldBootAssetsReady,
         // initCompleted,
         app,

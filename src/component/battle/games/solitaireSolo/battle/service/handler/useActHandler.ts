@@ -1,10 +1,15 @@
 import { SoloGameEngine } from "@/convex/solitaireArena/convex/service/SoloGameEngine";
 import { useCasualPlatform } from "component/lobby/casual/service/useCasualPlatformManager";
 import { useUserManager } from "host/service/UserManager";
+import { usePlatformAuth } from "host/service/platformAuth/PlatformAuthProvider";
+import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import { useConvex } from "convex/react";
 import gsap from "gsap";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../../../../../../convex/solitaireArena/convex/_generated/api";
+import { popCard } from "../../animation/effects/popCard";
+import type { FlipGenericSession } from "../../animation/effects/flipGeneric";
+import { startFlipGeneric } from "../../animation/effects/flipGeneric";
 import { SOLO_ANIMATION_CONFIG } from "../../animation/animationConfig";
 import { dealEffect } from "../../animation/effects/dealEffect";
 import { PlayEffects } from "../../animation/PlayEffects";
@@ -27,6 +32,8 @@ import {
     type CasualGameScoreReportUI,
 } from "../../../../shared/casualGameScoreReportUI";
 import type { CasualWatchContext } from "../../../../shared/casualAsyncTableSummaryUI";
+import { buildCasualPlatformRunActionArgs } from "../../../../shared/casualPlatformActionArgs";
+import { fetchCasualAsyncTableSummaryForGame } from "../../../../shared/fetchCasualAsyncTableSummary";
 import {
     applyCasualTableSummaryFromQuery,
     type CasualAsyncTableSummaryUI,
@@ -102,6 +109,21 @@ function mergeServerProgress(gs: SoloGameState, p: ServerProgress) {
     if (typeof p.gameStatus === "number") gs.status = p.gameStatus;
 }
 
+function mergeServerFaceOntoDomCard(dom: SoloCard | undefined, patch: SoloCard): SoloCard {
+    return {
+        ...(dom ?? patch),
+        ...patch,
+        ele: dom?.ele ?? patch.ele,
+    };
+}
+
+function attachMovePlanEle(gameState: SoloGameState, movePlan: SoloCard[]): SoloCard[] {
+    return movePlan.map((c) => {
+        const dom = gameState.cards.find((gc) => gc.id === c.id);
+        return { ...c, ele: dom?.ele } as SoloCard;
+    });
+}
+
 function isTerminalSoloStatus(status: SoloGameStatus | number | undefined): boolean {
     const n = Number(status);
     return n === SoloGameStatus.COMPLETED || n === SoloGameStatus.CANCELLED;
@@ -109,8 +131,30 @@ function isTerminalSoloStatus(status: SoloGameStatus | number | undefined): bool
 
 const useActHandler = () => {
     const convex = useConvex();
-    const casual = useCasualPlatform();
     const { user } = useUserManager();
+    const { platformReady } = usePlatformAuth();
+    const {
+        ruleManager,
+        gameState,
+        boardDimension,
+        boardDimensionRef,
+        setInteractionPhase,
+        interactionPhase,
+        config,
+        casualTournamentId,
+        onGameSubmit,
+        onTriathlonNextGame,
+        reloadCasualRun,
+        saveUpdate,
+    } = useSoloGameManager();
+
+    const triathlonSessionActive = Boolean(onTriathlonNextGame);
+    const casualPlatformBridge = casualTournamentId?.startsWith("portal_")
+        ? ("portal" as const)
+        : undefined;
+    const casualPlatformAuthed =
+        platformReady && isPlatformAuthed(user) && Boolean(user?.platformAccessToken);
+    const casual = useCasualPlatform({ enabled: casualPlatformBridge !== "portal" });
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
     const [postCasualScoreReportOpen, setPostCasualScoreReportOpen] = useState(false);
     const [postCasualScoreReport, setPostCasualScoreReport] = useState<CasualGameScoreReportUI | null>(null);
@@ -137,21 +181,14 @@ const useActHandler = () => {
     const gameStateRef = useRef<SoloGameState | null>(null);
     const interactionPhaseRef = useRef<GameInteractionPhase>(GameInteractionPhase.idle);
 
-    const {
-        ruleManager,
-        gameState,
-        boardDimension,
-        boardDimensionRef,
-        setInteractionPhase,
-        interactionPhase,
-        config,
-        casualTournamentId,
-        onGameSubmit,
-        onTriathlonNextGame,
-        reloadCasualRun,
-    } = useSoloGameManager();
-
-    const triathlonSessionActive = Boolean(onTriathlonNextGame);
+    const fetchTableSummaryForGame = useCallback(
+        (matchGameId: string) =>
+            fetchCasualAsyncTableSummaryForGame({
+                matchGameId,
+                platformBridge: casualPlatformBridge ?? "casual",
+            }),
+        [casualPlatformBridge]
+    );
 
     useCasualTableSummaryPoll({
         open:
@@ -161,7 +198,7 @@ const useActHandler = () => {
             typeof gameState?.gameId === "string" && gameState.gameId.startsWith("game_")
                 ? gameState.gameId
                 : undefined,
-        fetchSummary: casual.fetchCasualTableSummaryForGame,
+        fetchSummary: fetchTableSummaryForGame,
         onUpdate: (next) => {
             applyCasualTableSummaryFromQuery(next, {
                 setTableSummary: setPostCasualTableSummary,
@@ -293,7 +330,7 @@ const useActHandler = () => {
                 });
             } else {
                 try {
-                    const summary = await casual.fetchCasualTableSummaryForGame(gameId);
+                    const summary = await fetchTableSummaryForGame(gameId);
                     if (summary?.rows?.length) {
                         applyCasualTableSummaryFromQuery(summary, {
                             setTableSummary: setPostCasualTableSummary,
@@ -308,7 +345,7 @@ const useActHandler = () => {
                 }
             }
         },
-        [loadSolitaireScoreReport, casual.fetchCasualTableSummaryForGame, casualTournamentId, triathlonSessionActive, onTriathlonNextGame]
+        [loadSolitaireScoreReport, fetchTableSummaryForGame, casualTournamentId, triathlonSessionActive, onTriathlonNextGame]
     );
 
     const mapCasualPlatformRunActionResult = (
@@ -362,11 +399,13 @@ const useActHandler = () => {
                     casualTournamentId &&
                     typeof gs.gameId === "string" &&
                     gs.gameId.startsWith("game_") &&
-                    user?.token
+                    casualPlatformAuthed
                 ) {
                     const cr = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
-                        token: user.token,
-                        gameId: gs.gameId,
+                        ...buildCasualPlatformRunActionArgs({
+                            gameId: gs.gameId,
+                            platformBridge: casualPlatformBridge,
+                        }),
                     })) as {
                         ok?: boolean;
                         error?: string;
@@ -417,7 +456,7 @@ const useActHandler = () => {
                 return { ok: false, error: "network_error" };
             }
         },
-        [convex, casualTournamentId, user?.token, onGameSubmit]
+        [convex, casualTournamentId, casualPlatformAuthed, onGameSubmit, casualPlatformBridge]
     );
 
     /** 强行结束：取消 timeout scheduler、服务端终局、ingest casual */
@@ -432,15 +471,17 @@ const useActHandler = () => {
             ) {
                 return { ok: false, error: "not_casual_run" };
             }
-            if (!user?.token) {
+            if (!casualPlatformAuthed) {
                 return { ok: false, error: "missing_casual_auth" };
             }
             casualRunSubmittedRef.current = true;
             const deferHost = Boolean(opts?.deferHostNotify);
             try {
                 const cr = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
-                    token: user.token,
-                    gameId: gs.gameId,
+                    ...buildCasualPlatformRunActionArgs({
+                        gameId: gs.gameId,
+                        platformBridge: casualPlatformBridge,
+                    }),
                 })) as {
                     ok?: boolean;
                     error?: string;
@@ -460,10 +501,14 @@ const useActHandler = () => {
             } catch (e) {
                 console.error("[Solitaire] runForceEndCasualSettlement", e);
                 casualRunSubmittedRef.current = false;
+                const msg = e instanceof Error ? e.message : String(e);
+                if (msg.includes("unauthenticated")) {
+                    return { ok: false, error: "missing_casual_auth" };
+                }
                 return { ok: false, error: "network_error" };
             }
         },
-        [convex, casualTournamentId, user?.token, onGameSubmit, triathlonSessionActive]
+        [convex, casualTournamentId, casualPlatformAuthed, onGameSubmit, triathlonSessionActive, casualPlatformBridge]
     );
 
     const completeCasualSolitaireRun = useCallback(async () => {
@@ -602,13 +647,13 @@ const useActHandler = () => {
 
     const replayCasualRun = useCallback(async () => {
         const gs = gameStateRef.current;
-        if (!gs || !user?.token || casualReplayBusy) return;
+        if (!gs || !casualPlatformAuthed || casualReplayBusy) return;
         if (typeof gs.gameId !== "string" || !gs.gameId.startsWith("game_")) return;
         setCasualReplayBusy(true);
         try {
             const rr = (await convex.action(api.proxy.controller.replayCasualRun, {
-                token: user.token,
                 gameId: gs.gameId,
+                ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
             })) as { ok?: boolean; error?: string };
             if (!rr?.ok) {
                 console.warn("[Solitaire] replayCasualRun", rr?.error);
@@ -630,7 +675,7 @@ const useActHandler = () => {
         } finally {
             setCasualReplayBusy(false);
         }
-    }, [convex, user?.token, casualReplayBusy, reloadCasualRun]);
+    }, [convex, casualPlatformAuthed, casualReplayBusy, reloadCasualRun, casualPlatformBridge]);
 
     const cancelSettleConfirm = useCallback(() => {
         setSettleConfirmOpen(false);
@@ -678,11 +723,11 @@ const useActHandler = () => {
         try {
             const isCasualGameId =
                 typeof gs.gameId === "string" && gs.gameId.startsWith("game_");
-            if (Boolean(casualTournamentId) && isCasualGameId && !user?.token) {
+            if (Boolean(casualTournamentId) && isCasualGameId && !casualPlatformAuthed) {
                 throw new Error(casualSettleErrorMessage("missing_casual_auth"));
             }
             const isCasualRun =
-                Boolean(casualTournamentId) && isCasualGameId && Boolean(user?.token);
+                Boolean(casualTournamentId) && isCasualGameId && casualPlatformAuthed;
 
             const settled = isCasualRun
                 ? await runForceEndCasualSettlement({ deferHostNotify: true })
@@ -724,10 +769,20 @@ const useActHandler = () => {
         } finally {
             settleInFlightRef.current = false;
         }
-    }, [convex, casualTournamentId, user?.token, runSolitaireSettlement, runForceEndCasualSettlement]);
+    }, [convex, casualTournamentId, casualPlatformAuthed, runSolitaireSettlement, runForceEndCasualSettlement]);
 
     const settleManuallyAndExit = useCallback(async () => {
-        if (!gameState || casualRunSubmittedRef.current || settleInFlightRef.current) return;
+        if (settleConfirmOpen) {
+            cancelSettleConfirm();
+            return;
+        }
+        if (casualRunSubmittedRef.current) {
+            if (postCasualSummaryOpen || postCasualScoreReportOpen) {
+                void exitCasualRunAfterSettle({ hadReplayOffer: postCasualReplayOffered });
+            }
+            return;
+        }
+        if (!gameState || settleInFlightRef.current) return;
         if (interactionPhase !== GameInteractionPhase.idle) return;
 
         if (isTerminalSoloStatus(gameState.status)) {
@@ -763,21 +818,13 @@ const useActHandler = () => {
         casualTournamentId,
         onGameSubmit,
         beginCasualPostSettleFlow,
+        settleConfirmOpen,
+        cancelSettleConfirm,
+        postCasualSummaryOpen,
+        postCasualScoreReportOpen,
+        postCasualReplayOffered,
+        exitCasualRunAfterSettle,
     ]);
-    const saveUpdate = useCallback((cards: Card[]) => {
-        if (!gameState) return;
-        cards.forEach((r: SoloCard) => {
-            const card = gameState.cards.find((c: SoloCard) => c.id === r.id);
-            if (card) {
-                card.isRevealed = r.isRevealed;
-                card.zone = r.zone;
-                card.zoneId = r.zoneId;
-                card.zoneIndex = r.zoneIndex;
-            }
-        });
-
-    }, [gameState]);
-
     const cancelDrag = useCallback((data: SoloActionData) => {
         if (!data?.card) {
             setInteractionPhase(GameInteractionPhase.idle);
@@ -797,61 +844,53 @@ const useActHandler = () => {
         const { card } = data;
         if (!gameState || !ruleManager || !card) return;
         if (isTerminalSoloStatus(gameState.status)) return;
-        const drawResult = SoloGameEngine.drawCard(gameState, card.id);
-        const drawnCards = drawResult.data?.draw ?? [];
-        if (drawnCards.length === 0) return;
-        const drawnWithEle = drawnCards.map((c) => {
-            const dom = gameState.cards.find((gc) => gc.id === c.id);
-            return { ...c, ele: dom?.ele } as SoloCard;
-        });
+        if (!ruleManager.canDraw(card.id)) return;
 
         setInteractionPhase(GameInteractionPhase.animating);
         let updateCards: SoloCard[] = [];
         let serverSnap: ServerProgress = {};
         try {
-            const drawPromise = new Promise<void>((resolve, reject) => {
-                convex
-                    .mutation(api.service.gameManager.draw, { gameId: gameState.gameId, cardId: card.id })
-                    .then((result: ActionResult & ServerProgress) => {
-                        if (result.ok && result.data?.draw && result.data.draw.length > 0) {
-                            const revealedCard = result.data.draw[result.data.draw.length - 1] as SoloCard;
-                            updateCards.push(...result.data.draw);
-                            serverSnap = {
-                                score: result.score,
-                                moves: result.moves,
-                                gameStatus: result.gameStatus,
-                            };
-                            PlayEffects.popCard({
-                                data: { card: revealedCard, gameState },
-                                onComplete: () => {
-                                    resolve();
-                                },
-                            });
-                        } else {
-                            reject();
-                        }
-                    })
-                    .catch((error) => {
-                        console.error("draw mutation failed:", error);
-                        reject();
-                    });
-            });
-            const playPromise = new Promise<void>((resolve) => {
+            const result = (await convex.mutation(api.service.gameManager.draw, {
+                gameId: gameState.gameId,
+                cardId: card.id,
+            })) as ActionResult & ServerProgress;
+
+            if (!result.ok || !result.data?.draw?.length) {
+                throw new Error("draw_failed");
+            }
+
+            updateCards = result.data.draw as SoloCard[];
+            serverSnap = {
+                score: result.score,
+                moves: result.moves,
+                gameStatus: result.gameStatus,
+            };
+
+            const drawnWithEle = updateCards.map((c) =>
+                mergeServerFaceOntoDomCard(
+                    gameState.cards.find((gc) => gc.id === c.id),
+                    c
+                )
+            );
+            for (const drawn of drawnWithEle) {
+                if (drawn.ele && drawn.rank) {
+                    popCard(drawn);
+                }
+            }
+
+            await new Promise<void>((resolve) => {
                 PlayEffects.drawCard({
                     data: { cards: drawnWithEle, boardDimensionRef, gameState },
-                    onComplete: () => {
-                        resolve();
-                    },
+                    onComplete: () => resolve(),
                 });
             });
-            await Promise.all([drawPromise, playPromise]);
+
             saveUpdate(updateCards);
             mergeServerProgress(gameState, serverSnap);
             void completeCasualSolitaireRun();
         } catch (e) {
             console.error("drawCard failed:", e);
         } finally {
-            //rollback to the previous state
             setInteractionPhase(GameInteractionPhase.idle);
         }
     }, [
@@ -869,87 +908,102 @@ const useActHandler = () => {
         if (!gameState || !ruleManager || !card || !dropTarget) return;
         if (isTerminalSoloStatus(gameState.status)) return;
 
-        const result = SoloGameEngine.moveCard(gameState, card as Card, dropTarget.zoneId);
-
-        if (!result.ok) {
-            console.log("moveCard failed", result);
+        const plan = SoloGameEngine.planMoveCard(gameState, card as Card, dropTarget.zoneId);
+        if (!plan.ok) {
+            console.log("moveCard failed", plan);
             return;
         }
-        const moveData = result.data?.move || [];
+
+        const moveData = attachMovePlanEle(gameState, (plan.data?.move ?? []) as SoloCard[]);
+        const pendingFlipId = plan.data?.flip?.[0]?.id;
+        const flipDuration = autoFoundationMove
+            ? SOLO_ANIMATION_CONFIG.duration.flip.autoFoundation
+            : SOLO_ANIMATION_CONFIG.duration.flip.normal;
+
         setInteractionPhase(GameInteractionPhase.animating);
         let updateCards: SoloCard[] = [];
         let serverSnap: ServerProgress = {};
-        try {
-            const movePromise = new Promise<void>((resolve, reject) => {
-                convex
-                    .mutation(api.service.gameManager.move, {
-                        gameId: gameState.gameId,
-                        cardId: card.id,
-                        toZone: dropTarget.zoneId,
-                    })
-                    .then((result: ActionResult & ServerProgress) => {
-                        console.log("move result", result);
-                        if (result.ok && result.data?.move && result.data.move.length > 0) {
-                            updateCards.push(...result.data.move);
-                            serverSnap = {
-                                score: result.score,
-                                moves: result.moves,
-                                gameStatus: result.gameStatus,
-                            };
-                            if (result.data.flip && result.data.flip.length > 0) {
-                                updateCards.push(...result.data.flip);
-                                const flipPayload = result.data.flip[0] as SoloCard;
-                                const domCard = gameState.cards.find((c: SoloCard) => c.id === flipPayload.id);
-                                if (domCard?.ele) {
-                                    flipPayload.ele = domCard.ele;
-                                }
-                                if (flipPayload.ele) {
-                                    PlayEffects.flipCard({
-                                        data: {
-                                            card: flipPayload,
-                                            gameState,
-                                            ...(autoFoundationMove
-                                                ? { duration: SOLO_ANIMATION_CONFIG.duration.flip.autoFoundation }
-                                                : {}),
-                                        },
-                                        onComplete: () => {
-                                            resolve();
-                                        },
-                                    });
-                                } else {
-                                    resolve();
-                                }
-                            } else {
-                                resolve();
-                            }
-                        } else reject();
-                    })
-                    .catch((error) => {
-                        console.error("move card failed:", error);
-                        reject();
-                    });
-            });
+        let flipSession: FlipGenericSession | null = null;
 
-            const playPromise = new Promise<void>((resolve) => {
+        if (pendingFlipId) {
+            const flipDom = gameState.cards.find((c: SoloCard) => c.id === pendingFlipId);
+            if (flipDom) {
+                flipSession = startFlipGeneric({ card: flipDom, duration: flipDuration });
+            }
+        }
+
+        try {
+            const mutationPromise = convex
+                .mutation(api.service.gameManager.move, {
+                    gameId: gameState.gameId,
+                    cardId: card.id,
+                    toZone: dropTarget.zoneId,
+                })
+                .then((result: ActionResult & ServerProgress) => {
+                    if (!result.ok || !result.data?.move?.length) {
+                        throw new Error("move_failed");
+                    }
+                    updateCards.push(...(result.data.move as SoloCard[]));
+                    if (result.data.flip?.length) {
+                        updateCards.push(...(result.data.flip as SoloCard[]));
+                    }
+                    serverSnap = {
+                        score: result.score,
+                        moves: result.moves,
+                        gameStatus: result.gameStatus,
+                    };
+                    return result;
+                });
+
+            const movePromise = new Promise<void>((resolve) => {
                 PlayEffects.moveCard({
                     data: {
                         boardDimensionRef,
                         gameState,
                         moveCards: moveData,
                         targetZoneId: dropTarget.zoneId,
+                        autoFoundationMove,
                     },
-                    onComplete: () => {
-                        resolve();
-                    },
+                    onComplete: () => resolve(),
                 });
             });
 
-            await Promise.all([movePromise, playPromise]);
+            const result = await Promise.all([mutationPromise, movePromise]).then(([r]) => r);
+
+            const serverFlip = result.data?.flip?.[0] as SoloCard | undefined;
+            if (serverFlip?.rank && serverFlip?.suit) {
+                const faceCard = mergeServerFaceOntoDomCard(
+                    gameState.cards.find((c: SoloCard) => c.id === serverFlip.id),
+                    serverFlip
+                );
+                await new Promise<void>((resolve) => {
+                    if (flipSession && faceCard.ele) {
+                        flipSession.completeReveal(faceCard, resolve);
+                    } else if (faceCard.ele) {
+                        PlayEffects.flipCard({
+                            data: {
+                                card: faceCard,
+                                gameState,
+                                duration: flipDuration,
+                            },
+                            onComplete: resolve,
+                        });
+                    } else {
+                        resolve();
+                    }
+                });
+            } else if (flipSession) {
+                await new Promise<void>((resolve) => flipSession!.cancel(resolve));
+            }
+
             saveUpdate(updateCards);
             mergeServerProgress(gameState, serverSnap);
             void completeCasualSolitaireRun();
         } catch (e) {
             console.error("moveCard failed:", e);
+            if (flipSession) {
+                await new Promise<void>((resolve) => flipSession!.cancel(resolve));
+            }
         } finally {
             setInteractionPhase(GameInteractionPhase.idle);
         }

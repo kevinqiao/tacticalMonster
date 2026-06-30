@@ -3,6 +3,7 @@
  */
 import type { ActionCtx } from "../../_generated/server";
 
+import type { PlatformBridge } from "../casualBridgeEnv";
 import { fetchCasualMatchSubmitContext } from "../casualBridgeResolve";
 import type { BotStrategyPlayerContext, CasualRankRateEntry } from "./botStrategyTypes";
 
@@ -50,11 +51,13 @@ export async function buildCasualV2IngestPayload(args: {
   uid: string;
   matchGameId: string;
   score: number;
+  platformBridge?: PlatformBridge;
 }): Promise<{ ok: true; payload: CasualV2IngestPayload } | { ok: false; error: string }> {
   const resolved = await fetchCasualMatchSubmitContext({
     uid: args.uid,
     matchGameId: args.matchGameId,
     score: args.score,
+    platformBridge: args.platformBridge,
   });
   if (!resolved.ok) {
     return { ok: false, error: resolved.error };

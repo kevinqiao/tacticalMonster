@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import BlockBlastGame from 'component/battle/games/blockBlast/battle/BlockBlastGame';
 import { CasualTriathlonBetweenGamesOverlay } from 'component/battle/games/shared/CasualTriathlonBetweenGamesOverlay';
 import { CasualTriathlonGameStage } from 'component/battle/games/shared/CasualTriathlonGameStage';
+import 'component/battle/games/shared/casualTriathlonGameStage.css';
 import type { TriathlonLegScore } from 'component/battle/games/shared/casualTriathlonSubmitFlow';
 import type { CasualGameScoreReportUI } from 'component/battle/games/shared/casualGameScoreReportUI';
 import {
@@ -176,19 +177,26 @@ const PlayCasualTriathlonSession: React.FC<ModalProp> = ({ visible, data, close 
     onTriathlonNextGame: makeAdvanceHandler(activeLeg.gameType),
   };
 
+  if (kind !== 'match_3') {
+    return (
+      <div className="casual-game-stage-full">
+        <div className="casual-triathlon-stage__badge">{badge}</div>
+        {kind === 'block_blast' ? (
+          <BlockBlastGame key={activeLeg.gameId} {...gameProps} />
+        ) : (
+          <SolitaireGame key={activeLeg.gameId} {...gameProps} />
+        )}
+      </div>
+    );
+  }
+
   return (
     <CasualTriathlonGameStage badge={badge}>
-      {kind === 'block_blast' ? <BlockBlastGame key={activeLeg.gameId} {...gameProps} /> : null}
-      {kind === 'match_3' ? (
-        <Match3Game
-          key={activeLeg.gameId}
-          {...gameProps}
-          onTriathlonSessionReplay={onTriathlonSessionReplay}
-        />
-      ) : null}
-      {kind !== 'block_blast' && kind !== 'match_3' ? (
-        <SolitaireGame key={activeLeg.gameId} {...gameProps} />
-      ) : null}
+      <Match3Game
+        key={activeLeg.gameId}
+        {...gameProps}
+        onTriathlonSessionReplay={onTriathlonSessionReplay}
+      />
     </CasualTriathlonGameStage>
   );
 };

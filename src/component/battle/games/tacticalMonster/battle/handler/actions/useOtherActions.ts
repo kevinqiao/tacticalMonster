@@ -182,7 +182,6 @@ export const useOtherActions = (
 
         try {
             const result = await convex.action((api as any).service.tournament.tournamentService.surrender, {
-                uid: user.uid,
                 gameId: game.gameId,
             });
             if (result.ok) openModal("game_over", { gameId: game.gameId });

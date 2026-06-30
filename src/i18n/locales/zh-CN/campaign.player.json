@@ -1,0 +1,189 @@
+{
+  "auth": {
+    "signIn": "登录",
+    "signOut": "退出",
+    "myCoupons": "我的券",
+    "navLabel": "活动导航"
+  },
+  "landing": {
+    "invalidUrl": "请通过 /campaign/商家/活动 访问落地页。",
+    "loading": "加载活动中…",
+    "noActiveCampaigns": "暂无进行中活动。",
+    "campaignNotFound": "未找到该活动。",
+    "carouselLabel": "商家活动列表",
+    "carouselSwitchLabel": "活动切换",
+    "carouselCurrentSuffix": "（当前）",
+    "invalidGameType": "活动游戏类型无效。"
+  },
+  "display": {
+    "dockAriaLabel": "活动信息",
+    "detailsCta": "行动按钮",
+    "detailsCtaLink": "链接",
+    "cta": {
+      "learnMore": "了解更多",
+      "externalUrl": "访问链接",
+      "tel": "拨打电话",
+      "maps": "查看地图"
+    },
+    "ctaEnded": "活动已结束"
+  },
+  "dock": {
+    "ariaLabel": "活动操作",
+    "periodPrefix": "活动时间：",
+    "rewardRulesTitle": "奖励规则：",
+    "passRulesText": "过关即发兑换券，本活动无排行榜。",
+    "claimedCount": "已领 {{claimed}}/{{max}}",
+    "leaderboardSolo": "活动最高分榜",
+    "leaderboardMulti": "活动累计积分榜",
+    "leaderboardBtn": "积分榜",
+    "detailsBtn": "活动详情",
+    "historyBtn": "历史记录"
+  },
+  "playButton": {
+    "ended": "活动已经结束",
+    "notOpen": "活动未开放",
+    "joining": "正在进入游戏…",
+    "matching": "匹配中…",
+    "settling": "结算中…",
+    "dailyLimitReached": "今日次数已用完",
+    "couponLimitReached": "已达领取上限",
+    "startWithRemaining": "开始挑战（今日还可 {{remaining}} 次）",
+    "continueWithRemaining": "继续挑战（今日还可 {{remaining}} 次）",
+    "continueChallenge": "继续挑战",
+    "continueGrind": "继续挑战刷榜",
+    "challengeForCoupon": "挑战领券",
+    "joinCompetitive": "参与竞技"
+  },
+  "progress": {
+    "playsToday": "今日已玩 {{playsToday}}/{{maxPlaysPerDay}} 次",
+    "rankRewardClaimed": "榜奖 {{claimed}}/{{max}} · 可刷榜",
+    "rankRewardMax": "榜奖最多 {{max}} 张"
+  },
+  "countdown": {
+    "ended": "活动已结束",
+    "untilStart": "距开始还有",
+    "untilEnd": "距结束还有",
+    "daysHoursMinutes": "{{days}} 天 {{hours}} 小时 {{minutes}} 分"
+  },
+  "rankReward": {
+    "firstPlace": "第 1 名",
+    "topN": "前 {{n}} 名",
+    "rankExact": "第 {{rank}} 名",
+    "rankRange": "第 {{from}}–{{to}} 名"
+  },
+  "leaderboard": {
+    "closeSheet": "关闭积分榜",
+    "close": "关闭",
+    "hint": "含活动竞争者；榜奖励在活动结束后按最终排名一次性发放。",
+    "empty": "暂无排行数据，成为第一个参与者吧。",
+    "bestScore": "最高分",
+    "rankPoints": "累计积分",
+    "you": "你",
+    "competitor": "竞争者"
+  },
+  "coupon": {
+    "alreadyClaimed": "您已领取",
+    "congrats": "恭喜获得兑换券",
+    "codeAriaLabel": "兑换码",
+    "copied": "已复制",
+    "copyCode": "复制兑换码",
+    "tipShowAtStore": "请于参与门店出示兑换码。",
+    "tipExpiry": "兑换码有效期以活动规则为准。",
+    "dismiss": "关闭",
+    "defaultRewardLabel": "活动兑换券"
+  },
+  "localeSwitcher": {
+    "ariaLabel": "选择语言"
+  },
+  "modal": {
+    "close": "关闭",
+    "closeBackdrop": "关闭弹层"
+  },
+  "details": {
+    "title": "活动详情",
+    "overviewHeading": "活动概览",
+    "progressHeading": "我的进度",
+    "settlementHeading": "结算状态",
+    "rulesHeading": "活动说明",
+    "rewardRulesHeading": "奖励规则",
+    "noRewardRules": "暂无奖励规则说明。",
+    "period": "活动时间",
+    "game": "游戏",
+    "mode": "参与方式",
+    "rewardModelLabel": "发奖模式",
+    "leaderboard": "排行榜",
+    "noLeaderboard": "无排行榜",
+    "maxCoupons": "领券上限",
+    "maxCouponsValue": "每人最多 {{count}} 张",
+    "dailyPlays": "每日开桌",
+    "maxPlaysPerDay": "每人每日最多 {{count}} 次",
+    "maxPlaysUnlimited": "不限",
+    "dayTimezone": "每日统计时区",
+    "landingUrl": "活动链接",
+    "yourPlaysToday": "今日已玩",
+    "yourCoupons": "我的券",
+    "remainingPlaysToday": "今日剩余",
+    "remainingPlaysValue": "还可 {{count}} 次",
+    "passCondition": "过关条件",
+    "passConditionP75": "达到 seed P75 阈值",
+    "passConditionScore": "分数 ≥ {{minScore}}",
+    "couponReward": "兑换奖励",
+    "passHint": "每局达标即发兑换券，与排行榜无关。",
+    "competitiveHint": "榜奖励在活动结束后按最终排名一次性发放。",
+    "competitiveGeneric": "活动结束按总榜名次发放兑换券。",
+    "statusLive": "进行中",
+    "status": {
+      "draft": "草稿",
+      "scheduled": "待开始",
+      "live": "已上线",
+      "ended": "已结束"
+    },
+    "rewardModel": {
+      "pass_per_run": "过关模式 · 每局达标发券",
+      "competitive_leaderboard": "竞技模式 · 活动结束按榜发券"
+    },
+    "mode": {
+      "solo": "单人挑战",
+      "multi": "多人竞技"
+    },
+    "settlement": {
+      "pending": "榜奖励结算中，请稍后再查看。",
+      "done": "榜奖励已结算",
+      "failed": "榜奖励结算失败，请联系商家。",
+      "couponsIssued": "已发 {{count}} 张券",
+      "winnerCount": "{{count}} 人获奖"
+    }
+  },
+  "history": {
+    "title": "历史记录",
+    "empty": "暂无对局记录，开始挑战后可在此查看。",
+    "signInHint": "登录后可查看本活动的对局记录。",
+    "playedAt": "对战 {{at}}",
+    "score": "得分 {{score}}",
+    "rank": "第 {{rank}} 名",
+    "noScore": "暂无分数",
+    "status": {
+      "inProgress": "进行中",
+      "finished": "已完成",
+      "confirmed": "已完成",
+      "settled": "已结算"
+    }
+  },
+  "myCoupons": {
+    "title": "我的券",
+    "loading": "加载中…",
+    "empty": "暂无兑换券，参与活动达标后可在此查看。",
+    "signInHint": "登录后可查看在本商家获得的兑换券。",
+    "use": "使用",
+    "useTitle": "出示二维码",
+    "qrHint": "请让店员扫描下方二维码，在核销页确认后完成兑换。",
+    "issuedAt": "发放 {{at}}",
+    "expiresAt": "有效期至 {{at}}",
+    "status": {
+      "issued": "待使用",
+      "redeemed": "已核销",
+      "expired": "已过期",
+      "void": "已作废"
+    }
+  }
+}

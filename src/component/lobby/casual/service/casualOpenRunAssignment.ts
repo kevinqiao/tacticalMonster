@@ -37,6 +37,8 @@ export interface OpenCasualRunAssignment {
   createdAt: number;
   /** epoch ms；Portal `listOpenCasualRunAssignments` 返回，用于超时自动结算 */
   dueAt?: number;
+  /** 商家活动对局；Portal `listOpenCasualRunAssignments` 返回 */
+  campaignId?: string;
 }
 
 export function isTriathlonAssignment(a: OpenCasualRunAssignment): boolean {

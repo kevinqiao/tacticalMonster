@@ -1,0 +1,2214 @@
+import React, { useEffect, useState } from "react";
+
+import { useTranslation } from "react-i18next";
+
+
+
+import { PageProp } from "host/RenderApp";
+
+import { useUserManager } from "host/service/UserManager";
+
+
+
+import {
+
+  campaignAdminErrorMessage,
+
+  campaignErrorMessage,
+
+  campaignSuccessMessage,
+
+} from "../shared/campaignErrorMessage";
+
+import { MerchantPageToolbar } from "../shared/CampaignLocaleSwitcher";
+
+import {
+
+  MerchantCampaignProvider,
+
+  useMerchantCampaignAdmin,
+
+  useMerchantCampaignClient,
+
+} from "../service/useMerchantCampaignManager";
+
+import {
+
+  CAMPAIGN_DAY_TIMEZONE_OPTIONS,
+
+  buildRewardRulesFromForm,
+
+  buildDisplayConfigFromForm,
+
+  validateDisplayCampaignForm,
+
+  campaignFormFromDoc,
+
+  campaignTimezoneLabel,
+
+  couponDefLabel,
+
+  datetimeLocalToMs,
+
+  defaultCampaignForm,
+
+  defaultRankRewardTier,
+  defaultRankRewardTiers,
+
+  pickDefaultCouponDefId,
+
+  PORTAL_GAME_OPTIONS,
+
+  portalTemplateLabel,
+
+  rewardKindLabel,
+  rankRewardTierPreviewLines,
+
+  rewardModelLabel,
+
+  normalizeFormForRewardModel,
+
+  ensureFormCouponDef,
+
+  playLimitsFromForm,
+
+  type CampaignFormState,
+
+  type MerchantCouponDefOption,
+
+} from "./campaignFormHelpers";
+
+import i18n from "@/i18n";
+
+import posterGuideUrl from "../assets/poster-guide.pdf?url";
+
+import { MerchantCampaignFormModal } from "./MerchantCampaignFormModal";
+
+import { MerchantNavLink } from "./MerchantEmbeddedNavContext";
+
+import "./merchant.css";
+
+
+
+function merchantIdFromLocation(): string {
+
+  return new URLSearchParams(window.location.search).get("merchantId") ?? "";
+
+}
+
+
+
+async function uploadCampaignPoster(args: {
+
+  http: NonNullable<ReturnType<typeof useMerchantCampaignClient>["http"]>;
+
+  fns: ReturnType<typeof useMerchantCampaignClient>["fns"];
+
+  merchantId: string;
+
+  file: File;
+
+}): Promise<string> {
+
+  const uploadUrl = (await args.http.mutation(args.fns.generatePosterUploadUrl, {
+
+    merchantId: args.merchantId,
+
+  })) as string;
+
+  const uploadRes = await fetch(uploadUrl, {
+
+    method: "POST",
+
+    headers: { "Content-Type": args.file.type || "application/octet-stream" },
+
+    body: args.file,
+
+  });
+
+  if (!uploadRes.ok) throw new Error("fetch_failed");
+
+  const { storageId } = (await uploadRes.json()) as { storageId: string };
+
+  return storageId;
+
+}
+
+
+
+async function uploadCampaignPosterPair(args: {
+
+  http: NonNullable<ReturnType<typeof useMerchantCampaignClient>["http"]>;
+
+  fns: ReturnType<typeof useMerchantCampaignClient>["fns"];
+
+  merchantId: string;
+
+  portraitFile?: File | null;
+
+  landscapeFile?: File | null;
+
+}): Promise<{
+
+  posterPortraitStorageId?: string;
+
+  posterLandscapeStorageId?: string;
+
+}> {
+
+  let posterPortraitStorageId: string | undefined;
+
+  let posterLandscapeStorageId: string | undefined;
+
+  if (args.portraitFile) {
+
+    posterPortraitStorageId = await uploadCampaignPoster({
+
+      http: args.http,
+
+      fns: args.fns,
+
+      merchantId: args.merchantId,
+
+      file: args.portraitFile,
+
+    });
+
+  }
+
+  if (args.landscapeFile) {
+
+    posterLandscapeStorageId = await uploadCampaignPoster({
+
+      http: args.http,
+
+      fns: args.fns,
+
+      merchantId: args.merchantId,
+
+      file: args.landscapeFile,
+
+    });
+
+  }
+
+  return { posterPortraitStorageId, posterLandscapeStorageId };
+
+}
+
+
+
+function campaignHasPortraitPoster(campaign: {
+
+  posterPortraitStorageId?: string | null;
+
+  posterStorageId?: string | null;
+
+}): boolean {
+
+  return Boolean(campaign.posterPortraitStorageId || campaign.posterStorageId);
+
+}
+
+
+
+const CampaignFormFields: React.FC<{
+
+  form: CampaignFormState;
+
+  couponDefs: MerchantCouponDefOption[];
+
+  onChange: (patch: Partial<CampaignFormState>) => void;
+
+  disabled?: boolean;
+
+  structuralLocked?: boolean;
+
+  experienceTypeLocked?: boolean;
+
+  posterPortraitPreview?: string | null;
+
+  posterLandscapePreview?: string | null;
+
+  onPosterPortraitSelect?: (file: File | null) => void;
+
+  onPosterLandscapeSelect?: (file: File | null) => void;
+
+}> = ({
+  form,
+  couponDefs,
+  onChange,
+  disabled,
+  structuralLocked,
+  experienceTypeLocked,
+  posterPortraitPreview,
+  posterLandscapePreview,
+  onPosterPortraitSelect,
+  onPosterLandscapeSelect,
+}) => {
+
+  const { t, i18n: i18nInst } = useTranslation("campaign.merchant");
+
+  const lock = disabled || structuralLocked;
+
+  const activeDefs = couponDefs.filter((d) => d.status === "active");
+
+  const selectedDef = activeDefs.find((d) => d.couponDefId === form.couponDefId);
+
+  const merchantIdHint =
+
+    typeof window !== "undefined"
+
+      ? new URLSearchParams(window.location.search).get("merchantId") ?? ""
+
+      : "";
+
+
+
+  void i18nInst.language;
+
+
+
+  return (
+
+    <>
+
+      <fieldset className="merchant-field merchant-field--radio" disabled={experienceTypeLocked || lock}>
+
+        <legend>{t("form.experienceType")}</legend>
+
+        <label className="merchant-radio">
+
+          <input
+
+            type="radio"
+
+            name="experienceType"
+
+            checked={form.experienceType === "game"}
+
+            onChange={() => onChange({ experienceType: "game" })}
+
+          />
+
+          {t("form.experienceTypeGame")}
+
+        </label>
+
+        <label className="merchant-radio">
+
+          <input
+
+            type="radio"
+
+            name="experienceType"
+
+            checked={form.experienceType === "display"}
+
+            onChange={() => onChange({ experienceType: "display", ctaKind: "none" })}
+
+          />
+
+          {t("form.experienceTypeDisplay")}
+
+        </label>
+
+      </fieldset>
+
+      <label className="merchant-field">
+
+        {t("form.title")}
+
+        <input
+
+          value={form.title}
+
+          disabled={disabled}
+
+          onChange={(e) => onChange({ title: e.target.value })}
+
+        />
+
+      </label>
+
+      <label className="merchant-field">
+
+        {t("form.slug")}
+
+        <input
+
+          value={form.slug}
+
+          disabled={lock}
+
+          onChange={(e) => onChange({ slug: e.target.value })}
+
+          placeholder={t("form.slugPlaceholder")}
+
+        />
+
+      </label>
+
+      <label className="merchant-field">
+
+        {t("form.rulesText")}
+
+        <textarea
+
+          value={form.rulesText}
+
+          disabled={disabled}
+
+          rows={3}
+
+          onChange={(e) => onChange({ rulesText: e.target.value })}
+
+        />
+
+      </label>
+
+      <div className="merchant-field-row">
+
+        <label className="merchant-field">
+
+          {t("form.startsAt")}
+
+          <input
+
+            type="datetime-local"
+
+            value={form.startsAtLocal}
+
+            disabled={lock}
+
+            onChange={(e) => onChange({ startsAtLocal: e.target.value })}
+
+          />
+
+        </label>
+
+        <label className="merchant-field">
+
+          {t("form.endsAt")}
+
+          <input
+
+            type="datetime-local"
+
+            value={form.endsAtLocal}
+
+            disabled={lock}
+
+            onChange={(e) => onChange({ endsAtLocal: e.target.value })}
+
+          />
+
+        </label>
+
+      </div>
+
+      <h3 className="merchant-section-title">{t("form.posterSection")}</h3>
+
+      <p className="merchant-note">{t("form.posterDualHint")}</p>
+
+      <label className="merchant-field">
+
+        {t("form.posterPortrait")}
+
+        <input
+
+          type="file"
+
+          accept="image/*"
+
+          disabled={disabled}
+
+          onChange={(e) => onPosterPortraitSelect?.(e.target.files?.[0] ?? null)}
+
+        />
+
+      </label>
+
+      <p className="merchant-note merchant-note--compact">{t("form.posterPortraitSize")}</p>
+
+      {posterPortraitPreview ? (
+
+        <img
+          className="merchant-poster-preview merchant-poster-preview--portrait"
+          src={posterPortraitPreview}
+          alt=""
+        />
+
+      ) : null}
+
+      <label className="merchant-field">
+
+        {t("form.posterLandscape")}
+
+        <input
+
+          type="file"
+
+          accept="image/*"
+
+          disabled={disabled}
+
+          onChange={(e) => onPosterLandscapeSelect?.(e.target.files?.[0] ?? null)}
+
+        />
+
+      </label>
+
+      <p className="merchant-note merchant-note--compact">{t("form.posterLandscapeSize")}</p>
+
+      {posterLandscapePreview ? (
+
+        <img
+          className="merchant-poster-preview merchant-poster-preview--landscape"
+          src={posterLandscapePreview}
+          alt=""
+        />
+
+      ) : null}
+
+      <p className="merchant-note">{t("form.posterRequiredHint")}</p>
+
+      <p className="merchant-note">{t("form.posterDraftHint")}</p>
+
+      <p className="merchant-note">
+
+        <a href={posterGuideUrl} target="_blank" rel="noreferrer">
+
+          {t("form.posterGuideLink")}
+
+        </a>
+
+      </p>
+
+      {form.experienceType === "display" ? (
+
+        <>
+
+          <label className="merchant-field">
+
+            {t("form.highlightText")}
+
+            <input
+
+              value={form.highlightText}
+
+              disabled={disabled}
+
+              onChange={(e) => onChange({ highlightText: e.target.value })}
+
+              placeholder={t("form.highlightTextPlaceholder")}
+
+            />
+
+          </label>
+
+          <h3 className="merchant-section-title">{t("form.ctaSection")}</h3>
+
+          <label className="merchant-field">
+
+            {t("form.ctaKind")}
+
+            <select
+
+              value={form.ctaKind}
+
+              disabled={lock}
+
+              onChange={(e) =>
+
+                onChange({ ctaKind: e.target.value as CampaignFormState["ctaKind"] })
+
+              }
+
+            >
+
+              <option value="none">{t("form.ctaNone")}</option>
+
+              <option value="external_url">{t("form.ctaExternalUrl")}</option>
+
+              <option value="tel">{t("form.ctaTel")}</option>
+
+              <option value="maps">{t("form.ctaMaps")}</option>
+
+            </select>
+
+          </label>
+
+          {form.ctaKind !== "none" ? (
+
+            <>
+
+              <label className="merchant-field">
+
+                {t("form.ctaLabel")}
+
+                <input
+
+                  value={form.ctaLabel}
+
+                  disabled={lock}
+
+                  onChange={(e) => onChange({ ctaLabel: e.target.value })}
+
+                />
+
+              </label>
+
+              <label className="merchant-field">
+
+                {t("form.ctaUrl")}
+
+                <input
+
+                  value={form.ctaUrl}
+
+                  disabled={lock}
+
+                  onChange={(e) => onChange({ ctaUrl: e.target.value })}
+
+                  placeholder={t(`form.ctaUrlPlaceholder.${form.ctaKind}`)}
+
+                />
+
+              </label>
+
+            </>
+
+          ) : null}
+
+        </>
+
+      ) : null}
+
+      {form.experienceType === "game" ? (
+
+      <>
+
+      <label className="merchant-field">
+
+        {t("form.rewardModel")}
+
+        <select
+
+          value={form.rewardModel}
+
+          disabled={lock}
+
+          onChange={(e) => {
+
+            const rewardModel = e.target.value as CampaignFormState["rewardModel"];
+
+            onChange(
+
+              normalizeFormForRewardModel({
+
+                ...form,
+
+                rewardModel,
+
+                mode: rewardModel === "pass_per_run" ? "solo" : form.mode,
+
+                rankRewardTiers:
+
+                  rewardModel === "competitive_leaderboard" && form.rankRewardTiers.length === 0
+
+                    ? defaultRankRewardTiers(
+
+                        form.couponDefId || pickDefaultCouponDefId(activeDefs)
+
+                      )
+
+                    : form.rankRewardTiers,
+
+              })
+
+            );
+
+          }}
+
+        >
+
+          <option value="pass_per_run">{t("form.rewardModelPass")}</option>
+
+          <option value="competitive_leaderboard">{t("form.rewardModelCompetitive")}</option>
+
+        </select>
+
+      </label>
+
+      <p className="merchant-note">{rewardModelLabel(form.rewardModel)}</p>
+
+      {structuralLocked ? <p className="merchant-note">{t("form.livePosterHint")}</p> : null}
+
+      <h3 className="merchant-section-title">{t("form.couponRewardSection")}</h3>
+
+      {form.rewardModel === "pass_per_run" ? (
+
+        <label className="merchant-field">
+
+          {t("form.passCondition")}
+
+          <select
+
+            value={form.rewardKind}
+
+            disabled={lock}
+
+            onChange={(e) =>
+
+              onChange({ rewardKind: e.target.value as CampaignFormState["rewardKind"] })
+
+            }
+
+          >
+
+            <option value="solo_p75_success">{t("form.passP75")}</option>
+
+            <option value="score_threshold">{t("form.passScore")}</option>
+
+          </select>
+
+        </label>
+
+      ) : (
+        <div className="merchant-rank-tiers">
+          <div className="merchant-rank-tiers__header">
+            <h4 className="merchant-rank-tiers__title">{t("form.rankRewardTiers")}</h4>
+            <button
+              type="button"
+              className="merchant-btn merchant-btn-secondary merchant-btn--compact"
+              disabled={lock}
+              onClick={() =>
+                onChange({
+                  rankRewardTiers: [
+                    ...form.rankRewardTiers,
+                    defaultRankRewardTier(pickDefaultCouponDefId(activeDefs)),
+                  ],
+                })
+              }
+            >
+              {t("form.addRankTier")}
+            </button>
+          </div>
+          {form.rankRewardTiers.map((tier, index) => (
+            <div key={`rank-tier-${index}`} className="merchant-rank-tier">
+              <p className="merchant-rank-tier__label">
+                {t("form.rankTierLabel", { index: index + 1 })}
+              </p>
+              <div className="merchant-field-row">
+                <label className="merchant-field">
+                  {t("form.rankFrom")}
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={tier.rankFrom}
+                    disabled={lock}
+                    onChange={(e) =>
+                      onChange({
+                        rankRewardTiers: form.rankRewardTiers.map((row, i) =>
+                          i === index ? { ...row, rankFrom: e.target.value } : row
+                        ),
+                      })
+                    }
+                  />
+                </label>
+                <label className="merchant-field">
+                  {t("form.rankTo")}
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={tier.rankTo}
+                    disabled={lock}
+                    onChange={(e) =>
+                      onChange({
+                        rankRewardTiers: form.rankRewardTiers.map((row, i) =>
+                          i === index ? { ...row, rankTo: e.target.value } : row
+                        ),
+                      })
+                    }
+                  />
+                </label>
+              </div>
+              <label className="merchant-field">
+                {t("form.couponDef")}
+                <select
+                  value={tier.couponDefId}
+                  disabled={lock}
+                  onChange={(e) =>
+                    onChange({
+                      rankRewardTiers: form.rankRewardTiers.map((row, i) =>
+                        i === index ? { ...row, couponDefId: e.target.value } : row
+                      ),
+                    })
+                  }
+                >
+                  <option value="">{t("form.selectCouponDef")}</option>
+                  {activeDefs.map((def) => (
+                    <option key={def.couponDefId} value={def.couponDefId}>
+                      {couponDefLabel(def)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {form.rankRewardTiers.length > 1 ? (
+                <button
+                  type="button"
+                  className="merchant-btn merchant-btn-secondary merchant-btn--compact"
+                  disabled={lock}
+                  onClick={() =>
+                    onChange({
+                      rankRewardTiers: form.rankRewardTiers.filter((_, i) => i !== index),
+                    })
+                  }
+                >
+                  {t("form.removeRankTier")}
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {form.rewardModel === "pass_per_run" && form.rewardKind === "score_threshold" ? (
+
+        <label className="merchant-field">
+
+          {t("form.minScore")}
+
+          <input
+
+            type="number"
+
+            value={form.minScore}
+
+            disabled={lock}
+
+            onChange={(e) => onChange({ minScore: e.target.value })}
+
+          />
+
+        </label>
+
+      ) : null}
+
+      {form.rewardModel === "pass_per_run" ? (
+      <label className="merchant-field">
+
+        {t("form.couponDef")}
+
+        <select
+
+          value={form.couponDefId}
+
+          disabled={lock}
+
+          onChange={(e) => onChange({ couponDefId: e.target.value })}
+
+        >
+
+          <option value="">{t("form.selectCouponDef")}</option>
+
+          {activeDefs.map((def) => (
+
+            <option key={def.couponDefId} value={def.couponDefId}>
+
+              {couponDefLabel(def)}
+
+            </option>
+
+          ))}
+
+        </select>
+
+      </label>
+      ) : null}
+
+      {activeDefs.length === 0 ? (
+
+        <p className="merchant-note">
+
+          {t("form.noCouponDefs")}{" "}
+
+          <MerchantNavLink route={{ view: "coupon-defs", merchantId: merchantIdHint }}>
+            {t("nav.couponDefs")}
+          </MerchantNavLink>
+
+        </p>
+
+      ) : null}
+
+      {form.rewardModel === "pass_per_run" && selectedDef ? (
+
+        <p className="merchant-note">
+
+          {t("form.rewardPreview", { label: couponDefLabel(selectedDef) })}
+
+        </p>
+
+      ) : null}
+
+      {form.rewardModel === "competitive_leaderboard" && form.rankRewardTiers.length > 0 ? (
+        <div className="merchant-rank-tier-preview">
+          {rankRewardTierPreviewLines(form, activeDefs).map((line) => (
+            <p key={line} className="merchant-note">
+              {line}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <label className="merchant-field">
+
+        {form.rewardModel === "pass_per_run" ? t("form.maxCouponsPass") : t("form.maxCouponsRank")}
+
+        <input
+
+          type="number"
+
+          min={1}
+
+          value={form.maxCouponsPerPlayer}
+
+          disabled={lock}
+
+          onChange={(e) => onChange({ maxCouponsPerPlayer: e.target.value })}
+
+        />
+
+      </label>
+
+      <label className="merchant-field">
+
+        {t("form.maxPlaysPerDay")}
+
+        <input
+
+          type="number"
+
+          min={1}
+
+          value={form.maxPlaysPerDay}
+
+          disabled={lock}
+
+          placeholder={t("form.unlimited")}
+
+          onChange={(e) => onChange({ maxPlaysPerDay: e.target.value })}
+
+        />
+
+      </label>
+
+      <label className="merchant-field">
+
+        {t("form.dayTimezone")}
+
+        <select
+
+          value={form.dayTimezone}
+
+          disabled={lock}
+
+          onChange={(e) => onChange({ dayTimezone: e.target.value })}
+
+        >
+
+          {CAMPAIGN_DAY_TIMEZONE_OPTIONS.map((opt) => (
+
+            <option key={opt.value} value={opt.value}>
+
+              {campaignTimezoneLabel(opt.value)}
+
+            </option>
+
+          ))}
+
+        </select>
+
+      </label>
+
+      <p className="merchant-note">{t("form.dailyQuotaHint")}</p>
+
+      <p className="merchant-note">
+
+        {t("form.rulePreview", {
+
+          rewardKind: rewardKindLabel(form),
+
+          couponLabel: couponDefLabel(selectedDef),
+
+        })}
+
+      </p>
+
+      <h3 className="merchant-section-title">{t("form.gameSection")}</h3>
+
+      <label className="merchant-field">
+
+        {t("form.game")}
+
+        <select
+
+          value={form.gameType}
+
+          disabled={lock}
+
+          onChange={(e) => onChange({ gameType: e.target.value })}
+
+        >
+
+          {PORTAL_GAME_OPTIONS.map((g) => (
+
+            <option key={g.value} value={g.value}>
+
+              {g.label}
+
+            </option>
+
+          ))}
+
+        </select>
+
+      </label>
+
+      {form.rewardModel === "competitive_leaderboard" ? (
+
+        <label className="merchant-field">
+
+          {t("form.rankDimension")}
+
+          <select
+
+            value={form.mode}
+
+            disabled={lock}
+
+            onChange={(e) => onChange({ mode: e.target.value as CampaignFormState["mode"] })}
+
+          >
+
+            <option value="solo">{t("form.rankSolo")}</option>
+
+            <option value="multi">{t("form.rankMulti")}</option>
+
+          </select>
+
+        </label>
+
+      ) : (
+
+        <p className="merchant-note">
+
+          {t("form.passSoloTemplate")}{" "}
+
+          <code>{portalTemplateLabel("solo", form.gameType)}</code>
+
+        </p>
+
+      )}
+
+      {form.rewardModel === "competitive_leaderboard" ? (
+
+        <p className="merchant-note">
+
+          {t("form.portalTemplate")}{" "}
+
+          <code>{portalTemplateLabel(form.mode, form.gameType)}</code>
+
+        </p>
+
+      ) : null}
+
+      </>
+
+      ) : null}
+
+    </>
+
+  );
+
+};
+
+
+
+export const MerchantCampaignListInner: React.FC<{
+  visible: number;
+  merchantId: string;
+  embedded?: boolean;
+}> = ({ visible, merchantId, embedded }) => {
+
+  const { t, i18n: i18nInst } = useTranslation("campaign.merchant");
+
+  const { askAuth } = useUserManager();
+
+  const { campaigns, couponDefs, loading, refresh, http, authed, fns } = useMerchantCampaignAdmin(
+
+    merchantId || null
+
+  );
+
+  const typedCouponDefs = couponDefs as MerchantCouponDefOption[];
+
+  const { http: httpClient } = useMerchantCampaignClient();
+
+  const [form, setForm] = useState<CampaignFormState>(() => defaultCampaignForm());
+
+  const [note, setNote] = useState<string | null>(null);
+
+  const [editNote, setEditNote] = useState<string | null>(null);
+
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const [createNote, setCreateNote] = useState<string | null>(null);
+
+  const [creating, setCreating] = useState(false);
+
+  const [merchantSlug, setMerchantSlug] = useState("");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [editingStatus, setEditingStatus] = useState<string | null>(null);
+
+  const [editForm, setEditForm] = useState<CampaignFormState | null>(null);
+
+  const [createPosterPortraitFile, setCreatePosterPortraitFile] = useState<File | null>(null);
+
+  const [createPosterLandscapeFile, setCreatePosterLandscapeFile] = useState<File | null>(null);
+
+  const [createPosterPortraitPreview, setCreatePosterPortraitPreview] = useState<string | null>(null);
+
+  const [createPosterLandscapePreview, setCreatePosterLandscapePreview] = useState<string | null>(null);
+
+  const [editPosterPortraitFile, setEditPosterPortraitFile] = useState<File | null>(null);
+
+  const [editPosterLandscapeFile, setEditPosterLandscapeFile] = useState<File | null>(null);
+
+  const [editPosterPortraitPreview, setEditPosterPortraitPreview] = useState<string | null>(null);
+
+  const [editPosterLandscapePreview, setEditPosterLandscapePreview] = useState<string | null>(null);
+
+
+
+  void i18nInst.language;
+
+
+
+  useEffect(() => {
+
+    if (!httpClient || !authed || !merchantId) return;
+
+    void httpClient.query(fns.listMyMerchants, {}).then((rows) => {
+
+      const hit = (rows as Array<{ merchantId: string; slug: string }>).find(
+
+        (m) => m.merchantId === merchantId
+
+      );
+
+      if (hit) setMerchantSlug(hit.slug);
+
+    });
+
+  }, [httpClient, authed, merchantId, fns.listMyMerchants]);
+
+
+
+  useEffect(() => {
+
+    if (typedCouponDefs.length === 0) return;
+
+    setForm((prev) => {
+      const couponDefId = prev.couponDefId || pickDefaultCouponDefId(typedCouponDefs);
+      const rankRewardTiers =
+        prev.rankRewardTiers.length > 0
+          ? prev.rankRewardTiers
+          : defaultRankRewardTiers(couponDefId);
+      if (prev.couponDefId && prev.rankRewardTiers.length > 0) return prev;
+      return { ...prev, couponDefId, rankRewardTiers };
+    });
+
+  }, [typedCouponDefs]);
+
+
+
+  const patchForm = (patch: Partial<CampaignFormState>) =>
+
+    setForm((prev) => normalizeFormForRewardModel({ ...prev, ...patch }));
+
+
+
+  const onCreatePosterPortraitSelect = (file: File | null) => {
+
+    setCreatePosterPortraitFile(file);
+
+    if (createPosterPortraitPreview?.startsWith("blob:")) URL.revokeObjectURL(createPosterPortraitPreview);
+
+    setCreatePosterPortraitPreview(file ? URL.createObjectURL(file) : null);
+
+  };
+
+
+
+  const onCreatePosterLandscapeSelect = (file: File | null) => {
+
+    setCreatePosterLandscapeFile(file);
+
+    if (createPosterLandscapePreview?.startsWith("blob:")) URL.revokeObjectURL(createPosterLandscapePreview);
+
+    setCreatePosterLandscapePreview(file ? URL.createObjectURL(file) : null);
+
+  };
+
+
+
+  const onEditPosterPortraitSelect = (file: File | null) => {
+
+    setEditPosterPortraitFile(file);
+
+    if (editPosterPortraitPreview?.startsWith("blob:")) URL.revokeObjectURL(editPosterPortraitPreview);
+
+    setEditPosterPortraitPreview(file ? URL.createObjectURL(file) : null);
+
+  };
+
+
+
+  const onEditPosterLandscapeSelect = (file: File | null) => {
+
+    setEditPosterLandscapeFile(file);
+
+    if (editPosterLandscapePreview?.startsWith("blob:")) URL.revokeObjectURL(editPosterLandscapePreview);
+
+    setEditPosterLandscapePreview(file ? URL.createObjectURL(file) : null);
+
+  };
+
+
+
+  const resolveCouponDef = (couponDefId: string) =>
+
+    typedCouponDefs.find((d) => d.couponDefId === couponDefId);
+
+
+
+  const resetCreatePosterState = () => {
+
+    setCreatePosterPortraitFile(null);
+
+    setCreatePosterLandscapeFile(null);
+
+    if (createPosterPortraitPreview?.startsWith("blob:")) URL.revokeObjectURL(createPosterPortraitPreview);
+
+    if (createPosterLandscapePreview?.startsWith("blob:")) URL.revokeObjectURL(createPosterLandscapePreview);
+
+    setCreatePosterPortraitPreview(null);
+
+    setCreatePosterLandscapePreview(null);
+
+  };
+
+
+
+  const openCreateModal = () => {
+
+    const couponDefId = pickDefaultCouponDefId(typedCouponDefs);
+
+    setForm({
+
+      ...defaultCampaignForm(),
+
+      couponDefId,
+
+      rankRewardTiers: defaultRankRewardTiers(couponDefId),
+
+    });
+
+    resetCreatePosterState();
+
+    setCreateNote(null);
+
+    setCreateModalOpen(true);
+
+  };
+
+
+
+  const closeCreateModal = () => {
+
+    setCreateModalOpen(false);
+
+    setCreateNote(null);
+
+    setCreating(false);
+
+    resetCreatePosterState();
+
+  };
+
+
+
+  const closeEditModal = () => {
+
+    setEditingId(null);
+
+    setEditingStatus(null);
+
+    setEditForm(null);
+
+    setEditNote(null);
+
+    setSavingEdit(false);
+
+    setEditPosterPortraitFile(null);
+
+    setEditPosterLandscapeFile(null);
+
+    if (editPosterPortraitPreview?.startsWith("blob:")) URL.revokeObjectURL(editPosterPortraitPreview);
+
+    if (editPosterLandscapePreview?.startsWith("blob:")) URL.revokeObjectURL(editPosterLandscapePreview);
+
+    setEditPosterPortraitPreview(null);
+
+    setEditPosterLandscapePreview(null);
+
+  };
+
+
+
+  const createCampaign = async () => {
+
+    if (!http || !authed || !merchantId) {
+
+      askAuth({});
+
+      return;
+
+    }
+
+    const normalized = ensureFormCouponDef(normalizeFormForRewardModel(form), typedCouponDefs);
+
+    setCreating(true);
+
+    setCreateNote(t("campaigns.creating"));
+
+    try {
+
+      if (normalized.experienceType === "display") {
+
+        const validationError = validateDisplayCampaignForm(normalized);
+
+        if (validationError) {
+
+          const message = campaignErrorMessage(validationError);
+
+          setCreateNote(message);
+
+          setNote(message);
+
+          return;
+
+        }
+
+        let posterPortraitStorageId: string | undefined;
+
+        let posterLandscapeStorageId: string | undefined;
+
+        ({ posterPortraitStorageId, posterLandscapeStorageId } = await uploadCampaignPosterPair({
+
+          http,
+
+          fns,
+
+          merchantId,
+
+          portraitFile: createPosterPortraitFile,
+
+          landscapeFile: createPosterLandscapeFile,
+
+        }));
+
+        await http.mutation(fns.createCampaign, {
+
+          merchantId,
+
+          slug: normalized.slug,
+
+          title: normalized.title,
+
+          rulesText: normalized.rulesText || undefined,
+
+          startsAt: datetimeLocalToMs(normalized.startsAtLocal),
+
+          endsAt: datetimeLocalToMs(normalized.endsAtLocal),
+
+          experienceType: "display",
+
+          displayConfig: buildDisplayConfigFromForm(normalized),
+
+          ...(posterPortraitStorageId
+            ? { posterPortraitStorageId: posterPortraitStorageId as never }
+            : {}),
+
+          ...(posterLandscapeStorageId
+            ? { posterLandscapeStorageId: posterLandscapeStorageId as never }
+            : {}),
+
+        });
+
+      } else {
+
+        const { posterPortraitStorageId, posterLandscapeStorageId } = await uploadCampaignPosterPair({
+
+          http,
+
+          fns,
+
+          merchantId,
+
+          portraitFile: createPosterPortraitFile,
+
+          landscapeFile: createPosterLandscapeFile,
+
+        });
+
+        await http.mutation(fns.createCampaign, {
+
+          merchantId,
+
+          slug: normalized.slug,
+
+          title: normalized.title,
+
+          rulesText: normalized.rulesText || undefined,
+
+          startsAt: datetimeLocalToMs(normalized.startsAtLocal),
+
+          endsAt: datetimeLocalToMs(normalized.endsAtLocal),
+
+          gameType: normalized.gameType,
+
+          mode: normalized.mode,
+
+          rewardModel: normalized.rewardModel,
+
+          playLimits: playLimitsFromForm(normalized),
+
+          rewardRules: buildRewardRulesFromForm(normalized, typedCouponDefs),
+
+          ...(posterPortraitStorageId
+            ? { posterPortraitStorageId: posterPortraitStorageId as never }
+            : {}),
+
+          ...(posterLandscapeStorageId
+            ? { posterLandscapeStorageId: posterLandscapeStorageId as never }
+            : {}),
+
+        });
+
+      }
+
+      setNote(campaignSuccessMessage("campaignCreated"));
+
+      closeCreateModal();
+
+      await refresh();
+
+    } catch (e) {
+
+      const message = campaignAdminErrorMessage(e);
+
+      setCreateNote(message);
+
+      setNote(message);
+
+    } finally {
+
+      setCreating(false);
+
+    }
+
+  };
+
+
+
+  const setLive = async (campaignId: string) => {
+
+    if (!http || !authed) {
+
+      askAuth({});
+
+      return;
+
+    }
+
+    try {
+
+      const row = (await http.query(fns.getCampaignForStaff, {
+
+        merchantId,
+
+        campaignId,
+
+      })) as {
+
+        posterPortraitStorageId?: string | null;
+
+        posterStorageId?: string | null;
+
+      } | null;
+
+      if (row && !campaignHasPortraitPoster(row)) {
+
+        setNote(campaignErrorMessage("display_poster_portrait_required"));
+
+        return;
+
+      }
+
+      await http.mutation(fns.updateCampaignStatus, {
+
+        merchantId,
+
+        campaignId,
+
+        status: "live",
+
+      });
+
+      setNote(campaignSuccessMessage("live"));
+
+      await refresh();
+
+    } catch (e) {
+
+      setNote(campaignAdminErrorMessage(e));
+
+    }
+
+  };
+
+
+
+  const setDraft = async (campaignId: string) => {
+
+    if (!http || !authed) return;
+
+    try {
+
+      await http.mutation(fns.updateCampaignStatus, {
+
+        merchantId,
+
+        campaignId,
+
+        status: "draft",
+
+      });
+
+      setNote(campaignSuccessMessage("drafted"));
+
+      if (editingId === campaignId) {
+
+        setEditingStatus("draft");
+
+      }
+
+      await refresh();
+
+    } catch (e) {
+
+      setNote(campaignAdminErrorMessage(e));
+
+    }
+
+  };
+
+
+
+  const startEdit = async (campaignId: string) => {
+
+    if (!http || !authed) {
+
+      askAuth({});
+
+      return;
+
+    }
+
+    try {
+
+      const row = await http.query(fns.getCampaignForStaff, { merchantId, campaignId });
+
+      if (!row) {
+
+        setNote(campaignErrorMessage("not_found"));
+
+        return;
+
+      }
+
+      setEditingId(campaignId);
+
+      setEditingStatus((row as { status: string }).status);
+
+      setEditForm(
+
+        ensureFormCouponDef(
+
+          campaignFormFromDoc(row as Parameters<typeof campaignFormFromDoc>[0]),
+
+          typedCouponDefs
+
+        )
+
+      );
+
+      setEditPosterPortraitFile(null);
+
+      setEditPosterLandscapeFile(null);
+
+      const staffRow = row as {
+
+        posterPortraitUrl?: string | null;
+
+        posterLandscapeUrl?: string | null;
+
+        posterUrl?: string | null;
+
+      };
+
+      setEditPosterPortraitPreview(staffRow.posterPortraitUrl ?? staffRow.posterUrl ?? null);
+
+      setEditPosterLandscapePreview(staffRow.posterLandscapeUrl ?? null);
+
+      setEditNote(null);
+
+      setNote(null);
+
+    } catch (e) {
+
+      setNote(campaignAdminErrorMessage(e));
+
+    }
+
+  };
+
+  const saveEdit = async () => {
+
+    if (!http || !authed || !editingId || !editForm) {
+
+      askAuth({});
+
+      return;
+
+    }
+
+    setSavingEdit(true);
+
+    setEditNote(t("campaigns.saving"));
+
+    try {
+
+      if (editingStatus === "live") {
+
+        const { posterPortraitStorageId, posterLandscapeStorageId } = await uploadCampaignPosterPair({
+
+          http,
+
+          fns,
+
+          merchantId,
+
+          portraitFile: editPosterPortraitFile,
+
+          landscapeFile: editPosterLandscapeFile,
+
+        });
+
+        await http.mutation(fns.updateCampaign, {
+
+          merchantId,
+
+          campaignId: editingId,
+
+          title: editForm.title,
+
+          rulesText: editForm.rulesText || undefined,
+
+          ...(posterPortraitStorageId
+            ? { posterPortraitStorageId: posterPortraitStorageId as never }
+            : {}),
+
+          ...(posterLandscapeStorageId
+            ? { posterLandscapeStorageId: posterLandscapeStorageId as never }
+            : {}),
+
+        });
+
+      } else {
+
+        const normalized = ensureFormCouponDef(
+
+          normalizeFormForRewardModel(editForm),
+
+          typedCouponDefs
+
+        );
+
+        if (normalized.experienceType === "display") {
+
+          const validationError = validateDisplayCampaignForm(normalized);
+
+          if (validationError) {
+
+            const message = campaignErrorMessage(validationError);
+
+            setEditNote(message);
+
+            setNote(message);
+
+            return;
+
+          }
+
+          let posterPortraitStorageId: string | undefined;
+
+          let posterLandscapeStorageId: string | undefined;
+
+          ({ posterPortraitStorageId, posterLandscapeStorageId } = await uploadCampaignPosterPair({
+
+            http,
+
+            fns,
+
+            merchantId,
+
+            portraitFile: editPosterPortraitFile,
+
+            landscapeFile: editPosterLandscapeFile,
+
+          }));
+
+          await http.mutation(fns.updateCampaign, {
+
+            merchantId,
+
+            campaignId: editingId,
+
+            title: normalized.title,
+
+            rulesText: normalized.rulesText || undefined,
+
+            startsAt: datetimeLocalToMs(normalized.startsAtLocal),
+
+            endsAt: datetimeLocalToMs(normalized.endsAtLocal),
+
+            displayConfig: buildDisplayConfigFromForm(normalized),
+
+            ...(posterPortraitStorageId
+              ? { posterPortraitStorageId: posterPortraitStorageId as never }
+              : {}),
+
+            ...(posterLandscapeStorageId
+              ? { posterLandscapeStorageId: posterLandscapeStorageId as never }
+              : {}),
+
+          });
+
+        } else {
+
+          const { posterPortraitStorageId, posterLandscapeStorageId } = await uploadCampaignPosterPair({
+
+            http,
+
+            fns,
+
+            merchantId,
+
+            portraitFile: editPosterPortraitFile,
+
+            landscapeFile: editPosterLandscapeFile,
+
+          });
+
+          await http.mutation(fns.updateCampaign, {
+
+            merchantId,
+
+            campaignId: editingId,
+
+            title: normalized.title,
+
+            rulesText: normalized.rulesText || undefined,
+
+            startsAt: datetimeLocalToMs(normalized.startsAtLocal),
+
+            endsAt: datetimeLocalToMs(normalized.endsAtLocal),
+
+            gameType: normalized.gameType,
+
+            mode: normalized.mode,
+
+            rewardModel: normalized.rewardModel,
+
+            playLimits: playLimitsFromForm(normalized),
+
+            rewardRules: buildRewardRulesFromForm(normalized, typedCouponDefs),
+
+            ...(posterPortraitStorageId
+              ? { posterPortraitStorageId: posterPortraitStorageId as never }
+              : {}),
+
+            ...(posterLandscapeStorageId
+              ? { posterLandscapeStorageId: posterLandscapeStorageId as never }
+              : {}),
+
+          });
+
+        }
+
+      }
+
+      const refreshed = (await http.query(fns.getCampaignForStaff, {
+
+        merchantId,
+
+        campaignId: editingId,
+
+      })) as {
+
+        posterPortraitUrl?: string | null;
+
+        posterLandscapeUrl?: string | null;
+
+        posterUrl?: string | null;
+
+      } | null;
+
+      if (refreshed) {
+
+        setEditPosterPortraitPreview(refreshed.posterPortraitUrl ?? refreshed.posterUrl ?? null);
+
+        setEditPosterLandscapePreview(refreshed.posterLandscapeUrl ?? null);
+
+      }
+
+      setEditPosterPortraitFile(null);
+
+      setEditPosterLandscapeFile(null);
+
+      const savedMessage = campaignSuccessMessage("saved");
+
+      setEditNote(savedMessage);
+
+      setNote(savedMessage);
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      await refresh();
+
+    } catch (e) {
+
+      const message = campaignAdminErrorMessage(e);
+
+      setEditNote(message);
+
+      setNote(message);
+
+    } finally {
+
+      setSavingEdit(false);
+
+    }
+
+  };
+
+
+
+  const finalizeLeaderboard = async (campaignId: string) => {
+
+    if (!http || !authed) return;
+
+    try {
+
+      const result = (await http.mutation(fns.finalizeCampaignLeaderboardRewardsStaff, {
+
+        merchantId,
+
+        campaignId,
+
+      })) as { ok: boolean; error?: string; couponsIssued?: number };
+
+      if (!result.ok) {
+
+        setNote(campaignErrorMessage(result.error) ?? i18n.t("settlementFailed", { ns: "campaign.errors" }));
+
+        return;
+
+      }
+
+      setNote(
+
+        i18n.t("leaderboardSettled", {
+
+          ns: "campaign.errors",
+
+          count: result.couponsIssued ?? 0,
+
+        })
+
+      );
+
+      await refresh();
+
+    } catch (e) {
+
+      setNote(campaignAdminErrorMessage(e));
+
+    }
+
+  };
+
+
+
+  if (visible === 0) return null;
+
+  const PageShell = embedded ? React.Fragment : "div";
+  const pageShellProps = embedded ? {} : { className: "merchant-page" };
+
+  return (
+    <PageShell {...pageShellProps}>
+      {!embedded ? (
+        <>
+          <MerchantPageToolbar />
+          <h1>{t("campaigns.title")}</h1>
+          <p className="merchant-note">{t("campaigns.intro")}</p>
+          <nav className="merchant-nav">
+            <MerchantNavLink route={{ view: "home" }}>{t("nav.back")}</MerchantNavLink>
+          </nav>
+        </>
+      ) : (
+        <p className="merchant-note">{t("campaigns.intro")}</p>
+      )}
+
+      {note ? <p className="merchant-note">{note}</p> : null}
+
+
+
+      <div className="merchant-list-toolbar">
+
+        <h2 className="merchant-list-toolbar__title">{t("campaigns.existing")}</h2>
+
+        <button type="button" className="merchant-btn" onClick={openCreateModal}>
+
+          {t("campaigns.createNew")}
+
+        </button>
+
+      </div>
+
+      {loading ? <p>{t("campaigns.loading")}</p> : null}
+
+      {(
+
+        campaigns as Array<{
+
+          campaignId: string;
+
+          slug: string;
+
+          title: string;
+
+          status: string;
+
+          mode: "solo" | "multi";
+
+          rewardModel?: CampaignFormState["rewardModel"];
+
+          experienceType?: CampaignFormState["experienceType"];
+
+          startsAt: number;
+
+          endsAt: number;
+
+          gameType: string;
+
+        }>
+
+      ).map((c) => {
+
+        const formPreview = campaignFormFromDoc(c as Parameters<typeof campaignFormFromDoc>[0]);
+
+        const previewDef = resolveCouponDef(formPreview.couponDefId);
+
+        const ended = Date.now() >= c.endsAt || c.status === "ended";
+
+        const locale = i18nInst.language;
+
+        return (
+
+          <article key={c.campaignId} className="merchant-card">
+
+            <strong>{c.title}</strong>
+
+            <p className="merchant-note">
+
+              {formPreview.experienceType === "display"
+
+                ? t("campaigns.statusLineDisplay", { status: c.status })
+
+                : t("campaigns.statusLine", {
+
+                    status: c.status,
+
+                    rewardModel: rewardModelLabel(formPreview.rewardModel),
+
+                    mode: c.mode,
+
+                    gameType: c.gameType,
+
+                  })}
+
+            </p>
+
+            <p className="merchant-note">
+
+              {new Date(c.startsAt).toLocaleString(locale)} –{" "}
+
+              {new Date(c.endsAt).toLocaleString(locale)}
+
+            </p>
+
+            {formPreview.experienceType === "display" ? (
+
+              <p className="merchant-note">{t("campaigns.displayTypeHint")}</p>
+
+            ) : formPreview.rewardModel === "competitive_leaderboard" ? (
+              rankRewardTierPreviewLines(formPreview, typedCouponDefs).map((line) => (
+                <p key={line} className="merchant-note">
+                  {line}
+                </p>
+              ))
+            ) : (
+              <p className="merchant-note">
+                {t("campaigns.couponLine", {
+                  couponLabel: couponDefLabel(previewDef),
+                  rewardKind: rewardKindLabel(formPreview),
+                })}
+              </p>
+            )}
+
+            {merchantSlug ? (
+
+              <p className="merchant-note">
+
+                {t("campaigns.landingPage", { merchantSlug, slug: c.slug })}
+
+              </p>
+
+            ) : null}
+
+            {c.status !== "live" &&
+            c.status !== "ended" &&
+            !campaignHasPortraitPoster(c as { posterPortraitStorageId?: string | null; posterStorageId?: string | null }) ? (
+              <p className="merchant-note">{t("campaigns.posterBeforeLive")}</p>
+            ) : null}
+
+            <div className="merchant-nav">
+
+              {c.status !== "live" && c.status !== "ended" ? (
+
+                <button type="button" className="merchant-btn" onClick={() => void setLive(c.campaignId)}>
+
+                  {t("campaigns.goLive")}
+
+                </button>
+
+              ) : null}
+
+              {c.status === "live" ? (
+
+                <button type="button" className="merchant-btn" onClick={() => void setDraft(c.campaignId)}>
+
+                  {t("campaigns.setDraft")}
+
+                </button>
+
+              ) : null}
+
+              {c.status !== "ended" ? (
+
+                <button type="button" className="merchant-btn" onClick={() => void startEdit(c.campaignId)}>
+
+                  {t("campaigns.edit")}
+
+                </button>
+
+              ) : null}
+
+              {formPreview.rewardModel === "competitive_leaderboard" && ended ? (
+
+                <button
+
+                  type="button"
+
+                  className="merchant-btn"
+
+                  onClick={() => void finalizeLeaderboard(c.campaignId)}
+
+                >
+
+                  {t("campaigns.finalizeLeaderboard")}
+
+                </button>
+
+              ) : null}
+
+              <MerchantNavLink
+                route={{
+                  view: "coupons",
+                  merchantId,
+                  campaignId: c.campaignId,
+                }}
+              >
+                {t("nav.couponManagement")}
+              </MerchantNavLink>
+
+            </div>
+
+          </article>
+
+        );
+
+      })}
+
+      <MerchantCampaignFormModal
+        open={createModalOpen}
+        title={t("campaigns.newTitle")}
+        onClose={closeCreateModal}
+        statusNote={createNote}
+        footer={
+          <>
+            <button
+              type="button"
+              className="merchant-btn"
+              disabled={creating}
+              onClick={() => void createCampaign()}
+            >
+              {creating ? t("campaigns.creating") : t("campaigns.createDraft")}
+            </button>
+            <button
+              type="button"
+              className="merchant-btn merchant-btn-secondary"
+              disabled={creating}
+              onClick={closeCreateModal}
+            >
+              {t("campaigns.cancel")}
+            </button>
+          </>
+        }
+      >
+        <p className="merchant-note">{t("campaigns.newHint")}</p>
+        <CampaignFormFields
+          form={form}
+          couponDefs={typedCouponDefs}
+          onChange={patchForm}
+          posterPortraitPreview={createPosterPortraitPreview}
+          posterLandscapePreview={createPosterLandscapePreview}
+          onPosterPortraitSelect={onCreatePosterPortraitSelect}
+          onPosterLandscapeSelect={onCreatePosterLandscapeSelect}
+        />
+      </MerchantCampaignFormModal>
+
+      <MerchantCampaignFormModal
+        open={Boolean(editingId && editForm)}
+        title={`${t("campaigns.editTitle")}${editingStatus === "live" ? t("campaigns.editLive") : ""}`}
+        onClose={closeEditModal}
+        statusNote={editNote}
+        footer={
+          <>
+            <button
+              type="button"
+              className="merchant-btn"
+              disabled={savingEdit}
+              onClick={() => void saveEdit()}
+            >
+              {savingEdit ? t("campaigns.saving") : t("campaigns.save")}
+            </button>
+            {editingStatus === "live" && editingId ? (
+              <button
+                type="button"
+                className="merchant-btn merchant-btn-secondary"
+                disabled={savingEdit}
+                onClick={() => void setDraft(editingId)}
+              >
+                {t("campaigns.offlineForEdit")}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="merchant-btn merchant-btn-secondary"
+              disabled={savingEdit}
+              onClick={closeEditModal}
+            >
+              {t("campaigns.cancel")}
+            </button>
+          </>
+        }
+      >
+        {editingStatus === "live" ? (
+          <p className="merchant-note">{t("form.liveLockedHint")}</p>
+        ) : null}
+        {editForm ? (
+          <CampaignFormFields
+            form={editForm}
+            couponDefs={typedCouponDefs}
+            structuralLocked={editingStatus === "live"}
+            experienceTypeLocked={editingStatus === "live"}
+            posterPortraitPreview={editPosterPortraitPreview}
+            posterLandscapePreview={editPosterLandscapePreview}
+            onPosterPortraitSelect={onEditPosterPortraitSelect}
+            onPosterLandscapeSelect={onEditPosterLandscapeSelect}
+            onChange={(patch) => setEditForm((prev) => (prev ? { ...prev, ...patch } : prev))}
+          />
+        ) : null}
+      </MerchantCampaignFormModal>
+
+    </PageShell>
+
+  );
+
+};
+
+const MerchantCampaignListPage: React.FC<PageProp> = ({ visible, data }) => {
+
+  const merchantId =
+
+    (typeof data?.merchantId === "string" ? data.merchantId : "") || merchantIdFromLocation();
+
+  return (
+
+    <MerchantCampaignProvider>
+
+      <MerchantCampaignListInner visible={visible} merchantId={merchantId} />
+
+    </MerchantCampaignProvider>
+
+  );
+
+};
+
+
+
+export default MerchantCampaignListPage;
+
+

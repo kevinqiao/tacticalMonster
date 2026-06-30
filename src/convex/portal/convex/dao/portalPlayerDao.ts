@@ -15,7 +15,6 @@ export const patchByUid = internalMutation({
   args: {
     uid: v.string(),
     patch: v.object({
-      token: v.optional(v.string()),
       updatedAt: v.optional(v.number()),
     }),
   },

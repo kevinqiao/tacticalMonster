@@ -1,35 +1,75 @@
-import { api } from "@/convex/sso/convex/_generated/api";
-import { User } from "host/service/UserManager";
-import { useConvex } from "convex/react";
-import React, { useCallback } from "react";
-// const client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
-const SignInWeb: React.FC<{ cid: number, onComplete: (user: User) => void }> = ({ cid, onComplete }) => {
-    const convex = useConvex();
-    const login = useCallback(async (email: string) => {
+import React, { useCallback, useMemo } from "react";
 
-        const res: User | null = await convex.action(api.service.AuthManager.authenticate, { cid, data: { email, password: "12345" } });
-        console.log("WebAuthenticator", "res", res);
-        if (res) {
-            // authComplete(res, 1);
-            onComplete(res);
-        }
-    }, [convex, onComplete])
+import type { User } from "host/service/UserManager";
+import { usePartnerManager } from "host/service/PartnerManager";
 
+import WebSignInForm from "@/component/lobby/shared/WebSignInForm";
+import { resolveWebSignInFromLocation } from "@/component/lobby/shared/resolveWebSignInFromLocation";
 
-    return (
-        <>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%", backgroundColor: "white", pointerEvents: "auto" }}>
-                <div style={{ width: 400, display: "flex" }}>
-                    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={() => login("kevin1@gmail.com")}>
-                        Player1
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={() => login("kevin2@gmail.com")}>
-                        Player2
-                    </div>
-                </div>
-            </div>
-        </>
-    )
-}
+const SignInWeb: React.FC<{ cid: number; onComplete: (user: User) => void }> = ({
+  onComplete,
+}) => {
+  const { partnerPid } = usePartnerManager();
+  const signInContext = useMemo(() => {
+    const base = resolveWebSignInFromLocation();
+    if (
+      (base.staffGate === "none" || base.staffGate === "merchant") &&
+      base.partnerId === undefined
+    ) {
+      return { ...base, partnerId: partnerPid };
+    }
+    return base;
+  }, [partnerPid]);
+
+  const onSuccess = useCallback(
+    (user: User) => {
+      onComplete(user);
+    },
+    [onComplete]
+  );
+
+  const description =
+    signInContext.staffGate === "platform"
+      ? "平台运营登录；须为 platform_staff 成员。"
+      : signInContext.staffGate === "partner"
+        ? signInContext.partnerId
+          ? `Partner 后台登录（PID ${signInContext.partnerId}）；须为 partner_staff 成员。`
+          : "Partner 后台登录；须为 partner_staff 成员。"
+        : signInContext.staffGate === "merchant"
+          ? signInContext.partnerId
+            ? `商户后台登录（Partner PID ${signInContext.partnerId}）；须为 merchant_staff 成员。`
+            : "商户后台登录；须为 merchant_staff 成员。"
+          : "Web 登录（玩家账号）；无 staff 校验。";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100%",
+        height: "100%",
+        backgroundColor: "white",
+        pointerEvents: "auto",
+        gap: 12,
+        padding: 16,
+        boxSizing: "border-box",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 420 }}>
+        <WebSignInForm
+          staffGate={signInContext.staffGate}
+          partnerId={signInContext.partnerId}
+          onSuccess={onSuccess}
+          defaultAccountId={signInContext.defaultAccountId}
+          defaultPassword={signInContext.defaultPassword}
+          accountIdLabel="accountId / email"
+          description={description}
+        />
+      </div>
+    </div>
+  );
+};
 
 export default SignInWeb;

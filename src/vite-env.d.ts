@@ -19,7 +19,9 @@ interface ImportMetaEnv {
   readonly VITE_CONVEX_URL_YATZ?: string;
   /** Casual platform (`src/convex/casualPlatform`); separate Convex deployment */
   readonly VITE_CONVEX_URL_CASUAL?: string;
-  readonly REACT_APP_CONVEX_URL?: string; // 向后兼容
+  /** Merchant Campaign SaaS (`src/convex/merchantCampaign`) */
+  readonly VITE_CONVEX_URL_MERCHANT?: string;
+  readonly VITE_CONVEX_URL_PORTAL?: string;
   // 可以添加更多环境变量类型
 }
 

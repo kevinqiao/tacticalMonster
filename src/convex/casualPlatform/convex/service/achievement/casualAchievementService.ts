@@ -6,7 +6,8 @@ import {
   CASUAL_ACHIEVEMENT_TEMPLATES,
   leagueTierOrder,
 } from "../../data/casualAchievementTemplates";
-import { internalMutation, query } from "../../_generated/server";
+import { internalMutation } from "../../_generated/server";
+import { authedQuery } from "../../custom/session";
 import { v } from "convex/values";
 
 export type AchievementCheckEvent =
@@ -105,9 +106,10 @@ export const checkAndUnlockAchievements = internalMutation({
   },
 });
 
-export const listPlayerAchievements = query({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
+export const listPlayerAchievements = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const rows = await ctx.db
       .query("casual_player_achievements")
       .withIndex("by_uid", (q) => q.eq("uid", uid))

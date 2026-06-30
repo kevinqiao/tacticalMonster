@@ -45,6 +45,22 @@ export const OpenNewEffects: OpenNewEffects = {
             const byName = kids.findIndex((c) => c.name === container?.name);
             const byUri = resolveChildIndexByUri(kids, page.uri);
             const targetIdx = byName >= 0 ? byName : byUri >= 0 ? byUri : Math.floor(n / 2);
+            const usesSlideLayout = kids.some((c) => c.init === "slide");
+
+            if (!usesSlideLayout) {
+                kids.forEach((c, i) => {
+                    if (!c.ele) return;
+                    gsap.set(c.ele, { clearProps: "left,transform,x" });
+                    c.ele.dataset.active = i === targetIdx ? "true" : "false";
+                    gsap.set(c.ele, {
+                        autoAlpha: i === targetIdx ? 1 : 0,
+                        pointerEvents: i === targetIdx ? "auto" : "none",
+                    });
+                });
+                onComplete?.();
+                return;
+            }
+
             kids.forEach((c, i) => {
                 if (!c.ele) return;
                 const leftPct = childLeftPercent(i, targetIdx);

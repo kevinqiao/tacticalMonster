@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as custom_session from "../custom/session.js";
 import type * as http from "../http.js";
 import type * as proxy_controller from "../proxy/controller.js";
 import type * as service_SoloGameEngine from "../service/SoloGameEngine.js";
@@ -25,6 +26,7 @@ import type * as service_casualBridgeIngest from "../service/casualBridgeIngest.
 import type * as service_casualBridgeResolve from "../service/casualBridgeResolve.js";
 import type * as service_casualGameLifecycle from "../service/casualGameLifecycle.js";
 import type * as service_casualGameTimeoutAction from "../service/casualGameTimeoutAction.js";
+import type * as service_clientCardView from "../service/clientCardView.js";
 import type * as service_gameManager from "../service/gameManager.js";
 import type * as service_seedPool_solitaireHumanPersonas from "../service/seedPool/solitaireHumanPersonas.js";
 import type * as service_seedPool_solitaireOpCodec from "../service/seedPool/solitaireOpCodec.js";
@@ -67,6 +69,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "custom/session": typeof custom_session;
   http: typeof http;
   "proxy/controller": typeof proxy_controller;
   "service/SoloGameEngine": typeof service_SoloGameEngine;
@@ -84,6 +87,7 @@ declare const fullApi: ApiFromModules<{
   "service/casualBridgeResolve": typeof service_casualBridgeResolve;
   "service/casualGameLifecycle": typeof service_casualGameLifecycle;
   "service/casualGameTimeoutAction": typeof service_casualGameTimeoutAction;
+  "service/clientCardView": typeof service_clientCardView;
   "service/gameManager": typeof service_gameManager;
   "service/seedPool/solitaireHumanPersonas": typeof service_seedPool_solitaireHumanPersonas;
   "service/seedPool/solitaireOpCodec": typeof service_seedPool_solitaireOpCodec;

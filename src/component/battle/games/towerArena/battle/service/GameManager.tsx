@@ -125,10 +125,9 @@ const TowerGameProvider: React.FC<{
   }, [convex, gameId, applyLoadedGame]);
 
   const replayCasualRun = useCallback(async (): Promise<boolean> => {
-    if (!gameId.startsWith('game_') || !user?.token) return false;
+    if (!gameId.startsWith('game_') || !user?.platformAccessToken) return false;
     try {
       const rr = (await convex.action(api.proxy.controller.replayCasualRun, {
-        token: user.token,
         gameId,
       })) as { ok?: boolean; error?: string };
       if (!rr?.ok) {
@@ -140,7 +139,7 @@ const TowerGameProvider: React.FC<{
       console.error('[Tower] replayCasualRun', e);
       return false;
     }
-  }, [convex, gameId, user?.token, reloadCasualRun]);
+  }, [convex, gameId, user?.platformAccessToken, reloadCasualRun]);
 
   useEffect(() => {
     void reload();

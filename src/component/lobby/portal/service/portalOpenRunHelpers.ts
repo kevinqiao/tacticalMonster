@@ -1,7 +1,17 @@
 import { getPortalTournamentDefinition } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import type { RegisteredPortalGameType } from "@/convex/portal/convex/data/portalGameRegistry";
 
-import type { OpenCasualRunAssignment } from "../../casual/service/casualOpenRunAssignment";
+import {
+  assignmentMatchesAwaitWatch,
+  type CasualGameKind,
+  type OpenCasualRunAssignment,
+} from "../../casual/service/casualOpenRunAssignment";
+
+export type CampaignAwaitOpenRunWatch = {
+  templateId: string;
+  gameKind: CasualGameKind;
+  campaignId: string;
+};
 import { isOpenCasualRunExpired } from "../../casual/service/casualOpenRunReconcile";
 import type { PortalMatchQueueEntry } from "./usePortalManager";
 
@@ -59,6 +69,33 @@ export function pickPortalOpenAssignmentForMode(
   const matchType = mode === "solo" ? "solo_p75" : "multi_ranked";
   return pickPortalOpenAssignmentsForGameType(assigns, gameType).find(
     (a) => getPortalTournamentDefinition(a.templateId)?.matchType === matchType
+  );
+}
+
+/** 仅恢复属于指定活动的 open run（排除超时对局） */
+export function pickPortalOpenAssignmentForCampaignMode(
+  assigns: OpenCasualRunAssignment[],
+  gameType: RegisteredPortalGameType,
+  mode: "solo" | "multi",
+  campaignId: string
+): OpenCasualRunAssignment | undefined {
+  const matchType = mode === "solo" ? "solo_p75" : "multi_ranked";
+  return pickActivePortalOpenAssignmentsForGameType(assigns, gameType).find(
+    (a) =>
+      a.campaignId === campaignId &&
+      getPortalTournamentDefinition(a.templateId)?.matchType === matchType
+  );
+}
+
+/** `joinTournament` 返回 queued 后，等待属于该活动的 open run */
+export function findCampaignAwaitOpenAssignment(
+  assigns: OpenCasualRunAssignment[],
+  watch: CampaignAwaitOpenRunWatch
+): OpenCasualRunAssignment | undefined {
+  return assigns.find(
+    (a) =>
+      a.campaignId === watch.campaignId &&
+      assignmentMatchesAwaitWatch(a, watch)
   );
 }
 

@@ -1,8 +1,71 @@
 import { httpRouter } from "convex/server";
 // import jwt from "jsonwebtoken";
 import { internal } from "./_generated/api";
-import { httpAction } from "./_generated/server";
+import { httpAction, type ActionCtx } from "./_generated/server";
+import {
+  TOURNAMENT_BRIDGE_HEADER,
+  tournamentBridgeSecret,
+} from "./service/bridge/tournamentBridgeSecret";
 
+function bearerTokenFromRequest(request: Request): string | null {
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.slice("Bearer ".length).trim();
+  return token.length > 0 ? token : null;
+}
+
+async function platformAccessTokenFromRequest(request: Request): Promise<string | null> {
+  const bearer = bearerTokenFromRequest(request);
+  if (bearer) return bearer;
+
+  try {
+    const body = (await request.clone().json()) as Record<string, unknown>;
+    if (typeof body.access_token === "string" && body.access_token.length > 0) {
+      return body.access_token;
+    }
+    if (typeof body.platformAccessToken === "string" && body.platformAccessToken.length > 0) {
+      return body.platformAccessToken;
+    }
+  } catch {
+    // no JSON body or invalid JSON
+  }
+  return null;
+}
+
+async function platformUidFromRequest(ctx: ActionCtx, request: Request): Promise<string | null> {
+  const token = await platformAccessTokenFromRequest(request);
+  if (!token) return null;
+  return await ctx.runAction(internal.service.auth.verifyPlatformToken, { token });
+}
+
+function isTournamentBridgeRequest(request: Request): boolean {
+  return request.headers.get(TOURNAMENT_BRIDGE_HEADER) === tournamentBridgeSecret();
+}
+
+function authErrorResponse(error: string, status = 401): Response {
+  return new Response(JSON.stringify({ ok: false, error }), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
+}
+
+/** Player uid from platform JWT, or bridge secret + claimed uid (server-to-server). */
+async function resolvePlayerUid(
+  ctx: ActionCtx,
+  request: Request,
+  claimedUid?: string | null
+): Promise<string | null> {
+  const fromJwt = await platformUidFromRequest(ctx, request);
+  if (fromJwt) {
+    if (claimedUid && claimedUid !== fromJwt) return null;
+    return fromJwt;
+  }
+  if (claimedUid && isTournamentBridgeRequest(request)) return claimedUid;
+  return null;
+}
 
 const http = httpRouter();
 http.route({
@@ -10,8 +73,10 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const body = await request.json();
+    const uid = await resolvePlayerUid(ctx, request, body.uid);
+    if (!uid) return authErrorResponse("Missing or invalid auth");
     console.log("surrender body", body);
-    const res = await ctx.runMutation(internal.service.tournament.matchManager.surrender, { uid: body.uid, gameId: body.gameId });
+    const res = await ctx.runMutation(internal.service.tournament.matchManager.surrender, { uid, gameId: body.gameId });
     return new Response(JSON.stringify(res), {
       status: 200,
       headers: new Headers({
@@ -26,7 +91,9 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const body = await request.json();
-    const res = await ctx.runMutation(internal.service.tournament.tournamentService.join, { uid: body.uid, typeId: body.typeId, stageId: body.stageId, teamPower: body.teamPower });
+    const uid = await resolvePlayerUid(ctx, request, body.uid);
+    if (!uid) return authErrorResponse("Missing or invalid auth");
+    const res = await ctx.runMutation(internal.service.tournament.tournamentService.join, { uid, typeId: body.typeId, stageId: body.stageId, teamPower: body.teamPower });
     return new Response(JSON.stringify(res), {
       status: 200,
       headers: new Headers({
@@ -125,20 +192,35 @@ http.route({
   path: "/signout",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const body = await request.json();
+    const uidFromToken = await platformUidFromRequest(ctx, request);
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     console.log("signout", body);
-    try {
 
-      const player: any = await ctx.runQuery(internal.dao.playerDao.find, { uid: body.uid });
-      console.log("player", player);
-      // if (player) {
-      //   await ctx.runMutation(internal.dao.gamePlayerDao.update, {
-      //     uid: body.uid,
-      //     data: { token: null }
-      //   });
-      // }
-    } catch (error) {
-      console.error("signout error", error);
+    const bodyUid = typeof body.uid === "string" && body.uid.length > 0 ? body.uid : null;
+
+    if (bodyUid && !uidFromToken) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "uid requires a valid platform access token" }),
+        {
+          status: 401,
+          headers: new Headers({
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          }),
+        }
+      );
+    }
+
+    const uid = uidFromToken ?? null;
+    if (uid) {
+      try {
+        const player: unknown = await ctx.runQuery(internal.dao.playerDao.find, { uid });
+        console.log("player", player);
+      } catch (error) {
+        console.error("signout error", error);
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -147,8 +229,8 @@ http.route({
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
-      })
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      }),
     });
   }),
 });
@@ -162,18 +244,15 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     try {
-      const body = await request.json();
-      const { uid, token } = body;
-
-      // 参数验证
-      if (!uid || !token) {
+      const uid = await platformUidFromRequest(ctx, request);
+      if (!uid) {
         return new Response(
           JSON.stringify({
             ok: false,
-            error: "缺少必要参数: uid, token"
+            error: "Missing or invalid platform access token (Authorization: Bearer, access_token, or platformAccessToken)",
           }),
           {
-            status: 400,
+            status: 401,
             headers: {
               "Content-Type": "application/json",
               "Access-Control-Allow-Origin": "*",
@@ -182,11 +261,7 @@ http.route({
         );
       }
 
-      // 调用 PlayerManager.authenticate
-      const player = await ctx.runMutation(internal.service.playerManager.authenticate, {
-        uid,
-        token,
-      });
+      const player = await ctx.runMutation(internal.service.playerManager.ensurePlayer, { uid });
 
       return new Response(
         JSON.stringify({
@@ -308,14 +383,16 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid, action, actionData, gameType, tournamentId, matchId } = body;
+      const { action, actionData, gameType, tournamentId, matchId } = body;
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       // 参数验证
-      if (!uid || !action || !actionData) {
+      if (!action || !actionData) {
         return new Response(
           JSON.stringify({
             ok: false,
-            error: "缺少必要参数: uid, action, actionData",
+            error: "缺少必要参数: action, actionData",
           }),
           {
             status: 400,
@@ -383,14 +460,16 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid, seasonPointsAmount, source, sourceDetails } = body;
+      const { seasonPointsAmount, source, sourceDetails } = body;
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       // 参数验证
-      if (!uid || seasonPointsAmount === undefined || !source) {
+      if (seasonPointsAmount === undefined || !source) {
         return new Response(
           JSON.stringify({
             ok: false,
-            error: "缺少必要参数: uid, seasonPointsAmount, source",
+            error: "缺少必要参数: seasonPointsAmount, source",
           }),
           {
             status: 400,
@@ -454,24 +533,8 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid } = body;
-
-      // 参数验证
-      if (!uid) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            error: "缺少必要参数: uid",
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       // 导入 Battle Pass 系统
       const { BattlePassSystem } = await import("./service/battlePass/battlePassSystem");
@@ -517,14 +580,16 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid, level } = body;
+      const { level } = body;
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       // 参数验证
-      if (!uid || level === undefined) {
+      if (level === undefined) {
         return new Response(
           JSON.stringify({
             ok: false,
-            error: "缺少必要参数: uid, level",
+            error: "缺少必要参数: level",
           }),
           {
             status: 400,
@@ -582,23 +647,8 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid } = body;
-
-      if (!uid) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            error: "缺少必要参数: uid",
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       // 导入 Battle Pass 系统
       const { BattlePassSystem } = await import("./service/battlePass/battlePassSystem");
@@ -645,23 +695,9 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const url = new URL(request.url);
-      const uid = url.searchParams.get("uid");
-
-      if (!uid) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            error: "缺少必要参数: uid",
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
+      const uidParam = url.searchParams.get("uid");
+      const uid = await resolvePlayerUid(ctx, request, uidParam);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       // 导入 Battle Pass 系统
       const { BattlePassSystem } = await import("./service/battlePass/battlePassSystem");
@@ -749,10 +785,12 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
       // 直接导入并使用 RewardService，避免 internal API 类型问题
       const { RewardService } = await import("./service/reward/rewardService");
       const result = await RewardService.grantRewards(ctx, {
-        uid: body.uid,
+        uid,
         rewards: body.rewards,
         source: {
           source: body.source,
@@ -798,14 +836,16 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid, eventType, activityId, action, actionData, amount } = body;
+      const { eventType, activityId, action, actionData, amount } = body;
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       // 参数验证
-      if (!uid || !eventType) {
+      if (!eventType) {
         return new Response(
           JSON.stringify({
             success: false,
-            message: "缺少必要参数: uid, eventType",
+            message: "缺少必要参数: eventType",
           }),
           {
             status: 400,
@@ -1006,15 +1046,17 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid, tournamentId, typeId, gameType, metadata } = body;
+      const { tournamentId, typeId, gameType, metadata } = body;
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       // 参数验证
-      if (!uid || !typeId) {
+      if (!typeId) {
         return new Response(
           JSON.stringify({
             ok: false,
             success: false,
-            error: "缺少必要参数: uid, typeId"
+            error: "缺少必要参数: typeId"
           }),
           {
             status: 400,
@@ -1090,24 +1132,21 @@ import { action } from "./_generated/server";
  */
 export const testAuthenticate = action({
   args: {
-    uid: v.string(),
-    token: v.string(),
+    platformAccessToken: v.string(),
   },
   handler: async (ctx, args) => {
     const tournamentUrl = process.env.TOURNAMENT_URL || "https://beloved-mouse-699.convex.site";
 
     console.log(`[testAuthenticate] 测试 /authenticate 端点`);
-    console.log(`UID: ${args.uid}`);
-    console.log(`Token: ${args.token}`);
 
     try {
       const response = await fetch(`${tournamentUrl}/authenticate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: args.uid,
-          token: args.token,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${args.platformAccessToken}`,
+        },
+        body: JSON.stringify({}),
       });
 
       const result = await response.json();
@@ -1201,13 +1240,15 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const url = new URL(request.url);
-      const uid = url.searchParams.get("uid");
+      const uidParam = url.searchParams.get("uid");
+      const uid = await resolvePlayerUid(ctx, request, uidParam);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
       const tournamentId = url.searchParams.get("tournamentId");
 
-      if (!uid || !tournamentId) {
+      if (!tournamentId) {
         return new Response(JSON.stringify({
           ok: false,
-          error: "缺少必要参数: uid, tournamentId"
+          error: "缺少必要参数: tournamentId"
         }), {
           status: 400,
           headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
@@ -1321,12 +1362,14 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid, tournamentId } = body;
+      const { tournamentId } = body;
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
-      if (!uid || !tournamentId) {
+      if (!tournamentId) {
         return new Response(JSON.stringify({
           ok: false,
-          error: "缺少必要参数: uid, tournamentId"
+          error: "缺少必要参数: tournamentId"
         }), {
           status: 400,
           headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
@@ -1438,14 +1481,16 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid, exp, source, sourceId } = body;
+      const { exp, source, sourceId } = body;
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       // 参数验证
-      if (!uid || !exp || exp <= 0) {
+      if (!exp || exp <= 0) {
         return new Response(
           JSON.stringify({
             success: false,
-            message: "缺少必要参数: uid, exp (必须大于0)",
+            message: "缺少必要参数: exp (必须大于0)",
           }),
           {
             status: 400,
@@ -1501,23 +1546,9 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const url = new URL(request.url);
-      const uid = url.searchParams.get("uid");
-
-      if (!uid) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "缺少必要参数: uid",
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
+      const uidParam = url.searchParams.get("uid");
+      const uid = await resolvePlayerUid(ctx, request, uidParam);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       const { PlayerLevelService } = await import("./service/player/playerLevelService");
       const levelInfo = await PlayerLevelService.getPlayerLevelInfo(ctx, uid);
@@ -1756,23 +1787,9 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const url = new URL(request.url);
-      const uid = url.searchParams.get("uid");
-
-      if (!uid) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "缺少必要参数: uid",
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
+      const uidParam = url.searchParams.get("uid");
+      const uid = await resolvePlayerUid(ctx, request, uidParam);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
       const { EnergyService } = await import("./service/resource/energyService");
       const energy = await EnergyService.getPlayerEnergy(ctx, uid);
@@ -1822,13 +1839,15 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid, amount } = body;
+      const { amount } = body;
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
-      if (!uid || !amount || amount <= 0) {
+      if (!amount || amount <= 0) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "缺少必要参数: uid, amount (必须大于0)",
+            error: "缺少必要参数: amount (必须大于0)",
           }),
           {
             status: 400,
@@ -1900,13 +1919,15 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const { uid, amount, source, sourceId } = body;
+      const { amount, source, sourceId } = body;
+      const uid = await resolvePlayerUid(ctx, request, body.uid);
+      if (!uid) return authErrorResponse("Missing or invalid auth");
 
-      if (!uid || !amount || amount <= 0) {
+      if (!amount || amount <= 0) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "缺少必要参数: uid, amount (必须大于0)",
+            error: "缺少必要参数: amount (必须大于0)",
           }),
           {
             status: 400,

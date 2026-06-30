@@ -1,13 +1,12 @@
 /**
  * Block Blast 主界面（对齐 solitaireSolo：测量 board、终局自动进入休闲结算弹窗）
  */
-import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { registerCasualGameModalExitHandler } from '../../shared/casualGameModalExitBridge';
 import { useBlockBlastGameManager } from './service/GameManager';
 import {
     BLOCK_BLAST_DEFAULT_GRID_SIZE,
-    BlockBlastGameStatus,
     BoardDimension,
-    GameInteractionPhase,
     inferGridSizeFromGrid,
 } from './types/BlockBlastTypes';
 import { useGameVisualTheme } from '../../shared/visualTheme/useGameVisualTheme';
@@ -43,10 +42,9 @@ const LANDSCAPE_GRID_VERTICAL_MARGIN_PX = 8;
 /**
  * 横屏：棋盘外框（含 `GRID_PADDING` 的整块目标区）最大允许高度（像素）。
  * - `undefined`：不设上限，仅用 `容器高度 − 2 × LANDSCAPE_GRID_VERTICAL_MARGIN_PX`。
- * - 设为数字（例如 `400`）：再高也不会超过该高度（大屏上下会留白，棋盘仍垂直居中）。
  */
-const LANDSCAPE_GRID_MAX_BOX_HEIGHT_PX: number | undefined = 600;
-const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
+const LANDSCAPE_GRID_MAX_BOX_HEIGHT_PX: number | undefined = undefined;
+const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadComplete }) => {
     const visualTheme = useGameVisualTheme('block_blast');
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPortrait, setIsPortrait] = useState(
@@ -74,7 +72,6 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,
-        interactionPhase,
         replayMode,
         targetScore,
     } = useBlockBlastGameManager();
@@ -96,6 +93,14 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
     }, [gameState?.gameId, openWatch]);
 
     const postCasualReplayDisabled = postCasualReplayOffered && !postCasualCanReplay;
+
+    useEffect(() => {
+        if (replayMode) return;
+        registerCasualGameModalExitHandler(() => {
+            void settleManuallyAndExit();
+        });
+        return () => registerCasualGameModalExitHandler(null);
+    }, [replayMode, settleManuallyAndExit]);
 
     const gridDimension =
         gameState != null
@@ -154,10 +159,7 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 const maxGridBoxH = verticalBudget / (1 + PREVIEW_SIZE_OF_GRID);
                 const cellFromW = (maxBlockW - innerPad - gutter) / n;
                 const cellFromH = (maxGridBoxH - innerPad - gutter) / n;
-                const next = Math.max(
-                    MIN_CELL_PX,
-                    Math.min(56, Math.floor(Math.min(cellFromW, cellFromH)))
-                );
+                const next = Math.max(MIN_CELL_PX, Math.floor(Math.min(cellFromW, cellFromH)));
                 if (next === cellSize) break;
                 cellSize = next;
             }
@@ -186,13 +188,9 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
             }
 
             const gridTopResolved = blockBlastPortraitGridTopPx(cellSize);
-            const tailRoom =
-                containerHeight - gridTopResolved - bottomPad - PORTRAIT_VERTICAL_SLACK_PX;
-            const clusterH = gridBoxH + SECTION_GAP + previewH;
-            const clusterTop = gridTopResolved + Math.max(0, (tailRoom - clusterH) / 2);
             const gridX = (containerWidth - gridBoxW) / 2;
-            const gridY = clusterTop;
-            const previewY = clusterTop + gridBoxH + SECTION_GAP;
+            const gridY = gridTopResolved;
+            const previewY = gridTopResolved + gridBoxH + SECTION_GAP;
 
             return {
                 left: rect.left,
@@ -352,13 +350,16 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
 
     if (!gameState) {
         return (
-            <div className="blockblast-loading">
-                <div>Loading game…</div>
+            <div
+                ref={containerRef}
+                className="blockblast-player-container blockblast-player-container--boot"
+            >
+                <div className="blockblast-loading">
+                    <div>Loading game…</div>
+                </div>
             </div>
         );
     }
-
-    const endGameDisabled = interactionPhase !== GameInteractionPhase.idle;
 
     return (
         <div
@@ -368,8 +369,9 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
             style={{
                 width: '100%',
                 height: '100%',
-                position: 'relative',
-                overflow: 'hidden',
+                position: 'absolute',
+                left: 0,
+                top: 0,
             }}
         >
             <BlockBlastStatusBar
@@ -377,14 +379,6 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 gameState={gameState}
                 dueTime={replayMode ? undefined : gameState.dueTime}
                 targetScore={replayMode ? undefined : targetScore}
-                endGameDisabled={endGameDisabled}
-                onEndGame={
-                    replayMode
-                        ? undefined
-                        : () => {
-                              void settleManuallyAndExit();
-                          }
-                }
                 onMatchTimeout={
                     replayMode
                         ? undefined

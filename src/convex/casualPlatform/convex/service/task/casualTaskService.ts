@@ -13,6 +13,7 @@ import { internal } from "../../_generated/api";
 import type { MutationCtx } from "../../_generated/server";
 import { dailyPeriodKey, seasonPeriodKey, weeklyPeriodKey } from "../../utils/casualTaskPeriod";
 import { internalMutation, mutation, query } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
 
 const ASYNC_MATCH_TYPES = new Set(["tournament_a", "tournament_b", "tournament_c"]);
 type TaskEventType =
@@ -331,9 +332,10 @@ async function updatePlatformGameDerivedTasks(
 }
 
 /** 合并模板与玩家 `casual_tasks` / `claims`（按当前 periodKey） */
-export const listSeasonMissions = query({
-  args: { uid: v.optional(v.string()) },
-  handler: async (ctx, { uid }) => {
+export const listSeasonMissions = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const now = Date.now();
     const dailyPk = dailyPeriodKey(now);
     const weeklyPk = weeklyPeriodKey(now);
@@ -347,7 +349,7 @@ export const listSeasonMissions = query({
           t.tier === "daily" ? dailyPk : t.tier === "weekly" ? weeklyPk : seasonPk;
         let progress = 0;
         let completedAt: number | undefined;
-        if (uid && pk) {
+        if (pk) {
           const row = await ctx.db
             .query("casual_tasks")
             .withIndex("by_uid_task_period", (q) =>
@@ -358,7 +360,7 @@ export const listSeasonMissions = query({
           completedAt = row?.completedAt;
         }
         let claimed = false;
-        if (uid && pk) {
+        if (pk) {
           const cl = await ctx.db
             .query("casual_task_claims")
             .withIndex("by_uid_claim_task_period", (q) =>
@@ -710,10 +712,10 @@ export const recordDailyLogin = internalMutation({
 });
 
 /** 前端兜底触发：确保每日签到任务在当日可领取（幂等） */
-export const touchDailyLoginMission = mutation({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
-    await touchDailyLoginProgress(ctx, uid);
+export const touchDailyLoginMission = authedMutation({
+  args: {},
+  handler: async (ctx) => {
+    await touchDailyLoginProgress(ctx, ctx.uid);
     return { ok: true as const };
   },
 });
@@ -757,12 +759,12 @@ export const notifyTournamentJoined = internalMutation({
 });
 
 /** 多游戏 Pass 任务上下文：主游戏、本周主题游戏 */
-export const getPlatformPassMissionContext = query({
-  args: { uid: v.optional(v.string()) },
-  handler: async (ctx, { uid }) => {
+export const getPlatformPassMissionContext = authedQuery({
+  args: {},
+  handler: async (ctx) => {
     const now = Date.now();
     const spotlightGameType = weeklySpotlightPlatformGameType(now);
-    const primaryGameType = uid ? await resolvePrimaryPlatformGameType(ctx, uid, now) : null;
+    const primaryGameType = await resolvePrimaryPlatformGameType(ctx, ctx.uid, now);
     return {
       spotlightGameType,
       primaryGameType,
@@ -845,10 +847,10 @@ export const notifyWeeklyLeaguePromote = internalMutation({
   },
 });
 
-export const claimSeasonMission = mutation({
-  args: { uid: v.string(), taskId: v.string() },
-  handler: async (ctx, { uid, taskId }) => {
-    const r = await claimMissionCore(ctx, uid, taskId);
+export const claimSeasonMission = authedMutation({
+  args: { taskId: v.string() },
+  handler: async (ctx, { taskId }) => {
+    const r = await claimMissionCore(ctx, ctx.uid, taskId);
     return r.ok
       ? {
           ok: true as const,
@@ -862,9 +864,10 @@ export const claimSeasonMission = mutation({
 });
 
 /** 批量领取：领取当前已完成且未领的任务 */
-export const claimAllReadyMissions = mutation({
-  args: { uid: v.string(), tier: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("season"))) },
-  handler: async (ctx, { uid, tier }) => {
+export const claimAllReadyMissions = authedMutation({
+  args: { tier: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("season"))) },
+  handler: async (ctx, { tier }) => {
+    const uid = ctx.uid;
     const now = Date.now();
     const dailyPk = dailyPeriodKey(now);
     const weeklyPk = weeklyPeriodKey(now);
@@ -918,9 +921,10 @@ export const claimAllReadyMissions = mutation({
 });
 
 /** 查询当前连签状态（P3） */
-export const getCheckinStreak = query({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
+export const getCheckinStreak = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const row = await ctx.db
       .query("casual_checkin_streaks")
       .withIndex("by_uid", (q) => q.eq("uid", uid))

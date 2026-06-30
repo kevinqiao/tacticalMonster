@@ -1,30 +1,12 @@
 /**
  * Casual resolve-match-submit-context HTTP client.
  */
-import { resolveCasualBridgeEnv } from "./casualBridgeEnv";
-
-export type ResolveSubmitContext = {
-  mode: "daily" | "solo" | "mixed";
-  templateId: string;
-  matchId: string;
-  maxPlayers: number;
-  humanPlayerCount: number;
-  botCount: number;
-  seedBinding?: {
-    seedId: string;
-    poolVersion: string;
-    tier: "easy" | "medium" | "hard";
-  };
-  sessionExternalId: string;
-  botsSeeded: boolean;
-  humanScores: Array<{ uid: string; score: number }>;
-  wasHumanReplay: boolean;
-  humanReplayEpoch?: number;
-  soloRankPlanning?: unknown;
-  successThresholdQuantile?: "p75";
-  botPolicy?: "game_ingest" | "platform_ingest" | "none";
-  isLastGame?: boolean;
-};
+import {
+  casualBridgeRequestHeaders,
+  resolveCasualBridgeEnv,
+  type PlatformBridge,
+} from "./casualBridgeEnv";
+import type { ResolveSubmitContext } from "./casualBotFill/computeBotFills";
 
 export type ResolveContextResult =
   | { ok: true; context: ResolveSubmitContext }
@@ -34,17 +16,15 @@ export async function fetchCasualMatchSubmitContext(args: {
   uid: string;
   matchGameId: string;
   score?: number;
+  platformBridge?: PlatformBridge;
 }): Promise<ResolveContextResult> {
-  const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
-  const url = `${casualOrigin}/internal/resolve-match-submit-context`;
+  const bridgeEnv = resolveCasualBridgeEnv(args.platformBridge ?? "casual");
+  const url = `${bridgeEnv.origin}/internal/resolve-match-submit-context`;
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Casual-Bridge-Secret": bridge,
-      },
+      headers: casualBridgeRequestHeaders(bridgeEnv),
       body: JSON.stringify({
         uid: args.uid,
         matchGameId: args.matchGameId,
@@ -75,6 +55,17 @@ export async function fetchCasualMatchSubmitContext(args: {
   const mode = parsed.mode;
   if (mode !== "daily" && mode !== "solo" && mode !== "mixed") {
     return { ok: false, error: "bad_resolve_mode" };
+  }
+
+  if (mode === "solo") {
+    const planning = parsed.soloRankPlanning;
+    if (!planning || typeof planning !== "object") {
+      return { ok: false, error: "missing_solo_rank_planning" };
+    }
+    const profile = (planning as Record<string, unknown>).profile;
+    if (!profile || typeof profile !== "object") {
+      return { ok: false, error: "bad_solo_rank_planning_profile" };
+    }
   }
 
   return {

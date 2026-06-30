@@ -1,5 +1,37 @@
+/** 单局全屏舞台（接龙等）：占满 modal，无 1:1.3 居中框 */
+.casual-game-stage-full {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: radial-gradient(ellipse 120% 80% at 50% 0%, #1a1f35 0%, #0a0c14 55%, #050608 100%);
+  box-sizing: border-box;
+}
+
+.casual-game-stage-full .casual-triathlon-stage__badge {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.casual-game-stage-full .solo-game-container,
+.casual-game-stage-full .blockblast-game-container {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.casual-game-stage-full .solo-player-container,
+.casual-game-stage-full .blockblast-player-container {
+  width: 100%;
+  height: 100%;
+}
+
 /**
- * 三场合战 / 混合战：统一 1:1.5（宽:高）战斗区，在可用空间内最大化并居中。
+ * 三场合战 / 混合战：统一 1:1.3（宽:高）战斗区，在可用空间内最大化并居中。
  */
 .casual-triathlon-stage {
   position: absolute;
@@ -30,18 +62,23 @@
   flex: 1;
   width: 100%;
   min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   padding: clamp(4px, 1.2vw, 10px);
   box-sizing: border-box;
   container-type: size;
+  overflow: hidden;
 }
 
 .casual-triathlon-stage__frame {
-  aspect-ratio: 1 / 1.5;
-  width: min(100cqw, calc(100cqh * 2 / 3));
-  height: min(100cqh, calc(100cqw * 1.5));
+  /*
+    宽:高 = 1:1.3（10:13）。双轴 contain：宽、高都不超出 viewport，在此前提下尽量大。
+  */
+  aspect-ratio: 10 / 13;
+  min-width: 0;
+  min-height: 0;
+  width: min(100cqw, calc(100cqh * 10 / 13));
+  height: min(100cqh, calc(100cqw * 13 / 10));
   max-width: 100%;
   max-height: 100%;
   position: relative;
@@ -54,9 +91,21 @@
   box-sizing: border-box;
 }
 
+/* cqw/cqh 不可用时的兜底：仍保证不超出父级 */
+@supports not (width: 1cqw) {
+  .casual-triathlon-stage__frame {
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+  }
+}
+
 .casual-triathlon-stage__game {
   position: absolute;
   inset: 0;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -95,4 +144,14 @@
   padding: 24px;
   color: #fff;
   text-align: center;
+}
+
+/** 接龙 / Block Blast：与 Portal 主页同宽，满高自适应 */
+.casual-game-stage-full:has(.solo-game-container),
+.casual-game-stage-full:has(.blockblast-game-container) {
+  max-width: 960px;
+  width: 100%;
+  margin-inline: auto;
+  left: 0;
+  right: 0;
 }

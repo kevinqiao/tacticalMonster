@@ -1,5 +1,7 @@
 import { useCasualPlatform } from 'component/lobby/casual/service/useCasualPlatformManager';
 import { useUserManager } from 'host/service/UserManager';
+import { usePlatformAuth } from 'host/service/platformAuth/PlatformAuthProvider';
+import { isPlatformAuthed } from 'host/service/platformAuth/platformAccessToken';
 import { useConvex } from 'convex/react';
 import React, {
   createContext,
@@ -35,6 +37,8 @@ import {
   type TriathlonSessionReplayHandler,
 } from '../../../shared/casualTriathlonSubmitFlow';
 import { resetTriathlonCasualGameServers } from '../../../shared/triathlonCasualReplayReset';
+import { buildCasualPlatformRunActionArgs } from '../../../shared/casualPlatformActionArgs';
+import { fetchCasualAsyncTableSummaryForGame } from '../../../shared/fetchCasualAsyncTableSummary';
 import type { TriathlonNextGame } from 'component/lobby/casual/service/useCasualTriathlonSession';
 import { useCasualTableSummaryPoll } from '../../../shared/useCasualTableSummaryPoll';
 import { allocateGridCellRefs, type GridCellRefs } from '../animation/gridCellRefs';
@@ -121,8 +125,14 @@ export const Match3GameProvider: React.FC<Props> = ({
   onTriathlonSessionReplay,
 }) => {
   const convex = useConvex();
-  const casual = useCasualPlatform();
   const { user } = useUserManager();
+  const { platformReady } = usePlatformAuth();
+  const casualPlatformBridge = casualTournamentId?.startsWith('portal_')
+    ? ('portal' as const)
+    : undefined;
+  const casualPlatformAuthed =
+    platformReady && isPlatformAuthed(user) && Boolean(user?.platformAccessToken);
+  const casual = useCasualPlatform({ enabled: casualPlatformBridge !== 'portal' });
   const [gameState, setGameState] = useState<Match3GameState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [interactionPhase, setInteractionPhase] = useState(GameInteractionPhase.idle);
@@ -178,7 +188,11 @@ export const Match3GameProvider: React.FC<Props> = ({
       (postCasualSummaryOpen || postCasualScoreReportOpen) && !triathlonDeferTableSummary,
     summary: postCasualTableSummary,
     matchGameId: gameState?.gameId?.startsWith('game_') ? gameState.gameId : undefined,
-    fetchSummary: casual.fetchCasualTableSummaryForGame,
+    fetchSummary: (matchGameId) =>
+      fetchCasualAsyncTableSummaryForGame({
+        matchGameId,
+        platformBridge: casualPlatformBridge ?? 'casual',
+      }),
     onUpdate: (next) => {
       applyCasualTableSummaryFromQuery(next, {
         setTableSummary: setPostCasualTableSummary,
@@ -207,6 +221,7 @@ export const Match3GameProvider: React.FC<Props> = ({
         try {
           const meta = (await convex.action(api.proxy.controller.fetchCasualMatchTarget, {
             gameId: loadedGame.gameId,
+            ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
           })) as { ok?: boolean; seedScoreThreshold?: number };
           if (
             meta?.ok &&
@@ -229,7 +244,7 @@ export const Match3GameProvider: React.FC<Props> = ({
         setTargetScore(undefined);
       }
     },
-    [casualTournamentId, convex]
+    [casualTournamentId, convex, casualPlatformBridge]
   );
 
   const loadGame = useCallback(async () => {
@@ -237,7 +252,10 @@ export const Match3GameProvider: React.FC<Props> = ({
     setLoadError(null);
     setTargetScore(undefined);
     try {
-      const res = await convex.action(api.proxy.controller.loadGame, { gameId });
+      const res = await convex.action(api.proxy.controller.loadGame, {
+        gameId,
+        ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
+      });
       if (res?.ok && res.game) {
         const loadedGame = res.game as Match3GameState;
         setGameState(loadedGame);
@@ -253,7 +271,7 @@ export const Match3GameProvider: React.FC<Props> = ({
       setLoadError('load_exception');
       console.error('[match3] loadGame threw', gameId, e);
     }
-  }, [convex, gameId, onGameLoadComplete, applyLoadedTargetScore]);
+  }, [convex, gameId, onGameLoadComplete, applyLoadedTargetScore, casualPlatformBridge]);
 
   useEffect(() => {
     void loadGame();
@@ -342,7 +360,10 @@ export const Match3GameProvider: React.FC<Props> = ({
         });
       } else {
         try {
-          const summary = await casual.fetchCasualTableSummaryForGame(gid);
+          const summary = await fetchCasualAsyncTableSummaryForGame({
+            matchGameId: gid,
+            platformBridge: casualPlatformBridge ?? 'casual',
+          });
           if (summary?.rows?.length) {
             applyCasualTableSummaryFromQuery(summary, {
               setTableSummary: setPostCasualTableSummary,
@@ -357,17 +378,19 @@ export const Match3GameProvider: React.FC<Props> = ({
         }
       }
     },
-    [convex, casual, casualTournamentId, triathlonSessionActive, onTriathlonNextGame]
+    [convex, casualTournamentId, triathlonSessionActive, onTriathlonNextGame, casualPlatformBridge]
   );
 
   const completeCasualRun = useCallback(async () => {
     const gs = gameStateRef.current;
-    if (!gs?.gameId?.startsWith('game_') || !user?.token || casualRunSubmittedRef.current) return;
+    if (!gs?.gameId?.startsWith('game_') || !casualPlatformAuthed || casualRunSubmittedRef.current) return;
     casualRunSubmittedRef.current = true;
     try {
       const res = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
-        token: user.token,
-        gameId: gs.gameId,
+        ...buildCasualPlatformRunActionArgs({
+          gameId: gs.gameId,
+          platformBridge: casualPlatformBridge,
+        }),
       })) as {
         ok?: boolean;
         tableSummary?: CasualAsyncTableSummaryUI;
@@ -403,7 +426,7 @@ export const Match3GameProvider: React.FC<Props> = ({
       console.error('[match3] submitCasualPlatformRun', e);
       casualRunSubmittedRef.current = false;
     }
-  }, [convex, user?.token, beginCasualPostSettleFlow, triathlonSessionActive]);
+  }, [convex, casualPlatformAuthed, beginCasualPostSettleFlow, triathlonSessionActive, casualTournamentId, casualPlatformBridge]);
 
   const settleManuallyAndExit = useCallback(async () => {
     const gs = gameStateRef.current;
@@ -417,12 +440,14 @@ export const Match3GameProvider: React.FC<Props> = ({
 
   const confirmSettleAndExit = useCallback(async () => {
     const gs = gameStateRef.current;
-    if (!gs?.gameId || !user?.token) return;
+    if (!gs?.gameId || !casualPlatformAuthed) return;
     setSettleConfirmOpen(false);
     await convex.mutation(api.service.gameManager.concedeGame, { gameId: gs.gameId });
     const res = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
-      token: user.token,
-      gameId: gs.gameId,
+      ...buildCasualPlatformRunActionArgs({
+        gameId: gs.gameId,
+        platformBridge: casualPlatformBridge,
+      }),
     })) as {
       ok?: boolean;
       tableSummary?: CasualAsyncTableSummaryUI;
@@ -454,7 +479,7 @@ export const Match3GameProvider: React.FC<Props> = ({
           : {}),
       });
     }
-  }, [convex, user?.token, beginCasualPostSettleFlow, triathlonSessionActive, casualTournamentId]);
+  }, [convex, casualPlatformAuthed, beginCasualPostSettleFlow, triathlonSessionActive, casualTournamentId, casualPlatformBridge]);
 
   const reloadCasualRun = useCallback(async (): Promise<boolean> => {
     if (!gameId || !gameId.startsWith('game_')) return false;
@@ -462,6 +487,7 @@ export const Match3GameProvider: React.FC<Props> = ({
       const res = await convex.action(api.proxy.controller.loadGame, {
         gameId,
         resetCasualRun: true,
+        ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
       });
       if (!res?.ok || !res.game) {
         console.error('[match3] reloadCasualRun failed', (res as { error?: string })?.error);
@@ -476,7 +502,7 @@ export const Match3GameProvider: React.FC<Props> = ({
       console.error('[match3] reloadCasualRun', e);
       return false;
     }
-  }, [convex, gameId, applyLoadedTargetScore]);
+  }, [convex, gameId, applyLoadedTargetScore, casualPlatformBridge]);
 
   const clearPostCasualOverlays = useCallback(() => {
     setPostCasualSummaryOpen(false);
@@ -492,13 +518,15 @@ export const Match3GameProvider: React.FC<Props> = ({
 
   const replayCasualRun = useCallback(async () => {
     const gs = gameStateRef.current;
-    if (!gs || !user?.token || casualReplayBusy) return;
+    if (!gs || !casualPlatformAuthed || casualReplayBusy) return;
     if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
     setCasualReplayBusy(true);
     try {
       const rr = (await convex.action(api.proxy.controller.replayCasualRun, {
-        token: user.token,
-        gameId: gs.gameId,
+        ...buildCasualPlatformRunActionArgs({
+          gameId: gs.gameId,
+          platformBridge: casualPlatformBridge,
+        }),
       })) as { ok?: boolean; error?: string; gameId?: string };
       if (!rr?.ok) {
         console.warn('[match3] replayCasualRun', rr?.error);
@@ -523,13 +551,14 @@ export const Match3GameProvider: React.FC<Props> = ({
     }
   }, [
     convex,
-    user?.token,
+    casualPlatformAuthed,
     casualReplayBusy,
     clearPostCasualOverlays,
     reloadCasualRun,
     triathlonSessionActive,
     onTriathlonSessionReplay,
     casualTournamentId,
+    casualPlatformBridge,
   ]);
 
   const exitCasualRunAfterSettle = useCallback(

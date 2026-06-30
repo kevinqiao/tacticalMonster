@@ -1,0 +1,9 @@
+export {
+  PLATFORM_JWT_AUDIENCE,
+  PLATFORM_JWT_ISSUER,
+  PLATFORM_JWT_KID,
+  PLATFORM_JWT_PRIVATE_KEY_DEV,
+  PLATFORM_JWKS_DATA_URI,
+  PLATFORM_JWKS_DEV_JSON,
+  PLATFORM_JWT_TTL_SEC,
+} from "../../../../shared/platformAuth/platformJwtConstants";

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { TaskIntegration } from "./service/task/taskIntegration";
+import { authedMutation, authedQuery } from "./custom/session";
 import { TaskSystem } from "./service/task/taskSystem";
 
 // ============================================================================
@@ -12,69 +12,66 @@ import { TaskSystem } from "./service/task/taskSystem";
 /**
  * 获取玩家活跃任务
  */
-export const getPlayerActiveTasks = query({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerActiveTasks(ctx, args.uid);
+export const getPlayerActiveTasks = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        return await TaskSystem.getPlayerActiveTasks(ctx, ctx.uid);
     },
 });
 
 /**
  * 获取玩家已完成任务
  */
-export const getPlayerCompletedTasks = query({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerCompletedTasks(ctx, args.uid);
+export const getPlayerCompletedTasks = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        return await TaskSystem.getPlayerCompletedTasks(ctx, ctx.uid);
     },
 });
 
 /**
  * 获取玩家过期任务
  */
-export const getPlayerExpiredTasks = query({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerExpiredTasks(ctx, args.uid);
+export const getPlayerExpiredTasks = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        return await TaskSystem.getPlayerExpiredTasks(ctx, ctx.uid);
     },
 });
 
 /**
  * 获取玩家特定活跃任务
  */
-export const getPlayerActiveTask = query({
+export const getPlayerActiveTask = authedQuery({
     args: {
-        uid: v.string(),
         taskId: v.string()
     },
     handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerActiveTask(ctx, args.uid, args.taskId);
+        return await TaskSystem.getPlayerActiveTask(ctx, ctx.uid, args.taskId);
     },
 });
 
 /**
  * 获取玩家特定已完成任务
  */
-export const getPlayerCompletedTask = query({
+export const getPlayerCompletedTask = authedQuery({
     args: {
-        uid: v.string(),
         taskId: v.string()
     },
     handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerCompletedTask(ctx, args.uid, args.taskId);
+        return await TaskSystem.getPlayerCompletedTask(ctx, ctx.uid, args.taskId);
     },
 });
 
 /**
  * 获取玩家特定过期任务
  */
-export const getPlayerExpiredTask = query({
+export const getPlayerExpiredTask = authedQuery({
     args: {
-        uid: v.string(),
         taskId: v.string()
     },
     handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerExpiredTask(ctx, args.uid, args.taskId);
+        return await TaskSystem.getPlayerExpiredTask(ctx, ctx.uid, args.taskId);
     },
 });
 
@@ -113,65 +110,62 @@ export const getTaskTemplatesByGameType = query({
 /**
  * 为玩家分配任务
  */
-export const allocateTasksForPlayer = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await TaskSystem.allocateTasksForPlayer(ctx, args.uid);
+export const allocateTasksForPlayer = authedMutation({
+    args: {},
+    handler: async (ctx) => {
+        return await TaskSystem.allocateTasksForPlayer(ctx, ctx.uid);
     },
 });
 
 /**
  * 完成任务
  */
-export const completeTask = mutation({
+export const completeTask = authedMutation({
     args: {
-        uid: v.string(),
         taskId: v.string()
     },
     handler: async (ctx, args) => {
-        return await TaskSystem.completeTask(ctx, args.uid, args.taskId);
+        return await TaskSystem.completeTask(ctx, ctx.uid, args.taskId);
     },
 });
 
 /**
  * 处理过期任务
  */
-export const handleExpiredTasks = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await TaskSystem.handleExpiredTasks(ctx, args.uid);
+export const handleExpiredTasks = authedMutation({
+    args: {},
+    handler: async (ctx) => {
+        return await TaskSystem.handleExpiredTasks(ctx, ctx.uid);
     },
 });
 
 /**
  * 恢复过期任务
  */
-export const restoreExpiredTask = mutation({
+export const restoreExpiredTask = authedMutation({
     args: {
-        uid: v.string(),
         taskId: v.string()
     },
     handler: async (ctx, args) => {
-        return await TaskSystem.restoreExpiredTask(ctx, args.uid, args.taskId);
+        return await TaskSystem.restoreExpiredTask(ctx, ctx.uid, args.taskId);
     },
 });
 
 /**
  * 统一的任务管理
  */
-export const managePlayerTasks = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await TaskSystem.managePlayerTasks(ctx, args.uid);
+export const managePlayerTasks = authedMutation({
+    args: {},
+    handler: async (ctx) => {
+        return await TaskSystem.managePlayerTasks(ctx, ctx.uid);
     },
 });
 
 /**
  * 处理任务事件
  */
-export const processTaskEvent = mutation({
+export const processTaskEvent = authedMutation({
     args: {
-        uid: v.string(),
         action: v.string(),
         actionData: v.any(),
         gameType: v.optional(v.string()),
@@ -179,20 +173,19 @@ export const processTaskEvent = mutation({
         matchId: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        return await TaskSystem.processTaskEvent(ctx, args);
+        return await TaskSystem.processTaskEvent(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 领取任务奖励
  */
-export const claimTaskRewards = mutation({
+export const claimTaskRewards = authedMutation({
     args: {
-        uid: v.string(),
         taskId: v.string(),
     },
     handler: async (ctx, args) => {
-        return await TaskSystem.claimTaskRewards(ctx, args);
+        return await TaskSystem.claimTaskRewards(ctx, { ...args, uid: ctx.uid });
     },
 });
 
@@ -203,11 +196,11 @@ export const claimTaskRewards = mutation({
 /**
  * 处理登录事件
  */
-export const processLoginEvent = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
+export const processLoginEvent = authedMutation({
+    args: {},
+    handler: async (ctx) => {
         return await TaskSystem.processTaskEvent(ctx, {
-            uid: args.uid,
+            uid: ctx.uid,
             action: "login",
             actionData: { increment: 1 },
         });
@@ -217,9 +210,8 @@ export const processLoginEvent = mutation({
 /**
  * 处理游戏完成事件
  */
-export const processGameCompleteEvent = mutation({
+export const processGameCompleteEvent = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         isWin: v.boolean(),
         matchId: v.optional(v.string()),
@@ -230,7 +222,7 @@ export const processGameCompleteEvent = mutation({
 
         // 游戏完成事件
         events.push({
-            uid: args.uid,
+            uid: ctx.uid,
             action: "complete_match",
             actionData: { increment: 1, gameType: args.gameType, isWin: args.isWin },
             gameType: args.gameType,
@@ -241,7 +233,7 @@ export const processGameCompleteEvent = mutation({
         // 游戏胜利事件
         if (args.isWin) {
             events.push({
-                uid: args.uid,
+                uid: ctx.uid,
                 action: "win_match",
                 actionData: { increment: 1, gameType: args.gameType },
                 gameType: args.gameType,
@@ -268,16 +260,15 @@ export const processGameCompleteEvent = mutation({
 /**
  * 处理道具使用事件
  */
-export const processPropUseEvent = mutation({
+export const processPropUseEvent = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         propType: v.string(),
         matchId: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         return await TaskSystem.processTaskEvent(ctx, {
-            uid: args.uid,
+            uid: ctx.uid,
             action: "use_prop",
             actionData: {
                 increment: 1,
@@ -293,16 +284,15 @@ export const processPropUseEvent = mutation({
 /**
  * 处理锦标赛参与事件
  */
-export const processTournamentJoinEvent = mutation({
+export const processTournamentJoinEvent = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         tournamentId: v.string(),
         tournamentType: v.string(),
     },
     handler: async (ctx, args) => {
         return await TaskSystem.processTaskEvent(ctx, {
-            uid: args.uid,
+            uid: ctx.uid,
             action: "tournament_join",
             actionData: {
                 increment: 1,
@@ -318,15 +308,14 @@ export const processTournamentJoinEvent = mutation({
 /**
  * 处理社交事件
  */
-export const processSocialEvent = mutation({
+export const processSocialEvent = authedMutation({
     args: {
-        uid: v.string(),
         action: v.string(), // "invite_friend", "share_game", "join_clan", etc.
         actionData: v.any(),
     },
     handler: async (ctx, args) => {
         return await TaskSystem.processTaskEvent(ctx, {
-            uid: args.uid,
+            uid: ctx.uid,
             action: args.action,
             actionData: args.actionData,
         });
@@ -336,15 +325,14 @@ export const processSocialEvent = mutation({
 /**
  * 处理成就事件
  */
-export const processAchievementEvent = mutation({
+export const processAchievementEvent = authedMutation({
     args: {
-        uid: v.string(),
         achievementId: v.string(),
         achievementType: v.string(),
     },
     handler: async (ctx, args) => {
         return await TaskSystem.processTaskEvent(ctx, {
-            uid: args.uid,
+            uid: ctx.uid,
             action: "unlock_achievement",
             actionData: {
                 increment: 1,
@@ -362,9 +350,8 @@ export const processAchievementEvent = mutation({
 /**
  * 批量领取任务奖励
  */
-export const batchClaimTaskRewards = mutation({
+export const batchClaimTaskRewards = authedMutation({
     args: {
-        uid: v.string(),
         taskIds: v.array(v.string()),
     },
     handler: async (ctx, args) => {
@@ -373,7 +360,7 @@ export const batchClaimTaskRewards = mutation({
 
         for (const taskId of args.taskIds) {
             const result = await TaskSystem.claimTaskRewards(ctx, {
-                uid: args.uid,
+                uid: ctx.uid,
                 taskId,
             });
 
@@ -548,24 +535,24 @@ export const deleteTaskTemplate = mutation({
 /**
  * 玩家登录时的完整任务管理
  */
-export const handlePlayerLoginComplete = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
+export const handlePlayerLoginComplete = authedMutation({
+    args: {},
+    handler: async (ctx) => {
         try {
             // 处理登录事件
             await TaskSystem.processTaskEvent(ctx, {
-                uid: args.uid,
+                uid: ctx.uid,
                 action: "login",
                 actionData: { increment: 1 }
             });
 
             // 统一的任务管理
-            const taskManagementResults = await TaskSystem.managePlayerTasks(ctx, args.uid);
+            const taskManagementResults = await TaskSystem.managePlayerTasks(ctx, ctx.uid);
 
             // 获取玩家当前任务状态
-            const activeTasks = await TaskSystem.getPlayerActiveTasks(ctx, args.uid);
-            const completedTasks = await TaskSystem.getPlayerCompletedTasks(ctx, args.uid);
-            const expiredTasks = await TaskSystem.getPlayerExpiredTasks(ctx, args.uid);
+            const activeTasks = await TaskSystem.getPlayerActiveTasks(ctx, ctx.uid);
+            const completedTasks = await TaskSystem.getPlayerCompletedTasks(ctx, ctx.uid);
+            const expiredTasks = await TaskSystem.getPlayerExpiredTasks(ctx, ctx.uid);
 
             return {
                 success: true,
@@ -585,4 +572,4 @@ export const handlePlayerLoginComplete = mutation({
             };
         }
     },
-}); 
+});

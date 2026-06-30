@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
-import { internalMutation, mutation, query } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
+import { internalMutation, mutation } from "../../_generated/server";
 import { getTournamentConfig, TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import {
     collectRewards,
@@ -310,14 +311,13 @@ export const join = internalMutation({
         return result;
     },
 });
-export const collect = mutation({
+export const collect = authedMutation({
     args: {
-        uid: v.string(),
         tournamentId: v.string(),
     },
     handler: async (ctx: any, args: any) => {
-        const { uid, tournamentId } = args;
-        const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", uid)).unique();
+        const { tournamentId } = args;
+        const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", ctx.uid)).unique();
         if (!playerTournament) {
             throw new Error("é”¦æ ‡èµ›ä¸å­˜åœ¨");
         }
@@ -328,13 +328,11 @@ export const collect = mutation({
         return result;
     },
 });
-export const getAvailableTournaments = query({
-    args: {
-        uid: v.string(),
-    },
-    handler: async (ctx: any, { uid }: { uid: string }) => {
+export const getAvailableTournaments = authedQuery({
+    args: {},
+    handler: async (ctx: any) => {
         try {
-            const result = await TournamentService.getAvailableTournaments(ctx, { uid });
+            const result = await TournamentService.getAvailableTournaments(ctx, { uid: ctx.uid });
             // console.log("getAvailableTournaments", result)
             return result;
         } catch (error) {

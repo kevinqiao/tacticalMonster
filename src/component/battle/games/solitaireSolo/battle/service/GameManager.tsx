@@ -109,6 +109,9 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     const timelinesRef = useRef<{ [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }>({});
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const convex = useConvex();
+    const casualPlatformBridge = casualTournamentId?.startsWith("portal_")
+        ? ("portal" as const)
+        : undefined;
 
     const ruleManager = useMemo(() => {
         if (!gameState) return null;
@@ -128,7 +131,10 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     }, [timelinesRef]);
     const loadGameOnce = async () => {
         try {
-            return await convex.action(api.proxy.controller.loadGame, { gameId });
+            return await convex.action(api.proxy.controller.loadGame, {
+                gameId,
+                ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
+            });
         } catch (e) {
             console.error('[SoloGameProvider] loadGame action threw', e);
             return { ok: false as const, error: 'load_game_server_error' };
@@ -180,13 +186,14 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         if (typeof threshold === "number" && Number.isFinite(threshold)) {
             setTargetScore(threshold);
         }
-    }, [convex, gameId, onGameLoadComplete]);
+    }, [convex, gameId, onGameLoadComplete, casualPlatformBridge]);
 
     const reloadCasualRun = useCallback(async (): Promise<boolean> => {
         if (!gameId || !gameId.startsWith("game_")) return false;
         const res = await convex.action(api.proxy.controller.loadGame, {
             gameId,
             resetCasualRun: true,
+            ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
         });
         if (!res.ok) {
             console.error("[SoloGameProvider] reloadCasualRun failed", (res as { error?: string }).error);
@@ -214,7 +221,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             setTargetScore(threshold);
         }
         return true;
-    }, [convex, gameId]);
+    }, [convex, gameId, casualPlatformBridge]);
 
     const saveUpdate = useCallback((cards: SoloCard[]) => {
         setGameState((prev) => {
@@ -224,22 +231,31 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             const nextCards = prev.cards.map((c) => {
                 const r = patchById.get(c.id);
                 if (!r) return c;
+                const next: SoloCard = {
+                    ...c,
+                    isRevealed: r.isRevealed ?? c.isRevealed,
+                    zone: r.zone ?? c.zone,
+                    zoneId: r.zoneId ?? c.zoneId,
+                    zoneIndex: r.zoneIndex ?? c.zoneIndex,
+                };
+                if (r.rank != null) next.rank = r.rank;
+                if (r.suit != null) next.suit = r.suit;
+                if (r.value != null) next.value = r.value;
+                if (r.isRed != null) next.isRed = r.isRed;
                 if (
-                    c.isRevealed === r.isRevealed &&
-                    c.zone === r.zone &&
-                    c.zoneId === r.zoneId &&
-                    c.zoneIndex === r.zoneIndex
+                    c.isRevealed === next.isRevealed &&
+                    c.zone === next.zone &&
+                    c.zoneId === next.zoneId &&
+                    c.zoneIndex === next.zoneIndex &&
+                    c.rank === next.rank &&
+                    c.suit === next.suit &&
+                    c.value === next.value &&
+                    c.isRed === next.isRed
                 ) {
                     return c;
                 }
                 changed = true;
-                return {
-                    ...c,
-                    isRevealed: r.isRevealed,
-                    zone: r.zone,
-                    zoneId: r.zoneId,
-                    zoneIndex: r.zoneIndex,
-                };
+                return next;
             });
             if (!changed) return prev;
             return { ...prev, cards: nextCards };
@@ -327,13 +343,18 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
                 const cards = prev.cards.map((c: SoloCard) => {
                     const r = byId.get(c.id);
                     if (!r) return c;
-                    return {
+                    const next: SoloCard = {
                         ...c,
                         isRevealed: r.isRevealed,
                         zone: r.zone,
                         zoneId: r.zoneId,
                         zoneIndex: r.zoneIndex,
                     };
+                    if (r.isRevealed && r.rank != null) next.rank = r.rank;
+                    if (r.isRevealed && r.suit != null) next.suit = r.suit;
+                    if (r.isRevealed && r.value != null) next.value = r.value;
+                    if (r.isRevealed && r.isRed != null) next.isRed = r.isRed;
+                    return next;
                 });
                 return { ...prev, status: SoloGameStatus.DEALED, cards };
             });

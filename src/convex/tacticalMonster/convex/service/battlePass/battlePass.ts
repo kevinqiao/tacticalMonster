@@ -4,22 +4,22 @@
  */
 
 import { v } from "convex/values";
-import { mutation, query } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
+import { query } from "../../_generated/server";
 import { TournamentProxyService } from "../tournament/tournamentProxyService";
 
 /**
  * 添加游戏赛季积分（内部调用）
  */
-export const addGameSeasonPoints = mutation({
+export const addGameSeasonPoints = authedMutation({
     args: {
-        uid: v.string(),
         amount: v.number(),
         source: v.string(),
         sourceDetails: v.optional(v.any()),
     },
     handler: async (ctx, args) => {
         return await TournamentProxyService.addGameSeasonPoints({
-            uid: args.uid,
+            uid: ctx.uid,
             amount: args.amount,
             source: args.source,
             sourceDetails: args.sourceDetails,
@@ -36,13 +36,11 @@ export const addGameSeasonPoints = mutation({
 /**
  * 购买 Premium Battle Pass
  */
-export const purchasePremiumPass = mutation({
-    args: {
-        uid: v.string(),
-    },
-    handler: async (ctx, args) => {
+export const purchasePremiumPass = authedMutation({
+    args: {},
+    handler: async (ctx) => {
         return await TournamentProxyService.purchasePremiumPass({
-            uid: args.uid,
+            uid: ctx.uid,
         });
     },
 });
@@ -50,13 +48,11 @@ export const purchasePremiumPass = mutation({
 /**
  * 获取 Battle Pass 进度（带游戏数据）
  */
-export const getBattlePassWithGameData = query({
-    args: {
-        uid: v.string(),
-    },
-    handler: async (ctx, args) => {
+export const getBattlePassWithGameData = authedQuery({
+    args: {},
+    handler: async (ctx) => {
         return await TournamentProxyService.getBattlePassWithGameData({
-            uid: args.uid,
+            uid: ctx.uid,
         });
     },
 });
@@ -91,4 +87,3 @@ export const getCurrentBattlePassConfig = query({
         }
     },
 });
-

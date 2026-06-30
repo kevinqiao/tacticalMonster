@@ -101,6 +101,8 @@
     display: flex;
     flex-direction: column;
     overflow: visible;
+    container-type: size;
+    container-name: solo-play;
     background-color: #e7570350;
     /* background-color: #0d5f0d; */
     font-family: 'Arial', sans-serif;
@@ -114,7 +116,7 @@
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
     padding: 8px 12px;
     min-height: 44px;
@@ -292,7 +294,7 @@
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    /* 分数/步数/收到基础在上，头像与昵称在侧栏底部 */
+    /* 分数/步数/剩余时间 */
     .solo-game-header__stats {
         order: 1;
         flex-shrink: 0;
@@ -300,38 +302,6 @@
         align-items: stretch;
         gap: 12px;
         width: 100%;
-    }
-
-    .solo-game-header__player {
-        order: 2;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 8px;
-        flex-shrink: 0;
-    }
-
-    .solo-game-header__avatar {
-        width: 40px;
-        height: 40px;
-    }
-
-    .solo-game-header__meta {
-        align-items: center;
-        width: 100%;
-    }
-
-    .solo-game-header__name {
-        max-width: 96px;
-        white-space: normal;
-        word-break: break-word;
-        font-size: 12px;
-        line-height: 1.25;
-        text-align: center;
-        display: -webkit-box;
-        -webkit-line-clamp: 4;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
     }
 
     .solo-game-header__score-row {
@@ -376,25 +346,26 @@
     pointer-events: none;
 }
 
-/* 牌桌：7 列 — row1 foundation×4 靠左；row2 waste(4–6) + talon(7) 靠右 */
+/* 牌桌：7 列 — row1 foundation×4 + waste(5–6) + talon(7)；row2 tableau×7 */
 .solo-board-surface {
     position: relative;
     flex: 1;
     min-height: 0;
-    width: 100%;
+    align-self: stretch;
     box-sizing: border-box;
-    /* 预留：两行牌槽 + 间距 + padding；矮屏时按视口高度收窄整盘宽度，列变窄 → 牌变小 */
-    --solo-board-v-reserve: max(9.5rem, min(28dvh, 200px));
-    --solo-zone-gap: clamp(4px, 1.2vw, 14px);
+    --solo-zone-gap: clamp(2px, 0.55vw, 7px);
+    --solo-foundation-tableau-gap: 60px;
+    /* 始终铺满玩家区宽度；w-h-ratio 仅作调参预留，不再缩窄棋盘 */
+    --solo-board-w-h-ratio: 1;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
     padding: var(--solo-zone-gap);
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    grid-template-rows: auto auto minmax(120px, 1fr);
+    grid-template-rows: auto minmax(120px, 1fr);
     column-gap: var(--solo-zone-gap);
-    row-gap: var(--solo-zone-gap);
-    max-width: min(100%,
-            max(200px, calc((100dvh - var(--solo-board-v-reserve)) * 1.42)));
-    margin-inline: 0 auto;
+    row-gap: var(--solo-foundation-tableau-gap);
     background-color: #000000;
 }
 
@@ -404,9 +375,8 @@
 */
 @media (orientation: landscape) and (max-height: 520px) {
     .solo-board-surface {
-        --solo-board-v-reserve: max(6rem, min(18dvh, 120px));
-        --solo-zone-gap: clamp(2px, 0.7vw, 8px);
-        max-width: min(100%, max(220px, calc((100dvh - var(--solo-board-v-reserve)) * 1.62)));
+        --solo-board-w-h-ratio: 1;
+        --solo-zone-gap: clamp(1px, 0.45vw, 6px);
     }
 }
 
@@ -414,20 +384,13 @@
   横屏放大（激进档，仅手机横屏）
   如需更大，替换上面块为：
 
-  @media (orientation: landscape) and (max-height: 520px) {
-      .solo-board-surface {
-          --solo-board-v-reserve: max(5.5rem, min(14dvh, 96px));
-          --solo-zone-gap: clamp(2px, 0.6vw, 7px);
-          max-width: min(100%, max(220px, calc((100dvh - var(--solo-board-v-reserve)) * 1.68)));
+      @media (orientation: landscape) and (max-height: 520px) {
+          .solo-board-surface {
+              --solo-board-w-h-ratio: 1;
+              --solo-zone-gap: clamp(1px, 0.4vw, 5px);
+          }
       }
-  }
 */
-
-.solo-foundation-spacer {
-    grid-row: 1;
-    grid-column: 5 / 8;
-    min-height: 1px;
-}
 
 .foundation-zone.foundation-slot {
     grid-row: 1;
@@ -446,7 +409,7 @@
 }
 
 .solo-stock-slot {
-    grid-row: 2;
+    grid-row: 1;
     grid-column: 7 / 8;
     width: 100%;
     aspect-ratio: 5 / 7;
@@ -459,11 +422,12 @@
 }
 
 .solo-waste-area {
-    grid-row: 2;
+    grid-row: 1;
+    /* foundation(1–4) 与 talon(7) 之间的 col5–6，waste 居中 */
     grid-column: 5 / 7;
     width: calc(var(--solo-card-width, 56px) + 2 * var(--solo-waste-fan-step, 15px));
     max-width: calc(var(--solo-card-width, 56px) + 2 * var(--solo-waste-fan-step, 15px));
-    justify-self: end;
+    justify-self: center;
     min-height: 44px;
     align-self: stretch;
     border: 2px dashed #ccc;
@@ -473,11 +437,11 @@
 }
 
 .solo-board-surface .tableau-column {
-    grid-row: 3;
+    grid-row: 2;
     position: relative;
     width: 100%;
     /* 矮屏少占纵向，避免与两行牌槽抢高度 */
-    min-height: min(28dvh, 220px);
+    min-height: min(30dvh, 240px);
     display: flex;
     flex-direction: column;
     gap: clamp(2px, 0.35vw, 10px);

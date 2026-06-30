@@ -1,13 +1,13 @@
 ﻿import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
-import { mutation } from "../../../_generated/server";
+import { authedMutation } from "../../../custom/session";
 import { prunePendingWalletRewards } from "./casualRunScoreEffects";
-export const claimCasualRunRewards = mutation({
+export const claimCasualRunRewards = authedMutation({
   args: {
-    uid: v.string(),
     playerTournamentId: v.id("casual_run_player_tournaments"),
   },
-  handler: async (ctx, { uid, playerTournamentId }) => {
+  handler: async (ctx, { playerTournamentId }) => {
+    const uid = ctx.uid;
     const pt = await ctx.db.get(playerTournamentId);
     if (!pt || pt.uid !== uid) {
       return { ok: false as const, error: "forbidden" as const };
@@ -65,12 +65,12 @@ export const claimCasualRunRewards = mutation({
 });
 
 /** å‘¨æœŸåœºåˆ†æ¡£é¢„å‘å¥–ï¼šé¢†å– `casual_score_tier_pending` å†™å…¥é’±åŒ… */
-export const claimCasualScoreTierPendingReward = mutation({
+export const claimCasualScoreTierPendingReward = authedMutation({
   args: {
-    uid: v.string(),
     pendingRewardId: v.id("casual_score_tier_pending"),
   },
-  handler: async (ctx, { uid, pendingRewardId }) => {
+  handler: async (ctx, { pendingRewardId }) => {
+    const uid = ctx.uid;
     const row = await ctx.db.get(pendingRewardId);
     if (!row || row.uid !== uid) {
       return { ok: false as const, error: "forbidden" as const };
@@ -117,12 +117,12 @@ export const claimCasualScoreTierPendingReward = mutation({
 const SCORE_TIER_PENDING_BATCH_MAX = 16;
 
 /** åŒä¸€å±€ç»“ç®—å¤šæ¡£åˆå¹¶é¢†å–ï¼šé¡»ä¸ºåŒä¸€ `instanceId + runTournamentId + matchGameId + createdAt` æ‰¹æ¬¡ */
-export const claimCasualScoreTierPendingRewardsBatch = mutation({
+export const claimCasualScoreTierPendingRewardsBatch = authedMutation({
   args: {
-    uid: v.string(),
     pendingRewardIds: v.array(v.id("casual_score_tier_pending")),
   },
-  handler: async (ctx, { uid, pendingRewardIds }) => {
+  handler: async (ctx, { pendingRewardIds }) => {
+    const uid = ctx.uid;
     if (pendingRewardIds.length === 0) {
       return { ok: false as const, error: "empty_batch" as const };
     }

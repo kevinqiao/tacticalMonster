@@ -1,32 +1,69 @@
 "use node";
 import { v } from "convex/values";
 import crypto from "crypto";
-import jwt from "jsonwebtoken";
 import { internal } from "../../../_generated/api";
-import { action } from "../../../_generated/server";
-import { jwtAccessSecret } from "../../auth/jwtAccessSecret";
+import { authedAction } from "../../../custom/session";
 import {
   getPortalTournamentDefinition,
   isDeprecatedDailySoloTournament,
   isJoinableCasualTournament,
+  portalTournamentIdForMode,
 } from "../../../data/portalTournamentConfigs";
 import { isCasualGameLobbyVisible } from "../../../data/portalGameRegistry";
+import { authorizeCampaignJoinViaHttp } from "../../bridge/merchantCampaignBridge";
 import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
 
 /**
- * ??(maxPlayers<=1,? p75):openCasualSoloTable ????;????????
+ * Solo (maxPlayers<=1): openCasualSoloTable; multi: enqueue matchmaking.
  */
-export const joinTournament = action({
+export const joinTournament = authedAction({
   args: {
-    uid: v.string(),
-    tournamentId: v.string(),
+    tournamentId: v.optional(v.string()),
+    merchantSlug: v.optional(v.string()),
+    campaignSlug: v.optional(v.string()),
+    sessionPartnerId: v.optional(v.number()),
   },
-  handler: async (ctx, { uid, tournamentId }): Promise<JoinCasualRunResult> => {
-    const def = getPortalTournamentDefinition(tournamentId);
+  handler: async (
+    ctx,
+    { tournamentId, merchantSlug, campaignSlug, sessionPartnerId }
+  ): Promise<JoinCasualRunResult> => {
+    const uid = ctx.uid;
+    let resolvedTemplateId = tournamentId;
+    let campaignId: string | undefined;
+    let merchantId: string | undefined;
+    let maxPlaysPerDay: number | undefined;
+    let dayTimezone: string | undefined;
+
+    if (merchantSlug && campaignSlug) {
+      const authorized = await authorizeCampaignJoinViaHttp({
+        uid,
+        merchantSlug,
+        campaignSlug,
+        ...(sessionPartnerId != null ? { sessionPartnerId } : {}),
+      });
+      if (!authorized.ok) {
+        return { ok: false as const, error: authorized.error };
+      }
+      const mapped = portalTournamentIdForMode(authorized.gameType, authorized.mode);
+      if (!mapped) {
+        return { ok: false as const, error: "unknown_tournament" };
+      }
+      resolvedTemplateId = mapped;
+      campaignId = authorized.campaignId;
+      merchantId = authorized.merchantId;
+      maxPlaysPerDay = authorized.playLimits.maxPlaysPerDay;
+      dayTimezone = authorized.playLimits.dayTimezone;
+    }
+
+    if (!resolvedTemplateId) {
+      return { ok: false as const, error: "missing_tournament" };
+    }
+
+    const def = getPortalTournamentDefinition(resolvedTemplateId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
     }
-    if (isDeprecatedDailySoloTournament(tournamentId)) {
+    if (isDeprecatedDailySoloTournament(resolvedTemplateId)) {
       return { ok: false as const, error: "tournament_closed" };
     }
     if (!isJoinableCasualTournament(def)) {
@@ -39,40 +76,41 @@ export const joinTournament = action({
     if (def.maxPlayers <= 1) {
       return await ctx.runAction(
         internal.service.tournament.join.casualOpenTableActions.openCasualSoloTable,
-        { uid, templateId: tournamentId }
+        {
+          uid,
+          templateId: resolvedTemplateId,
+          ...(campaignId ? { campaignId } : {}),
+          ...(merchantId ? { merchantId } : {}),
+          ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
+          ...(dayTimezone ? { dayTimezone } : {}),
+        }
       );
     }
 
     return await ctx.runMutation(
       internal.service.tournament.join.casualMatchmaking.enqueueCasualMatchmakingAndTryMatch,
-      { uid, tournamentId }
+      {
+        uid,
+        tournamentId: resolvedTemplateId,
+        ...(campaignId ? { campaignId } : {}),
+        ...(merchantId ? { merchantId } : {}),
+        ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
+        ...(dayTimezone ? { dayTimezone } : {}),
+      }
     );
   },
 });
 
-export const createScoreVerificationNonce = action({
-  args: { token: v.string(), externalGameId: v.string() },
-  handler: async (_ctx, { token, externalGameId }) => {
-    const secret = jwtAccessSecret();
-    if (!secret) {
-      return { ok: false as const };
-    }
-    try {
-      const payload = jwt.verify(token, secret);
-      if (!payload || typeof payload !== "object" || !("uid" in payload)) {
-        return { ok: false as const };
-      }
-      const uid = String((payload as { uid: unknown }).uid);
-      const nonce = crypto.randomBytes(16).toString("hex");
-      return {
-        ok: true as const,
-        nonce,
-        uid,
-        externalGameId,
-        hint: "Wire blockBlast Convex to verify nonce with casualPlatform (TODO)",
-      };
-    } catch {
-      return { ok: false as const };
-    }
+export const createScoreVerificationNonce = authedAction({
+  args: { externalGameId: v.string() },
+  handler: async (ctx, { externalGameId }) => {
+    const nonce = crypto.randomBytes(16).toString("hex");
+    return {
+      ok: true as const,
+      nonce,
+      uid: ctx.uid,
+      externalGameId,
+      hint: "Wire blockBlast Convex to verify nonce with casualPlatform (TODO)",
+    };
   },
 });

@@ -4,7 +4,7 @@ import type { PortalTournamentDefinition } from "../../../data/portalTournamentC
 import type { CasualReferenceScoreQuantiles } from "../../../data/portalTournamentConfigs";
 import { applyPortalMatchPoints } from "../../points/portalWeeklyPointsService";
 
-/** Portal 结算：仅写周积分，无钱包/Pass/League */
+/** Portal 结算：仅写周积分，无钱包/Pass/League；campaign 对局跳过全球周榜 */
 export async function applyPortalTemplateScoreEffects(
   ctx: MutationCtx,
   def: PortalTournamentDefinition,
@@ -21,6 +21,12 @@ export async function applyPortalTemplateScoreEffects(
   weeklyPointsAfter: number;
   weekKey: string;
 }> {
+  if (args.runTournamentId) {
+    const runRow = await ctx.db.get(args.runTournamentId as Id<"portal_run_tournaments">);
+    if (runRow?.campaignId) {
+      return { pointDelta: 0, weeklyPointsAfter: 0, weekKey: "" };
+    }
+  }
   const runId = args.runTournamentId as Id<"portal_run_tournaments">;
   return await applyPortalMatchPoints(ctx, {
     uid: args.uid,

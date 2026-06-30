@@ -1,12 +1,16 @@
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React from "react";
 import BootLoadingOverlay from "../BootLoadingOverlay";
+import ClerkAuthShell from "../sso/ClerkAuthShell";
+import ConvexAuthBinder from "./platformAuth/ConvexAuthBinder";
+import { EmbedAuthGateProvider } from "./platformAuth/EmbedAuthGateProvider";
+import EmbedAuthBridge from "./platformAuth/EmbedAuthBridge";
+import { PlatformAuthProvider } from "./platformAuth/PlatformAuthProvider";
 import PartnerProvider from "./PartnerManager";
 import { ModalProvider } from "./ModalManager";
 import { PageProvider } from "./PageManager";
 import { SharedPageDataProvider } from "./SharedPageDataManager";
 import { UserProvider } from "./UserManager";
-
 /** Vite 使用 import.meta.env，同时支持 REACT_APP_ 前缀以保持兼容性 */
 export function getConvexClient(): ConvexReactClient {
     const convexUrl =
@@ -18,19 +22,30 @@ export function getConvexClient(): ConvexReactClient {
 
 const master_client = getConvexClient();
 
+export { master_client as ssoConvexClient };
+
 export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return (
         <ConvexProvider client={master_client}>
-            <PartnerProvider>
-                <UserProvider>
-                    <SharedPageDataProvider>
-                        <PageProvider>
-                            <BootLoadingOverlay />
-                            <ModalProvider>{children}</ModalProvider>
-                        </PageProvider>
-                    </SharedPageDataProvider>
-                </UserProvider>
-            </PartnerProvider>
+            <PlatformAuthProvider>
+                <PartnerProvider>
+                    <UserProvider>
+                        <EmbedAuthGateProvider>
+                            <ClerkAuthShell>
+                                <EmbedAuthBridge />
+                                <ConvexAuthBinder>
+                                <SharedPageDataProvider>
+                                    <PageProvider>
+                                        <BootLoadingOverlay />
+                                        <ModalProvider>{children}</ModalProvider>
+                                    </PageProvider>
+                                </SharedPageDataProvider>
+                            </ConvexAuthBinder>
+                        </ClerkAuthShell>
+                        </EmbedAuthGateProvider>
+                    </UserProvider>
+                </PartnerProvider>
+            </PlatformAuthProvider>
         </ConvexProvider>
     );
 };

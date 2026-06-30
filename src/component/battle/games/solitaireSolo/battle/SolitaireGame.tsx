@@ -8,7 +8,8 @@
 
 
 
-import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { ConvexReactClient } from 'convex/react';
+import PlatformConvexProvider from 'host/service/platformAuth/PlatformConvexProvider';
 
 import gsap from 'gsap';
 import React, { useCallback, useRef } from 'react';
@@ -142,7 +143,7 @@ const SolitaireGame: React.FC<SoloGameProps> = ({
 
         <div className={`solo-game-container ${className}`.trim()} style={style}>
 
-            <ConvexProvider client={client}>
+            <PlatformConvexProvider client={client}>
 
                 <SoloGameInner
 
@@ -156,7 +157,7 @@ const SolitaireGame: React.FC<SoloGameProps> = ({
                     onTriathlonNextGame={onTriathlonNextGame}
                 />
 
-            </ConvexProvider>
+            </PlatformConvexProvider>
 
         </div>
 

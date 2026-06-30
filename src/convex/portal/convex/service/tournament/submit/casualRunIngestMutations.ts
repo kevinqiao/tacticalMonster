@@ -4,7 +4,8 @@ import {
   getPortalTournamentDefinition,
   type PortalTournamentDefinition,
 } from "../../../data/portalTournamentConfigs";
-import { internalMutation, internalQuery, mutation, query } from "../../../_generated/server";
+import { internalMutation, internalQuery } from "../../../_generated/server";
+import { authedMutation, authedQuery } from "../../../custom/session";
 import {
   allHumansSubmitted,
   isReplayableFinished,
@@ -76,12 +77,12 @@ async function finishIngestWithSyncTableSummary(
   });
 }
 
-export const getCasualAsyncTableSummaryForGame = query({
+export const getCasualAsyncTableSummaryForGame = authedQuery({
   args: {
-    uid: v.string(),
     matchGameId: v.string(),
   },
-  handler: async (ctx, { uid, matchGameId }) => {
+  handler: async (ctx, { matchGameId }) => {
+    const uid = ctx.uid;
     const pg = await findPlayerGameByGameId(ctx, matchGameId);
     if (!pg || pg.uid !== uid) {
       return null;
@@ -453,7 +454,8 @@ export const submitCasualRunScoreCore = internalMutation({
   },
 });
 
-export const confirmCasualRunWithoutReplay = mutation({
-  args: { uid: v.string(), matchGameId: v.string() },
-  handler: runConfirmCasualRunWithoutReplay,
+export const confirmCasualRunWithoutReplay = authedMutation({
+  args: { matchGameId: v.string() },
+  handler: async (ctx, { matchGameId }) =>
+    runConfirmCasualRunWithoutReplay(ctx, { uid: ctx.uid, matchGameId }),
 });

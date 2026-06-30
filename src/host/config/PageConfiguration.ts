@@ -70,7 +70,7 @@ export const PortalPlace =
     navs: [
         {
             name: "game",
-            auth: 1,
+            auth: 0,
             path: "./lobby/portal/PortalGamePage",
             uri: "",
             class: "page_container",
@@ -79,6 +79,72 @@ export const PortalPlace =
         }
     ]
 }
+
+export const PlatformPlace =
+{
+    name: "platformPlace",
+    entry: "admin",
+    context: "/platform",
+    navs: [
+        {
+            name: "admin",
+            auth: 1,
+            path: "./lobby/platform/admin/PlatformAdminHomePage",
+            uri: "admin",
+            class: "page_container page_container--scroll",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        },
+    ],
+}
+
+export const PartnerPlace =
+{
+    name: "partnerPlace",
+    entry: "admin",
+    context: "/partner",
+    navs: [
+        {
+            name: "admin",
+            auth: 1,
+            path: "./lobby/partner/admin/PartnerAdminHomePage",
+            uri: "admin",
+            class: "page_container page_container--scroll",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        },
+    ],
+}
+
+export const CampaignPlace =
+{
+    name: "campaignPlace",
+    entry: "campaign",
+    context: "/campaign",
+    navs: [
+        {
+            name: "landing",
+            auth: 0,
+            path: "./lobby/campaign/landing/CampaignLandingPage",
+            uri: "",
+            class: "page_container",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        },
+        {
+            name: "merchant",
+            auth: 1,
+            path: "./lobby/campaign/merchant/MerchantHomePage",
+            uri: "merchant",
+            class: "page_container page_container--scroll",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        }
+    ]
+}
+
+/** @deprecated use CampaignPlace (/campaign) */
+export const PromoPlace = CampaignPlace;
 
 export const W3Home =
 {
@@ -99,6 +165,7 @@ export const Modals: Record<string, ModalConfig> = {
         name: "play_tournament",
         path: "./battle/PlayTournament",
         auth: 0,
+        contexts: ["shared"],
         effects: [{ name: "swipeBottom", args: { height: "100%" } }],
 
     },
@@ -106,6 +173,7 @@ export const Modals: Record<string, ModalConfig> = {
         name: "join_tournament",
         path: "./lobby/tactical/tournament/TournamentJoinList",
         auth: 1,
+        contexts: ["tactical"],
         effects: [{ name: "popCenter", orientation: "portrait", args: { height: "100%", width: "100%" } }, { name: "swipeRight", orientation: "landscape", args: { width: "30%" } }],
 
     },
@@ -113,48 +181,56 @@ export const Modals: Record<string, ModalConfig> = {
         name: "tournament_history",
         path: "./lobby/tactical/tournament/TournamentHistory",
         auth: 1,
+        contexts: ["tactical"],
         effects: [{ name: "swipeRight", orientation: "landscape", args: { width: "30%" } }, { name: "swipeRight", orientation: "portrait", args: { width: "100%" } }],
     },
     "chest_drop": {
         name: "chest_drop",
         path: "./lobby/tactical/view/play/ChestDrop",
         auth: 1,
+        contexts: ["tactical"],
         effects: [{ name: "popCenter", args: { width: "70%", height: "70%" } }],
     },
     "play_solitaire_solo": {
         name: "play_solitaire_solo",
         path: "./battle/games/solitaireSolo/battle/PlaySolitaireSolo",
         auth: 1,
-        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
+        contexts: ["shared"],
+        effects: [{ name: "popCenter", args: { width: "min(100%, 960px)", height: "100%" } }],
     },
     "play_block_blast": {
         name: "play_block_blast",
         path: "./battle/games/blockBlast/battle/PlayBlockBlast",
         auth: 1,
-        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
+        contexts: ["shared"],
+        effects: [{ name: "popCenter", args: { width: "min(100%, 960px)", height: "100%" } }],
     },
     "play_match_3": {
         name: "play_match_3",
         path: "./battle/games/match3/battle/PlayMatch3",
         auth: 1,
+        contexts: ["shared"],
         effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
     },
     "play_yatz": {
         name: "play_yatz",
         path: "./battle/games/yatz/battle/PlayYatz",
         auth: 1,
+        contexts: ["shared"],
         effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
     },
     "play_tower_arena": {
         name: "play_tower_arena",
         path: "./battle/games/towerArena/battle/PlayTowerArena",
         auth: 1,
+        contexts: ["shared"],
         effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
     },
     "casual_tasks_sheet": {
         name: "casual_tasks_sheet",
         path: "./lobby/casual/view/tasks/CasualTasksModal",
         auth: 0,
+        contexts: ["casual"],
         effects: [
             { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
             { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
@@ -164,6 +240,7 @@ export const Modals: Record<string, ModalConfig> = {
         name: "casual_game_tournaments",
         path: "./lobby/casual/view/play/CasualTournamentLobbyModal",
         auth: 0,
+        contexts: ["casual"],
         effects: [
             { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
             { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
@@ -173,6 +250,7 @@ export const Modals: Record<string, ModalConfig> = {
         name: "casual_triathlon_lobby",
         path: "./lobby/casual/view/play/CasualTriathlonLobbyModal",
         auth: 0,
+        contexts: ["casual"],
         effects: [
             { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
             { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
@@ -182,12 +260,14 @@ export const Modals: Record<string, ModalConfig> = {
         name: "play_casual_triathlon_session",
         path: "./lobby/casual/view/play/PlayCasualTriathlonSession",
         auth: 0,
+        contexts: ["casual"],
         effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
     },
     "casual_weekly_league": {
         name: "casual_weekly_league",
         path: "./lobby/casual/view/play/CasualWeeklyLeagueModal",
         auth: 0,
+        contexts: ["casual"],
         effects: [
             { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
             { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
@@ -197,12 +277,14 @@ export const Modals: Record<string, ModalConfig> = {
         name: "casual_weekly_league_close",
         path: "./lobby/casual/view/play/CasualWeeklyLeagueCloseModal",
         auth: 0,
+        contexts: ["casual"],
         effects: [{ name: "popCenter", args: { width: "88%", maxWidth: "400px", height: "auto" } }],
     },
     "casual_season_leaderboard": {
         name: "casual_season_leaderboard",
         path: "./lobby/casual/view/play/CasualSeasonLeaderboardModal",
         auth: 0,
+        contexts: ["casual"],
         effects: [
             { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
             { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
@@ -212,6 +294,7 @@ export const Modals: Record<string, ModalConfig> = {
         name: "casual_battle_pass",
         path: "./lobby/casual/view/battlePass/CasualBattlePassModal",
         auth: 0,
+        contexts: ["casual"],
         /** 自右侧滑入；高度满屏，宽度不超过 800px（窄屏为 100%） */
         effects: [{ name: "swipeRight", args: { width: "min(100%, 800px)" } }],
     },
@@ -219,12 +302,14 @@ export const Modals: Record<string, ModalConfig> = {
         name: "casual_player_profile",
         path: "./lobby/casual/view/profile/CasualPlayerProfileModal",
         auth: 0,
+        contexts: ["casual"],
         effects: [{ name: "popCenter", args: { width: "88%", maxWidth: "400px", height: "auto" } }],
     },
     "solitaire_rollout_replay_dev": {
         name: "solitaire_rollout_replay_dev",
         path: "./battle/games/solitaireSolo/battle/replay/SolitaireRolloutReplayPage",
         auth: 0,
+        contexts: ["shared"],
         effects: [{ name: "popCenter", args: { width: "min(100%, 1100px)", height: "min(92vh, 900px)" } }],
     },
 }
@@ -272,6 +357,8 @@ export interface ModalConfig {
     init?: string;
     class?: string;
     effects?: ModalEffect[];
+    /** When omitted, inferred from `path`. `shared` modals load in any active context when opened. */
+    contexts?: ("tactical" | "casual" | "portal" | "campaign" | "platform" | "partner" | "shared")[];
 }
-export const AppsConfiguration: AppConfig[] = [TacticalPlace, CasualPlace, PortalPlace];
+export const AppsConfiguration: AppConfig[] = [TacticalPlace, CasualPlace, PortalPlace, CampaignPlace, PlatformPlace, PartnerPlace];
 

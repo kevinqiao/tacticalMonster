@@ -23,7 +23,7 @@ export function useBattleVenuePedagogy({ gridState }: { gridState: UseBattleGrid
     const tutorialWinMode = pedagogyHint?.tutorialWinMode ?? "boss_only";
     const guideDismissedServer = useQuery(
         tacticalMonsterApi.service.game.pedagogyGuideUiService.isGuideUiDismissed,
-        user?.uid && ruleKeyForPedagogy ? { uid: user.uid, ruleId: ruleKeyForPedagogy } : "skip"
+        user?.uid && ruleKeyForPedagogy ? { ruleId: ruleKeyForPedagogy } : "skip"
     );
     const dismissGuideUiMutation = useMutation(
         tacticalMonsterApi.service.game.pedagogyGuideUiService.dismissGuideUi
@@ -33,7 +33,7 @@ export function useBattleVenuePedagogy({ gridState }: { gridState: UseBattleGrid
     const persistGuideUiDismissed = useCallback(async () => {
         if (!ruleKeyForPedagogy) return;
         if (user?.uid) {
-            await dismissGuideUiMutation({ uid: user.uid, ruleId: ruleKeyForPedagogy });
+            await dismissGuideUiMutation({ ruleId: ruleKeyForPedagogy });
         } else {
             markGuideDone(undefined, ruleKeyForPedagogy);
         }

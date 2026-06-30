@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, internalMutation, mutation } from "../_generated/server";
-import { sessionMutation } from "../custom/session";
+import { authedMutation } from "../custom/session";
 import GameManager from "./gameManager";
 
 // "use node";
@@ -44,11 +44,10 @@ export const create = action({
         
     }
 })
-export const start = sessionMutation({
+export const start = authedMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId}) => {
-        const user = ctx.user;
-        if (!user||!user.uid) return false; 
+        const uid = ctx.uid;
         try {
             const gameService=new GameManager(ctx);
             await gameService.initGame(gameId);
@@ -62,15 +61,14 @@ export const start = sessionMutation({
 
     }
 })
-export const roll = sessionMutation({
+export const roll = authedMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId}) => {
-        const user = ctx.user;
-        if (!user||!user.uid) return false; 
+        const uid = ctx.uid;
         try {
             const gameService=new GameManager(ctx);
             await gameService.initGame(gameId);
-            const seat=gameService.getGame()?.seats.find(seat=>seat.uid===user.uid);        
+            const seat=gameService.getGame()?.seats.find(seat=>seat.uid===uid);        
             if(!seat) return false;
             await gameService.roll();
         } catch (error) {
@@ -81,17 +79,16 @@ export const roll = sessionMutation({
 
     }
 })
-export const selectToken = sessionMutation({
+export const selectToken = authedMutation({
     args: { gameId: v.string(), tokenId: v.number()},
     handler: async (ctx, { gameId, tokenId}) => {
-        const user = ctx.user;
-        if (!user||!user.uid) return false; 
+        const uid = ctx.uid;
         try {
             const gameService=new GameManager(ctx);
             await gameService.initGame(gameId);
-            const seat=gameService.getGame()?.seats.find(seat=>seat.uid===user.uid);        
+            const seat=gameService.getGame()?.seats.find(seat=>seat.uid===uid);        
             if(!seat) return false;
-            await gameService.selectToken(user.uid,tokenId);
+            await gameService.selectToken(uid,tokenId);
         } catch (error) {
             console.log("select token error",error);
         }
@@ -99,15 +96,14 @@ export const selectToken = sessionMutation({
         return true;
     }
 })
-export const turnOffBot = sessionMutation({
+export const turnOffBot = authedMutation({
     args: { gameId: v.string()},
     handler: async (ctx, { gameId}) => {
-        const user = ctx.user;
-        if (!user||!user.uid) return false; 
+        const uid = ctx.uid;
         try {
             const gameService=new GameManager(ctx);
             await gameService.initGame(gameId);
-            const seat=gameService.getGame()?.seats.find(seat=>seat.uid===user.uid);   
+            const seat=gameService.getGame()?.seats.find(seat=>seat.uid===uid);   
             if(seat){
                 await gameService.turnOffBot(seat);
             }
@@ -131,13 +127,11 @@ export const timeout = mutation({
     }
 })
 
-export const gameOver = sessionMutation({
+export const gameOver = authedMutation({
     args: { gameId: v.string()},
     handler: async (ctx, {gameId}) => {
-        if (!ctx.user) return false;
         const gameService=new GameManager(ctx);
         await gameService.initGame(gameId);
-        // await gameService.gameOver();
         return true;
     }
 })

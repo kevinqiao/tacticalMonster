@@ -1,14 +1,15 @@
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { resolveFixedChestTable } from "../../data/casualFixedChestCatalog";
-import { mutation } from "../../_generated/server";
+import { authedMutation } from "../../custom/session";
 
 /**
  * 固定箱直开（Pass/任务等奖池见 `casualFixedChestCatalog`）。
  */
-export const openFixedChest = mutation({
-  args: { uid: v.string(), chestId: v.string() },
-  handler: async (ctx, { uid, chestId }) => {
+export const openFixedChest = authedMutation({
+  args: { chestId: v.string() },
+  handler: async (ctx, { chestId }) => {
+    const uid = ctx.uid;
     const table = resolveFixedChestTable(chestId);
     if (!table) return { ok: false as const, error: "unknown_chest" };
     const opened = await ctx.db

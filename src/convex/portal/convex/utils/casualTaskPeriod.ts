@@ -15,9 +15,12 @@ const weekdayToMonBased: Record<string, number> = {
   Sun: 6,
 };
 
-function opsDateParts(nowMs: number): { y: string; m: string; d: string; weekday: string } {
+function opsDateParts(
+  nowMs: number,
+  timeZone: string = CASUAL_TASK_OPS_TIME_ZONE
+): { y: string; m: string; d: string; weekday: string } {
   const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: CASUAL_TASK_OPS_TIME_ZONE,
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -33,6 +36,18 @@ function opsDateParts(nowMs: number): { y: string; m: string; d: string; weekday
   };
 }
 
+/** 校验 IANA 时区；无效则回退平台默认运营时区。 */
+export function normalizeOpsTimeZone(timeZone?: string | null): string {
+  const raw = (timeZone ?? CASUAL_TASK_OPS_TIME_ZONE).trim();
+  if (!raw) return CASUAL_TASK_OPS_TIME_ZONE;
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: raw });
+    return raw;
+  } catch {
+    return CASUAL_TASK_OPS_TIME_ZONE;
+  }
+}
+
 /**
  * 运营时区周期基准：将“每日 05:00 切日”折算为“前移 5 小时后按运营时区自然日切日”。
  * 这样 daily / weekly 都以同一运营切换点为基准。
@@ -41,8 +56,17 @@ function opsPeriodBaseMs(nowMs: number): number {
   return nowMs - CASUAL_TASK_DAILY_RESET_HOUR * MS_PER_HOUR;
 }
 
+export function dailyPeriodKeyForOpsZone(
+  nowMs: number,
+  timeZone: string = CASUAL_TASK_OPS_TIME_ZONE
+): string {
+  const tz = normalizeOpsTimeZone(timeZone);
+  const b = opsDateParts(opsPeriodBaseMs(nowMs), tz);
+  return `d:${tz}:${b.y}-${b.m}-${b.d}`;
+}
+
 export function dailyPeriodKey(nowMs: number): string {
-  const b = opsDateParts(opsPeriodBaseMs(nowMs));
+  const b = opsDateParts(opsPeriodBaseMs(nowMs), CASUAL_TASK_OPS_TIME_ZONE);
   return `d:${b.y}-${b.m}-${b.d}`;
 }
 
@@ -62,29 +86,53 @@ export function seasonPeriodKey(seasonId: string): string {
 
 const HOUR_MS = 3600000;
 
+/** 当前运营日周期 `[startsAt, endsAt]`（05:00 切日，可指定 IANA 时区）。 */
+export function dailyWindowMsForOpsZone(
+  nowMs: number,
+  timeZone: string = CASUAL_TASK_OPS_TIME_ZONE
+): {
+  instanceKey: string;
+  startsAt: number;
+  endsAt: number;
+  timeZone: string;
+} {
+  const tz = normalizeOpsTimeZone(timeZone);
+  const periodKey = (ms: number) => dailyPeriodKeyForOpsZone(ms, tz);
+  const key = periodKey(nowMs);
+  let lo = nowMs - 48 * HOUR_MS;
+  while (periodKey(lo) !== key) {
+    lo += HOUR_MS;
+    if (lo > nowMs + 48 * HOUR_MS) {
+      return {
+        instanceKey: key,
+        startsAt: nowMs - 24 * HOUR_MS,
+        endsAt: nowMs + 24 * HOUR_MS,
+        timeZone: tz,
+      };
+    }
+  }
+  while (lo > nowMs - 72 * HOUR_MS && periodKey(lo - HOUR_MS) === key) {
+    lo -= HOUR_MS;
+  }
+  let hi = lo + HOUR_MS;
+  while (periodKey(hi) === key) {
+    hi += HOUR_MS;
+    if (hi > lo + 72 * HOUR_MS) break;
+  }
+  return { instanceKey: key, startsAt: lo, endsAt: hi - 1, timeZone: tz };
+}
+
 /** 当前运营日周期 `[startsAt, endsAt]`（与 `dailyPeriodKey` 一致），用于周期锦标日桶。 */
 export function dailyWindowMsShanghai(nowMs: number): {
   instanceKey: string;
   startsAt: number;
   endsAt: number;
 } {
-  const key = dailyPeriodKey(nowMs);
-  let lo = nowMs - 48 * HOUR_MS;
-  while (dailyPeriodKey(lo) !== key) {
-    lo += HOUR_MS;
-    if (lo > nowMs + 48 * HOUR_MS) {
-      return { instanceKey: key, startsAt: nowMs - 24 * HOUR_MS, endsAt: nowMs + 24 * HOUR_MS };
-    }
-  }
-  while (lo > nowMs - 72 * HOUR_MS && dailyPeriodKey(lo - HOUR_MS) === key) {
-    lo -= HOUR_MS;
-  }
-  let hi = lo + HOUR_MS;
-  while (dailyPeriodKey(hi) === key) {
-    hi += HOUR_MS;
-    if (hi > lo + 72 * HOUR_MS) break;
-  }
-  return { instanceKey: key, startsAt: lo, endsAt: hi - 1 };
+  const { instanceKey, startsAt, endsAt } = dailyWindowMsForOpsZone(
+    nowMs,
+    CASUAL_TASK_OPS_TIME_ZONE
+  );
+  return { instanceKey, startsAt, endsAt };
 }
 
 /** 当前运营周周期 `[startsAt, endsAt]`（与 `weeklyPeriodKey` 一致）。 */

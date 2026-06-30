@@ -134,46 +134,81 @@ export class SoloGameEngine {
         result.ok = true;
         return result;
     }
-    public static moveCard(gameState: SoloGameState, card: Card, toZoneId: string): ActionResult {
+    /**
+     * 纯规划：不改写 gameState（客户端预测移牌 / generic 翻背用）。
+     * flip 仅含 id + isRevealed；rank/suit 由 server mutation 下发。
+     */
+    public static planMoveCard(gameState: SoloGameState, card: Card, toZoneId: string): ActionResult {
         const result: ActionResult = { ok: false, data: {} };
         if (!gameState || !card) return result;
         const ruleManager = new SoloRuleManager(gameState, GameInteractionPhase.idle);
         if (!ruleManager.canMoveToZone(card, toZoneId)) return result;
 
-        const movedCards: Card[] = [];
-        console.log("engine moveCard", toZoneId, card.zoneId);
-        if (toZoneId !== card.zoneId) {
-            const targetZone = gameState.zones.find((z: SoloZone) => z.id === toZoneId);
-            if (!targetZone) return result;
-            const zoneCards = gameState.cards.filter((c: Card) => c.zoneId === toZoneId).sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
-            const zoneIndex = zoneCards.length === 0 ? 0 : zoneCards[zoneCards.length - 1].zoneIndex + 1;
-            movedCards.push({ ...card, zone: targetZone.type, zoneId: toZoneId, zoneIndex: zoneIndex });
-            // 仅 tableau→tableau 允许整串跟牌；foundation / waste 等只能单张
-            const includeFollowers = targetZone.type === ZoneType.TABLEAU;
-            if (includeFollowers) {
-                const srcCards = gameState.cards
-                    .filter((c: Card) => c.zoneId === card.zoneId && c.zoneIndex > card.zoneIndex)
-                    .sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
-                srcCards.forEach((c: Card, index: number) => {
-                    movedCards.push({ ...c, zone: targetZone.type, zoneId: toZoneId, zoneIndex: zoneIndex + index + 1 });
+        if (toZoneId === card.zoneId) return result;
+
+        const targetZone = gameState.zones.find((z: SoloZone) => z.id === toZoneId);
+        if (!targetZone) return result;
+
+        const zoneCards = gameState.cards
+            .filter((c: Card) => c.zoneId === toZoneId)
+            .sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
+        const zoneIndex = zoneCards.length === 0 ? 0 : zoneCards[zoneCards.length - 1].zoneIndex + 1;
+        const movedCards: Card[] = [
+            { ...card, zone: targetZone.type, zoneId: toZoneId, zoneIndex },
+        ];
+
+        const includeFollowers = targetZone.type === ZoneType.TABLEAU;
+        if (includeFollowers) {
+            const srcCards = gameState.cards
+                .filter((c: Card) => c.zoneId === card.zoneId && c.zoneIndex > card.zoneIndex)
+                .sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
+            srcCards.forEach((c: Card, index: number) => {
+                movedCards.push({
+                    ...c,
+                    zone: targetZone.type,
+                    zoneId: toZoneId,
+                    zoneIndex: zoneIndex + index + 1,
                 });
-            }
-            if (card.zone === ZoneType.TABLEAU) {
-                const scards = gameState.cards.filter((c: Card) => c.zoneId === card.zoneId && c.zoneIndex < card.zoneIndex).sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
-                if (scards.length > 0) {
-                    const flipCard = scards[scards.length - 1];
-                    // 仅暗牌→明牌需要翻牌动画；已翻开则不改写、不返回 flip
-                    if (!flipCard.isRevealed) {
-                        flipCard.isRevealed = true;
-                        result.data!.flip = [{ ...flipCard, isRevealed: true }];
-                    }
+            });
+        }
+
+        if (card.zone === ZoneType.TABLEAU) {
+            const scards = gameState.cards
+                .filter((c: Card) => c.zoneId === card.zoneId && c.zoneIndex < card.zoneIndex)
+                .sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
+            if (scards.length > 0) {
+                const flipCard = scards[scards.length - 1];
+                if (!flipCard.isRevealed) {
+                    result.data!.flip = [{ id: flipCard.id, isRevealed: true } as Card];
                 }
             }
-
-            result.data!.move = movedCards || [];
-            result.ok = true;
         }
+
+        result.data!.move = movedCards;
+        result.ok = true;
         return result;
+    }
+
+    public static moveCard(gameState: SoloGameState, card: Card, toZoneId: string): ActionResult {
+        const plan = SoloGameEngine.planMoveCard(gameState, card, toZoneId);
+        if (!plan.ok) return plan;
+
+        const flipStub = plan.data?.flip?.[0];
+        if (flipStub) {
+            const flipCard = gameState.cards.find((c: Card) => c.id === flipStub.id);
+            if (flipCard && !flipCard.isRevealed) {
+                flipCard.isRevealed = true;
+                plan.data!.flip = [{ ...flipCard, isRevealed: true }];
+            } else {
+                delete plan.data!.flip;
+            }
+        }
+        return plan;
+    }
+
+    /** 纯规划抽牌：不改写 gameState；drawn 牌面 identity 由 server 返回 */
+    public static planDrawCard(gameState: SoloGameState, cardId: string): ActionResult {
+        return SoloGameEngine.drawCard(gameState, cardId);
     }
     public static drawCard(gameState: SoloGameState, cardId: string): ActionResult {
         const result: ActionResult = { ok: false, data: {} };

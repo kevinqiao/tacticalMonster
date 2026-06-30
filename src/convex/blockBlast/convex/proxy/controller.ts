@@ -1,10 +1,10 @@
 "use node";
 
 import { v } from "convex/values";
-import jwt from "jsonwebtoken";
 
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
+import { authedAction } from "../custom/session";
 import {
   casualBridgeRequestHeaders,
   resolveCasualBridgeEnv,
@@ -20,22 +20,6 @@ import {
 import { BlockBlastGameStatus } from "../types/BlockBlastTypes";
 
 const tournament_url = "https://beloved-mouse-699.convex.site";
-
-function jwtAccessSecret(): string {
-  return process.env.JWT_ACCESS_SECRET ?? "12222222";
-}
-
-function verifyCasualRunToken(token: string): { ok: true; uid: string } | { ok: false; error: string } {
-  try {
-    const payload = jwt.verify(token, jwtAccessSecret());
-    if (!payload || typeof payload !== "object" || !("uid" in payload)) {
-      return { ok: false, error: "invalid_token" };
-    }
-    return { ok: true, uid: String((payload as { uid: unknown }).uid) };
-  } catch {
-    return { ok: false, error: "verify_failed" };
-  }
-}
 
 function isTerminalBlockBlast(status: number): boolean {
   return (
@@ -372,22 +356,17 @@ export const submitScore = action({
   },
 });
 
-export const submitCasualPlatformRun = action({
+export const submitCasualPlatformRun = authedAction({
   args: {
-    token: v.string(),
     gameId: v.string(),
     platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
   },
-  handler: async (ctx, { token, gameId, platformBridge }) => {
+  handler: async (ctx, { gameId, platformBridge }) => {
     if (!gameId.startsWith("game_")) {
       return { ok: false as const, error: "not_casual_run_game_id" };
     }
 
-    const auth = verifyCasualRunToken(token);
-    if (!auth.ok) {
-      return { ok: false as const, error: auth.error };
-    }
-    const uid = auth.uid;
+    const uid = ctx.uid;
     const parsedId = parseCasualRunGameId(gameId);
     if (!parsedId || parsedId.uid !== uid) {
       console.warn("[blockBlast] submitCasualPlatformRun forbidden", {
@@ -457,22 +436,17 @@ export const submitCasualPlatformRun = action({
 /**
  * 玩家强行结束或客户端超时：取消 scheduler、终局写 game 表、ingest casual。
  */
-export const forceEndCasualPlatformRun = action({
+export const forceEndCasualPlatformRun = authedAction({
   args: {
-    token: v.string(),
     gameId: v.string(),
     platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
   },
-  handler: async (ctx, { token, gameId, platformBridge }) => {
+  handler: async (ctx, { gameId, platformBridge }) => {
     if (!gameId.startsWith("game_")) {
       return { ok: false as const, error: "not_casual_run_game_id" };
     }
 
-    const auth = verifyCasualRunToken(token);
-    if (!auth.ok) {
-      return { ok: false as const, error: auth.error };
-    }
-    const uid = auth.uid;
+    const uid = ctx.uid;
     const parsedId = parseCasualRunGameId(gameId);
     if (!parsedId || parsedId.uid !== uid) {
       console.warn("[blockBlast] forceEndCasualPlatformRun forbidden", {
@@ -518,28 +492,17 @@ export const forceEndCasualPlatformRun = action({
   },
 });
 
-export const replayCasualRun = action({
+export const replayCasualRun = authedAction({
   args: {
-    token: v.string(),
     gameId: v.string(),
     platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
   },
-  handler: async (ctx, { token, gameId, platformBridge }) => {
+  handler: async (ctx, { gameId, platformBridge }) => {
     const bridgeEnv = resolveCasualBridgeEnv(platformBridge ?? "casual");
+    const uid = ctx.uid;
 
     if (!gameId.startsWith("game_")) {
       return { ok: false as const, error: "not_casual_run_game_id" };
-    }
-
-    let uid: string;
-    try {
-      const payload = jwt.verify(token, jwtAccessSecret());
-      if (!payload || typeof payload !== "object" || !("uid" in payload)) {
-        return { ok: false as const, error: "invalid_token" };
-      }
-      uid = String((payload as { uid: unknown }).uid);
-    } catch {
-      return { ok: false as const, error: "verify_failed" };
     }
 
     const url = `${bridgeEnv.origin}/internal/casual-replay-authorize`;

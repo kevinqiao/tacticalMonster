@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getPortalTournamentDefinition } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { PageProp } from "host/RenderApp";
+import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
 import { useModalManager } from "host/service/ModalManager";
 import { useUserManager } from "host/service/UserManager";
+import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 
 import {
   assignmentMatchesAwaitWatch,
@@ -78,7 +80,7 @@ const PortalGamePageInner: React.FC<{ visible: number }> = ({ visible }) => {
     cancelAuth();
     void logout();
   }, [cancelAuth, logout]);
-  const authed = Boolean(user?.uid && user?.token && portal.portalSessionReady);
+  const authed = Boolean(isPlatformAuthed(user) && portal.portalSessionReady);
   const [joining, setJoining] = useState<"solo" | "multi" | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [awaitingMatch, setAwaitingMatch] = useState<AwaitOpenCasualRunMatchWatch | null>(null);
@@ -182,11 +184,9 @@ const PortalGamePageInner: React.FC<{ visible: number }> = ({ visible }) => {
   }, [visible, panelModal, portal.reconcilePendingHistorySettlements]);
 
   useEffect(() => {
-    if (visible === 0 || user == null) return;
-    if (!user.uid) {
-      askAuth({});
-    }
-  }, [visible, user, askAuth]);
+    if (user?.uid || panelModal !== "history") return;
+    setPanelModal(null);
+  }, [user?.uid, panelModal]);
 
   useEffect(() => {
     if (!awaitingMatch || !portal.gameType) return;
@@ -420,6 +420,7 @@ const PortalGamePageInner: React.FC<{ visible: number }> = ({ visible }) => {
             type="button"
             className="portal-btn"
             disabled={
+              !user?.uid ||
               joining != null ||
               soloJoinBlocked ||
               (!portal.portalSessionReady && !soloOpenAssignment)
@@ -436,11 +437,10 @@ const PortalGamePageInner: React.FC<{ visible: number }> = ({ visible }) => {
           </button>
           <button
             type="button"
-            className="portal-btn portal-btn-outline"
-            disabled={soloJoinBlocked || multiJoinBlocked}
+            className="portal-btn"
             onClick={() => setPanelModal("soloLb")}
           >
-            单人周榜
+            本周排行榜
           </button>
         </div>
       </section>
@@ -454,6 +454,7 @@ const PortalGamePageInner: React.FC<{ visible: number }> = ({ visible }) => {
             type="button"
             className="portal-btn portal-btn-secondary"
             disabled={
+              !user?.uid ||
               joining != null ||
               multiJoinBlocked ||
               (!portal.portalSessionReady && !multiOpenAssignment)
@@ -472,32 +473,33 @@ const PortalGamePageInner: React.FC<{ visible: number }> = ({ visible }) => {
           </button>
           <button
             type="button"
-            className="portal-btn portal-btn-outline"
-            disabled={soloJoinBlocked || multiJoinBlocked}
+            className="portal-btn portal-btn-secondary"
             onClick={() => setPanelModal("multiLb")}
           >
-            多人周榜
+            本周排行榜
           </button>
         </div>
       </section>
 
-      <section className="portal-section portal-section--compact">
-        <h2>历史记录</h2>
-        <p className="portal-muted">
-          {historyCount > 0 ? `共 ${historyCount} 场对局` : "完成对局后在此查看"}
-        </p>
-        <button
-          type="button"
-          className="portal-btn portal-btn-outline portal-btn-full"
-          onClick={() => setPanelModal("history")}
-        >
-          查看历史记录
-        </button>
-      </section>
+      {user?.uid ? (
+        <section className="portal-section portal-section--compact">
+          <h2>历史记录</h2>
+          <p className="portal-muted">
+            {historyCount > 0 ? `共 ${historyCount} 场对局` : "完成对局后在此查看"}
+          </p>
+          <button
+            type="button"
+            className="portal-btn portal-btn-outline portal-btn-full"
+            onClick={() => setPanelModal("history")}
+          >
+            查看历史记录
+          </button>
+        </section>
+      ) : null}
 
       <PortalCenterModal
         open={panelModal === "soloLb"}
-        title="单人周榜"
+        title="本周排行榜 · 单人挑战"
         onClose={() => setPanelModal(null)}
       >
         <PortalWeeklyLeaderboardPanel
@@ -509,7 +511,7 @@ const PortalGamePageInner: React.FC<{ visible: number }> = ({ visible }) => {
 
       <PortalCenterModal
         open={panelModal === "multiLb"}
-        title="多人周榜"
+        title="本周排行榜 · 多人竞技"
         onClose={() => setPanelModal(null)}
       >
         <PortalWeeklyLeaderboardPanel
@@ -523,7 +525,6 @@ const PortalGamePageInner: React.FC<{ visible: number }> = ({ visible }) => {
         open={panelModal === "history"}
         title="历史记录"
         onClose={() => setPanelModal(null)}
-        wide
       >
         <PortalHistoryList
           openAssignments={openAssignments}
@@ -551,7 +552,7 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
   const raw = data?.gameType ?? data?.params?.gameType;
   const fromPath =
     typeof window !== "undefined"
-      ? window.location.pathname.split("/")[2]?.trim()
+      ? parsePortalPathFromPathname(window.location.pathname).gameType ?? undefined
       : undefined;
   const gameTypeRaw = (typeof raw === "string" ? raw : fromPath) ?? "";
   const gameType = isValidPortalGameType(gameTypeRaw) ? gameTypeRaw : null;

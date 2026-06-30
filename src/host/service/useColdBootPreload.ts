@@ -1,26 +1,9 @@
-import { findAncestor, normalizePageUri, parseLocation } from "@/host/util/PageUtils";
+import { parseLocation, resolveMountedRootShells } from "@/host/util/PageUtils";
 import { preloadImages } from "@/host/util/preloadAssets";
 import type { PageContainer } from "host/service/PageManager";
 import { useEffect, useMemo, useState } from "react";
 
-/**
- * 给定首屏 pathname 对应的**那一棵**顶层壳（`findAncestor`）；无匹配时回退全部顶层壳。
- */
-export const resolveColdBootRootShells = (
-  containers: readonly PageContainer[],
-  entryUri: string
-): PageContainer[] => {
-  const u = normalizePageUri(entryUri);
-  if (!u) {
-    return [...containers];
-  }
-  const ancestor = findAncestor([...containers], u);
-  if (ancestor) {
-    return [ancestor];
-  }
-  console.warn("[coldBoot] initial URI matches no shell; falling back to all root shells", entryUri);
-  return [...containers];
-};
+export { resolveMountedRootShells, resolveMountedRootShells as resolveColdBootRootShells } from "@/host/util/PageUtils";
 
 /** 聚合各顶层壳 `bootCriticalAssetUrls`，去重；未配置则返回空数组。 */
 export const collectRootBootCriticalUrls = (roots: readonly PageContainer[]): string[] => {
@@ -52,7 +35,7 @@ export const useColdBootPreload = (pageContainers: readonly PageContainer[]): Us
       return [...pageContainers];
     }
     const entry = parseLocation()?.uri ?? "";
-    return resolveColdBootRootShells(pageContainers, entry);
+    return resolveMountedRootShells(pageContainers, entry);
   }, [pageContainers]);
 
   const rootBootUrls = useMemo(() => collectRootBootCriticalUrls(coldBootShells), [coldBootShells]);

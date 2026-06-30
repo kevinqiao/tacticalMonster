@@ -52,10 +52,14 @@ export function wasteFanStep(cardWidth: number): number {
     return cardWidth * WASTE_FAN_STEP_RATIO;
 }
 
+/** 与 CSS `--solo-waste-fan-step` 一致（整像素） */
+export function wasteFanStepPx(cardWidth: number): number {
+    return Math.round(wasteFanStep(cardWidth));
+}
+
 /** waste 槽位宽度 = 三张牌 fan 的总跨度 */
 export function wasteZoneFanWidth(cardWidth: number): number {
-    const step = wasteFanStep(cardWidth);
-    return cardWidth + 2 * step;
+    return cardWidth + 2 * wasteFanStepPx(cardWidth);
 }
 
 /** waste 内 pile 序号越大越靠上（顶牌在最上层） */
@@ -84,23 +88,26 @@ export function getWasteCardCoord(
 ): { x: number; y: number } {
     const pile = sortedWastePile(wastePile, card.zoneId);
     const idx = pile.findIndex((c) => c.id === card.id);
+    const step = wasteFanStepPx(cardWidth);
+    const maxFanSpan = cardWidth + 2 * step;
+    const anchorX = wasteZone.x + Math.max(0, (wasteZone.width - maxFanSpan) / 2);
+    const y =
+        wasteZone.y + Math.max(0, (wasteZone.height - cardHeight) / 2);
+
     if (idx < 0) {
-        return { x: wasteZone.x, y: wasteZone.y };
+        return { x: anchorX, y };
     }
 
     const n = pile.length;
     const fanStart = Math.max(0, n - SOLITAIRE_WASTE_VISIBLE_FAN);
-    const fanCount = n - fanStart;
-    const y = wasteZone.y + Math.max(0, (wasteZone.height - cardHeight) * 0.5);
-    const step = wasteFanStep(cardWidth);
 
     if (idx < fanStart) {
-        return { x: wasteZone.x, y };
+        return { x: anchorX, y };
     }
 
     // 较早的 fan 在左，最新顶牌在右（靠近 talon）；右牌 z 更高，盖住左侧
     const pileIdx = idx - fanStart;
-    return { x: wasteZone.x + pileIdx * step, y };
+    return { x: anchorX + pileIdx * step, y };
 }
 
 /** 牌桌单列：zoneIndex 越大越靠上，z 单调递增且列与列之间不重叠 */

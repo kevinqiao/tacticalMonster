@@ -4,7 +4,6 @@ import { v } from "convex/values";
 export default defineSchema({
     game_player: defineTable({
         uid: v.string(),
-        token: v.optional(v.string()),
         expire: v.optional(v.number()),
         level: v.number(),
         exp: v.number(),
@@ -43,7 +42,6 @@ export default defineSchema({
     }).index("by_due", ["status","actDue"]),
     bot:defineTable({
         uid: v.string(),
-        token: v.optional(v.string()),
         expire: v.optional(v.number()),
         level: v.number(),
         exp: v.number(),

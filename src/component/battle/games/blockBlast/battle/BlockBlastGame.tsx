@@ -1,8 +1,10 @@
 /**
- * Block Blast 入口（对齐 solitaireSolo SoloGame：ConvexProvider、可选 createBlockBlastGame 建局）
+ * Block Blast 入口（对齐 solitaireSolo SolitaireGame：ConvexProvider、满高容器、loading 层）
  */
-import { ConvexProvider, ConvexReactClient, useMutation } from 'convex/react';
-import React from 'react';
+import { ConvexReactClient, useMutation } from 'convex/react';
+import PlatformConvexProvider from 'host/service/platformAuth/PlatformConvexProvider';
+import gsap from 'gsap';
+import React, { useCallback, useRef } from 'react';
 import { api } from '../../../../../convex/blockBlast/convex/_generated/api';
 import GamePlayer from './GamePlayer';
 import BlockBlastDnDProvider from './service/BlockBlastDnDProvider';
@@ -40,12 +42,29 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
     onGameSubmit,
     onTriathlonNextGame,
 }) => {
+    const loadingRef = useRef<HTMLDivElement | null>(null);
+    const playerRef = useRef<HTMLDivElement | null>(null);
     /** 与 Solitaire：`game_${matchId}_${uid}` 由 `proxy.controller.loadGame` action 从 casual 拉 seed 后建局，勿在此 mutation 重复 insert */
     const [activeGameId, setActiveGameId] = React.useState<string | undefined>(
         () => propGameId ?? casualMatchGameId ?? undefined
     );
     const [createError, setCreateError] = React.useState<string | null>(null);
     const createBlockBlastGame = useMutation(api.service.gameManager.createBlockBlastGame);
+
+    const handleGameLoadComplete = useCallback(() => {
+        loadingRef.current?.classList.add('blockblast-game-loading--hidden');
+        if (playerRef.current) {
+            gsap.set(playerRef.current, { autoAlpha: 1 });
+        }
+        if (loadingRef.current) {
+            gsap.to(loadingRef.current, {
+                autoAlpha: 0,
+                duration: 0.35,
+                ease: 'power2.inOut',
+            });
+        }
+        onGameLoadComplete?.();
+    }, [onGameLoadComplete]);
 
     React.useEffect(() => {
         if (propGameId) {
@@ -84,36 +103,36 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
         };
     }, [propGameId, casualMatchGameId, createBlockBlastGame, config?.gridSize]);
 
-    if (createError) {
-        return (
-            <div className="blockblast-game-container" role="alert">
-                {createError}
-            </div>
-        );
-    }
-
-    if (!activeGameId) {
-        return (
-            <div className="blockblast-game-container">
-                Loading Block Blast…
-            </div>
-        );
-    }
-
     return (
-        <BlockBlastGameProvider
-            key={activeGameId}
-            config={config}
-            gameId={activeGameId}
-            casualTournamentId={casualTournamentId}
-            onGameLoadComplete={onGameLoadComplete}
-            onGameSubmit={onGameSubmit}
-            onTriathlonNextGame={onTriathlonNextGame}
-        >
-            <BlockBlastDnDProvider>
-                <GamePlayer />
-            </BlockBlastDnDProvider>
-        </BlockBlastGameProvider>
+        <>
+            <div
+                ref={playerRef}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            >
+                {activeGameId && !createError ? (
+                    <BlockBlastGameProvider
+                        key={activeGameId}
+                        config={config}
+                        gameId={activeGameId}
+                        casualTournamentId={casualTournamentId}
+                        onGameLoadComplete={handleGameLoadComplete}
+                        onGameSubmit={onGameSubmit}
+                        onTriathlonNextGame={onTriathlonNextGame}
+                    >
+                        <BlockBlastDnDProvider>
+                            <GamePlayer onGameLoadComplete={handleGameLoadComplete} />
+                        </BlockBlastDnDProvider>
+                    </BlockBlastGameProvider>
+                ) : null}
+            </div>
+            <div
+                className="blockblast-game-loading"
+                ref={loadingRef}
+                role={createError ? 'alert' : undefined}
+            >
+                {createError ?? 'Loading Block Blast…'}
+            </div>
+        </>
     );
 };
 
@@ -132,7 +151,7 @@ const BlockBlastGame: React.FC<BlockBlastGameProps> = ({
 
     return (
         <div className={`blockblast-game-container ${className}`.trim()} style={style}>
-            <ConvexProvider client={client}>
+            <PlatformConvexProvider client={client}>
                 <BlockBlastGameInner
                     gameId={gameId}
                     casualTournamentId={casualTournamentId}
@@ -142,7 +161,7 @@ const BlockBlastGame: React.FC<BlockBlastGameProps> = ({
                     onGameSubmit={onGameSubmit}
                     onTriathlonNextGame={onTriathlonNextGame}
                 />
-            </ConvexProvider>
+            </PlatformConvexProvider>
         </div>
     );
 };

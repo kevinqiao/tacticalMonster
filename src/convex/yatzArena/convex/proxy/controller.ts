@@ -1,10 +1,9 @@
 "use node";
 
 import { v } from "convex/values";
-import jwt from "jsonwebtoken";
-
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
+import { authedAction } from "../custom/session";
 import { postCasualRunIngest, type CasualIngestParsed } from "../service/casualBridgeIngest";
 import { buildCasualV2IngestPayload } from "../service/casualBotFill/computeBotFills";
 import { buildYatzWatchReplayPayload } from "../service/yatzWatchReplayPayload";
@@ -12,27 +11,15 @@ import {
   isTerminalYatzStatus,
   parseCasualRunGameId,
 } from "../service/casualGameLifecycle";
-import { resolveCasualBridgeEnv } from "../service/casualBridgeEnv";
+import {
+  casualBridgeRequestHeaders,
+  resolveCasualBridgeEnv,
+  type PlatformBridge,
+} from "../service/casualBridgeEnv";
 import { resolveCasualIngestScoreFromRow } from "../service/yatzScoring";
 import type { YatzGameState } from "../types/YatzTypes";
 
 const tournament_url = "https://beloved-mouse-699.convex.site";
-
-function jwtAccessSecret(): string {
-  return process.env.JWT_ACCESS_SECRET ?? "12222222";
-}
-
-function verifyCasualRunToken(token: string): { ok: true; uid: string } | { ok: false; error: string } {
-  try {
-    const payload = jwt.verify(token, jwtAccessSecret());
-    if (!payload || typeof payload !== "object" || !("uid" in payload)) {
-      return { ok: false, error: "invalid_token" };
-    }
-    return { ok: true, uid: String((payload as { uid: unknown }).uid) };
-  } catch {
-    return { ok: false, error: "verify_failed" };
-  }
-}
 
 function mapCasualIngestClientResponse(
   parsed: CasualIngestParsed,
@@ -147,18 +134,15 @@ type CasualFindMatchResult = {
 
 async function fetchCasualMatchByGame(
   gameId: string,
-  options?: { skipRecordSeed?: boolean }
+  options?: { skipRecordSeed?: boolean; platformBridge?: PlatformBridge }
 ): Promise<CasualFindMatchResult> {
-  const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
-  const matchURL = `${casualOrigin}/internal/find-match-by-game`;
+  const bridgeEnv = resolveCasualBridgeEnv(options?.platformBridge ?? "casual");
+  const matchURL = `${bridgeEnv.origin}/internal/find-match-by-game`;
   let response: Response;
   try {
     response = await fetch(matchURL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Casual-Bridge-Secret": bridge,
-      },
+      headers: casualBridgeRequestHeaders(bridgeEnv),
       body: JSON.stringify({
         gameId,
         ...(options?.skipRecordSeed ? { skipRecordSeed: true } : {}),
@@ -189,8 +173,10 @@ export const loadGame = action({
   args: {
     gameId: v.string(),
     resetCasualRun: v.optional(v.literal(true)),
+    platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
   },
-  handler: async (ctx, { gameId, resetCasualRun }): Promise<any> => {
+  handler: async (ctx, { gameId, resetCasualRun, platformBridge }): Promise<any> => {
+    const bridge = platformBridge ?? "casual";
     const res: { ok: boolean; game?: any; events?: any; error?: string; seedScoreThreshold?: number } = {
       ok: false,
     };
@@ -202,7 +188,7 @@ export const loadGame = action({
         res.ok = true;
         let seedScoreThreshold: number | undefined;
         if (gameId.startsWith("game_")) {
-          const meta = await fetchCasualMatchByGame(gameId, { skipRecordSeed: true });
+          const meta = await fetchCasualMatchByGame(gameId, { skipRecordSeed: true, platformBridge: bridge });
           const threshold = meta.match?.seedScoreThreshold;
           if (typeof threshold === "number" && Number.isFinite(threshold)) {
             seedScoreThreshold = threshold;
@@ -220,7 +206,7 @@ export const loadGame = action({
     let seedScoreThreshold: number | undefined;
 
     if (gameId.startsWith("game_")) {
-      const matchGameResult = await fetchCasualMatchByGame(gameId);
+      const matchGameResult = await fetchCasualMatchByGame(gameId, { platformBridge: bridge });
       if (!matchGameResult.ok || !matchGameResult.match) {
         return {
           ok: false,
@@ -261,18 +247,17 @@ export const loadGame = action({
   },
 });
 
-export const submitCasualPlatformRun = action({
-  args: { token: v.string(), gameId: v.string() },
-  handler: async (ctx, { token, gameId }) => {
+export const submitCasualPlatformRun = authedAction({
+  args: {
+    gameId: v.string(),
+    platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
+  },
+  handler: async (ctx, { gameId, platformBridge }) => {
     if (!gameId.startsWith("game_")) {
       return { ok: false as const, error: "not_casual_run_game_id" };
     }
 
-    const auth = verifyCasualRunToken(token);
-    if (!auth.ok) {
-      return { ok: false as const, error: auth.error };
-    }
-    const uid = auth.uid;
+    const uid = ctx.uid;
     const parsedId = parseCasualRunGameId(gameId);
     if (!parsedId || parsedId.uid !== uid) {
       return { ok: false as const, error: "forbidden" };
@@ -291,13 +276,16 @@ export const submitCasualPlatformRun = action({
     const score = resolveCasualIngestScoreFromRow(game as { score?: number });
     const watchReplay = buildYatzWatchReplayPayload(game as YatzGameState);
 
-    const built = await buildCasualV2IngestPayload({ ctx, uid, matchGameId: gameId, score });
+    const bridge = platformBridge ?? "casual";
+
+    const built = await buildCasualV2IngestPayload({ ctx, uid, matchGameId: gameId, score, platformBridge: bridge });
     if (!built.ok) {
       return { ok: false as const, error: built.error };
     }
 
     const ingest = await postCasualRunIngest({
       ...built.payload,
+      platformBridge: bridge,
       ...(watchReplay ? { watchReplay } : {}),
     });
     if (!ingest.ok) {
@@ -312,18 +300,17 @@ export const submitCasualPlatformRun = action({
   },
 });
 
-export const forceEndCasualPlatformRun = action({
-  args: { token: v.string(), gameId: v.string() },
-  handler: async (ctx, { token, gameId }) => {
+export const forceEndCasualPlatformRun = authedAction({
+  args: {
+    gameId: v.string(),
+    platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
+  },
+  handler: async (ctx, { gameId, platformBridge }) => {
     if (!gameId.startsWith("game_")) {
       return { ok: false as const, error: "not_casual_run_game_id" };
     }
 
-    const auth = verifyCasualRunToken(token);
-    if (!auth.ok) {
-      return { ok: false as const, error: auth.error };
-    }
-    const uid = auth.uid;
+    const uid = ctx.uid;
     const parsedId = parseCasualRunGameId(gameId);
     if (!parsedId || parsedId.uid !== uid) {
       return { ok: false as const, error: "forbidden" };
@@ -345,11 +332,14 @@ export const forceEndCasualPlatformRun = action({
       return { ok: false as const, error: err };
     }
 
+    const bridge = platformBridge ?? "casual";
+
     const built = await buildCasualV2IngestPayload({
       ctx,
       uid: settled.uid,
       matchGameId: settled.gameId,
       score: settled.score,
+      platformBridge: bridge,
     });
     if (!built.ok) {
       return { ok: false as const, error: built.error };
@@ -362,6 +352,7 @@ export const forceEndCasualPlatformRun = action({
 
     const ingest = await postCasualRunIngest({
       ...built.payload,
+      platformBridge: bridge,
       ...(watchReplay ? { watchReplay } : {}),
     });
     if (!ingest.ok) {
@@ -374,35 +365,26 @@ export const forceEndCasualPlatformRun = action({
   },
 });
 
-export const replayCasualRun = action({
-  args: { token: v.string(), gameId: v.string() },
-  handler: async (_ctx, { token, gameId }) => {
-    const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
+export const replayCasualRun = authedAction({
+  args: {
+    gameId: v.string(),
+    platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
+  },
+  handler: async (ctx, { gameId, platformBridge }) => {
+    const bridgeEnv = resolveCasualBridgeEnv(platformBridge ?? "casual");
 
     if (!gameId.startsWith("game_")) {
       return { ok: false as const, error: "not_casual_run_game_id" };
     }
 
-    let uid: string;
-    try {
-      const payload = jwt.verify(token, jwtAccessSecret());
-      if (!payload || typeof payload !== "object" || !("uid" in payload)) {
-        return { ok: false as const, error: "invalid_token" };
-      }
-      uid = String((payload as { uid: unknown }).uid);
-    } catch {
-      return { ok: false as const, error: "verify_failed" };
-    }
+    const uid = ctx.uid;
 
-    const url = `${casualOrigin}/internal/casual-replay-authorize`;
+    const url = `${bridgeEnv.origin}/internal/casual-replay-authorize`;
     let res: Response;
     try {
       res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Casual-Bridge-Secret": bridge,
-        },
+        headers: casualBridgeRequestHeaders(bridgeEnv),
         body: JSON.stringify({ uid, matchGameId: gameId }),
       });
     } catch (e) {

@@ -18,7 +18,7 @@ const PlayBlockBlast: React.FC<ModalProp> = ({ visible, data, close }) => {
             : casualMatchGameId;
 
     return (
-        <PlayCasualGameModalShell visible={visible} data={data} close={close}>
+        <PlayCasualGameModalShell visible={visible} data={data} close={close} layout="full">
             <BlockBlastGame
                 key={sessionKey ?? 'blockblast'}
                 casualTournamentId={casualTournamentId}

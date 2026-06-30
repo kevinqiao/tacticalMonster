@@ -3,7 +3,8 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { registerCasualGameModalExitHandler } from '../../shared/casualGameModalExitBridge';
 import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
@@ -29,7 +30,7 @@ import {
     ZoneType
 } from './types/SoloTypes';
 import { layoutAllSoloCardsFromModel } from './soloCardLayout';
-import { soloCardZIndex, wasteFanStep } from './Utils';
+import { soloCardZIndex, wasteFanStepPx } from './Utils';
 import { useGameVisualTheme } from '../../shared/visualTheme/useGameVisualTheme';
 import SoloDnDCard from './view/SoloDnDCard';
 import SoloGameHeader from './view/SoloGameHeader';
@@ -63,8 +64,6 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     const displayScore =
         gameState != null ? Math.max(0, Math.floor(gameState.score ?? 0)) : null;
     const displayMoves = gameState != null ? gameState.moves : null;
-    /** 动画中禁用「结束」，终局仍允许点击以便结算失败时重试 */
-    const endGameDisabled = interactionPhase !== GameInteractionPhase.idle;
 
     const {
         recycle,
@@ -92,6 +91,14 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         closeWatch,
         openSelfReplay,
     } = useActHandler();
+
+    useEffect(() => {
+        if (replayMode) return;
+        registerCasualGameModalExitHandler(() => {
+            void settleManuallyAndExit();
+        });
+        return () => registerCasualGameModalExitHandler(null);
+    }, [replayMode, settleManuallyAndExit]);
 
     const postCasualReplayDisabled = postCasualReplayOffered && !postCasualCanReplay;
     const { actionData } = useSoloDnDManager();
@@ -152,6 +159,12 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         const cardH = Math.min(r0.height, u0.height);
         if (cardW < 16 || cardH < 22) return null;
 
+        const cardWRounded = Math.round(cardW);
+        /* 先同步 CSS 变量再测 waste，否则槽宽仍用默认 56px，居中 x 与牌 fan 错位 */
+        board.style.setProperty('--solo-card-width', `${cardWRounded}px`);
+        board.style.setProperty('--solo-waste-fan-step', `${wasteFanStepPx(cardWRounded)}px`);
+        void wasteEl.offsetWidth;
+
         const foundationColX = [fRects[0]!.x, fRects[1]!.x, fRects[2]!.x, fRects[3]!.x] as const;
         const tableauColX = [
             tRects[0]!.x,
@@ -175,7 +188,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             top: boardRect.top,
             width: board.clientWidth,
             height: board.clientHeight,
-            cardWidth: Math.round(cardW),
+            cardWidth: cardWRounded,
             cardHeight: Math.round(cardH),
             spacing,
             foundationColX,
@@ -226,6 +239,10 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         });
         ro.observe(board);
         ro.observe(outer);
+        const wasteElObs = wasteZoneRef.current;
+        const talonElObs = talonZoneRef.current;
+        if (wasteElObs) ro.observe(wasteElObs);
+        if (talonElObs) ro.observe(talonElObs);
 
         const vv = typeof window !== 'undefined' ? window.visualViewport : null;
         const onVv = () => {
@@ -399,14 +416,6 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 displayMoves={displayMoves}
                 dueTime={replayMode ? undefined : gameState?.dueTime}
                 targetScore={replayMode ? undefined : targetScore}
-                endGameDisabled={endGameDisabled}
-                onEndGame={
-                    replayMode
-                        ? undefined
-                        : () => {
-                              void settleManuallyAndExit();
-                          }
-                }
             />
             {/* {renderControlPanel()} */}
             <div
@@ -418,15 +427,14 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                     boardDimension
                         ? ({
                               ['--solo-card-width' as string]: `${boardDimension.cardWidth}px`,
-                              ['--solo-waste-fan-step' as string]: `${Math.round(wasteFanStep(boardDimension.cardWidth))}px`,
+                              ['--solo-waste-fan-step' as string]: `${wasteFanStepPx(boardDimension.cardWidth)}px`,
                           } as React.CSSProperties)
                         : undefined
                 }
             >
-                <div className="solo-foundation-spacer" aria-hidden />
                 {renderFoundations()}
-                {renderTalon()}
                 {renderWaste()}
+                {renderTalon()}
                 {renderTableau()}
                 <div className="solo-board-cards-layer">{renderCards}</div>
             </div>

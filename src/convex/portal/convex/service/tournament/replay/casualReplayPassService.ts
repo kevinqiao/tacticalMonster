@@ -1,17 +1,17 @@
 import { v } from "convex/values";
 import type { Id } from "../../../_generated/dataModel";
 import type { MutationCtx } from "../../../_generated/server";
-import { mutation, query } from "../../../_generated/server";
+import { authedMutation, authedQuery } from "../../../custom/session";
 import { countUnusedReplayTokens } from "./casualReplayTokens";
 import {
   startCasualRunReplayWithToken,
   type StartCasualRunReplayResult,
 } from "./casualRunReplay";
 
-export const countUnusedReplayTokensForUid = query({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
-    const n = await countUnusedReplayTokens(ctx, uid);
+export const countUnusedReplayTokensForUid = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const n = await countUnusedReplayTokens(ctx, ctx.uid);
     return { count: n };
   },
 });
@@ -32,13 +32,12 @@ export async function findOldestUnusedReplayTokenId(
  * ??:??? match/gameId,??? join/?????
  * ??? `portal_run_player_matches` ??? `open`;?????? `gameId` ??? `loadGame({ resetCasualRun: true })` ??????
  */
-export const startCasualRunReplay = mutation({
+export const startCasualRunReplay = authedMutation({
   args: {
-    uid: v.string(),
     matchGameId: v.string(),
     replayTokenId: v.id("casual_replay_tokens"),
   },
   handler: async (ctx, args): Promise<StartCasualRunReplayResult> => {
-    return await startCasualRunReplayWithToken(ctx, args);
+    return await startCasualRunReplayWithToken(ctx, { uid: ctx.uid, ...args });
   },
 });

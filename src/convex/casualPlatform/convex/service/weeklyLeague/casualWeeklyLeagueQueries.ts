@@ -3,7 +3,7 @@
  */
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
-import { mutation, query } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
 import { listCohortMembers } from "./casualWeeklyLeagueCohort";
 import {
   ensureWeeklyLeagueMember,
@@ -11,16 +11,17 @@ import {
 } from "./casualWeeklyLeagueService";
 import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
 
-export const getWeeklyLeagueSnapshot = query({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
-    return await getWeeklyLeagueSnapshotForUid(ctx, uid);
+export const getWeeklyLeagueSnapshot = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await getWeeklyLeagueSnapshotForUid(ctx, ctx.uid);
   },
 });
 
-export const listWeeklyLeagueCohort = query({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
+export const listWeeklyLeagueCohort = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const now = Date.now();
     const weekKey = weeklyPeriodKey(now);
     const member = await ctx.db
@@ -58,9 +59,10 @@ export const listWeeklyLeagueCohort = query({
   },
 });
 
-export const claimWeeklyLeagueRewards = mutation({
-  args: { uid: v.string(), weekKey: v.optional(v.string()) },
-  handler: async (ctx, { uid, weekKey: weekKeyArg }) => {
+export const claimWeeklyLeagueRewards = authedMutation({
+  args: { weekKey: v.optional(v.string()) },
+  handler: async (ctx, { weekKey: weekKeyArg }) => {
+    const uid = ctx.uid;
     const weekKey = weekKeyArg ?? weeklyPeriodKey(Date.now());
     const member = await ctx.db
       .query("casual_weekly_league_members")
@@ -100,9 +102,10 @@ export const claimWeeklyLeagueRewards = mutation({
   },
 });
 
-export const dismissWeeklyLeagueClose = mutation({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
+export const dismissWeeklyLeagueClose = authedMutation({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const weekKey = weeklyPeriodKey(Date.now());
     const member = await ctx.db
       .query("casual_weekly_league_members")
@@ -114,10 +117,10 @@ export const dismissWeeklyLeagueClose = mutation({
   },
 });
 
-export const ensureWeeklyLeagueMemberMutation = mutation({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
-    const id = await ensureWeeklyLeagueMember(ctx, uid);
+export const ensureWeeklyLeagueMemberMutation = authedMutation({
+  args: {},
+  handler: async (ctx) => {
+    const id = await ensureWeeklyLeagueMember(ctx, ctx.uid);
     return { ok: Boolean(id) };
   },
 });

@@ -4,6 +4,8 @@ import {
   getTournamentConfig,
   resolveTournamentMode,
 } from "@/convex/tournament/convex/data/tournamentConfigs";
+import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
+import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import { useUserManager } from "host/service/UserManager";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -26,13 +28,42 @@ export const URLS: { [k: string]: string } = {
 };
 
 
-/** 锦标赛：WebSocket 订阅 / action（与 PlayTacticalMonster 里 tournamentClient 一致） */
-const tournamentLiveClient = new ConvexClient(URLS.tournament);
+let tournamentHttpSingleton: ConvexHttpClient | null = null;
+let tacticalMonsterHttpSingleton: ConvexHttpClient | null = null;
+let tournamentLiveSingleton: ConvexClient | null = null;
+let tacticalMonsterLiveSingleton: ConvexClient | null = null;
 
-/**
- * tacticalMonster：实时订阅 query（ConvexHttpClient 无 onUpdate，须用 ConvexClient）
- */
-const tacticalMonsterLiveClient = new ConvexClient(URLS.tacticalMonster);
+function getTournamentHttp(): ConvexHttpClient {
+  if (!tournamentHttpSingleton) {
+    tournamentHttpSingleton = new ConvexHttpClient(URLS.tournament);
+    registerConvexAuthClient(tournamentHttpSingleton);
+  }
+  return tournamentHttpSingleton;
+}
+
+function getTacticalMonsterHttp(): ConvexHttpClient {
+  if (!tacticalMonsterHttpSingleton) {
+    tacticalMonsterHttpSingleton = new ConvexHttpClient(URLS.tacticalMonster);
+    registerConvexAuthClient(tacticalMonsterHttpSingleton);
+  }
+  return tacticalMonsterHttpSingleton;
+}
+
+function getTournamentLive(): ConvexClient {
+  if (!tournamentLiveSingleton) {
+    tournamentLiveSingleton = new ConvexClient(URLS.tournament);
+    registerConvexAuthClient(tournamentLiveSingleton);
+  }
+  return tournamentLiveSingleton;
+}
+
+function getTacticalMonsterLive(): ConvexClient {
+  if (!tacticalMonsterLiveSingleton) {
+    tacticalMonsterLiveSingleton = new ConvexClient(URLS.tacticalMonster);
+    registerConvexAuthClient(tacticalMonsterLiveSingleton);
+  }
+  return tacticalMonsterLiveSingleton;
+}
 
 /** getAvailableTournaments 的 config 无顶层 mode，需用静态表按 typeId 补全（与 TournamentHome 一致）。 */
 function resolveTournamentModeWithStaticFallback(item: { typeId?: string; config?: any }) {
@@ -46,8 +77,8 @@ function resolveTournamentModeWithStaticFallback(item: { typeId?: string; config
 }
 
 export const useTournamentManager = () => {
-  const tournamentHttpClient = React.useMemo(() => new ConvexHttpClient(URLS.tournament), []);
-  const tacticalMonsterHttpClient = React.useMemo(() => new ConvexHttpClient(URLS.tacticalMonster), []);
+  const tournamentHttpClient = useMemo(() => getTournamentHttp(), []);
+  const tacticalMonsterHttpClient = useMemo(() => getTacticalMonsterHttp(), []);
   const [player, setPlayer] = useState<Player | null>(null);
   const [monsters, setMonsters] = useState<any[] | null>(null);
   const [tournaments, setTournaments] = useState<any[] | null>(null);
@@ -56,13 +87,13 @@ export const useTournamentManager = () => {
 
   /** 订阅 getAllRuleStatuses；依赖数据变更时 Convex 会推送，无需额外 Provider */
   useEffect(() => {
-    if (!user?.uid) {
+    if (!isPlatformAuthed(user)) {
       setRuleStatuses(undefined);
       return;
     }
-    const sub = tacticalMonsterLiveClient.onUpdate(
+    const sub = getTacticalMonsterLive().onUpdate(
       tacticalMonsterApi.service.tournament.tournamentService.getAllRuleStatuses,
-      { uid: user.uid },
+      {},
       (rows) => {
         console.log("getAllRuleStatuses onUpdate", rows);
         setRuleStatuses(rows);
@@ -70,15 +101,12 @@ export const useTournamentManager = () => {
       (err) => console.error("[TournamentManager] getAllRuleStatuses onUpdate", err)
     );
     return () => sub.unsubscribe();
-  }, [user?.uid]);
+  }, [user]);
 
   useEffect(() => {
-    if (!user || !user.token || !tournamentHttpClient || !tacticalMonsterHttpClient) return;
+    if (!isPlatformAuthed(user)) return;
     const authenticate = async () => {
-      const result = await tournamentHttpClient.action(tournamentApi.service.auth.authenticate, {
-        uid: user.uid,
-        token: user.token,
-      });
+      const result = await tournamentHttpClient.action(tournamentApi.service.auth.authenticate, {});
       if (result) {
         setPlayer(result);
       }
@@ -87,21 +115,21 @@ export const useTournamentManager = () => {
   }, [user, tournamentHttpClient, tacticalMonsterHttpClient]);
 
   const loadMonsters = React.useCallback(async () => {
-    if (!user?.uid || !tacticalMonsterHttpClient) return;
+    if (!isPlatformAuthed(user)) return;
     const result = await tacticalMonsterHttpClient.query(
       tacticalMonsterApi.service.monster.monsterService.getPlayerMonsters,
-      { uid: user.uid }
+      {}
     );
     setMonsters(result);
-  }, [user?.uid, tacticalMonsterHttpClient]);
+  }, [user, tacticalMonsterHttpClient]);
 
   useEffect(() => {
-    if (!user?.uid || !tacticalMonsterHttpClient) return;
+    if (!isPlatformAuthed(user)) return;
     const onLogin = async () => {
       try {
         await tacticalMonsterHttpClient.mutation(
           tacticalMonsterApi.service.monster.monsterService.ensureStarterMonstersOnLogin,
-          { uid: user.uid }
+          {}
         );
       } catch (e) {
         console.warn("ensureStarterMonstersOnLogin:", e);
@@ -109,7 +137,7 @@ export const useTournamentManager = () => {
       loadMonsters();
     };
     void onLogin();
-  }, [user?.uid, tacticalMonsterHttpClient, loadMonsters]);
+  }, [user, tacticalMonsterHttpClient, loadMonsters]);
 
   const updateMonsterPosition = useCallback((monsterId: string, q: number, r: number) => {
     setMonsters((prev) => {
@@ -130,12 +158,12 @@ export const useTournamentManager = () => {
   }, []);
 
   useEffect(() => {
-    if (!user?.uid || !tournamentHttpClient) return;
+    if (!isPlatformAuthed(user)) return;
     const loadTournaments = async () => {
       try {
         const tournamentRes = await tournamentHttpClient.query(
           tournamentApi.service.tournament.tournamentService.getAvailableTournaments,
-          { uid: user.uid }
+          {}
         );
         console.log("loadLobby tournaments", { tournamentRes });
         if (tournamentRes?.success) {
@@ -146,12 +174,12 @@ export const useTournamentManager = () => {
       }
     };
     void loadTournaments();
-  }, [user?.uid, tournamentHttpClient]);
+  }, [user, tournamentHttpClient]);
 
   useEffect(() => {
-    if (!user?.uid) return;
-    tournamentLiveClient
-      .action(tournamentApi.service.tournament.matchManager.checkLastMatch, { uid: user.uid })
+    if (!isPlatformAuthed(user)) return;
+    getTournamentLive()
+      .action(tournamentApi.service.tournament.matchManager.checkLastMatch, {})
       .then((result) => {
         console.log("check last Match result", result);
         const gameId = result?.gameId;
@@ -213,12 +241,12 @@ export const useTournamentManager = () => {
   const joinTournament = useCallback(
     async (typeId: string, stageId: string) => {
       console.log("joinTournament", typeId, stageId);
-      if (!user?.uid || !tacticalMonsterHttpClient) {
+      if (!isPlatformAuthed(user)) {
         return { ok: false, errorCode: "CLIENT_NOT_READY" };
       }
       const result = await tacticalMonsterHttpClient.action(
         tacticalMonsterApi.service.tournament.tournamentService.join,
-        { uid: user.uid, typeId, stageId }
+        { typeId, stageId }
       );
       if (!result?.ok) {
         console.error("[TournamentManager] joinTournament failed", {

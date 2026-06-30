@@ -24,7 +24,6 @@ const casualActivityTarget = v.union(
 export default defineSchema({
   casual_players: defineTable({
     uid: v.string(),
-    token: v.optional(v.string()),
     coins: v.optional(v.number()),
     gems: v.optional(v.number()),
     /** 遗留字段：赛季资源已迁至 `casual_pass_progress`，勿在新代码写入；保留仅为旧文档通过校验 */

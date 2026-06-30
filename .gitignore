@@ -32,7 +32,8 @@ yarn-error.log*
 
 .env.local
 
-.env.local
+# Clerk CLI project link (run `clerk env pull` locally; do not commit secrets)
+.clerk/
 
 # 忽略非 TypeScript/JavaScript 文件（仅放行 docs/CLAUDE.md）
 *.md

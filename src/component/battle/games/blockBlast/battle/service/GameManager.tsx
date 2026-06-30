@@ -3,6 +3,8 @@
  */
 import { useCasualPlatform } from 'component/lobby/casual/service/useCasualPlatformManager';
 import { useUserManager } from 'host/service/UserManager';
+import { usePlatformAuth } from 'host/service/platformAuth/PlatformAuthProvider';
+import { isPlatformAuthed } from 'host/service/platformAuth/platformAccessToken';
 import { useConvex } from 'convex/react';
 import gsap from 'gsap';
 import React, {
@@ -53,6 +55,7 @@ import {
 } from '../../../shared/casualTriathlonSubmitFlow';
 import type { TriathlonNextGame } from 'component/lobby/casual/service/useCasualTriathlonSession';
 import { fetchCasualAsyncTableSummaryForGame } from '../../../shared/fetchCasualAsyncTableSummary';
+import { buildCasualPlatformRunActionArgs } from '../../../shared/casualPlatformActionArgs';
 import { useCasualTableSummaryPoll } from '../../../shared/useCasualTableSummaryPoll';
 
 function isTerminalBlockBlastStatus(status: number | undefined): boolean {
@@ -270,16 +273,18 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     }
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const convex = useConvex();
-    const casual = useCasualPlatform();
     const { user } = useUserManager();
+    const { platformReady } = usePlatformAuth();
     const casualPlatformBridge = casualTournamentId?.startsWith("portal_")
         ? ("portal" as const)
         : undefined;
+    const casualPlatformAuthed =
+        platformReady && isPlatformAuthed(user) && Boolean(user?.platformAccessToken);
+    const casual = useCasualPlatform({ enabled: casualPlatformBridge !== "portal" });
     const fetchTableSummaryForGame = useCallback(
         async (matchGameId: string) => {
             if (!user?.uid) return null;
             return fetchCasualAsyncTableSummaryForGame({
-                uid: user.uid,
                 matchGameId,
                 platformBridge: casualPlatformBridge ?? 'casual',
             });
@@ -641,16 +646,16 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) {
                 return { ok: false, error: 'not_casual_run' };
             }
-            if (!user?.token) {
+            if (!casualPlatformAuthed) {
                 return { ok: false, error: 'missing_casual_auth' };
             }
             casualRunSubmittedRef.current = true;
             const deferHost = Boolean(opts?.deferHostNotify);
             try {
                 const cr = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
-                    token: user.token,
-                    gameId: gs.gameId,
-                    ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
+                    ...buildCasualPlatformRunActionArgs({
+                        gameId: gs.gameId,
+                    }),
                 })) as {
                     ok?: boolean;
                     error?: string;
@@ -670,10 +675,14 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             } catch (e) {
                 console.error('[BlockBlast] runForceEndCasualSettlement', e);
                 casualRunSubmittedRef.current = false;
+                const msg = e instanceof Error ? e.message : String(e);
+                if (msg.includes('unauthenticated')) {
+                    return { ok: false, error: 'missing_casual_auth' };
+                }
                 return { ok: false, error: 'network_error' };
             }
         },
-        [convex, user?.token, casualPlatformBridge, commitGameState, mapCasualPlatformRunActionResult]
+        [convex, casualPlatformAuthed, casualPlatformBridge, commitGameState, mapCasualPlatformRunActionResult]
     );
 
     const applyCasualSettleOutcome = useCallback(
@@ -722,12 +731,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
 
     const replayCasualRun = useCallback(async () => {
         const gs = gameStateRef.current;
-        if (!gs || !user?.token || casualReplayBusy) return;
+        if (!gs || !casualPlatformAuthed || casualReplayBusy) return;
         if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
         setCasualReplayBusy(true);
         try {
             const rr = (await convex.action(api.proxy.controller.replayCasualRun, {
-                token: user.token,
                 gameId: gs.gameId,
                 ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
             })) as { ok?: boolean; error?: string };
@@ -751,7 +759,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         } finally {
             setCasualReplayBusy(false);
         }
-    }, [convex, user?.token, casualReplayBusy, reloadCasualRun, casualPlatformBridge]);
+    }, [convex, casualPlatformAuthed, casualReplayBusy, reloadCasualRun, casualPlatformBridge]);
 
     const exitCasualRunAfterSettle = useCallback(
         async (opts: { hadReplayOffer: boolean }) => {
@@ -946,12 +954,13 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     casualTournamentId &&
                     typeof gs.gameId === 'string' &&
                     gs.gameId.startsWith('game_') &&
-                    user?.token
+                    casualPlatformAuthed
                 ) {
                     const cr = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
-                        token: user.token,
-                        gameId: gs.gameId,
-                        ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
+                        ...buildCasualPlatformRunActionArgs({
+                            gameId: gs.gameId,
+                            platformBridge: casualPlatformBridge,
+                        }),
                     })) as {
                         ok?: boolean;
                         error?: string;
@@ -1019,7 +1028,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 return { ok: false };
             }
         },
-        [convex, casualTournamentId, user?.token, onGameSubmit, triathlonSessionActive, casualPlatformBridge]
+        [convex, casualTournamentId, casualPlatformAuthed, onGameSubmit, triathlonSessionActive, casualPlatformBridge]
     );
 
     const finishManualSettleSuccess = useCallback(
@@ -1067,10 +1076,10 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         try {
             const isCasualGameId =
                 typeof gs.gameId === 'string' && gs.gameId.startsWith('game_');
-            if (Boolean(casualTournamentId) && isCasualGameId && !user?.token) {
+            if (Boolean(casualTournamentId) && isCasualGameId && !casualPlatformAuthed) {
                 throw new Error(casualSettleErrorMessage('missing_casual_auth'));
             }
-            const isCasualRun = isCasualGameId && Boolean(user?.token);
+            const isCasualRun = isCasualGameId && casualPlatformAuthed;
 
             if (isCasualRun) {
                 const score = Math.max(0, Math.floor(gs.score ?? 0));
@@ -1148,7 +1157,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     }, [
         convex,
         casualTournamentId,
-        user?.token,
+        casualPlatformAuthed,
         targetScore,
         commitGameState,
         runBlockBlastSettlement,
@@ -1273,7 +1282,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 await beginCasualPostSettleFlow(matchGameId, score, {});
             }
 
-            if (!user?.token || casualRunSubmittedRef.current) return;
+            if (!casualPlatformAuthed || casualRunSubmittedRef.current) return;
 
             const settled = await runForceEndCasualSettlement({ deferHostNotify: true });
             if (settled.ok) {
@@ -1297,7 +1306,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             settleInFlightRef.current = false;
         }
     }, [
-        user?.token,
+        casualPlatformAuthed,
         runForceEndCasualSettlement,
         fetchTableSummaryForGame,
         commitGameState,
@@ -1347,9 +1356,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 typeof gameState.gameId === 'string' &&
                 gameState.gameId.startsWith('game_');
             try {
-                if (isCasualRun && user?.token) {
+                if (isCasualRun && casualPlatformAuthed) {
                     const cr = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
-                        token: user.token,
                         gameId: gameState.gameId,
                         ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
                     })) as {
@@ -1409,7 +1417,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 console.error('submitScore failed', e);
             }
         },
-        [gameState, convex, onGameSubmit, casualTournamentId, user?.token, beginCasualPostSettleFlow, triathlonSessionActive, casualPlatformBridge]
+        [gameState, convex, onGameSubmit, casualTournamentId, casualPlatformAuthed, beginCasualPostSettleFlow, triathlonSessionActive, casualPlatformBridge]
     );
 
     const value: IBlockBlastGameContext = {

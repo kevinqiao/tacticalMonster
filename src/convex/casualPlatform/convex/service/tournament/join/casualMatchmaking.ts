@@ -9,7 +9,8 @@ import {
   CASUAL_SOLO_ASYNC_OPEN_DELAY_MS,
 } from "../../../data/casualMatchmakingConfig";
 import { getTournamentDefinition } from "../../../data/casualTournamentConfigs";
-import { internalMutation, internalQuery, mutation, query } from "../../../_generated/server";
+import { internalMutation, internalQuery } from "../../../_generated/server";
+import { authedMutation, authedQuery } from "../../../custom/session";
 import {
   evaluateEffectiveHumans,
   logJoinMatchmakingProfileResult,
@@ -213,9 +214,10 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
   },
 });
 
-export const listCasualMatchQueueForUid = query({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
+export const listCasualMatchQueueForUid = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const rows = await ctx.db
       .query("casual_match_queue")
       .withIndex("by_uid", (q) => q.eq("uid", uid))
@@ -248,12 +250,12 @@ export const listCasualMatchQueueForUid = query({
   },
 });
 
-export const leaveCasualMatchQueue = mutation({
+export const leaveCasualMatchQueue = authedMutation({
   args: {
-    uid: v.string(),
     templateId: v.optional(v.string()),
   },
-  handler: async (ctx, { uid, templateId }) => {
+  handler: async (ctx, { templateId }) => {
+    const uid = ctx.uid;
     const rows = await ctx.db
       .query("casual_match_queue")
       .withIndex("by_uid", (q) => q.eq("uid", uid))

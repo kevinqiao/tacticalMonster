@@ -3,6 +3,7 @@ import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_gene
 import { BOSS_CONFIGS } from "@/convex/tacticalMonster/convex/data/bossConfigs";
 import { ConvexHttpClient } from "convex/browser";
 import gsap from "gsap";
+import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
 import { useUserManager } from "host/service/UserManager";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -108,7 +109,11 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, bossSca
     const [dragMonster, setDragMonster] = useState<{ monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null>(null);
     const { monsters, updateMonsterPosition, updateMonsterRemove } = useTournamentManager();
     const { user } = useUserManager();
-    const tacticalMonsterClient = useMemo(() => new ConvexHttpClient(URLS.tacticalMonster), []);
+    const tacticalMonsterClient = useMemo(() => {
+        const client = new ConvexHttpClient(URLS.tacticalMonster);
+        registerConvexAuthClient(client);
+        return client;
+    }, []);
     const [playerMonsters, setPlayerMonsters] = useState<{ monsterId: string, teamPosition?: { q: number; r: number } }[]>([]);
     const [selectedMonsterId, setSelectedMonsterId] = useState<string | null>(null);
 
@@ -302,7 +307,6 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, bossSca
             if (!uid) return;
             try {
                 await tacticalMonsterClient.mutation(tacticalMonsterApi.service.team.teamService.setMonsterPosition, {
-                    uid,
                     monsterId,
                     q,
                     r,
@@ -321,7 +325,6 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, bossSca
             if (!uid) return;
             try {
                 await tacticalMonsterClient.mutation(tacticalMonsterApi.service.team.teamService.addMonsterToTeam, {
-                    uid,
                     monsterId,
                     q,
                     r,
@@ -340,7 +343,6 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, bossSca
             if (!uid) return;
             try {
                 await tacticalMonsterClient.mutation(tacticalMonsterApi.service.team.teamService.removeMonsterFromTeam, {
-                    uid,
                     monsterId,
                 });
                 updateMonsterRemove(monsterId);

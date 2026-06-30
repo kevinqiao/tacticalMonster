@@ -4,13 +4,12 @@ import { internalMutation, internalQuery } from "../_generated/server";
 export const create = internalMutation({
     args: {
         uid: v.string(),
-        token: v.string(),
         expire: v.optional(v.number()),
         name: v.optional(v.string()),
         avatar: v.optional(v.string()),
     },
-    handler: async (ctx, { uid,token,name,avatar }) => {
-        const pid = await ctx.db.insert("game_player", { uid,token,name,avatar,level:0,exp:0 });
+    handler: async (ctx, { uid, expire, name, avatar }) => {
+        const pid = await ctx.db.insert("game_player", { uid, expire, name, avatar, level: 0, exp: 0 });
         return pid;
     },
 })

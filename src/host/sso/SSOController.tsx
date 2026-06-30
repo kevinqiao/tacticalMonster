@@ -1,7 +1,9 @@
 import { findContainer, getURLParams } from "@/host/util/PageUtils";
 import { useModalManager } from "host/service/ModalManager";
+import { useEmbedAuthGate } from "host/service/platformAuth/EmbedAuthGateProvider";
+import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import { User, useUserManager } from "host/service/UserManager";
-import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { usePageManager } from "../service/PageManager";
 import { PANELS } from "./config";
@@ -44,6 +46,7 @@ const SSOController: React.FC = () => {
   const { pageContainers, currentPage, sumbitPage } = usePageManager();
   const { submitModal } = useModalManager();
   const { user, cancelAuth, authComplete } = useUserManager();
+  const { deferClerk } = useEmbedAuthGate();
   const authContainer = useMemo(() => {
     return {
       ele: null,
@@ -74,11 +77,22 @@ const SSOController: React.FC = () => {
     return container?.auth === 1 ? 2 : 0;
   }, [user, currentPage, pageContainers]);
 
-  const { playOpen, playClose } = useAuthAnimate({ container: authContainer });
+  /** Hold SSO closed while Partner embed JWT may still arrive / exchange. */
+  const effectiveAuthLevel = deferClerk ? 0 : authLevel;
 
+  const { playOpen, playClose } = useAuthAnimate({ container: authContainer });
+  const wasPlatformAuthedRef = useRef(false);
+
+  useEffect(() => {
+    const authed = isPlatformAuthed(user);
+    if (authed && !wasPlatformAuthedRef.current) {
+      playClose({});
+    }
+    wasPlatformAuthedRef.current = authed;
+  }, [playClose, user]);
 
   const onCancel = useCallback(() => {
-    if (authLevel < 2) {
+    if (effectiveAuthLevel < 2) {
       playClose({
         onComplete: () => {
           cancelAuth();
@@ -87,26 +101,23 @@ const SSOController: React.FC = () => {
       });
     }
 
-  }, [cancelAuth, playClose, authLevel]);
+  }, [cancelAuth, playClose, effectiveAuthLevel]);
   const onSuccess = useCallback(
     (u: User) => {
+      const pendingAuthReq = user?.authReq;
+      authComplete(u, 1);
       playClose({
         onComplete: () => {
-          if (user && user.authReq) {
-            if (user.authReq.page)
-              sumbitPage(user.authReq.page);
-            if (user.authReq.modal)
-              submitModal(user.authReq.modal);
-          }
-          authComplete(u, 1);
+          if (pendingAuthReq?.page) sumbitPage(pendingAuthReq.page);
+          if (pendingAuthReq?.modal) submitModal(pendingAuthReq.modal);
         },
       });
     },
-    [playClose, authComplete, sumbitPage, user]
+    [playClose, authComplete, sumbitPage, submitModal, user]
   );
 
   useLayoutEffect(() => {
-    if (authLevel <= 0) return;
+    if (effectiveAuthLevel <= 0) return;
     let cancelled = false;
     const tryOpen = () => {
       if (cancelled) return;
@@ -115,7 +126,7 @@ const SSOController: React.FC = () => {
         return;
       }
       playOpen({
-        closeAble: authLevel < 2,
+        closeAble: effectiveAuthLevel < 2,
         onComplete: () => console.log("playOpen finished"),
       });
     };
@@ -123,7 +134,7 @@ const SSOController: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [authContainer, playOpen, authLevel]);
+  }, [authContainer, playOpen, effectiveAuthLevel]);
 
   const layer = useMemo(
     () => {

@@ -15,6 +15,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
 
 export type SkinEntitlements = {
   seasonId: string;
@@ -118,10 +119,10 @@ export const getSkinCatalog = query({
   handler: async () => listPublicSkinCatalog(),
 });
 
-export const getPlayerSkinState = query({
-  args: { uid: v.optional(v.string()) },
-  handler: async (ctx, { uid }) => {
-    if (!uid) return null;
+export const getPlayerSkinState = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const season = await resolveActiveSeason(ctx);
     const seasonId = season?.seasonId ?? "casual_s1";
 
@@ -247,13 +248,13 @@ export const ensureDefaultSkinsForPlayer = internalMutation({
   },
 });
 
-export const equipSkin = mutation({
+export const equipSkin = authedMutation({
   args: {
-    uid: v.string(),
     slot: v.string(),
     skinId: v.string(),
   },
-  handler: async (ctx, { uid, slot, skinId }) => {
+  handler: async (ctx, { slot, skinId }) => {
+    const uid = ctx.uid;
     const entry = getSkinCatalogEntry(skinId);
     if (!entry) return { ok: false as const, error: "unknown_skin" };
 
@@ -292,9 +293,10 @@ export const equipSkin = mutation({
   },
 });
 
-export const unequipSkin = mutation({
-  args: { uid: v.string(), slot: v.string() },
-  handler: async (ctx, { uid, slot }) => {
+export const unequipSkin = authedMutation({
+  args: { slot: v.string() },
+  handler: async (ctx, { slot }) => {
+    const uid = ctx.uid;
     const row = await ctx.db
       .query("casual_player_skin_equip")
       .withIndex("by_uid_slot", (q) => q.eq("uid", uid).eq("slot", slot))

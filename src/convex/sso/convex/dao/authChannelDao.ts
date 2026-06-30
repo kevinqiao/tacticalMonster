@@ -1,13 +1,13 @@
 import { v } from "convex/values";
+
 import { internalQuery } from "../_generated/server";
+import { getAuthChannelByCid } from "../service/auth/authChannelCatalog";
 
 export const find = internalQuery({
-    args: { cid: v.number() },
-    handler: async (ctx, { cid }) => {
-        const channel = await ctx.db.query("auth_channel").withIndex("by_channel", (q) => q.eq("cid", cid)).unique();
-        return channel;
-    }
+  args: { cid: v.number() },
+  handler: async (_ctx, { cid }) => {
+    const channel = getAuthChannelByCid(cid);
+    if (!channel) return null;
+    return { cid: channel.cid, provider: channel.provider };
+  },
 });
-
-
-

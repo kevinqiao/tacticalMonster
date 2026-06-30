@@ -1,7 +1,11 @@
 /**
  * Casual solo-rank-planning-inputs HTTP client.
  */
-import { resolveCasualBridgeEnv } from "../casualBridgeEnv";
+import {
+  casualBridgeRequestHeaders,
+  resolveCasualBridgeEnv,
+  type PlatformBridge,
+} from "../casualBridgeEnv";
 import type {
   BotStrategyPlayerContext,
   CasualRankRateEntry,
@@ -33,17 +37,15 @@ function normalizeRankCounts(raw: unknown): Record<number, number> {
 export async function fetchSoloRankPlanningInputs(args: {
   uid: string;
   templateId: string;
+  platformBridge?: PlatformBridge;
 }): Promise<SoloRankPlanningResult> {
-  const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
-  const url = `${casualOrigin}/internal/solo-rank-planning-inputs`;
+  const bridgeEnv = resolveCasualBridgeEnv(args.platformBridge ?? "casual");
+  const url = `${bridgeEnv.origin}/internal/solo-rank-planning-inputs`;
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Casual-Bridge-Secret": bridge,
-      },
+      headers: casualBridgeRequestHeaders(bridgeEnv),
       body: JSON.stringify({ uid: args.uid, templateId: args.templateId }),
     });
   } catch (e) {

@@ -1,7 +1,7 @@
 /** 页面切换动画（初始化定位 + 打开动画调度） */
 import { useSharedValue } from "host/service/SharedPageDataManager";
 import gsap from "gsap";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AuthContainer } from "./SSOController";
 
 export interface AuthEffect {
@@ -22,27 +22,47 @@ function toCssSize(value: unknown, fallback: string) {
 const OPEN_EFFECTS = new Set(["popCenter", "popCenterIn", "swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
 const CLOSE_EFFECTS = new Set(["popCenter", "popCenterIn", "swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
 export const AUTH_EFFECTS: AuthEffect[] = [{
-  name: "popCenter",
+  name: "swipeRight",
   orientation: "portrait",
-  args: { height: "100%", width: "100%" }
+  args: { width: "100%" },
 }, {
   name: "swipeRight",
   orientation: "landscape",
-  args: { width: "30%" }
+  args: { width: "30%" },
 }];
 
-/** 共享尚未写入时用横屏方案占位，避免 `find` 无键；若要在首帧更准 portrait，需在 App/Lobby 更早 `setShared("lobby.layout.orientation", …)` */
-const DEFAULT_ORIENTATION: "landscape" = "landscape";
+function inferAuthOrientation(): "portrait" | "landscape" {
+  if (typeof window === "undefined") return "landscape";
+  return window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
+}
 
 export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
   const sharedOrientation = useSharedValue("lobby.layout.orientation");
+  const [viewportOrientation, setViewportOrientation] = useState(inferAuthOrientation);
   /** 关闭动画与打开成对（旋转或共享 orientation 晚到时不混用两套 name） */
   const openedEffectRef = useRef<AuthEffect | null>(null);
 
-  const resolveEffect = useCallback((): AuthEffect => {
-    const orientation = sharedOrientation ?? DEFAULT_ORIENTATION;
-    return AUTH_EFFECTS.find((e) => e.orientation === orientation) ?? AUTH_EFFECTS[0];
+  useEffect(() => {
+    if (sharedOrientation) return;
+    const mq = window.matchMedia("(orientation: portrait)");
+    const sync = () => setViewportOrientation(mq.matches ? "portrait" : "landscape");
+    sync();
+    mq.addEventListener("change", sync);
+    window.addEventListener("resize", sync);
+    return () => {
+      mq.removeEventListener("change", sync);
+      window.removeEventListener("resize", sync);
+    };
   }, [sharedOrientation]);
+
+  const resolveOrientation = useCallback((): "portrait" | "landscape" => {
+    return sharedOrientation ?? viewportOrientation ?? inferAuthOrientation();
+  }, [sharedOrientation, viewportOrientation]);
+
+  const resolveEffect = useCallback((): AuthEffect => {
+    const orientation = resolveOrientation();
+    return AUTH_EFFECTS.find((e) => e.orientation === orientation) ?? AUTH_EFFECTS[0];
+  }, [resolveOrientation]);
   const syncModalLayout = useCallback(
     (orientation: string) => {
       if (!container.ele) return;
@@ -238,7 +258,11 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
   const playClose = useCallback(
     ({ onComplete }: { onComplete?: () => void | Promise<void> }) => {
       const effect = openedEffectRef.current ?? resolveEffect();
-      if (!container.ele) return;
+      if (!container.ele) {
+        openedEffectRef.current = null;
+        onComplete?.();
+        return;
+      }
 
       if (!CLOSE_EFFECTS.has(effect.name)) {
         openedEffectRef.current = null;
@@ -285,8 +309,8 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
   );
 
   useEffect(() => {
-    syncModalLayout(sharedOrientation ?? DEFAULT_ORIENTATION);
-  }, [sharedOrientation, syncModalLayout]);
+    syncModalLayout(resolveOrientation());
+  }, [resolveOrientation, syncModalLayout]);
 
   return { playOpen, playClose };
 };

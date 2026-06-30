@@ -54,6 +54,31 @@
 
 }
 
+/** Long-form admin / landing pages inside fixed viewport shells. */
+.page_container.page_container--scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  pointer-events: auto;
+}
+
+/** Campaign merchant sub-routes (campaigns / redeem / …): fill shell, scroll in `.merchant-page`. */
+.merchant_child_shell {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.merchant_child_shell[data-active="true"] {
+  pointer-events: auto;
+}
+
 .children-group {
   position: absolute;
   top: 0px;

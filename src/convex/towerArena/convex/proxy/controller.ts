@@ -1,10 +1,9 @@
 "use node";
 
 import { v } from "convex/values";
-import jwt from "jsonwebtoken";
-
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
+import { authedAction } from "../custom/session";
 import { postCasualRunIngest, type CasualIngestParsed } from "../service/casualBridgeIngest";
 import { buildCasualV2IngestPayload } from "../service/casualBotFill/computeBotFills";
 import {
@@ -16,23 +15,6 @@ import { resolveCasualBridgeEnv } from "../service/casualBridgeEnv";
 import { generateTowerSeedFromId } from "../shared/towerSeedCatalog";
 
 const tournament_url = "https://beloved-mouse-699.convex.site";
-
-/** 须与 casualPlatform JWT_ACCESS_SECRET 一致 */
-function jwtAccessSecret(): string {
-    return process.env.JWT_ACCESS_SECRET ?? "12222222";
-}
-
-function verifyCasualRunToken(token: string): { ok: true; uid: string } | { ok: false; error: string } {
-    try {
-        const payload = jwt.verify(token, jwtAccessSecret());
-        if (!payload || typeof payload !== "object" || !("uid" in payload)) {
-            return { ok: false, error: "invalid_token" };
-        }
-        return { ok: true, uid: String((payload as { uid: unknown }).uid) };
-    } catch {
-        return { ok: false, error: "verify_failed" };
-    }
-}
 
 function mapCasualIngestClientResponse(
     parsed: CasualIngestParsed,
@@ -263,18 +245,14 @@ export const submitScore = action({
 /**
  * 休闲锦标 v2：resolve 桌型 → 游戏服算 bot → POST casual ingest。
  */
-export const submitCasualPlatformRun = action({
-    args: { token: v.string(), gameId: v.string() },
-    handler: async (ctx, { token, gameId }) => {
+export const submitCasualPlatformRun = authedAction({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
         if (!gameId.startsWith("game_")) {
             return { ok: false as const, error: "not_casual_run_game_id" };
         }
 
-        const auth = verifyCasualRunToken(token);
-        if (!auth.ok) {
-            return { ok: false as const, error: auth.error };
-        }
-        const uid = auth.uid;
+        const uid = ctx.uid;
         const parsedId = parseCasualRunGameId(gameId);
         if (!parsedId || parsedId.uid !== uid) {
             console.warn("[tower] submitCasualPlatformRun forbidden", {
@@ -341,18 +319,14 @@ export const submitCasualPlatformRun = action({
 /**
  * 玩家强行结束：取消 timeout scheduler、终局写 game 表、ingest casual。
  */
-export const forceEndCasualPlatformRun = action({
-    args: { token: v.string(), gameId: v.string() },
-    handler: async (ctx, { token, gameId }) => {
+export const forceEndCasualPlatformRun = authedAction({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
         if (!gameId.startsWith("game_")) {
             return { ok: false as const, error: "not_casual_run_game_id" };
         }
 
-        const auth = verifyCasualRunToken(token);
-        if (!auth.ok) {
-            return { ok: false as const, error: auth.error };
-        }
-        const uid = auth.uid;
+        const uid = ctx.uid;
         const parsedId = parseCasualRunGameId(gameId);
         if (!parsedId || parsedId.uid !== uid) {
             console.warn("[tower] forceEndCasualPlatformRun forbidden", {
@@ -405,25 +379,16 @@ export const forceEndCasualPlatformRun = action({
 /**
  * 休闲再战：authorize → 清档 → 同 gameId 重建。
  */
-export const replayCasualRun = action({
-    args: { token: v.string(), gameId: v.string() },
-    handler: async (ctx, { token, gameId }) => {
+export const replayCasualRun = authedAction({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
         const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
 
         if (!gameId.startsWith("game_")) {
             return { ok: false as const, error: "not_casual_run_game_id" };
         }
 
-        let uid: string;
-        try {
-            const payload = jwt.verify(token, jwtAccessSecret());
-            if (!payload || typeof payload !== "object" || !("uid" in payload)) {
-                return { ok: false as const, error: "invalid_token" };
-            }
-            uid = String((payload as { uid: unknown }).uid);
-        } catch {
-            return { ok: false as const, error: "verify_failed" };
-        }
+        const uid = ctx.uid;
 
         const url = `${casualOrigin}/internal/casual-replay-authorize`;
         let res: Response;

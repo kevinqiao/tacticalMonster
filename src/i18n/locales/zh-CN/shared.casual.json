@@ -1,0 +1,38 @@
+{
+  "joinEntry": {
+    "unknown_tournament": "未知锦标赛",
+    "game_not_available": "该玩法暂未开放",
+    "period_unavailable": "当前周期不可用",
+    "needs_cost_ack": "请先确认入场消耗",
+    "no_player": "未找到玩家档案，请先完成登录同步",
+    "no_active_season": "当前无激活赛季，赛季券不可用",
+    "insufficient_coins": "金币不足，无法入场",
+    "insufficient_gems": "钻石不足，无法入场",
+    "insufficient_vouchers": "赛季券不足，无法入场",
+    "replay_not_for_season_voucher": "赛季券专场不可使用再战令",
+    "unknown_match_game": "未找到对局记录",
+    "match_not_replayable": "当前对局不可再战",
+    "replay_requires_solo_table": "仅单人桌（无其他真人同桌）可再战",
+    "token_invalid": "再战令无效",
+    "token_used": "再战令已使用",
+    "forbidden": "无权操作该对局",
+    "join_failed": "加入失败，请重试",
+    "already_in_open_match": "有未结束的锦标对局，请先完成或放弃后再加入新场",
+    "coupon_limit_reached": "已达领取上限",
+    "campaign_not_live": "活动未开始或已结束",
+    "not_found": "活动不存在",
+    "merchant_unreachable": "活动服务暂不可用，请稍后重试",
+    "daily_play_limit_reached": "今日挑战次数已用完，明天再来",
+    "default_with_code": "无法加入：{{code}}",
+    "default": "无法加入"
+  },
+  "matchOverlay": {
+    "creatingTitle": "正在创建对局",
+    "matchingTitle": "正在匹配中",
+    "creatingSubtitle": "请稍候，对局即将开始…",
+    "waitingWithTitle": "等待另一位玩家加入「{{title}}」",
+    "waitingSubtitle": "等待另一位玩家加入，凑满人数后将自动开桌",
+    "leaving": "退出中…",
+    "leave": "退出匹配"
+  }
+}

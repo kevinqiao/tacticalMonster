@@ -7,7 +7,8 @@
  */
 
 import { v } from "convex/values";
-import { mutation, query } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
+import { query } from "../../_generated/server";
 import { getMonsterConfigsByRarity, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
 import { Monster } from "../../types/monsterTypes";
 
@@ -696,10 +697,10 @@ export const getAllMonsterConfigs = query({
 /**
  * 获取玩家的所有怪物
  */
-export const getPlayerMonsters = query({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        const monsters = await MonsterService.getPlayerMonsters(ctx, args.uid);
+export const getPlayerMonsters = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        const monsters = await MonsterService.getPlayerMonsters(ctx, ctx.uid);
         return monsters;
     },
 });
@@ -707,10 +708,10 @@ export const getPlayerMonsters = query({
 /**
  * 获取玩家的队伍怪物
  */
-export const getPlayerTeamMonsters = query({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        const teamMonsters = await MonsterService.getPlayerTeamMonsters(ctx, args.uid);
+export const getPlayerTeamMonsters = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        const teamMonsters = await MonsterService.getPlayerTeamMonsters(ctx, ctx.uid);
         return teamMonsters;
     },
 });
@@ -718,10 +719,10 @@ export const getPlayerTeamMonsters = query({
 /**
  * 获取玩家的单个怪物
  */
-export const getPlayerMonster = query({
-    args: { uid: v.string(), monsterId: v.string() },
+export const getPlayerMonster = authedQuery({
+    args: { monsterId: v.string() },
     handler: async (ctx, args) => {
-        const monster = await MonsterService.getPlayerMonster(ctx, args.uid, args.monsterId);
+        const monster = await MonsterService.getPlayerMonster(ctx, ctx.uid, args.monsterId);
         return monster;
     },
 });
@@ -729,19 +730,18 @@ export const getPlayerMonster = query({
 /**
  * 登录时检查并创建开局赠送怪物（mr_player_monsters 表）
  */
-export const ensureStarterMonstersOnLogin = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await MonsterService.ensureStarterMonstersOnLogin(ctx, args.uid);
+export const ensureStarterMonstersOnLogin = authedMutation({
+    args: {},
+    handler: async (ctx) => {
+        return await MonsterService.ensureStarterMonstersOnLogin(ctx, ctx.uid);
     },
 });
 
 /**
  * 添加怪物到玩家账户
  */
-export const addMonsterToPlayer = mutation({
+export const addMonsterToPlayer = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
         level: v.optional(v.number()),
         stars: v.optional(v.number()),
@@ -750,7 +750,7 @@ export const addMonsterToPlayer = mutation({
         isUnlocked: v.optional(v.boolean()),  // 新增
     },
     handler: async (ctx, args) => {
-        const result = await MonsterService.addMonsterToPlayer(ctx, args);
+        const result = await MonsterService.addMonsterToPlayer(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });
@@ -758,9 +758,8 @@ export const addMonsterToPlayer = mutation({
 /**
  * 更新怪物信息
  */
-export const updateMonster = mutation({
+export const updateMonster = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
         level: v.optional(v.number()),
         stars: v.optional(v.number()),
@@ -770,7 +769,7 @@ export const updateMonster = mutation({
         isUnlocked: v.optional(v.boolean()),  // 新增
     },
     handler: async (ctx, args) => {
-        const result = await MonsterService.updateMonster(ctx, args);
+        const result = await MonsterService.updateMonster(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });
@@ -782,13 +781,12 @@ export const updateMonster = mutation({
 /**
  * 获取玩家碎片数量
  */
-export const getPlayerShards = query({
+export const getPlayerShards = authedQuery({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
     },
     handler: async (ctx, args) => {
-        const quantity = await MonsterService.getPlayerShards(ctx, args.uid, args.monsterId);
+        const quantity = await MonsterService.getPlayerShards(ctx, ctx.uid, args.monsterId);
         return { quantity };
     },
 });
@@ -796,12 +794,10 @@ export const getPlayerShards = query({
 /**
  * 获取玩家所有碎片
  */
-export const getAllPlayerShards = query({
-    args: {
-        uid: v.string(),
-    },
-    handler: async (ctx, args) => {
-        const shards = await MonsterService.getAllPlayerShards(ctx, args.uid);
+export const getAllPlayerShards = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        const shards = await MonsterService.getAllPlayerShards(ctx, ctx.uid);
         return shards;
     },
 });
@@ -809,16 +805,15 @@ export const getAllPlayerShards = query({
 /**
  * 添加碎片
  */
-export const addShards = mutation({
+export const addShards = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
         quantity: v.number(),
         source: v.string(),
         sourceId: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const result = await MonsterService.addShards(ctx, args);
+        const result = await MonsterService.addShards(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });
@@ -826,16 +821,15 @@ export const addShards = mutation({
 /**
  * 扣除碎片
  */
-export const deductShards = mutation({
+export const deductShards = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
         quantity: v.number(),
         source: v.string(),
         sourceId: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const result = await MonsterService.deductShards(ctx, args);
+        const result = await MonsterService.deductShards(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });
@@ -843,13 +837,12 @@ export const deductShards = mutation({
 /**
  * 碎片合成怪物
  */
-export const synthesizeMonster = mutation({
+export const synthesizeMonster = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
     },
     handler: async (ctx, args) => {
-        const result = await MonsterService.synthesizeMonster(ctx, args);
+        const result = await MonsterService.synthesizeMonster(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });
@@ -857,13 +850,12 @@ export const synthesizeMonster = mutation({
 /**
  * 重复角色转换为碎片
  */
-export const convertDuplicateToShards = mutation({
+export const convertDuplicateToShards = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
     },
     handler: async (ctx, args) => {
-        const result = await MonsterService.convertDuplicateToShards(ctx, args);
+        const result = await MonsterService.convertDuplicateToShards(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });
@@ -871,15 +863,14 @@ export const convertDuplicateToShards = mutation({
 /**
  * 批量添加碎片
  */
-export const batchAddShards = mutation({
+export const batchAddShards = authedMutation({
     args: {
-        uid: v.string(),
         shards: v.array(v.object({ monsterId: v.string(), quantity: v.number() })),
         source: v.string(),
         sourceId: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const result = await MonsterService.batchAddShards(ctx, args);
+        const result = await MonsterService.batchAddShards(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });

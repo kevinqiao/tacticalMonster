@@ -3,6 +3,7 @@ import { ConvexHttpClient } from 'convex/browser';
 import { casualTournamentFns } from '@/component/lobby/casual/service/casualConvexFunctionRefs';
 import { portalTournamentFns } from '@/component/lobby/portal/service/portalConvexFunctionRefs';
 import { PORTAL_CONVEX_URL } from '@/component/lobby/portal/service/usePortalManager';
+import { registerConvexAuthClient } from 'host/service/platformAuth/convexAuthRegistry';
 
 import type { CasualAsyncTableSummaryUI } from './casualAsyncTableSummaryUI';
 
@@ -19,6 +20,7 @@ function httpClientForBridge(platformBridge: 'portal' | 'casual'): ConvexHttpCli
     let client = clientCache.get(url);
     if (!client) {
         client = new ConvexHttpClient(url);
+        registerConvexAuthClient(client);
         clientCache.set(url, client);
     }
     return client;
@@ -26,7 +28,6 @@ function httpClientForBridge(platformBridge: 'portal' | 'casual'): ConvexHttpCli
 
 /** 按 platformBridge 从 portal / casualPlatform 拉取同桌榜（含 bot stagger 中的 partial 榜） */
 export async function fetchCasualAsyncTableSummaryForGame(args: {
-    uid: string;
     matchGameId: string;
     platformBridge?: 'portal' | 'casual';
 }): Promise<CasualAsyncTableSummaryUI | null> {
@@ -38,7 +39,6 @@ export async function fetchCasualAsyncTableSummaryForGame(args: {
             : casualTournamentFns.getCasualAsyncTableSummaryForGame;
     try {
         const row = await http.query(fn, {
-            uid: args.uid,
             matchGameId: args.matchGameId,
         });
         if (!row || typeof row !== 'object' || !Array.isArray((row as { rows?: unknown }).rows)) {

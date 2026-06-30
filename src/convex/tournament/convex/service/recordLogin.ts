@@ -1,30 +1,29 @@
 
-import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { mutation } from "../_generated/server";
+import { authedMutation } from "../custom/session";
 
-export const recordLogin = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
+export const recordLogin = authedMutation({
+    args: {},
+    handler: async (ctx) => {
         const now = new Date().toISOString();
-        const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", args.uid)).first();
+        const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", ctx.uid)).first();
         if (!player) {
             throw new Error("Player not found");
         }
 
         await ctx.db.patch(player._id, { lastActive: now });
-        await ctx.scheduler.runAfter(0, internal.service.task.assignTasks.assignTasks, { uid: args.uid });
+        await ctx.scheduler.runAfter(0, internal.service.task.assignTasks.assignTasks, { uid: ctx.uid });
 
         // 处理登录活动
         try {
             const { ActivityService } = await import("./activity/activityService");
-            await ActivityService.processLoginActivity(ctx, args.uid);
+            await ActivityService.processLoginActivity(ctx, ctx.uid);
         } catch (error: any) {
             console.error("处理登录活动失败:", error);
         }
 
         await ctx.db.insert("task_events", {
-            uid: args.uid,
+            uid: ctx.uid,
             action: "login",
             actionData: {},
             processed: false,
@@ -32,7 +31,7 @@ export const recordLogin = mutation({
             updatedAt: now,
         });
 
-        await ctx.scheduler.runAfter(0, internal.service.task.processTaskEvents.processTaskEvents, { uid: args.uid });
+        await ctx.scheduler.runAfter(0, internal.service.task.processTaskEvents.processTaskEvents, { uid: ctx.uid });
 
         return { success: true };
     },

@@ -11,8 +11,9 @@ import {
 export default defineSchema({
   portal_players: defineTable({
     uid: v.string(),
-    token: v.optional(v.string()),
     updatedAt: v.optional(v.number()),
+    /** @deprecated legacy session token; do not write */
+    token: v.optional(v.string()),
   }).index("by_uid", ["uid"]),
 
   portal_run_tournaments: defineTable({
@@ -21,7 +22,11 @@ export default defineSchema({
     status: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_templateId", ["templateId"]),
+    campaignId: v.optional(v.string()),
+    merchantId: v.optional(v.string()),
+  })
+    .index("by_templateId", ["templateId"])
+    .index("by_campaignId_createdAt", ["campaignId", "createdAt"]),
 
   portal_run_player_tournaments: defineTable({
     uid: v.string(),
@@ -82,6 +87,8 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
+    campaignId: v.optional(v.string()),
+    merchantId: v.optional(v.string()),
     asyncMatchFinalizeScheduledId: v.optional(v.id("_scheduled_functions")),
     asyncMatchFinalizeDueAt: v.optional(v.number()),
   }).index("by_tournament", ["tournamentId"]),
@@ -159,6 +166,10 @@ export default defineSchema({
     skipEntryCharge: v.optional(v.boolean()),
     status: v.union(v.literal("waiting"), v.literal("claiming"), v.literal("matched")),
     matchedRunTournamentId: v.optional(v.id("portal_run_tournaments")),
+    campaignId: v.optional(v.string()),
+    merchantId: v.optional(v.string()),
+    maxPlaysPerDay: v.optional(v.number()),
+    dayTimezone: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -223,6 +234,8 @@ export default defineSchema({
     replayEpoch: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
+    campaignId: v.optional(v.string()),
+    merchantId: v.optional(v.string()),
   })
     .index("by_gameId", ["gameId"])
     .index("by_matchId", ["matchId"])

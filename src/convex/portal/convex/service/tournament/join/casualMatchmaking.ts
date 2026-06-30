@@ -10,6 +10,7 @@ import {
 } from "../../../data/portalMatchmakingConfig";
 import { getPortalTournamentDefinition } from "../../../data/portalTournamentConfigs";
 import { internalMutation, internalQuery, mutation, query } from "../../../_generated/server";
+import { authedMutation, authedQuery } from "../../../custom/session";
 import {
   evaluateEffectiveHumans,
   logJoinMatchmakingProfileResult,
@@ -102,8 +103,15 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
   args: {
     uid: v.string(),
     tournamentId: v.string(),
+    campaignId: v.optional(v.string()),
+    merchantId: v.optional(v.string()),
+    maxPlaysPerDay: v.optional(v.number()),
+    dayTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { uid, tournamentId }): Promise<JoinCasualRunResult> => {
+  handler: async (
+    ctx,
+    { uid, tournamentId, campaignId, merchantId, maxPlaysPerDay, dayTimezone }
+  ): Promise<JoinCasualRunResult> => {
     const def = getPortalTournamentDefinition(tournamentId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
@@ -164,6 +172,10 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         expiresAt,
         skipEntryCharge: reconciled.skipEntryCharge,
         updatedAt: now,
+        ...(campaignId ? { campaignId } : {}),
+        ...(merchantId ? { merchantId } : {}),
+        ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
+        ...(dayTimezone ? { dayTimezone } : {}),
         ...(reconciled.status === "claiming"
           ? { status: "waiting" as const }
           : {}),
@@ -181,6 +193,10 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         status: "waiting",
         createdAt: now,
         updatedAt: now,
+        ...(campaignId ? { campaignId } : {}),
+        ...(merchantId ? { merchantId } : {}),
+        ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
+        ...(dayTimezone ? { dayTimezone } : {}),
       });
     }
 
@@ -213,9 +229,10 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
   },
 });
 
-export const listCasualMatchQueueForUid = query({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
+export const listCasualMatchQueueForUid = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const rows = await ctx.db
       .query("portal_match_queue")
       .withIndex("by_uid", (q) => q.eq("uid", uid))
@@ -248,12 +265,12 @@ export const listCasualMatchQueueForUid = query({
   },
 });
 
-export const leaveCasualMatchQueue = mutation({
+export const leaveCasualMatchQueue = authedMutation({
   args: {
-    uid: v.string(),
     templateId: v.optional(v.string()),
   },
-  handler: async (ctx, { uid, templateId }) => {
+  handler: async (ctx, { templateId }) => {
+    const uid = ctx.uid;
     const rows = await ctx.db
       .query("portal_match_queue")
       .withIndex("by_uid", (q) => q.eq("uid", uid))

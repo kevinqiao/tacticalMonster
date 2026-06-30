@@ -5,7 +5,8 @@ import { v } from "convex/values";
 import type { Id } from "../../../_generated/dataModel";
 import { internal } from "../../../_generated/api";
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
-import { internalMutation, mutation, query } from "../../../_generated/server";
+import { internalMutation } from "../../../_generated/server";
+import { authedMutation, authedQuery } from "../../../custom/session";
 import { resolveInstanceWindow, type ActiveSeasonWindow } from "../../../data/casualInstanceWindow";
 import type { CasualTournamentDefinition } from "../../../data/casualTournamentConfigs";
 import {
@@ -483,12 +484,12 @@ export const forceFinalizeCasualTournamentInstances = internalMutation({
   },
 });
 
-export const claimCasualInstanceRewards = mutation({
+export const claimCasualInstanceRewards = authedMutation({
   args: {
-    uid: v.string(),
     instancePlayerStateId: v.id("casual_instance_player_state"),
   },
-  handler: async (ctx, { uid, instancePlayerStateId }) => {
+  handler: async (ctx, { instancePlayerStateId }) => {
+    const uid = ctx.uid;
     const row = await ctx.db.get(instancePlayerStateId);
     if (!row || row.uid !== uid) {
       return { ok: false as const, error: "forbidden" as const };
@@ -543,9 +544,10 @@ export const claimCasualInstanceRewards = mutation({
  * 周期型锦标：仅「实例已关闭且已参与至少一局」的桶级记录（结算后一条），
  * 含待领取与已领取，供历史页展示；非周期玩法请用 `gameHistory`。
  */
-export const listInstancePendingRewards = query({
-  args: { uid: v.string(), limit: v.optional(v.number()) },
-  handler: async (ctx, { uid, limit }) => {
+export const listInstancePendingRewards = authedQuery({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    const uid = ctx.uid;
     const n = Math.min(Math.max(limit ?? 20, 1), 50);
     const mine = await ctx.db
       .query("casual_instance_player_state")

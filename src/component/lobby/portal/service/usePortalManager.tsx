@@ -8,6 +8,8 @@ import {
 } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import { useUserManager } from "host/service/UserManager";
+import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
+import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import React, {
   createContext,
   useCallback,
@@ -123,9 +125,7 @@ function subscribe(cb: () => void) {
   return () => listeners.delete(cb);
 }
 
-export function isValidPortalGameType(value: string): value is RegisteredPortalGameType {
-  return (PORTAL_GAME_TYPES as readonly string[]).includes(value);
-}
+export { isValidPortalGameType } from "./portalGameTypeGuards";
 
 export function portalGameDisplayName(gameType: RegisteredPortalGameType): string {
   return PORTAL_GAME_REGISTRY[gameType].displayName;
@@ -141,13 +141,41 @@ type PortalContextValue = {
   openRunAssignments: OpenCasualRunAssignment[];
   matchQueueEntries: PortalMatchQueueEntry[];
   weekEndsAt: number | null;
-  joinTournament: (mode: "solo" | "multi") => Promise<ResolvedJoinTournamentOutcome>;
+  joinTournament: (
+    mode: "solo" | "multi",
+    opts?: { merchantSlug?: string; campaignSlug?: string; sessionPartnerId?: number }
+  ) => Promise<ResolvedJoinTournamentOutcome>;
   leaveCasualMatchQueue: (
     templateId?: string
   ) => Promise<{ ok: true; removed?: number } | { ok: false; error: string }>;
   reconcilePendingHistorySettlements: () => Promise<void>;
   refresh: () => Promise<void>;
   portalSessionReady: boolean;
+  getCampaignDailyPlayQuota: (args: {
+    campaignId: string;
+    maxPlaysPerDay?: number;
+    dayTimezone?: string;
+  }) => Promise<{
+    playsToday: number;
+    remainingPlaysToday?: number;
+    dayResetsAt: number;
+    dayTimezone?: string;
+  } | null>;
+  getCampaignPlayHistory: (args: {
+    campaignId: string;
+    limit?: number;
+  }) => Promise<
+    Array<{
+      matchId: string;
+      runTournamentId: string;
+      gameType: string;
+      score: number | null;
+      rank: number | null;
+      status: "open" | "finished" | "confirmed" | "settled" | "replaying";
+      playedAt: number;
+      startedAt: number;
+    }>
+  >;
 };
 
 const PortalContext = createContext<PortalContextValue | null>(null);
@@ -162,20 +190,25 @@ function enqueuePortalAuthenticate(run: () => Promise<void>): Promise<void> {
 }
 
 let portalAuthFailedKey = "";
-let portalAuthReauthPromptedKey = "";
 
 let httpSingleton: ConvexHttpClient | null = null;
 let liveSingleton: ConvexClient | null = null;
 
 function getHttp(): ConvexHttpClient | null {
   if (!PORTAL_CONVEX_URL) return null;
-  if (!httpSingleton) httpSingleton = new ConvexHttpClient(PORTAL_CONVEX_URL);
+  if (!httpSingleton) {
+    httpSingleton = new ConvexHttpClient(PORTAL_CONVEX_URL);
+    registerConvexAuthClient(httpSingleton);
+  }
   return httpSingleton;
 }
 
 function getLive(): ConvexClient | null {
   if (!PORTAL_CONVEX_URL) return null;
-  if (!liveSingleton) liveSingleton = new ConvexClient(PORTAL_CONVEX_URL);
+  if (!liveSingleton) {
+    liveSingleton = new ConvexClient(PORTAL_CONVEX_URL);
+    registerConvexAuthClient(liveSingleton);
+  }
   return liveSingleton;
 }
 
@@ -187,7 +220,7 @@ export const PortalProvider: React.FC<{
   gameType: RegisteredPortalGameType | null;
   children: React.ReactNode;
 }> = ({ gameType, children }) => {
-  const { user, askAuth } = useUserManager();
+  const { user } = useUserManager();
   const uid = user?.uid;
   const [portalSessionReady, setPortalSessionReady] = useState(false);
   const reconcileInFlightRef = useRef(new Set<string>());
@@ -196,44 +229,34 @@ export const PortalProvider: React.FC<{
 
   const authenticatePortal = useCallback(async (opts?: { force?: boolean }) => {
     const http = getHttp();
-    if (!http || !user?.uid || !user?.token) {
+    if (!http || !isPlatformAuthed(user)) {
       setPortalSessionReady(false);
       return;
     }
-    const key = `${user.uid}:${user.token}`;
+    const platformToken = user!.platformAccessToken!;
+    const key = `${user!.uid}:${platformToken}`;
     if (!opts?.force && portalAuthFailedKey === key) {
       setPortalSessionReady(false);
       return;
     }
     await enqueuePortalAuthenticate(async () => {
       try {
-        const result = await http.action(portalTournamentFns.authenticatePlayer, {
-          uid: user.uid,
-          token: user.token,
-        });
+        const result = await http.action(portalTournamentFns.authenticatePlayer, {});
         if (result?.uid) {
           portalAuthFailedKey = "";
-          portalAuthReauthPromptedKey = "";
           setPortalSessionReady(true);
         } else {
           portalAuthFailedKey = key;
           setPortalSessionReady(false);
-          if (portalAuthReauthPromptedKey !== key) {
-            portalAuthReauthPromptedKey = key;
-            askAuth({});
-          }
+          console.warn("[Portal] authenticate returned no uid — check portal Convex auth.config / dev server");
         }
       } catch (e) {
         console.error("[Portal] authenticate", e);
         portalAuthFailedKey = key;
         setPortalSessionReady(false);
-        if (portalAuthReauthPromptedKey !== key) {
-          portalAuthReauthPromptedKey = key;
-          askAuth({});
-        }
       }
     });
-  }, [user?.uid, user?.token, askAuth]);
+  }, [user]);
 
   const refresh = useCallback(async () => {
     if (!uid || !gameType) return;
@@ -254,10 +277,8 @@ export const PortalProvider: React.FC<{
 
   useEffect(() => {
     const live = getLive();
-    if (!live || !uid || !gameType) {
-      patchData(emptyData());
-      return;
-    }
+    if (!live || !gameType) return;
+
     const unsubs: Array<{ unsubscribe: () => void }> = [];
     const sub = (
       ref: Parameters<ConvexClient["onUpdate"]>[0],
@@ -295,9 +316,42 @@ export const PortalProvider: React.FC<{
       },
       "multiLeaderboard"
     );
+
+    return () => {
+      for (const u of unsubs) u.unsubscribe();
+    };
+  }, [gameType]);
+
+  useEffect(() => {
+    const live = getLive();
+    if (!live || !uid || !gameType) {
+      patchData({
+        myWeeklyPoints: null,
+        gameHistory: [],
+        openRunAssignments: [],
+        matchQueueEntries: [],
+      });
+      return;
+    }
+    const unsubs: Array<{ unsubscribe: () => void }> = [];
+    const sub = (
+      ref: Parameters<ConvexClient["onUpdate"]>[0],
+      args: Record<string, unknown>,
+      onVal: (v: unknown) => void,
+      label: string
+    ) => {
+      const h = live.onUpdate(
+        ref,
+        args as Parameters<ConvexClient["onUpdate"]>[1],
+        (rows) => onVal(rows),
+        (err) => console.error(`[Portal] ${label}`, err)
+      );
+      unsubs.push(h);
+    };
+
     sub(
       portalTournamentFns.getMyWeeklyPoints,
-      { uid, gameType },
+      { gameType },
       (rows) => {
         patchData({ myWeeklyPoints: rows as PortalDataSnapshot["myWeeklyPoints"] });
       },
@@ -305,7 +359,7 @@ export const PortalProvider: React.FC<{
     );
     sub(
       portalTournamentFns.gameHistory,
-      { uid, gameType, limit: 40 },
+      { gameType, limit: 40 },
       (rows) => {
         patchData({ gameHistory: (rows as PortalGameHistoryRow[]) ?? [] });
       },
@@ -313,7 +367,7 @@ export const PortalProvider: React.FC<{
     );
     sub(
       portalTournamentFns.listOpenCasualRunAssignments,
-      { uid },
+      {},
       (rows) => {
         patchData({
           openRunAssignments: Array.isArray(rows) ? (rows as OpenCasualRunAssignment[]) : [],
@@ -323,7 +377,7 @@ export const PortalProvider: React.FC<{
     );
     sub(
       portalTournamentFns.listCasualMatchQueueForUid,
-      { uid },
+      {},
       (rows) => {
         patchData({
           matchQueueEntries: Array.isArray(rows)
@@ -352,7 +406,6 @@ export const PortalProvider: React.FC<{
     reconcileInFlightRef.current.add(key);
     void http
       .action(portalTournamentFns.reconcileExpiredOpenCasualRuns, {
-        uid,
         gameType,
         limit: expired.length,
       })
@@ -370,7 +423,6 @@ export const PortalProvider: React.FC<{
     historySettleInFlightRef.current.add(key);
     try {
       await http.mutation(portalTournamentFns.reconcilePendingCasualHistorySettlements, {
-        uid,
         gameType,
         limit: 20,
       });
@@ -387,7 +439,6 @@ export const PortalProvider: React.FC<{
       if (!http || !uid) return { ok: false as const, error: "no_auth" };
       try {
         const res = await http.mutation(portalTournamentFns.leaveCasualMatchQueue, {
-          uid,
           ...(templateId?.trim() ? { templateId: templateId.trim() } : {}),
         });
         const r = res as { ok?: boolean; error?: string; removed?: number };
@@ -410,20 +461,35 @@ export const PortalProvider: React.FC<{
   );
 
   const joinTournament = useCallback(
-    async (mode: "solo" | "multi"): Promise<ResolvedJoinTournamentOutcome> => {
+    async (
+      mode: "solo" | "multi",
+      opts?: { merchantSlug?: string; campaignSlug?: string; sessionPartnerId?: number }
+    ): Promise<ResolvedJoinTournamentOutcome> => {
       const http = getHttp();
-      if (!http || !uid || !gameType || !user?.token) {
+      if (!http || !uid || !isPlatformAuthed(user)) {
         return { kind: "failed", error: "未登录或未配置 Portal 后端" };
       }
-      const tournamentId = portalTournamentIdForMode(gameType, mode);
-      if (!tournamentId) {
+      const isCampaignJoin = Boolean(opts?.merchantSlug && opts?.campaignSlug);
+      const tournamentId =
+        isCampaignJoin || !gameType
+          ? undefined
+          : portalTournamentIdForMode(gameType, mode);
+      if (!isCampaignJoin && !tournamentId) {
         return { kind: "failed", error: "未知模式" };
       }
       try {
         await authenticatePortal({ force: true });
         const result = await http.action(portalTournamentFns.joinTournament, {
-          uid,
-          tournamentId,
+          ...(tournamentId ? { tournamentId } : {}),
+          ...(isCampaignJoin
+            ? {
+                merchantSlug: opts!.merchantSlug,
+                campaignSlug: opts!.campaignSlug,
+                ...(opts?.sessionPartnerId != null
+                  ? { sessionPartnerId: opts.sessionPartnerId }
+                  : {}),
+              }
+            : {}),
         });
         return resolveJoinTournamentOutcome(result);
       } catch (e) {
@@ -431,7 +497,56 @@ export const PortalProvider: React.FC<{
         return { kind: "failed", error: "加入失败" };
       }
     },
-    [uid, user?.token, gameType, authenticatePortal]
+    [uid, user?.platformAccessToken, gameType, authenticatePortal]
+  );
+
+  const getCampaignDailyPlayQuota = useCallback(
+    async (args: { campaignId: string; maxPlaysPerDay?: number; dayTimezone?: string }) => {
+      const http = getHttp();
+      if (!http || !uid) return null;
+      try {
+        return (await http.query(portalTournamentFns.getCampaignDailyPlayQuota, {
+          campaignId: args.campaignId,
+          ...(args.maxPlaysPerDay != null ? { maxPlaysPerDay: args.maxPlaysPerDay } : {}),
+          ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+        })) as {
+          playsToday: number;
+          remainingPlaysToday?: number;
+          dayResetsAt: number;
+          dayTimezone?: string;
+        };
+      } catch (e) {
+        console.warn("[Portal] getCampaignDailyPlayQuota", e);
+        return null;
+      }
+    },
+    [uid]
+  );
+
+  const getCampaignPlayHistory = useCallback(
+    async (args: { campaignId: string; limit?: number }) => {
+      const http = getHttp();
+      if (!http || !uid) return [];
+      try {
+        return ((await http.query(portalTournamentFns.listCampaignPlayHistory, {
+          campaignId: args.campaignId,
+          ...(args.limit != null ? { limit: args.limit } : {}),
+        })) ?? []) as Array<{
+          matchId: string;
+          runTournamentId: string;
+          gameType: string;
+          score: number | null;
+          rank: number | null;
+          status: "open" | "finished" | "confirmed" | "settled" | "replaying";
+          playedAt: number;
+          startedAt: number;
+        }>;
+      } catch (e) {
+        console.warn("[Portal] listCampaignPlayHistory", e);
+        return [];
+      }
+    },
+    [uid]
   );
 
   const value = useMemo<PortalContextValue>(
@@ -450,6 +565,8 @@ export const PortalProvider: React.FC<{
       reconcilePendingHistorySettlements,
       refresh,
       portalSessionReady,
+      getCampaignDailyPlayQuota,
+      getCampaignPlayHistory,
     }),
     [
       gameType,
@@ -459,6 +576,8 @@ export const PortalProvider: React.FC<{
       reconcilePendingHistorySettlements,
       refresh,
       portalSessionReady,
+      getCampaignDailyPlayQuota,
+      getCampaignPlayHistory,
     ]
   );
 

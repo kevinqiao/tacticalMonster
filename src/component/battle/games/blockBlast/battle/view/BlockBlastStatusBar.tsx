@@ -1,8 +1,6 @@
 /**
- * Block Blast 状态栏：竖屏顶栏（左头像 · 右计时+分数）；横屏左侧竖栏（上计时与分数 · 下头像贴底）
+ * Block Blast 状态栏：竖屏顶栏（右对齐计时+分数）；横屏左侧竖栏（计时与分数）
  */
-import type { User } from 'host/service/UserManager';
-import { useUserManager } from 'host/service/UserManager';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { BlockBlastGameState } from '../types/BlockBlastTypes';
 import { useBlockBlastGameManager } from '../service/GameManager';
@@ -25,27 +23,6 @@ export function blockBlastPortraitGridTopPx(cellSize: number): number {
     return blockBlastStatusPortraitBarHeightPx(cellSize) + BLOCK_BLAST_PORTRAIT_STATUS_TO_GRID_GAP_PX;
 }
 
-function avatarPhotoUrlFromUser(u: User | null): string | undefined {
-    if (!u) return undefined;
-    const d = (u.data ?? null) as Record<string, unknown> | null;
-    const raw = d?.['imageUrl'] ?? d?.['avatar'] ?? d?.['picture'] ?? d?.['photoUrl'];
-    if (typeof raw === 'string' && raw.trim().length > 0) {
-        return raw.trim();
-    }
-    const uAny = u as { picture?: string; imageUrl?: string; avatar?: string };
-    for (const v of [uAny.picture, uAny.imageUrl, uAny.avatar]) {
-        if (typeof v === 'string' && v.trim().length > 0) return v.trim();
-    }
-    return undefined;
-}
-
-function displayNameFromUser(u: User | null): string {
-    if (!u) return '玩家';
-    if (typeof u.name === 'string' && u.name.trim()) return u.name.trim();
-    if (typeof u.email === 'string' && u.email.trim()) return u.email.trim();
-    return '玩家';
-}
-
 function formatMatchRemainingSec(sec: number): string {
     const s = Math.max(0, Math.ceil(sec));
     const m = Math.floor(s / 60);
@@ -56,9 +33,6 @@ function formatMatchRemainingSec(sec: number): string {
 export interface BlockBlastStatusBarProps {
     isPortrait: boolean;
     gameState: BlockBlastGameState;
-    /** 与 solitaire「结束并结算」一致 */
-    onEndGame?: () => void;
-    endGameDisabled?: boolean;
     /** 休闲 run 倒计时；复盘模式不传 */
     dueTime?: number;
     /** 倒计时归零时触发强制结束（与 GameManager 定时器互为兜底） */
@@ -70,13 +44,10 @@ export interface BlockBlastStatusBarProps {
 const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
     isPortrait,
     gameState,
-    onEndGame,
-    endGameDisabled,
     dueTime,
     onMatchTimeout,
     targetScore,
 }) => {
-    const { user } = useUserManager();
     const { boardDimension } = useBlockBlastGameManager();
     const cellSizeForChrome = boardDimension?.cellSize ?? 24;
     const landscapeRailPx = useMemo(
@@ -87,8 +58,6 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
         () => blockBlastStatusPortraitBarHeightPx(cellSizeForChrome),
         [cellSizeForChrome]
     );
-    const avatarUrl = useMemo(() => avatarPhotoUrlFromUser(user as User | null), [user]);
-    const playerLabel = useMemo(() => displayNameFromUser(user as User | null), [user]);
 
     const [remainingSec, setRemainingSec] = useState<number | null>(null);
     const matchTimeoutFiredRef = useRef(false);
@@ -114,21 +83,6 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
     const timerText =
         remainingSec != null ? formatMatchRemainingSec(remainingSec) : null;
 
-    const avatarEl = (
-        <div className="blockblast-status__avatar" aria-hidden>
-            {avatarUrl ? (
-                <img
-                    className="blockblast-status__avatar-img"
-                    src={avatarUrl}
-                    alt=""
-                    referrerPolicy="no-referrer"
-                />
-            ) : (
-                <span className="blockblast-status__avatar-fallback">{playerLabel.slice(0, 1).toUpperCase()}</span>
-            )}
-        </div>
-    );
-
     const statsSecondary = (
         <div className="blockblast-status__secondary">
             <span>L{gameState.lines}</span>
@@ -144,21 +98,7 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
                 aria-label="对局状态"
                 style={{ minHeight: portraitBarHeightPx, height: portraitBarHeightPx }}
             >
-                <div className="blockblast-status__player">{avatarEl}</div>
                 <div className="blockblast-status__portrait-row">
-                    {onEndGame ? (
-                        <button
-                            type="button"
-                            className="blockblast-status__end-game"
-                            aria-label="以当前分数结束本局并结算"
-                            disabled={endGameDisabled}
-                            onClick={() => {
-                                void onEndGame();
-                            }}
-                        >
-                            结束并结算
-                        </button>
-                    ) : null}
                     {timerText != null ? (
                         <time className="blockblast-status__timer" aria-label="剩余时间">
                             {timerText}
@@ -183,19 +123,6 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
             style={{ width: landscapeRailPx }}
         >
             <div className="blockblast-status__landscape-top">
-                {onEndGame ? (
-                    <button
-                        type="button"
-                        className="blockblast-status__end-game blockblast-status__end-game--landscape"
-                        aria-label="以当前分数结束本局并结算"
-                        disabled={endGameDisabled}
-                        onClick={() => {
-                            void onEndGame();
-                        }}
-                    >
-                        结束
-                    </button>
-                ) : null}
                 {timerText != null ? (
                     <time className="blockblast-status__timer" aria-label="剩余时间">
                         {timerText}
@@ -209,7 +136,6 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
                 <div className="blockblast-status__score-main">{gameState.score}</div>
                 {statsSecondary}
             </div>
-            <div className="blockblast-status__landscape-bottom">{avatarEl}</div>
         </aside>
     );
 };

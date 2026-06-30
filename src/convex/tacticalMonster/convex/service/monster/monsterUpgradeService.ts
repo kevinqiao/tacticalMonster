@@ -4,7 +4,8 @@
  */
 
 import { v } from "convex/values";
-import { mutation, query } from "../../_generated/server";
+import { authedMutation } from "../../custom/session";
+import { query } from "../../_generated/server";
 import { TournamentProxyService } from "../tournament/tournamentProxyService";
 import {
     LEVEL_UP_STRATEGY,
@@ -336,14 +337,13 @@ export const calculateStarUpCost = query({
 /**
  * 升级怪物
  */
-export const levelUpMonster = mutation({
+export const levelUpMonster = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
         targetLevel: v.number(),
     },
     handler: async (ctx, args) => {
-        const result = await MonsterUpgradeService.levelUpMonster(ctx, args);
+        const result = await MonsterUpgradeService.levelUpMonster(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });
@@ -351,13 +351,12 @@ export const levelUpMonster = mutation({
 /**
  * 升星怪物
  */
-export const starUpMonster = mutation({
+export const starUpMonster = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
     },
     handler: async (ctx, args) => {
-        const result = await MonsterUpgradeService.starUpMonster(ctx, args);
+        const result = await MonsterUpgradeService.starUpMonster(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });
@@ -365,14 +364,13 @@ export const starUpMonster = mutation({
 /**
  * 添加经验值
  */
-export const addExperience = mutation({
+export const addExperience = authedMutation({
     args: {
-        uid: v.string(),
         monsterId: v.string(),
         experience: v.number(),
     },
     handler: async (ctx, args) => {
-        const result = await MonsterUpgradeService.addExperience(ctx, args);
+        const result = await MonsterUpgradeService.addExperience(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });

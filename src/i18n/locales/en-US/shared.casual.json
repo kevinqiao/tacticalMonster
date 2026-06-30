@@ -1,0 +1,38 @@
+{
+  "joinEntry": {
+    "unknown_tournament": "Unknown tournament",
+    "game_not_available": "This game is not available",
+    "period_unavailable": "Period unavailable",
+    "needs_cost_ack": "Confirm entry cost first",
+    "no_player": "Player profile not found. Sign in and sync first.",
+    "no_active_season": "No active season; season vouchers unavailable",
+    "insufficient_coins": "Not enough coins to enter",
+    "insufficient_gems": "Not enough gems to enter",
+    "insufficient_vouchers": "Not enough season vouchers",
+    "replay_not_for_season_voucher": "Season voucher events cannot use replay tokens",
+    "unknown_match_game": "Match not found",
+    "match_not_replayable": "This match cannot be replayed",
+    "replay_requires_solo_table": "Replay only on solo tables without other humans",
+    "token_invalid": "Replay token invalid",
+    "token_used": "Replay token already used",
+    "forbidden": "Not allowed for this match",
+    "join_failed": "Could not join. Try again.",
+    "already_in_open_match": "Finish or abandon your open tournament match first",
+    "coupon_limit_reached": "Coupon limit reached",
+    "campaign_not_live": "Campaign is not live",
+    "not_found": "Campaign not found",
+    "merchant_unreachable": "Campaign service unavailable. Try again later.",
+    "daily_play_limit_reached": "Daily play limit reached. Come back tomorrow.",
+    "default_with_code": "Could not join: {{code}}",
+    "default": "Could not join"
+  },
+  "matchOverlay": {
+    "creatingTitle": "Creating match",
+    "matchingTitle": "Matching",
+    "creatingSubtitle": "Please wait, the match is starting…",
+    "waitingWithTitle": "Waiting for another player to join \"{{title}}\"",
+    "waitingSubtitle": "Waiting for another player. The table starts when full.",
+    "leaving": "Leaving…",
+    "leave": "Leave queue"
+  }
+}

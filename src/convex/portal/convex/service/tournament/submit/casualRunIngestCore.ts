@@ -49,6 +49,7 @@ import {
   applyCasualTemplateScoreEffects,
   persistPendingRunRewards,
 } from "../settle/casualRunScoreEffects";
+import { scheduleMerchantCampaignSettleNotify } from "../settle/campaignBridgeNotify";
 import { applyWeeklyLeagueOnMatchSettle } from "../../weeklyLeague/casualWeeklyLeagueSettle";
 import { CASUAL_WEEKLY_LEAGUE_ENABLED } from "../../../data/casualWeeklyLeagueConfig";
 export async function settleSoloMaxPlayersOneCasualRun(
@@ -168,6 +169,20 @@ export async function settleSoloMaxPlayersOneCasualRun(
     matchId: pm.matchId,
   });
   const tableSummary = tableBuilt ?? casualTableSummarySolo(def.maxPlayers, score);
+
+  await scheduleMerchantCampaignSettleNotify(ctx, {
+    runRow: runRow ?? null,
+    matchDoc,
+    pm,
+    def,
+    uid,
+    score,
+    rank: 1,
+    p75Success:
+      typeof args.seedScoreThreshold === "number"
+        ? score >= args.seedScoreThreshold
+        : undefined,
+  });
 
   return {
     ok: true as const,
@@ -350,6 +365,15 @@ export async function finalizeCasualAsyncMatchIngest(
     });
     await persistPendingRunRewards(ctx, runTid, hp.uid, extra.pendingWalletRewards);
     lastExtra = extra;
+    await scheduleMerchantCampaignSettleNotify(ctx, {
+      runRow: runRow ?? null,
+      matchDoc,
+      pm: hp,
+      def,
+      uid: hp.uid,
+      score: hp.score,
+      rank: finalRank ?? undefined,
+    });
     if (CASUAL_WEEKLY_LEAGUE_ENABLED && def.maxPlayers > 1) {
       lastWeeklyLeague = await applyWeeklyLeagueOnMatchSettle(ctx, {
         uid: hp.uid,

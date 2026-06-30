@@ -14,6 +14,7 @@ const pools = [
   { gameType: "match_3", index: "scripts/match3/output/pool-v1/index.json" },
   { gameType: "tower_arena", index: "scripts/tower/output/pool-v1/index.json" },
   { gameType: "yatz", index: "scripts/yatz/output/pool-v1/index.json" },
+  { gameType: "solitaire", index: "scripts/solitaire/output/pool-v6/index.json" },
 ];
 
 for (const { gameType, index } of pools) {

@@ -10,6 +10,7 @@ import { grantReplayTokens } from "../tournament/replay/casualReplayTokens";
 import { applyScaledCurrencyCost } from "../../data/casualTournamentConfigs";
 import type { Doc } from "../../_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx } from "../../_generated/server";
+import { authedMutation } from "../../custom/session";
 import { reserveWeeklyShopPurchase } from "./casualShopPurchaseLimit";
 
 function catalogSeedForSkuId(skuId: string): CasualShopSkuSeed | undefined {
@@ -141,9 +142,10 @@ export const seedShopSkusIfEmpty = internalMutation({
   handler: async (ctx) => ensureShopCatalogInDb(ctx),
 });
 
-export const purchaseSku = mutation({
-  args: { uid: v.string(), skuId: v.string() },
-  handler: async (ctx, { uid, skuId }) => {
+export const purchaseSku = authedMutation({
+  args: { skuId: v.string() },
+  handler: async (ctx, { skuId }) => {
+    const uid = ctx.uid;
     await ctx.runMutation(internal.service.shop.casualShopService.seedShopSkusIfEmpty, {});
     const sku = await ctx.db
       .query("casual_shop_skus")
@@ -261,13 +263,13 @@ export const purchaseSku = mutation({
  * 法币 IAP 成功后发放钻石 + 配表赠送金币（须带支付渠道唯一 paymentRef 幂等）。
  * 活动：`iapGrantGems*` 仅修正钻到账；赠送金为固定 bundle，不参与活动倍率。
  */
-export const fulfillIapShopPurchase = mutation({
+export const fulfillIapShopPurchase = authedMutation({
   args: {
-    uid: v.string(),
     skuId: v.string(),
     paymentRef: v.string(),
   },
-  handler: async (ctx, { uid, skuId, paymentRef }) => {
+  handler: async (ctx, { skuId, paymentRef }) => {
+    const uid = ctx.uid;
     await ctx.runMutation(internal.service.shop.casualShopService.seedShopSkusIfEmpty, {});
     if (!paymentRef.trim()) {
       return { ok: false as const, error: "iap_payment_ref_required" };

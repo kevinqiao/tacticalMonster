@@ -1,3 +1,5 @@
+import i18n from "@/i18n";
+
 import type { CasualRewardKind } from "@/convex/casualPlatform/convex/service/reward/casualRewardTypes";
 
 export function formatGrantLabel(kind: CasualRewardKind, amount: number): string {
@@ -42,46 +44,14 @@ export function passClaimErrorMessage(code: string | undefined): string {
 }
 
 export function joinEntryErrorMessage(code: string | undefined): string {
-  switch (code) {
-    case "unknown_tournament":
-      return "未知锦标赛";
-    case "game_not_available":
-      return "该玩法暂未开放";
-    case "period_unavailable":
-      return "当前周期不可用";
-    case "needs_cost_ack":
-      return "请先确认入场消耗";
-    case "no_player":
-      return "未找到玩家档案，请先完成登录同步";
-    case "no_active_season":
-      return "当前无激活赛季，赛季券不可用";
-    case "insufficient_coins":
-      return "金币不足，无法入场";
-    case "insufficient_gems":
-      return "钻石不足，无法入场";
-    case "insufficient_vouchers":
-      return "赛季券不足，无法入场";
-    case "replay_not_for_season_voucher":
-      return "赛季券专场不可使用再战令";
-    case "unknown_match_game":
-      return "未找到对局记录";
-    case "match_not_replayable":
-      return "当前对局不可再战";
-    case "replay_requires_solo_table":
-      return "仅单人桌（无其他真人同桌）可再战";
-    case "token_invalid":
-      return "再战令无效";
-    case "token_used":
-      return "再战令已使用";
-    case "forbidden":
-      return "无权操作该对局";
-    case "join_failed":
-      return "加入失败，请重试";
-    case "already_in_open_match":
-      return "有未结束的锦标对局，请先完成或放弃后再加入新场";
-    default:
-      return code ? `无法加入：${code}` : "无法加入";
+  if (!code) {
+    return i18n.t("joinEntry.default", { ns: "shared.casual" });
   }
+  const key = `joinEntry.${code}`;
+  if (i18n.exists(key, { ns: "shared.casual" })) {
+    return i18n.t(key, { ns: "shared.casual" });
+  }
+  return i18n.t("joinEntry.default_with_code", { ns: "shared.casual", code });
 }
 
 export function shopErrorMessage(code: string | undefined): string {

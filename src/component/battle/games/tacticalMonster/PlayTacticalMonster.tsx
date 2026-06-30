@@ -1,5 +1,6 @@
 import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { api as tournamentApi } from "@/convex/tournament/convex/_generated/api";
+import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
 import { useUserManager } from "host/service/UserManager";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
@@ -44,7 +45,11 @@ const PlayGame: React.FC<Props> = ({
     exit,
 }) => {
 
-    const client = React.useMemo(() => new ConvexReactClient(URLS.tacticalMonster), [URLS.tacticalMonster]);
+    const client = React.useMemo(() => {
+        const c = new ConvexReactClient(URLS.tacticalMonster);
+        registerConvexAuthClient(c);
+        return c;
+    }, []);
 
     return (
         <div className="tactical-monster-game-container">
@@ -73,8 +78,16 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
     const loadingGameIdRef = useRef<string | null>(null); // 防止重复加载
     const { user } = useUserManager();
     const { joinTournament } = useTournamentManager();
-    const tournamentClient = React.useMemo(() => { return new ConvexClient(URLS.tournament) }, []);
-    const tacticalMonsterClient = React.useMemo(() => { return new ConvexHttpClient(URLS.tacticalMonster) }, []);
+    const tournamentClient = React.useMemo(() => {
+        const c = new ConvexClient(URLS.tournament);
+        registerConvexAuthClient(c);
+        return c;
+    }, []);
+    const tacticalMonsterClient = React.useMemo(() => {
+        const c = new ConvexHttpClient(URLS.tacticalMonster);
+        registerConvexAuthClient(c);
+        return c;
+    }, []);
     const { openTeamLayout, openPlayGame } = usePreGameAnimate(teamLayoutRef, loadingRef, playGameRef);
 
 
@@ -140,7 +153,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
         if (!user?.uid || playMode !== "join" || gameData.mode !== "multiplayer_tournament") return;
         const sub = tournamentClient.onUpdate(
             tournamentApi.service.tournament.matchManager.findNewMatch,
-            { uid: user.uid },
+            {},
             (match) => {
                 if (!match?.gameId) return;
                 if (match.status !== "open") return;
@@ -198,7 +211,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
 
                 const ensured = await tacticalMonsterClient.mutation(
                     tacticalMonsterApi.service.stage.stageManagerService.ensureChallengeStageForPlay,
-                    { uid: user.uid, typeId }
+                    { typeId }
                 );
                 if (cancelled) return;
                 if (ensured?.ok && ensured.stage) {

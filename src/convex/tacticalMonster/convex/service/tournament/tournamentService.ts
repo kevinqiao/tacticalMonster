@@ -5,8 +5,10 @@ import {
     resolveTournamentMode,
 } from "../../../../tournament/convex/data/tournamentConfigs";
 import { internal } from "../../_generated/api";
-import { action, query } from "../../_generated/server";
+import { authedAction, authedQuery } from "../../custom/session";
+import { action } from "../../_generated/server";
 import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
+import { tournamentBridgeHeaders } from "../bridge/tournamentBridgeSecret";
 import { getStageRuleConfig, STAGE_RULE_CONFIGS } from "../../data/stageRuleConfigs";
 import type { StageModeType, StageRuleConfig } from "../../types/stageRuleTypes";
 import { TacticalMonsterErrorCode } from "../errorCodes";
@@ -140,9 +142,7 @@ export class TournamentService {
             getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.SURRENDER),
             {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: tournamentBridgeHeaders(),
                 body: JSON.stringify({
                     uid,
                     gameId,
@@ -205,9 +205,7 @@ export class TournamentService {
                 getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.JOIN_TOURNAMENT),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify({
                         uid,
                         typeId,
@@ -362,25 +360,23 @@ export const loadGame = action({
         return result;
     },
 });
-export const join = action({
+export const join = authedAction({
     args: {
-        uid: v.string(),
         typeId: v.string(),
         stageId: v.string(),
     },
-    handler: async (ctx: any, args: any) => {
-        const result = await TournamentService.join(ctx, args);
+    handler: async (ctx, args) => {
+        const result = await TournamentService.join(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });
-export const surrender = action({
+export const surrender = authedAction({
     args: {
-        uid: v.optional(v.string()),
         gameId: v.string(),
     },
-    handler: async (ctx: any, args: any) => {
+    handler: async (ctx, args) => {
         console.log("surrender args", args);
-        const result = await TournamentService.surrender(ctx, args);
+        const result = await TournamentService.surrender(ctx, { ...args, uid: ctx.uid });
         return result;
     },
 });
@@ -388,13 +384,10 @@ export const surrender = action({
 /**
  * 获取所有关卡的状态（query：便于前端 useQuery 订阅，数据变更时自动推送）
  */
-export const getAllRuleStatuses = query({
-    args: {
-        uid: v.string(),
-    },
-    handler: async (ctx: any, args: any) => {
-        const { uid } = args;
-        return await TournamentService.getRuleStatuses(ctx, { uid });
+export const getAllRuleStatuses = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        return await TournamentService.getRuleStatuses(ctx, { uid: ctx.uid });
     },
 });
 

@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as custom_session from "../custom/session.js";
 import type * as dao_casualPlayerDao from "../dao/casualPlayerDao.js";
 import type * as dao_portalPlayerDao from "../dao/portalPlayerDao.js";
 import type * as data_casualAsyncLeaderboardRowState from "../data/casualAsyncLeaderboardRowState.js";
@@ -29,6 +30,7 @@ import type * as data_portalWeeklyBoardBotConfig from "../data/portalWeeklyBoard
 import type * as http from "../http.js";
 import type * as service_activity_casualActivityService from "../service/activity/casualActivityService.js";
 import type * as service_auth_jwtAccessSecret from "../service/auth/jwtAccessSecret.js";
+import type * as service_auth_platformJwtVerify from "../service/auth/platformJwtVerify.js";
 import type * as service_auth_portalAuth from "../service/auth/portalAuth.js";
 import type * as service_botFill_botDifficultyConfig from "../service/botFill/botDifficultyConfig.js";
 import type * as service_botFill_botRevealSchedule from "../service/botFill/botRevealSchedule.js";
@@ -49,6 +51,9 @@ import type * as service_bridge_casualGameBridgeContract from "../service/bridge
 import type * as service_bridge_casualGameBridgeSecret from "../service/bridge/casualGameBridgeSecret.js";
 import type * as service_bridge_casualMatchSeedBridge from "../service/bridge/casualMatchSeedBridge.js";
 import type * as service_bridge_casualSeedProvider from "../service/bridge/casualSeedProvider.js";
+import type * as service_bridge_merchantCampaignBridge from "../service/bridge/merchantCampaignBridge.js";
+import type * as service_bridge_merchantCampaignBridgeActions from "../service/bridge/merchantCampaignBridgeActions.js";
+import type * as service_bridge_merchantCampaignBridgeEnv from "../service/bridge/merchantCampaignBridgeEnv.js";
 import type * as service_player_playerManager from "../service/player/playerManager.js";
 import type * as service_points_portalLeaderboardMerge from "../service/points/portalLeaderboardMerge.js";
 import type * as service_points_portalLeaderboardQueries from "../service/points/portalLeaderboardQueries.js";
@@ -66,6 +71,8 @@ import type * as service_seedPool_seedPoolStore from "../service/seedPool/seedPo
 import type * as service_seedPool_seedPoolValidators from "../service/seedPool/seedPoolValidators.js";
 import type * as service_task_casualTaskService from "../service/task/casualTaskService.js";
 import type * as service_tournament_casualTournamentService from "../service/tournament/casualTournamentService.js";
+import type * as service_tournament_join_campaignDailyPlayLimit from "../service/tournament/join/campaignDailyPlayLimit.js";
+import type * as service_tournament_join_campaignPlayHistory from "../service/tournament/join/campaignPlayHistory.js";
 import type * as service_tournament_join_casualJoinMutations from "../service/tournament/join/casualJoinMutations.js";
 import type * as service_tournament_join_casualMatchSeedBinding from "../service/tournament/join/casualMatchSeedBinding.js";
 import type * as service_tournament_join_casualMatchmaking from "../service/tournament/join/casualMatchmaking.js";
@@ -88,6 +95,7 @@ import type * as service_tournament_settle_async_casualAsyncBotPersist from "../
 import type * as service_tournament_settle_async_casualAsyncBotReveal from "../service/tournament/settle/async/casualAsyncBotReveal.js";
 import type * as service_tournament_settle_async_casualAsyncTableSummary from "../service/tournament/settle/async/casualAsyncTableSummary.js";
 import type * as service_tournament_settle_async_casualAsyncTypes from "../service/tournament/settle/async/casualAsyncTypes.js";
+import type * as service_tournament_settle_campaignBridgeNotify from "../service/tournament/settle/campaignBridgeNotify.js";
 import type * as service_tournament_settle_casualArenaForceEnd from "../service/tournament/settle/casualArenaForceEnd.js";
 import type * as service_tournament_settle_casualAsyncMatchFinalizeSchedule from "../service/tournament/settle/casualAsyncMatchFinalizeSchedule.js";
 import type * as service_tournament_settle_casualHistorySettleReconcile from "../service/tournament/settle/casualHistorySettleReconcile.js";
@@ -139,6 +147,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "custom/session": typeof custom_session;
   "dao/casualPlayerDao": typeof dao_casualPlayerDao;
   "dao/portalPlayerDao": typeof dao_portalPlayerDao;
   "data/casualAsyncLeaderboardRowState": typeof data_casualAsyncLeaderboardRowState;
@@ -160,6 +169,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "service/activity/casualActivityService": typeof service_activity_casualActivityService;
   "service/auth/jwtAccessSecret": typeof service_auth_jwtAccessSecret;
+  "service/auth/platformJwtVerify": typeof service_auth_platformJwtVerify;
   "service/auth/portalAuth": typeof service_auth_portalAuth;
   "service/botFill/botDifficultyConfig": typeof service_botFill_botDifficultyConfig;
   "service/botFill/botRevealSchedule": typeof service_botFill_botRevealSchedule;
@@ -180,6 +190,9 @@ declare const fullApi: ApiFromModules<{
   "service/bridge/casualGameBridgeSecret": typeof service_bridge_casualGameBridgeSecret;
   "service/bridge/casualMatchSeedBridge": typeof service_bridge_casualMatchSeedBridge;
   "service/bridge/casualSeedProvider": typeof service_bridge_casualSeedProvider;
+  "service/bridge/merchantCampaignBridge": typeof service_bridge_merchantCampaignBridge;
+  "service/bridge/merchantCampaignBridgeActions": typeof service_bridge_merchantCampaignBridgeActions;
+  "service/bridge/merchantCampaignBridgeEnv": typeof service_bridge_merchantCampaignBridgeEnv;
   "service/player/playerManager": typeof service_player_playerManager;
   "service/points/portalLeaderboardMerge": typeof service_points_portalLeaderboardMerge;
   "service/points/portalLeaderboardQueries": typeof service_points_portalLeaderboardQueries;
@@ -197,6 +210,8 @@ declare const fullApi: ApiFromModules<{
   "service/seedPool/seedPoolValidators": typeof service_seedPool_seedPoolValidators;
   "service/task/casualTaskService": typeof service_task_casualTaskService;
   "service/tournament/casualTournamentService": typeof service_tournament_casualTournamentService;
+  "service/tournament/join/campaignDailyPlayLimit": typeof service_tournament_join_campaignDailyPlayLimit;
+  "service/tournament/join/campaignPlayHistory": typeof service_tournament_join_campaignPlayHistory;
   "service/tournament/join/casualJoinMutations": typeof service_tournament_join_casualJoinMutations;
   "service/tournament/join/casualMatchSeedBinding": typeof service_tournament_join_casualMatchSeedBinding;
   "service/tournament/join/casualMatchmaking": typeof service_tournament_join_casualMatchmaking;
@@ -219,6 +234,7 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/settle/async/casualAsyncBotReveal": typeof service_tournament_settle_async_casualAsyncBotReveal;
   "service/tournament/settle/async/casualAsyncTableSummary": typeof service_tournament_settle_async_casualAsyncTableSummary;
   "service/tournament/settle/async/casualAsyncTypes": typeof service_tournament_settle_async_casualAsyncTypes;
+  "service/tournament/settle/campaignBridgeNotify": typeof service_tournament_settle_campaignBridgeNotify;
   "service/tournament/settle/casualArenaForceEnd": typeof service_tournament_settle_casualArenaForceEnd;
   "service/tournament/settle/casualAsyncMatchFinalizeSchedule": typeof service_tournament_settle_casualAsyncMatchFinalizeSchedule;
   "service/tournament/settle/casualHistorySettleReconcile": typeof service_tournament_settle_casualHistorySettleReconcile;

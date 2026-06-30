@@ -1,14 +1,60 @@
-import { AppsConfiguration } from "host/config/PageConfiguration";
+﻿import { AppsConfiguration } from "host/config/PageConfiguration";
+
+import { parsePortalPathFromPathname } from "./portalPathParse";
 
 import { useMemo } from "react";
 import { PageContainer, PageItem } from "host/service/PageManager";
+/** Default app shell when pathname matches no configured container. */
+export const DEFAULT_MOUNT_CONTEXT = "/tactical";
+
+export type AppContextTag = "tactical" | "casual" | "portal" | "campaign" | "platform" | "partner" | "shared";
+
+/** Resolve URL context segment: `/campaign/foo` â†’ `/campaign`, `/` â†’ `/`. */
+export function resolveActiveContext(pathname: string): string {
+    const ps = pathname.split("/").filter(Boolean);
+    if (ps.length === 0) return "/";
+    const ctx = `/${ps[0]}`;
+    const known = AppsConfiguration.some((a) => a.context === ctx);
+    return known ? ctx : "/";
+}
+
+function inferModalContexts(modalPath: string): AppContextTag[] {
+    if (modalPath.includes("/lobby/casual/")) return ["casual"];
+    if (modalPath.includes("/lobby/tactical/")) return ["tactical"];
+    if (modalPath.includes("/lobby/campaign/")) return ["campaign"];
+    if (modalPath.includes("/lobby/partner/")) return ["partner"];
+    if (modalPath.includes("/lobby/platform/")) return ["platform"];
+    if (modalPath.includes("/lobby/portal/")) return ["portal"];
+    return ["shared"];
+}
+
+export function modalMatchesActiveContext(
+    modal: { contexts?: readonly AppContextTag[]; path: string },
+    pathname: string
+): boolean {
+    const tags = modal.contexts ?? inferModalContexts(modal.path);
+    if (tags.includes("shared")) return true;
+    const ctx = resolveActiveContext(pathname);
+    const tag = ctx.replace(/^\//, "") as AppContextTag;
+    return tags.includes(tag);
+}
+
 export const parseLocation = (): PageItem | undefined => {
     const page: { [k: string]: any } = {}
     page.uri = window.location.pathname;
 
     const ps = window.location.pathname.split("/");
-    if (ps[1] === "portal" && ps[2]) {
-        page.data = { gameType: ps[2] };
+    if (ps[1] === "portal") {
+        const portalPath = parsePortalPathFromPathname(window.location.pathname);
+        if (portalPath.gameType) {
+            page.data = { gameType: portalPath.gameType };
+        }
+    }
+    if (ps[1] === "campaign" && ps[2] && ps[2] !== "merchant") {
+        page.data = {
+            merchantSlug: ps[2],
+            ...(ps[3] ? { campaignSlug: ps[3] } : {}),
+        };
     }
 
     if (location.search) {
@@ -17,7 +63,7 @@ export const parseLocation = (): PageItem | undefined => {
         for (const param of searchParams) {
             params[param[0]] = param[1];
         }
-        page.data = params;
+        page.data = { ...(page.data ?? {}), ...params };
     }
     return page as PageItem
 }
@@ -38,10 +84,26 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
         // console.log(app)
 
         const uri = res['ctx'] === "/" ? location.pathname : location.pathname.substring(res['ctx'].length);
-        // console.log(uri)
-        let navCfg: any = app.navs.find((nav: any) => uri.includes(nav.uri));
+        let navCfg: any;
+        if (res["ctx"] === "campaign" && ps[2] === "merchant") {
+            navCfg = app.navs.find((nav: any) => nav.uri === "merchant");
+        } else if (res["ctx"] === "partner" && ps[2] === "admin") {
+            navCfg = app.navs.find((nav: any) => nav.uri === "admin");
+        } else if (res["ctx"] === "platform" && ps[2] === "admin") {
+            navCfg = app.navs.find((nav: any) => nav.uri === "admin");
+        } else if (res["ctx"] === "campaign" && ps[2] && ps[2] !== "merchant") {
+            navCfg = app.navs.find((nav: any) => nav.uri === "");
+        } else {
+            navCfg = app.navs.find((nav: any) => nav.uri && uri.includes(nav.uri));
+        }
         if (!navCfg && res["ctx"] === "portal" && app.navs.length > 0) {
             navCfg = app.navs[0];
+        }
+        if (!navCfg && res["ctx"] === "campaign" && isCampaignPlayerShellUri(location.pathname) && app.navs.length > 0) {
+            navCfg = app.navs.find((nav: any) => nav.uri === "") ?? app.navs[0];
+        }
+        if (!navCfg && res["ctx"] === "campaign" && ps[2] === "merchant") {
+            navCfg = app.navs.find((nav: any) => nav.uri === "merchant") ?? app.navs[0];
         }
         // if (!navCfg) {
         //     navCfg = app.navs[0]
@@ -75,6 +137,52 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
                 if (gameType) {
                     navItem.data = { ...(navItem.data ?? {}), gameType };
                     navItem.params = { ...(navItem.params ?? {}), gameType };
+                }
+            }
+            if (res["ctx"] === "platform" && ps[2] === "admin") {
+                const sub = ps[3]?.trim();
+                if (sub) {
+                    navItem.child = sub;
+                }
+            }
+            if (res["ctx"] === "partner" && ps[2] === "admin") {
+                const sub = ps[3]?.trim();
+                if (sub) {
+                    navItem.child = sub;
+                }
+                const partnerId = navItem.params?.partnerId ?? navItem.data?.partnerId;
+                if (partnerId) {
+                    navItem.data = { ...(navItem.data ?? {}), partnerId };
+                }
+            }
+            if (res["ctx"] === "campaign") {
+                if (ps[2] === "merchant") {
+                    const sub = ps[3]?.trim();
+                    if (sub) {
+                        navItem.child = sub;
+                    }
+                    const merchantId = navItem.params?.merchantId ?? navItem.data?.merchantId;
+                    const campaignId =
+                      navItem.params?.campaignId ??
+                      navItem.data?.campaignId ??
+                      new URLSearchParams(location.search).get("campaignId");
+                    if (merchantId) {
+                        navItem.data = { ...(navItem.data ?? {}), merchantId };
+                    }
+                    if (campaignId) {
+                        navItem.data = { ...(navItem.data ?? {}), campaignId };
+                    }
+                } else if (ps[2] && ps[2] !== "merchant") {
+                    navItem.data = {
+                        ...(navItem.data ?? {}),
+                        merchantSlug: ps[2],
+                        ...(ps[3] ? { campaignSlug: ps[3] } : {}),
+                    };
+                    navItem.params = {
+                        ...(navItem.params ?? {}),
+                        merchantSlug: ps[2],
+                        ...(ps[3] ? { campaignSlug: ps[3] } : {}),
+                    };
                 }
             }
             if (location.hash) {
@@ -127,8 +235,8 @@ export const getURIParam = (name: string): string | null => {
 }
 
 /**
- * 与 PageConfig 生成的 uri 对齐（去掉尾部 `/` 等），避免 pathname 与 openPage 不一致时
- * findContainer/findAncestor 返回 null → isSameTree 误判为 false → 整层 lobby 被 pageComplete 压暗（黑屏）且 slide 被跳过。
+ * ä¸Ž PageConfig ç”Ÿæˆçš„ uri å¯¹é½ï¼ˆåŽ»æŽ‰å°¾éƒ¨ `/` ç­‰ï¼‰ï¼Œé¿å… pathname ä¸Ž openPage ä¸ä¸€è‡´æ—¶
+ * findContainer/findAncestor è¿”å›ž null â†’ isSameTree è¯¯åˆ¤ä¸º false â†’ æ•´å±‚ lobby è¢« pageComplete åŽ‹æš—ï¼ˆé»‘å±ï¼‰ä¸” slide è¢«è·³è¿‡ã€‚
  */
 export function normalizePageUri(uri: string): string {
     if (!uri) return uri;
@@ -137,16 +245,70 @@ export function normalizePageUri(uri: string): string {
     return t.replace(/\/+$/, "");
 }
 
+/** Campaign landing shell is `/campaign/{merchantSlug}/{campaignSlug}` â€” not `/campaign/merchant/*`. */
+export function isCampaignLandingPageUri(uri: string): boolean {
+    const u = normalizePageUri(uri);
+    if (!u.startsWith("/campaign/")) return false;
+    if (u.startsWith("/campaign/merchant")) return false;
+    const parts = u.split("/").filter(Boolean);
+    return parts.length >= 3;
+}
+
+/** Merchant carousel entry: `/campaign/{merchantSlug}` (no campaign slug yet). */
+export function isCampaignMerchantEntryUri(uri: string): boolean {
+    const u = normalizePageUri(uri);
+    if (!u.startsWith("/campaign/")) return false;
+    if (u.startsWith("/campaign/merchant")) return false;
+    const parts = u.split("/").filter(Boolean);
+    return parts.length === 2;
+}
+
+/** Player-facing campaign shell: merchant hub or a specific campaign landing. */
+export function isCampaignPlayerShellUri(uri: string): boolean {
+    return isCampaignMerchantEntryUri(uri) || isCampaignLandingPageUri(uri);
+}
+
+/** `/campaign/{merchantSlug}` or `/campaign/{merchantSlug}/{campaignSlug}` â†’ merchant slug. */
+export function parseCampaignMerchantSlugFromPathname(pathname: string): string | null {
+    const parts = pathname.split("/").filter(Boolean);
+    if (parts[0] !== "campaign" || !parts[1] || parts[1] === "merchant") {
+        return null;
+    }
+    return parts[1].trim().toLowerCase();
+}
+
+/** `?partnerId=` or legacy `?pid=` for SSO / partner admin deep links. */
+export function resolvePartnerPidFromSearch(search: string = typeof window !== "undefined" ? window.location.search : ""): number | null {
+    const params = new URLSearchParams(search);
+    const raw = params.get("partnerId") ?? params.get("pid");
+    if (raw == null || raw === "") return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+export function pageUriMatchesContainer(pageUri: string, containerUri: string): boolean {
+    const u = normalizePageUri(pageUri);
+    const c = normalizePageUri(containerUri);
+    if (u === c) return true;
+    if (c === "/campaign") {
+        return isCampaignPlayerShellUri(u);
+    }
+    return u.startsWith(`${c}/`);
+}
+
 export const findContainerByURI = (container: PageContainer, uri: string): PageContainer | null => {
   const u = normalizePageUri(uri);
   if (normalizePageUri(container.uri) === "/portal" && u.startsWith("/portal/")) {
+    return container;
+  }
+  if (normalizePageUri(container.uri) === "/campaign" && isCampaignPlayerShellUri(u)) {
     return container;
   }
   if (normalizePageUri(container.uri) === u) {
     return container;
   }
 
-    // 如果当前节点有子节点，递归搜索子节点
+    // å¦‚æžœå½“å‰èŠ‚ç‚¹æœ‰å­èŠ‚ç‚¹ï¼Œé€’å½’æœç´¢å­èŠ‚ç‚¹
     if (container.children && Array.isArray(container.children)) {
         for (const child of container.children) {
             const result = findContainerByURI(child, uri);
@@ -156,13 +318,13 @@ export const findContainerByURI = (container: PageContainer, uri: string): PageC
         }
     }
 
-    // 如果未找到，返回 null
+    // å¦‚æžœæœªæ‰¾åˆ°ï¼Œè¿”å›ž null
     return null;
 }
 
 /**
- * 在若干顶层容器组成的森林中按完整 uri 精确查找 PageContainer。
- * 与 {@link findContainerByURI} 等价于对每个根依次做子树 DFS。
+ * åœ¨è‹¥å¹²é¡¶å±‚å®¹å™¨ç»„æˆçš„æ£®æž—ä¸­æŒ‰å®Œæ•´ uri ç²¾ç¡®æŸ¥æ‰¾ PageContainerã€‚
+ * ä¸Ž {@link findContainerByURI} ç­‰ä»·äºŽå¯¹æ¯ä¸ªæ ¹ä¾æ¬¡åšå­æ ‘ DFSã€‚
  */
 export const findContainer = (containers: PageContainer[], uri: string): PageContainer | null => {
     for (const container of containers) {
@@ -172,8 +334,8 @@ export const findContainer = (containers: PageContainer[], uri: string): PageCon
     return null;
 }
 /**
- * 在容器树中查找持有指定 uri 的节点的父级 PageContainer（递归）。
- * 若 uri 对应顶层列表中的节点，则返回 null。
+ * åœ¨å®¹å™¨æ ‘ä¸­æŸ¥æ‰¾æŒæœ‰æŒ‡å®š uri çš„èŠ‚ç‚¹çš„çˆ¶çº§ PageContainerï¼ˆé€’å½’ï¼‰ã€‚
+ * è‹¥ uri å¯¹åº”é¡¶å±‚åˆ—è¡¨ä¸­çš„èŠ‚ç‚¹ï¼Œåˆ™è¿”å›ž nullã€‚
  */
 export const findParent = (containers: PageContainer[], uri: string): PageContainer | null => {
     const u = normalizePageUri(uri);
@@ -193,8 +355,8 @@ export const findParent = (containers: PageContainer[], uri: string): PageContai
 }
 
 /**
- * 在顶层容器森林中，查找持有指定 uri 的节点所在的**根** PageContainer（`containers` 数组中的那一项）。
- * 若匹配发生在深层子节点，仍返回包含该子树的顶层根。
+ * åœ¨é¡¶å±‚å®¹å™¨æ£®æž—ä¸­ï¼ŒæŸ¥æ‰¾æŒæœ‰æŒ‡å®š uri çš„èŠ‚ç‚¹æ‰€åœ¨çš„**æ ¹** PageContainerï¼ˆ`containers` æ•°ç»„ä¸­çš„é‚£ä¸€é¡¹ï¼‰ã€‚
+ * è‹¥åŒ¹é…å‘ç”Ÿåœ¨æ·±å±‚å­èŠ‚ç‚¹ï¼Œä»è¿”å›žåŒ…å«è¯¥å­æ ‘çš„é¡¶å±‚æ ¹ã€‚
  */
 export const findAncestor = (containers: PageContainer[], uri: string): PageContainer | null => {
     for (const root of containers) {
@@ -204,6 +366,36 @@ export const findAncestor = (containers: PageContainer[], uri: string): PageCont
     }
     return null;
 }
+
+/**
+ * Top-level page shells to mount for a pathname (one root tree).
+ * Used by cold-boot preload and RenderApp context-scoped mounting.
+ */
+export function resolveMountedRootShells(
+    containers: readonly PageContainer[],
+    entryUri: string
+): PageContainer[] {
+    const u = normalizePageUri(entryUri);
+    if (!u) {
+        const fallback = containers.find(
+            (c) => normalizePageUri(c.uri).startsWith(DEFAULT_MOUNT_CONTEXT)
+        );
+        return fallback ? [fallback] : containers.slice(0, 1);
+    }
+    const ancestor = findAncestor([...containers], u);
+    if (ancestor) {
+        return [ancestor];
+    }
+    console.warn("[context] URI matches no shell; falling back to default context", entryUri);
+    const fallback = containers.find(
+        (c) => normalizePageUri(c.uri).startsWith(DEFAULT_MOUNT_CONTEXT)
+    );
+    return fallback ? [fallback] : containers.slice(0, 1);
+}
+
+/** @deprecated use resolveMountedRootShells */
+export const resolveColdBootRootShells = resolveMountedRootShells;
+
 export const isSibling = (containers: PageContainer[], uri: string, preUri: string): boolean => {
     const parent = findParent(containers, uri);
     const preParent = findParent(containers, preUri);
@@ -225,11 +417,11 @@ export const useUrlParams = () => {
     const params = useMemo(() => {
         const searchParams = new URLSearchParams(window.location.search);
         return {
-            // 获取单个参数
+            // èŽ·å–å•ä¸ªå‚æ•°
             get: (key: string) => searchParams.get(key),
-            // 获取所有参数对象
+            // èŽ·å–æ‰€æœ‰å‚æ•°å¯¹è±¡
             getAll: () => Object.fromEntries(searchParams.entries()),
-            // 检查参数是否存在
+            // æ£€æŸ¥å‚æ•°æ˜¯å¦å­˜åœ¨
             has: (key: string) => searchParams.has(key),
         };
     }, [window.location.search]);

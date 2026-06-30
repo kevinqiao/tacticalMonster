@@ -1,4 +1,5 @@
-import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { ConvexReactClient } from 'convex/react';
+import PlatformConvexProvider from 'host/service/platformAuth/PlatformConvexProvider';
 import React from 'react';
 import GamePlayer from './GamePlayer';
 import TowerGameProvider from './service/GameManager';
@@ -38,9 +39,9 @@ const TowerArenaGame: React.FC<TowerArenaGameProps> = (props) => {
   const client = React.useMemo(() => new ConvexReactClient(convexUrl), []);
   return (
     <div className="tower-game-container">
-      <ConvexProvider client={client}>
+      <PlatformConvexProvider client={client}>
         <TowerArenaGameInner {...props} />
-      </ConvexProvider>
+      </PlatformConvexProvider>
     </div>
   );
 };

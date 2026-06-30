@@ -20,8 +20,6 @@ const useCombatAct = () => {
     eventQueue.push({ name: "rollStart", data: { seatNo: seat.no } });
     const res = await convex.mutation(api.service.gameProxy.roll, {
       gameId: game?.gameId ?? "123",
-      uid: user?.uid,
-      token: "test-token",
     });
     console.log("roll res", res);
 
@@ -38,8 +36,6 @@ const useCombatAct = () => {
     const res = await convex.mutation(api.service.gameProxy.selectToken, {
       gameId: game?.gameId ?? "123",
       tokenId: tokenId,
-      uid: user?.uid,
-      token: "test-token",
     });
     console.log("roll res", res);
 
@@ -50,7 +46,7 @@ const useCombatAct = () => {
   }, [game, user]);
   const turnOffBot = useCallback(async () => {
     if (!game) return;
-    await convex.mutation(api.service.gameProxy.turnOffBot, { gameId: game.gameId, uid: user?.uid, token: "test-token" });
+    await convex.mutation(api.service.gameProxy.turnOffBot, { gameId: game.gameId });
   }, [game, user]);
   return { roll, selectToken, timeout, turnOffBot };
 };

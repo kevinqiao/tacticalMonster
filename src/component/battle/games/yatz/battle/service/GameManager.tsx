@@ -2,6 +2,10 @@ import { useCasualPlatform } from 'component/lobby/casual/service/useCasualPlatf
 
 import { useUserManager } from 'host/service/UserManager';
 
+import { usePlatformAuth } from 'host/service/platformAuth/PlatformAuthProvider';
+
+import { isPlatformAuthed } from 'host/service/platformAuth/platformAccessToken';
+
 import { useConvex } from 'convex/react';
 
 import React, {
@@ -35,6 +39,10 @@ import {
 } from '../../../shared/casualAsyncTableSummaryUI';
 
 import type { CasualGameScoreReportUI } from '../../../shared/casualGameScoreReportUI';
+
+import { buildCasualPlatformRunActionArgs } from '../../../shared/casualPlatformActionArgs';
+
+import { fetchCasualAsyncTableSummaryForGame } from '../../../shared/fetchCasualAsyncTableSummary';
 
 import { CasualGameScoreReportOverlay } from '../../../shared/CasualGameScoreReportOverlay';
 
@@ -152,9 +160,18 @@ const YatzGameProvider: React.FC<Props> = ({
 
   const convex = useConvex();
 
-  const casual = useCasualPlatform();
-
   const { user } = useUserManager();
+
+  const { platformReady } = usePlatformAuth();
+
+  const casualPlatformBridge = casualTournamentId?.startsWith('portal_')
+    ? ('portal' as const)
+    : undefined;
+
+  const casualPlatformAuthed =
+    platformReady && isPlatformAuthed(user) && Boolean(user?.platformAccessToken);
+
+  const casual = useCasualPlatform({ enabled: casualPlatformBridge !== 'portal' });
 
   const [gameState, setGameState] = useState<YatzGameState | null>(null);
 
@@ -240,7 +257,10 @@ const YatzGameProvider: React.FC<Props> = ({
 
     try {
 
-      const res = await convex.action(api.proxy.controller.loadGame, { gameId });
+      const res = await convex.action(api.proxy.controller.loadGame, {
+        gameId,
+        ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
+      });
 
       if (res?.ok && res.game) {
 
@@ -264,7 +284,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     }
 
-  }, [convex, gameId]);
+  }, [convex, gameId, casualPlatformBridge]);
 
 
 
@@ -392,7 +412,10 @@ const YatzGameProvider: React.FC<Props> = ({
 
         try {
 
-          const summary = await casual.fetchCasualTableSummaryForGame(gameIdForSummary);
+          const summary = await fetchCasualAsyncTableSummaryForGame({
+            matchGameId: gameIdForSummary,
+            platformBridge: casualPlatformBridge ?? 'casual',
+          });
 
           if (summary?.rows?.length) {
 
@@ -422,7 +445,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     },
 
-    [casual]
+    [casualPlatformBridge]
 
   );
 
@@ -432,7 +455,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     const gs = gameStateRef.current;
 
-    if (!gs?.gameId?.startsWith('game_') || !user?.token || casualRunSubmittedRef.current) return;
+    if (!gs?.gameId?.startsWith('game_') || !casualPlatformAuthed || casualRunSubmittedRef.current) return;
 
     casualRunSubmittedRef.current = true;
 
@@ -440,9 +463,10 @@ const YatzGameProvider: React.FC<Props> = ({
 
       const res = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
 
-        token: user.token,
-
-        gameId: gs.gameId,
+        ...buildCasualPlatformRunActionArgs({
+          gameId: gs.gameId,
+          platformBridge: casualPlatformBridge,
+        }),
 
       })) as {
 
@@ -482,7 +506,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     }
 
-  }, [convex, user?.token, applySettleResponse]);
+  }, [convex, casualPlatformAuthed, applySettleResponse, casualPlatformBridge]);
 
 
 
@@ -497,6 +521,8 @@ const YatzGameProvider: React.FC<Props> = ({
         gameId,
 
         resetCasualRun: true,
+
+        ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
 
       });
 
@@ -526,7 +552,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     }
 
-  }, [convex, gameId]);
+  }, [convex, gameId, casualPlatformBridge]);
 
 
 
@@ -534,7 +560,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     const gs = gameStateRef.current;
 
-    if (!gs || !user?.token || casualReplayBusy) return;
+    if (!gs || !casualPlatformAuthed || casualReplayBusy) return;
 
     if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
 
@@ -544,9 +570,10 @@ const YatzGameProvider: React.FC<Props> = ({
 
       const rr = (await convex.action(api.proxy.controller.replayCasualRun, {
 
-        token: user.token,
-
-        gameId: gs.gameId,
+        ...buildCasualPlatformRunActionArgs({
+          gameId: gs.gameId,
+          platformBridge: casualPlatformBridge,
+        }),
 
       })) as { ok?: boolean; error?: string };
 
@@ -574,7 +601,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     }
 
-  }, [convex, user?.token, casualReplayBusy, clearPostCasualOverlays, reloadCasualRun]);
+  }, [convex, casualPlatformAuthed, casualReplayBusy, clearPostCasualOverlays, reloadCasualRun, casualPlatformBridge]);
 
 
 
@@ -646,7 +673,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     const gs = gameStateRef.current;
 
-    if (!gs?.gameId || !user?.token || settleInFlightRef.current) return;
+    if (!gs?.gameId || !casualPlatformAuthed || settleInFlightRef.current) return;
 
     setSettleConfirmOpen(false);
 
@@ -660,9 +687,10 @@ const YatzGameProvider: React.FC<Props> = ({
 
       const res = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
 
-        token: user.token,
-
-        gameId: gs.gameId,
+        ...buildCasualPlatformRunActionArgs({
+          gameId: gs.gameId,
+          platformBridge: casualPlatformBridge,
+        }),
 
       })) as {
 
@@ -704,7 +732,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     }
 
-  }, [convex, user?.token, applySettleResponse]);
+  }, [convex, casualPlatformAuthed, applySettleResponse, casualPlatformBridge]);
 
 
 
@@ -920,7 +948,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     if (gs.dueTime == null || Date.now() < gs.dueTime) return;
 
-    if (!user?.token || typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
+    if (!casualPlatformAuthed || typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
 
 
 
@@ -932,9 +960,10 @@ const YatzGameProvider: React.FC<Props> = ({
 
       const res = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
 
-        token: user.token,
-
-        gameId: gs.gameId,
+        ...buildCasualPlatformRunActionArgs({
+          gameId: gs.gameId,
+          platformBridge: casualPlatformBridge,
+        }),
 
       })) as {
 
@@ -988,7 +1017,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     }
 
-  }, [convex, user?.token, applySettleResponse]);
+  }, [convex, casualPlatformAuthed, applySettleResponse, casualPlatformBridge]);
 
 
 

@@ -75,13 +75,12 @@ export function useTowerActHandler() {
   );
 
   const concedeAndSubmit = useCallback(async () => {
-    if (!game || !user?.token) return;
+    if (!game || !user?.platformAccessToken) return;
     setBusy(true);
     try {
       await convex.mutation(api.service.gameManager.concedeGame, { gameId: game.gameId });
       if (game.gameId.startsWith('game_') && casualTournamentId) {
         await convex.action(api.proxy.controller.submitCasualPlatformRun, {
-          token: user.token,
           gameId: game.gameId,
         });
       }
@@ -89,7 +88,7 @@ export function useTowerActHandler() {
     } finally {
       setBusy(false);
     }
-  }, [game, user?.token, convex, casualTournamentId, onGameSubmit]);
+  }, [game, user?.platformAccessToken, convex, casualTournamentId, onGameSubmit]);
 
   return { place, upgrade, sell, startWaveAnimated, concedeAndSubmit, busy };
 };

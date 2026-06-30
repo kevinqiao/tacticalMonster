@@ -1,4 +1,5 @@
-import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { ConvexReactClient } from 'convex/react';
+import PlatformConvexProvider from 'host/service/platformAuth/PlatformConvexProvider';
 import React from 'react';
 import GamePlayer from './GamePlayer';
 import YatzGameProvider from './service/GameManager';
@@ -24,7 +25,7 @@ const YatzGame: React.FC<YatzGameProps> = ({
   }
   return (
     <div className="yatz-game-root" style={{ width: '100%', height: '100%' }}>
-      <ConvexProvider client={client}>
+      <PlatformConvexProvider client={client}>
         <YatzGameProvider
           gameId={casualMatchGameId}
           casualTournamentId={casualTournamentId}
@@ -32,7 +33,7 @@ const YatzGame: React.FC<YatzGameProps> = ({
         >
           <GamePlayer />
         </YatzGameProvider>
-      </ConvexProvider>
+      </PlatformConvexProvider>
     </div>
   );
 };

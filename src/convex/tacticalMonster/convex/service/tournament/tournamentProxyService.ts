@@ -1,4 +1,5 @@
 import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
+import { tournamentBridgeHeaders } from "../bridge/tournamentBridgeSecret";
 
 /**
  * Tournament 模块代理服务
@@ -144,9 +145,7 @@ export class TournamentProxyService {
                 `${getTournamentUrl("/getTournamentResult")}?uid=${params.uid}&tournamentId=${params.tournamentId}`,
                 {
                     method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                 }
             );
 
@@ -200,9 +199,7 @@ export class TournamentProxyService {
                 getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.CLAIM_TOURNAMENT_REWARDS),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify({
                         uid: params.uid,
                         tournamentId: params.tournamentId,
@@ -255,9 +252,7 @@ export class TournamentProxyService {
                 getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.ADD_SEASON_POINTS),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify({
                         uid: params.uid,
                         seasonPointsAmount: params.amount,
@@ -311,9 +306,7 @@ export class TournamentProxyService {
                 getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.PURCHASE_PREMIUM_BATTLE_PASS),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify({
                         uid: params.uid,
                     }),
@@ -357,9 +350,7 @@ export class TournamentProxyService {
                 `${getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.GET_PLAYER_BATTLE_PASS)}?uid=${params.uid}`,
                 {
                     method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                 }
             );
 
@@ -409,7 +400,7 @@ export class TournamentProxyService {
             getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.ADD_RESOURCES),
             {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: tournamentBridgeHeaders(),
                 body: JSON.stringify({
                     uid: params.uid,
                     coins: params.coins,
@@ -442,7 +433,7 @@ export class TournamentProxyService {
             getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.DEDUCT_RESOURCES),
             {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: tournamentBridgeHeaders(),
                 body: JSON.stringify({
                     uid: params.uid,
                     coins: params.coins,
@@ -480,9 +471,7 @@ export class TournamentProxyService {
                 `${getTournamentUrl("/getPlayerEnergy")}?uid=${params.uid}`,
                 {
                     method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                 }
             );
 
@@ -518,9 +507,7 @@ export class TournamentProxyService {
                 getTournamentUrl("/consumeEnergy"),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify({
                         uid: params.uid,
                         amount: params.amount,
@@ -562,9 +549,7 @@ export class TournamentProxyService {
                 getTournamentUrl("/addEnergy"),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify({
                         uid: params.uid,
                         amount: params.amount,
@@ -633,9 +618,7 @@ export class TournamentProxyService {
                 getTournamentUrl("/grantRewards"),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify({
                         uid: params.uid,
                         rewards: params.rewards,
@@ -680,12 +663,10 @@ export class TournamentProxyService {
     }> {
         try {
             const response = await fetch(
-                getTournamentUrl("/join"),
+                getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.JOIN_TOURNAMENT),
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: tournamentBridgeHeaders(),
                     body: JSON.stringify({
                         uid: params.uid,
                         typeId: params.typeId,

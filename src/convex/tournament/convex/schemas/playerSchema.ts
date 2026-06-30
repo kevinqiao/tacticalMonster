@@ -7,7 +7,6 @@ export const playerSchema = {
     // 注意：金币存储在 player_inventory 表中，等级和经验值由 Tournament 模块统一管理
     players: defineTable({
         uid: v.string(),
-        token: v.optional(v.string()),
         email: v.optional(v.string()),
         displayName: v.optional(v.string()),
         avatar: v.optional(v.string()),

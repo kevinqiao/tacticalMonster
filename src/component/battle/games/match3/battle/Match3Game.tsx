@@ -1,4 +1,5 @@
-import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { ConvexReactClient } from 'convex/react';
+import PlatformConvexProvider from 'host/service/platformAuth/PlatformConvexProvider';
 import React from 'react';
 import GamePlayer from './GamePlayer';
 import Match3GameProvider from './service/GameManager';
@@ -55,7 +56,7 @@ const Match3Game: React.FC<Match3GameProps> = ({
   const client = React.useMemo(() => new ConvexReactClient(convexUrl), []);
   return (
     <div className="match3-game-root" style={{ width: '100%', height: '100%' }}>
-      <ConvexProvider client={client}>
+      <PlatformConvexProvider client={client}>
         <Match3GameInner
           casualTournamentId={casualTournamentId}
           casualMatchGameId={casualMatchGameId}
@@ -63,7 +64,7 @@ const Match3Game: React.FC<Match3GameProps> = ({
           onTriathlonNextGame={onTriathlonNextGame}
           onTriathlonSessionReplay={onTriathlonSessionReplay}
         />
-      </ConvexProvider>
+      </PlatformConvexProvider>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { isSameTree } from "@/host/util/PageUtils";
+import { findContainer, isSameTree, normalizePageUri, pageUriMatchesContainer } from "@/host/util/PageUtils";
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import "./render.css";
 import { PageContainer, usePageManager } from "./service/PageManager";
@@ -97,6 +97,27 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/casual/view/battlePass/CasualBattlePassTab': () => import('component/lobby/casual/view/battlePass/CasualBattlePassTab'),
   './lobby/casual/view/town/CasualTownTab': () => import('component/lobby/casual/view/town/CasualTownTab'),
   './lobby/portal/PortalGamePage': () => import('component/lobby/portal/PortalGamePage'),
+  './lobby/campaign/PlayForCouponPage': () => import('component/lobby/campaign/PlayForCouponPage'),
+  './lobby/campaign/landing/CampaignLandingPage': () =>
+    import('component/lobby/campaign/landing/CampaignLandingPage'),
+  './lobby/campaign/merchant/MerchantHomePage': () =>
+    import('component/lobby/campaign/merchant/MerchantHomePage'),
+  './lobby/campaign/merchant/MerchantCampaignListPage': () =>
+    import('component/lobby/campaign/merchant/MerchantCampaignListPage'),
+  './lobby/campaign/merchant/MerchantRedeemPage': () =>
+    import('component/lobby/campaign/merchant/MerchantRedeemPage'),
+  './lobby/campaign/merchant/MerchantCouponListPage': () =>
+    import('component/lobby/campaign/merchant/MerchantCouponListPage'),
+  './lobby/campaign/merchant/MerchantCouponDefListPage': () =>
+    import('component/lobby/campaign/merchant/MerchantCouponDefListPage'),
+  './lobby/campaign/merchant/MerchantBrandSettingsPage': () =>
+    import('component/lobby/campaign/merchant/MerchantBrandSettingsPage'),
+  './lobby/campaign/merchant/MerchantTeamPage': () =>
+    import('component/lobby/campaign/merchant/MerchantTeamPage'),
+  './lobby/partner/admin/PartnerAdminHomePage': () =>
+    import('component/lobby/partner/admin/PartnerAdminHomePage'),
+  './lobby/platform/admin/PlatformAdminHomePage': () =>
+    import('component/lobby/platform/admin/PlatformAdminHomePage'),
 };
 
 // 获取缓存的组件
@@ -141,15 +162,9 @@ const getCachedComponent = (path: string): React.ComponentType<PageProp> => {
 // 优化的页面组件
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const [visible, setVisible] = useState(0);
-  const { pageEvent, pageContainers } = usePageManager();
+  const { pageEvent, pageContainers, currentPage } = usePageManager();
 
   const { playInit } = usePageAnimate();
-  // const { cleanupAnimation, setAnimationRef, clearAnimationRef } = useAnimationManager(container);
-
-  // 使用缓存的组件
-  const SelectedComponent = useMemo(() => {
-    return getCachedComponent(container.path);
-  }, [container.path]);
 
   const load = useCallback((ele: HTMLDivElement | null) => {
     container.ele = ele;
@@ -160,16 +175,39 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     }
   }, [container, playInit]);
 
+  const pageUri =
+    pageEvent?.page?.uri ??
+    currentPage?.uri ??
+    (typeof window !== "undefined" ? window.location.pathname : "");
+  const showShell = pageUriMatchesContainer(pageUri, container.uri);
+  const activeContainer = pageEvent ? findContainer(pageContainers, pageUri) : null;
+  const showContent =
+    activeContainer != null &&
+    normalizePageUri(activeContainer.uri) === normalizePageUri(container.uri);
+
+  const leavingShell =
+    pageEvent?.prepage?.uri != null &&
+    pageUriMatchesContainer(pageEvent.prepage.uri, container.uri);
+
+  const shouldLoadChunk =
+    showShell && (showContent || visible > 0 || leavingShell);
+
+  const SelectedComponent = useMemo(() => {
+    if (!shouldLoadChunk) return null;
+    return getCachedComponent(container.path);
+  }, [shouldLoadChunk, container.path]);
+
   useEffect(() => {
 
     if (!pageEvent || !container) return;
     const { name, page, prepage } = pageEvent;
-    // console.log("pageEvent", name, page, prepage);
+    const uri = page?.uri ?? "";
+    const shellVisible =
+      pageUriMatchesContainer(uri, container.uri) ||
+      (prepage?.uri ? pageUriMatchesContainer(prepage.uri, container.uri) : false);
+
     if (name === "pageOpen") {
-      if (page?.uri?.startsWith(container.uri) || prepage?.uri?.startsWith(container.uri)) {
-        setVisible(1);
-      } else
-        setVisible(0);
+      setVisible(shellVisible ? 1 : 0);
     } else if (name === "pageComplete") {
       if (!prepage?.uri) return;
       const sameTree = isSameTree(pageContainers, prepage.uri, page.uri);
@@ -190,9 +228,10 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
         key={`${container.app}-${parent ? parent.name + "-" : ""}${container.name}`}
         id={`${container.app}-${parent ? parent.name + "-" : ""}${container.name}`}
         ref={load}
-        className={container.class}
+        className={container.class ?? (parent ? "child_container" : undefined)}
         data-visible={visible}
         data-container-name={container.name}
+        data-active={showShell && showContent && visible ? "true" : "false"}
       >
         {container.children?.map((c: PageContainer) => (
           <PageComponent
@@ -201,9 +240,11 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
             container={c}
           />
         ))}
-        <Suspense fallback={<div />}>
-          <SelectedComponent visible={visible} />
-        </Suspense>
+        {SelectedComponent ? (
+          <Suspense fallback={<div />}>
+            <SelectedComponent visible={showShell && showContent ? visible : 0} />
+          </Suspense>
+        ) : null}
       </div>
 
 
@@ -216,16 +257,16 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 // 优化的主渲染组件
 const RenderApp: React.FC = () => {
 
-  const { pageContainers } = usePageManager();
+  const { mountedPageContainers } = usePageManager();
   // 优化的页面渲染
   const renderPage = useMemo(() => {
-    return pageContainers.map((container) => (
+    return mountedPageContainers.map((container) => (
       <PageComponent
         key={container.uri}
         container={container}
       />
     ));
-  }, [pageContainers]);
+  }, [mountedPageContainers]);
 
   return <>{renderPage}</>;
 };

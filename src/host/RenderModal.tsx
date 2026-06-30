@@ -1,10 +1,12 @@
+import { modalMatchesActiveContext } from "@/host/util/PageUtils";
 import { ModalContainer, ModalItem, ModalProp, useModalManager } from "host/service/ModalManager";
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { requestCasualGameModalExit } from "component/battle/games/shared/casualGameModalExitBridge";
 import "./render.css";
+import { usePageManager } from "./service/PageManager";
 import { useModalAnimate } from "./useModalAnimate";
-
 /** 须高于 `LobbyHome` 顶/底栏 portal（z-index 5200），否则 chrome 会压住 Modal（同为 body 子节点时按数值比较） */
 const MODAL_Z_BASE = 5500;
 
@@ -146,7 +148,7 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
     }
   }, [modals, container.name]);
 
-  const close = useCallback(() => {
+  const dismissModal = useCallback(() => {
     if (!container) return;
     playClose({
       onComplete: () => {
@@ -157,9 +159,16 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
     });
 
   }, [container, playClose, closeModal]);
+
+  /** 左上角 X / 遮罩：休闲对局内先走结束结算，结算完成仍用 `dismissModal`（onGameSubmit）关窗 */
+  const requestClose = useCallback(() => {
+    if (requestCasualGameModalExit()) return;
+    dismissModal();
+  }, [dismissModal]);
   const SelectedComponent = useMemo(() => {
+    if (!modal) return null;
     return getCachedComponent(container.path);
-  }, [container.path]);
+  }, [modal, container.path]);
 
   useEffect(() => {
     const m = modals.find((modal) => modal.name === container.name);
@@ -178,7 +187,7 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
 
   const modalLayer = (
     <div style={{ position: "fixed", inset: 0, zIndex, backgroundColor: "transparent", pointerEvents: modal ? "auto" : "none", overflow: "hidden" }}>
-      <div className="modal-mask" ref={(ele) => container.mask = ele} onClick={close}></div>
+      <div className="modal-mask" ref={(ele) => container.mask = ele} onClick={requestClose}></div>
       <div
         key={`${container.name}`}
         id={`${container.name}`}
@@ -188,8 +197,12 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
         data-container-name={container.name}
         data-init={container.init}
       >
-        <Suspense fallback={<div />}><SelectedComponent visible={modal ? true : false} data={modal?.data} close={close} /></Suspense>
-        <div ref={(ele) => container.closeEle = ele ?? undefined} className="modal-close" onClick={close}>
+        {SelectedComponent ? (
+          <Suspense fallback={<div />}>
+            <SelectedComponent visible={modal ? true : false} data={modal?.data} close={dismissModal} />
+          </Suspense>
+        ) : null}
+        <div ref={(ele) => container.closeEle = ele ?? undefined} className="modal-close" onClick={requestClose}>
           X
         </div>
       </div>
@@ -207,17 +220,20 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
 const RenderModal: React.FC = () => {
 
   const { modalContainers } = useModalManager();
+  const { currentPage } = usePageManager();
+  const pathname =
+    currentPage?.uri ?? (typeof window !== "undefined" ? window.location.pathname : "");
 
-  // 优化的页面渲染
   const renderModals = useMemo(() => {
-    console.log("renderModals", modalContainers);
-    return Object.values(modalContainers).map((container, index) => (
-      <ModalComponent
-        key={container.name}
-        container={container}
-      />
-    ));
-  }, [modalContainers]);
+    return Object.values(modalContainers)
+      .filter((container) => modalMatchesActiveContext(container, pathname))
+      .map((container) => (
+        <ModalComponent
+          key={container.name}
+          container={container}
+        />
+      ));
+  }, [modalContainers, pathname]);
 
   return <>{renderModals}</>;
 };

@@ -1,5 +1,4 @@
-import { v } from "convex/values";
-import { query } from "../../_generated/server";
+import { authedQuery } from "../../custom/session";
 import type { PayoutBucket } from "../../data/casualPayoutPolicy";
 import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
 import { buildDailyGrowthBucketRow } from "./casualPayoutDailyService";
@@ -7,9 +6,10 @@ import { buildDailyGrowthBucketRow } from "./casualPayoutDailyService";
 const PAYOUT_BUCKETS: PayoutBucket[] = ["async", "season_challenge", "solo_p75"];
 
 /** Play 顶栏「今日成长」：三 bucket 当日场次 / XP 递减 / p75 金币软顶。 */
-export const getDailyGrowthProgress = query({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
+export const getDailyGrowthProgress = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const uid = ctx.uid;
     const now = Date.now();
     const periodKey = dailyPeriodKey(now);
     const buckets = [];

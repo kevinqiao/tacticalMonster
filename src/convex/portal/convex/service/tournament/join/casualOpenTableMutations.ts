@@ -36,6 +36,7 @@ import {
   type CasualMatchSeedBinding,
 } from "./casualMatchSeedBinding";
 import { assertNoGlobalOpenCasualMatch } from "./casualOpenTableGuard";
+import { assertCampaignDailyPlayLimit } from "./campaignDailyPlayLimit";
 import {
   computeMultiTableBatchSize,
   purgeExtraCasualMatchQueueRows,
@@ -169,6 +170,10 @@ export const claimQueueAndCharge = internalMutation({
       joinChargeByUid,
       instanceId: instanceId ?? undefined,
       activityIds: batchActivityIds,
+      ...(rows[0]?.campaignId ? { campaignId: rows[0].campaignId } : {}),
+      ...(rows[0]?.merchantId ? { merchantId: rows[0].merchantId } : {}),
+      ...(rows[0]?.maxPlaysPerDay != null ? { maxPlaysPerDay: rows[0].maxPlaysPerDay } : {}),
+      ...(rows[0]?.dayTimezone ? { dayTimezone: rows[0].dayTimezone } : {}),
     };
   },
 });
@@ -227,6 +232,10 @@ export const insertMatchShell = internalMutation({
     uids: v.array(v.string()),
     joinChargeByUid: joinChargeByUidValidator,
     instanceId: v.optional(v.id("portal_tournament_instances")),
+    campaignId: v.optional(v.string()),
+    merchantId: v.optional(v.string()),
+    maxPlaysPerDay: v.optional(v.number()),
+    dayTimezone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const def = getPortalTournamentDefinition(args.templateId);
@@ -239,6 +248,20 @@ export const insertMatchShell = internalMutation({
       return { ok: false as const, error: "missing_uids" as const };
     }
 
+    if (args.campaignId && args.maxPlaysPerDay != null && args.maxPlaysPerDay >= 1) {
+      for (const uid of uids) {
+        const daily = await assertCampaignDailyPlayLimit(ctx, {
+          uid,
+          campaignId: args.campaignId,
+          maxPlaysPerDay: args.maxPlaysPerDay,
+          ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+        });
+        if (!daily.ok) {
+          return { ok: false as const, error: daily.error };
+        }
+      }
+    }
+
     const now = Date.now();
     const runTournamentId = await ctx.db.insert("portal_run_tournaments", {
       templateId: args.templateId,
@@ -247,6 +270,8 @@ export const insertMatchShell = internalMutation({
       createdAt: now,
       updatedAt: now,
       ...(args.instanceId ? { instanceId: args.instanceId } : {}),
+      ...(args.campaignId ? { campaignId: args.campaignId } : {}),
+      ...(args.merchantId ? { merchantId: args.merchantId } : {}),
     });
 
     for (const uid of uids) {
@@ -273,6 +298,8 @@ export const insertMatchShell = internalMutation({
       openPhase: "pending_seed",
       createdAt: now,
       updatedAt: now,
+      ...(args.campaignId ? { campaignId: args.campaignId } : {}),
+      ...(args.merchantId ? { merchantId: args.merchantId } : {}),
     });
 
     console.log("[casual] insertMatchShell", {
@@ -372,6 +399,11 @@ export const finalizeOpenTable = internalMutation({
       updatedAt: now,
     });
 
+    const campaignAttrs = {
+      ...(matchDoc.campaignId ? { campaignId: matchDoc.campaignId } : {}),
+      ...(matchDoc.merchantId ? { merchantId: matchDoc.merchantId } : {}),
+    };
+
     const byUid: Record<string, { gameId: string; gameType: string; gameIndex: number }> = {};
     for (const uid of uids) {
       const opened = await insertPlayerSessionForUid(ctx, {
@@ -382,6 +414,7 @@ export const finalizeOpenTable = internalMutation({
         uid,
         seedBindingsByIndex: seedBindingsByIndex as SeedBindingByGameIndex,
         now,
+        ...campaignAttrs,
       });
       byUid[uid] = {
         gameId: opened.openGameId,

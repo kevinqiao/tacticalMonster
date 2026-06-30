@@ -1,13 +1,13 @@
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
-import { mutation } from "../../../_generated/server";
+import { authedMutation } from "../../../custom/session";
 import { prunePendingWalletRewards } from "./casualRunScoreEffects";
-export const claimCasualRunRewards = mutation({
+export const claimCasualRunRewards = authedMutation({
   args: {
-    uid: v.string(),
     playerTournamentId: v.id("portal_run_player_tournaments"),
   },
-  handler: async (ctx, { uid, playerTournamentId }) => {
+  handler: async (ctx, { playerTournamentId }) => {
+    const uid = ctx.uid;
     const pt = await ctx.db.get(playerTournamentId);
     if (!pt || pt.uid !== uid) {
       return { ok: false as const, error: "forbidden" as const };
@@ -65,12 +65,12 @@ export const claimCasualRunRewards = mutation({
 });
 
 /** 周期场分档预发奖：领取 `portal_score_tier_pending` 写入钱包 */
-export const claimCasualScoreTierPendingReward = mutation({
+export const claimCasualScoreTierPendingReward = authedMutation({
   args: {
-    uid: v.string(),
     pendingRewardId: v.id("portal_score_tier_pending"),
   },
-  handler: async (ctx, { uid, pendingRewardId }) => {
+  handler: async (ctx, { pendingRewardId }) => {
+    const uid = ctx.uid;
     const row = await ctx.db.get(pendingRewardId);
     if (!row || row.uid !== uid) {
       return { ok: false as const, error: "forbidden" as const };
@@ -117,12 +117,12 @@ export const claimCasualScoreTierPendingReward = mutation({
 const SCORE_TIER_PENDING_BATCH_MAX = 16;
 
 /** 同一局结算多档合并领取：须为同一 `instanceId + runTournamentId + matchGameId + createdAt` 批次 */
-export const claimCasualScoreTierPendingRewardsBatch = mutation({
+export const claimCasualScoreTierPendingRewardsBatch = authedMutation({
   args: {
-    uid: v.string(),
     pendingRewardIds: v.array(v.id("portal_score_tier_pending")),
   },
-  handler: async (ctx, { uid, pendingRewardIds }) => {
+  handler: async (ctx, { pendingRewardIds }) => {
+    const uid = ctx.uid;
     if (pendingRewardIds.length === 0) {
       return { ok: false as const, error: "empty_batch" as const };
     }

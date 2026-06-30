@@ -16,11 +16,7 @@
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    overflow: hidden;
-    overscroll-behavior: none;
-    /* 限制不超过视口高度，减轻竖屏下布局略超高一像素触发的整页滚动条（旧浏览器回退 100vh） */
-    max-height: 100vh;
-    max-height: 100dvh;
+    overflow: visible;
     background:
         radial-gradient(ellipse 90% 55% at 50% 0%, rgba(200, 190, 255, 0.4) 0%, transparent 55%),
         radial-gradient(ellipse 70% 50% at 85% 70%, rgba(150, 210, 255, 0.3) 0%, transparent 50%),
@@ -28,12 +24,39 @@
         linear-gradient(168deg, #b8d4f2 0%, #9eb8f0 22%, #a8c4f5 45%, #b8b0eb 68%, #8ec0f0 100%);
 }
 
+.blockblast-game-loading {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    font-family: 'Arial', sans-serif;
+    background-color: #0a1224;
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.blockblast-game-loading--hidden {
+    visibility: hidden;
+    pointer-events: none;
+}
+
 .blockblast-player-container {
     width: 100%;
     height: 100%;
-    position: relative;
+    position: absolute;
+    left: 0;
+    top: 0;
     min-height: 0;
     overflow: hidden;
+    overscroll-behavior: none;
+    container-type: size;
+    container-name: blockblast-play;
 }
 
 .blockblast-loading {
@@ -263,7 +286,7 @@
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
     /* height 由 BlockBlastStatusBar 内联：1.5×cellSize */
     padding: 8px 12px;
@@ -279,7 +302,7 @@
     min-width: 1px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     padding: 10px 6px 12px;
     border-radius: 0 12px 12px 0;

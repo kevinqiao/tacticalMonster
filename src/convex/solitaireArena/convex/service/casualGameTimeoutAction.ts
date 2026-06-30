@@ -5,6 +5,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
 import { postCasualRunIngest } from "./casualBridgeIngest";
+import { resolvePlatformBridgeForCasualGameId } from "./casualBridgeEnv";
 
 export const checkCasualGameTimeoutAndIngest = internalAction({
   args: {
@@ -22,10 +23,12 @@ export const checkCasualGameTimeoutAndIngest = internalAction({
       return { ok: true as const, skipped: true as const };
     }
 
+    const platformBridge = await resolvePlatformBridgeForCasualGameId(settled.gameId);
     const ingest = await postCasualRunIngest({
       uid: settled.uid,
       matchGameId: settled.gameId,
       score: settled.score,
+      platformBridge,
     });
     if (!ingest.ok) {
       console.warn("[solitaire] timeout ingest failed", gameId, ingest.error);

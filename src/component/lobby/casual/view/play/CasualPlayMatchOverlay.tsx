@@ -1,5 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 import "./casualPlayTab.css";
 
@@ -27,6 +28,8 @@ const CasualPlayMatchOverlay: React.FC<CasualPlayMatchOverlayProps> = ({
   leaving = false,
   onLeave,
 }) => {
+  const { t } = useTranslation("shared.casual");
+
   if (!open || typeof document === "undefined") {
     return null;
   }
@@ -34,13 +37,16 @@ const CasualPlayMatchOverlay: React.FC<CasualPlayMatchOverlayProps> = ({
   const isClaiming = phase === "claiming";
   const showWaitingForPeer = waitingForPeer && phase === "waiting";
 
-  const title = isClaiming || !waitingForPeer ? "正在创建对局" : "正在匹配中";
+  const title =
+    isClaiming || !waitingForPeer
+      ? t("matchOverlay.creatingTitle")
+      : t("matchOverlay.matchingTitle");
   const subtitle =
     isClaiming || !waitingForPeer
-      ? "请稍候，对局即将开始…"
+      ? t("matchOverlay.creatingSubtitle")
       : tournamentTitle
-        ? `等待另一位玩家加入「${tournamentTitle}」`
-        : "等待另一位玩家加入，凑满人数后将自动开桌";
+        ? t("matchOverlay.waitingWithTitle", { title: tournamentTitle })
+        : t("matchOverlay.waitingSubtitle");
 
   return createPortal(
     <div
@@ -64,7 +70,7 @@ const CasualPlayMatchOverlay: React.FC<CasualPlayMatchOverlayProps> = ({
             disabled={leaving}
             onClick={onLeave}
           >
-            {leaving ? "退出中…" : "退出匹配"}
+            {leaving ? t("matchOverlay.leaving") : t("matchOverlay.leave")}
           </button>
         ) : null}
       </div>

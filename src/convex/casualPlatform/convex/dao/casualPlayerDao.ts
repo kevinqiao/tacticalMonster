@@ -4,7 +4,6 @@ import { internalMutation, internalQuery } from "../_generated/server";
 export const create = internalMutation({
   args: {
     uid: v.string(),
-    token: v.optional(v.string()),
     coins: v.optional(v.number()),
     gems: v.optional(v.number()),
   },
@@ -30,7 +29,6 @@ export const findByUid = internalQuery({
 export const patchByUid = internalMutation({
   args: {
     uid: v.string(),
-    token: v.optional(v.string()),
     coins: v.optional(v.number()),
     gems: v.optional(v.number()),
   },
@@ -41,7 +39,6 @@ export const patchByUid = internalMutation({
       .unique();
     if (!row) return null;
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
-    if (rest.token !== undefined) patch.token = rest.token;
     if (rest.coins !== undefined) patch.coins = rest.coins;
     if (rest.gems !== undefined) patch.gems = rest.gems;
     await ctx.db.patch(row._id, patch);

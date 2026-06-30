@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as custom_session from "../custom/session.js";
 import type * as http from "../http.js";
 import type * as proxy_controller from "../proxy/controller.js";
 import type * as service_Match3GameEngine from "../service/Match3GameEngine.js";
@@ -59,6 +60,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "custom/session": typeof custom_session;
   http: typeof http;
   "proxy/controller": typeof proxy_controller;
   "service/Match3GameEngine": typeof service_Match3GameEngine;

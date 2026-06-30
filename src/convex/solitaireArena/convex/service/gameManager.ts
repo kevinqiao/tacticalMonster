@@ -19,11 +19,91 @@ import {
     scoreDeltaForRecycle,
     SOLITAIRE_MATCH_TIME_LIMIT_SEC,
 } from "./seedPool/solitaireScoring";
+import { toClientCardPatches, toClientGameState } from "./clientCardView";
 import type {
     SolitaireRank,
     SolitaireRecordedStep,
     SolitaireSuit,
 } from "./seedPool/solitaireRecordedOpTypes";
+
+/** 同 `gameId` 多行时取最新 */
+function latestSolitaireGameRow<T extends { _creationTime: number }>(rows: T[]): T | undefined {
+    if (rows.length === 0) return undefined;
+    return [...rows].sort((a, b) => b._creationTime - a._creationTime)[0];
+}
+
+async function collectSolitaireGamesByGameId(ctx: { db: any }, gameId: string): Promise<any[]> {
+    return await ctx.db
+        .query("game")
+        .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
+        .collect();
+}
+
+async function healDuplicateSolitaireGamesForGameId(ctx: { db: any }, gameId: string): Promise<void> {
+    const rows = await collectSolitaireGamesByGameId(ctx, gameId);
+    if (rows.length <= 1) return;
+    const sorted = [...rows].sort((a, b) => b._creationTime - a._creationTime);
+    for (const r of sorted.slice(1)) {
+        await ctx.db.delete(r._id);
+    }
+}
+
+async function scheduleSolitaireCasualTimeout(
+    ctx: { db: any; scheduler: any },
+    gameId: string,
+    gameRowId: string
+): Promise<void> {
+    if (!gameId.startsWith("game_")) return;
+    const parsed = parseCasualRunGameId(gameId);
+    if (!parsed?.uid || !gameRowId) return;
+    const now = Date.now();
+    const dueTime = now + SOLITAIRE_MATCH_TIME_LIMIT_SEC * 1000;
+    try {
+        const jobId = await ctx.scheduler.runAfter(
+            SOLITAIRE_MATCH_TIME_LIMIT_SEC * 1000,
+            internal.service.casualGameTimeoutAction.checkCasualGameTimeoutAndIngest,
+            { gameRowId, gameId, uid: parsed.uid }
+        );
+        await ctx.db.patch(gameRowId, {
+            dueTime,
+            casualTimeoutScheduledId: jobId,
+        });
+    } catch (scheduleErr) {
+        console.warn("[solitaire] casual timeout schedule failed", gameId, scheduleErr);
+    }
+}
+
+/** 供 `proxy/controller` action：单事务内去重后返回当前局 */
+export const loadGameRowAfterHeal = internalMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        await healDuplicateSolitaireGamesForGameId(ctx, gameId);
+        const rows = await collectSolitaireGamesByGameId(ctx, gameId);
+        const game = latestSolitaireGameRow(rows);
+        if (!game) return null;
+        return { ...game, _creationTime: undefined };
+    },
+});
+
+/** loadGame 时补挂缺失的 dueTime / 服务端 timeout job */
+export const ensureCasualTimeoutScheduled = internalMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        if (!gameId.startsWith("game_")) {
+            return { ok: true as const, scheduled: false as const };
+        }
+        const rows = await collectSolitaireGamesByGameId(ctx, gameId);
+        const row = latestSolitaireGameRow(rows);
+        if (!row?._id) {
+            return { ok: true as const, scheduled: false as const };
+        }
+        if (row.dueTime != null && row.casualTimeoutScheduledId != null) {
+            return { ok: true as const, scheduled: false as const };
+        }
+        await scheduleSolitaireCasualTimeout(ctx, gameId, row._id);
+        return { ok: true as const, scheduled: true as const };
+    },
+});
 
 function appendRecordedStep(game: SoloGameState, step: SolitaireRecordedStep): void {
     const now = Date.now();
@@ -51,8 +131,8 @@ export class GameManager {
         this.game = null;
     }
     async load(gameId: string) {
-
-        const game = await this.dbCtx.db.query("game").withIndex("by_gameId", (q: any) => q.eq("gameId", gameId)).unique();
+        const rows = await collectSolitaireGamesByGameId(this.dbCtx, gameId);
+        const game = latestSolitaireGameRow(rows);
         if (!game) return;
 
         this.game = { ...game, _creationTime: undefined, recordedOps: game.recordedOps ?? [] } as SoloGameState;
@@ -112,19 +192,25 @@ export class GameManager {
             gameStatus: this.game?.status ?? -1,
         };
     }
-    async createGame(seed?: string | number, gameId?: string): Promise<any> {
+    async createGame(seed?: string | number, gameId?: string, replayEpoch?: number): Promise<any> {
         const game = SoloGameEngine.createGame(seed);
         const zones = createZones();
         const gameState: SoloGameState = {
-            ...game, gameId: gameId ?? "", zones
+            ...game,
+            gameId: gameId ?? "",
+            zones,
         };
-        const gid = await this.dbCtx.db.insert("game", { ...gameState, recordedOps: [] });
+        const insertDoc: Record<string, unknown> = { ...gameState, recordedOps: [] };
+        if (typeof replayEpoch === "number" && Number.isFinite(replayEpoch)) {
+            insertDoc.replayEpoch = replayEpoch;
+        }
+        const gid = await this.dbCtx.db.insert("game", insertDoc);
         if (gid) {
             const patchData: Record<string, any> = {};
             if (gameState.seed) {
                 patchData.seed = gameState.seed;
             }
-            this.game = { ...gameState, _id: gid, recordedOps: [], _creationTime: undefined } as any;
+            this.game = { ...gameState, _id: gid, recordedOps: [], _creationTime: undefined, ...insertDoc } as any;
             return this.game
         }
     }
@@ -133,7 +219,7 @@ export class GameManager {
         if (!game) return;
         const cards = SoloGameEngine.deal(game.cards);
         await this.save({ cards, status: SoloGameStatus.DEALED });
-        return { ok: true, data: { update: cards } };
+        return { ok: true, data: { update: toClientCardPatches(cards) } };
     }
     async draw(cardId: string): Promise<any> {
         if (!this.game) return { ok: false };
@@ -149,7 +235,13 @@ export class GameManager {
             status: this.game.status === SoloGameStatus.DEALED ? SoloGameStatus.PLAYING : this.game.status,
             playStartedAt,
         });
-        return { ...result, ...this.progressSnapshot() };
+        return {
+            ...result,
+            data: result.data?.draw
+                ? { ...result.data, draw: toClientCardPatches(result.data.draw) }
+                : result.data,
+            ...this.progressSnapshot(),
+        };
     }
     async move(cardId: string, toZone: string): Promise<any> {
         if (!this.game) return { ok: false };
@@ -192,7 +284,16 @@ export class GameManager {
                 status: SoloGameStatus.COMPLETED,
             });
         }
-        return { ...result, ...this.progressSnapshot() };
+        const moveCards = result.data?.move ?? [];
+        return {
+            ...result,
+            data: {
+                ...result.data,
+                move: toClientCardPatches(moveCards),
+                ...(flipCards.length > 0 ? { flip: toClientCardPatches(flipCards) } : {}),
+            },
+            ...this.progressSnapshot(),
+        };
     }
     async recycle() {
         const result = SoloGameEngine.recycle(this.game);
@@ -208,7 +309,13 @@ export class GameManager {
             status: this.game.status === SoloGameStatus.DEALED ? SoloGameStatus.PLAYING : this.game.status,
             playStartedAt,
         });
-        return { ...result, ...this.progressSnapshot() };
+        return {
+            ...result,
+            data: result.data?.update
+                ? { ...result.data, update: toClientCardPatches(result.data.update) }
+                : result.data,
+            ...this.progressSnapshot(),
+        };
     }
     async gameOver() {
         if (!this.game) return { ok: false };
@@ -244,29 +351,29 @@ export class GameManager {
 export const createGame = internalMutation({
     args: {
         seed: v.optional(v.string()),
-        gameId: v.string()
+        gameId: v.string(),
+        replayEpoch: v.optional(v.number()),
     },
-    handler: async (ctx, { seed, gameId }) => {
+    handler: async (ctx, { seed, gameId, replayEpoch }) => {
         try {
-            let existing = await ctx.db
-                .query("game")
-                .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
-                .unique();
+            await healDuplicateSolitaireGamesForGameId(ctx, gameId);
+            const rows = await collectSolitaireGamesByGameId(ctx, gameId);
+            const existing = latestSolitaireGameRow(rows);
             if (existing) {
                 if (existing.recordedOps === undefined) {
                     await ctx.db.patch(existing._id, { recordedOps: [] });
-                    existing = { ...existing, recordedOps: [] };
+                    existing.recordedOps = [];
                 }
                 return {
                     ok: true as const,
-                    data: existing,
+                    data: toClientGameState(existing as SoloGameState),
                     events: [],
                 };
             }
 
             console.log("createGame...", seed, gameId);
             const gameManager = new GameManager(ctx);
-            const game = await gameManager.createGame(seed, gameId);
+            const game = await gameManager.createGame(seed, gameId, replayEpoch);
             if (!game) {
                 return { ok: false as const, error: "insert_failed" as const };
             }
@@ -274,32 +381,15 @@ export const createGame = internalMutation({
             const dealedCards = SoloGameEngine.deal(game.cards);
             await gameManager.save({ cards: dealedCards, status: SoloGameStatus.DEALED });
 
-            if (gameId.startsWith("game_")) {
-                const parsed = parseCasualRunGameId(gameId);
-                if (parsed?.uid && game._id) {
-                    const now = Date.now();
-                    const dueTime = now + SOLITAIRE_MATCH_TIME_LIMIT_SEC * 1000;
-                    try {
-                        const jobId = await ctx.scheduler.runAfter(
-                            SOLITAIRE_MATCH_TIME_LIMIT_SEC * 1000,
-                            internal.service.casualGameTimeoutAction.checkCasualGameTimeoutAndIngest,
-                            { gameRowId: game._id, gameId, uid: parsed.uid }
-                        );
-                        await ctx.db.patch(game._id, {
-                            dueTime,
-                            casualTimeoutScheduledId: jobId,
-                        });
-                    } catch (scheduleErr) {
-                        console.warn("[solitaire] casual timeout schedule failed", gameId, scheduleErr);
-                    }
-                }
+            if (gameId.startsWith("game_") && game._id) {
+                await scheduleSolitaireCasualTimeout(ctx, gameId, game._id);
             }
 
             const fresh = await gameManager.load(gameId);
             return {
                 ok: true as const,
-                data: fresh ?? game,
-                events: [{ name: "deal", cards: dealedCards }],
+                data: fresh ? toClientGameState(fresh) : fresh ?? (game ? toClientGameState(game) : game),
+                events: [{ name: "deal", cards: toClientCardPatches(dealedCards) }],
             };
         } catch (err) {
             console.error("[solitaire] createGame failed", gameId, err);
@@ -317,7 +407,7 @@ export const loadGame = query({
         const gameManager = new GameManager(ctx);
         try {
             const game = await gameManager.load(gameId);
-            return { ok: true, data: game };
+            return { ok: true, data: game ? toClientGameState(game) : game };
         } catch (error) {
 
             return { ok: false };
@@ -331,7 +421,7 @@ export const findGame = internalQuery({
         console.log("finding game", gameId);
         const gameManager = new GameManager(ctx);
         const game = await gameManager.load(gameId);
-        return game
+        return game ? toClientGameState(game) : game;
     },
 });
 
@@ -342,10 +432,7 @@ export const deleteCasualGameForReplay = internalMutation({
         await ctx.runMutation(internal.service.casualGameLifecycle.cancelCasualTimeoutJob, {
             gameId,
         });
-        const rows = await ctx.db
-            .query("game")
-            .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
-            .collect();
+        const rows = await collectSolitaireGamesByGameId(ctx, gameId);
         for (const row of rows) {
             await ctx.db.delete(row._id);
         }
@@ -374,7 +461,8 @@ export const getGame = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
         const gameManager = new GameManager(ctx);
-        return await gameManager.load(gameId);
+        const game = await gameManager.load(gameId);
+        return game ? toClientGameState(game) : game;
     },
 });
 export const getGameStatus = query({

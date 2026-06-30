@@ -30,6 +30,8 @@ export default defineSchema({
         dueTime: v.optional(v.number()),
         /** 创局时注册的 5 分钟超时 job，终局/强退后 cancel */
         casualTimeoutScheduledId: v.optional(v.id("_scheduled_functions")),
+        /** 平台再战 epoch；与 portal `replayEpoch` 对齐，不等则重建局 */
+        replayEpoch: v.optional(v.number()),
         seed: v.optional(v.string()),
         lastUpdate: v.optional(v.string()),
         recordedOps: v.optional(v.array(solitaireRecordedStep)),

@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { Id } from "../../_generated/dataModel";
-import { action, internalMutation, internalQuery, mutation, query } from "../../_generated/server";
+import { authedAction, authedMutation, authedQuery } from "../../custom/session";
+import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
 import { incrementPlayerAttempts, PlayerMatchStatus, settleTournament, TournamentStatus } from "./common";
 import { createSeededRandom } from "./seedRandom";
 // import { getTorontoMidnight } from "../simpleTimezoneUtils";
@@ -332,12 +333,10 @@ export class MatchManager {
 
 
 // Convex å‡½æ•°æŽ¥å£
-export const checkLastMatch = action({
-    args: {
-        uid: v.string(),
-    },
-    handler: async (ctx: any, args: any): Promise<any> => {
-        const match = await ctx.runQuery(internal.service.tournament.matchManager.findLastMatch, { uid: args.uid });
+export const checkLastMatch = authedAction({
+    args: {},
+    handler: async (ctx: any): Promise<any> => {
+        const match = await ctx.runQuery(internal.service.tournament.matchManager.findLastMatch, { uid: ctx.uid });
         if (match && match.status === PlayerMatchStatus.open && match.dueTime) {
             const now = new Date().toISOString();
             if (now > match.dueTime) {
@@ -361,15 +360,18 @@ export const createMatch = (mutation as any)({
     },
 });
 
-export const joinMatch = (mutation as any)({
+export const joinMatch = authedMutation({
     args: {
         matchId: v.id("matches"),
         tournamentId: v.id("tournaments"),
-        uid: v.string(),
         gameType: v.string(),
     },
     handler: async (ctx: any, args: any): Promise<any> => {
-        return await MatchManager.joinMatch(ctx, args);
+        const match = await ctx.db.get(args.matchId);
+        if (!match) {
+            throw new Error("比赛不存在");
+        }
+        return await MatchManager.joinMatch(ctx, { uid: ctx.uid, match });
     },
 });
 
@@ -385,12 +387,11 @@ export const submitScore = internalMutation({
     },
 });
 
-export const findTournamentMatch = query({
+export const findTournamentMatch = authedQuery({
     args: {
         typeId: v.optional(v.string()),
-        uid: v.string(),
     },
-    handler: async (ctx: any, { typeId, uid }: { typeId: string, uid: string }): Promise<any> => {
+    handler: async (ctx: any, { typeId }: { typeId?: string }): Promise<any> => {
         if (!typeId) {
             return { ok: false, match: null };
         }
@@ -399,7 +400,7 @@ export const findTournamentMatch = query({
         if (!tournamentType || tournamentType.matchRules.maxPlayers === 1) {
             return { ok: false, match: null };
         }
-        const match = await ctx.db.query("player_matches").withIndex("by_tournamentType_uid_status", (q: any) => q.eq("tournamentType", typeId).eq("uid", uid).eq("status", PlayerMatchStatus.open)).order("desc").first();
+        const match = await ctx.db.query("player_matches").withIndex("by_tournamentType_uid_status", (q: any) => q.eq("tournamentType", typeId).eq("uid", ctx.uid).eq("status", PlayerMatchStatus.open)).order("desc").first();
 
         if (match) {
             return { ok: true, match: { ...match, _id: undefined, _creationTime: undefined } };
@@ -450,10 +451,10 @@ export const findLastMatch = internalQuery({
 
     },
 });
-export const findNewMatch = query({
-    args: { uid: v.string() },
-    handler: async (ctx: any, { uid }: { uid: string }): Promise<any> => {
-        const match = await ctx.db.query("player_matches").withIndex("by_uid", (q: any) => q.eq("uid", uid)).order("desc").first();
+export const findNewMatch = authedQuery({
+    args: {},
+    handler: async (ctx: any): Promise<any> => {
+        const match = await ctx.db.query("player_matches").withIndex("by_uid", (q: any) => q.eq("uid", ctx.uid)).order("desc").first();
         if (match && match.status === PlayerMatchStatus.open) {
             return { ...match, _id: undefined, _creationTime: undefined };
         }

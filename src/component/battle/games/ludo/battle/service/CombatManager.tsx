@@ -57,7 +57,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   }
   useEffect(() => {
     const startGame = async (gameInit: GameModel) => {
-      await convex.mutation(api.service.gameProxy.start, { gameId: gameInit.gameId, uid: user?.uid, token: user?.token });
+      await convex.mutation(api.service.gameProxy.start, { gameId: gameInit.gameId });
     }
     if (!user?.uid || !game) return;
     if (game.status === -1) {
@@ -79,8 +79,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   useEffect(() => {
     const fetchGame = async (gameId: string) => {
       const gameObj = await convex.query(api.dao.gameDao.find, {
-        gameId, uid: "1",
-        token: "test-token"
+        gameId,
       });
       if (gameObj) {
         console.log("gameObj", gameObj);
