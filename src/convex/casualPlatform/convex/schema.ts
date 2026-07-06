@@ -28,6 +28,8 @@ export default defineSchema({
     gems: v.optional(v.number()),
     /** 遗留字段：赛季资源已迁至 `casual_pass_progress`，勿在新代码写入；保留仅为旧文档通过校验 */
     updatedAt: v.optional(v.number()),
+    /** 遗留字段：旧登录 token 残留于历史文档，勿在新代码写入；保留仅为通过 schema 校验 */
+    token: v.optional(v.string()),
   }).index("by_uid", ["uid"]),
 
   casual_tournaments: defineTable({

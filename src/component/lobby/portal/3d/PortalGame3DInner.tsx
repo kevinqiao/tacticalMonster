@@ -6,6 +6,8 @@ import {
   resolvePortal3DTierBadge,
   type PortalTierId,
 } from "./portalGame3DTheme";
+import type { RegisteredPortalGameType } from "@/convex/portal/convex/data/portalGameRegistry";
+import type { PortalWeeklyLeagueUnclaimedRewards } from "../service/usePortalManager";
 import { getBootFallbackBg } from "@/host/bootTheme";
 import { markPortalBootPainted } from "@/host/bootHandoff";
 import { shouldShowPortalAuthButton } from "../portalAuthButtonVisible";
@@ -20,8 +22,8 @@ export interface Portal3DTierInfo {
   tierLabel: string;
   /** 叠加在盾牌上的段位数字，例："III" */
   division?: string;
-  /** 用户可见短组号；null 表示分组未就绪 */
-  cohortNo?: number | null;
+  /** 用户可见 8 位字母数字组号；null 表示分组未就绪 */
+  cohortNo?: string | null;
   /** 组内名次（1-based） */
   rank?: number | null;
   cohortSize?: number;
@@ -36,10 +38,11 @@ export interface Portal3DTierInfo {
 }
 
 export interface PortalGame3DInnerProps {
+  gameType?: RegisteredPortalGameType | null;
   heroLogoUrl?: string;
   authed?: boolean;
   tier?: Portal3DTierInfo;
-  /** 金币余额；null/undefined 时隐藏顶栏金币 */
+  /** 金币余额；null/undefined 时隐藏顶栏金币（未登录不传） */
   coinBalance?: number | null;
   joining?: "solo" | "multi" | null;
   soloJoinBlocked?: boolean;
@@ -62,9 +65,13 @@ export interface PortalGame3DInnerProps {
   onSignIn?: () => void;
   /** Top-right SignIn/SignOut; default hidden on Partner portal and embed shells. */
   showAuthButton?: boolean;
+  /** 未领取的周联赛金币；有值时在段位条显示「待领」胶囊 */
+  unclaimedRewards?: PortalWeeklyLeagueUnclaimedRewards | null;
+  onOpenUnclaimedRewards?: () => void;
 }
 
 export function PortalGame3DInner({
+  gameType,
   heroLogoUrl,
   authed = false,
   tier,
@@ -85,6 +92,8 @@ export function PortalGame3DInner({
   onSignOut,
   onSignIn,
   showAuthButton,
+  unclaimedRewards,
+  onOpenUnclaimedRewards,
   pageActive = true,
 }: PortalGame3DInnerProps) {
   const authButtonVisible = showAuthButton ?? shouldShowPortalAuthButton();
@@ -153,7 +162,8 @@ export function PortalGame3DInner({
   };
 
   const currentBgUrl =
-    bgUrl || resolvePortal3DSharedBg(isPortrait ? "portrait" : "landscape");
+    bgUrl ||
+    resolvePortal3DSharedBg(isPortrait ? "portrait" : "landscape", gameType);
 
   const heroStyle = heroLogoUrl
     ? {
@@ -194,21 +204,26 @@ export function PortalGame3DInner({
         pointerEvents: pageActive ? "auto" : "none",
       }}
     >
-      <div
-        ref={shopRef}
-        className={styles.fixedShopButton}
-        onClick={handleShopClick}
-        style={{ cursor: "pointer" }}
-        role="button"
-        aria-label="Shop"
-      >
-        <div className={styles.fixedShopBackground}>
-          <span className={styles.fixedShopText}>SHOP</span>
+      <div ref={shopRef} className={styles.fixedShopCluster}>
+        <div
+          className={styles.fixedShopButton}
+          onClick={handleShopClick}
+          style={{ cursor: "pointer" }}
+          role="button"
+          aria-label={
+            coinBalance != null
+              ? `Shop，当前金币 ${coinBalance.toLocaleString()}`
+              : "Shop"
+          }
+        >
+          <div className={styles.fixedShopBackground}>
+            <span className={styles.fixedShopText}>SHOP</span>
+          </div>
         </div>
         {coinBalance != null ? (
-          <div className={styles.coinPill}>
-            <div className={styles.coinPillIcon} />
-            <span className={styles.coinPillText}>
+          <div className={styles.coinChip} aria-hidden>
+            <span className={styles.coinChipIcon} />
+            <span className={styles.coinChipText}>
               {coinBalance.toLocaleString()}
             </span>
           </div>
@@ -273,7 +288,7 @@ export function PortalGame3DInner({
                   </span>
                   <span className={styles.tierRankText}>
                     Rank {tier.rank != null ? `#${tier.rank}` : "—"} /{" "}
-                    {tier.cohortSize ?? 50} · {tier.points ?? 0}分
+                    {tier.cohortSize ?? 50}
                   </span>
                 </div>
                 <div className={styles.tierZoneBar}>
@@ -313,6 +328,19 @@ export function PortalGame3DInner({
                 ) : null}
               </div>
               <div className={styles.tierBtnGroup}>
+                {unclaimedRewards && unclaimedRewards.coins > 0 ? (
+                  <div
+                    className={styles.tierUnclaimedChip}
+                    onClick={onOpenUnclaimedRewards}
+                    role="button"
+                    aria-label={`待领 ${unclaimedRewards.coins.toLocaleString()} 金币`}
+                  >
+                    <span className={styles.tierUnclaimedIcon} aria-hidden />
+                    <span className={styles.tierUnclaimedText}>
+                      待领 {unclaimedRewards.coins.toLocaleString()}
+                    </span>
+                  </div>
+                ) : null}
                 <div
                   className={styles.tierLbBtn}
                   onClick={onOpenLeaderboard}

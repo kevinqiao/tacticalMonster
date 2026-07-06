@@ -655,6 +655,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 const cr = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
                     ...buildCasualPlatformRunActionArgs({
                         gameId: gs.gameId,
+                        platformBridge: casualPlatformBridge,
                     }),
                 })) as {
                     ok?: boolean;
@@ -942,7 +943,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                   success?: boolean;
                   triathlonScoreReportOnly?: boolean;
               }
-            | { ok: false }
+            | { ok: false; error?: string }
         > => {
             const gs = gameStateRef.current;
             if (!gs || casualRunSubmittedRef.current) return { ok: false };
@@ -1036,9 +1037,9 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             setSettleConfirmOpen(false);
             const gs = gameStateRef.current;
             const isCasualRun =
-                typeof gs.gameId === 'string' &&
+                typeof gs?.gameId === 'string' &&
                 gs.gameId.startsWith('game_');
-            if (!isCasualRun || !gs) {
+            if (!gs || !isCasualRun) {
                 onGameSubmit?.();
                 return;
             }
@@ -1082,35 +1083,26 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             const isCasualRun = isCasualGameId && casualPlatformAuthed;
 
             if (isCasualRun) {
-                const score = Math.max(0, Math.floor(gs.score ?? 0));
-                commitGameState({ status: BlockBlastGameStatus.CANCELLED });
+                // 等 forceEnd 落库后再返回：同桌榜里“我”应显示已结算分数而非 playing
+                const settled = await runForceEndCasualSettlement({ deferHostNotify: true });
+                if (!settled.ok) {
+                    throw new Error(casualSettleErrorMessage(settled.error));
+                }
                 const out: ManualSettleConfirmExtras = {};
-                if (typeof targetScore === 'number' && Number.isFinite(targetScore)) {
+                if (settled.tableSummary) out.tableSummary = settled.tableSummary;
+                if (settled.pendingOthers) out.pendingOthers = true;
+                if (typeof settled.seedScoreThreshold === 'number') {
+                    out.seedScoreThreshold = settled.seedScoreThreshold;
+                    out.success = Boolean(settled.success);
+                } else if (typeof targetScore === 'number' && Number.isFinite(targetScore)) {
+                    const score = Math.max(0, Math.floor(gs.score ?? 0));
                     out.seedScoreThreshold = targetScore;
                     out.success = score >= targetScore;
                 }
-                const matchGameId = gs.gameId;
-                void runForceEndCasualSettlement({ deferHostNotify: true }).then(async (settled) => {
-                    if (settled.ok) {
-                        mergeCasualSettleIntoOpenOverlays(settled);
-                        return;
-                    }
-                    console.warn('[BlockBlast] forceEnd on manual settle failed', settled.error);
-                    try {
-                        const summary = await fetchTableSummaryForGame(matchGameId);
-                        if (summary) {
-                            applyCasualTableSummaryFromQuery(summary, {
-                                setTableSummary: setPostCasualTableSummary,
-                                setReplayOffered: setPostCasualReplayOffered,
-                                setReplayTokenCount: setPostCasualReplayTokenCount,
-                                setCanReplay: setPostCasualCanReplay,
-                                setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
-                            });
-                        }
-                    } catch (e) {
-                        console.warn('[BlockBlast] fetch table summary after manual forceEnd', e);
-                    }
-                });
+                if (settled.triathlonScoreReportOnly) {
+                    out.triathlonScoreReportOnly = true;
+                    out.deferTriathlonTableSummary = true;
+                }
                 return out;
             }
 
@@ -1162,8 +1154,6 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         commitGameState,
         runBlockBlastSettlement,
         runForceEndCasualSettlement,
-        mergeCasualSettleIntoOpenOverlays,
-        fetchTableSummaryForGame,
     ]);
 
     const openPostSettleAfterTerminalSubmit = useCallback(

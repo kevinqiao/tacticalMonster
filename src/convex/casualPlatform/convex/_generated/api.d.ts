@@ -36,6 +36,7 @@ import type * as service_achievement_casualAchievementService from "../service/a
 import type * as service_activity_casualActivityService from "../service/activity/casualActivityService.js";
 import type * as service_auth_casualAuth from "../service/auth/casualAuth.js";
 import type * as service_auth_jwtAccessSecret from "../service/auth/jwtAccessSecret.js";
+import type * as service_auth_platformJwtVerify from "../service/auth/platformJwtVerify.js";
 import type * as service_botFill_botDifficultyConfig from "../service/botFill/botDifficultyConfig.js";
 import type * as service_botFill_botRevealSchedule from "../service/botFill/botRevealSchedule.js";
 import type * as service_botFill_botScoreSlots from "../service/botFill/botScoreSlots.js";
@@ -178,6 +179,7 @@ declare const fullApi: ApiFromModules<{
   "service/activity/casualActivityService": typeof service_activity_casualActivityService;
   "service/auth/casualAuth": typeof service_auth_casualAuth;
   "service/auth/jwtAccessSecret": typeof service_auth_jwtAccessSecret;
+  "service/auth/platformJwtVerify": typeof service_auth_platformJwtVerify;
   "service/botFill/botDifficultyConfig": typeof service_botFill_botDifficultyConfig;
   "service/botFill/botRevealSchedule": typeof service_botFill_botRevealSchedule;
   "service/botFill/botScoreSlots": typeof service_botFill_botScoreSlots;

@@ -11,6 +11,12 @@ export const MANUAL_SETTLE_DEFAULT_MESSAGE_SOLITAIRE =
 export const MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST =
   '确定以当前分数结束本局并结算？未使用的形状将按当前得分上报。';
 
+export const MANUAL_SETTLE_DEFAULT_MESSAGE_MATCH3 =
+  '确定以当前分数结束本局并结算？未完成的消除将按当前得分上报。';
+
+export const MANUAL_SETTLE_DEFAULT_MESSAGE_YATZ =
+  '确定以当前分数结束本局并结算？未填写的计分类别将按当前得分上报。';
+
 type FlowPhase = 'prompt' | 'settling' | 'error';
 
 function normalizeSettleExtras(maybe: unknown): ManualSettleConfirmExtras | undefined {

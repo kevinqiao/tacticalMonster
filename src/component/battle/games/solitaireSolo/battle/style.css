@@ -96,7 +96,7 @@
     overflow: visible;
 }
 
-/* 加载页：与主页同调的暖色卡通渐变 + 金色转圈 */
+/* 加载页：与牌桌同款绿呢底，淡入淡出无缝衔接 */
 .solo-game-loading {
     width: 100%;
     height: 100%;
@@ -105,7 +105,9 @@
     left: 0;
     top: 0;
     font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
-    background: linear-gradient(180deg, #57b7f0 0%, #8fd0f5 42%, #4c9a3c 42.2%, #2f7a2a 100%);
+    background:
+        radial-gradient(ellipse at 50% 38%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 55%),
+        linear-gradient(180deg, #3d9e46 0%, #2f8a3a 55%, #23702e 100%);
     color: #ffffff;
     font-size: 24px;
     font-weight: 700;
@@ -345,75 +347,7 @@
          0 2px 3px rgba(0, 0, 0, 0.3);
 }
 
-/* 横屏 + 触摸：顶栏改为左侧竖条，牌桌占剩余宽度（手机横握 / 小平板） */
-@media (orientation: landscape) and (hover: none) and (pointer: coarse),
-(orientation: landscape) and (hover: none) and (max-height: 440px) {
-    .solo-player-container {
-        flex-direction: row;
-        align-items: stretch;
-    }
-
-    .solo-game-header {
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-        gap: 14px;
-        padding: 12px 10px;
-        width: auto;
-        max-width: 108px;
-        height: 100%;
-        box-sizing: border-box;
-        min-height: 0;
-        border-bottom: none;
-        border-right: 4px solid #5a3311;
-    }
-
-    /* 分数/步数/剩余时间 */
-    .solo-game-header__stats {
-        order: 1;
-        flex-shrink: 0;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 12px;
-        width: 100%;
-    }
-
-    .solo-game-header__score-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-    }
-
-    .solo-game-header__autocomplete {
-        width: 100%;
-        margin-bottom: 0;
-        padding: 8px 6px;
-        font-size: 11px;
-        white-space: normal;
-        text-align: center;
-        line-height: 1.2;
-    }
-
-    .solo-game-header__end-game {
-        width: 100%;
-        margin-bottom: 0;
-        padding: 8px 6px;
-        font-size: 11px;
-        white-space: normal;
-        text-align: center;
-        line-height: 1.2;
-    }
-
-    .solo-game-header__stat {
-        align-items: center;
-        width: 100%;
-    }
-
-    .solo-board-surface {
-        flex: 1;
-        min-width: 0;
-    }
-}
+/* 保持上下布局：顶栏全宽在上、牌桌在下（不在横屏改为左侧竖条） */
 
 /* Rollout dev replay: block drag while PlayEffects animate */
 .solo-board-surface--replay {

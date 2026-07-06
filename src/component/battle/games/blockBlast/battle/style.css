@@ -24,7 +24,7 @@
         linear-gradient(180deg, #57b7f0 0%, #7cc8f4 55%, #a5dbf8 100%);
 }
 
-/* 加载页：与主页同调的蓝天草地 + 金色转圈 */
+/* 加载页：与游戏背景同款蓝天底，淡入淡出无缝衔接 */
 .blockblast-game-loading {
     width: 100%;
     height: 100%;
@@ -33,17 +33,19 @@
     left: 0;
     top: 0;
     font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
-    background: linear-gradient(180deg, #57b7f0 0%, #8fd0f5 42%, #4c9a3c 42.2%, #2f7a2a 100%);
+    background:
+        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 255, 255, 0.35) 0%, transparent 55%),
+        linear-gradient(180deg, #57b7f0 0%, #7cc8f4 55%, #a5dbf8 100%);
     color: #ffffff;
     font-size: 24px;
     font-weight: 700;
     letter-spacing: 1px;
     text-shadow:
-        -1.5px -1.5px 0 #2c6a1f,
-         1.5px -1.5px 0 #2c6a1f,
-        -1.5px  1.5px 0 #2c6a1f,
-         1.5px  1.5px 0 #2c6a1f,
-         0 4px 6px rgba(0, 0, 0, 0.3);
+        -1.5px -1.5px 0 #2d6ea8,
+         1.5px -1.5px 0 #2d6ea8,
+        -1.5px  1.5px 0 #2d6ea8,
+         1.5px  1.5px 0 #2d6ea8,
+         0 4px 6px rgba(0, 0, 0, 0.25);
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -159,29 +161,6 @@
     box-sizing: border-box;
 }
 
-/* 横屏：仅 Hand，单列占满预览宽度 */
-.blockblast-shape-preview-scroll:not(.blockblast-shape-preview-scroll--stacked) .blockblast-shape-preview-col--hand {
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.blockblast-shape-preview-scroll:not(.blockblast-shape-preview-scroll--stacked) .blockblast-shape-preview-hand-shapes {
-    flex: 1 1 0;
-    min-height: 0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    justify-content: stretch;
-    align-items: stretch;
-    gap: 8px;
-    padding: 8px 4px;
-    box-sizing: border-box;
-}
-
 .blockblast-shape-preview-slot {
     flex: 1 1 0;
     min-width: 0;
@@ -192,7 +171,7 @@
     overflow: hidden;
 }
 
-/* 竖屏：仅 Hand，预览条内纵向铺满 */
+/* 仅 Hand，预览条内纵向铺满 */
 .blockblast-shape-preview-scroll--stacked {
     flex-direction: column;
     align-items: stretch;
@@ -292,7 +271,7 @@
     box-shadow: none;
 }
 
-/* 状态栏（竖屏顶栏 / 横屏左侧竖栏）：木质横梁 */
+/* 状态栏（顶栏）：木质横梁 */
 .blockblast-status {
     color: #ffffff;
     background: linear-gradient(180deg, #9a6430 0%, #7d4c1e 60%, #6b3f16 100%);
@@ -322,21 +301,6 @@
     border-radius: 0 0 12px 12px;
 }
 
-.blockblast-status--landscape {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    /* width 由 BlockBlastStatusBar 内联：1.5×cellSize */
-    min-width: 1px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    padding: 10px 6px 12px;
-    border-radius: 0 12px 12px 0;
-}
-
 .blockblast-status__player {
     flex-shrink: 0;
 }
@@ -355,11 +319,6 @@
     justify-content: center;
 }
 
-.blockblast-status--landscape .blockblast-status__avatar {
-    width: clamp(20px, calc(100% - 8px), 40px);
-    height: clamp(20px, calc(100% - 8px), 40px);
-}
-
 .blockblast-status__avatar-img {
     width: 100%;
     height: 100%;
@@ -372,7 +331,7 @@
     color: #cfe0ff;
 }
 
-/* 竖屏顶栏右侧：计时、分数、统计同一行横排 */
+/* 顶栏右侧：计时、分数、统计同一行横排 */
 .blockblast-status__portrait-row {
     display: flex;
     flex-direction: row;
@@ -413,13 +372,6 @@
     cursor: not-allowed;
 }
 
-.blockblast-status__end-game--landscape {
-    width: 100%;
-    max-width: 100%;
-    padding: 4px 2px;
-    font-size: 10px;
-}
-
 .blockblast-status__timer {
     font-variant-numeric: tabular-nums;
     font-size: 17px;
@@ -457,23 +409,6 @@
     white-space: nowrap;
 }
 
-.blockblast-status__landscape-top {
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-}
-
-.blockblast-status__landscape-bottom {
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-}
-
 .blockblast-status--portrait .blockblast-status__score-main {
     flex-shrink: 0;
 }
@@ -481,19 +416,6 @@
 .blockblast-status--portrait .blockblast-status__secondary {
     flex-shrink: 1;
     min-width: 0;
-}
-
-.blockblast-status--landscape .blockblast-status__timer {
-    font-size: 14px;
-}
-
-.blockblast-status--landscape .blockblast-status__score-main {
-    font-size: 17px;
-}
-
-.blockblast-status--landscape .blockblast-status__secondary {
-    font-size: 10px;
-    text-align: center;
 }
 
 /* Game Over 面板：羊皮纸木框 */

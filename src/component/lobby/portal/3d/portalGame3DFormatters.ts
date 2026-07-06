@@ -11,8 +11,7 @@ export function formatWeekRemaining(endsAt: number | null | undefined): string {
 }
 
 /**
- * Phase 1（后端统一总榜/cohort 未就绪）：客户端将 solo/multi 两个周榜按 uid
- * 合并积分与局数后重排名，作为「本周总榜」的过渡数据源。
+ * @deprecated Phase 1 已改为后端 `getPortalWeeklyTotalLeaderboard`；保留供测试/对照。
  */
 export function mergePortalWeeklyBoards(
   solo: PortalWeeklyLeaderboardRow[],

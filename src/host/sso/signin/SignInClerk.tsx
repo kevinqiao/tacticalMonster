@@ -11,9 +11,10 @@ import { useClerkSignIn } from "@/component/lobby/shared/useClerkSignIn";
 type SignInClerkProps = {
   cid: number;
   onComplete: (user: User) => void;
+  portalTheme?: boolean;
 };
 
-const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete }) => {
+const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalTheme = false }) => {
   void cid;
 
   const { partnerPid, partnerResolveReady, campaignMerchantSlug } = usePartnerManager();
@@ -73,21 +74,7 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete }) => {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        width: "100%",
-        height: "100%",
-        backgroundColor: "white",
-        pointerEvents: "auto",
-        gap: 12,
-        padding: 16,
-        boxSizing: "border-box",
-      }}
-    >
+    <div className={portalTheme ? "sso-auth-form sso-auth-form--portal" : "sso-auth-form"}>
       <p style={{ margin: 0, fontSize: 14, color: "#444", textAlign: "center" }}>
         Clerk 登录（玩家账号）；Partner PID {partnerPid}
         {campaignMerchantSlug ? ` · 商户 ${campaignMerchantSlug}` : ""}。

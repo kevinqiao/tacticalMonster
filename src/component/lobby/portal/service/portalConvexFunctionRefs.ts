@@ -25,6 +25,36 @@ export const portalTournamentFns = {
   getWeeklyLeaderboard: makeFunctionReference<"query">(
     "service/points/portalLeaderboardQueries:getWeeklyLeaderboard"
   ),
+  getPortalWeeklyTotalLeaderboard: makeFunctionReference<"query">(
+    "service/points/portalLeaderboardQueries:getPortalWeeklyTotalLeaderboard"
+  ),
+  ensureWeeklyTotalPointsForGame: makeFunctionReference<"mutation">(
+    "service/points/portalLeaderboardQueries:ensureWeeklyTotalPointsForGame"
+  ),
+  ensurePortalWeeklyLeagueMember: makeFunctionReference<"mutation">(
+    "service/weeklyLeague/portalWeeklyLeagueQueries:ensurePortalWeeklyLeagueMemberMutation"
+  ),
+  getPortalWeeklyLeagueTierView: makeFunctionReference<"query">(
+    "service/weeklyLeague/portalWeeklyLeagueQueries:getPortalWeeklyLeagueTierView"
+  ),
+  getPortalWeeklyLeagueCohortLeaderboard: makeFunctionReference<"query">(
+    "service/weeklyLeague/portalWeeklyLeagueQueries:getPortalWeeklyLeagueCohortLeaderboard"
+  ),
+  claimPortalWeeklyLeagueRewards: makeFunctionReference<"mutation">(
+    "service/weeklyLeague/portalWeeklyLeagueQueries:claimPortalWeeklyLeagueRewards"
+  ),
+  dismissPortalWeeklyLeagueClose: makeFunctionReference<"mutation">(
+    "service/weeklyLeague/portalWeeklyLeagueQueries:dismissPortalWeeklyLeagueClose"
+  ),
+  getPortalPlayerWallet: makeFunctionReference<"query">(
+    "service/player/playerManager:getPortalPlayerWallet"
+  ),
+  listPortalShopSkus: makeFunctionReference<"query">(
+    "service/shop/portalShopService:listPortalShopSkus"
+  ),
+  purchasePortalShopSku: makeFunctionReference<"mutation">(
+    "service/shop/portalShopService:purchasePortalShopSku"
+  ),
   getMyWeeklyPoints: makeFunctionReference<"query">(
     "service/points/portalLeaderboardQueries:getMyWeeklyPoints"
   ),

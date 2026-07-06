@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getPortalTournamentDefinition } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { useModalManager } from "host/service/ModalManager";
@@ -30,8 +30,9 @@ import {
 
 import {
   leaveMatchQueueErrorText,
-  mergePortalWeeklyBoards,
 } from "./portalGame3DFormatters";
+import { resolvePortalWeeklyCloseDisplay } from "./portalWeeklyCloseDisplay";
+import { portalTierDisplayLabel, type PortalTierId } from "./portalGame3DTheme";
 import type {
   Portal3DRulesAnchor,
   Portal3DTierInfo,
@@ -57,6 +58,15 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   const authed = Boolean(isPlatformAuthed(user) && portal.portalSessionReady);
   const [joining, setJoining] = useState<"solo" | "multi" | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const showNote = useCallback((message: string | null) => {
+    setNote(message);
+  }, []);
+
+  useEffect(() => {
+    if (!note) return;
+    const t = window.setTimeout(() => setNote(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [note]);
   const [awaitingMatch, setAwaitingMatch] = useState<AwaitOpenCasualRunMatchWatch | null>(
     null
   );
@@ -65,6 +75,8 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   const [rulesModalOpen, setRulesModalOpen] =
     useState<Portal3DRulesAnchor | null>(null);
   const [shopModalOpen, setShopModalOpen] = useState(false);
+  const [weeklyCloseModalOpen, setWeeklyCloseModalOpen] = useState(false);
+  const weeklyCloseShownRef = useRef<string | null>(null);
 
   const openAssignments = useMemo(() => {
     if (!portal.gameType) return [];
@@ -126,33 +138,64 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     [openModal, portal.gameType]
   );
 
-  const mySolo = portal.myWeeklyPoints?.byMode.solo;
-  const myMulti = portal.myWeeklyPoints?.byMode.multi;
+  const league = portal.weeklyLeagueTierView;
+  const totalLeaderboard = portal.totalLeaderboard;
+  const cohortLeaderboard = portal.cohortLeaderboard;
+  const leaderboardRows =
+    league?.enrolled && cohortLeaderboard.length > 0
+      ? cohortLeaderboard
+      : totalLeaderboard;
 
-  // Phase 1 统一总榜：客户端合并 solo/multi 周榜；后端 cohort 总榜就绪后替换。
-  const mergedLeaderboard = useMemo(
-    () => mergePortalWeeklyBoards(portal.soloLeaderboard, portal.multiLeaderboard),
-    [portal.soloLeaderboard, portal.multiLeaderboard]
-  );
-  const myTotalPoints = (mySolo?.points ?? 0) + (myMulti?.points ?? 0);
-  const myTotalRank = user?.uid
-    ? mergedLeaderboard.find((r) => r.uid === user.uid)?.rank ?? null
-    : null;
-
-  // 段位数据后端未就绪：先用固定青铜段位 + 合并榜名次占位。
-  const tierView: Portal3DTierInfo = useMemo(
-    () => ({
+  const tierView: Portal3DTierInfo = useMemo(() => {
+    if (league) {
+      const tierId = (league.tierId as PortalTierId) ?? "bronze";
+      const { tierLabel, division } = portalTierDisplayLabel(tierId);
+      return {
+        tierId,
+        tierLabel,
+        division,
+        cohortNo: league.cohortNo,
+        rank: league.cohortRank,
+        cohortSize: league.cohortSize,
+        points: league.points,
+        projectedCoins: league.projectedCoins,
+        promoteTo: league.promoteTo,
+        demoteFrom: league.demoteFrom,
+      };
+    }
+    const myTotal = portal.myWeeklyPoints?.total;
+    const { tierLabel, division } = portalTierDisplayLabel("bronze");
+    return {
       tierId: "bronze",
-      tierLabel: "青铜 I",
-      division: "I",
+      tierLabel,
+      division,
       cohortNo: null,
-      rank: myTotalRank,
+      rank: myTotal?.rank ?? null,
       cohortSize: 50,
-      points: myTotalPoints,
+      points: myTotal?.points ?? 0,
       projectedCoins: null,
-    }),
-    [myTotalRank, myTotalPoints]
+      promoteTo: 10,
+      demoteFrom: 41,
+    };
+  }, [league, portal.myWeeklyPoints?.total]);
+
+  const unclaimedRewards = league?.unclaimedRewards ?? null;
+  const weeklyCloseDisplay = useMemo(
+    () => resolvePortalWeeklyCloseDisplay(league),
+    [league]
   );
+
+  const openWeeklyCloseModal = useCallback(() => {
+    setWeeklyCloseModalOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (visible === 0 || !league?.unreadCloseResult) return;
+    const key = league.closeWeekKey ?? league.weekKey;
+    if (weeklyCloseShownRef.current === key) return;
+    weeklyCloseShownRef.current = key;
+    setWeeklyCloseModalOpen(true);
+  }, [visible, league?.unreadCloseResult, league?.closeWeekKey, league?.weekKey]);
 
   useAwaitOpenCasualRunAssignment({
     watch: awaitingMatch,
@@ -321,6 +364,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     signOut,
     joining,
     note,
+    showNote,
     leavingMatch,
     panelModal,
     setPanelModal,
@@ -328,6 +372,8 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     setRulesModalOpen,
     shopModalOpen,
     setShopModalOpen,
+    weeklyCloseModalOpen,
+    setWeeklyCloseModalOpen,
     openAssignments,
     soloOpenAssignment,
     multiOpenAssignment,
@@ -342,12 +388,13 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     handleJoin,
     handleLeaveMatchQueue,
     openAssignment,
-    mySolo,
-    myMulti,
-    mergedLeaderboard,
-    myTotalPoints,
-    myTotalRank,
+    totalLeaderboard,
+    cohortLeaderboard,
+    leaderboardRows,
     tierView,
+    unclaimedRewards,
+    weeklyCloseDisplay,
+    openWeeklyCloseModal,
     historyReport,
     awaitingMatch,
   };

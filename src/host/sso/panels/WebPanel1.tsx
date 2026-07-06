@@ -13,7 +13,10 @@ type AuthTab = "web" | "clerk";
  * - `auth_channels` → consumer (Clerk / Embed)
  * - `staff_auth_channels` → Web 密码，Platform / Partner / Merchant 管理路径
  */
-const WebPanel1: React.FC<{ onComplete: (user: User) => void }> = ({ onComplete }) => {
+const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: boolean }> = ({
+  onComplete,
+  portalTheme = false,
+}) => {
   const { partner, partnerPid, partnerResolveReady } = usePartnerManager();
   const staffConsole = isStaffWebSignInContext();
 
@@ -41,19 +44,7 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void }> = ({ onComplete 
   const showTabs = hasWeb && hasClerk;
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: 0,
-        right: 0,
-        width: "100%",
-        height: "100%",
-        backgroundColor: "white",
-        pointerEvents: "auto",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div className={portalTheme ? "sso-auth-panel sso-auth-panel--portal" : "sso-auth-panel"}>
       {staffConsole && !staffChannelIds.includes(0) && partnerResolveReady ? (
         <div
           style={{
@@ -140,10 +131,10 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void }> = ({ onComplete 
 
       <div style={{ flex: 1, minHeight: 0 }}>
         {activeTab === "web" && hasWeb ? (
-          <SignInWeb key="web" cid={0} onComplete={onComplete} />
+          <SignInWeb key="web" cid={0} onComplete={onComplete} portalTheme={portalTheme} />
         ) : null}
         {activeTab === "clerk" && hasClerk ? (
-          <SignInClerk key="clerk" cid={1} onComplete={onComplete} />
+          <SignInClerk key="clerk" cid={1} onComplete={onComplete} portalTheme={portalTheme} />
         ) : null}
         {!hasWeb && !hasClerk ? (
           <div

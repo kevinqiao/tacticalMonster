@@ -29,14 +29,14 @@ describe('SoloGame', () => {
 
     it('renders without crashing', () => {
         render(<SoloGame />);
-        expect(screen.getByText('Loading Solo Game...')).toBeInTheDocument();
+        expect(screen.getByText('Loading...')).toBeInTheDocument();
     });
 
     it('renders game interface after initialization', async () => {
         render(<SoloGame />);
 
         await waitFor(() => {
-            expect(screen.queryByText('Loading Solo Game...')).not.toBeInTheDocument();
+            expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
         });
     });
 
@@ -45,7 +45,7 @@ describe('SoloGame', () => {
         render(<SoloGame onGameStart={onGameStart} />);
 
         await waitFor(() => {
-            expect(screen.queryByText('Loading Solo Game...')).not.toBeInTheDocument();
+            expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
         });
 
         // 点击新游戏按钮
@@ -60,7 +60,7 @@ describe('SoloGame', () => {
         render(<SoloGame onGameComplete={onGameComplete} />);
 
         await waitFor(() => {
-            expect(screen.queryByText('Loading Solo Game...')).not.toBeInTheDocument();
+            expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
         });
 
         // 这里需要模拟游戏完成的条件
@@ -86,7 +86,7 @@ describe('SoloGame', () => {
         render(<SoloGame />);
 
         await waitFor(() => {
-            expect(screen.queryByText('Loading Solo Game...')).not.toBeInTheDocument();
+            expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
         });
 
         // 测试 H 键提示
@@ -123,7 +123,7 @@ describe('SoloGame Integration', () => {
         render(<SoloGame />);
 
         await waitFor(() => {
-            expect(screen.queryByText('Loading Solo Game...')).not.toBeInTheDocument();
+            expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
         });
 
         // 验证游戏组件是否正确渲染

@@ -110,7 +110,7 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
                 </SoloGameProvider>
             </div>
             <div className="solo-game-loading" ref={loadingRef}>
-                Loading Solo Game…
+                Loading...
             </div>
         </>
 

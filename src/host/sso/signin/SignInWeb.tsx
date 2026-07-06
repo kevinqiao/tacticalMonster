@@ -6,8 +6,9 @@ import { usePartnerManager } from "host/service/PartnerManager";
 import WebSignInForm from "@/component/lobby/shared/WebSignInForm";
 import { resolveWebSignInFromLocation } from "@/component/lobby/shared/resolveWebSignInFromLocation";
 
-const SignInWeb: React.FC<{ cid: number; onComplete: (user: User) => void }> = ({
+const SignInWeb: React.FC<{ cid: number; onComplete: (user: User) => void; portalTheme?: boolean }> = ({
   onComplete,
+  portalTheme = false,
 }) => {
   const { partnerPid } = usePartnerManager();
   const signInContext = useMemo(() => {
@@ -42,21 +43,7 @@ const SignInWeb: React.FC<{ cid: number; onComplete: (user: User) => void }> = (
           : "Web 登录（玩家账号）；无 staff 校验。";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        width: "100%",
-        height: "100%",
-        backgroundColor: "white",
-        pointerEvents: "auto",
-        gap: 12,
-        padding: 16,
-        boxSizing: "border-box",
-      }}
-    >
+    <div className={portalTheme ? "sso-auth-form sso-auth-form--portal" : "sso-auth-form"}>
       <div style={{ width: "100%", maxWidth: 420 }}>
         <WebSignInForm
           staffGate={signInContext.staffGate}

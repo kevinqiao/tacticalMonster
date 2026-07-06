@@ -7,7 +7,6 @@ import {
     computeHandPreviewSlots,
     fitPreviewCellSizeForShape,
     previewCellSizeCap,
-    type HandPreviewLayout,
 } from '../utils/blockBlastPreviewLayout';
 import ShapeBlock from './ShapeBlock';
 
@@ -54,17 +53,14 @@ const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
     }, [boardDimension]);
 
     const gridGap = boardDimension?.spacing ?? 2;
-    const previewPortrait =
-        boardDimension !== null && boardDimension.height >= boardDimension.width;
-    const handLayout: HandPreviewLayout = previewPortrait ? 'portraitRow' : 'landscapeColumn';
 
     const sp = boardDimension?.shapePreview;
     const previewW = typeof sp?.width === 'number' ? sp.width : boardDimension?.width ?? 0;
     const previewH = typeof sp?.height === 'number' ? sp.height : 120;
 
     const slots = useMemo(
-        () => computeHandPreviewSlots(handLayout, previewW, previewH),
-        [handLayout, previewW, previewH]
+        () => computeHandPreviewSlots(previewW, previewH),
+        [previewW, previewH]
     );
 
     const maxCellCap = previewCellSizeCap(boardDimension?.cellSize ?? 36);
@@ -80,11 +76,7 @@ const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
                 position: 'absolute',
             }}
         >
-            <div
-                className={`blockblast-shape-preview-scroll ${
-                    previewPortrait ? 'blockblast-shape-preview-scroll--stacked' : ''
-                }`.trim()}
-            >
+            <div className="blockblast-shape-preview-scroll blockblast-shape-preview-scroll--stacked">
                 <div className="blockblast-shape-preview-col blockblast-shape-preview-col--hand">
                     <div className="blockblast-shape-preview-hand-shapes">
                         {gameState.shapes.map((shape, index) => {

@@ -20,7 +20,7 @@ import { useActHandler } from './service/handler/useActHandler';
 import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
 import { CasualPostSettleSummaryOverlay } from '../../shared/CasualPostSettleSummaryOverlay';
 import Match3WatchOverlay from './replay/Match3WatchOverlay';
-import { ManualSettleConfirmOverlay } from '../../shared/ManualSettleConfirmOverlay';
+import { ManualSettleConfirmOverlay, MANUAL_SETTLE_DEFAULT_MESSAGE_MATCH3 } from '../../shared/ManualSettleConfirmOverlay';
 
 const CANDY_EMOJI = ['🍎', '🍇', '🍋', '🍑', '🫐', '🍉'];
 const DRAG_SWAP_THRESHOLD_RATIO = 14 / 44;
@@ -107,6 +107,7 @@ const Match3Player: React.FC = () => {
     settleConfirmOpen,
     cancelSettleConfirm,
     confirmSettleAndExit,
+    finishManualSettleSuccess,
     postCasualScoreReportOpen,
     postCasualScoreReport,
     dismissPostCasualScoreReport,
@@ -398,7 +399,7 @@ const Match3Player: React.FC = () => {
   }
 
   if (!gameState) {
-    return <div className="match3-game-container">Loading Match-3…</div>;
+    return <div className="match3-game-container">Loading...</div>;
   }
 
   return (
@@ -471,9 +472,10 @@ const Match3Player: React.FC = () => {
 
       <ManualSettleConfirmOverlay
         open={settleConfirmOpen}
-        message="结束本局并按当前分数结算？"
+        defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_MATCH3}
         onCancel={cancelSettleConfirm}
-        onConfirm={() => void confirmSettleAndExit()}
+        onConfirm={confirmSettleAndExit}
+        onSuccessClose={finishManualSettleSuccess}
       />
       <CasualGameScoreReportOverlay
         open={postCasualScoreReportOpen && watchTarget == null}
@@ -484,6 +486,7 @@ const Match3Player: React.FC = () => {
       />
       <CasualPostSettleSummaryOverlay
         open={postCasualSummaryOpen && watchTarget == null}
+        title="同桌成绩"
         summary={postCasualTableSummary}
         waitingForPeers={postCasualWaitingForPeers}
         onDismiss={dismissPostCasualSummary}

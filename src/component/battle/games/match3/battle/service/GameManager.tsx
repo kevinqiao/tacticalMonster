@@ -58,6 +58,50 @@ type GameStateCommitPatch = Partial<
   Pick<Match3GameState, 'grid' | 'score' | 'moves' | 'status' | 'refillCounter'>
 >;
 
+type CasualRunSubmitOutcome =
+  | {
+      ok: true;
+      tableSummary?: CasualAsyncTableSummaryUI;
+      pendingOthers?: boolean;
+      seedScoreThreshold?: number;
+      success?: boolean;
+      triathlonScoreReportOnly?: boolean;
+    }
+  | { ok: false; error?: string };
+
+function casualSettleErrorMessage(error?: string): string {
+  switch (error) {
+    case 'verify_failed':
+    case 'invalid_token':
+      return '登录已失效，请退出对局后重新登录再试';
+    case 'forbidden':
+      return '账号与对局不匹配，请从大厅重新进入本场';
+    case 'no_game':
+      return '对局数据不存在，请重新进入本场';
+    case 'not_terminal':
+      return '对局尚未结束，请稍后再试';
+    case 'unknown_match_game':
+      return '未找到休闲场次记录，请从大厅重新开局';
+    case 'match_not_submittable':
+      return '本场已不可提交成绩';
+    case 'unauthorized':
+    case 'casual_401':
+      return '休闲平台鉴权失败，请确认部署环境配置';
+    case 'casual_unreachable':
+    case 'game_unreachable':
+      return '休闲平台暂时不可达，请稍后重试';
+    case 'missing_casual_auth':
+      return '未登录，无法提交休闲场成绩';
+    case 'settle_failed':
+      return '终局写入失败，请重试';
+    default:
+      if (error?.startsWith('casual_')) {
+        return `休闲平台返回错误（${error}），请稍后重试`;
+      }
+      return error ? `结算失败（${error}），请重试` : '结算提交失败，请重试';
+  }
+}
+
 interface IMatch3GameContext {
   gameState: Match3GameState | null;
   gridCellRefs: RefObject<GridCellRefs | null>;
@@ -69,10 +113,12 @@ interface IMatch3GameContext {
   loadError: string | null;
   commitGameState: (patch?: GameStateCommitPatch) => void;
   completeCasualRun: () => Promise<void>;
+  completeCasualRunOnTimeout: () => Promise<void>;
   settleManuallyAndExit: () => Promise<void>;
   settleConfirmOpen: boolean;
   cancelSettleConfirm: () => void;
-  confirmSettleAndExit: () => Promise<void>;
+  confirmSettleAndExit: () => Promise<void | ManualSettleConfirmExtras>;
+  finishManualSettleSuccess: (extras?: ManualSettleConfirmExtras) => void;
   postCasualScoreReportOpen: boolean;
   postCasualScoreReport: CasualGameScoreReportUI | null;
   dismissPostCasualScoreReport: () => void;
@@ -159,13 +205,19 @@ export const Match3GameProvider: React.FC<Props> = ({
   const [watchTarget, setWatchTarget] = useState<Match3WatchContext | null>(null);
   const [watchTargetLabel, setWatchTargetLabel] = useState('');
   const casualRunSubmittedRef = useRef(false);
+  const settleInFlightRef = useRef(false);
   const pendingTriathlonAdvanceRef = useRef<TriathlonPendingAdvance | null>(null);
   const gameStateRef = useRef<Match3GameState | null>(null);
+  const interactionPhaseRef = useRef(interactionPhase);
   const triathlonSessionActive = Boolean(onTriathlonNextGame);
 
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  useEffect(() => {
+    interactionPhaseRef.current = interactionPhase;
+  }, [interactionPhase]);
 
   useEffect(() => {
     casualRunSubmittedRef.current = false;
@@ -428,9 +480,136 @@ export const Match3GameProvider: React.FC<Props> = ({
     }
   }, [convex, casualPlatformAuthed, beginCasualPostSettleFlow, triathlonSessionActive, casualTournamentId, casualPlatformBridge]);
 
+  const mapCasualPlatformRunActionResult = useCallback(
+    (
+      cr: {
+        ok?: boolean;
+        tableSummary?: CasualAsyncTableSummaryUI;
+        pendingOthers?: boolean;
+        seedScoreThreshold?: number;
+        success?: boolean;
+        gameComplete?: boolean;
+        nextGame?: TriathlonNextGame;
+      },
+      deferHost: boolean,
+      score: number,
+      matchGameId?: string
+    ): CasualRunSubmitOutcome => {
+      if (!cr.ok) return { ok: false };
+      if (
+        triathlonSessionActive &&
+        matchGameId &&
+        queueTriathlonMidSessionAdvance(cr, score, pendingTriathlonAdvanceRef, {
+          templateId: casualTournamentId,
+          gameId: matchGameId,
+          triathlonSessionActive,
+        })
+      ) {
+        return { ok: true, triathlonScoreReportOnly: true };
+      }
+      if (!deferHost) {
+        onGameSubmit?.();
+      }
+      return {
+        ok: true,
+        ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
+        ...(cr.pendingOthers ? { pendingOthers: true } : {}),
+        ...(typeof cr.seedScoreThreshold === 'number'
+          ? { seedScoreThreshold: cr.seedScoreThreshold }
+          : {}),
+        ...(typeof cr.success === 'boolean' ? { success: cr.success } : {}),
+      };
+    },
+    [triathlonSessionActive, casualTournamentId, onGameSubmit]
+  );
+
+  const runForceEndCasualSettlement = useCallback(
+    async (opts?: { deferHostNotify?: boolean }): Promise<CasualRunSubmitOutcome> => {
+      const gs = gameStateRef.current;
+      if (!gs || casualRunSubmittedRef.current) return { ok: false };
+      if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) {
+        return { ok: false, error: 'not_casual_run' };
+      }
+      if (!casualPlatformAuthed) {
+        return { ok: false, error: 'missing_casual_auth' };
+      }
+      casualRunSubmittedRef.current = true;
+      const deferHost = Boolean(opts?.deferHostNotify);
+      try {
+        const cr = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
+          ...buildCasualPlatformRunActionArgs({
+            gameId: gs.gameId,
+            platformBridge: casualPlatformBridge,
+          }),
+        })) as {
+          ok?: boolean;
+          error?: string;
+          tableSummary?: CasualAsyncTableSummaryUI;
+          pendingOthers?: boolean;
+          seedScoreThreshold?: number;
+          success?: boolean;
+        };
+        if (!cr.ok) {
+          console.warn('[match3] forceEndCasualPlatformRun', cr.error);
+          casualRunSubmittedRef.current = false;
+          return { ok: false, error: cr.error };
+        }
+        commitGameState({ status: Match3GameStatus.CANCELLED });
+        const score = Math.max(0, Math.floor(gs.score ?? 0));
+        return mapCasualPlatformRunActionResult(cr, deferHost, score, gs.gameId);
+      } catch (e) {
+        console.error('[match3] runForceEndCasualSettlement', e);
+        casualRunSubmittedRef.current = false;
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('unauthenticated')) {
+          return { ok: false, error: 'missing_casual_auth' };
+        }
+        return { ok: false, error: 'network_error' };
+      }
+    },
+    [
+      convex,
+      casualPlatformAuthed,
+      casualPlatformBridge,
+      commitGameState,
+      mapCasualPlatformRunActionResult,
+    ]
+  );
+
+  const finishManualSettleSuccess = useCallback(
+    (extras?: ManualSettleConfirmExtras) => {
+      setSettleConfirmOpen(false);
+      const gs = gameStateRef.current;
+      const isCasualRun = typeof gs?.gameId === 'string' && gs.gameId.startsWith('game_');
+      if (!gs || !isCasualRun) {
+        onGameSubmit?.();
+        return;
+      }
+      const score = Math.max(0, Math.floor(gs.score ?? 0));
+      void beginCasualPostSettleFlow(gs.gameId, score, {
+        tableSummary: extras?.tableSummary ?? undefined,
+        pendingOthers: extras?.pendingOthers,
+        ...(extras?.triathlonScoreReportOnly || extras?.deferTriathlonTableSummary
+          ? { deferTriathlonTableSummary: true }
+          : {}),
+        ...(typeof extras?.seedScoreThreshold === 'number'
+          ? { seedScoreThreshold: extras.seedScoreThreshold, success: extras.success }
+          : {}),
+      });
+    },
+    [onGameSubmit, beginCasualPostSettleFlow]
+  );
+
+  const cancelSettleConfirm = useCallback(() => {
+    setSettleConfirmOpen(false);
+    if (!casualRunSubmittedRef.current) {
+      settleInFlightRef.current = false;
+    }
+  }, []);
+
   const settleManuallyAndExit = useCallback(async () => {
     const gs = gameStateRef.current;
-    if (!gs) return;
+    if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
     if (gs.status === Match3GameStatus.PLAYING) {
       setSettleConfirmOpen(true);
       return;
@@ -438,48 +617,113 @@ export const Match3GameProvider: React.FC<Props> = ({
     await completeCasualRun();
   }, [completeCasualRun]);
 
-  const confirmSettleAndExit = useCallback(async () => {
+  const confirmSettleAndExit = useCallback(async (): Promise<void | ManualSettleConfirmExtras> => {
     const gs = gameStateRef.current;
-    if (!gs?.gameId || !casualPlatformAuthed) return;
-    setSettleConfirmOpen(false);
-    await convex.mutation(api.service.gameManager.concedeGame, { gameId: gs.gameId });
-    const res = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
-      ...buildCasualPlatformRunActionArgs({
-        gameId: gs.gameId,
-        platformBridge: casualPlatformBridge,
-      }),
-    })) as {
-      ok?: boolean;
-      tableSummary?: CasualAsyncTableSummaryUI;
-      pendingOthers?: boolean;
-      seedScoreThreshold?: number;
-      success?: boolean;
-    };
-    if (res?.ok) {
-      casualRunSubmittedRef.current = true;
-      setGameState((prev) => (prev ? { ...prev, status: Match3GameStatus.CANCELLED } : prev));
-      if (
-        triathlonSessionActive &&
-        queueTriathlonMidSessionAdvance(res, gs.score ?? 0, pendingTriathlonAdvanceRef, {
-          templateId: casualTournamentId,
-          gameId: gs.gameId,
-          triathlonSessionActive,
-        })
-      ) {
-        await beginCasualPostSettleFlow(gs.gameId, gs.score ?? 0, {
+    if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) {
+      throw new Error('当前无法结算');
+    }
+    if (interactionPhaseRef.current !== GameInteractionPhase.idle) {
+      throw new Error('当前无法结算');
+    }
+    settleInFlightRef.current = true;
+    try {
+      const isCasualGameId = typeof gs.gameId === 'string' && gs.gameId.startsWith('game_');
+      if (Boolean(casualTournamentId) && isCasualGameId && !casualPlatformAuthed) {
+        throw new Error(casualSettleErrorMessage('missing_casual_auth'));
+      }
+      const isCasualRun = isCasualGameId && casualPlatformAuthed;
+      if (isCasualRun) {
+        const settled = await runForceEndCasualSettlement({ deferHostNotify: true });
+        if (!settled.ok) {
+          throw new Error(casualSettleErrorMessage(settled.error));
+        }
+        const out: ManualSettleConfirmExtras = {};
+        if (settled.tableSummary) out.tableSummary = settled.tableSummary;
+        if (settled.pendingOthers) out.pendingOthers = true;
+        if (typeof settled.seedScoreThreshold === 'number') {
+          out.seedScoreThreshold = settled.seedScoreThreshold;
+          out.success = Boolean(settled.success);
+        } else if (typeof targetScore === 'number' && Number.isFinite(targetScore)) {
+          const score = Math.max(0, Math.floor(gs.score ?? 0));
+          out.seedScoreThreshold = targetScore;
+          out.success = score >= targetScore;
+        }
+        if (settled.triathlonScoreReportOnly) {
+          out.triathlonScoreReportOnly = true;
+          out.deferTriathlonTableSummary = true;
+        }
+        return out;
+      }
+
+      await convex.mutation(api.service.gameManager.concedeGame, { gameId: gs.gameId });
+      commitGameState({ status: Match3GameStatus.CANCELLED });
+      onGameSubmit?.();
+      return undefined;
+    } catch (e) {
+      console.error('[match3] confirmSettleAndExit', e);
+      if (e instanceof Error) throw e;
+      throw new Error('结算失败，请稍后重试');
+    } finally {
+      settleInFlightRef.current = false;
+    }
+  }, [
+    convex,
+    casualTournamentId,
+    casualPlatformAuthed,
+    targetScore,
+    commitGameState,
+    runForceEndCasualSettlement,
+    onGameSubmit,
+  ]);
+
+  const completeCasualRunOnTimeout = useCallback(async () => {
+    const gs = gameStateRef.current;
+    if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
+    if (gs.status !== Match3GameStatus.PLAYING) return;
+    if (gs.dueTime == null || Date.now() < gs.dueTime) return;
+    if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
+    if (!casualPlatformAuthed) return;
+
+    settleInFlightRef.current = true;
+    const matchGameId = gs.gameId;
+    const score = Math.max(0, Math.floor(gs.score ?? 0));
+    try {
+      const settled = await runForceEndCasualSettlement({ deferHostNotify: true });
+      if (!settled.ok) {
+        console.warn('[match3] completeCasualRunOnTimeout', settled.error);
+        return;
+      }
+      if (settled.triathlonScoreReportOnly) {
+        await beginCasualPostSettleFlow(matchGameId, score, {
           deferTriathlonTableSummary: true,
         });
         return;
       }
-      await beginCasualPostSettleFlow(gs.gameId, gs.score ?? 0, {
-        tableSummary: res.tableSummary,
-        pendingOthers: res.pendingOthers,
-        ...(typeof res.seedScoreThreshold === 'number'
-          ? { seedScoreThreshold: res.seedScoreThreshold, success: res.success }
-          : {}),
-      });
+      await beginCasualPostSettleFlow(matchGameId, score, settled);
+    } catch (e) {
+      console.error('[match3] completeCasualRunOnTimeout', e);
+    } finally {
+      settleInFlightRef.current = false;
     }
-  }, [convex, casualPlatformAuthed, beginCasualPostSettleFlow, triathlonSessionActive, casualTournamentId, casualPlatformBridge]);
+  }, [
+    casualPlatformAuthed,
+    runForceEndCasualSettlement,
+    beginCasualPostSettleFlow,
+  ]);
+
+  useEffect(() => {
+    const gs = gameState;
+    if (!gs?.dueTime || gs.status !== Match3GameStatus.PLAYING) return;
+    const ms = gs.dueTime - Date.now();
+    if (ms <= 0) {
+      void completeCasualRunOnTimeout();
+      return;
+    }
+    const t = window.setTimeout(() => {
+      void completeCasualRunOnTimeout();
+    }, ms);
+    return () => window.clearTimeout(t);
+  }, [gameState?.gameId, gameState?.dueTime, gameState?.status, completeCasualRunOnTimeout]);
 
   const reloadCasualRun = useCallback(async (): Promise<boolean> => {
     if (!gameId || !gameId.startsWith('game_')) return false;
@@ -679,8 +923,10 @@ export const Match3GameProvider: React.FC<Props> = ({
     completeCasualRun,
     settleManuallyAndExit,
     settleConfirmOpen,
-    cancelSettleConfirm: () => setSettleConfirmOpen(false),
+    cancelSettleConfirm,
     confirmSettleAndExit,
+    finishManualSettleSuccess,
+    completeCasualRunOnTimeout,
     postCasualScoreReportOpen,
     postCasualScoreReport,
     dismissPostCasualScoreReport,

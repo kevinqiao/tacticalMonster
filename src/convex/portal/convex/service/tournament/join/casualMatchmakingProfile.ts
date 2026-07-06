@@ -86,7 +86,7 @@ export async function resolvePlayerBotStrategyContext(
     ? def.gameType
     : getDefaultPrimaryGameType();
 
-  const weeklyLeagueTier = await readWeeklyLeagueTier(ctx, uid);
+  const weeklyLeagueTier = await readWeeklyLeagueTier(ctx, uid, gameType);
   const seasonId = await activeSeasonId(ctx);
 
   const player = await ctx.db

@@ -8,8 +8,12 @@ import { isRegisteredCasualGameType } from "../../../data/casualGameRegistry";
 import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
 import { isCasualAsyncVirtualOpponentUid } from "./async/casualAsyncTypes";
 
-/** 真人 open run 创建后 5 分钟核查是否仍未结算 */
-export const CASUAL_OPEN_RUN_SETTLE_CHECK_MS = 5 * 60 * 1000;
+/**
+ * 真人 open run 创建后核查是否仍未结算（纯兜底）。
+ * 须大于所有游戏的最长时限（tower 480s），让 arena 自身的 timeout job
+ * 先按真实分数结算；此处只兜住 arena 侧彻底失联的残局。
+ */
+export const CASUAL_OPEN_RUN_SETTLE_CHECK_MS = 10 * 60 * 1000;
 
 export async function scheduleOpenRunSettleCheckForPlayerGame(
   ctx: MutationCtx,

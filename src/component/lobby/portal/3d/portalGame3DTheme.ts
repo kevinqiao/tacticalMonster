@@ -3,7 +3,7 @@ import {
   type RegisteredPortalGameType,
 } from "@/convex/portal/convex/data/portalGameRegistry";
 
-/** 全游戏共用 3D 大厅背景 */
+/** 全游戏共用 3D 大厅背景（canonical，待 art 就绪） */
 export const PORTAL_3D_SHARED_BG = {
   landscape: "/assets/portal/3d/backgrounds/bg-16x9.png",
   portrait: "/assets/portal/3d/backgrounds/bg-9x16.png",
@@ -14,6 +14,23 @@ export const PORTAL_3D_SHARED_BG_FALLBACK = {
   landscape: "/assets/portal/solitaire/backgrounds/bg-16x9.png",
   portrait: "/assets/portal/portal_bg_9x16.png",
 } as const;
+
+/**
+ * 按 gameType 的 3D 大厅背景（当前均映射到已有 fallback，canonical 路径见 PORTAL_3D_SHARED_BG）。
+ */
+export const PORTAL_3D_GAME_BG: Record<
+  RegisteredPortalGameType,
+  { landscape: string; portrait: string }
+> = {
+  solitaire: {
+    landscape: "/assets/portal/solitaire/backgrounds/bg-16x9.png",
+    portrait: "/assets/portal/portal_bg_9x16.png",
+  },
+  block_blast: { ...PORTAL_3D_SHARED_BG_FALLBACK },
+  match_3: { ...PORTAL_3D_SHARED_BG_FALLBACK },
+  tower_arena: { ...PORTAL_3D_SHARED_BG_FALLBACK },
+  yatz: { ...PORTAL_3D_SHARED_BG_FALLBACK },
+};
 
 const DEFAULT_HERO_LOGO = "/assets/portal/solitaire/hero/hero-title.svg";
 
@@ -36,9 +53,12 @@ export function resolvePortal3DHeroLogo(
 }
 
 export function resolvePortal3DSharedBg(
-  orientation: "landscape" | "portrait"
+  orientation: "landscape" | "portrait",
+  gameType?: RegisteredPortalGameType | null
 ): string {
-  // Canonical paths in PORTAL_3D_SHARED_BG; use legacy art until 3d/backgrounds/ is populated.
+  if (gameType && PORTAL_3D_GAME_BG[gameType]) {
+    return PORTAL_3D_GAME_BG[gameType][orientation];
+  }
   return PORTAL_3D_SHARED_BG_FALLBACK[orientation];
 }
 
@@ -55,6 +75,23 @@ export const PORTAL_3D_TIER_BADGES: Record<PortalTierId, string> = {
 
 export function resolvePortal3DTierBadge(tierId: PortalTierId | null | undefined): string {
   return PORTAL_3D_TIER_BADGES[tierId ?? "bronze"] ?? PORTAL_3D_TIER_BADGES.bronze;
+}
+
+const PORTAL_TIER_BASE_LABELS: Record<PortalTierId, string> = {
+  bronze: "青铜",
+  silver: "白银",
+  gold: "黄金",
+  platinum: "铂金",
+  diamond: "钻石",
+};
+
+/** 段位展示文案（Phase 2：大段 + 默认罗马数字 I） */
+export function portalTierDisplayLabel(tierId: PortalTierId): {
+  tierLabel: string;
+  division: string;
+} {
+  const base = PORTAL_TIER_BASE_LABELS[tierId] ?? PORTAL_TIER_BASE_LABELS.bronze;
+  return { tierLabel: `${base} I`, division: "I" };
 }
 
 /** 供开发期校验：已注册的 gameType 均有 logo 配置 */

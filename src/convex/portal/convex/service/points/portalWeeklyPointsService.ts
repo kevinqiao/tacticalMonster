@@ -8,6 +8,7 @@ import {
   portalSoloPointDelta,
 } from "../../data/portalTournamentConfigs";
 import { ensurePortalWeeklyBoardBots } from "./portalWeeklyBoardBotFill";
+import { syncWeeklyTotalPoints } from "./portalWeeklyTotalPointsService";
 
 export type PortalWeeklyMode = "solo" | "multi";
 
@@ -72,6 +73,13 @@ export async function addWeeklyPoints(
   await ensurePortalWeeklyBoardBots(ctx, {
     gameType: args.gameType,
     mode: args.mode,
+    weekKey,
+    now,
+  });
+
+  await syncWeeklyTotalPoints(ctx, {
+    uid: args.uid,
+    gameType: args.gameType,
     weekKey,
     now,
   });

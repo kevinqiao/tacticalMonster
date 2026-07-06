@@ -34,6 +34,8 @@ import {
 
   type CasualAsyncTableSummaryUI,
 
+  type ManualSettleConfirmExtras,
+
   type Match3WatchContext,
 
 } from '../../../shared/casualAsyncTableSummaryUI';
@@ -49,6 +51,100 @@ import { CasualGameScoreReportOverlay } from '../../../shared/CasualGameScoreRep
 import { CasualPostSettleSummaryOverlay } from '../../../shared/CasualPostSettleSummaryOverlay';
 
 import { YatzGameStatus, type YatzCategory, type YatzGameState } from '../types/YatzTypes';
+
+
+
+type CasualRunSubmitOutcome =
+
+  | {
+
+      ok: true;
+
+      tableSummary?: CasualAsyncTableSummaryUI;
+
+      pendingOthers?: boolean;
+
+      seedScoreThreshold?: number;
+
+      success?: boolean;
+
+      replayOffered?: boolean;
+
+      replayTokenCount?: number;
+
+      canReplay?: boolean;
+
+      replayWindowEndsAt?: number;
+
+    }
+
+  | { ok: false; error?: string };
+
+
+
+function casualSettleErrorMessage(error?: string): string {
+
+  switch (error) {
+
+    case 'verify_failed':
+
+    case 'invalid_token':
+
+      return '登录已失效，请退出对局后重新登录再试';
+
+    case 'forbidden':
+
+      return '账号与对局不匹配，请从大厅重新进入本场';
+
+    case 'no_game':
+
+      return '对局数据不存在，请重新进入本场';
+
+    case 'not_terminal':
+
+      return '对局尚未结束，请稍后再试';
+
+    case 'unknown_match_game':
+
+      return '未找到休闲场次记录，请从大厅重新开局';
+
+    case 'match_not_submittable':
+
+      return '本场已不可提交成绩';
+
+    case 'unauthorized':
+
+    case 'casual_401':
+
+      return '休闲平台鉴权失败，请确认部署环境配置';
+
+    case 'casual_unreachable':
+
+    case 'game_unreachable':
+
+      return '休闲平台暂时不可达，请稍后重试';
+
+    case 'missing_casual_auth':
+
+      return '未登录，无法提交休闲场成绩';
+
+    case 'settle_failed':
+
+      return '终局写入失败，请重试';
+
+    default:
+
+      if (error?.startsWith('casual_')) {
+
+        return `休闲平台返回错误（${error}），请稍后重试`;
+
+      }
+
+      return error ? `结算失败（${error}），请重试` : '结算提交失败，请重试';
+
+  }
+
+}
 
 
 
@@ -74,7 +170,9 @@ type YatzGameContextValue = {
 
   cancelSettleConfirm: () => void;
 
-  confirmSettleAndExit: () => Promise<void>;
+  confirmSettleAndExit: () => Promise<void | ManualSettleConfirmExtras>;
+
+  finishManualSettleSuccess: (extras?: ManualSettleConfirmExtras) => void;
 
   dismissPostCasualScoreReport: () => void;
 
@@ -669,72 +767,168 @@ const YatzGameProvider: React.FC<Props> = ({
 
 
 
-  const confirmSettleAndExit = useCallback(async () => {
-
-    const gs = gameStateRef.current;
-
-    if (!gs?.gameId || !casualPlatformAuthed || settleInFlightRef.current) return;
-
-    setSettleConfirmOpen(false);
-
-    settleInFlightRef.current = true;
-
-    setBusy(true);
-
-    try {
-
-      await convex.mutation(api.service.gameManager.concedeGame, { gameId: gs.gameId });
-
-      const res = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
-
-        ...buildCasualPlatformRunActionArgs({
-          gameId: gs.gameId,
-          platformBridge: casualPlatformBridge,
-        }),
-
-      })) as {
-
-        ok?: boolean;
-
-        tableSummary?: CasualAsyncTableSummaryUI;
-
-        pendingOthers?: boolean;
-
-        seedScoreThreshold?: number;
-
-        success?: boolean;
-
-        replayOffered?: boolean;
-
-        replayTokenCount?: number;
-
-        canReplay?: boolean;
-
-        replayWindowEndsAt?: number;
-
-      };
-
-      if (!res?.ok) return;
-
+  const runForceEndCasualSettlement = useCallback(
+    async (): Promise<CasualRunSubmitOutcome> => {
+      const gs = gameStateRef.current;
+      if (!gs || casualRunSubmittedRef.current) return { ok: false };
+      if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) {
+        return { ok: false, error: 'not_casual_run' };
+      }
+      if (!casualPlatformAuthed) {
+        return { ok: false, error: 'missing_casual_auth' };
+      }
       casualRunSubmittedRef.current = true;
+      try {
+        const res = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
+          ...buildCasualPlatformRunActionArgs({
+            gameId: gs.gameId,
+            platformBridge: casualPlatformBridge,
+          }),
+        })) as {
+          ok?: boolean;
+          error?: string;
+          tableSummary?: CasualAsyncTableSummaryUI;
+          pendingOthers?: boolean;
+          seedScoreThreshold?: number;
+          success?: boolean;
+          replayOffered?: boolean;
+          replayTokenCount?: number;
+          canReplay?: boolean;
+          replayWindowEndsAt?: number;
+        };
+        if (!res?.ok) {
+          console.warn('[yatz] forceEndCasualPlatformRun', res.error);
+          casualRunSubmittedRef.current = false;
+          return { ok: false, error: res.error };
+        }
+        setGameState((prev) => (prev ? { ...prev, status: YatzGameStatus.CANCELLED } : prev));
+        return {
+          ok: true,
+          ...(res.tableSummary ? { tableSummary: res.tableSummary } : {}),
+          ...(res.pendingOthers ? { pendingOthers: true } : {}),
+          ...(typeof res.seedScoreThreshold === 'number'
+            ? { seedScoreThreshold: res.seedScoreThreshold }
+            : {}),
+          ...(typeof res.success === 'boolean' ? { success: res.success } : {}),
+          ...(res.replayOffered ? { replayOffered: true } : {}),
+          ...(typeof res.replayTokenCount === 'number'
+            ? { replayTokenCount: res.replayTokenCount }
+            : {}),
+          ...(res.canReplay ? { canReplay: true } : {}),
+          ...(typeof res.replayWindowEndsAt === 'number'
+            ? { replayWindowEndsAt: res.replayWindowEndsAt }
+            : {}),
+        };
+      } catch (e) {
+        console.error('[yatz] runForceEndCasualSettlement', e);
+        casualRunSubmittedRef.current = false;
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('unauthenticated')) {
+          return { ok: false, error: 'missing_casual_auth' };
+        }
+        return { ok: false, error: 'network_error' };
+      }
+    },
+    [convex, casualPlatformAuthed, casualPlatformBridge]
+  );
 
+  const finishManualSettleSuccess = useCallback(
+    (extras?: ManualSettleConfirmExtras) => {
+      setSettleConfirmOpen(false);
+      const gs = gameStateRef.current;
+      const isCasualRun = typeof gs?.gameId === 'string' && gs.gameId.startsWith('game_');
+      if (!gs || !isCasualRun) {
+        onGameSubmit?.();
+        return;
+      }
       const score = gs.score ?? 0;
+      void applySettleResponse(
+        score,
+        {
+          tableSummary: extras?.tableSummary,
+          pendingOthers: extras?.pendingOthers,
+          seedScoreThreshold: extras?.seedScoreThreshold,
+          success: extras?.success,
+          replayOffered: extras?.replayOffered,
+          replayTokenCount: extras?.replayTokenCount,
+          canReplay: extras?.canReplay,
+          replayWindowEndsAt: extras?.replayWindowEndsAt,
+        },
+        gs.gameId
+      );
+    },
+    [applySettleResponse, onGameSubmit]
+  );
 
-      setGameState((prev) => (prev ? { ...prev, status: YatzGameStatus.CANCELLED } : prev));
-
-      await applySettleResponse(score, res, gs.gameId);
-
-    } finally {
-
+  const cancelSettleConfirm = useCallback(() => {
+    setSettleConfirmOpen(false);
+    if (!casualRunSubmittedRef.current) {
       settleInFlightRef.current = false;
-
-      setBusy(false);
-
     }
+  }, []);
 
-  }, [convex, casualPlatformAuthed, applySettleResponse, casualPlatformBridge]);
-
-
+  const confirmSettleAndExit = useCallback(async (): Promise<void | ManualSettleConfirmExtras> => {
+    const gs = gameStateRef.current;
+    if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) {
+      throw new Error('当前无法结算');
+    }
+    if (gs.status !== YatzGameStatus.PLAYING) {
+      throw new Error('当前无法结算');
+    }
+    settleInFlightRef.current = true;
+    setBusy(true);
+    try {
+      const isCasualGameId = typeof gs.gameId === 'string' && gs.gameId.startsWith('game_');
+      if (Boolean(casualTournamentId) && isCasualGameId && !casualPlatformAuthed) {
+        throw new Error(casualSettleErrorMessage('missing_casual_auth'));
+      }
+      const isCasualRun = isCasualGameId && casualPlatformAuthed;
+      if (isCasualRun) {
+        const settled = await runForceEndCasualSettlement();
+        if (!settled.ok) {
+          throw new Error(casualSettleErrorMessage(settled.error));
+        }
+        const out: ManualSettleConfirmExtras = {};
+        if (settled.tableSummary) out.tableSummary = settled.tableSummary;
+        if (settled.pendingOthers) out.pendingOthers = true;
+        if (typeof settled.seedScoreThreshold === 'number') {
+          out.seedScoreThreshold = settled.seedScoreThreshold;
+          out.success = Boolean(settled.success);
+        } else if (typeof targetScore === 'number' && Number.isFinite(targetScore)) {
+          const score = Math.max(0, Math.floor(gs.score ?? 0));
+          out.seedScoreThreshold = targetScore;
+          out.success = score >= targetScore;
+        }
+        if (settled.replayOffered) out.replayOffered = true;
+        if (typeof settled.replayTokenCount === 'number') {
+          out.replayTokenCount = settled.replayTokenCount;
+        }
+        if (settled.canReplay) out.canReplay = true;
+        if (typeof settled.replayWindowEndsAt === 'number') {
+          out.replayWindowEndsAt = settled.replayWindowEndsAt;
+        }
+        return out;
+      }
+      await convex.mutation(api.service.gameManager.concedeGame, { gameId: gs.gameId });
+      setGameState((prev) => (prev ? { ...prev, status: YatzGameStatus.CANCELLED } : prev));
+      onGameSubmit?.();
+      return undefined;
+    } catch (e) {
+      console.error('[yatz] confirmSettleAndExit', e);
+      if (e instanceof Error) throw e;
+      throw new Error('结算失败，请稍后重试');
+    } finally {
+      settleInFlightRef.current = false;
+      setBusy(false);
+    }
+  }, [
+    convex,
+    casualTournamentId,
+    casualPlatformAuthed,
+    targetScore,
+    runForceEndCasualSettlement,
+    onGameSubmit,
+  ]);
 
   const maybeComplete = useCallback(
 
@@ -958,52 +1152,19 @@ const YatzGameProvider: React.FC<Props> = ({
 
     try {
 
-      const res = (await convex.action(api.proxy.controller.forceEndCasualPlatformRun, {
+      const settled = await runForceEndCasualSettlement();
 
-        ...buildCasualPlatformRunActionArgs({
-          gameId: gs.gameId,
-          platformBridge: casualPlatformBridge,
-        }),
+      if (!settled.ok) {
 
-      })) as {
-
-        ok?: boolean;
-
-        error?: string;
-
-        tableSummary?: CasualAsyncTableSummaryUI;
-
-        pendingOthers?: boolean;
-
-        seedScoreThreshold?: number;
-
-        success?: boolean;
-
-        replayOffered?: boolean;
-
-        replayTokenCount?: number;
-
-        canReplay?: boolean;
-
-        replayWindowEndsAt?: number;
-
-      };
-
-      if (!res?.ok) {
-
-        console.warn('[yatz] forceEndCasualPlatformRun on timeout', res?.error);
+        console.warn('[yatz] forceEndCasualPlatformRun on timeout', settled.error);
 
         return;
 
       }
 
-      casualRunSubmittedRef.current = true;
-
       const score = gs.score ?? 0;
 
-      setGameState((prev) => (prev ? { ...prev, status: YatzGameStatus.CANCELLED } : prev));
-
-      await applySettleResponse(score, res, gs.gameId);
+      await applySettleResponse(score, settled, gs.gameId);
 
     } catch (e) {
 
@@ -1017,7 +1178,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     }
 
-  }, [convex, casualPlatformAuthed, applySettleResponse, casualPlatformBridge]);
+  }, [casualPlatformAuthed, runForceEndCasualSettlement, applySettleResponse]);
 
 
 
@@ -1083,9 +1244,11 @@ const YatzGameProvider: React.FC<Props> = ({
 
         settleConfirmOpen,
 
-        cancelSettleConfirm: () => setSettleConfirmOpen(false),
+        cancelSettleConfirm,
 
         confirmSettleAndExit,
+
+        finishManualSettleSuccess,
 
         dismissPostCasualScoreReport,
 

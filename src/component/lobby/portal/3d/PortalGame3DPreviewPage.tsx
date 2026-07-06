@@ -23,7 +23,7 @@ export default function PortalGame3DPreviewPage({
           tierId: "silver",
           tierLabel: "白银 III",
           division: "III",
-          cohortNo: 1847,
+          cohortNo: "A3K9M2X7",
           rank: 12,
           cohortSize: 50,
           points: 245,

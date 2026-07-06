@@ -8,6 +8,10 @@ import {
 } from "../PortalPanels";
 import { PortalHistoryReportOverlays } from "../PortalHistoryReportOverlays";
 import { PortalRulesContent } from "./PortalRulesContent";
+import { PortalShopPanel } from "./PortalShopPanel";
+import { resolvePortalShopSkus } from "./portalShopCatalogFallback";
+import { PortalWeeklyLeagueClosePanel } from "./PortalWeeklyLeagueClosePanel";
+import type { PortalTierId } from "./portalGame3DTheme";
 
 import type { usePortalGame3DController } from "./usePortalGame3DController";
 
@@ -27,11 +31,14 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
     setRulesModalOpen,
     shopModalOpen,
     setShopModalOpen,
+    weeklyCloseModalOpen,
+    setWeeklyCloseModalOpen,
+    weeklyCloseDisplay,
+    showNote,
     openAssignments,
     openAssignment,
-    mergedLeaderboard,
-    myTotalPoints,
-    myTotalRank,
+    leaderboardRows,
+    tierView,
     historyReport,
     hasOpenRun,
     matchOverlayOpen,
@@ -47,6 +54,7 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
   return (
     <>
       <CasualPlayMatchOverlay
+        className="portal-3d-match-overlay"
         open={visible !== 0 && !hasOpenRun && matchOverlayOpen}
         phase={queueClaiming ? "claiming" : "waiting"}
         waitingForPeer={
@@ -65,13 +73,17 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
 
       <PortalCenterModal
         open={panelModal === "lb"}
-        title="本周总榜"
+        title={
+          portal.weeklyLeagueTierView?.enrolled && portal.cohortLeaderboard.length > 0
+            ? "本组排行"
+            : "本周总榜"
+        }
         onClose={() => setPanelModal(null)}
       >
         <PortalWeeklyLeaderboardPanel
-          rows={mergedLeaderboard}
-          myPoints={myTotalPoints}
-          myRank={myTotalRank}
+          rows={leaderboardRows}
+          myPoints={tierView.points ?? 0}
+          myRank={tierView.rank ?? null}
         />
       </PortalCenterModal>
 
@@ -100,32 +112,38 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
       </PortalCenterModal>
 
       <PortalCenterModal
+        open={weeklyCloseModalOpen}
+        title=""
+        onClose={() => setWeeklyCloseModalOpen(false)}
+      >
+        <PortalWeeklyLeagueClosePanel
+          display={weeklyCloseDisplay}
+          tierId={
+            (portal.weeklyLeagueTierView?.tierId as PortalTierId | undefined) ??
+            tierView.tierId
+          }
+          onClaim={portal.claimPortalWeeklyLeagueRewards}
+          onDismiss={portal.dismissPortalWeeklyLeagueClose}
+          onClose={() => setWeeklyCloseModalOpen(false)}
+          onClaimed={(coins) => showNote(`已领取 ${coins.toLocaleString()} 金币`)}
+        />
+      </PortalCenterModal>
+
+      <PortalCenterModal
         open={shopModalOpen}
         title="兑换商店"
         onClose={() => setShopModalOpen(false)}
       >
-        <div
-          className="rules-dialog-content"
-          style={{ textAlign: "center", padding: "24px 10px" }}
-        >
-          <span style={{ fontSize: "64px", display: "block", marginBottom: "16px" }}>
-            🎁
-          </span>
-          <h3
-            style={{
-              fontSize: "22px",
-              fontWeight: 900,
-              margin: "0 0 12px",
-            }}
-          >
-            兑换商店筹备中
-          </h3>
-          <p style={{ margin: 0 }}>
-            金币与礼品兑换功能正在火热制作中！
-            <br />
-            参与单人与多人竞技获取的排行榜周榜积分，后续可在商店内直接兑换神秘大礼，敬请期待！✨
-          </p>
-        </div>
+        <PortalShopPanel
+          coins={
+            portal.shopCatalog?.coins ??
+            portal.playerWallet?.coins ??
+            0
+          }
+          skus={resolvePortalShopSkus(portal.shopCatalog?.skus)}
+          onPurchase={portal.purchasePortalShopSku}
+          onFeedback={ctrl.showNote}
+        />
       </PortalCenterModal>
 
       <PortalHistoryReportOverlays

@@ -6,7 +6,10 @@ import {
   type YatzCategory,
 } from './types/YatzTypes';
 import { useYatzGameManager } from './service/GameManager';
-import { ManualSettleConfirmOverlay } from '../../shared/ManualSettleConfirmOverlay';
+import {
+  ManualSettleConfirmOverlay,
+  MANUAL_SETTLE_DEFAULT_MESSAGE_YATZ,
+} from '../../shared/ManualSettleConfirmOverlay';
 import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
 import { CasualPostSettleSummaryOverlay } from '../../shared/CasualPostSettleSummaryOverlay';
 import YatzWatchOverlay from './replay/YatzWatchOverlay';
@@ -337,9 +340,10 @@ const GamePlayer: React.FC = () => {
 
       <ManualSettleConfirmOverlay
         open={yatz.settleConfirmOpen}
-        message="结束本局并按当前分数结算？"
+        defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_YATZ}
         onCancel={yatz.cancelSettleConfirm}
-        onConfirm={() => void yatz.confirmSettleAndExit()}
+        onConfirm={yatz.confirmSettleAndExit}
+        onSuccessClose={yatz.finishManualSettleSuccess}
       />
       <CasualGameScoreReportOverlay
         open={yatz.postCasualScoreReportOpen && yatz.watchTarget == null}
@@ -350,6 +354,7 @@ const GamePlayer: React.FC = () => {
       />
       <CasualPostSettleSummaryOverlay
         open={yatz.postCasualSummaryOpen && yatz.watchTarget == null}
+        title="同桌成绩"
         summary={yatz.postCasualTableSummary}
         waitingForPeers={yatz.postCasualWaitingForPeers}
         onDismiss={yatz.dismissPostCasualSummary}

@@ -13,7 +13,10 @@
 
 .portal-modal-panel--fullscreen {
   inset: 16px 10px 0 10px !important;
+  width: auto !important;
+  max-width: none !important;
   height: auto !important;
+  box-sizing: border-box !important;
   background:
     linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%) !important;
   border: 6px solid #6f4318 !important;
@@ -25,6 +28,21 @@
     0 -8px 30px rgba(0, 0, 0, 0.4) !important;
   color: #5b3a12 !important;
   font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+/* 竖屏 / 窄视口：贴边全宽，避免 960 + inset + border 溢出裁切右侧 */
+@media (max-width: 963px) {
+  .portal-modal-panel--fullscreen {
+    inset: 10px 0 0 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top-width: 5px !important;
+    border-radius: 22px 22px 0 0 !important;
+  }
+
+  .portal-modal-head {
+    padding: 14px 52px !important;
+  }
 }
 
 /* ---- 标题栏：木质横梁 ---- */
@@ -89,6 +107,9 @@
 
 .portal-modal-body {
   padding: 20px 22px 34px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable;
 }
 
 /* ---- 通用文字 ---- */
@@ -609,6 +630,153 @@
   font-weight: 800;
 }
 
+/* 周联赛结算弹窗 */
+.portal-wl-close {
+  padding: 8px 4px 4px;
+  text-align: center;
+  color: #6f4f2d;
+}
+
+.portal-wl-close__title {
+  margin: 0 0 8px;
+  font-family: Fredoka, var(--default-font-family);
+  font-size: 28px;
+  font-weight: 900;
+  color: #7a4c12;
+  text-shadow: -1px -1px 0 #fff, 1px 1px 0 #5c3b1e;
+}
+
+.portal-wl-close__sub,
+.portal-wl-close__tier,
+.portal-wl-close__rewards,
+.portal-wl-close__empty {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.portal-wl-close__rewards {
+  color: #b45309;
+  font-size: 22px;
+}
+
+.portal-wl-close__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.portal-wl-close__btn {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #7a4c12;
+  background: linear-gradient(180deg, #ffe082 0%, #fbbf24 100%);
+  box-shadow: 0 4px 0 #b45309;
+  cursor: pointer;
+}
+
+.portal-wl-close__btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.portal-wl-close__btn--ghost {
+  background: linear-gradient(180deg, #f4ddba 0%, #e8c896 100%);
+  box-shadow: 0 3px 0 #8b5a2b;
+}
+
+.portal-shop-panel {
+  color: #6f4f2d;
+}
+
+.portal-shop-panel__balance {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.portal-shop-panel__balance span {
+  color: #b45309;
+}
+
+.portal-shop-panel__note {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.portal-shop-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portal-shop-panel__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff7e6 0%, #f4ddba 100%);
+  border: 2px solid #c99f5b;
+}
+
+.portal-shop-panel__itemMain strong {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.portal-shop-panel__desc,
+.portal-shop-panel__grant,
+.portal-shop-panel__limit {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.portal-shop-panel__buy {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #7a4c12;
+  background: linear-gradient(180deg, #ffe082 0%, #fbbf24 100%);
+  box-shadow: 0 3px 0 #b45309;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.portal-shop-panel__buy:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.portal-shop-panel__buy--insufficient:not(:disabled) {
+  background: linear-gradient(180deg, #fde8c8 0%, #f5c98a 100%);
+  color: #9a6b2e;
+  box-shadow: 0 3px 0 #a3814f;
+}
+
+.portal-shop-panel__empty {
+  padding: 20px 16px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #a3814f;
+}
+
 .portal-rules-zone-mark--promote {
   color: #4c8a15;
 }
@@ -633,5 +801,123 @@
 
 .portal-rules-reward-legend .portal-rules-zone-mark:first-child {
   margin-left: 0;
+}
+
+/* ---- 3D Toast（挂 document.body，与弹窗同主题） ---- */
+
+.portal-3d-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 10050;
+  max-width: min(92vw, 420px);
+  padding: 14px 22px;
+  border-radius: 18px;
+  border: 5px solid #6f4318;
+  background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+  color: #5b3a12;
+  font-family: "Fredoka", "Nunito", "Segoe UI Rounded", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+  letter-spacing: 0.3px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -4px 10px rgba(150, 96, 33, 0.22),
+    0 8px 0 rgba(90, 51, 17, 0.75),
+    0 12px 28px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  animation: portal-3d-toast-in 0.28s ease-out;
+}
+
+@keyframes portal-3d-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ---- 匹配队列遮罩：Portal 3D 木质 Q 风 ---- */
+
+.portal-3d-match-overlay {
+  font-family: "Fredoka", "Nunito", "Segoe UI Rounded", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__backdrop {
+  background: rgba(30, 18, 5, 0.62) !important;
+  backdrop-filter: blur(3px);
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__panel {
+  background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%) !important;
+  border: 6px solid #6f4318 !important;
+  border-radius: 28px !important;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+    0 10px 0 rgba(90, 51, 17, 0.75),
+    0 16px 36px rgba(0, 0, 0, 0.4) !important;
+  color: #5b3a12 !important;
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__spinner {
+  width: 56px;
+  height: 56px;
+  border: 5px solid #c9a56a;
+  border-top-color: #7d4c1e;
+  border-radius: 50%;
+  background: transparent;
+  animation: portal-3d-match-spin 0.9s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes portal-3d-match-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__title {
+  font-family: "Fredoka", "Nunito", sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: #5b3a12 !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__sub {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #8a5c28 !important;
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__leave {
+  border: 3px solid #8c2c10 !important;
+  border-radius: 14px !important;
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    0 4px 0 rgba(90, 51, 17, 0.85) !important;
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__leave:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__leave:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    0 2px 0 rgba(90, 51, 17, 0.85) !important;
 }
 

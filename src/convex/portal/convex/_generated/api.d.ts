@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as crons from "../crons.js";
 import type * as custom_session from "../custom/session.js";
 import type * as dao_casualPlayerDao from "../dao/casualPlayerDao.js";
 import type * as dao_portalPlayerDao from "../dao/portalPlayerDao.js";
@@ -24,9 +25,11 @@ import type * as data_portalInstanceWindow from "../data/portalInstanceWindow.js
 import type * as data_portalMatchmakingConfig from "../data/portalMatchmakingConfig.js";
 import type * as data_portalPlayerStrategyTypes from "../data/portalPlayerStrategyTypes.js";
 import type * as data_portalSeedTierPolicy from "../data/portalSeedTierPolicy.js";
+import type * as data_portalShopCatalog from "../data/portalShopCatalog.js";
 import type * as data_portalTournamentConfigs from "../data/portalTournamentConfigs.js";
 import type * as data_portalTournamentRewardTypes from "../data/portalTournamentRewardTypes.js";
 import type * as data_portalWeeklyBoardBotConfig from "../data/portalWeeklyBoardBotConfig.js";
+import type * as data_portalWeeklyLeagueConfig from "../data/portalWeeklyLeagueConfig.js";
 import type * as http from "../http.js";
 import type * as service_activity_casualActivityService from "../service/activity/casualActivityService.js";
 import type * as service_auth_jwtAccessSecret from "../service/auth/jwtAccessSecret.js";
@@ -61,6 +64,7 @@ import type * as service_points_portalWeeklyBoardBotFill from "../service/points
 import type * as service_points_portalWeeklyBoardBotPoints from "../service/points/portalWeeklyBoardBotPoints.js";
 import type * as service_points_portalWeeklyBoardBotReveal from "../service/points/portalWeeklyBoardBotReveal.js";
 import type * as service_points_portalWeeklyPointsService from "../service/points/portalWeeklyPointsService.js";
+import type * as service_points_portalWeeklyTotalPointsService from "../service/points/portalWeeklyTotalPointsService.js";
 import type * as service_reward_casualRewardRegistry from "../service/reward/casualRewardRegistry.js";
 import type * as service_season_casualSeasonService from "../service/season/casualSeasonService.js";
 import type * as service_seedPool_catalogSeedHttp from "../service/seedPool/catalogSeedHttp.js";
@@ -69,6 +73,7 @@ import type * as service_seedPool_seedPoolDevQueries from "../service/seedPool/s
 import type * as service_seedPool_seedPoolQueries from "../service/seedPool/seedPoolQueries.js";
 import type * as service_seedPool_seedPoolStore from "../service/seedPool/seedPoolStore.js";
 import type * as service_seedPool_seedPoolValidators from "../service/seedPool/seedPoolValidators.js";
+import type * as service_shop_portalShopService from "../service/shop/portalShopService.js";
 import type * as service_task_casualTaskService from "../service/task/casualTaskService.js";
 import type * as service_tournament_casualTournamentService from "../service/tournament/casualTournamentService.js";
 import type * as service_tournament_join_campaignDailyPlayLimit from "../service/tournament/join/campaignDailyPlayLimit.js";
@@ -132,6 +137,15 @@ import type * as service_weeklyLeague_casualWeeklyLeagueProfile from "../service
 import type * as service_weeklyLeague_casualWeeklyLeagueService from "../service/weeklyLeague/casualWeeklyLeagueService.js";
 import type * as service_weeklyLeague_casualWeeklyLeagueSettle from "../service/weeklyLeague/casualWeeklyLeagueSettle.js";
 import type * as service_weeklyLeague_casualWeeklyLeagueXp from "../service/weeklyLeague/casualWeeklyLeagueXp.js";
+import type * as service_weeklyLeague_portalWeeklyLeagueBotFill from "../service/weeklyLeague/portalWeeklyLeagueBotFill.js";
+import type * as service_weeklyLeague_portalWeeklyLeagueBotPoints from "../service/weeklyLeague/portalWeeklyLeagueBotPoints.js";
+import type * as service_weeklyLeague_portalWeeklyLeagueBotReveal from "../service/weeklyLeague/portalWeeklyLeagueBotReveal.js";
+import type * as service_weeklyLeague_portalWeeklyLeagueClose from "../service/weeklyLeague/portalWeeklyLeagueClose.js";
+import type * as service_weeklyLeague_portalWeeklyLeagueCohort from "../service/weeklyLeague/portalWeeklyLeagueCohort.js";
+import type * as service_weeklyLeague_portalWeeklyLeagueDev from "../service/weeklyLeague/portalWeeklyLeagueDev.js";
+import type * as service_weeklyLeague_portalWeeklyLeagueMemberSync from "../service/weeklyLeague/portalWeeklyLeagueMemberSync.js";
+import type * as service_weeklyLeague_portalWeeklyLeagueQueries from "../service/weeklyLeague/portalWeeklyLeagueQueries.js";
+import type * as service_weeklyLeague_portalWeeklyLeagueService from "../service/weeklyLeague/portalWeeklyLeagueService.js";
 import type * as shared_constants from "../shared/constants.js";
 import type * as shared_durationFallback from "../shared/durationFallback.js";
 import type * as shared_pseudoUnit from "../shared/pseudoUnit.js";
@@ -147,6 +161,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  crons: typeof crons;
   "custom/session": typeof custom_session;
   "dao/casualPlayerDao": typeof dao_casualPlayerDao;
   "dao/portalPlayerDao": typeof dao_portalPlayerDao;
@@ -163,9 +178,11 @@ declare const fullApi: ApiFromModules<{
   "data/portalMatchmakingConfig": typeof data_portalMatchmakingConfig;
   "data/portalPlayerStrategyTypes": typeof data_portalPlayerStrategyTypes;
   "data/portalSeedTierPolicy": typeof data_portalSeedTierPolicy;
+  "data/portalShopCatalog": typeof data_portalShopCatalog;
   "data/portalTournamentConfigs": typeof data_portalTournamentConfigs;
   "data/portalTournamentRewardTypes": typeof data_portalTournamentRewardTypes;
   "data/portalWeeklyBoardBotConfig": typeof data_portalWeeklyBoardBotConfig;
+  "data/portalWeeklyLeagueConfig": typeof data_portalWeeklyLeagueConfig;
   http: typeof http;
   "service/activity/casualActivityService": typeof service_activity_casualActivityService;
   "service/auth/jwtAccessSecret": typeof service_auth_jwtAccessSecret;
@@ -200,6 +217,7 @@ declare const fullApi: ApiFromModules<{
   "service/points/portalWeeklyBoardBotPoints": typeof service_points_portalWeeklyBoardBotPoints;
   "service/points/portalWeeklyBoardBotReveal": typeof service_points_portalWeeklyBoardBotReveal;
   "service/points/portalWeeklyPointsService": typeof service_points_portalWeeklyPointsService;
+  "service/points/portalWeeklyTotalPointsService": typeof service_points_portalWeeklyTotalPointsService;
   "service/reward/casualRewardRegistry": typeof service_reward_casualRewardRegistry;
   "service/season/casualSeasonService": typeof service_season_casualSeasonService;
   "service/seedPool/catalogSeedHttp": typeof service_seedPool_catalogSeedHttp;
@@ -208,6 +226,7 @@ declare const fullApi: ApiFromModules<{
   "service/seedPool/seedPoolQueries": typeof service_seedPool_seedPoolQueries;
   "service/seedPool/seedPoolStore": typeof service_seedPool_seedPoolStore;
   "service/seedPool/seedPoolValidators": typeof service_seedPool_seedPoolValidators;
+  "service/shop/portalShopService": typeof service_shop_portalShopService;
   "service/task/casualTaskService": typeof service_task_casualTaskService;
   "service/tournament/casualTournamentService": typeof service_tournament_casualTournamentService;
   "service/tournament/join/campaignDailyPlayLimit": typeof service_tournament_join_campaignDailyPlayLimit;
@@ -271,6 +290,15 @@ declare const fullApi: ApiFromModules<{
   "service/weeklyLeague/casualWeeklyLeagueService": typeof service_weeklyLeague_casualWeeklyLeagueService;
   "service/weeklyLeague/casualWeeklyLeagueSettle": typeof service_weeklyLeague_casualWeeklyLeagueSettle;
   "service/weeklyLeague/casualWeeklyLeagueXp": typeof service_weeklyLeague_casualWeeklyLeagueXp;
+  "service/weeklyLeague/portalWeeklyLeagueBotFill": typeof service_weeklyLeague_portalWeeklyLeagueBotFill;
+  "service/weeklyLeague/portalWeeklyLeagueBotPoints": typeof service_weeklyLeague_portalWeeklyLeagueBotPoints;
+  "service/weeklyLeague/portalWeeklyLeagueBotReveal": typeof service_weeklyLeague_portalWeeklyLeagueBotReveal;
+  "service/weeklyLeague/portalWeeklyLeagueClose": typeof service_weeklyLeague_portalWeeklyLeagueClose;
+  "service/weeklyLeague/portalWeeklyLeagueCohort": typeof service_weeklyLeague_portalWeeklyLeagueCohort;
+  "service/weeklyLeague/portalWeeklyLeagueDev": typeof service_weeklyLeague_portalWeeklyLeagueDev;
+  "service/weeklyLeague/portalWeeklyLeagueMemberSync": typeof service_weeklyLeague_portalWeeklyLeagueMemberSync;
+  "service/weeklyLeague/portalWeeklyLeagueQueries": typeof service_weeklyLeague_portalWeeklyLeagueQueries;
+  "service/weeklyLeague/portalWeeklyLeagueService": typeof service_weeklyLeague_portalWeeklyLeagueService;
   "shared/constants": typeof shared_constants;
   "shared/durationFallback": typeof shared_durationFallback;
   "shared/pseudoUnit": typeof shared_pseudoUnit;

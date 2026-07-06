@@ -1,12 +1,10 @@
 "use node";
 
-import jwt from "jsonwebtoken";
-
 import {
   isRegisteredPortalGameType,
   type RegisteredPortalGameType,
 } from "../../../data/portalGameRegistry";
-import { jwtAccessSecret } from "../../auth/jwtAccessSecret";
+import { signPlatformServiceToken } from "../../../../../shared/platformAuth/platformJwtSign";
 
 const DEV_ARENA_CONVEX_URL: Record<RegisteredPortalGameType, string> = {
   solitaire: "https://artful-chipmunk-59.convex.cloud",
@@ -38,20 +36,22 @@ export async function forceEndCasualRunOnArena(args: {
   gameId: string;
   gameType: string;
 }): Promise<{ ok: true; ingested?: boolean } | { ok: false; error: string }> {
-  const secret = jwtAccessSecret();
-  if (!secret) return { ok: false, error: "no_jwt_secret" };
   const baseUrl = resolveArenaConvexCloudUrl(args.gameType);
   if (!baseUrl) return { ok: false, error: "no_arena_url" };
 
-  const token = jwt.sign({ uid: args.uid }, secret, { expiresIn: "1h" });
+  // arena authedAction 走 customJwt 身份校验：须以 Authorization 头携带 RS256 平台 JWT
+  const token = signPlatformServiceToken(args.uid);
   let response: Response;
   try {
     response = await fetch(`${baseUrl}/api/action`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
         path: "proxy/controller:forceEndCasualPlatformRun",
-        args: { token, gameId: args.gameId, platformBridge: "portal" },
+        args: { gameId: args.gameId, platformBridge: "portal" },
         format: "json",
       }),
     });

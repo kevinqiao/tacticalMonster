@@ -1,19 +1,14 @@
 /**
- * Block Blast 状态栏：竖屏顶栏（右对齐计时+分数）；横屏左侧竖栏（计时与分数）
+ * Block Blast 状态栏：顶栏（右对齐计时+分数），仅竖向布局
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { BlockBlastGameState } from '../types/BlockBlastTypes';
 import { useBlockBlastGameManager } from '../service/GameManager';
 
-/** 竖屏：状态栏下沿与棋盘（目标区）上沿的间距（与 GamePlayer 一致） */
+/** 状态栏下沿与棋盘（目标区）上沿的间距（与 GamePlayer 一致） */
 export const BLOCK_BLAST_PORTRAIT_STATUS_TO_GRID_GAP_PX = 12;
 
-/** 横屏侧栏宽度 = 棋盘单格边长（像素）的 1.5 倍，取整 */
-export function blockBlastStatusLandscapeRailPx(cellSize: number): number {
-    return Math.max(1, Math.round(1.5 * cellSize));
-}
-
-/** 竖屏顶栏高度 = 棋盘单格边长（像素）的 1.5 倍，取整 */
+/** 顶栏高度 = 棋盘单格边长（像素）的 1.5 倍，取整 */
 export function blockBlastStatusPortraitBarHeightPx(cellSize: number): number {
     return Math.max(1, Math.round(1.5 * cellSize));
 }
@@ -31,7 +26,6 @@ function formatMatchRemainingSec(sec: number): string {
 }
 
 export interface BlockBlastStatusBarProps {
-    isPortrait: boolean;
     gameState: BlockBlastGameState;
     /** 休闲 run 倒计时；复盘模式不传 */
     dueTime?: number;
@@ -42,7 +36,6 @@ export interface BlockBlastStatusBarProps {
 }
 
 const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
-    isPortrait,
     gameState,
     dueTime,
     onMatchTimeout,
@@ -50,10 +43,6 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
 }) => {
     const { boardDimension } = useBlockBlastGameManager();
     const cellSizeForChrome = boardDimension?.cellSize ?? 24;
-    const landscapeRailPx = useMemo(
-        () => blockBlastStatusLandscapeRailPx(cellSizeForChrome),
-        [cellSizeForChrome]
-    );
     const portraitBarHeightPx = useMemo(
         () => blockBlastStatusPortraitBarHeightPx(cellSizeForChrome),
         [cellSizeForChrome]
@@ -91,38 +80,13 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
         </div>
     );
 
-    if (isPortrait) {
-        return (
-            <header
-                className="blockblast-status blockblast-status--portrait"
-                aria-label="对局状态"
-                style={{ minHeight: portraitBarHeightPx, height: portraitBarHeightPx }}
-            >
-                <div className="blockblast-status__portrait-row">
-                    {timerText != null ? (
-                        <time className="blockblast-status__timer" aria-label="剩余时间">
-                            {timerText}
-                        </time>
-                    ) : null}
-                    {targetScore != null ? (
-                        <span className="blockblast-status__target" aria-label="目标分数">
-                            目标 {targetScore}
-                        </span>
-                    ) : null}
-                    <span className="blockblast-status__score-main">{gameState.score}</span>
-                    {statsSecondary}
-                </div>
-            </header>
-        );
-    }
-
     return (
-        <aside
-            className="blockblast-status blockblast-status--landscape"
+        <header
+            className="blockblast-status blockblast-status--portrait"
             aria-label="对局状态"
-            style={{ width: landscapeRailPx }}
+            style={{ minHeight: portraitBarHeightPx, height: portraitBarHeightPx }}
         >
-            <div className="blockblast-status__landscape-top">
+            <div className="blockblast-status__portrait-row">
                 {timerText != null ? (
                     <time className="blockblast-status__timer" aria-label="剩余时间">
                         {timerText}
@@ -133,10 +97,10 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
                         目标 {targetScore}
                     </span>
                 ) : null}
-                <div className="blockblast-status__score-main">{gameState.score}</div>
+                <span className="blockblast-status__score-main">{gameState.score}</span>
                 {statsSecondary}
             </div>
-        </aside>
+        </header>
     );
 };
 

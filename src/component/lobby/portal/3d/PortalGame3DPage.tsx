@@ -1,5 +1,7 @@
 import React from "react";
 
+import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
+
 import { usePortal } from "../service/usePortalManager";
 
 import { PortalGame3DInner } from "./PortalGame3DInner";
@@ -33,9 +35,15 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
     <>
       <PortalGame3DShadowHost>
         <PortalGame3DInner
+          gameType={portal.gameType}
           heroLogoUrl={heroLogoUrl}
           authed={ctrl.authed}
           tier={ctrl.tierView}
+          coinBalance={
+            isPlatformAuthed(ctrl.user)
+              ? (portal.playerWallet?.coins ?? 0)
+              : null
+          }
           joining={ctrl.joining}
           soloJoinBlocked={ctrl.soloJoinBlocked}
           multiJoinBlocked={ctrl.multiJoinBlocked}
@@ -52,6 +60,8 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           onOpenShop={() => ctrl.setShopModalOpen(true)}
           onSignOut={ctrl.signOut}
           onSignIn={ctrl.signIn}
+          unclaimedRewards={ctrl.unclaimedRewards}
+          onOpenUnclaimedRewards={ctrl.openWeeklyCloseModal}
           pageActive={visible > 0}
         />
       </PortalGame3DShadowHost>

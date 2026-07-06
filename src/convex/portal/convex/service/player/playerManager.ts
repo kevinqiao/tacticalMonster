@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
+import { authedQuery } from "../../custom/session";
 
 /** Ensure portal_players row exists for platform identity uid. */
 export const ensurePlayer = internalMutation({
@@ -27,3 +28,17 @@ export const ensurePlayer = internalMutation({
 
 /** @deprecated Use ensurePlayer — kept as alias for internal callers during migration. */
 export const authenticate = ensurePlayer;
+
+export const getPortalPlayerWallet = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const row = await ctx.db
+      .query("portal_players")
+      .withIndex("by_uid", (q) => q.eq("uid", ctx.uid))
+      .unique();
+    return {
+      coins: row?.coins ?? 0,
+      gems: row?.gems ?? 0,
+    };
+  },
+});

@@ -90,11 +90,68 @@ export type PortalMyWeeklyPoints = {
     solo: { points: number; matchCount: number; rank: number | null };
     multi: { points: number; matchCount: number; rank: number | null };
   };
+  total: {
+    points: number;
+    matchCount: number;
+    soloPoints: number;
+    multiPoints: number;
+    rank: number | null;
+  };
+};
+
+export type PortalWeeklyLeagueTierView = {
+  weekKey: string;
+  weekEndsAt: number;
+  enrolled: boolean;
+  tierId: string;
+  cohortNo: string | null;
+  cohortRank: number | null;
+  cohortSize: number;
+  points: number;
+  promoteTo: number;
+  demoteFrom: number;
+  projectedCoins: number | null;
+  unreadCloseResult: boolean;
+  closeWeekKey?: string;
+  lastOutcome?: "promote" | "safe" | "demote";
+  lastFinalRank?: number;
+  unclaimedRewards?: PortalWeeklyLeagueUnclaimedRewards;
+};
+
+export type PortalWeeklyLeagueUnclaimedRewards = {
+  weekKey: string;
+  coins: number;
+  outcome?: "promote" | "safe" | "demote";
+  finalRank?: number;
+};
+
+export type PortalPlayerWallet = {
+  coins: number;
+  gems: number;
+};
+
+export type PortalShopSkuView = {
+  skuId: string;
+  title: string;
+  description: string;
+  priceCoins: number;
+  grantReplayTokenCount: number;
+  weeklyPurchaseLimit: number | null;
+  purchasedThisWeek: number;
+  remainingThisWeek: number | null;
+};
+
+export type PortalShopCatalogView = {
+  coins: number;
+  skus: PortalShopSkuView[];
 };
 
 type PortalDataSnapshot = {
-  soloLeaderboard: PortalWeeklyLeaderboardRow[];
-  multiLeaderboard: PortalWeeklyLeaderboardRow[];
+  totalLeaderboard: PortalWeeklyLeaderboardRow[];
+  cohortLeaderboard: PortalWeeklyLeaderboardRow[];
+  weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
+  playerWallet: PortalPlayerWallet | null;
+  shopCatalog: PortalShopCatalogView | null;
   myWeeklyPoints: PortalMyWeeklyPoints | null;
   gameHistory: PortalGameHistoryRow[];
   openRunAssignments: OpenCasualRunAssignment[];
@@ -103,8 +160,11 @@ type PortalDataSnapshot = {
 };
 
 const emptyData = (): PortalDataSnapshot => ({
-  soloLeaderboard: [],
-  multiLeaderboard: [],
+  totalLeaderboard: [],
+  cohortLeaderboard: [],
+  weeklyLeagueTierView: null,
+  playerWallet: null,
+  shopCatalog: null,
   myWeeklyPoints: null,
   gameHistory: [],
   openRunAssignments: [],
@@ -134,8 +194,11 @@ export function portalGameDisplayName(gameType: RegisteredPortalGameType): strin
 type PortalContextValue = {
   convexUrl: string;
   gameType: RegisteredPortalGameType | null;
-  soloLeaderboard: PortalWeeklyLeaderboardRow[];
-  multiLeaderboard: PortalWeeklyLeaderboardRow[];
+  totalLeaderboard: PortalWeeklyLeaderboardRow[];
+  cohortLeaderboard: PortalWeeklyLeaderboardRow[];
+  weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
+  playerWallet: PortalPlayerWallet | null;
+  shopCatalog: PortalShopCatalogView | null;
   myWeeklyPoints: PortalMyWeeklyPoints | null;
   gameHistory: PortalGameHistoryRow[];
   openRunAssignments: OpenCasualRunAssignment[];
@@ -149,6 +212,14 @@ type PortalContextValue = {
     templateId?: string
   ) => Promise<{ ok: true; removed?: number } | { ok: false; error: string }>;
   reconcilePendingHistorySettlements: () => Promise<void>;
+  claimPortalWeeklyLeagueRewards: () => Promise<
+    | { ok: true; granted?: { coins?: number }; weekKey?: string }
+    | { ok: false; error: string }
+  >;
+  dismissPortalWeeklyLeagueClose: () => Promise<{ ok: boolean }>;
+  purchasePortalShopSku: (
+    skuId: string
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   refresh: () => Promise<void>;
   portalSessionReady: boolean;
   getCampaignDailyPlayQuota: (args: {
@@ -269,10 +340,21 @@ export const PortalProvider: React.FC<{
 
   useEffect(() => {
     const live = getLive();
+    if (!live || !gameType || !portalSessionReady || !uid) return;
+    void live
+      .mutation(portalTournamentFns.ensurePortalWeeklyLeagueMember, { gameType })
+      .catch((e) => console.warn("[Portal] ensurePortalWeeklyLeagueMember", e));
+  }, [gameType, portalSessionReady, uid]);
+
+  useEffect(() => {
+    const live = getLive();
     if (!live || !gameType) return;
     void live
       .mutation(portalTournamentFns.ensureWeeklyBoardBotsForGame, { gameType })
       .catch((e) => console.warn("[Portal] ensureWeeklyBoardBots", e));
+    void live
+      .mutation(portalTournamentFns.ensureWeeklyTotalPointsForGame, { gameType })
+      .catch((e) => console.warn("[Portal] ensureWeeklyTotalPoints", e));
   }, [gameType]);
 
   useEffect(() => {
@@ -296,25 +378,16 @@ export const PortalProvider: React.FC<{
     };
 
     sub(
-      portalTournamentFns.getWeeklyLeaderboard,
-      { gameType, mode: "solo", limit: 20 },
+      portalTournamentFns.getPortalWeeklyTotalLeaderboard,
+      { gameType, limit: 50 },
       (rows) => {
         const r = rows as { rows?: PortalWeeklyLeaderboardRow[]; weekEndsAt?: number };
         patchData({
-          soloLeaderboard: r.rows ?? [],
+          totalLeaderboard: r.rows ?? [],
           weekEndsAt: r.weekEndsAt ?? null,
         });
       },
-      "soloLeaderboard"
-    );
-    sub(
-      portalTournamentFns.getWeeklyLeaderboard,
-      { gameType, mode: "multi", limit: 20 },
-      (rows) => {
-        const r = rows as { rows?: PortalWeeklyLeaderboardRow[] };
-        patchData({ multiLeaderboard: r.rows ?? [] });
-      },
-      "multiLeaderboard"
+      "totalLeaderboard"
     );
 
     return () => {
@@ -327,6 +400,10 @@ export const PortalProvider: React.FC<{
     if (!live || !uid || !gameType) {
       patchData({
         myWeeklyPoints: null,
+        weeklyLeagueTierView: null,
+        playerWallet: null,
+        shopCatalog: null,
+        cohortLeaderboard: [],
         gameHistory: [],
         openRunAssignments: [],
         matchQueueEntries: [],
@@ -356,6 +433,41 @@ export const PortalProvider: React.FC<{
         patchData({ myWeeklyPoints: rows as PortalDataSnapshot["myWeeklyPoints"] });
       },
       "myWeeklyPoints"
+    );
+    sub(
+      portalTournamentFns.getPortalWeeklyLeagueTierView,
+      { gameType },
+      (rows) => {
+        patchData({
+          weeklyLeagueTierView: rows as PortalWeeklyLeagueTierView | null,
+        });
+      },
+      "weeklyLeagueTierView"
+    );
+    sub(
+      portalTournamentFns.getPortalPlayerWallet,
+      {},
+      (rows) => {
+        patchData({ playerWallet: rows as PortalPlayerWallet | null });
+      },
+      "playerWallet"
+    );
+    sub(
+      portalTournamentFns.listPortalShopSkus,
+      {},
+      (rows) => {
+        patchData({ shopCatalog: rows as PortalShopCatalogView | null });
+      },
+      "shopCatalog"
+    );
+    sub(
+      portalTournamentFns.getPortalWeeklyLeagueCohortLeaderboard,
+      { gameType, limit: 50 },
+      (rows) => {
+        const r = rows as { rows?: PortalWeeklyLeaderboardRow[] };
+        patchData({ cohortLeaderboard: r.rows ?? [] });
+      },
+      "cohortLeaderboard"
     );
     sub(
       portalTournamentFns.gameHistory,
@@ -414,6 +526,84 @@ export const PortalProvider: React.FC<{
         reconcileInFlightRef.current.delete(key);
       });
   }, [uid, gameType, snapshot.openRunAssignments]);
+
+  const claimPortalWeeklyLeagueRewards = useCallback(async () => {
+    const http = getHttp();
+    if (!http || !uid || !gameType) {
+      return { ok: false as const, error: "no_auth" };
+    }
+    const weekKey =
+      snapshot.weeklyLeagueTierView?.unclaimedRewards?.weekKey ??
+      snapshot.weeklyLeagueTierView?.closeWeekKey;
+    try {
+      const res = (await http.mutation(portalTournamentFns.claimPortalWeeklyLeagueRewards, {
+        gameType,
+        ...(weekKey ? { weekKey } : {}),
+      })) as {
+        ok?: boolean;
+        error?: string;
+        granted?: { coins?: number };
+        weekKey?: string;
+      };
+      if (res?.ok) {
+        return {
+          ok: true as const,
+          granted: res.granted,
+          weekKey: res.weekKey,
+        };
+      }
+      return { ok: false as const, error: res?.error ?? "claim_failed" };
+    } catch (e) {
+      console.error("[Portal] claimPortalWeeklyLeagueRewards", e);
+      return { ok: false as const, error: "claim_failed" };
+    }
+  }, [
+    uid,
+    gameType,
+    snapshot.weeklyLeagueTierView?.unclaimedRewards?.weekKey,
+    snapshot.weeklyLeagueTierView?.closeWeekKey,
+  ]);
+
+  const dismissPortalWeeklyLeagueClose = useCallback(async () => {
+    const http = getHttp();
+    if (!http || !uid || !gameType) return { ok: false };
+    const weekKey =
+      snapshot.weeklyLeagueTierView?.closeWeekKey ??
+      snapshot.weeklyLeagueTierView?.unclaimedRewards?.weekKey;
+    try {
+      const res = (await http.mutation(portalTournamentFns.dismissPortalWeeklyLeagueClose, {
+        gameType,
+        ...(weekKey ? { weekKey } : {}),
+      })) as { ok?: boolean };
+      return { ok: Boolean(res?.ok) };
+    } catch (e) {
+      console.error("[Portal] dismissPortalWeeklyLeagueClose", e);
+      return { ok: false };
+    }
+  }, [
+    uid,
+    gameType,
+    snapshot.weeklyLeagueTierView?.closeWeekKey,
+    snapshot.weeklyLeagueTierView?.unclaimedRewards?.weekKey,
+  ]);
+
+  const purchasePortalShopSku = useCallback(
+    async (skuId: string) => {
+      const http = getHttp();
+      if (!http || !uid) return { ok: false as const, error: "no_auth" };
+      try {
+        const res = (await http.mutation(portalTournamentFns.purchasePortalShopSku, {
+          skuId,
+        })) as { ok?: boolean; error?: string };
+        if (res?.ok) return { ok: true as const };
+        return { ok: false as const, error: res?.error ?? "purchase_failed" };
+      } catch (e) {
+        console.error("[Portal] purchasePortalShopSku", e);
+        return { ok: false as const, error: "purchase_failed" };
+      }
+    },
+    [uid]
+  );
 
   const reconcilePendingHistorySettlements = useCallback(async () => {
     const http = getHttp();
@@ -553,8 +743,11 @@ export const PortalProvider: React.FC<{
     () => ({
       convexUrl: PORTAL_CONVEX_URL,
       gameType,
-      soloLeaderboard: snapshot.soloLeaderboard,
-      multiLeaderboard: snapshot.multiLeaderboard,
+      totalLeaderboard: snapshot.totalLeaderboard,
+      cohortLeaderboard: snapshot.cohortLeaderboard,
+      weeklyLeagueTierView: snapshot.weeklyLeagueTierView,
+      playerWallet: snapshot.playerWallet,
+      shopCatalog: snapshot.shopCatalog,
       myWeeklyPoints: snapshot.myWeeklyPoints,
       gameHistory: snapshot.gameHistory,
       openRunAssignments: snapshot.openRunAssignments,
@@ -563,6 +756,9 @@ export const PortalProvider: React.FC<{
       joinTournament,
       leaveCasualMatchQueue,
       reconcilePendingHistorySettlements,
+      claimPortalWeeklyLeagueRewards,
+      dismissPortalWeeklyLeagueClose,
+      purchasePortalShopSku,
       refresh,
       portalSessionReady,
       getCampaignDailyPlayQuota,
@@ -574,6 +770,9 @@ export const PortalProvider: React.FC<{
       joinTournament,
       leaveCasualMatchQueue,
       reconcilePendingHistorySettlements,
+      claimPortalWeeklyLeagueRewards,
+      dismissPortalWeeklyLeagueClose,
+      purchasePortalShopSku,
       refresh,
       portalSessionReady,
       getCampaignDailyPlayQuota,

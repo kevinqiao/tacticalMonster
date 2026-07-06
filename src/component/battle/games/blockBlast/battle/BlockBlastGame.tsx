@@ -130,7 +130,7 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
                 ref={loadingRef}
                 role={createError ? 'alert' : undefined}
             >
-                {createError ?? 'Loading Block Blast…'}
+                {createError ?? 'Loading...'}
             </div>
         </>
     );

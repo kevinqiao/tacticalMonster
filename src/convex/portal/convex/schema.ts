@@ -11,10 +11,46 @@ import {
 export default defineSchema({
   portal_players: defineTable({
     uid: v.string(),
+    coins: v.optional(v.number()),
+    gems: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
     /** @deprecated legacy session token; do not write */
     token: v.optional(v.string()),
   }).index("by_uid", ["uid"]),
+
+  /** 金币/钻流水（周联赛领奖、商店等） */
+  portal_coin_ledger: defineTable({
+    uid: v.string(),
+    kind: v.union(v.literal("coins"), v.literal("gems")),
+    delta: v.number(),
+    balanceAfter: v.number(),
+    reason: v.string(),
+    gameType: v.optional(v.string()),
+    sourceWeekKey: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_uid_created", ["uid", "createdAt"]),
+
+  /** Portal 兑换商店 SKU（静态配表同步；独立于 casualPlatform） */
+  portal_shop_skus: defineTable({
+    skuId: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    priceCoins: v.number(),
+    grantReplayTokenCount: v.optional(v.number()),
+    weeklyPurchaseLimit: v.optional(v.number()),
+    active: v.boolean(),
+    sortOrder: v.number(),
+  }).index("by_skuId", ["skuId"]),
+
+  portal_shop_weekly_purchase_counters: defineTable({
+    uid: v.string(),
+    skuId: v.string(),
+    weekKey: v.string(),
+    count: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_uid_sku_week", ["uid", "skuId", "weekKey"])
+    .index("by_uid_week", ["uid", "weekKey"]),
 
   portal_run_tournaments: defineTable({
     templateId: v.string(),
@@ -257,6 +293,81 @@ export default defineSchema({
   })
     .index("by_game_mode_week_points", ["gameType", "mode", "weekKey", "points"])
     .index("by_uid_game_mode_week", ["uid", "gameType", "mode", "weekKey"]),
+
+  /** Challenge + Arena 周积分合并后的统一总榜（Phase 1） */
+  portal_weekly_total_points: defineTable({
+    uid: v.string(),
+    gameType: v.string(),
+    weekKey: v.string(),
+    totalPoints: v.number(),
+    soloPoints: v.number(),
+    multiPoints: v.number(),
+    matchCount: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_game_week_points", ["gameType", "weekKey", "totalPoints"])
+    .index("by_uid_game_week", ["uid", "gameType", "weekKey"]),
+
+  /** 周联赛档案：按 gameType 持久段位 */
+  portal_weekly_league_profile: defineTable({
+    uid: v.string(),
+    gameType: v.string(),
+    weeklyLeagueTier: v.string(),
+    peakLeagueTier: v.string(),
+    updatedAt: v.number(),
+  }).index("by_uid_game", ["uid", "gameType"]),
+
+  /** 周联赛 cohort：同 week + gameType + 段位 下分组 */
+  portal_weekly_league_cohorts: defineTable({
+    weekKey: v.string(),
+    gameType: v.string(),
+    leagueTierId: v.string(),
+    cohortIndex: v.number(),
+    /** 用户可见 8 位字母数字组号 */
+    displayCode: v.optional(v.string()),
+    humanCount: v.number(),
+    /** 固定 Bot 池人数（首真人入组时 seed） */
+    botPoolSize: v.optional(v.number()),
+    memberCount: v.optional(v.number()),
+    humanAnchorAt: v.optional(v.number()),
+    status: v.union(v.literal("open"), v.literal("closed")),
+    startsAt: v.number(),
+    endsAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_week_game_tier_status", ["weekKey", "gameType", "leagueTierId", "status"])
+    .index("by_week_game_tier_index", ["weekKey", "gameType", "leagueTierId", "cohortIndex"]),
+
+  /** 周联赛成员：组内按 weeklyPoints 排名（与 portal_weekly_total_points 同步） */
+  portal_weekly_league_members: defineTable({
+    weekKey: v.string(),
+    uid: v.string(),
+    gameType: v.string(),
+    cohortId: v.id("portal_weekly_league_cohorts"),
+    leagueTierId: v.string(),
+    weeklyPoints: v.number(),
+    isBot: v.boolean(),
+    revealAt: v.optional(v.number()),
+    botWeekEndPoints: v.optional(v.number()),
+    finalRank: v.optional(v.number()),
+    outcome: v.optional(
+      v.union(v.literal("promote"), v.literal("safe"), v.literal("demote"))
+    ),
+    pendingRewards: v.optional(
+      v.object({
+        coins: v.optional(v.number()),
+      })
+    ),
+    rewardsClaimedAt: v.optional(v.number()),
+    unreadClose: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_week_game_uid", ["weekKey", "gameType", "uid"])
+    .index("by_uid_game", ["uid", "gameType"])
+    .index("by_cohort", ["cohortId"])
+    .index("by_week_cohort_points", ["weekKey", "cohortId", "weeklyPoints"]),
 
   portal_point_ledger: defineTable({
     uid: v.string(),

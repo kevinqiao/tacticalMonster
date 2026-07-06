@@ -8,6 +8,7 @@ import { authedAction } from "../custom/session";
 import {
   casualBridgeRequestHeaders,
   resolveCasualBridgeEnv,
+  resolvePlatformBridgeForCasualGameId,
   type PlatformBridge,
 } from "../service/casualBridgeEnv";
 import { postCasualRunIngest } from "../service/casualBridgeIngest";
@@ -20,6 +21,18 @@ import {
 import { BlockBlastGameStatus } from "../types/BlockBlastTypes";
 
 const tournament_url = "https://beloved-mouse-699.convex.site";
+
+/** 未显式指定 bridge 时按 gameId 探测（对齐 solitaireArena） */
+async function resolveBridgeForCasualGameId(
+  gameId: string,
+  platformBridge?: PlatformBridge
+): Promise<PlatformBridge> {
+  if (platformBridge) return platformBridge;
+  if (gameId.startsWith("game_")) {
+    return resolvePlatformBridgeForCasualGameId(gameId);
+  }
+  return "casual";
+}
 
 function isTerminalBlockBlast(status: number): boolean {
   return (
@@ -393,7 +406,7 @@ export const submitCasualPlatformRun = authedAction({
       game as { score?: number; lines?: number; moves?: number }
     );
 
-    const bridge = platformBridge ?? "casual";
+    const bridge = await resolveBridgeForCasualGameId(gameId, platformBridge);
 
     const built = await buildCasualV2IngestPayload({
       ctx,
@@ -473,7 +486,7 @@ export const forceEndCasualPlatformRun = authedAction({
       return { ok: false as const, error: err };
     }
 
-    const bridge = platformBridge ?? "casual";
+    const bridge = await resolveBridgeForCasualGameId(gameId, platformBridge);
 
     // Portal ingest resolves submit context itself; skip resolve HTTP to cut forceEnd latency.
     const ingest = await postCasualRunIngest({
@@ -498,7 +511,9 @@ export const replayCasualRun = authedAction({
     platformBridge: v.optional(v.union(v.literal("portal"), v.literal("casual"))),
   },
   handler: async (ctx, { gameId, platformBridge }) => {
-    const bridgeEnv = resolveCasualBridgeEnv(platformBridge ?? "casual");
+    const bridgeEnv = resolveCasualBridgeEnv(
+      await resolveBridgeForCasualGameId(gameId, platformBridge)
+    );
     const uid = ctx.uid;
 
     if (!gameId.startsWith("game_")) {

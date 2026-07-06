@@ -1,3 +1,4 @@
+import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
 import { findContainer, getURLParams } from "@/host/util/PageUtils";
 import { useModalManager } from "host/service/ModalManager";
 import { useEmbedAuthGate } from "host/service/platformAuth/EmbedAuthGateProvider";
@@ -32,11 +33,11 @@ export interface AuthProps {
 export interface AuthContainer {
   ele?: HTMLDivElement | null;
   mask?: HTMLDivElement | null;
-  closeEle?: HTMLDivElement | null;
+  closeEle?: HTMLButtonElement | null;
 }
 const PANEL_LOADERS: Record<
   string,
-  () => Promise<{ default: React.ComponentType<{ onComplete: (user: User) => void }> }>
+  () => Promise<{ default: React.ComponentType<{ onComplete: (user: User) => void; portalTheme?: boolean }> }>
 > = {
   "panels/WebPanel1": () => import("./panels/WebPanel1"),
   "panels/WebPanel2": () => import("./panels/WebPanel2"),
@@ -79,6 +80,12 @@ const SSOController: React.FC = () => {
 
   /** Hold SSO closed while Partner embed JWT may still arrive / exchange. */
   const effectiveAuthLevel = deferClerk ? 0 : authLevel;
+
+  const isPortalRoute = useMemo(() => {
+    const pathname =
+      currentPage?.uri ?? (typeof window !== "undefined" ? window.location.pathname : "");
+    return parsePortalPathFromPathname(pathname).isFirstPartyPortal;
+  }, [currentPage]);
 
   const { playOpen, playClose } = useAuthAnimate({ container: authContainer });
   const wasPlatformAuthedRef = useRef(false);
@@ -138,46 +145,62 @@ const SSOController: React.FC = () => {
 
   const layer = useMemo(
     () => {
-      return <>
-        <div ref={(ele) => authContainer.mask = ele} style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          zIndex: SSO_LAYER_Z,
-          width: "100%",
-          height: "100%",
-          backgroundColor: "black",
-          overflow: "hidden",
-          pointerEvents: "auto",
-          opacity: 0,
-          visibility: "hidden",
-        }} onClick={onCancel} >
-        </div>
+      const portalTheme = isPortalRoute;
+      return (
+        <>
+          <div
+            ref={(ele) => (authContainer.mask = ele)}
+            className={portalTheme ? "sso-auth-mask sso-auth-mask--portal" : "sso-auth-mask"}
+            style={{ zIndex: SSO_LAYER_Z }}
+            onClick={onCancel}
+          />
 
-        <div
-          ref={(ele) => authContainer.ele = ele}
-          style={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            zIndex: SSO_LAYER_Z + 1,
-            width: "100%",
-            height: "100%",
-            pointerEvents: "none",
-            overflow: "hidden",
-            opacity: 0,
-            visibility: "hidden",
-          }}
-        >
-          {SelectedComponent && (
-            <Suspense fallback={<div />}>
-              <SelectedComponent key={panelConfig?.path} onComplete={onSuccess} />
-            </Suspense>
-          )}
-          <div ref={(ele) => authContainer.closeEle = ele} style={{ position: "absolute", top: 0, left: 0, width: "40px", height: "40px", backgroundColor: "red", pointerEvents: "auto", opacity: 0, visibility: "hidden" }} onClick={onCancel} />
-        </div>
-      </>
-    }, [authContainer, onCancel, onSuccess]);
+          <div
+            ref={(ele) => (authContainer.ele = ele)}
+            className={portalTheme ? "sso-auth-layer sso-auth-layer--portal" : "sso-auth-layer"}
+            style={{ zIndex: SSO_LAYER_Z + 1 }}
+          >
+            {portalTheme ? (
+              <div className="sso-auth-head portal-modal-head">
+                <h2 id="sso-auth-title">登录</h2>
+                <button
+                  ref={(ele) => (authContainer.closeEle = ele)}
+                  type="button"
+                  className="portal-modal-close sso-auth-close"
+                  aria-label="关闭"
+                  onClick={onCancel}
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <button
+                ref={(ele) => (authContainer.closeEle = ele)}
+                type="button"
+                className="sso-auth-close sso-auth-close--floating"
+                aria-label="关闭"
+                onClick={onCancel}
+              >
+                ×
+              </button>
+            )}
+            <div className={portalTheme ? "sso-auth-body portal-modal-body" : "sso-auth-body"}>
+              {SelectedComponent && (
+                <Suspense fallback={<div />}>
+                  <SelectedComponent
+                    key={panelConfig?.path}
+                    onComplete={onSuccess}
+                    portalTheme={portalTheme}
+                  />
+                </Suspense>
+              )}
+            </div>
+          </div>
+        </>
+      );
+    },
+    [authContainer, isPortalRoute, onCancel, onSuccess, SelectedComponent, panelConfig?.path]
+  );
 
 
 
