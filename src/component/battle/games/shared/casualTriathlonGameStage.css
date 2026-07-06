@@ -5,7 +5,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: radial-gradient(ellipse 120% 80% at 50% 0%, #1a1f35 0%, #0a0c14 55%, #050608 100%);
+  /* 暖色深木调，与卡通主题一致（游戏容器覆盖其上，仅边缘可能透出） */
+  background: linear-gradient(180deg, #4a2f12 0%, #33200a 55%, #241505 100%);
   box-sizing: border-box;
 }
 
@@ -39,7 +40,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: radial-gradient(ellipse 120% 80% at 50% 0%, #1a1f35 0%, #0a0c14 55%, #050608 100%);
+  background: linear-gradient(180deg, #4a2f12 0%, #33200a 55%, #241505 100%);
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -86,8 +87,8 @@
   border-radius: clamp(10px, 2vw, 16px);
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(255, 255, 255, 0.06);
-  background: #0f1118;
+    0 0 0 4px #6f4318;
+  background: #33200a;
   box-sizing: border-box;
 }
 

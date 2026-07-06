@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portal Solitaire · 静态测试页（CSS）</title>
+  <link rel="stylesheet" href="/portal-static/solitaire-static.css" />
+  <style>
+    .static-test-banner {
+      position: sticky;
+      top: 0;
+      z-index: 9999;
+      background: #fef08a;
+      color: #713f12;
+      border-bottom: 3px solid #0f172a;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .static-test-banner a { color: #1d4ed8; }
+    .portal-page.portal-page--solitaire {
+      position: relative !important;
+      inset: auto !important;
+      max-width: 520px !important;
+      margin: 0 auto !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="static-test-banner">
+    静态 UI（纯 CSS 3D，无 PNG 切片）·
+    <a href="/portal-static/mockup.html">效果图原稿对照</a>
+  </div>
+
+  <div class="portal-page portal-page--solitaire" data-portal-game="solitaire">
+    <header class="portal-header">
+      <div class="portal-header-row">
+        <div class="portal-header-auth" style="width:100%;justify-content:space-between">
+          <button type="button" class="portal-btn-shop-pill">🛒 商店兑换</button>
+          <button type="button" class="portal-header-auth-btn">SignOut</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="portal-solitaire-hero">
+      <div class="portal-solitaire-hero-cards-css" aria-hidden="true"></div>
+      <h1 class="portal-solitaire-hero-title-text">纸牌大挑战</h1>
+      <div class="portal-solitaire-hero-clock-chip"><span>⏱️ 本周剩余 3 天 23 小时</span></div>
+    </div>
+
+    <div class="portal-auth">
+      <p>登录后可参与单人挑战、多人竞技并同步周榜积分。</p>
+      <button type="button" class="portal-btn">登录</button>
+    </div>
+
+    <div class="portal-solitaire-modes-grid">
+      <div class="portal-mode-card portal-mode-card--solo">
+        <div class="portal-mode-card-header">
+          <div class="portal-mode-card-icon-badge portal-mode-card-icon-badge--target">🎯</div>
+          <div class="portal-mode-card-title-section">
+            <h2>单人挑战</h2>
+            <div class="portal-mode-card-subtitle">达标 +3 分 · 未达标 -1 分</div>
+          </div>
+        </div>
+        <div class="portal-mode-card-rank-badge"><span class="star-icon">⭐</span><span>当前排名：10</span></div>
+        <button type="button" class="portal-btn-cta-main">开始挑战</button>
+        <div class="portal-mode-card-actions-row">
+          <button type="button" class="portal-btn-secondary-mini">规则详情</button>
+          <button type="button" class="portal-btn-secondary-mini">本周排行榜</button>
+        </div>
+      </div>
+      <div class="portal-mode-card portal-mode-card--multi">
+        <div class="portal-mode-card-header">
+          <div class="portal-mode-card-icon-badge portal-mode-card-icon-badge--swords">⚔️</div>
+          <div class="portal-mode-card-title-section">
+            <h2>多人竞技</h2>
+            <div class="portal-mode-card-subtitle">5 人免费 · 名次积分对战</div>
+          </div>
+        </div>
+        <div class="portal-mode-card-rank-badge"><span class="star-icon">🏆</span><span>当前排名：暂无</span></div>
+        <button type="button" class="portal-btn-cta-main">开始竞技</button>
+        <div class="portal-mode-card-actions-row">
+          <button type="button" class="portal-btn-secondary-mini">规则详情</button>
+          <button type="button" class="portal-btn-secondary-mini">本周排行榜</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="portal-solitaire-history-section">
+      <div class="portal-solitaire-history-header">
+        <h2>📜 我的战绩</h2>
+        <span class="portal-solitaire-history-header-count">共 12 场对局</span>
+      </div>
+      <div class="portal-solitaire-history-list">
+        <div class="portal-solitaire-history-row-minimalist">
+          <div class="portal-solitaire-history-row-left"><span>🎯</span><span>单人挑战</span></div>
+          <div class="portal-solitaire-history-row-right">
+            <span class="portal-solitaire-point-bubble portal-solitaire-point-bubble--positive">+3</span>
+            <span class="portal-solitaire-history-time">2h ago</span>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="portal-solitaire-history-more-link">查看更多 ›</button>
+    </section>
+  </div>
+</body>
+</html>

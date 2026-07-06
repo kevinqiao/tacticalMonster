@@ -73,6 +73,10 @@ export const PortalPlace =
             auth: 0,
             path: "./lobby/portal/PortalGamePage",
             uri: "",
+            bootCriticalAssetUrls: [
+                "/assets/portal/solitaire/backgrounds/bg-16x9.png",
+                "/assets/portal/portal_bg_9x16.png"
+            ],
             class: "page_container",
             enter: "fadeIn",
             exit: "fadeOut",

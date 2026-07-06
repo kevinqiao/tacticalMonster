@@ -1,7 +1,10 @@
 import "core-js/stable";
 import ReactDOM from "react-dom/client";
+import { removePortalDocumentStyles } from "component/lobby/portal/usePortalDocumentStyles";
 import App from "./App";
 import "./index.css";
+
+removePortalDocumentStyles();
 
 try {
   if (typeof sessionStorage !== "undefined") {

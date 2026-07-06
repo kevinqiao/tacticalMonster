@@ -93,11 +93,13 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
             navCfg = app.navs.find((nav: any) => nav.uri === "admin");
         } else if (res["ctx"] === "campaign" && ps[2] && ps[2] !== "merchant") {
             navCfg = app.navs.find((nav: any) => nav.uri === "");
+        } else if (res["ctx"] === "portal" && ps[2] === "preview") {
+            navCfg = undefined;
         } else {
             navCfg = app.navs.find((nav: any) => nav.uri && uri.includes(nav.uri));
         }
         if (!navCfg && res["ctx"] === "portal" && app.navs.length > 0) {
-            navCfg = app.navs[0];
+            navCfg = app.navs.find((nav: any) => nav.uri === "") ?? app.navs[0];
         }
         if (!navCfg && res["ctx"] === "campaign" && isCampaignPlayerShellUri(location.pathname) && app.navs.length > 0) {
             navCfg = app.navs.find((nav: any) => nav.uri === "") ?? app.navs[0];
@@ -134,7 +136,7 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
             }
             if (res["ctx"] === "portal") {
                 const gameType = ps[2]?.trim();
-                if (gameType) {
+                if (gameType && gameType !== "preview") {
                     navItem.data = { ...(navItem.data ?? {}), gameType };
                     navItem.params = { ...(navItem.params ?? {}), gameType };
                 }
@@ -298,7 +300,8 @@ export function pageUriMatchesContainer(pageUri: string, containerUri: string): 
 
 export const findContainerByURI = (container: PageContainer, uri: string): PageContainer | null => {
   const u = normalizePageUri(uri);
-  if (normalizePageUri(container.uri) === "/portal" && u.startsWith("/portal/")) {
+  const containerUri = normalizePageUri(container.uri);
+  if (containerUri === "/portal" && u.startsWith("/portal/") && !u.startsWith("/portal/preview")) {
     return container;
   }
   if (normalizePageUri(container.uri) === "/campaign" && isCampaignPlayerShellUri(u)) {
@@ -367,6 +370,11 @@ export const findAncestor = (containers: PageContainer[], uri: string): PageCont
     return null;
 }
 
+/** `/portal/preview` 由 MainApp 独立壳层渲染，不参与 RenderApp page_container 树。 */
+export function isPortalPreviewUri(uri: string): boolean {
+    return normalizePageUri(uri).startsWith("/portal/preview");
+}
+
 /**
  * Top-level page shells to mount for a pathname (one root tree).
  * Used by cold-boot preload and RenderApp context-scoped mounting.
@@ -376,6 +384,9 @@ export function resolveMountedRootShells(
     entryUri: string
 ): PageContainer[] {
     const u = normalizePageUri(entryUri);
+    if (isPortalPreviewUri(u)) {
+        return [];
+    }
     if (!u) {
         const fallback = containers.find(
             (c) => normalizePageUri(c.uri).startsWith(DEFAULT_MOUNT_CONTEXT)

@@ -1,3 +1,10 @@
+import {
+  logEmbedSdkLoad,
+  logEmbedSdkLoadCached,
+  logEmbedSdkLoadDecision,
+  logEmbedSdkLoadFailed,
+  type EmbedSdkLoadCandidate,
+} from "./embedAuthLog";
 import type { EmbedCredentialSource } from "./types";
 
 export type EmbedSdkSpec = {
@@ -33,16 +40,35 @@ export async function waitUntilEmbedSdkProbe(
 
 export function loadEmbedSdk(spec: EmbedSdkSpec): Promise<void> {
   const cached = loadCache.get(spec.id);
-  if (cached) return cached;
+  if (cached) {
+    logEmbedSdkLoadCached(spec.id);
+    return cached;
+  }
+  console.info("[EmbedAuth]", "sdk load start", { sdkId: spec.id, scriptUrl: spec.scriptUrl });
   const promise = (async () => {
-    if (spec.globalProbe()) return;
-    if (typeof document === "undefined") {
-      throw new Error(`embed sdk unavailable without document: ${spec.id}`);
+    try {
+      if (spec.globalProbe()) {
+        logEmbedSdkLoad(spec.id, "already_present", spec.scriptUrl);
+        return;
+      }
+      if (typeof document === "undefined") {
+        throw new Error(`embed sdk unavailable without document: ${spec.id}`);
+      }
+      const existing = document.querySelector(`script[data-embed-sdk="${spec.id}"]`);
+      if (existing && spec.globalProbe()) {
+        logEmbedSdkLoad(spec.id, "already_present", spec.scriptUrl);
+        return;
+      }
+      if (!existing) {
+        await injectEmbedSdkScript(spec);
+        logEmbedSdkLoad(spec.id, "script_injected", spec.scriptUrl);
+      }
+      await waitUntilEmbedSdkProbe(spec.globalProbe);
+      logEmbedSdkLoad(spec.id, "ready", spec.scriptUrl);
+    } catch (error) {
+      logEmbedSdkLoadFailed(spec.id, error);
+      throw error;
     }
-    const existing = document.querySelector(`script[data-embed-sdk="${spec.id}"]`);
-    if (existing && spec.globalProbe()) return;
-    if (!existing) await injectEmbedSdkScript(spec);
-    await waitUntilEmbedSdkProbe(spec.globalProbe);
   })();
   loadCache.set(spec.id, promise);
   return promise;
@@ -77,13 +103,46 @@ export function collectEmbedSdkSpecs(
   return specs;
 }
 
+function buildEmbedSdkLoadCandidates(
+  sources: EmbedCredentialSource[],
+  ctx: Parameters<EmbedCredentialSource["isActive"]>[0]
+): EmbedSdkLoadCandidate[] {
+  return sources
+    .filter((source) => source.sdkSpec)
+    .map((source) => {
+      const shouldPreload = source.shouldPreload?.(ctx) ?? false;
+      const isActive = source.isActive(ctx);
+      return {
+        sourceId: source.id,
+        sdkId: source.sdkSpec!.id,
+        shouldPreload,
+        isActive,
+        selected: isActive || shouldPreload,
+      };
+    });
+}
+
+/** Collect specs, log decision, then load each script. */
+export function planEmbedSdkLoads(
+  sources: EmbedCredentialSource[],
+  ctx: Parameters<EmbedCredentialSource["isActive"]>[0]
+): EmbedSdkSpec[] {
+  const specs = collectEmbedSdkSpecs(sources, ctx);
+  logEmbedSdkLoadDecision(specs, ctx, buildEmbedSdkLoadCandidates(sources, ctx));
+  return specs;
+}
+
+export async function loadEmbedSdkSpecs(specs: EmbedSdkSpec[]): Promise<void> {
+  if (specs.length === 0) return;
+  await Promise.all(specs.map((spec) => loadEmbedSdk(spec)));
+}
+
 export async function loadSdksForSources(
   sources: EmbedCredentialSource[],
   ctx: Parameters<EmbedCredentialSource["isActive"]>[0]
 ): Promise<void> {
-  const specs = collectEmbedSdkSpecs(sources, ctx);
-  if (specs.length === 0) return;
-  await Promise.all(specs.map((spec) => loadEmbedSdk(spec)));
+  const specs = planEmbedSdkLoads(sources, ctx);
+  await loadEmbedSdkSpecs(specs);
 }
 
 export function resetEmbedSdkLoadCacheForTests(): void {

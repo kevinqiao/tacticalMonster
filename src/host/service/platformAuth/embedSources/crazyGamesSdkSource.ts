@@ -10,8 +10,15 @@ import {
   partnerEmbedMethod,
   resolveAppEmbedContext,
 } from "./runtimeContext";
+import {
+  logEmbedCredentialMissing,
+  logEmbedCredentialReceived,
+  logEmbedSourceStart,
+} from "./embedAuthLog";
 import type { EmbedSdkSpec } from "./sdkLoader";
 import type { EmbedCredentialSource, EmbedCredentialPayload, EmbedSourceContext } from "./types";
+
+const SOURCE_ID = "crazygames_sdk";
 
 export const CRAZYGAMES_SDK_SPEC: EmbedSdkSpec = {
   id: "crazygames_v3",
@@ -33,14 +40,12 @@ function crazyGamesPortalEligible(ctx: EmbedSourceContext): boolean {
   if (typeof window === "undefined") return false;
   const appCtx = resolveAppEmbedContext(window.location.pathname);
   if (appCtx !== "portal") return false;
-  if (ctx.partner && partnerAllowsContext(ctx.partner, "portal")) {
-    return partnerEmbedMethod(ctx.partner) === "crazygames_jwt";
-  }
-  return ctx.partnerPid === crazyGamesPartnerPid();
+  if (!ctx.partner || !partnerAllowsContext(ctx.partner, "portal")) return false;
+  return partnerEmbedMethod(ctx.partner) === "crazygames_jwt";
 }
 
 export const crazyGamesSdkSource: EmbedCredentialSource = {
-  id: "crazygames_sdk",
+  id: SOURCE_ID,
   priority: 0,
   method: "crazygames_jwt",
   sdkSpec: CRAZYGAMES_SDK_SPEC,
@@ -63,13 +68,26 @@ export const crazyGamesSdkSource: EmbedCredentialSource = {
 
   start(ctx, onCredential) {
     const pid = resolveCrazyGamesPid(ctx);
+    logEmbedSourceStart(SOURCE_ID, "crazygames_jwt", pid);
     let cancelled = false;
     void (async () => {
       const active = await isCrazyGamesEmbedEnvironment();
-      if (cancelled || !active) return;
-      if (!isCrazyGamesUserAccountAvailable()) return;
+      if (cancelled) return;
+      if (!active) {
+        logEmbedCredentialMissing(SOURCE_ID, "crazygames_jwt", pid, "not_crazygames_environment");
+        return;
+      }
+      if (!isCrazyGamesUserAccountAvailable()) {
+        logEmbedCredentialMissing(SOURCE_ID, "crazygames_jwt", pid, "user_account_unavailable");
+        return;
+      }
       const token = await fetchCrazyGamesUserToken();
-      if (cancelled || !token) return;
+      if (cancelled) return;
+      if (!token) {
+        logEmbedCredentialMissing(SOURCE_ID, "crazygames_jwt", pid, "getUserToken_empty");
+        return;
+      }
+      logEmbedCredentialReceived(SOURCE_ID, "crazygames_jwt", pid, token.length);
       onCredential({
         credential: token,
         method: "crazygames_jwt",

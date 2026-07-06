@@ -1,0 +1,64 @@
+import React from "react";
+
+import { usePortal } from "../service/usePortalManager";
+
+import { PortalGame3DInner } from "./PortalGame3DInner";
+import { PortalGame3DOverlays } from "./PortalGame3DOverlays";
+import { PortalGame3DShadowHost } from "./PortalGame3DShadowHost";
+import { PortalGame3DToast } from "./PortalGame3DToast";
+import { resolvePortal3DHeroLogo } from "./portalGame3DTheme";
+import { usePortalGame3DController } from "./usePortalGame3DController";
+
+type PortalGame3DPageProps = {
+  visible: number;
+};
+
+const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
+  const portal = usePortal();
+  const ctrl = usePortalGame3DController({ visible });
+
+  if (!portal.gameType) {
+    return (
+      <div style={{ padding: 24, color: "#fff" }}>
+        无效的游戏类型。请访问 /portal/block_blast 等有效路径。
+      </div>
+    );
+  }
+
+  if (visible === 0) return null;
+
+  const heroLogoUrl = resolvePortal3DHeroLogo(portal.gameType);
+
+  return (
+    <>
+      <PortalGame3DShadowHost>
+        <PortalGame3DInner
+          heroLogoUrl={heroLogoUrl}
+          authed={ctrl.authed}
+          tier={ctrl.tierView}
+          joining={ctrl.joining}
+          soloJoinBlocked={ctrl.soloJoinBlocked}
+          multiJoinBlocked={ctrl.multiJoinBlocked}
+          soloOpenAssignment={ctrl.soloOpenAssignment}
+          multiOpenAssignment={ctrl.multiOpenAssignment}
+          queueWaiting={ctrl.queueWaiting}
+          weekEndsAt={portal.weekEndsAt}
+          onJoin={(mode) => void ctrl.handleJoin(mode)}
+          onOpenRules={(anchor) => ctrl.setRulesModalOpen(anchor)}
+          onOpenLeaderboard={() => ctrl.setPanelModal("lb")}
+          onOpenFullHistory={
+            ctrl.user?.uid ? () => ctrl.setPanelModal("history") : undefined
+          }
+          onOpenShop={() => ctrl.setShopModalOpen(true)}
+          onSignOut={ctrl.signOut}
+          onSignIn={ctrl.signIn}
+          pageActive={visible > 0}
+        />
+      </PortalGame3DShadowHost>
+      <PortalGame3DOverlays ctrl={ctrl} />
+      <PortalGame3DToast note={ctrl.note} />
+    </>
+  );
+};
+
+export default PortalGame3DPage;

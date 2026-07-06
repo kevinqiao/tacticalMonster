@@ -10,9 +10,14 @@
 
   flex-direction: column;
 
-  background: linear-gradient(160deg, #1a1030 0%, #2d1b4e 45%, #1e293b 100%);
+  /* 卡通蓝天草地：与主页同调 */
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 255, 255, 0.3) 0%, transparent 55%),
+    linear-gradient(180deg, #57b7f0 0%, #8fd0f5 46%, #4c9a3c 46.2%, #2f7a2a 100%);
 
   color: #fff;
+
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
 
   overflow: hidden;
 
@@ -26,6 +31,7 @@
 
 
 
+/* 顶栏：木质横梁 */
 .match3-header {
 
   display: flex;
@@ -40,6 +46,14 @@
 
   flex-shrink: 0;
 
+  background: linear-gradient(180deg, #9a6430 0%, #7d4c1e 60%, #6b3f16 100%);
+
+  border-bottom: 4px solid #5a3311;
+
+  box-shadow:
+    inset 0 3px 0 rgba(255, 220, 160, 0.4),
+    inset 0 -4px 6px rgba(0, 0, 0, 0.25);
+
 }
 
 
@@ -49,6 +63,15 @@
   font-size: clamp(1rem, 3.5vw, 1.25rem);
 
   font-weight: 700;
+
+  color: #ffffff;
+
+  text-shadow:
+    -1px -1px 0 #5a3311,
+     1px -1px 0 #5a3311,
+    -1px  1px 0 #5a3311,
+     1px  1px 0 #5a3311,
+     0 2px 3px rgba(0, 0, 0, 0.3);
 
 }
 
@@ -62,7 +85,9 @@
 
   font-variant-numeric: tabular-nums;
 
-  color: rgba(255, 220, 160, 0.95);
+  color: #f3cf8f;
+
+  text-shadow: 0 1px 1px rgba(90, 51, 17, 0.6);
 
 }
 
@@ -72,7 +97,11 @@
 
   font-variant-numeric: tabular-nums;
 
-  opacity: 0.9;
+  font-weight: 700;
+
+  color: #ffe9a3;
+
+  text-shadow: 0 1px 1px rgba(90, 51, 17, 0.6);
 
 }
 
@@ -122,9 +151,16 @@
 
   gap: var(--match3-cell-gap, clamp(2px, 0.7vmin, 4px));
 
-  border-radius: 12px;
+  border-radius: 16px;
 
-  background: rgba(0, 0, 0, 0.35);
+  /* 深棕木质棋盘底 */
+  background: linear-gradient(180deg, rgba(111, 67, 24, 0.85) 0%, rgba(90, 51, 17, 0.9) 100%);
+
+  border: 3px solid #5a3311;
+
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.35),
+    0 6px 18px rgba(0, 0, 0, 0.25);
 
   touch-action: none;
 
@@ -206,7 +242,11 @@
 
   font-size: clamp(0.75rem, 2.8vw, 0.85rem);
 
-  opacity: 0.75;
+  font-weight: 600;
+
+  color: rgba(255, 255, 255, 0.95);
+
+  text-shadow: 0 1px 2px rgba(44, 106, 31, 0.7);
 
   text-align: center;
 
@@ -266,21 +306,30 @@
 
 
 
+/* 头部按钮：红色糖果小按钮 */
 .match3-btn {
 
-  padding: clamp(6px, 2vw, 8px) clamp(10px, 3vw, 14px);
+  padding: clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px);
 
-  border-radius: 8px;
+  border-radius: 999px;
 
-  border: none;
+  border: 2px solid #8c2c10;
 
-  background: rgba(255, 255, 255, 0.15);
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
 
   color: #fff;
 
-  font-weight: 600;
+  font-family: inherit;
+
+  font-weight: 700;
 
   font-size: clamp(0.8rem, 2.8vw, 1rem);
+
+  text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 2px 0 rgba(90, 51, 17, 0.7);
 
   cursor: pointer;
 
@@ -350,7 +399,7 @@
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(30, 18, 5, 0.65);
   cursor: pointer;
 }
 
@@ -361,10 +410,15 @@
   max-height: min(92dvh, 720px);
   overflow: auto;
   padding: 16px;
-  border-radius: 16px;
-  background: linear-gradient(160deg, #1a1030 0%, #2d1b4e 45%, #1e293b 100%);
-  color: #fff;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+  border: 5px solid #6f4318;
+  color: #5b3a12;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+    0 24px 64px rgba(0, 0, 0, 0.45);
 }
 
 .match3-watch-header {
@@ -382,11 +436,17 @@
 }
 
 .match3-watch-close {
-  padding: 6px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  padding: 6px 16px;
+  font-family: inherit;
+  font-weight: 700;
+  border: 2px solid #8c2c10;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 2px 0 rgba(90, 51, 17, 0.7);
   cursor: pointer;
 }
 
@@ -396,7 +456,8 @@
   gap: 12px;
   margin-bottom: 12px;
   font-size: 14px;
-  opacity: 0.92;
+  font-weight: 600;
+  color: #8a5a2b;
 }
 
 .match3-watch-controls {
@@ -407,11 +468,16 @@
 }
 
 .match3-watch-controls button {
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  padding: 8px 16px;
+  font-family: inherit;
+  font-weight: 700;
+  border-radius: 999px;
+  border: 2px solid #b06e14;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%);
+  color: #7a4a10;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 2px 0 rgba(130, 82, 16, 0.45);
   cursor: pointer;
 }
 
@@ -423,11 +489,12 @@
 .match3-watch-status {
   margin: 12px 0 0;
   font-size: 14px;
-  opacity: 0.85;
+  font-weight: 600;
+  color: #a3814f;
 }
 
 .match3-watch-status--error {
-  color: #fca5a5;
+  color: #c2410c;
 }
 
 .match3-board--watch {

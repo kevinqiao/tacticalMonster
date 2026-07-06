@@ -1,0 +1,637 @@
+/* ==========================================================================
+   Portal 3D 卡通主题弹窗（排行榜 / 历史记录 / 规则 / 商店）
+   渲染在 light DOM，注入顺序在 portal.css / solitaire-figma.css 之后，
+   用于把弹窗风格统一到主页面的 3D 卡通木质风格。
+   ========================================================================== */
+
+.portal-modal-backdrop {
+  background: rgba(30, 18, 5, 0.62) !important;
+  backdrop-filter: blur(3px);
+}
+
+/* ---- 面板：羊皮纸内芯 + 深棕木框 ---- */
+
+.portal-modal-panel--fullscreen {
+  inset: 16px 10px 0 10px !important;
+  height: auto !important;
+  background:
+    linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%) !important;
+  border: 6px solid #6f4318 !important;
+  border-bottom: none !important;
+  border-radius: 30px 30px 0 0 !important;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+    0 -8px 30px rgba(0, 0, 0, 0.4) !important;
+  color: #5b3a12 !important;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+/* ---- 标题栏：木质横梁 ---- */
+
+.portal-modal-head {
+  justify-content: center !important;
+  position: relative;
+  background: linear-gradient(180deg, #9a6430 0%, #7d4c1e 60%, #6b3f16 100%) !important;
+  border-bottom: 5px solid #5a3311 !important;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 220, 160, 0.4),
+    inset 0 -4px 6px rgba(0, 0, 0, 0.25);
+  padding: 16px 64px !important;
+}
+
+.portal-modal-head h2 {
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif !important;
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  letter-spacing: 2px;
+  color: #ffffff !important;
+  text-shadow:
+    -1.5px -1.5px 0 #5a3311,
+     1.5px -1.5px 0 #5a3311,
+    -1.5px  1.5px 0 #5a3311,
+     1.5px  1.5px 0 #5a3311,
+     0 4px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- 关闭按钮：红色糖果圆钮 ---- */
+
+.portal-modal-close {
+  position: absolute !important;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border: 3px solid #8c2c10 !important;
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%) !important;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -4px 6px rgba(120, 30, 5, 0.4),
+    0 4px 0 rgba(90, 51, 17, 0.8) !important;
+  color: #ffffff !important;
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 2px 2px rgba(120, 30, 5, 0.6);
+  transition: transform 0.15s ease;
+}
+
+.portal-modal-close:hover {
+  transform: translateY(-50%) scale(1.08) !important;
+  color: #ffffff !important;
+}
+
+.portal-modal-body {
+  padding: 20px 22px 34px !important;
+}
+
+/* ---- 通用文字 ---- */
+
+.portal-modal-body .portal-muted {
+  color: #a3814f;
+  font-weight: 600;
+}
+
+.portal-pts-pos {
+  color: #1f9e3d !important;
+  font-weight: 800 !important;
+}
+
+.portal-pts-neg {
+  color: #d8452f !important;
+  font-weight: 800 !important;
+}
+
+/* ==========================================================================
+   排行榜
+   ========================================================================== */
+
+.portal-lb-me--block {
+  display: inline-block;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%) !important;
+  border: 3px solid #b06e14 !important;
+  border-radius: 999px !important;
+  padding: 10px 24px !important;
+  color: #7a4a10 !important;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 17px;
+  font-weight: 700 !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 4px 0 rgba(130, 82, 16, 0.35) !important;
+}
+
+.portal-lb-table {
+  border-collapse: separate !important;
+  border-spacing: 0 10px !important;
+  font-size: 16px !important;
+}
+
+.portal-lb-table th {
+  padding: 2px 14px !important;
+  border-bottom: none !important;
+  color: #8a5a2b !important;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.portal-lb-table td {
+  padding: 13px 14px !important;
+  border-bottom: none !important;
+  background: rgba(255, 251, 238, 0.72);
+  border-top: 2px solid #dcb779;
+  border-bottom: 2px solid #c99f5b !important;
+  color: #6b4a1c !important;
+  font-weight: 700 !important;
+}
+
+.portal-lb-table td:first-child {
+  border-left: 2px solid #dcb779;
+  border-radius: 14px 0 0 14px;
+  width: 64px;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 18px;
+}
+
+.portal-lb-table td:last-child {
+  border-right: 2px solid #c99f5b;
+  border-radius: 0 14px 14px 0;
+}
+
+/* 前三名：金 / 银 / 铜 底色（:not([colspan]) 排除“暂无数据”占位行） */
+.portal-lb-table tbody tr:nth-child(1) td:not([colspan]) {
+  background: linear-gradient(180deg, #ffe9a3 0%, #ffd561 100%);
+  border-color: #d29a24;
+  color: #7a4a10 !important;
+}
+
+.portal-lb-table tbody tr:nth-child(2) td:not([colspan]) {
+  background: linear-gradient(180deg, #eef1f5 0%, #d9dfe7 100%);
+  border-color: #a7b0bd;
+  color: #4c5866 !important;
+}
+
+.portal-lb-table tbody tr:nth-child(3) td:not([colspan]) {
+  background: linear-gradient(180deg, #f4d9bd 0%, #e6b98d 100%);
+  border-color: #bd7f43;
+  color: #77451a !important;
+}
+
+/* ==========================================================================
+   历史记录
+   ========================================================================== */
+
+.portal-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portal-history-row {
+  box-sizing: border-box;
+  background: rgba(255, 251, 238, 0.72) !important;
+  border: 2px solid #dcb779 !important;
+  border-bottom: 4px solid #c99f5b !important;
+  border-radius: 16px !important;
+  padding: 14px 18px !important;
+  margin: 0 !important;
+  color: #6b4a1c !important;
+}
+
+.portal-history-row strong {
+  color: #5b3a12;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.portal-history-row--ongoing {
+  background: linear-gradient(180deg, #e4f6cf 0%, #cdeba6 100%) !important;
+  border-color: #7fae3f !important;
+  border-bottom-color: #629027 !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.portal-history-row--ongoing:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 rgba(98, 144, 39, 0.35);
+}
+
+.portal-history-badge {
+  background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 100%) !important;
+  border: 2px solid #4c8a15;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(60, 100, 10, 0.6);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4);
+}
+
+.portal-history-enter {
+  color: #4c8a15 !important;
+  font-weight: 800 !important;
+}
+
+.portal-history-meta {
+  font-size: 0.85rem !important;
+}
+
+.portal-history-empty {
+  font-size: 18px;
+  padding: 48px 0 !important;
+}
+
+/* 战报按钮：金色糖果小按钮 */
+.portal-history-report-btn {
+  padding: 6px 22px !important;
+  border-radius: 999px !important;
+  border: 2.5px solid #b06e14 !important;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%) !important;
+  color: #7a4a10 !important;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 3px 0 rgba(130, 82, 16, 0.45) !important;
+  transition: transform 0.12s ease;
+}
+
+.portal-history-report-btn:hover {
+  background: linear-gradient(180deg, #ffeb96 0%, #ffd25c 60%, #ffbe3a 100%) !important;
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   规则 / 商店内容
+   ========================================================================== */
+
+.rules-dialog-content {
+  color: #6b4a1c !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  line-height: 1.7 !important;
+}
+
+.rules-dialog-content p {
+  margin: 0 0 10px;
+}
+
+.rules-dialog-content strong {
+  color: #a05c10;
+  font-weight: 800;
+}
+
+.rules-dialog-content ul {
+  list-style: none;
+  padding-left: 0 !important;
+  margin: 12px 0 !important;
+}
+
+.rules-dialog-content > ul > li {
+  background: rgba(255, 251, 238, 0.72);
+  border: 2px solid #dcb779;
+  border-bottom: 4px solid #c99f5b;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 10px !important;
+}
+
+.rules-dialog-content ul ul {
+  margin: 8px 0 0 !important;
+}
+
+.rules-dialog-content ul ul li {
+  padding: 3px 0;
+  margin-bottom: 2px !important;
+}
+
+.rules-dialog-content h3 {
+  color: #5b3a12 !important;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+/* ==========================================================================
+   玩法规则总弹窗（积分 / 段位与分组 / 奖励）
+   ========================================================================== */
+
+.portal-rules {
+  color: #6b4a1c;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* Tab 导航：吸顶胶囊组 */
+.portal-rules-tabs {
+  position: sticky;
+  top: -20px; /* 抵消 modal-body 上内边距 */
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: -8px -6px 16px;
+  padding: 12px 6px;
+  background: linear-gradient(180deg, #f8e5b8 0%, #f8e5b8 82%, rgba(248, 229, 184, 0) 100%);
+}
+
+.portal-rules-tab {
+  padding: 8px 26px;
+  border-radius: 999px;
+  border: 2.5px solid #b98a3f;
+  background: rgba(255, 251, 238, 0.85);
+  color: #8a5a2b;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(130, 82, 16, 0.25);
+  transition: transform 0.12s ease;
+}
+
+.portal-rules-tab:hover {
+  transform: translateY(-1px);
+}
+
+.portal-rules-tab--active {
+  border-color: #b06e14;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%);
+  color: #7a4a10;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 3px 0 rgba(130, 82, 16, 0.45);
+}
+
+/* 段落 */
+.portal-rules-section {
+  scroll-margin-top: 64px; /* 锚点定位时避开吸顶 Tab */
+  margin-bottom: 30px;
+}
+
+.portal-rules-title {
+  margin: 0 0 10px;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #5b3a12;
+  padding-left: 14px;
+  border-left: 6px solid #f0a32a;
+  border-radius: 3px;
+}
+
+.portal-rules-intro {
+  margin: 0 0 12px;
+}
+
+.portal-rules strong {
+  color: #a05c10;
+  font-weight: 800;
+}
+
+.portal-rules-pos {
+  color: #1f9e3d !important;
+}
+
+.portal-rules-neg {
+  color: #d8452f !important;
+}
+
+/* 内容卡片：与历史记录卡片同款 */
+.portal-rules-card {
+  scroll-margin-top: 64px;
+  background: rgba(255, 251, 238, 0.72);
+  border: 2px solid #dcb779;
+  border-bottom: 4px solid #c99f5b;
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+}
+
+.portal-rules-card-head {
+  margin-bottom: 6px;
+}
+
+.portal-rules-card-title {
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #5b3a12;
+}
+
+.portal-rules-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.portal-rules-card li {
+  position: relative;
+  padding-left: 18px;
+  margin: 4px 0;
+}
+
+.portal-rules-card li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.68em;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f0a32a;
+  box-shadow: inset 0 -2px 2px rgba(150, 90, 10, 0.5);
+}
+
+/* 段位徽章链 */
+.portal-rules-badges {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 14px;
+  flex-wrap: wrap;
+}
+
+.portal-rules-badge-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.portal-rules-badge-item img {
+  width: 58px;
+  height: 62px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 3px rgba(60, 30, 5, 0.3));
+}
+
+.portal-rules-badge-item > span:not(.portal-rules-badge-arrow) {
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #5b3a12;
+}
+
+.portal-rules-badge-arrow {
+  margin: 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #b98a3f;
+}
+
+/* 晋降区示意条：与主页段位栏同配色 */
+.portal-rules-zonebar {
+  display: flex;
+  height: 42px;
+  margin: 10px 0;
+  border: 2.5px solid #8a5a12;
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.portal-rules-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.portal-rules-zone--promote {
+  flex: 0 0 24%;
+  background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 100%);
+}
+
+.portal-rules-zone--keep {
+  flex: 1;
+  background: linear-gradient(180deg, #ffd561 0%, #f0a32a 100%);
+  color: #7a4a10;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.portal-rules-zone--demote {
+  flex: 0 0 24%;
+  background: linear-gradient(180deg, #ff8a5c 0%, #d63a1c 100%);
+}
+
+/* 奖励表：名次 × 段位 金币矩阵 */
+.portal-rules-reward-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.portal-rules-reward-table th {
+  padding: 2px 8px 6px;
+  text-align: center;
+  vertical-align: bottom;
+  color: #8a5a2b;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.portal-rules-reward-table th:first-child {
+  text-align: left;
+  padding-left: 14px;
+}
+
+.portal-rules-reward-badge {
+  display: block;
+  width: 40px;
+  height: 42px;
+  margin: 0 auto 2px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 2px rgba(60, 30, 5, 0.3));
+}
+
+.portal-rules-reward-table td {
+  padding: 10px 8px;
+  text-align: center;
+  background: rgba(255, 251, 238, 0.72);
+  border-top: 2px solid #dcb779;
+  border-bottom: 2px solid #c99f5b;
+  color: #6b4a1c;
+  font-weight: 700;
+}
+
+.portal-rules-reward-table td:first-child {
+  text-align: left;
+  padding-left: 14px;
+  border-left: 2px solid #dcb779;
+  border-radius: 12px 0 0 12px;
+  white-space: nowrap;
+}
+
+.portal-rules-reward-table td:last-child {
+  border-right: 2px solid #c99f5b;
+  border-radius: 0 12px 12px 0;
+}
+
+.portal-rules-reward-coins {
+  white-space: nowrap;
+}
+
+/* 当前段位列高亮 */
+.portal-rules-reward-table td.portal-rules-reward-col--me {
+  background: linear-gradient(180deg, #ffe9a3 0%, #ffd561 100%);
+  border-color: #d29a24;
+  color: #7a4a10;
+}
+
+.portal-rules-reward-table th.portal-rules-reward-col--me {
+  color: #b06e14;
+}
+
+/* 名次列的晋降标记与图例 */
+.portal-rules-zone-mark {
+  display: inline-block;
+  width: 20px;
+  margin-right: 6px;
+  text-align: center;
+  font-weight: 800;
+}
+
+.portal-rules-zone-mark--promote {
+  color: #4c8a15;
+}
+
+.portal-rules-zone-mark--keep {
+  color: #c98a1b;
+}
+
+.portal-rules-zone-mark--demote {
+  color: #d8452f;
+}
+
+.portal-rules-reward-legend {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  color: #a3814f;
+}
+
+.portal-rules-reward-legend .portal-rules-zone-mark {
+  margin-left: 14px;
+}
+
+.portal-rules-reward-legend .portal-rules-zone-mark:first-child {
+  margin-left: 0;
+}
+

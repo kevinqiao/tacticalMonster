@@ -4,28 +4,39 @@
  */
 @import "../../shared/visualTheme/gameVisualPalettes.css";
 
-.solo-player-container {
-  background: var(--card-table-bg, transparent);
-}
-
+/* Game Over 面板：卡通木质风（羊皮纸内芯 + 深棕木框） */
 .game-over {
     position: absolute;
     top: 50%;
     left: 50%;
     opacity: 0;
     visibility: hidden;
-    width: 70%;
-    height: 70%;
-    background-color: #32f119;
-    border-radius: 10px;
-    padding: 10px;
-    color: #ffffff;
+    width: min(70%, 420px);
+    height: auto;
+    min-height: 220px;
+    background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+    border: 5px solid #6f4318;
+    border-radius: 24px;
+    box-shadow:
+        inset 0 3px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+        0 16px 40px rgba(0, 0, 0, 0.4);
+    padding: 26px 22px 120px;
+    color: #5b3a12;
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
     font-size: 20px;
-    font-weight: bold;
+    font-weight: 700;
     text-align: center;
     line-height: 1.5;
     z-index: 1000;
     transform: translate(-50%, -50%);
+}
+
+.game-over h1 {
+    margin: 0 0 8px;
+    font-size: 30px;
+    letter-spacing: 2px;
+    color: #5b3a12;
 }
 
 .game-over-submit-container {
@@ -37,25 +48,40 @@
     left: 0;
     width: 100%;
     height: 100px;
-    background-color: #32f119;
-    border-radius: 10px;
+    background: transparent;
+    border-radius: 0 0 20px 20px;
     padding: 0px;
-    color: #ffffff;
-    font-size: 20px;
 }
 
+/* 提交按钮：绿色糖果药丸钮 */
 .game-over-submit-btn {
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 120px;
-    height: 45px;
-    background-color: #1d19f1;
-    border-radius: 10px;
-    padding: 0px;
+    min-width: 180px;
+    height: 52px;
+    padding: 0 26px;
+    background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 55%, #4c8a15 100%);
+    border: 3px solid #3e7410;
+    border-radius: 999px;
     color: #ffffff;
-    font-size: 12px;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow: 0 1px 2px rgba(60, 100, 10, 0.6);
+    box-shadow:
+        inset 0 3px 0 rgba(255, 255, 255, 0.4),
+        0 4px 0 rgba(52, 92, 14, 0.8);
+    transition: transform 0.12s ease;
+}
+
+.game-over-submit-btn:hover {
+    transform: translateY(-1px);
+}
+
+.game-over-submit-btn:active {
+    transform: translateY(1px);
 }
 
 .solo-game-container {
@@ -70,6 +96,7 @@
     overflow: visible;
 }
 
+/* 加载页：与主页同调的暖色卡通渐变 + 金色转圈 */
 .solo-game-loading {
     width: 100%;
     height: 100%;
@@ -77,14 +104,39 @@
     z-index: 1000;
     left: 0;
     top: 0;
-    font-family: 'Arial', sans-serif;
-    background-color: #000000;
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+    background: linear-gradient(180deg, #57b7f0 0%, #8fd0f5 42%, #4c9a3c 42.2%, #2f7a2a 100%);
     color: #ffffff;
-    font-size: 20px;
-    font-weight: bold;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow:
+        -1.5px -1.5px 0 #2c6a1f,
+         1.5px -1.5px 0 #2c6a1f,
+        -1.5px  1.5px 0 #2c6a1f,
+         1.5px  1.5px 0 #2c6a1f,
+         0 4px 6px rgba(0, 0, 0, 0.3);
     display: flex;
+    flex-direction: column;
+    gap: 20px;
     justify-content: center;
     align-items: center;
+}
+
+.solo-game-loading::before {
+    content: "";
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 6px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffd561;
+    animation: solo-game-loading-spin 0.85s linear infinite;
+}
+
+@keyframes solo-game-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .solo-game-loading--hidden {
@@ -103,26 +155,32 @@
     overflow: visible;
     container-type: size;
     container-name: solo-play;
-    background-color: #e7570350;
-    /* background-color: #0d5f0d; */
-    font-family: 'Arial', sans-serif;
+    /* 卡通绿呢牌桌：中心亮、四周暗的柔和渐晕 */
+    background:
+        radial-gradient(ellipse at 50% 38%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 55%),
+        linear-gradient(180deg, #3d9e46 0%, #2f8a3a 55%, #23702e 100%);
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
 }
 
+/* 顶栏：木质横梁，与主页段位框同调 */
 .solo-game-header {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: 12px;
-    padding: 8px 12px;
-    min-height: 44px;
+    padding: 8px 14px;
+    min-height: 48px;
     box-sizing: border-box;
-    background: linear-gradient(180deg, rgba(22, 22, 28, 0.98) 0%, rgba(14, 14, 18, 0.96) 100%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, #9a6430 0%, #7d4c1e 60%, #6b3f16 100%);
+    border-bottom: 4px solid #5a3311;
+    box-shadow:
+        inset 0 3px 0 rgba(255, 220, 160, 0.4),
+        inset 0 -4px 6px rgba(0, 0, 0, 0.25);
 }
 
 .solo-game-header__player {
@@ -189,16 +247,20 @@
     flex-shrink: 0;
 }
 
+/* 一键收牌：金色糖果小按钮 */
 .solo-game-header__autocomplete {
-    padding: 6px 12px;
+    padding: 7px 14px;
+    font-family: inherit;
     font-size: 13px;
-    border-radius: 8px;
+    border-radius: 999px;
     cursor: pointer;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    background: rgba(255, 255, 255, 0.95);
-    color: #0d5f0d;
-    font-weight: 600;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    border: 2px solid #b06e14;
+    background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%);
+    color: #7a4a10;
+    font-weight: 700;
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.6),
+        0 3px 0 rgba(130, 82, 16, 0.45);
     white-space: nowrap;
     flex-shrink: 0;
     line-height: 1.2;
@@ -206,7 +268,7 @@
 }
 
 .solo-game-header__autocomplete:hover {
-    background: #fff;
+    filter: brightness(1.05);
 }
 
 .solo-game-header__autocomplete:active {
@@ -219,16 +281,21 @@
     transform: none;
 }
 
+/* 提前结算：红色糖果小按钮 */
 .solo-game-header__end-game {
-    padding: 6px 12px;
+    padding: 7px 14px;
+    font-family: inherit;
     font-size: 13px;
-    border-radius: 8px;
+    border-radius: 999px;
     cursor: pointer;
-    border: 1px solid rgba(255, 193, 120, 0.55);
-    background: rgba(90, 36, 8, 0.45);
-    color: #ffe8cc;
-    font-weight: 600;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    border: 2px solid #8c2c10;
+    background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+    color: #ffffff;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.45),
+        0 3px 0 rgba(90, 51, 17, 0.7);
     white-space: nowrap;
     flex-shrink: 0;
     line-height: 1.2;
@@ -236,7 +303,7 @@
 }
 
 .solo-game-header__end-game:hover:not(:disabled) {
-    background: rgba(110, 44, 10, 0.55);
+    filter: brightness(1.06);
 }
 
 .solo-game-header__end-game:active:not(:disabled) {
@@ -257,18 +324,25 @@
 
 .solo-game-header__stat-label {
     font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: rgba(255, 255, 255, 0.45);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #f3cf8f;
     text-transform: uppercase;
+    text-shadow: 0 1px 1px rgba(90, 51, 17, 0.6);
 }
 
 .solo-game-header__stat-value {
-    font-size: 18px;
+    font-size: 19px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    color: #f0f4ff;
+    color: #ffffff;
     line-height: 1.1;
+    text-shadow:
+        -1px -1px 0 #5a3311,
+         1px -1px 0 #5a3311,
+        -1px  1px 0 #5a3311,
+         1px  1px 0 #5a3311,
+         0 2px 3px rgba(0, 0, 0, 0.3);
 }
 
 /* 横屏 + 触摸：顶栏改为左侧竖条，牌桌占剩余宽度（手机横握 / 小平板） */
@@ -291,7 +365,7 @@
         box-sizing: border-box;
         min-height: 0;
         border-bottom: none;
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        border-right: 4px solid #5a3311;
     }
 
     /* 分数/步数/剩余时间 */
@@ -366,7 +440,8 @@
     grid-template-rows: auto minmax(120px, 1fr);
     column-gap: var(--solo-zone-gap);
     row-gap: var(--solo-foundation-tableau-gap);
-    background-color: #000000;
+    /* 透出 .solo-player-container 的卡通绿呢底色 */
+    background-color: transparent;
 }
 
 /*
@@ -397,12 +472,14 @@
     width: 100%;
     max-width: 100%;
     aspect-ratio: 5 / 7;
-    border: 2px dashed #ccc;
-    border-radius: 8px;
+    border: 2.5px dashed rgba(255, 255, 255, 0.45);
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(0, 60, 20, 0.18);
+    box-shadow: inset 0 2px 6px rgba(0, 50, 15, 0.25);
+    color: rgba(255, 255, 255, 0.5);
     box-sizing: border-box;
     justify-self: stretch;
     align-self: start;
@@ -414,9 +491,10 @@
     width: 100%;
     aspect-ratio: 5 / 7;
     justify-self: stretch;
-    border: 2px dashed #ccc;
-    border-radius: 8px;
-    background-color: rgba(0, 0, 0, 0.1);
+    border: 2.5px dashed rgba(255, 255, 255, 0.45);
+    border-radius: 10px;
+    background-color: rgba(0, 60, 20, 0.18);
+    box-shadow: inset 0 2px 6px rgba(0, 50, 15, 0.25);
     cursor: pointer;
     box-sizing: border-box;
 }
@@ -1030,7 +1108,7 @@
     position: fixed;
     inset: 0;
     border: 0;
-    background: rgba(0, 0, 0, 0.72);
+    background: rgba(30, 18, 5, 0.65);
     cursor: pointer;
 }
 
@@ -1049,10 +1127,15 @@
     max-height: calc(100dvh - 2 * var(--solo-watch-gap));
     overflow: hidden;
     padding: clamp(10px, 2vmin, 16px);
-    border-radius: 16px;
-    background: linear-gradient(160deg, #0f2a1a 0%, #1a4d2e 45%, #1e293b 100%);
-    color: #fff;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+    border-radius: 22px;
+    background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+    border: 5px solid #6f4318;
+    color: #5b3a12;
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+    box-shadow:
+        inset 0 3px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+        0 24px 64px rgba(0, 0, 0, 0.45);
 }
 
 .solo-watch-header {
@@ -1071,11 +1154,17 @@
 }
 
 .solo-watch-close {
-    padding: 6px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
+    padding: 6px 16px;
+    font-family: inherit;
+    font-weight: 700;
+    border: 2px solid #8c2c10;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.45),
+        0 2px 0 rgba(90, 51, 17, 0.7);
     cursor: pointer;
 }
 
@@ -1085,7 +1174,8 @@
     gap: 12px;
     margin-bottom: 8px;
     font-size: 14px;
-    opacity: 0.92;
+    font-weight: 600;
+    color: #8a5a2b;
     flex-shrink: 0;
 }
 
@@ -1136,11 +1226,16 @@
 }
 
 .solo-watch-controls button {
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    padding: 8px 16px;
+    font-family: inherit;
+    font-weight: 700;
+    border-radius: 999px;
+    border: 2px solid #b06e14;
+    background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%);
+    color: #7a4a10;
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.6),
+        0 2px 0 rgba(130, 82, 16, 0.45);
     cursor: pointer;
 }
 
@@ -1152,9 +1247,10 @@
 .solo-watch-status {
     margin: 12px 0 0;
     font-size: 14px;
-    opacity: 0.85;
+    font-weight: 600;
+    color: #a3814f;
 }
 
 .solo-watch-status--error {
-    color: #fca5a5;
+    color: #c2410c;
 }

@@ -1,49 +1,166 @@
 <!DOCTYPE html>
-<html lang="en" style="background-color:#000000">
+<html lang="en" style="background-color:#3a6f63">
 
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#3a6f63" />
+  <link rel="preload" as="image" href="/assets/portal/solitaire/backgrounds/bg-16x9.png" media="(min-aspect-ratio: 1/1)" />
+  <link rel="preload" as="image" href="/assets/portal/portal_bg_9x16.png" media="(max-aspect-ratio: 1/1)" />
   <style>
     html,
     body {
-      background-color: #000 !important
+      background-color: #3a6f63 !important;
+      background-image: linear-gradient(165deg, #5a8f9a 0%, #3a6f63 38%, #2a5248 100%) !important;
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+    @media (max-aspect-ratio: 1/1) {
+      html,
+      body {
+        background-color: #345c4a !important;
+        background-image: linear-gradient(165deg, #4f7d6a 0%, #345c4a 40%, #264a3a 100%) !important;
+      }
+    }
+    #static-boot-cover,
+    #boot-loading-overlay-root {
+      background-color: #3a6f63 !important;
+      background-image:
+        url("/assets/portal/solitaire/backgrounds/bg-16x9.png"),
+        linear-gradient(165deg, #5a8f9a 0%, #3a6f63 38%, #2a5248 100%) !important;
+      background-size: cover, cover !important;
+      background-position: center, center !important;
+      background-repeat: no-repeat, no-repeat !important;
+      transition: opacity 180ms ease-out !important;
+    }
+    @media (max-aspect-ratio: 1/1) {
+      #static-boot-cover,
+      #boot-loading-overlay-root {
+        background-color: #345c4a !important;
+        background-image:
+          url("/assets/portal/portal_bg_9x16.png"),
+          linear-gradient(165deg, #4f7d6a 0%, #345c4a 40%, #264a3a 100%) !important;
+      }
+    }
+
+    #static-boot-cover,
+    #static-boot-cover span,
+    #boot-loading-overlay-root,
+    #boot-loading-overlay-root span,
+    .boot-loading-primary,
+    .boot-loading-secondary {
+      font-family: "Fredoka", "Segoe UI Rounded", "Nunito", "Arial Black", Inter, system-ui, sans-serif !important;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+      letter-spacing: 0.05em !important;
+      -webkit-text-stroke: 0 !important;
+      transform: none !important;
+    }
+
+    #static-boot-cover .boot-loading-primary,
+    #boot-loading-overlay-root .boot-loading-primary,
+    .boot-loading-primary {
+      font-size: 24px !important;
+      font-weight: 700 !important;
+      color: #f4ebdd !important;
+      line-height: 1.4 !important;
+      margin-top: 8px !important;
+      display: inline-block !important;
+    }
+
+    #static-boot-cover .boot-loading-secondary,
+    #boot-loading-overlay-root .boot-loading-secondary,
+    .boot-loading-secondary {
+      font-size: 15px !important;
+      font-weight: 600 !important;
+      color: #e8f4fc !important;
+      opacity: 0.8 !important;
+      line-height: 1.4 !important;
+      display: inline-block !important;
+    }
+
+    .boot-loading-spinner {
+      width: 44px !important;
+      height: 44px !important;
+      border: 4px solid rgba(244, 235, 221, 0.15) !important;
+      border-top: 4px solid #f4ebdd !important;
+      border-radius: 50% !important;
+      animation: boot-spin 1s linear infinite !important;
+      margin-bottom: 12px !important;
+      display: inline-block !important;
+      box-sizing: border-box !important;
+    }
+
+    @keyframes boot-spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #root {
+      margin: 0;
+      min-height: 100%;
+      height: 100%;
+      background-color: transparent !important;
     }
   </style>
   <base href="/" />
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#000000" />
   <style>
     html {
-      background-color: #000000;
       color-scheme: dark;
-    }
-
-    body,
-    #root {
-      margin: 0;
-      min-height: 100%;
-      height: 100%;
-      background-color: #000000;
     }
   </style>
   <!-- <link rel="preload" href="/src/component/lobby/tactical/tournament/tournamentList.css" as="style"> -->
   <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-<%= htmlWebpackPlugin.options.nonce %>' https://trusted.cdn.com https://lenient-louse-86.clerk.accounts.dev; style-src 'self' 'unsafe-inline' https://example.com https://fonts.googleapis.com; img-src 'self' data: https://img.clerk.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://discord.com https://canary.discord.com https://ptb.discord.com https://cdn.discordapp.com https://media.discordapp.net wss://1252780878078152844.discordsays.com data: blob: wss://dazzling-setter-839.convex.cloud https://lenient-louse-86.clerk.accounts.dev;"> -->
   <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://trusted.cdn.com  https://lenient-louse-86.clerk.accounts.dev; style-src 'self' 'unsafe-inline'  https://fonts.googleapis.com;font-src 'self' https://fonts.gstatic.com;img-src 'self' data: https://img.clerk.com;; connect-src 'self' wss://dazzling-setter-839.convex.cloud https://discord.com https://canary.discord.com https://ptb.discord.com https://cdn.discordapp.com https://media.discordapp.net wss://1252780878078152844.discordsays.com  https://lenient-louse-86.clerk.accounts.dev wss://fungift.fungift.org:3000/ws wss://dazzling-setter-839.convex.cloud data: blob: wss://dazzling-setter-839.convex.cloud; worker-src 'self' https://fungift.fungift.org;">  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
   <title>Match 3</title>
 </head>
 
-<body style="overflow:hidden;width:100vw;height:100vh;margin:0;background-color:#000000;">
+<body style="overflow:hidden;width:100vw;height:100vh;margin:0;background-color:#3a6f63;background-image:linear-gradient(165deg,#5a8f9a 0%,#3a6f63 38%,#2a5248 100%);">
   <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root" style="overflow:hidden;width:100%;height:100%;min-height:100vh;background-color:#000000;"></div>
-  <!-- 与 #root 同级：不被 React createRoot 清空；覆盖「HTML 可见～bundle 执行～BootLoadingOverlay」间隙。纯 HTML 文案，慢网下避免长时间纯黑无提示 -->
+  <!-- 纯 HTML 静态层：首帧即显示可辨识的暗青绿渐变 + 背景图请求，不依赖 JS -->
   <div id="static-boot-cover" role="status" aria-live="polite" aria-busy="true"
-    style="position:fixed;inset:0;background-color:#000;z-index:2147483646;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;box-sizing:border-box;color:#fff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;">
-    <span style="font-size:18px;line-height:1.35;">正在加载应用…</span>
-    <span style="font-size:14px;line-height:1.35;opacity:0.75;">Loading application…</span>
+    style="position:fixed;inset:0;z-index:2147483646;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;box-sizing:border-box;text-align:center;background-color:#3a6f63;background-image:url('/assets/portal/solitaire/backgrounds/bg-16x9.png'),linear-gradient(165deg,#5a8f9a 0%,#3a6f63 38%,#2a5248 100%);background-size:cover;background-position:center;background-repeat:no-repeat;color:#f4ebdd;font-family:'Fredoka','Segoe UI Rounded','Nunito',sans-serif;">
+    <div class="boot-loading-spinner"
+      style="width:44px;height:44px;border:4px solid rgba(244,235,221,0.15);border-top:4px solid #f4ebdd;border-radius:50%;margin-bottom:12px;display:inline-block;box-sizing:border-box;"></div>
+    <span class="boot-loading-primary"
+      style="font-size:24px;font-weight:700;color:#f4ebdd;line-height:1.4;margin-top:8px;display:inline-block;">正在进入游戏大厅…</span>
+    <span class="boot-loading-secondary"
+      style="font-size:15px;font-weight:600;color:#e8f4fc;opacity:0.8;line-height:1.4;display:inline-block;">Entering game lobby…</span>
   </div>
+  <div id="root" style="overflow:hidden;width:100%;height:100%;min-height:100vh;background-color:transparent;"></div>
+  <!-- 与 #root 同级：不被 React createRoot 清空；覆盖「HTML 可见～bundle 执行～BootLoadingOverlay」间隙。纯 HTML 文案，慢网下避免长时间纯黑无提示 -->
+  <!-- 智能背景预加载：在慢网下，先显示精致的渐变底色，图片下载完成后平滑淡入，防止图片突兀“弹出” -->
+  <script>
+    (function() {
+      var isPortrait = window.innerHeight > window.innerWidth;
+      var bgUrl = isPortrait ? "/assets/portal/portal_bg_9x16.png" : "/assets/portal/solitaire/backgrounds/bg-16x9.png";
+      var img = new Image();
+      img.onload = function() {
+        window.__BOOT_BG_LOADED__ = true;
+        var cover = document.getElementById("static-boot-cover");
+        if (cover) {
+          cover.classList.add("bg-loaded");
+        }
+        try {
+          window.dispatchEvent(new CustomEvent("boot-bg-loaded"));
+        } catch(e) {}
+      };
+      img.src = bgUrl;
+      // 如果图片已经缓存，可能在 onload 绑定前就加载完了，安全起见检查一下 complete
+      if (img.complete) {
+        window.__BOOT_BG_LOADED__ = true;
+        try {
+          window.dispatchEvent(new CustomEvent("boot-bg-loaded"));
+        } catch(e) {}
+      }
+    })();
+  </script>
   <!-- 放在 body 末尾：避免阻塞 head 解析，否则 body 黑底与 static-boot-cover 会晚于长脚本执行才出现 -->
   <script>
     (function () {

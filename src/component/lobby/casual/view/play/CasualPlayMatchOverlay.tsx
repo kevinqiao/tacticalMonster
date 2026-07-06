@@ -15,6 +15,7 @@ export interface CasualPlayMatchOverlayProps {
   tournamentTitle?: string;
   leaving?: boolean;
   onLeave?: () => void;
+  className?: string;
 }
 
 /**
@@ -27,6 +28,7 @@ const CasualPlayMatchOverlay: React.FC<CasualPlayMatchOverlayProps> = ({
   tournamentTitle,
   leaving = false,
   onLeave,
+  className,
 }) => {
   const { t } = useTranslation("shared.casual");
 
@@ -50,7 +52,7 @@ const CasualPlayMatchOverlay: React.FC<CasualPlayMatchOverlayProps> = ({
 
   return createPortal(
     <div
-      className="casual-play-match-overlay"
+      className={`casual-play-match-overlay ${className ?? ""}`}
       role="dialog"
       aria-modal="true"
       aria-busy="true"

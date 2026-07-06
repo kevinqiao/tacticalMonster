@@ -1,0 +1,1084 @@
+﻿/* 
+ * Solitaire Q-version 3D Cartoon Theme (Premium AAA Volumetric, Chunky, Spacious)
+ * Scoped strictly to data-portal-game="solitaire" to prevent bleed
+ */
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] {
+  --theme-bg-color: #7dd3fc;
+  --theme-bg-pattern-color: #bae6fd;
+  --theme-border-dark: #0f172a;
+  
+  --solo-accent: #22c55e;
+  --solo-accent-dark: #15803d;
+  --solo-bg: #f0fdf4;
+  --solo-shadow: #166534;
+
+  --multi-accent: #d946ef;
+  --multi-accent-dark: #a21caf;
+  --multi-bg: #fdf4ff;
+  --multi-shadow: #86198f;
+
+  --gold-accent: #fbbf24;
+  --gold-accent-dark: #d97706;
+  --gold-bg: #fffbeb;
+  --gold-shadow: #b45309;
+
+  /* èƒŒæ™¯ï¼šCSS å¤©ç©ºæ¸å˜ï¼ˆä¸ç”¨æ•ˆæžœå›¾æ•´å›¾åˆ‡ç‰‡ï¼‰ */
+  background-color: #5eb8e8 !important;
+  background-image:
+    linear-gradient(180deg, #7dd3fc 0%, #5eb8e8 42%, #86efac 100%) !important;
+  background-size: 100% 100% !important;
+  background-position: center top !important;
+  background-repeat: no-repeat !important;
+  
+  color: #1e293b !important;
+  min-height: 100vh;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 24px 20px 64px;
+  font-family: "Nunito", "Segoe UI Rounded", "PingFang SC", "Microsoft YaHei", sans-serif;
+  max-width: 760px; /* Precise control of the page width as per V6 spacious spec */
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 32px; /* Super spacious layout spacing */
+}
+
+/* Background floating cartoon stars â€” ä»…ä¼ªå…ƒç´ ï¼Œå‹¿è¯¯ä¼¤ä¸»å®¹å™¨ */
+.portal-page.portal-page--solitaire::before,
+.portal-page[data-portal-game="solitaire"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image: 
+    radial-gradient(circle at 12% 18%, #fff 6px, transparent 8px),
+    radial-gradient(circle at 85% 15%, #fff 8px, transparent 10px),
+    radial-gradient(circle at 25% 75%, #fff 5px, transparent 7px),
+    radial-gradient(circle at 70% 82%, #fff 7px, transparent 9px);
+  background-size: 100% 100%;
+}
+
+/* Ensure all main content is placed above the grid/dots background */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   Header & Shop Entry
+   ========================================================================== */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-header {
+  margin-bottom: 0px;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-header-main {
+  display: none; /* Hide default simple header */
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-header-auth {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+
+/* Q-version Golden Pill Shop Button */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-shop-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(180deg, #fde047 0%, #fbbf24 55%, #f59e0b 100%) !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: 3.5px solid var(--theme-border-dark) !important;
+  border-radius: 999px !important;
+  padding: 8px 18px !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+  margin: 0 !important;
+  box-shadow: 0 5px 0 var(--gold-shadow), inset 0 2px 0 rgba(255, 255, 255, 0.55) !important;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  text-shadow: 0 2px 0 rgba(120, 53, 15, 0.45) !important;
+  min-width: 110px;
+  min-height: 36px;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-shop-pill:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-shop-pill:active {
+  transform: translateY(2px);
+  filter: brightness(0.95);
+}
+
+/* Auth SignOut/SignIn Pill buttons */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-header-auth-btn {
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  color: var(--theme-border-dark) !important;
+  border: 3.5px solid var(--theme-border-dark) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 5px 0 #94a3b8, inset 0 2px 0 rgba(255,255,255,0.9) !important;
+  padding: 8px 18px !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-header-auth-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 #94a3b8, inset 0 2px 0 rgba(255,255,255,0.9) !important;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-header-auth-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #94a3b8, inset 0 2px 0 rgba(255,255,255,0.9) !important;
+}
+
+/* ==========================================================================
+   Hero Banner & Hand-Painted Styled Poker Cards
+   ========================================================================== */
+.portal-solitaire-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 0 12px;
+}
+
+/* 3D SVG Fanning Cards Group */
+.portal-solitaire-hero-cards-css {
+  width: 200px;
+  height: 72px;
+  margin: 0 auto 6px;
+  position: relative;
+}
+
+.portal-solitaire-hero-cards-css::before,
+.portal-solitaire-hero-cards-css::after {
+  content: "";
+  position: absolute;
+  width: 46px;
+  height: 64px;
+  border-radius: 10px;
+  border: 3px solid var(--theme-border-dark);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 6px 0 rgba(15, 23, 42, 0.18);
+  top: 6px;
+}
+
+.portal-solitaire-hero-cards-css::before {
+  left: 18px;
+  transform: rotate(-14deg);
+}
+
+.portal-solitaire-hero-cards-css::after {
+  right: 18px;
+  transform: rotate(14deg);
+}
+
+.portal-solitaire-hero-title-text {
+  margin: 0 0 12px;
+  text-align: center;
+  font-size: clamp(2rem, 7vw, 2.75rem);
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  color: #fde047;
+  -webkit-text-stroke: 3px var(--theme-border-dark);
+  paint-order: stroke fill;
+  text-shadow:
+    0 4px 0 #b45309,
+    0 7px 0 rgba(15, 23, 42, 0.25);
+}
+
+.portal-mode-card-icon-badge {
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.65rem;
+  border-radius: 50%;
+  border: 3.5px solid var(--theme-border-dark);
+  box-shadow: 0 5px 0 rgba(15, 23, 42, 0.18), inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+.portal-mode-card-icon-badge--target {
+  background: radial-gradient(circle at 35% 30%, #fef08a 0%, #fbbf24 55%, #f59e0b 100%);
+}
+
+.portal-mode-card-icon-badge--swords {
+  background: radial-gradient(circle at 35% 30%, #fef08a 0%, #fbbf24 55%, #d97706 100%);
+}
+
+.portal-solitaire-hero-cards-img {
+  width: 180px;
+  height: 90px;
+  display: block;
+  object-fit: contain;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  margin-bottom: 8px;
+  animation: floatCardsGroup 4s infinite ease-in-out;
+}
+
+@keyframes floatCardsGroup {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* 3D Golden Embossed Logo Title */
+.portal-solitaire-hero-title-img {
+  width: 330px;
+  height: 75px;
+  display: block;
+  object-fit: contain;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  margin: 4px 0 12px;
+}
+
+/* Countdown Pill Badge */
+.portal-solitaire-hero-clock-chip {
+  background: #ffffff;
+  border: 3px solid var(--theme-border-dark);
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #475569;
+  box-shadow: 0 5px 0 rgba(15, 23, 42, 0.15);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ==========================================================================
+   Grids & Cozy Cards Layout (Chunky 3D Bevel, Stitching Lining)
+   ========================================================================== */
+.portal-solitaire-modes-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  /* Side-by-side grid partition as per V6 adjustment spec */
+  .portal-solitaire-modes-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+}
+
+/* Generic Mode Card */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card {
+  background: #ffffff;
+  border: 4px solid var(--theme-border-dark);
+  border-radius: 24px; /* Handheld console rounding */
+  padding: 24px 22px; /* Cozy spacing */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Force all inner contents above stitching */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Inner Stitching/Sewing felt frame for handcrafted toy look */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 2px dashed rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Volumetric Glossy Reflective Highlight Overlays */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Bevel physical drop-shadow weights with volumetric inset bevel lines */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--solo {
+  box-shadow: 0 12px 0 var(--solo-shadow), inset 0 4px 0 rgba(255,255,255,0.7), inset 0 -4px 0 rgba(0,0,0,0.06);
+  background: var(--solo-bg);
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--multi {
+  box-shadow: 0 12px 0 var(--multi-shadow), inset 0 4px 0 rgba(255,255,255,0.7), inset 0 -4px 0 rgba(0,0,0,0.06);
+  background: var(--multi-bg);
+}
+
+/* Card Header elements */
+.portal-mode-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+/* Golden Rim Concentric Badge Holders */
+.portal-mode-card-icon-wrapper {
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+  animation: floatIcon 3s infinite ease-in-out;
+}
+
+.portal-mode-card--solo .portal-mode-card-icon-wrapper,
+.portal-mode-card--multi .portal-mode-card-icon-wrapper {
+  background-image: none;
+}
+
+@keyframes floatIcon {
+  0%, 100% { transform: translateY(0px) rotate(-3deg); }
+  50% { transform: translateY(-4px) rotate(5deg); }
+}
+
+.portal-mode-card-title-section {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.portal-mode-card-title-section h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--theme-border-dark);
+  line-height: 1.2;
+}
+
+.portal-mode-card-subtitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Rank badge / "å½“å‰æŽ’åï¼š10" */
+.portal-mode-card-rank-badge {
+  background: #ffffff;
+  border: 3px solid var(--theme-border-dark);
+  border-radius: 12px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #1e293b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 4px 0 var(--theme-border-dark);
+  margin-bottom: 22px;
+  text-align: left;
+  align-self: flex-start;
+}
+
+.portal-mode-card-rank-badge .star-icon {
+  color: #fbbf24;
+}
+
+/* Main CTA buttons (CHALLENGE / COMPETE) */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main {
+  width: 100%;
+  min-height: 52px;
+  border: 4.0px solid var(--theme-border-dark) !important;
+  border-radius: 16px !important;
+  font-size: 18px !important;
+  font-weight: 950 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0 0 14px 0 !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+  text-shadow: 0 2px 0 rgba(15, 23, 42, 0.45) !important;
+  color: #ffffff !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Glossy sweep shine animation layer */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 30%;
+  height: 200%;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 100%);
+  transform: rotate(25deg);
+  transition: none;
+  pointer-events: none;
+  animation: shineSweep 4s infinite ease-in-out;
+}
+
+@keyframes shineSweep {
+  0% { left: -60%; }
+  15%, 100% { left: 130%; }
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main:disabled {
+  background: #cbd5e1 !important;
+  border-color: #94a3b8 !important;
+  box-shadow: 0 5px 0 #94a3b8, inset 0 2px 0 rgba(255,255,255,0.5) !important;
+  color: #64748b !important;
+  text-shadow: none !important;
+  cursor: not-allowed;
+  transform: none !important;
+  opacity: 0.8;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--solo .portal-btn-cta-main {
+  background: linear-gradient(180deg, #86efac 0%, #4ade80 45%, #22c55e 100%) !important;
+  background-image: none !important;
+  border: 4px solid var(--theme-border-dark) !important;
+  box-shadow: 0 6px 0 var(--solo-shadow), inset 0 2px 0 rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+  text-shadow: 0 2px 0 rgba(15, 23, 42, 0.35) !important;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--solo .portal-btn-cta-main:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--solo .portal-btn-cta-main:active:not(:disabled) {
+  transform: translateY(4px);
+  filter: brightness(0.95);
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--multi .portal-btn-cta-main {
+  background: linear-gradient(180deg, #e879f9 0%, #d946ef 50%, #c026d3 100%) !important;
+  background-image: none !important;
+  border: 4px solid var(--theme-border-dark) !important;
+  box-shadow: 0 6px 0 var(--multi-shadow), inset 0 2px 0 rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+  text-shadow: 0 2px 0 rgba(15, 23, 42, 0.35) !important;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--multi .portal-btn-cta-main:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--multi .portal-btn-cta-main:active:not(:disabled) {
+  transform: translateY(4px);
+  filter: brightness(0.95);
+}
+
+/* Secondary Actions Row */
+.portal-mode-card-actions-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-secondary-mini {
+  flex: 1;
+  min-height: 40px;
+  border: 3px solid var(--theme-border-dark) !important;
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+  color: #334155 !important;
+  font-size: 13.5px !important;
+  font-weight: 900 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 !important;
+  padding: 4px 8px !important;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #cbd5e1, inset 0 2px 0 #ffffff !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-secondary-mini:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #cbd5e1, inset 0 2px 0 #ffffff !important;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-secondary-mini:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #cbd5e1, inset 0 2px 0 #ffffff !important;
+}
+
+/* ==========================================================================
+   History Section ("ðŸ“œ æˆ‘çš„æˆ˜ç»©" Hand-painted Stone Board Style)
+   ========================================================================== */
+.portal-solitaire-history-section {
+  background: linear-gradient(180deg, #fef9c3 0%, #fde68a 35%, #f5e6c8 100%);
+  border: 4px solid var(--theme-border-dark) !important;
+  border-radius: 22px;
+  box-shadow: 0 10px 0 rgba(120, 53, 15, 0.22), inset 0 3px 0 rgba(255, 255, 255, 0.65) !important;
+  padding: 24px 26px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.portal-solitaire-history-section > * {
+  position: relative;
+  z-index: 2;
+}
+
+.portal-solitaire-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.portal-solitaire-history-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--theme-border-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.portal-solitaire-history-header-count {
+  font-size: 12.5px;
+  font-weight: 900;
+  color: #78350f;
+  background: #fef3c7;
+  border: 2.5px solid var(--theme-border-dark);
+  border-radius: 999px;
+  padding: 3px 12px;
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.15);
+}
+
+/* Minimalist History rows */
+.portal-solitaire-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portal-solitaire-history-row-minimalist {
+  background: #ffffff;
+  border: 3px solid var(--theme-border-dark);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 0 rgba(15, 23, 42, 0.08), inset 0 2px 0 rgba(255,255,255,0.8);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.portal-solitaire-history-row-minimalist:hover {
+  transform: scale(1.01) translateY(-1px);
+  box-shadow: 0 5px 0 rgba(15, 23, 42, 0.12), inset 0 2px 0 rgba(255,255,255,0.8);
+}
+
+.portal-solitaire-history-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  font-size: 15px;
+  color: #334155;
+}
+
+.portal-solitaire-history-row-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Time text "20m ago" */
+.portal-solitaire-history-time {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #94a3b8;
+}
+
+/* Fruit candy point bubble badge */
+.portal-solitaire-point-bubble {
+  min-width: 38px;
+  height: 26px;
+  border-radius: 999px;
+  border: 2.5px solid var(--theme-border-dark);
+  font-size: 13px;
+  font-weight: 950;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  text-shadow: 0 1.5px 0 rgba(15, 23, 42, 0.3);
+  box-shadow: 0 3px 0 var(--theme-border-dark), inset 0 1.5px 0 rgba(255,255,255,0.4);
+}
+
+.portal-solitaire-point-bubble--positive {
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%);
+}
+
+.portal-solitaire-point-bubble--negative {
+  background: linear-gradient(180deg, #f87171 0%, #ef4444 100%);
+}
+
+/* Pulser "è¿›è¡Œä¸­ âš¡" badge */
+.portal-solitaire-ongoing-badge {
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  border: 2.5px solid var(--theme-border-dark);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11.5px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.15);
+  box-shadow: 0 3px 0 var(--theme-border-dark);
+  animation: pulser 1.2s infinite ease-in-out;
+}
+
+@keyframes pulser {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Tiny "More â€º" link style button */
+.portal-solitaire-history-more-link {
+  align-self: flex-end;
+  background: none !important;
+  border: none !important;
+  color: #4f46e5 !important;
+  font-size: 14.5px !important;
+  font-weight: 900 !important;
+  cursor: pointer !important;
+  padding: 6px 0 !important;
+  margin-top: 8px !important;
+  text-align: right;
+  display: inline-block;
+  transition: color 0.1s;
+}
+
+.portal-solitaire-history-more-link:hover {
+  color: #3730a3 !important;
+  text-decoration: underline !important;
+}
+
+/* ==========================================================================
+   Alert / Notes override
+   ========================================================================== */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-note {
+  background: #fef2f2;
+  border: 3px solid var(--theme-border-dark);
+  border-radius: 14px;
+  color: #991b1b;
+  font-weight: 900;
+  box-shadow: 0 5px 0 rgba(15, 23, 42, 0.1);
+  padding: 12px 16px;
+}
+
+/* Ongoing run list in-body prompt */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-ongoing {
+  background: #ecfdf5;
+  border: 3.5px solid var(--theme-border-dark);
+  border-radius: 18px;
+  box-shadow: 0 8px 0 var(--solo-shadow), inset 0 2px 0 rgba(255,255,255,0.7);
+  color: #065f46;
+  padding: 16px 20px;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-ongoing-text {
+  font-weight: 900;
+  font-size: 15px;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-resume {
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%) !important;
+  border: 3px solid var(--theme-border-dark) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 5px 0 #0369a1, inset 0 2px 0 rgba(255,255,255,0.5) !important;
+  color: #ffffff !important;
+  font-weight: 950 !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-resume:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #0369a1, inset 0 2px 0 rgba(255,255,255,0.5) !important;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-btn-resume:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #0369a1, inset 0 2px 0 rgba(255,255,255,0.5) !important;
+}
+
+/* Login Auth card override */
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-auth {
+  background: #ffffff;
+  border: 3.5px solid var(--theme-border-dark);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 10px 0 #94a3b8, inset 0 3px 0 rgba(255,255,255,0.8);
+  margin-top: 10px;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-auth p {
+  font-weight: 900;
+  color: #475569;
+  font-size: 15px;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-auth .portal-btn {
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%) !important;
+  border: 3.5px solid var(--theme-border-dark) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 6px 0 var(--solo-shadow), inset 0 2px 0 rgba(255,255,255,0.5) !important;
+  color: white !important;
+  font-weight: 950 !important;
+  font-size: 16px !important;
+  padding: 12px 28px !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-auth .portal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 var(--solo-shadow), inset 0 2px 0 rgba(255,255,255,0.5) !important;
+}
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] .portal-auth .portal-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--solo-shadow), inset 0 2px 0 rgba(255,255,255,0.5) !important;
+}
+
+/* ==========================================================================
+   Modals & Popups Q-style override
+   ========================================================================== */
+.portal-modal-panel {
+  border: 4px solid var(--theme-border-dark) !important;
+  border-radius: 24px !important;
+  overflow: hidden;
+  box-shadow: 0 15px 0 rgba(15,23,42,0.15) !important;
+}
+
+.portal-modal-panel--fullscreen {
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+.portal-modal-head {
+  background: #f8fafc;
+  border-bottom: 4px solid var(--theme-border-dark) !important;
+  padding: 18px 24px !important;
+}
+
+.portal-modal-head h2 {
+  font-weight: 950 !important;
+  color: var(--theme-border-dark);
+  font-size: 22px;
+}
+
+.portal-modal-close {
+  font-size: 32px !important;
+  font-weight: 950 !important;
+  color: #64748b !important;
+  transition: transform 0.15s ease;
+}
+
+.portal-modal-close:hover {
+  transform: scale(1.2) rotate(90deg);
+  color: #0f172a !important;
+}
+
+/* Leaderboard Tables style override */
+.portal-lb-me--block {
+  background: #fef3c7;
+  border: 2.5px solid var(--theme-border-dark);
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 900;
+  color: #78350f;
+  display: inline-block;
+  box-shadow: 0 3px 0 rgba(15, 23, 42, 0.08);
+}
+
+.portal-lb-table th {
+  font-weight: 950 !important;
+  color: #334155;
+  border-bottom: 3.5px solid var(--theme-border-dark) !important;
+  padding: 12px 10px !important;
+  font-size: 15px;
+}
+
+.portal-lb-table td {
+  font-weight: 800;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0 !important;
+  padding: 12px 10px !important;
+  font-size: 14.5px;
+}
+
+.portal-lb-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.portal-lb-table-td-name {
+  font-weight: 900 !important;
+  color: #1e293b;
+}
+
+.portal-lb-table-td-rank {
+  font-weight: 950 !important;
+  font-size: 16px;
+  color: #475569;
+}
+
+.portal-lb-table tr:nth-child(1) .portal-lb-table-td-rank {
+  color: #d97706; /* Golden Rank 1 */
+}
+
+.portal-lb-table tr:nth-child(2) .portal-lb-table-td-rank {
+  color: #475569; /* Silver Rank 2 */
+}
+
+.portal-lb-table tr:nth-child(3) .portal-lb-table-td-rank {
+  color: #b45309; /* Bronze Rank 3 */
+}
+
+/* Rules dialog details list spacing */
+.rules-dialog-content {
+  font-weight: 800;
+  color: #475569;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+
+.rules-dialog-content p {
+  margin: 0 0 12px 0;
+}
+
+.rules-dialog-content ul {
+  padding-left: 20px;
+  margin: 0 0 14px 0;
+}
+
+.rules-dialog-content li {
+  margin-bottom: 8px;
+}
+
+/* ==========================================================================
+   Match Waiting Overlay Custom Q-version Theme (solitaire-match-overlay)
+   ========================================================================== */
+.solitaire-match-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  font-family: "Nunito", "Segoe UI Rounded", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__panel {
+  position: relative;
+  background: #ffffff;
+  border: 4px solid #0f172a;
+  border-radius: 24px;
+  padding: 32px 28px;
+  width: 90%;
+  max-width: 380px;
+  box-shadow: 0 15px 0 rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: modalPopIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPopIn {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__spinner-container {
+  width: 90px;
+  height: 100px;
+  perspective: 600px; /* 3D context space */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+/* 3D card-flipping spinner */
+.solitaire-match-overlay .casual-play-match-overlay__spinner-container::before {
+  content: "â™¥";
+  font-size: 42px;
+  font-weight: bold;
+  color: #ef4444;
+  background: #ffffff;
+  border: 3.5px solid #0f172a;
+  border-radius: 12px;
+  width: 50px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 0 #0f172a;
+  transform-style: preserve-3d;
+  animation: spinnerCardFlip 1.5s infinite ease-in-out;
+}
+
+@keyframes spinnerCardFlip {
+  0% {
+    transform: rotateY(0deg) translateY(0);
+    box-shadow: 0 6px 0 #0f172a;
+  }
+  50% {
+    transform: rotateY(180deg) translateY(-14px);
+    box-shadow: 0 15px 10px rgba(15,23,42,0.25);
+  }
+  100% {
+    transform: rotateY(360deg) translateY(0);
+    box-shadow: 0 6px 0 #0f172a;
+  }
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__phase {
+  font-size: 22px;
+  font-weight: 950;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__timer {
+  font-size: 15px;
+  font-weight: 900;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 2.5px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 4px 14px;
+  display: inline-block;
+  margin-bottom: 20px;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__sub {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #475569;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__cancel-btn {
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  color: #475569 !important;
+  border: 3px solid #0f172a !important;
+  border-radius: 12px !important;
+  font-weight: 900 !important;
+  font-size: 14px !important;
+  padding: 10px 24px !important;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #94a3b8 !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__cancel-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #94a3b8 !important;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__cancel-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #94a3b8 !important;
+}
+

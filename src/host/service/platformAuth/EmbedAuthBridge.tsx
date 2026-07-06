@@ -3,7 +3,8 @@
 import { usePartnerManager } from "../PartnerManager";
 import { buildEmbedSourceContext } from "./embedAuthGate";
 import { listEmbedCredentialSources } from "./embedSources/registry";
-import { collectEmbedSdkSpecs, loadSdksForSources } from "./embedSources/sdkLoader";
+import { logEmbedSourcesListening } from "./embedSources/embedAuthLog";
+import { loadEmbedSdkSpecs, planEmbedSdkLoads } from "./embedSources/sdkLoader";
 import type { EmbedSourceContext } from "./embedSources/types";
 import { useEmbedBootstrap } from "./useEmbedBootstrap";
 
@@ -59,10 +60,12 @@ export const EmbedAuthBridge: React.FC = () => {
 
     let cancelled = false;
     const sources = listEmbedCredentialSources();
-    const specs = collectEmbedSdkSpecs(sources, ctx);
+    const specs = planEmbedSdkLoads(sources, ctx);
 
     const attachSources = () => {
       if (cancelled) return;
+      const listening = sources.filter((source) => source.shouldListen(ctx)).map((s) => s.id);
+      logEmbedSourcesListening(listening, ctx.partnerPid);
       cleanupsRef.current = startEmbedSources(sources, ctx, runBootstrap);
     };
 
@@ -77,7 +80,7 @@ export const EmbedAuthBridge: React.FC = () => {
 
     void (async () => {
       try {
-        await loadSdksForSources(sources, ctx);
+        await loadEmbedSdkSpecs(specs);
       } catch (error) {
         console.warn("[EmbedAuthBridge] sdk preload failed", error);
       }

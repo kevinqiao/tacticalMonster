@@ -1,9 +1,12 @@
 import { listenPartnerEmbedAuth } from "../partnerEmbedAuth";
+import { logEmbedCredentialReceived, logEmbedSourceStart } from "./embedAuthLog";
 import { isEmbedLikelyContext, readInjectedPartnerEmbedToken } from "./embedContextDetect";
 import type { EmbedCredentialSource } from "./types";
 
+const SOURCE_ID = "partner_postmessage";
+
 export const partnerPostMessageSource: EmbedCredentialSource = {
-  id: "partner_postmessage",
+  id: SOURCE_ID,
   priority: 10,
   method: "jwt_local",
 
@@ -22,7 +25,9 @@ export const partnerPostMessageSource: EmbedCredentialSource = {
   },
 
   start(ctx, onCredential) {
+    logEmbedSourceStart(SOURCE_ID, "jwt_local", ctx.partnerPid);
     return listenPartnerEmbedAuth(({ token }) => {
+      logEmbedCredentialReceived(SOURCE_ID, "jwt_local", ctx.partnerPid, token.length);
       onCredential({
         credential: token,
         method: "jwt_local",

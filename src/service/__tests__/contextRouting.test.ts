@@ -63,6 +63,9 @@ describe("context routing", () => {
     const platform = resolveMountedRootShells(containers, "/platform/admin");
     expect(platform).toHaveLength(1);
     expect(platform[0]?.uri.startsWith("/platform")).toBe(true);
+
+    const preview = resolveMountedRootShells(containers, "/portal/preview");
+    expect(preview).toHaveLength(0);
   });
 
   it("modalMatchesActiveContext scopes modals by context", () => {
