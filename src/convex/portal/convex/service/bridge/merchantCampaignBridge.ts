@@ -27,7 +27,6 @@ export async function authorizeCampaignJoinViaHttp(args: {
   uid: string;
   merchantSlug: string;
   campaignSlug: string;
-  sessionPartnerId?: number;
 }): Promise<AuthorizeCampaignJoinResult> {
   const base = merchantCampaignSiteUrl();
   const url = `${base}/internal/authorize-campaign-join`;

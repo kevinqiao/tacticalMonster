@@ -691,12 +691,33 @@
 
 .portal-shop-panel {
   color: #6f4f2d;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-modal-body:has(.portal-shop-panel) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.portal-shop-panel__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  flex-shrink: 0;
 }
 
 .portal-shop-panel__balance {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 18px;
   font-weight: 800;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .portal-shop-panel__balance span {
@@ -775,6 +796,209 @@
   font-size: 15px;
   font-weight: 700;
   color: #a3814f;
+}
+
+.portal-shop-panel__region {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8b6914;
+}
+
+.portal-shop-panel__catalog {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.portal-shop-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.portal-shop-panel__sectionTitle {
+  margin: 0;
+  padding: 6px 0 2px;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #8b6914;
+  border-bottom: 2px solid rgba(139, 105, 20, 0.25);
+}
+
+.portal-shop-panel__itemTitleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.portal-shop-panel__itemTitleRow strong {
+  display: inline;
+  font-size: 18px;
+  margin-bottom: 0;
+}
+
+.portal-shop-panel__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #7a4c12;
+  background: linear-gradient(180deg, #fde8c8 0%, #f5c98a 100%);
+  border: 1px solid #c99f5b;
+}
+
+.portal-shop-panel__ordersLink {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 2px solid #c9a227;
+  background: #fff8e6;
+  font-size: 12px;
+  font-weight: 800;
+  color: #8b6914;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.portal-shop-panel__ordersCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #fff;
+  background: #b45309;
+}
+
+.portal-shop-panel__note--warn {
+  color: #b45309;
+}
+
+.portal-giftcard-panel__empty {
+  padding: 16px;
+  text-align: center;
+  color: #a3814f;
+  font-weight: 700;
+}
+
+.portal-giftcard-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.portal-giftcard-panel__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 248, 230, 0.9);
+  border: 2px solid #e8c878;
+}
+
+.portal-giftcard-panel__meta,
+.portal-giftcard-panel__status {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #8b6914;
+}
+
+.portal-giftcard-panel__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.portal-giftcard-panel__btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 2px solid #c9a227;
+  background: linear-gradient(180deg, #ffe9a8 0%, #f5c842 100%);
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.portal-giftcard-panel__btn--secondary {
+  background: #fff8e6;
+}
+
+.portal-region-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.portal-region-modal__card {
+  width: min(92vw, 360px);
+  padding: 20px;
+  border-radius: 16px;
+  background: #fff8e6;
+  border: 3px solid #c9a227;
+}
+
+.portal-region-modal__title {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.portal-region-modal__hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #8b6914;
+}
+
+.portal-region-modal__select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 2px solid #e8c878;
+  margin-bottom: 14px;
+}
+
+.portal-region-modal__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.portal-region-modal__btn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 2px solid #c9a227;
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.portal-region-modal__btn--primary {
+  background: linear-gradient(180deg, #ffe9a8 0%, #f5c842 100%);
 }
 
 .portal-rules-zone-mark--promote {

@@ -137,6 +137,8 @@
     "portal:seed-pool:bootstrap": "tsx scripts/portal/bootstrap-seed-pools.mjs",
     "test:casual-bot-fill": "vitest run --config vitest.seed-pool.config.ts src/convex/casualPlatform/convex/service/botFill/__tests__",
     "test:portal-points": "vitest run --config vitest.seed-pool.config.ts src/convex/portal/convex/service/points/__tests__",
+    "test:portal-giftcard": "vitest run --config vitest.seed-pool.config.ts src/convex/portal/convex/service/giftcard/__tests__",
+    "test:portal-league-giftcard-e2e": "node scripts/portal/portal-league-giftcard-e2e.mjs",
     "casual:weekly-league:week-test": "node scripts/casual/weekly-league-week-test.mjs",
     "casual:economy:balance": "node scripts/casual/economy-balance.mjs",
     "casual:economy:tune": "node scripts/casual/economy-tune.mjs",

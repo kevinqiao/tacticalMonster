@@ -1,37 +1,9 @@
 import React from "react";
 
 import { isStaffWebSignInContext } from "@/component/lobby/shared/resolveWebSignInFromLocation";
-import { useAppLocale } from "@/i18n/useAppLocale";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import { useUserManager } from "host/service/UserManager";
 import { useTranslation } from "react-i18next";
-
-export const CampaignLocaleSwitcher: React.FC<{ className?: string }> = ({ className }) => {
-  const { t } = useTranslation("campaign.player");
-  const { locale, changeLocale, supportedLocales, localeDisplayNames } = useAppLocale();
-
-  return (
-    <div
-      className={className ?? "campaign-locale-switcher"}
-      role="group"
-      aria-label={t("localeSwitcher.ariaLabel")}
-    >
-      {supportedLocales.map((loc) => (
-        <button
-          key={loc}
-          type="button"
-          className={`campaign-locale-switcher__btn${
-            locale === loc ? " campaign-locale-switcher__btn--active" : ""
-          }`}
-          aria-pressed={locale === loc}
-          onClick={() => changeLocale(loc)}
-        >
-          {localeDisplayNames[loc]}
-        </button>
-      ))}
-    </div>
-  );
-};
 
 export const MerchantPageToolbar: React.FC<{
   children?: React.ReactNode;
@@ -53,7 +25,6 @@ export const MerchantPageToolbar: React.FC<{
         </div>
       ) : null}
       <div className="merchant-toolbar__actions">
-        <CampaignLocaleSwitcher className="campaign-locale-switcher campaign-locale-switcher--merchant" />
         <nav className="merchant-toolbar__auth" aria-label={t("auth.navLabel")}>
           {authed ? (
             <button type="button" className="merchant-auth-btn" onClick={() => void logout()}>

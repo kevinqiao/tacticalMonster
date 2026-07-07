@@ -1,4 +1,9 @@
+import i18n from "@/i18n";
+
 import type { PortalWeeklyLeaderboardRow } from "../service/usePortalManager";
+import { leaveMatchQueueErrorText } from "../shared/portalErrorMessage";
+
+export { leaveMatchQueueErrorText };
 
 export function formatWeekRemaining(endsAt: number | null | undefined): string {
   if (!endsAt) return "";
@@ -6,8 +11,14 @@ export function formatWeekRemaining(endsAt: number | null | undefined): string {
   const h = Math.floor(ms / 3600000);
   const d = Math.floor(h / 24);
   const rh = h % 24;
-  if (d > 0) return `本周剩余 ${d} 天 ${rh} 小时`;
-  return `本周剩余 ${rh} 小时`;
+  if (d > 0) {
+    return i18n.t("lobby.weekRemaining", {
+      ns: "portal.player",
+      days: d,
+      hours: rh,
+    });
+  }
+  return i18n.t("lobby.weekRemainingHours", { ns: "portal.player", hours: rh });
 }
 
 /**
@@ -31,10 +42,3 @@ export function mergePortalWeeklyBoards(
     .sort((a, b) => b.points - a.points || a.uid.localeCompare(b.uid))
     .map((row, i) => ({ ...row, rank: i + 1 }));
 }
-
-export function leaveMatchQueueErrorText(error: string): string {
-  if (error === "cannot_leave_claiming") return "正在创建对局，请稍候…";
-  if (error === "not_in_queue") return "当前不在匹配队列中。";
-  return `退出失败：${error}`;
-}
-

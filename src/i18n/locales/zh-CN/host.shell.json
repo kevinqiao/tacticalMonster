@@ -1,0 +1,13 @@
+{
+  "boot": {
+    "enteringPortal": "正在进入游戏大厅…",
+    "enteringTacticalLobby": "正在进入战术大厅…",
+    "enteringCasualLobby": "正在进入休闲大厅…",
+    "enteringCampaign": "正在加载活动页…",
+    "enteringCampaignMerchant": "正在加载商家后台…",
+    "enteringPlatformAdmin": "正在加载平台管理…",
+    "enteringPartnerAdmin": "正在加载 Partner 管理…",
+    "enteringLobby": "正在进入游戏大厅…"
+  }
+}
+

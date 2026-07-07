@@ -21,11 +21,10 @@ export const joinTournament = authedAction({
     tournamentId: v.optional(v.string()),
     merchantSlug: v.optional(v.string()),
     campaignSlug: v.optional(v.string()),
-    sessionPartnerId: v.optional(v.number()),
   },
   handler: async (
     ctx,
-    { tournamentId, merchantSlug, campaignSlug, sessionPartnerId }
+    { tournamentId, merchantSlug, campaignSlug }
   ): Promise<JoinCasualRunResult> => {
     const uid = ctx.uid;
     let resolvedTemplateId = tournamentId;
@@ -39,7 +38,6 @@ export const joinTournament = authedAction({
         uid,
         merchantSlug,
         campaignSlug,
-        ...(sessionPartnerId != null ? { sessionPartnerId } : {}),
       });
       if (!authorized.ok) {
         return { ok: false as const, error: authorized.error };

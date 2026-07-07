@@ -34,10 +34,6 @@ http.route({
     const uid = typeof b.uid === "string" ? b.uid : "";
     const merchantSlug = typeof b.merchantSlug === "string" ? b.merchantSlug : "";
     const campaignSlug = typeof b.campaignSlug === "string" ? b.campaignSlug : "";
-    const sessionPartnerId =
-      typeof b.sessionPartnerId === "number" && Number.isFinite(b.sessionPartnerId)
-        ? b.sessionPartnerId
-        : undefined;
     if (!uid || !merchantSlug || !campaignSlug) {
       return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
         status: 400,
@@ -46,7 +42,7 @@ http.route({
     }
     const result = await ctx.runQuery(
       internal.service.merchant.campaignJoinAuthorize.authorizeCampaignJoinInternal,
-      { uid, merchantSlug, campaignSlug, sessionPartnerId }
+      { uid, merchantSlug, campaignSlug }
     );
     return new Response(JSON.stringify(result), {
       status: 200,

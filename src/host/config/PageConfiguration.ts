@@ -127,6 +127,15 @@ export const CampaignPlace =
     context: "/campaign",
     navs: [
         {
+            name: "home",
+            auth: 0,
+            path: "./lobby/campaign/marketing/PlayMintMarketingPage",
+            uri: "home",
+            class: "page_container page_container--scroll",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        },
+        {
             name: "landing",
             auth: 0,
             path: "./lobby/campaign/landing/CampaignLandingPage",

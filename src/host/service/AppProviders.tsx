@@ -5,6 +5,7 @@ import ClerkAuthShell from "../sso/ClerkAuthShell";
 import ConvexAuthBinder from "./platformAuth/ConvexAuthBinder";
 import { EmbedAuthGateProvider } from "./platformAuth/EmbedAuthGateProvider";
 import EmbedAuthBridge from "./platformAuth/EmbedAuthBridge";
+import { PartnerSessionGuard } from "./platformAuth/PartnerSessionGuard";
 import { PlatformAuthProvider } from "./platformAuth/PlatformAuthProvider";
 import PartnerProvider from "./PartnerManager";
 import { ModalProvider } from "./ModalManager";
@@ -33,6 +34,7 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
                         <EmbedAuthGateProvider>
                             <ClerkAuthShell>
                                 <EmbedAuthBridge />
+                                <PartnerSessionGuard />
                                 <ConvexAuthBinder>
                                 <SharedPageDataProvider>
                                     <PageProvider>

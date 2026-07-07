@@ -98,6 +98,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/casual/view/town/CasualTownTab': () => import('component/lobby/casual/view/town/CasualTownTab'),
   './lobby/portal/PortalGamePage': () => import('component/lobby/portal/PortalGamePage'),
   './lobby/campaign/PlayForCouponPage': () => import('component/lobby/campaign/PlayForCouponPage'),
+  './lobby/campaign/marketing/PlayMintMarketingPage': () =>
+    import('component/lobby/campaign/marketing/PlayMintMarketingPage'),
   './lobby/campaign/landing/CampaignLandingPage': () =>
     import('component/lobby/campaign/landing/CampaignLandingPage'),
   './lobby/campaign/merchant/MerchantHomePage': () =>

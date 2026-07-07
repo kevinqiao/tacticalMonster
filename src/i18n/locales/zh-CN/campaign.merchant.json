@@ -20,7 +20,10 @@
   },
   "home": {
     "title": "商家后台",
-    "subtitle": "管理 Campaign、品牌主题与兑换券核销。",
+    "subtitle": "店铺主页、店内海报、可选的玩局领券、前台核销 — 无需改 POS 即可试点。",
+    "gettingStarted": "快速开始",
+    "gettingStartedSteps": "1）发布海报活动到店铺主页 · 2）需要拉活跃时再开游戏挑战 · 3）在「核销」页前台扫码",
+    "homepageLink": "店铺主页（可放在菜单、小票、社媒 — 顾客可回访）",
     "myMerchants": "我的商家",
     "createMerchant": "创建商家",
     "slug": "Slug",
@@ -31,7 +34,8 @@
   },
   "campaigns": {
     "title": "活动管理",
-    "intro": "活动周期、发券规则由 Merchant 存储；Portal 只负责 join/settle 竞技，使用固定模板 portal_solo_p75_* / portal_multi_*。",
+    "intro": "已上线活动会出现在店铺主页（/campaign/{{merchantSlug}}）。日常用海报展示；需要玩局领券时再开游戏挑战。",
+    "merchantHomeUrl": "店铺主页：/campaign/{{merchantSlug}}",
     "newTitle": "新建活动",
     "newHint": "券奖励在下方选择「券定义」；需先在券定义创建模板。",
     "createDraft": "创建 draft",
@@ -65,8 +69,8 @@
   },
   "form": {
     "experienceType": "活动类型",
-    "experienceTypeGame": "游戏挑战（玩局领券）",
-    "experienceTypeDisplay": "海报展示（线下/纯宣传）",
+    "experienceTypeGame": "游戏挑战（玩局领券 — 按需开启）",
+    "experienceTypeDisplay": "海报展示（日常店内活动 — 无需游戏）",
     "poster": "海报图片",
     "posterSection": "活动海报",
     "posterDualHint": "请分别上传竖屏与横屏海报，全屏展示效果最佳。同一视觉主题、两种独立构图，不要只裁一张图。",

@@ -13,7 +13,15 @@ export default defineSchema({
     uid: v.string(),
     coins: v.optional(v.number()),
     gems: v.optional(v.number()),
+    createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
+    /** 礼品卡兑换锁定地区（US / CA / GB / EU …） */
+    redemptionRegion: v.optional(v.string()),
+    redemptionRegionLockedAt: v.optional(v.number()),
+    verifiedEmail: v.optional(v.string()),
+    verifiedPhone: v.optional(v.string()),
+    contactVerifiedAt: v.optional(v.number()),
+    redemptionProfileSyncedAt: v.optional(v.number()),
     /** @deprecated legacy session token; do not write */
     token: v.optional(v.string()),
   }).index("by_uid", ["uid"]),
@@ -40,7 +48,54 @@ export default defineSchema({
     weeklyPurchaseLimit: v.optional(v.number()),
     active: v.boolean(),
     sortOrder: v.number(),
+    skuKind: v.optional(v.union(v.literal("virtual"), v.literal("giftcard"))),
+    region: v.optional(v.string()),
+    faceValueUsd: v.optional(v.number()),
+    faceValueLocal: v.optional(v.number()),
+    faceValueCurrency: v.optional(v.string()),
+    tangoUtid: v.optional(v.string()),
+    brandName: v.optional(v.string()),
+    brandLogoUrl: v.optional(v.string()),
+    scarcityMultiplier: v.optional(v.number()),
+    minAccountAgeDays: v.optional(v.number()),
+    requiresVerifiedContact: v.optional(v.boolean()),
+    shopSection: v.optional(v.string()),
+    partnerIds: v.optional(v.array(v.number())),
   }).index("by_skuId", ["skuId"]),
+
+  /** Tango 礼品卡兑换订单（金币扣减后异步履约） */
+  portal_giftcard_orders: defineTable({
+    orderId: v.string(),
+    uid: v.string(),
+    skuId: v.string(),
+    region: v.string(),
+    priceCoins: v.number(),
+    faceValueUsd: v.number(),
+    faceValueLocal: v.number(),
+    faceValueCurrency: v.string(),
+    tangoUtid: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("fulfilled"),
+      v.literal("failed"),
+      v.literal("refunded")
+    ),
+    tangoReferenceOrderId: v.optional(v.string()),
+    tangoOrderId: v.optional(v.string()),
+    rewardLink: v.optional(v.string()),
+    rewardLinkExpiresAt: v.optional(v.number()),
+    deliveryEmail: v.optional(v.string()),
+    failureReason: v.optional(v.string()),
+    attemptCount: v.number(),
+    lastAttemptAt: v.optional(v.number()),
+    createdAt: v.number(),
+    fulfilledAt: v.optional(v.number()),
+  })
+    .index("by_orderId", ["orderId"])
+    .index("by_uid_created", ["uid", "createdAt"])
+    .index("by_status", ["status"])
+    .index("by_uid_status", ["uid", "status"]),
 
   portal_shop_weekly_purchase_counters: defineTable({
     uid: v.string(),

@@ -1,0 +1,217 @@
+{
+  "localeSwitcher": {
+    "ariaLabel": "Choose language"
+  },
+  "common": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "empty": "None yet",
+    "dash": "—"
+  },
+  "lobby": {
+    "shop": "Shop",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "leaderboard": "Leaderboard",
+    "history": "History",
+    "modes": {
+      "challenge": "Challenge",
+      "arena": "Arena"
+    },
+    "play": "Play",
+    "continue": "Continue",
+    "joining": "Joining…",
+    "matching": "Matching…",
+    "weekRemaining": "{{days}}d {{hours}}h left this week",
+    "weekRemainingHours": "{{hours}}h left this week",
+    "cohortLabel": "Group #{{no}}",
+    "cohortPending": "Weekly group",
+    "rankLabel": "Rank {{rank}} / {{size}}",
+    "zonePromote": "↑ Promote {{from}}-{{to}}",
+    "zoneKeep": "Safe {{from}}-{{to}}",
+    "zoneDemote": "↓ Demote {{from}}-{{to}}",
+    "projectedReward": "Projected reward",
+    "unclaimedCoins": "Claim {{coins}}",
+    "unclaimedCoinsAria": "Claim {{coins}} coins",
+    "shopAria": "Shop",
+    "shopWithBalanceAria": "Shop, {{coins}} coins",
+    "rulesAria": "Game rules",
+    "leaderboardAria": "Leaderboard",
+    "historyAria": "History"
+  },
+  "tiers": {
+    "bronze": "Bronze",
+    "silver": "Silver",
+    "gold": "Gold",
+    "platinum": "Platinum",
+    "diamond": "Diamond",
+    "divisionSuffix": "{{tier}} {{division}}"
+  },
+  "history": {
+    "empty": "No matches yet",
+    "ongoing": "In progress",
+    "enter": "Tap to enter ›",
+    "score": "Score {{score}}",
+    "rank": "Rank {{rank}}",
+    "points": "{{delta}} pts",
+    "pendingSettlement": "Awaiting settlement",
+    "report": "Report",
+    "matchTypes": {
+      "solo_p75": "Solo Challenge",
+      "multi_ranked": "Arena"
+    }
+  },
+  "leaderboard": {
+    "cohortTitle": "Group standings",
+    "totalTitle": "Weekly leaderboard",
+    "myWeek": "My week: {{points}} pts",
+    "myWeekWithRank": "My week: {{points}} pts · Rank {{rank}}",
+    "empty": "No leaderboard data yet",
+    "columns": {
+      "rank": "#",
+      "player": "Player",
+      "points": "Points",
+      "matches": "Matches"
+    }
+  },
+  "weeklyLeague": {
+    "title": "Weekly league results",
+    "emptyInfo": "No settlement info",
+    "outcome": {
+      "promote": "Promoted",
+      "demote": "Demoted",
+      "keep": "Held rank"
+    },
+    "finalRank": " · Rank {{rank}}",
+    "currentTier": "Current tier: {{tier}}",
+    "rewardCoins": "🪙 {{coins}} coins",
+    "noExtraReward": "No extra rewards this week",
+    "claim": "Claim reward",
+    "claiming": "Claiming…",
+    "dismiss": "Claim later",
+    "claimedToast": "Claimed {{coins}} coins"
+  },
+  "shop": {
+    "title": "Redemption shop",
+    "balance": "Balance:",
+    "region": "Region: {{region}}",
+    "ordersToggle": "My gift card orders",
+    "ordersModalTitle": "My gift card orders",
+    "badgeGiftCard": "Gift card",
+    "sections": {
+      "virtual": "Items",
+      "giftcard": "Gift cards",
+      "featured": "Featured",
+      "consumables": "Consumables",
+      "rewards": "Rewards"
+    },
+    "empty": "No items available",
+    "faceValue": "Face value {{value}}",
+    "grantReplay": "Replay tokens ×{{count}}",
+    "weeklyRemaining": "{{remaining}} / {{limit}} left this week",
+    "buying": "Redeeming…",
+    "soldOut": "Sold out",
+    "success": "Redeemed!",
+    "giftCardProcessing": "Processing — check My gift card orders"
+  },
+  "shopSkus": {
+    "portal_shop_replay_3": {
+      "title": "Replay tokens ×3",
+      "description": "Replay once after a run ends. Supported challenge modes only."
+    },
+    "portal_shop_replay_10": {
+      "title": "Replay tokens ×10",
+      "description": "Best value for frequent competitors."
+    },
+    "gc_amazon_5_us": {
+      "title": "Amazon gift card $5",
+      "description": "US Amazon.com e-gift card."
+    }
+  },
+  "giftcard": {
+    "empty": "No gift card orders",
+    "status": {
+      "pending": "Queued",
+      "processing": "Processing",
+      "fulfilled": "Ready to claim",
+      "failed": "Failed",
+      "refunded": "Refunded"
+    },
+    "redeem": "Claim",
+    "redeeming": "Claiming…",
+    "resendEmail": "Resend email",
+    "sending": "Sending…"
+  },
+  "regions": {
+    "title": "Choose redemption region",
+    "hint": "Region is locked for 30 days. Gift cards can only be used in the selected region.",
+    "US": "United States (US)",
+    "CA": "Canada (CA)",
+    "GB": "United Kingdom (GB)",
+    "EU": "Europe (EU)"
+  },
+  "modals": {
+    "historyTitle": "Match history",
+    "rulesTitle": "How to play"
+  },
+  "report": {
+    "title": "Match report",
+    "subtitle": "Scores and ranks for everyone at this table. Tap Replay on a row to watch that player's run.",
+    "dismiss": "Close",
+    "watch": "Replay"
+  },
+  "rules": {
+    "tabs": {
+      "points": "Points",
+      "tiers": "Tiers & groups",
+      "rewards": "Rewards"
+    },
+    "points": {
+      "title": "Points",
+      "intro": "Both modes feed the <strong>same weekly total</strong>. Your total determines your rank within this week's group.",
+      "soloTitle": "🎯 Solo Challenge",
+      "soloBullets": [
+        "Each run has a seed P75 <strong>target score</strong>;",
+        "Hit target: <strong class=\"portal-rules-pos\">+3 pts</strong>, miss: <strong class=\"portal-rules-neg\">-1 pt</strong>;",
+        "Runs that time out count as a miss."
+      ],
+      "multiTitle": "⚔️ Arena",
+      "multiBullets": [
+        "Compete with 5 players at the <strong>same seed</strong>;",
+        "Placement points: 🥇 <strong class=\"portal-rules-pos\">+5</strong> / 🥈 <strong class=\"portal-rules-pos\">+3</strong> / 🥉 <strong class=\"portal-rules-pos\">+1</strong> / 4th <strong class=\"portal-rules-neg\">-1</strong> / 5th <strong class=\"portal-rules-neg\">-2</strong>."
+      ]
+    },
+    "tiers": {
+      "title": "Tiers & groups",
+      "bullets": [
+        "Each week you join a <strong>50-player group</strong> with players in the <strong>same tier</strong>;",
+        "At weekly reset, ranks within the group determine promotion:"
+      ],
+      "zonePromote": "↑ Promote 1-10",
+      "zoneKeep": "Safe 11-40",
+      "zoneDemote": "↓ Demote 41-50",
+      "resetBullet": "Points reset each week. You are regrouped at your new tier."
+    },
+    "rewards": {
+      "title": "Rewards",
+      "intro": "Coins are granted by <strong>group rank</strong> at weekly reset. Higher rank and <strong>higher tier</strong> mean more coins:",
+      "rankColumn": "Group rank",
+      "ranges": {
+        "rank1": "1st place",
+        "rank2_3": "2nd–3rd",
+        "rank4_10": "4th–10th",
+        "rank11_40": "11th–40th",
+        "rank41_50": "41st–50th"
+      },
+      "legendPromote": "Promote to next tier",
+      "legendKeep": "Hold tier",
+      "legendDemote": "Drop to lower tier",
+      "footerBullets": [
+        "Spend coins in the <strong>redemption shop</strong>;",
+        "Reset timing follows the <strong>time left this week</strong> on the home screen;",
+        "Reward values follow the current season config."
+      ]
+    }
+  }
+}

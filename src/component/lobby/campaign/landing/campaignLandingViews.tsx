@@ -8,8 +8,6 @@ import { CAMPAIGN_BG_DESKTOP, CAMPAIGN_BG_MOBILE } from "../assets/campaignBackg
 
 import CasualPlayMatchOverlay from "../../casual/view/play/CasualPlayMatchOverlay";
 
-import { CampaignLocaleSwitcher } from "../shared/CampaignLocaleSwitcher";
-
 import { CouponRevealPanel } from "../shared/CouponRevealPanel";
 
 import { useCampaignFlow } from "../service/useCampaignFlow";
@@ -98,8 +96,6 @@ export const CampaignLandingSharedTopbar: React.FC<{
       </div>
 
       <nav className="campaign-topbar__actions" aria-label={t("auth.navLabel")}>
-
-        <CampaignLocaleSwitcher />
 
         {authed && onMyCoupons ? (
 

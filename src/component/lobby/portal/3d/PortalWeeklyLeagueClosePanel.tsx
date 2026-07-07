@@ -1,12 +1,16 @@
 import React, { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { portalTierDisplayLabel, type PortalTierId } from "./portalGame3DTheme";
 import type { PortalWeeklyCloseDisplay } from "./portalWeeklyCloseDisplay";
 
-function outcomeLabel(outcome?: string): string {
-  if (outcome === "promote") return "晋级";
-  if (outcome === "demote") return "降级";
-  return "保级";
+function outcomeLabel(
+  outcome: string | undefined,
+  t: (key: string) => string
+): string {
+  if (outcome === "promote") return t("weeklyLeague.outcome.promote");
+  if (outcome === "demote") return t("weeklyLeague.outcome.demote");
+  return t("weeklyLeague.outcome.keep");
 }
 
 type PortalWeeklyLeagueClosePanelProps = {
@@ -26,6 +30,7 @@ export function PortalWeeklyLeagueClosePanel({
   onClose,
   onClaimed,
 }: PortalWeeklyLeagueClosePanelProps) {
+  const { t } = useTranslation("portal.player");
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
 
@@ -56,23 +61,29 @@ export function PortalWeeklyLeagueClosePanel({
   if (!display) {
     return (
       <div className="portal-wl-close">
-        <p className="portal-wl-close__empty">暂无结算信息</p>
+        <p className="portal-wl-close__empty">{t("weeklyLeague.emptyInfo")}</p>
       </div>
     );
   }
 
   return (
     <div className="portal-wl-close">
-      <h2 className="portal-wl-close__title">周联赛结算</h2>
+      <h2 className="portal-wl-close__title">{t("weeklyLeague.title")}</h2>
       <p className="portal-wl-close__sub">
-        {outcomeLabel(display.outcome)}
-        {display.finalRank ? ` · 第 ${display.finalRank} 名` : null}
+        {outcomeLabel(display.outcome, t)}
+        {display.finalRank
+          ? t("weeklyLeague.finalRank", { rank: display.finalRank })
+          : null}
       </p>
-      <p className="portal-wl-close__tier">当前段位：{tierLabel}</p>
+      <p className="portal-wl-close__tier">
+        {t("weeklyLeague.currentTier", { tier: tierLabel })}
+      </p>
       {rewards && (rewards.coins ?? 0) > 0 ? (
-        <p className="portal-wl-close__rewards">🪙 {rewards.coins} 金币</p>
+        <p className="portal-wl-close__rewards">
+          {t("weeklyLeague.rewardCoins", { coins: rewards.coins })}
+        </p>
       ) : (
-        <p className="portal-wl-close__empty">本周无额外奖励</p>
+        <p className="portal-wl-close__empty">{t("weeklyLeague.noExtraReward")}</p>
       )}
       <div className="portal-wl-close__actions">
         {canClaim ? (
@@ -82,7 +93,7 @@ export function PortalWeeklyLeagueClosePanel({
             disabled={claiming}
             onClick={() => void handleClaim()}
           >
-            {claiming ? "领取中…" : "领取奖励"}
+            {claiming ? t("weeklyLeague.claiming") : t("weeklyLeague.claim")}
           </button>
         ) : null}
         <button
@@ -90,7 +101,7 @@ export function PortalWeeklyLeagueClosePanel({
           className="portal-wl-close__btn portal-wl-close__btn--ghost"
           onClick={() => void handleDismiss()}
         >
-          稍后再领
+          {t("weeklyLeague.dismiss")}
         </button>
       </div>
     </div>

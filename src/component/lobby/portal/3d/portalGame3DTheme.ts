@@ -2,6 +2,7 @@ import {
   PORTAL_GAME_TYPES,
   type RegisteredPortalGameType,
 } from "@/convex/portal/convex/data/portalGameRegistry";
+import i18n from "@/i18n";
 
 /** 全游戏共用 3D 大厅背景（canonical，待 art 就绪） */
 export const PORTAL_3D_SHARED_BG = {
@@ -78,11 +79,11 @@ export function resolvePortal3DTierBadge(tierId: PortalTierId | null | undefined
 }
 
 const PORTAL_TIER_BASE_LABELS: Record<PortalTierId, string> = {
-  bronze: "青铜",
-  silver: "白银",
-  gold: "黄金",
-  platinum: "铂金",
-  diamond: "钻石",
+  bronze: "bronze",
+  silver: "silver",
+  gold: "gold",
+  platinum: "platinum",
+  diamond: "diamond",
 };
 
 /** 段位展示文案（Phase 2：大段 + 默认罗马数字 I） */
@@ -90,8 +91,14 @@ export function portalTierDisplayLabel(tierId: PortalTierId): {
   tierLabel: string;
   division: string;
 } {
-  const base = PORTAL_TIER_BASE_LABELS[tierId] ?? PORTAL_TIER_BASE_LABELS.bronze;
-  return { tierLabel: `${base} I`, division: "I" };
+  const division = "I";
+  const tier = i18n.t(`tiers.${PORTAL_TIER_BASE_LABELS[tierId] ?? "bronze"}`, {
+    ns: "portal.player",
+  });
+  return {
+    tierLabel: i18n.t("tiers.divisionSuffix", { ns: "portal.player", tier, division }),
+    division,
+  };
 }
 
 /** 供开发期校验：已注册的 gameType 均有 logo 配置 */

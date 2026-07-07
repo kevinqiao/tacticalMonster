@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import Match3LobbyWatchOverlay from "@/component/battle/games/match3/battle/replay/Match3LobbyWatchOverlay";
 import SolitaireLobbyWatchOverlay from "@/component/battle/games/solitaireSolo/battle/replay/SolitaireLobbyWatchOverlay";
@@ -101,18 +102,21 @@ export const PortalHistoryReportOverlays: React.FC<{
   onCloseReport,
   onCloseWatch,
   onWatchFromReport,
-}) => (
+}) => {
+  const { t } = useTranslation("portal.player");
+
+  return (
   <>
     <CasualPostSettleSummaryOverlay
       open={reportSummary != null && watchTarget == null}
-      title="战报"
-      subtitle="本桌全部玩家得分与名次。点击各行「回放」可查看该玩家本局操作。"
+      title={t("report.title")}
+      subtitle={t("report.subtitle")}
       summary={reportSummary}
       tableMetaNote={reportTableMetaNote}
       onDismiss={onCloseReport}
-      dismissLabel="关闭"
+      dismissLabel={t("report.dismiss")}
       onWatchRow={onWatchFromReport}
-      watchButtonLabel="回放"
+      watchButtonLabel={t("report.watch")}
       pinFooter
     />
     {watchGameType === "match_3" ? (
@@ -145,4 +149,5 @@ export const PortalHistoryReportOverlays: React.FC<{
       />
     ) : null}
   </>
-);
+  );
+};

@@ -1,13 +1,17 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
+
 import {
   getBootBgImageLayers,
   getBootFallbackBg,
-} from "./bootTheme";
+  resolveBootShellTheme,
+} from "./bootShellThemes";
 import {
   isPortalBootRoute,
   PORTAL_BOOT_PAINTED,
 } from "./bootHandoff";
+import { useHistoryLocationKey } from "./service/useHistoryLocationKey";
 import { usePageManager } from "./service/PageManager";
 import { useUserManager } from "host/service/UserManager";
 
@@ -19,12 +23,15 @@ const BOOT_LAYER_Z = 500_000;
 const STATIC_BOOT_COVER_ID = "static-boot-cover";
 
 const BootLoadingOverlay: React.FC = () => {
+  const { t } = useTranslation("host.shell");
   const { user } = useUserManager();
   const { coldBootAssetsReady, pageEvent } = usePageManager();
+  const locationKey = useHistoryLocationKey();
+  const bootTheme = resolveBootShellTheme();
   const [unmounted, setUnmounted] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const [portalPainted, setPortalPainted] = useState(false);
-  const labelRef = useRef({ primary: "正在进入游戏大厅…", secondary: "Entering game lobby…" });
+  const labelRef = useRef("");
   const shellRef = useRef<HTMLDivElement | null>(null);
 
   const portalRoute = isPortalBootRoute();
@@ -49,9 +56,10 @@ const BootLoadingOverlay: React.FC = () => {
     return "ready";
   }, [user, coldBootAssetsReady, handoffReady]);
 
-  const label = useMemo(() => {
-    return { primary: "正在进入游戏大厅…", secondary: "Entering game lobby…" };
-  }, []);
+  const label = useMemo(
+    () => t(`boot.${bootTheme.messageKey}`, { defaultValue: t("boot.enteringPortal") }),
+    [bootTheme.messageKey, locationKey, t]
+  );
 
   if (phase !== "ready") {
     labelRef.current = label;
@@ -79,8 +87,8 @@ const BootLoadingOverlay: React.FC = () => {
   if (unmounted) return null;
 
   const showText = phase !== "ready" ? label : labelRef.current;
-  const bootFallbackBg = getBootFallbackBg();
-  const bootPhotoLayers = getBootBgImageLayers();
+  const bootFallbackBg = getBootFallbackBg(bootTheme);
+  const bootPhotoLayers = getBootBgImageLayers(bootTheme);
 
   const overlay = (
     <div
@@ -121,12 +129,7 @@ const BootLoadingOverlay: React.FC = () => {
         }}
       >
         <div className="boot-loading-spinner" />
-        <span className="boot-loading-primary">
-          {showText.primary}
-        </span>
-        <span className="boot-loading-secondary">
-          {showText.secondary}
-        </span>
+        <span className="boot-loading-primary">{showText}</span>
       </div>
     </div>
   );

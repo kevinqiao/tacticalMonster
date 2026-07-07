@@ -1,0 +1,217 @@
+{
+  "localeSwitcher": {
+    "ariaLabel": "选择语言"
+  },
+  "common": {
+    "close": "关闭",
+    "cancel": "取消",
+    "confirm": "确认",
+    "empty": "暂无",
+    "dash": "—"
+  },
+  "lobby": {
+    "shop": "商店",
+    "signIn": "登录",
+    "signOut": "退出",
+    "leaderboard": "排行榜",
+    "history": "历史",
+    "modes": {
+      "challenge": "关卡挑战",
+      "arena": "竞技场"
+    },
+    "play": "开始",
+    "continue": "继续",
+    "joining": "加入中…",
+    "matching": "匹配中…",
+    "weekRemaining": "本周剩余 {{days}} 天 {{hours}} 小时",
+    "weekRemainingHours": "本周剩余 {{hours}} 小时",
+    "cohortLabel": "组 #{{no}}",
+    "cohortPending": "本周分组",
+    "rankLabel": "名次 {{rank}} / {{size}}",
+    "zonePromote": "↑ 升级区 {{from}}-{{to}}",
+    "zoneKeep": "保级区 {{from}}-{{to}}",
+    "zoneDemote": "↓ 降级区 {{from}}-{{to}}",
+    "projectedReward": "预计结算奖励",
+    "unclaimedCoins": "待领 {{coins}}",
+    "unclaimedCoinsAria": "待领 {{coins}} 金币",
+    "shopAria": "商店",
+    "shopWithBalanceAria": "商店，当前金币 {{coins}}",
+    "rulesAria": "玩法规则",
+    "leaderboardAria": "排行榜",
+    "historyAria": "历史记录"
+  },
+  "tiers": {
+    "bronze": "青铜",
+    "silver": "白银",
+    "gold": "黄金",
+    "platinum": "铂金",
+    "diamond": "钻石",
+    "divisionSuffix": "{{tier}} {{division}}"
+  },
+  "history": {
+    "empty": "暂无对局",
+    "ongoing": "进行中",
+    "enter": "点击进入 ›",
+    "score": "分数 {{score}}",
+    "rank": "第 {{rank}} 名",
+    "points": "{{delta}} 分",
+    "pendingSettlement": "等待结算中",
+    "report": "战报",
+    "matchTypes": {
+      "solo_p75": "单人挑战",
+      "multi_ranked": "多人竞技"
+    }
+  },
+  "leaderboard": {
+    "cohortTitle": "本组排行",
+    "totalTitle": "本周总榜",
+    "myWeek": "我的本周 {{points}} 分",
+    "myWeekWithRank": "我的本周 {{points}} 分 · 第 {{rank}} 名",
+    "empty": "暂无排行数据",
+    "columns": {
+      "rank": "#",
+      "player": "玩家",
+      "points": "积分",
+      "matches": "局数"
+    }
+  },
+  "weeklyLeague": {
+    "title": "周联赛结算",
+    "emptyInfo": "暂无结算信息",
+    "outcome": {
+      "promote": "晋级",
+      "demote": "降级",
+      "keep": "保级"
+    },
+    "finalRank": " · 第 {{rank}} 名",
+    "currentTier": "当前段位：{{tier}}",
+    "rewardCoins": "🪙 {{coins}} 金币",
+    "noExtraReward": "本周无额外奖励",
+    "claim": "领取奖励",
+    "claiming": "领取中…",
+    "dismiss": "稍后再领",
+    "claimedToast": "已领取 {{coins}} 金币"
+  },
+  "shop": {
+    "title": "兑换商店",
+    "balance": "当前余额：",
+    "region": "兑换地区：{{region}}",
+    "ordersToggle": "我的礼品卡订单",
+    "ordersModalTitle": "我的礼品卡订单",
+    "badgeGiftCard": "礼品卡",
+    "sections": {
+      "virtual": "道具",
+      "giftcard": "礼品卡",
+      "featured": "精选",
+      "consumables": "道具",
+      "rewards": "兑换奖励"
+    },
+    "empty": "暂无商品",
+    "faceValue": "面值 {{value}}",
+    "grantReplay": "获得再战令 ×{{count}}",
+    "weeklyRemaining": "本周剩余 {{remaining}} / {{limit}}",
+    "buying": "兑换中…",
+    "soldOut": "已售罄",
+    "success": "兑换成功！",
+    "giftCardProcessing": "兑换处理中，请在「我的礼品卡订单」查看"
+  },
+  "shopSkus": {
+    "portal_shop_replay_3": {
+      "title": "再战令 ×3",
+      "description": "单局结算后可再战一次，适用于支持的挑战模式。"
+    },
+    "portal_shop_replay_10": {
+      "title": "再战令 ×10",
+      "description": "超值再战包，适合高频竞技玩家。"
+    },
+    "gc_amazon_5_us": {
+      "title": "Amazon 礼品卡 $5",
+      "description": "美国区 Amazon.com 电子礼品卡。"
+    }
+  },
+  "giftcard": {
+    "empty": "暂无礼品卡订单",
+    "status": {
+      "pending": "排队中",
+      "processing": "处理中",
+      "fulfilled": "可领取",
+      "failed": "失败",
+      "refunded": "已退款"
+    },
+    "redeem": "领取",
+    "redeeming": "领取中…",
+    "resendEmail": "重发邮件",
+    "sending": "发送中…"
+  },
+  "regions": {
+    "title": "选择兑换地区",
+    "hint": "地区选定后 30 天内不可更改，礼品卡仅能在对应地区使用。",
+    "US": "美国 (US)",
+    "CA": "加拿大 (CA)",
+    "GB": "英国 (GB)",
+    "EU": "欧洲 (EU)"
+  },
+  "modals": {
+    "historyTitle": "历史记录",
+    "rulesTitle": "玩法规则"
+  },
+  "report": {
+    "title": "战报",
+    "subtitle": "本桌全部玩家得分与名次。点击各行「回放」可查看该玩家本局操作。",
+    "dismiss": "关闭",
+    "watch": "回放"
+  },
+  "rules": {
+    "tabs": {
+      "points": "积分",
+      "tiers": "段位与分组",
+      "rewards": "奖励"
+    },
+    "points": {
+      "title": "积分",
+      "intro": "两种模式的成绩计入<strong>同一个周榜总分</strong>，总分决定你在本周分组中的名次。",
+      "soloTitle": "🎯 单人挑战",
+      "soloBullets": [
+        "每局提供一个 seed P75 <strong>目标分</strong>；",
+        "达标 <strong class=\"portal-rules-pos\">+3 分</strong>，未达标 <strong class=\"portal-rules-neg\">-1 分</strong>；",
+        "对局超时未完成，按未达标结算。"
+      ],
+      "multiTitle": "⚔️ 多人竞技",
+      "multiBullets": [
+        "与 5 名选手<strong>同种子同桌</strong>对抗，公平比拼；",
+        "按名次积分：🥇 <strong class=\"portal-rules-pos\">+5</strong> ／ 🥈 <strong class=\"portal-rules-pos\">+3</strong> ／ 🥉 <strong class=\"portal-rules-pos\">+1</strong> ／ 第四 <strong class=\"portal-rules-neg\">-1</strong> ／ 第五 <strong class=\"portal-rules-neg\">-2</strong>。"
+      ]
+    },
+    "tiers": {
+      "title": "段位与分组",
+      "bullets": [
+        "每周与<strong>同段位</strong>玩家分入一个 <strong>50 人小组</strong>，只和组内选手比名次；",
+        "每周结算时按组内名次晋降级："
+      ],
+      "zonePromote": "↑ 升级区 1-10",
+      "zoneKeep": "保级区 11-40",
+      "zoneDemote": "↓ 降级区 41-50",
+      "resetBullet": "新的一周积分清零，按新段位重新分组，重新出发。"
+    },
+    "rewards": {
+      "title": "奖励",
+      "intro": "每周结算时按<strong>组内名次</strong>发放金币，名次越高奖励越多；<strong>段位越高，同名次的金币也越多</strong>：",
+      "rankColumn": "组内名次",
+      "ranges": {
+        "rank1": "第 1 名",
+        "rank2_3": "第 2–3 名",
+        "rank4_10": "第 4–10 名",
+        "rank11_40": "第 11–40 名",
+        "rank41_50": "第 41–50 名"
+      },
+      "legendPromote": "晋级下一段位",
+      "legendKeep": "保持段位",
+      "legendDemote": "降至下一段位",
+      "footerBullets": [
+        "金币可在 <strong>兑换商店</strong>中兑换奖励；",
+        "结算时间以主页顶部的<strong>本周剩余倒计时</strong>为准；",
+        "奖励数值以当期活动配置为准。"
+      ]
+    }
+  }
+}

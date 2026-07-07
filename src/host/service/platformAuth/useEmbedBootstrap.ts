@@ -1,13 +1,16 @@
 import { useCallback, useRef } from "react";
 
 import { useUserManager } from "../UserManager";
+import { usePartnerManager } from "../PartnerManager";
 import { useEmbedAuthGate } from "./EmbedAuthGateProvider";
 import { usePlatformAuth } from "./PlatformAuthProvider";
 import { logEmbedPlatformExchange } from "./embedSources/embedAuthLog";
 import type { EmbedCredentialPayload } from "./embedSources/types";
+import { sessionPartnerMatchesUrlPartner } from "./sessionPartnerMatch";
 
 export function useEmbedBootstrap() {
   const { bootstrapFromPartner } = usePlatformAuth();
+  const { partnerPid, partnerResolveReady } = usePartnerManager();
   const { authComplete } = useUserManager();
   const { markBootstrapping, markFailed, markSucceeded } = useEmbedAuthGate();
   const inflightRef = useRef(false);
@@ -30,6 +33,19 @@ export function useEmbedBootstrap() {
           ...(payload.merchantSlug ? { merchantSlug: payload.merchantSlug } : {}),
         });
         if (session) {
+          if (
+            partnerResolveReady &&
+            !sessionPartnerMatchesUrlPartner(session, partnerPid)
+          ) {
+            logEmbedPlatformExchange(payload.method, payload.pid, "failed", {
+              reason: "partner_session_mismatch",
+              urlPartnerPid: partnerPid,
+              sessionPartner: session.partner,
+              tokenChars: payload.credential.length,
+            });
+            markFailed();
+            return;
+          }
           logEmbedPlatformExchange(payload.method, payload.pid, "success", {
             uid: session.uid,
             tokenChars: payload.credential.length,
@@ -53,7 +69,7 @@ export function useEmbedBootstrap() {
         inflightRef.current = false;
       }
     },
-    [authComplete, bootstrapFromPartner, markBootstrapping, markFailed, markSucceeded]
+    [authComplete, bootstrapFromPartner, markBootstrapping, markFailed, markSucceeded, partnerPid, partnerResolveReady]
   );
 
   return { runBootstrap };

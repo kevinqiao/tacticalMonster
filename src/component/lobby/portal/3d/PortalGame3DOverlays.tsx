@@ -1,4 +1,7 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
+
+import { usePartnerManager } from "host/service/PartnerManager";
 
 import CasualPlayMatchOverlay from "../../casual/view/play/CasualPlayMatchOverlay";
 import { PortalCenterModal } from "../PortalCenterModal";
@@ -8,8 +11,11 @@ import {
 } from "../PortalPanels";
 import { PortalHistoryReportOverlays } from "../PortalHistoryReportOverlays";
 import { PortalRulesContent } from "./PortalRulesContent";
+import { PortalGiftCardPanel } from "./PortalGiftCardPanel";
 import { PortalShopPanel } from "./PortalShopPanel";
-import { resolvePortalShopSkus } from "./portalShopCatalogFallback";
+import {
+  resolvePortalShopSkus,
+} from "./portalShopCatalogFallback";
 import { PortalWeeklyLeagueClosePanel } from "./PortalWeeklyLeagueClosePanel";
 import type { PortalTierId } from "./portalGame3DTheme";
 
@@ -22,6 +28,8 @@ type PortalGame3DOverlaysProps = {
 };
 
 export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
+  const { t } = useTranslation("portal.player");
+  const { partnerPid } = usePartnerManager();
   const {
     portal,
     visible,
@@ -31,6 +39,8 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
     setRulesModalOpen,
     shopModalOpen,
     setShopModalOpen,
+    giftCardOrdersModalOpen,
+    setGiftCardOrdersModalOpen,
     weeklyCloseModalOpen,
     setWeeklyCloseModalOpen,
     weeklyCloseDisplay,
@@ -75,8 +85,8 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
         open={panelModal === "lb"}
         title={
           portal.weeklyLeagueTierView?.enrolled && portal.cohortLeaderboard.length > 0
-            ? "本组排行"
-            : "本周总榜"
+            ? t("leaderboard.cohortTitle")
+            : t("leaderboard.totalTitle")
         }
         onClose={() => setPanelModal(null)}
       >
@@ -89,7 +99,7 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
 
       <PortalCenterModal
         open={panelModal === "history"}
-        title="历史记录"
+        title={t("modals.historyTitle")}
         onClose={() => setPanelModal(null)}
       >
         <PortalHistoryList
@@ -102,7 +112,7 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
 
       <PortalCenterModal
         open={rulesModalOpen !== null}
-        title="玩法规则"
+        title={t("modals.rulesTitle")}
         onClose={() => setRulesModalOpen(null)}
       >
         <PortalRulesContent
@@ -125,13 +135,13 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
           onClaim={portal.claimPortalWeeklyLeagueRewards}
           onDismiss={portal.dismissPortalWeeklyLeagueClose}
           onClose={() => setWeeklyCloseModalOpen(false)}
-          onClaimed={(coins) => showNote(`已领取 ${coins.toLocaleString()} 金币`)}
+          onClaimed={(coins) => showNote(t("weeklyLeague.claimedToast", { coins: coins.toLocaleString() }))}
         />
       </PortalCenterModal>
 
       <PortalCenterModal
         open={shopModalOpen}
-        title="兑换商店"
+        title={t("shop.title")}
         onClose={() => setShopModalOpen(false)}
       >
         <PortalShopPanel
@@ -140,8 +150,27 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
             portal.playerWallet?.coins ??
             0
           }
-          skus={resolvePortalShopSkus(portal.shopCatalog?.skus)}
+          skus={resolvePortalShopSkus(portal.shopCatalog?.skus, partnerPid)}
+          redemptionProfile={portal.shopCatalog?.redemptionProfile}
+          giftCardOrderCount={portal.giftCardOrders?.length ?? 0}
+          onOpenGiftCardOrders={() => setGiftCardOrdersModalOpen(true)}
+          verifiedEmail={ctrl.userEmail}
+          verifiedPhone={ctrl.userPhone}
           onPurchase={portal.purchasePortalShopSku}
+          onSyncProfile={portal.syncRedemptionProfile}
+          onFeedback={ctrl.showNote}
+        />
+      </PortalCenterModal>
+
+      <PortalCenterModal
+        open={giftCardOrdersModalOpen}
+        title={t("shop.ordersModalTitle")}
+        onClose={() => setGiftCardOrdersModalOpen(false)}
+      >
+        <PortalGiftCardPanel
+          orders={portal.giftCardOrders ?? []}
+          onRedeem={portal.redeemGiftCard}
+          onResendEmail={portal.resendGiftCardEmail}
           onFeedback={ctrl.showNote}
         />
       </PortalCenterModal>

@@ -10,46 +10,30 @@
   <style>
     html,
     body {
-      background-color: #3a6f63 !important;
-      background-image: linear-gradient(165deg, #5a8f9a 0%, #3a6f63 38%, #2a5248 100%) !important;
+      background-color: var(--boot-fallback, #3a6f63) !important;
+      background-image: var(--boot-bg-image, linear-gradient(165deg, #5a8f9a 0%, #3a6f63 38%, #2a5248 100%)) !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
       margin: 0;
       height: 100%;
       overflow: hidden;
     }
-    @media (max-aspect-ratio: 1/1) {
-      html,
-      body {
-        background-color: #345c4a !important;
-        background-image: linear-gradient(165deg, #4f7d6a 0%, #345c4a 40%, #264a3a 100%) !important;
-      }
-    }
     #static-boot-cover,
     #boot-loading-overlay-root {
-      background-color: #3a6f63 !important;
-      background-image:
-        url("/assets/portal/solitaire/backgrounds/bg-16x9.png"),
-        linear-gradient(165deg, #5a8f9a 0%, #3a6f63 38%, #2a5248 100%) !important;
-      background-size: cover, cover !important;
-      background-position: center, center !important;
-      background-repeat: no-repeat, no-repeat !important;
+      background-color: var(--boot-fallback, #3a6f63) !important;
+      background-image: var(--boot-bg-image, linear-gradient(165deg, #5a8f9a 0%, #3a6f63 38%, #2a5248 100%)) !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
       transition: opacity 180ms ease-out !important;
-    }
-    @media (max-aspect-ratio: 1/1) {
-      #static-boot-cover,
-      #boot-loading-overlay-root {
-        background-color: #345c4a !important;
-        background-image:
-          url("/assets/portal/portal_bg_9x16.png"),
-          linear-gradient(165deg, #4f7d6a 0%, #345c4a 40%, #264a3a 100%) !important;
-      }
     }
 
     #static-boot-cover,
     #static-boot-cover span,
     #boot-loading-overlay-root,
     #boot-loading-overlay-root span,
-    .boot-loading-primary,
-    .boot-loading-secondary {
+    .boot-loading-primary {
       font-family: "Fredoka", "Segoe UI Rounded", "Nunito", "Arial Black", Inter, system-ui, sans-serif !important;
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4) !important;
       letter-spacing: 0.05em !important;
@@ -59,24 +43,26 @@
 
     #static-boot-cover .boot-loading-primary,
     #boot-loading-overlay-root .boot-loading-primary,
-    .boot-loading-primary {
+    .boot-loading-primary,
+    #boot-loading-label {
       font-size: 24px !important;
       font-weight: 700 !important;
       color: #f4ebdd !important;
       line-height: 1.4 !important;
       margin-top: 8px !important;
       display: inline-block !important;
+      max-width: min(92vw, 560px);
+      text-align: center;
+      text-wrap: balance;
     }
 
-    #static-boot-cover .boot-loading-secondary,
-    #boot-loading-overlay-root .boot-loading-secondary,
-    .boot-loading-secondary {
-      font-size: 15px !important;
-      font-weight: 600 !important;
-      color: #e8f4fc !important;
-      opacity: 0.8 !important;
-      line-height: 1.4 !important;
-      display: inline-block !important;
+    html[lang="en-US"] #static-boot-cover .boot-loading-primary,
+    html[lang="en-US"] #boot-loading-overlay-root .boot-loading-primary,
+    html[lang="en-US"] #boot-loading-label {
+      font-size: 32px !important;
+      font-weight: 800 !important;
+      letter-spacing: 0.02em !important;
+      line-height: 1.25 !important;
     }
 
     .boot-loading-spinner {
@@ -119,27 +105,139 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
   <title>Match 3</title>
+  <script>
+    (function () {
+      /** Keep in sync with src/host/bootShellThemes.ts */
+      var THEMES = {
+        portal: {
+          fallbackL: "#3a6f63", fallbackP: "#345c4a",
+          gradL: "linear-gradient(165deg, #5a8f9a 0%, #3a6f63 38%, #2a5248 100%)",
+          gradP: "linear-gradient(165deg, #4f7d6a 0%, #345c4a 40%, #264a3a 100%)",
+          bgL: "/assets/portal/solitaire/backgrounds/bg-16x9.png",
+          bgP: "/assets/portal/portal_bg_9x16.png",
+        },
+        tactical: {
+          fallbackL: "#1a2433", fallbackP: "#141c28",
+          gradL: "linear-gradient(165deg, #2c3e58 0%, #1a2433 45%, #0f1520 100%)",
+          gradP: "linear-gradient(165deg, #243044 0%, #141c28 50%, #0c1018 100%)",
+        },
+        casual: {
+          fallbackL: "#2a2848", fallbackP: "#221f3d",
+          gradL: "linear-gradient(165deg, #4a4580 0%, #2a2848 42%, #18152c 100%)",
+          gradP: "linear-gradient(165deg, #3d3868 0%, #221f3d 48%, #12101f 100%)",
+        },
+        campaign: {
+          fallbackL: "#4a3020", fallbackP: "#3d2818",
+          gradL: "linear-gradient(165deg, #8b5a3c 0%, #4a3020 40%, #2a1810 100%)",
+          gradP: "linear-gradient(165deg, #735040 0%, #3d2818 45%, #241610 100%)",
+        },
+        campaignMerchant: {
+          fallbackL: "#2f3440", fallbackP: "#252932",
+          gradL: "linear-gradient(165deg, #525a6a 0%, #2f3440 42%, #1a1e26 100%)",
+          gradP: "linear-gradient(165deg, #454c5a 0%, #252932 48%, #14171d 100%)",
+        },
+        platform: {
+          fallbackL: "#1e2936", fallbackP: "#172028",
+          gradL: "linear-gradient(165deg, #334155 0%, #1e2936 45%, #0f1419 100%)",
+          gradP: "linear-gradient(165deg, #2a3542 0%, #172028 50%, #0a0e12 100%)",
+        },
+        partner: {
+          fallbackL: "#1a2f42", fallbackP: "#142636",
+          gradL: "linear-gradient(165deg, #2d5570 0%, #1a2f42 45%, #0d1822 100%)",
+          gradP: "linear-gradient(165deg, #244760 0%, #142636 50%, #081018 100%)",
+        },
+      };
+      var LABELS = {
+        portal: { "zh-CN": "正在进入游戏大厅…", "en-US": "Entering game lobby…" },
+        tactical: { "zh-CN": "正在进入战术大厅…", "en-US": "Entering tactical lobby…" },
+        casual: { "zh-CN": "正在进入休闲大厅…", "en-US": "Entering casual lobby…" },
+        campaign: { "zh-CN": "正在加载活动页…", "en-US": "Loading campaign…" },
+        campaignMerchant: { "zh-CN": "正在加载商家后台…", "en-US": "Loading merchant console…" },
+        platform: { "zh-CN": "正在加载平台管理…", "en-US": "Loading platform admin…" },
+        partner: { "zh-CN": "正在加载 Partner 管理…", "en-US": "Loading partner admin…" },
+      };
+      function resolveShellId(path) {
+        if (path.indexOf("/platform") === 0) return "platform";
+        if (path.indexOf("/partner") === 0) return "partner";
+        if (path.indexOf("/campaign/merchant") === 0) return "campaignMerchant";
+        if (path.indexOf("/campaign") === 0) return "campaign";
+        if (path.indexOf("/portal") === 0) return "portal";
+        if (path.indexOf("/tactical") === 0) return "tactical";
+        if (path.indexOf("/casual") === 0) return "casual";
+        return "portal";
+      }
+      function matchLocale(tag) {
+        var lang = (tag || "").toLowerCase();
+        if (lang.indexOf("zh") === 0) return "zh-CN";
+        if (lang.indexOf("en") === 0) return "en-US";
+        return null;
+      }
+      function detectBrowserLocale() {
+        var candidates = [];
+        if (navigator.languages && navigator.languages.length) {
+          candidates = candidates.concat(Array.prototype.slice.call(navigator.languages));
+        }
+        if (navigator.language) candidates.push(navigator.language);
+        for (var i = 0; i < candidates.length; i++) {
+          var matched = matchLocale(candidates[i]);
+          if (matched) return matched;
+        }
+        return "zh-CN";
+      }
+      function resolveLocale() {
+        try {
+          if (localStorage.getItem("app_locale_user_set") === "1") {
+            var saved = localStorage.getItem("app_locale");
+            if (saved === "zh-CN" || saved === "en-US") return saved;
+          }
+        } catch (e) {}
+        return detectBrowserLocale();
+      }
+      var pathname = window.location.pathname;
+      var shellId = resolveShellId(pathname);
+      var theme = THEMES[shellId] || THEMES.portal;
+      var locale = resolveLocale();
+      var portrait = window.innerHeight > window.innerWidth;
+      var fallback = portrait ? theme.fallbackP : theme.fallbackL;
+      var gradient = portrait ? theme.gradP : theme.gradL;
+      var photo = portrait ? theme.bgP : theme.bgL;
+      var bgImage = photo ? 'url("' + photo + '"), ' + gradient : gradient;
+      var root = document.documentElement;
+      root.lang = locale;
+      root.style.setProperty("--boot-fallback", fallback);
+      root.style.setProperty("--boot-bg-image", bgImage);
+      root.style.backgroundColor = fallback;
+      root.style.setProperty("theme-color", fallback);
+      window.__BOOT_SHELL_ID__ = shellId;
+      window.__BOOT_BG_URL__ = photo || null;
+      window.__BOOT_LABEL__ = (LABELS[shellId] || LABELS.portal)[locale] || LABELS.portal["zh-CN"];
+    })();
+  </script>
 </head>
 
-<body style="overflow:hidden;width:100vw;height:100vh;margin:0;background-color:#3a6f63;background-image:linear-gradient(165deg,#5a8f9a 0%,#3a6f63 38%,#2a5248 100%);">
+<body style="overflow:hidden;width:100vw;height:100vh;margin:0;">
   <noscript>You need to enable JavaScript to run this app.</noscript>
   <!-- 纯 HTML 静态层：首帧即显示可辨识的暗青绿渐变 + 背景图请求，不依赖 JS -->
   <div id="static-boot-cover" role="status" aria-live="polite" aria-busy="true"
-    style="position:fixed;inset:0;z-index:2147483646;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;box-sizing:border-box;text-align:center;background-color:#3a6f63;background-image:url('/assets/portal/solitaire/backgrounds/bg-16x9.png'),linear-gradient(165deg,#5a8f9a 0%,#3a6f63 38%,#2a5248 100%);background-size:cover;background-position:center;background-repeat:no-repeat;color:#f4ebdd;font-family:'Fredoka','Segoe UI Rounded','Nunito',sans-serif;">
+    style="position:fixed;inset:0;z-index:2147483646;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;box-sizing:border-box;text-align:center;color:#f4ebdd;font-family:'Fredoka','Segoe UI Rounded','Nunito',sans-serif;">
     <div class="boot-loading-spinner"
       style="width:44px;height:44px;border:4px solid rgba(244,235,221,0.15);border-top:4px solid #f4ebdd;border-radius:50%;margin-bottom:12px;display:inline-block;box-sizing:border-box;"></div>
-    <span class="boot-loading-primary"
-      style="font-size:24px;font-weight:700;color:#f4ebdd;line-height:1.4;margin-top:8px;display:inline-block;">正在进入游戏大厅…</span>
-    <span class="boot-loading-secondary"
-      style="font-size:15px;font-weight:600;color:#e8f4fc;opacity:0.8;line-height:1.4;display:inline-block;">Entering game lobby…</span>
+    <span id="boot-loading-label" class="boot-loading-primary"
+      style="margin-top:8px;display:inline-block;">…</span>
   </div>
+  <script>
+    (function () {
+      var label = document.getElementById("boot-loading-label");
+      if (label && window.__BOOT_LABEL__) label.textContent = window.__BOOT_LABEL__;
+    })();
+  </script>
   <div id="root" style="overflow:hidden;width:100%;height:100%;min-height:100vh;background-color:transparent;"></div>
   <!-- 与 #root 同级：不被 React createRoot 清空；覆盖「HTML 可见～bundle 执行～BootLoadingOverlay」间隙。纯 HTML 文案，慢网下避免长时间纯黑无提示 -->
   <!-- 智能背景预加载：在慢网下，先显示精致的渐变底色，图片下载完成后平滑淡入，防止图片突兀“弹出” -->
   <script>
     (function() {
-      var isPortrait = window.innerHeight > window.innerWidth;
-      var bgUrl = isPortrait ? "/assets/portal/portal_bg_9x16.png" : "/assets/portal/solitaire/backgrounds/bg-16x9.png";
+      var bgUrl = window.__BOOT_BG_URL__;
+      if (!bgUrl) return;
       var img = new Image();
       img.onload = function() {
         window.__BOOT_BG_LOADED__ = true;
@@ -152,7 +250,6 @@
         } catch(e) {}
       };
       img.src = bgUrl;
-      // 如果图片已经缓存，可能在 onload 绑定前就加载完了，安全起见检查一下 complete
       if (img.complete) {
         window.__BOOT_BG_LOADED__ = true;
         try {

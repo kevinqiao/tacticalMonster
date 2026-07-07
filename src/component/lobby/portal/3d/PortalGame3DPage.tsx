@@ -1,6 +1,7 @@
 import React from "react";
 
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
+import { usePartnerManager } from "host/service/PartnerManager";
 
 import { usePortal } from "../service/usePortalManager";
 
@@ -8,6 +9,7 @@ import { PortalGame3DInner } from "./PortalGame3DInner";
 import { PortalGame3DOverlays } from "./PortalGame3DOverlays";
 import { PortalGame3DShadowHost } from "./PortalGame3DShadowHost";
 import { PortalGame3DToast } from "./PortalGame3DToast";
+import { portalShopHasVisibleSkus } from "./portalShopCatalogFallback";
 import { resolvePortal3DHeroLogo } from "./portalGame3DTheme";
 import { usePortalGame3DController } from "./usePortalGame3DController";
 
@@ -17,6 +19,7 @@ type PortalGame3DPageProps = {
 
 const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
   const portal = usePortal();
+  const { partnerPid } = usePartnerManager();
   const ctrl = usePortalGame3DController({ visible });
 
   if (!portal.gameType) {
@@ -30,6 +33,11 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
   if (visible === 0) return null;
 
   const heroLogoUrl = resolvePortal3DHeroLogo(portal.gameType);
+  const showShop = portalShopHasVisibleSkus(
+    portal.shopCatalog?.skus,
+    partnerPid,
+    portal.shopCatalog != null
+  );
 
   return (
     <>
@@ -41,7 +49,9 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           tier={ctrl.tierView}
           coinBalance={
             isPlatformAuthed(ctrl.user)
-              ? (portal.playerWallet?.coins ?? 0)
+              ? (portal.playerWallet?.coins ??
+                  portal.shopCatalog?.coins ??
+                  0)
               : null
           }
           joining={ctrl.joining}
@@ -57,7 +67,8 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           onOpenFullHistory={
             ctrl.user?.uid ? () => ctrl.setPanelModal("history") : undefined
           }
-          onOpenShop={() => ctrl.setShopModalOpen(true)}
+          onOpenShop={showShop ? () => ctrl.setShopModalOpen(true) : undefined}
+          showShop={showShop}
           onSignOut={ctrl.signOut}
           onSignIn={ctrl.signIn}
           unclaimedRewards={ctrl.unclaimedRewards}

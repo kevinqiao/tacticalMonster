@@ -23,6 +23,8 @@ import React, {
 
 import type { CasualAsyncTableSummaryUI } from "@/component/battle/games/shared/casualAsyncTableSummaryUI";
 
+import { portalErrorMessage } from "../shared/portalErrorMessage";
+
 import { portalTournamentFns } from "./portalConvexFunctionRefs";
 import { portalAssignmentMatchesGameType } from "./portalOpenRunHelpers";
 import { isOpenCasualRunExpired } from "../../casual/service/casualOpenRunReconcile";
@@ -130,6 +132,16 @@ export type PortalPlayerWallet = {
   gems: number;
 };
 
+export type PortalRedemptionProfileView = {
+  region: string | null;
+  verifiedEmail: string | null;
+  hasVerifiedContact: boolean;
+  accountAgeDays: number;
+  canChangeRegion: boolean;
+  eligible: boolean;
+  ineligibleReason: string | null;
+};
+
 export type PortalShopSkuView = {
   skuId: string;
   title: string;
@@ -139,11 +151,39 @@ export type PortalShopSkuView = {
   weeklyPurchaseLimit: number | null;
   purchasedThisWeek: number;
   remainingThisWeek: number | null;
+  sortOrder?: number;
+  shopSection?: string;
+  skuKind?: "virtual" | "giftcard";
+  region?: string;
+  faceValueDisplay?: string;
+  brandName?: string;
+  brandLogoUrl?: string;
+  locked?: boolean;
+  lockReason?: string | null;
 };
+
+export type PortalShopSkuRow = PortalShopSkuView;
 
 export type PortalShopCatalogView = {
   coins: number;
   skus: PortalShopSkuView[];
+  redemptionProfile?: PortalRedemptionProfileView | null;
+};
+
+export type PortalGiftCardOrderRow = {
+  orderId: string;
+  skuId: string;
+  title: string;
+  brandName?: string;
+  faceValueDisplay: string;
+  priceCoins: number;
+  status: string;
+  failureReason?: string;
+  createdAt: number;
+  fulfilledAt?: number;
+  canRedeem: boolean;
+  canResendEmail: boolean;
+  hasCachedLink: boolean;
 };
 
 type PortalDataSnapshot = {
@@ -152,6 +192,7 @@ type PortalDataSnapshot = {
   weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
   playerWallet: PortalPlayerWallet | null;
   shopCatalog: PortalShopCatalogView | null;
+  giftCardOrders: PortalGiftCardOrderRow[];
   myWeeklyPoints: PortalMyWeeklyPoints | null;
   gameHistory: PortalGameHistoryRow[];
   openRunAssignments: OpenCasualRunAssignment[];
@@ -165,6 +206,7 @@ const emptyData = (): PortalDataSnapshot => ({
   weeklyLeagueTierView: null,
   playerWallet: null,
   shopCatalog: null,
+  giftCardOrders: [],
   myWeeklyPoints: null,
   gameHistory: [],
   openRunAssignments: [],
@@ -199,6 +241,7 @@ type PortalContextValue = {
   weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
   playerWallet: PortalPlayerWallet | null;
   shopCatalog: PortalShopCatalogView | null;
+  giftCardOrders: PortalGiftCardOrderRow[];
   myWeeklyPoints: PortalMyWeeklyPoints | null;
   gameHistory: PortalGameHistoryRow[];
   openRunAssignments: OpenCasualRunAssignment[];
@@ -206,7 +249,7 @@ type PortalContextValue = {
   weekEndsAt: number | null;
   joinTournament: (
     mode: "solo" | "multi",
-    opts?: { merchantSlug?: string; campaignSlug?: string; sessionPartnerId?: number }
+    opts?: { merchantSlug?: string; campaignSlug?: string }
   ) => Promise<ResolvedJoinTournamentOutcome>;
   leaveCasualMatchQueue: (
     templateId?: string
@@ -219,7 +262,19 @@ type PortalContextValue = {
   dismissPortalWeeklyLeagueClose: () => Promise<{ ok: boolean }>;
   purchasePortalShopSku: (
     skuId: string
-  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  ) => Promise<
+    | { ok: true; skuKind?: string; orderId?: string }
+    | { ok: false; error: string }
+  >;
+  syncRedemptionProfile: (args: {
+    verifiedEmail?: string;
+    verifiedPhone?: string;
+    redemptionRegion?: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  redeemGiftCard: (
+    orderId: string
+  ) => Promise<{ ok: boolean; error?: string; rewardLink?: string }>;
+  resendGiftCardEmail: (orderId: string) => Promise<{ ok: boolean; error?: string }>;
   refresh: () => Promise<void>;
   portalSessionReady: boolean;
   getCampaignDailyPlayQuota: (args: {
@@ -403,6 +458,7 @@ export const PortalProvider: React.FC<{
         weeklyLeagueTierView: null,
         playerWallet: null,
         shopCatalog: null,
+        giftCardOrders: [],
         cohortLeaderboard: [],
         gameHistory: [],
         openRunAssignments: [],
@@ -459,6 +515,15 @@ export const PortalProvider: React.FC<{
         patchData({ shopCatalog: rows as PortalShopCatalogView | null });
       },
       "shopCatalog"
+    );
+    sub(
+      portalTournamentFns.listMyGiftCardOrders,
+      { limit: 20 },
+      (rows) => {
+        const r = rows as { orders?: PortalGiftCardOrderRow[] };
+        patchData({ giftCardOrders: r.orders ?? [] });
+      },
+      "giftCardOrders"
     );
     sub(
       portalTournamentFns.getPortalWeeklyLeagueCohortLeaderboard,
@@ -594,12 +659,97 @@ export const PortalProvider: React.FC<{
       try {
         const res = (await http.mutation(portalTournamentFns.purchasePortalShopSku, {
           skuId,
-        })) as { ok?: boolean; error?: string };
-        if (res?.ok) return { ok: true as const };
+        })) as {
+          ok?: boolean;
+          error?: string;
+          skuKind?: string;
+          orderId?: string;
+        };
+        if (res?.ok) {
+          return {
+            ok: true as const,
+            skuKind: res.skuKind,
+            orderId: res.orderId,
+          };
+        }
         return { ok: false as const, error: res?.error ?? "purchase_failed" };
       } catch (e) {
         console.error("[Portal] purchasePortalShopSku", e);
         return { ok: false as const, error: "purchase_failed" };
+      }
+    },
+    [uid]
+  );
+
+  const syncRedemptionProfile = useCallback(
+    async (args: {
+      verifiedEmail?: string;
+      verifiedPhone?: string;
+      redemptionRegion?: string;
+    }) => {
+      const http = getHttp();
+      if (!http || !uid) return { ok: false, error: "no_auth" };
+      try {
+        const res = (await http.mutation(portalTournamentFns.syncRedemptionProfile, args)) as {
+          ok?: boolean;
+          error?: string;
+        };
+        return { ok: Boolean(res?.ok), error: res?.error };
+      } catch (e) {
+        console.error("[Portal] syncRedemptionProfile", e);
+        return { ok: false, error: "sync_failed" };
+      }
+    },
+    [uid]
+  );
+
+  const redeemGiftCard = useCallback(
+    async (orderId: string) => {
+      const http = getHttp();
+      if (!http || !uid) return { ok: false, error: "no_auth" };
+      try {
+        const cached = (await http.query(portalTournamentFns.getGiftCardRedemption, {
+          orderId,
+        })) as {
+          ok?: boolean;
+          error?: string;
+          rewardLink?: string;
+          needsRefresh?: boolean;
+        };
+        if (cached?.ok && cached.rewardLink) {
+          return { ok: true, rewardLink: cached.rewardLink };
+        }
+        if (cached?.ok && cached.needsRefresh) {
+          const refreshed = (await http.action(
+            portalTournamentFns.refreshGiftCardRedemption,
+            { orderId }
+          )) as { ok?: boolean; error?: string; rewardLink?: string };
+          if (refreshed?.ok && refreshed.rewardLink) {
+            return { ok: true, rewardLink: refreshed.rewardLink };
+          }
+          return { ok: false, error: refreshed?.error ?? "refresh_failed" };
+        }
+        return { ok: false, error: cached?.error ?? "not_ready" };
+      } catch (e) {
+        console.error("[Portal] redeemGiftCard", e);
+        return { ok: false, error: "redeem_failed" };
+      }
+    },
+    [uid]
+  );
+
+  const resendGiftCardEmail = useCallback(
+    async (orderId: string) => {
+      const http = getHttp();
+      if (!http || !uid) return { ok: false, error: "no_auth" };
+      try {
+        const res = (await http.action(portalTournamentFns.resendGiftCardEmail, {
+          orderId,
+        })) as { ok?: boolean; error?: string };
+        return { ok: Boolean(res?.ok), error: res?.error };
+      } catch (e) {
+        console.error("[Portal] resendGiftCardEmail", e);
+        return { ok: false, error: "resend_failed" };
       }
     },
     [uid]
@@ -653,11 +803,11 @@ export const PortalProvider: React.FC<{
   const joinTournament = useCallback(
     async (
       mode: "solo" | "multi",
-      opts?: { merchantSlug?: string; campaignSlug?: string; sessionPartnerId?: number }
+      opts?: { merchantSlug?: string; campaignSlug?: string }
     ): Promise<ResolvedJoinTournamentOutcome> => {
       const http = getHttp();
       if (!http || !uid || !isPlatformAuthed(user)) {
-        return { kind: "failed", error: "未登录或未配置 Portal 后端" };
+        return { kind: "failed", error: portalErrorMessage("not_logged_in_or_no_backend") };
       }
       const isCampaignJoin = Boolean(opts?.merchantSlug && opts?.campaignSlug);
       const tournamentId =
@@ -665,7 +815,7 @@ export const PortalProvider: React.FC<{
           ? undefined
           : portalTournamentIdForMode(gameType, mode);
       if (!isCampaignJoin && !tournamentId) {
-        return { kind: "failed", error: "未知模式" };
+        return { kind: "failed", error: portalErrorMessage("unknown_mode") };
       }
       try {
         await authenticatePortal({ force: true });
@@ -675,16 +825,13 @@ export const PortalProvider: React.FC<{
             ? {
                 merchantSlug: opts!.merchantSlug,
                 campaignSlug: opts!.campaignSlug,
-                ...(opts?.sessionPartnerId != null
-                  ? { sessionPartnerId: opts.sessionPartnerId }
-                  : {}),
               }
             : {}),
         });
         return resolveJoinTournamentOutcome(result);
       } catch (e) {
         console.error("[Portal] joinTournament", e);
-        return { kind: "failed", error: "加入失败" };
+        return { kind: "failed", error: portalErrorMessage("join_failed") };
       }
     },
     [uid, user?.platformAccessToken, gameType, authenticatePortal]
@@ -748,6 +895,7 @@ export const PortalProvider: React.FC<{
       weeklyLeagueTierView: snapshot.weeklyLeagueTierView,
       playerWallet: snapshot.playerWallet,
       shopCatalog: snapshot.shopCatalog,
+      giftCardOrders: snapshot.giftCardOrders,
       myWeeklyPoints: snapshot.myWeeklyPoints,
       gameHistory: snapshot.gameHistory,
       openRunAssignments: snapshot.openRunAssignments,
@@ -759,6 +907,9 @@ export const PortalProvider: React.FC<{
       claimPortalWeeklyLeagueRewards,
       dismissPortalWeeklyLeagueClose,
       purchasePortalShopSku,
+      syncRedemptionProfile,
+      redeemGiftCard,
+      resendGiftCardEmail,
       refresh,
       portalSessionReady,
       getCampaignDailyPlayQuota,
@@ -773,6 +924,9 @@ export const PortalProvider: React.FC<{
       claimPortalWeeklyLeagueRewards,
       dismissPortalWeeklyLeagueClose,
       purchasePortalShopSku,
+      syncRedemptionProfile,
+      redeemGiftCard,
+      resendGiftCardEmail,
       refresh,
       portalSessionReady,
       getCampaignDailyPlayQuota,

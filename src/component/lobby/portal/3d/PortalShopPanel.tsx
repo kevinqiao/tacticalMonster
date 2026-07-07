@@ -1,39 +1,95 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-export type PortalShopSkuRow = {
-  skuId: string;
-  title: string;
-  description: string;
-  priceCoins: number;
-  grantReplayTokenCount: number;
-  weeklyPurchaseLimit: number | null;
-  purchasedThisWeek: number;
-  remainingThisWeek: number | null;
-};
+import type {
+  PortalRedemptionProfileView,
+  PortalShopSkuRow,
+} from "../service/usePortalManager";
+import { portalPurchaseErrorMessage } from "../shared/portalErrorMessage";
+import { PortalRegionSelectModal } from "./PortalRegionSelectModal";
+import { groupPortalShopSkus } from "./portalShopLayout";
 
 type PortalShopPanelProps = {
   coins: number;
   skus: PortalShopSkuRow[];
-  onPurchase: (skuId: string) => Promise<{ ok: boolean; error?: string }>;
-  /** 购买结果走 3D 大厅底部 toast（羊皮纸主题） */
+  redemptionProfile?: PortalRedemptionProfileView | null;
+  giftCardOrderCount?: number;
+  onOpenGiftCardOrders?: () => void;
+  onPurchase: (
+    skuId: string
+  ) => Promise<{ ok: boolean; error?: string; skuKind?: string; orderId?: string }>;
+  onSyncProfile?: (args: {
+    verifiedEmail?: string;
+    verifiedPhone?: string;
+    redemptionRegion?: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  verifiedEmail?: string;
+  verifiedPhone?: string;
   onFeedback?: (message: string | null) => void;
 };
 
-function purchaseErrorText(error?: string): string {
-  if (error === "insufficient_coins") return "金币不足";
-  if (error === "weekly_limit_reached") return "本周购买已达上限";
-  if (error === "sku_not_found") return "商品不存在";
-  return "兑换失败，请稍后重试";
+function profileHint(profile?: PortalRedemptionProfileView | null): string | null {
+  if (!profile) return null;
+  if (profile.eligible) return null;
+  return portalPurchaseErrorMessage(profile.ineligibleReason ?? undefined);
 }
 
-export function PortalShopPanel({ coins, skus, onPurchase, onFeedback }: PortalShopPanelProps) {
+function sectionLabelKey(sectionId: string): string {
+  return `shop.sections.${sectionId}`;
+}
+
+export function PortalShopPanel({
+  coins,
+  skus,
+  redemptionProfile,
+  giftCardOrderCount = 0,
+  onOpenGiftCardOrders,
+  onPurchase,
+  onSyncProfile,
+  verifiedEmail,
+  verifiedPhone,
+  onFeedback,
+}: PortalShopPanelProps) {
+  const { t } = useTranslation("portal.player");
   const [buying, setBuying] = useState<string | null>(null);
   const [inlineNote, setInlineNote] = useState<string | null>(null);
+  const [regionModalOpen, setRegionModalOpen] = useState(false);
+  const [pendingSkuId, setPendingSkuId] = useState<string | null>(null);
 
-  const handleBuy = useCallback(
+  useEffect(() => {
+    if (!onSyncProfile) return;
+    void onSyncProfile({
+      ...(verifiedEmail ? { verifiedEmail } : {}),
+      ...(verifiedPhone ? { verifiedPhone } : {}),
+    });
+  }, [onSyncProfile, verifiedEmail, verifiedPhone]);
+
+  const resolveSectionLabel = useCallback(
+    (sectionId: string) => {
+      const key = sectionLabelKey(sectionId);
+      return t(key, { defaultValue: sectionId });
+    },
+    [t]
+  );
+
+  const skuGroups = useMemo(
+    () => groupPortalShopSkus(skus, resolveSectionLabel),
+    [skus, resolveSectionLabel]
+  );
+
+  const hasGiftCardCatalog = useMemo(
+    () => skus.some((s) => s.skuKind === "giftcard"),
+    [skus]
+  );
+
+  const showOrdersLink = Boolean(
+    onOpenGiftCardOrders && (hasGiftCardCatalog || giftCardOrderCount > 0)
+  );
+
+  const executeBuy = useCallback(
     async (skuId: string, priceCoins: number) => {
       if (coins < priceCoins) {
-        onFeedback?.("金币不足");
+        onFeedback?.(portalPurchaseErrorMessage("insufficient_coins"));
         return;
       }
       setBuying(skuId);
@@ -41,7 +97,14 @@ export function PortalShopPanel({ coins, skus, onPurchase, onFeedback }: PortalS
       onFeedback?.(null);
       try {
         const r = await onPurchase(skuId);
-        const message = r.ok ? "兑换成功！" : purchaseErrorText(r.error);
+        const message = r.ok
+          ? r.skuKind === "giftcard"
+            ? t("shop.giftCardProcessing")
+            : t("shop.success")
+          : portalPurchaseErrorMessage(r.error);
+        if (r.ok && r.skuKind === "giftcard") {
+          onOpenGiftCardOrders?.();
+        }
         if (onFeedback) {
           onFeedback(message);
         } else {
@@ -51,63 +114,152 @@ export function PortalShopPanel({ coins, skus, onPurchase, onFeedback }: PortalS
         setBuying(null);
       }
     },
-    [coins, onPurchase, onFeedback]
+    [coins, onFeedback, onOpenGiftCardOrders, onPurchase, t]
   );
+
+  const handleBuy = useCallback(
+    async (sku: PortalShopSkuRow) => {
+      await executeBuy(sku.skuId, sku.priceCoins);
+    },
+    [executeBuy]
+  );
+
+  const handleRegionConfirm = useCallback(
+    async (region: string) => {
+      setRegionModalOpen(false);
+      if (!onSyncProfile) return;
+      const sync = await onSyncProfile({
+        redemptionRegion: region,
+        ...(verifiedEmail ? { verifiedEmail } : {}),
+        ...(verifiedPhone ? { verifiedPhone } : {}),
+      });
+      if (!sync.ok) {
+        onFeedback?.(portalPurchaseErrorMessage(sync.error));
+        setPendingSkuId(null);
+        return;
+      }
+      const skuId = pendingSkuId;
+      setPendingSkuId(null);
+      if (!skuId) return;
+      const sku = skus.find((s) => s.skuId === skuId);
+      if (sku) await executeBuy(skuId, sku.priceCoins);
+    },
+    [onSyncProfile, verifiedEmail, verifiedPhone, pendingSkuId, skus, executeBuy, onFeedback]
+  );
+
+  const hint = profileHint(redemptionProfile);
+
+  const renderSkuItem = (sku: PortalShopSkuRow) => {
+    const soldOut = sku.remainingThisWeek != null && sku.remainingThisWeek <= 0;
+    const canAfford = coins >= sku.priceCoins;
+    const locked = soldOut;
+
+    return (
+      <li key={sku.skuId} className="portal-shop-panel__item">
+        <div className="portal-shop-panel__itemMain">
+          <div className="portal-shop-panel__itemTitleRow">
+            <strong>{sku.title}</strong>
+            {sku.skuKind === "giftcard" ? (
+              <span className="portal-shop-panel__badge">{t("shop.badgeGiftCard")}</span>
+            ) : null}
+          </div>
+          {sku.description ? <p className="portal-shop-panel__desc">{sku.description}</p> : null}
+          {sku.faceValueDisplay ? (
+            <p className="portal-shop-panel__grant">
+              {t("shop.faceValue", { value: sku.faceValueDisplay })}
+            </p>
+          ) : null}
+          {sku.grantReplayTokenCount > 0 ? (
+            <p className="portal-shop-panel__grant">
+              {t("shop.grantReplay", { count: sku.grantReplayTokenCount })}
+            </p>
+          ) : null}
+          {sku.weeklyPurchaseLimit != null ? (
+            <p className="portal-shop-panel__limit">
+              {t("shop.weeklyRemaining", {
+                remaining: sku.remainingThisWeek ?? 0,
+                limit: sku.weeklyPurchaseLimit,
+              })}
+            </p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className={
+            canAfford
+              ? "portal-shop-panel__buy"
+              : "portal-shop-panel__buy portal-shop-panel__buy--insufficient"
+          }
+          disabled={buying != null || locked}
+          onClick={() => void handleBuy(sku)}
+        >
+          {buying === sku.skuId
+            ? t("shop.buying")
+            : soldOut
+              ? t("shop.soldOut")
+              : `🪙 ${sku.priceCoins}`}
+        </button>
+      </li>
+    );
+  };
 
   return (
     <div className="portal-shop-panel">
-      <p className="portal-shop-panel__balance">
-        当前余额：<span>🪙 {coins.toLocaleString()}</span>
-      </p>
+      <div className="portal-shop-panel__topbar">
+        <p className="portal-shop-panel__balance">
+          {t("shop.balance")}
+          <span>🪙 {coins.toLocaleString()}</span>
+        </p>
+        {showOrdersLink ? (
+          <button
+            type="button"
+            className="portal-shop-panel__ordersLink"
+            onClick={onOpenGiftCardOrders}
+          >
+            {t("shop.ordersToggle")}
+            {giftCardOrderCount > 0 ? (
+              <span className="portal-shop-panel__ordersCount">{giftCardOrderCount}</span>
+            ) : null}
+          </button>
+        ) : null}
+      </div>
+      {redemptionProfile?.region ? (
+        <p className="portal-shop-panel__region">
+          {t("shop.region", { region: redemptionProfile.region })}
+        </p>
+      ) : null}
+      {hint ? <p className="portal-shop-panel__note portal-shop-panel__note--warn">{hint}</p> : null}
       {inlineNote && !onFeedback ? (
         <p className="portal-shop-panel__note">{inlineNote}</p>
       ) : null}
-      <ul className="portal-shop-panel__list">
-        {skus.length === 0 ? (
-          <li className="portal-shop-panel__empty">暂无商品，请稍后重试</li>
-        ) : null}
-        {skus.map((sku) => {
-          const soldOut =
-            sku.remainingThisWeek != null && sku.remainingThisWeek <= 0;
-          const canAfford = coins >= sku.priceCoins;
-          return (
-            <li key={sku.skuId} className="portal-shop-panel__item">
-              <div className="portal-shop-panel__itemMain">
-                <strong>{sku.title}</strong>
-                {sku.description ? (
-                  <p className="portal-shop-panel__desc">{sku.description}</p>
-                ) : null}
-                {sku.grantReplayTokenCount > 0 ? (
-                  <p className="portal-shop-panel__grant">
-                    获得再战令 ×{sku.grantReplayTokenCount}
-                  </p>
-                ) : null}
-                {sku.weeklyPurchaseLimit != null ? (
-                  <p className="portal-shop-panel__limit">
-                    本周剩余 {sku.remainingThisWeek ?? 0} / {sku.weeklyPurchaseLimit}
-                  </p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                className={
-                  canAfford
-                    ? "portal-shop-panel__buy"
-                    : "portal-shop-panel__buy portal-shop-panel__buy--insufficient"
-                }
-                disabled={buying != null || soldOut}
-                onClick={() => void handleBuy(sku.skuId, sku.priceCoins)}
-              >
-                {buying === sku.skuId
-                  ? "兑换中…"
-                  : soldOut
-                    ? "已售罄"
-                    : `🪙 ${sku.priceCoins}`}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+
+      <div className="portal-shop-panel__catalog">
+        {skuGroups.length === 0 ? (
+          <p className="portal-shop-panel__empty">{t("shop.empty")}</p>
+        ) : (
+          skuGroups.map((group) => (
+            <section
+              key={group.sectionId ?? "__flat__"}
+              className="portal-shop-panel__section"
+              aria-label={group.label ?? undefined}
+            >
+              {group.label ? (
+                <h3 className="portal-shop-panel__sectionTitle">{group.label}</h3>
+              ) : null}
+              <ul className="portal-shop-panel__list">{group.items.map(renderSkuItem)}</ul>
+            </section>
+          ))
+        )}
+      </div>
+
+      <PortalRegionSelectModal
+        open={regionModalOpen}
+        onClose={() => {
+          setRegionModalOpen(false);
+          setPendingSkuId(null);
+        }}
+        onConfirm={(region) => void handleRegionConfirm(region)}
+      />
     </div>
   );
 }

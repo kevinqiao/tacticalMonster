@@ -1,5 +1,6 @@
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type PortalCenterModalProps = {
   open: boolean;
@@ -21,6 +22,7 @@ export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
   onClose,
   children,
 }) => {
+  const { t } = useTranslation("portal.player");
   const overlayRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLButtonElement>(null);
@@ -129,14 +131,14 @@ export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
         ref={backdropRef}
         type="button"
         className="portal-modal-backdrop"
-        aria-label="关闭"
+        aria-label={t("common.close")}
         onClick={handleClose}
       />
       <div className="portal-modal-shell">
         <div ref={panelRef} className="portal-modal-panel portal-modal-panel--fullscreen">
           <div className="portal-modal-head">
             <h2 id="portal-modal-title">{title}</h2>
-            <button type="button" className="portal-modal-close" onClick={handleClose} aria-label="关闭">
+            <button type="button" className="portal-modal-close" onClick={handleClose} aria-label={t("common.close")}>
               ×
             </button>
           </div>

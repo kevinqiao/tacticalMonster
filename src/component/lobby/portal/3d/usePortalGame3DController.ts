@@ -29,8 +29,10 @@ import {
 } from "../service/portalOpenRunHelpers";
 
 import {
-  leaveMatchQueueErrorText,
-} from "./portalGame3DFormatters";
+  campaignFlowErrorMessage,
+  portalFlowMessage,
+} from "../shared/portalErrorMessage";
+import { leaveMatchQueueErrorText } from "./portalGame3DFormatters";
 import { resolvePortalWeeklyCloseDisplay } from "./portalWeeklyCloseDisplay";
 import { portalTierDisplayLabel, type PortalTierId } from "./portalGame3DTheme";
 import type {
@@ -75,6 +77,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   const [rulesModalOpen, setRulesModalOpen] =
     useState<Portal3DRulesAnchor | null>(null);
   const [shopModalOpen, setShopModalOpen] = useState(false);
+  const [giftCardOrdersModalOpen, setGiftCardOrdersModalOpen] = useState(false);
   const [weeklyCloseModalOpen, setWeeklyCloseModalOpen] = useState(false);
   const weeklyCloseShownRef = useRef<string | null>(null);
 
@@ -209,7 +212,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     },
     onTimeout: () => {
       setAwaitingMatch(null);
-      setNote("匹配超时，请稍后重试。");
+      setNote(campaignFlowErrorMessage("matchTimeout"));
     },
   });
 
@@ -270,11 +273,11 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     async (mode: "solo" | "multi") => {
       if (!authed) {
         askAuth({});
-        setNote("请先登录后再开始挑战。");
+        setNote(portalFlowMessage("signInToChallenge"));
         return;
       }
       if (!portal.portalSessionReady) {
-        setNote("正在同步对局状态，请稍候…");
+        setNote(campaignFlowErrorMessage("syncingSession"));
         return;
       }
 
@@ -291,15 +294,15 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       }
 
       if (mode === "multi" && queueWaiting) {
-        setNote("已在匹配队列中，请先退出匹配或等待开桌。");
+        setNote(portalFlowMessage("alreadyInQueue"));
         return;
       }
       if (mode === "multi" && multiJoinBlocked && !queueWaiting) {
-        setNote("正在匹配或对局创建中，请稍候。");
+        setNote(campaignFlowErrorMessage("matchingInProgress"));
         return;
       }
       if (mode === "solo" && soloJoinBlocked) {
-        setNote("正在匹配或对局创建中，请稍候。");
+        setNote(campaignFlowErrorMessage("matchingInProgress"));
         return;
       }
 
@@ -360,6 +363,8 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     visible,
     authed,
     user,
+    userEmail: user?.email,
+    userPhone: user?.phone,
     signIn,
     signOut,
     joining,
@@ -372,6 +377,8 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     setRulesModalOpen,
     shopModalOpen,
     setShopModalOpen,
+    giftCardOrdersModalOpen,
+    setGiftCardOrdersModalOpen,
     weeklyCloseModalOpen,
     setWeeklyCloseModalOpen,
     openAssignments,

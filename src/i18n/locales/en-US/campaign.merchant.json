@@ -20,7 +20,10 @@
   },
   "home": {
     "title": "Merchant console",
-    "subtitle": "Manage campaigns, brand theme, and coupon redemption.",
+    "subtitle": "Your store homepage, in-store posters, optional play-to-win coupons, and staff redeem — no POS change to start.",
+    "gettingStarted": "Quick start",
+    "gettingStartedSteps": "1) Publish a poster campaign on your store homepage · 2) Add a game challenge when you want a burst · 3) Staff redeem from the Redeem tab",
+    "homepageLink": "Store homepage (share this link on menus, receipts, social)",
     "myMerchants": "My merchants",
     "createMerchant": "Create merchant",
     "slug": "Slug",
@@ -31,7 +34,8 @@
   },
   "campaigns": {
     "title": "Campaigns",
-    "intro": "Campaign periods and reward rules live in Merchant; Portal handles join/settle using portal_solo_p75_* / portal_multi_* templates.",
+    "intro": "Live campaigns appear on your store homepage (/campaign/{{merchantSlug}}). Use poster display for everyday promos; add game challenges when you want play-to-win coupons.",
+    "merchantHomeUrl": "Store homepage: /campaign/{{merchantSlug}}",
     "newTitle": "New campaign",
     "newHint": "Pick a coupon definition below. Create templates under Coupon defs first.",
     "createDraft": "Create draft",
@@ -65,8 +69,8 @@
   },
   "form": {
     "experienceType": "Campaign type",
-    "experienceTypeGame": "Game challenge (play for coupons)",
-    "experienceTypeDisplay": "Poster display (offline / promo only)",
+    "experienceTypeGame": "Game challenge (play-to-win coupon — optional burst)",
+    "experienceTypeDisplay": "Poster display (everyday promo — no game)",
     "poster": "Poster image",
     "posterSection": "Campaign posters",
     "posterDualHint": "Upload separate portrait and landscape posters for best full-screen display. Same theme, different compositions — do not crop one image.",

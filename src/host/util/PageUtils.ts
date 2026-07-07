@@ -50,7 +50,7 @@ export const parseLocation = (): PageItem | undefined => {
             page.data = { gameType: portalPath.gameType };
         }
     }
-    if (ps[1] === "campaign" && ps[2] && ps[2] !== "merchant") {
+    if (ps[1] === "campaign" && ps[2] && ps[2] !== "merchant" && ps[2] !== "home") {
         page.data = {
             merchantSlug: ps[2],
             ...(ps[3] ? { campaignSlug: ps[3] } : {}),
@@ -87,6 +87,8 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
         let navCfg: any;
         if (res["ctx"] === "campaign" && ps[2] === "merchant") {
             navCfg = app.navs.find((nav: any) => nav.uri === "merchant");
+        } else if (res["ctx"] === "campaign" && ps[2] === "home") {
+            navCfg = app.navs.find((nav: any) => nav.uri === "home");
         } else if (res["ctx"] === "partner" && ps[2] === "admin") {
             navCfg = app.navs.find((nav: any) => nav.uri === "admin");
         } else if (res["ctx"] === "platform" && ps[2] === "admin") {
@@ -261,6 +263,7 @@ export function isCampaignMerchantEntryUri(uri: string): boolean {
     const u = normalizePageUri(uri);
     if (!u.startsWith("/campaign/")) return false;
     if (u.startsWith("/campaign/merchant")) return false;
+    if (u === "/campaign/home") return false;
     const parts = u.split("/").filter(Boolean);
     return parts.length === 2;
 }
@@ -273,7 +276,7 @@ export function isCampaignPlayerShellUri(uri: string): boolean {
 /** `/campaign/{merchantSlug}` or `/campaign/{merchantSlug}/{campaignSlug}` â†’ merchant slug. */
 export function parseCampaignMerchantSlugFromPathname(pathname: string): string | null {
     const parts = pathname.split("/").filter(Boolean);
-    if (parts[0] !== "campaign" || !parts[1] || parts[1] === "merchant") {
+    if (parts[0] !== "campaign" || !parts[1] || parts[1] === "merchant" || parts[1] === "home") {
         return null;
     }
     return parts[1].trim().toLowerCase();

@@ -14,10 +14,15 @@ export const ensurePlayer = internalMutation({
     if (!existing) {
       await ctx.db.insert("portal_players", {
         uid,
+        createdAt: now,
         updatedAt: now,
       });
     } else {
-      await ctx.db.patch(existing._id, { updatedAt: now });
+      const patch: { updatedAt: number; createdAt?: number } = { updatedAt: now };
+      if (!existing.createdAt) {
+        patch.createdAt = existing.updatedAt ?? now;
+      }
+      await ctx.db.patch(existing._id, patch);
     }
     return await ctx.db
       .query("portal_players")

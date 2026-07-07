@@ -1891,13 +1891,31 @@ export const MerchantCampaignListInner: React.FC<{
         <>
           <MerchantPageToolbar />
           <h1>{t("campaigns.title")}</h1>
-          <p className="merchant-note">{t("campaigns.intro")}</p>
+          <p className="merchant-note">{t("campaigns.intro", { merchantSlug: merchantSlug || "your-slug" })}</p>
+          {merchantSlug ? (
+            <p className="merchant-note">
+              {t("campaigns.merchantHomeUrl", { merchantSlug })}{" "}
+              <a href={`/campaign/${merchantSlug}`} target="_blank" rel="noopener noreferrer">
+                /campaign/{merchantSlug}
+              </a>
+            </p>
+          ) : null}
           <nav className="merchant-nav">
             <MerchantNavLink route={{ view: "home" }}>{t("nav.back")}</MerchantNavLink>
           </nav>
         </>
       ) : (
-        <p className="merchant-note">{t("campaigns.intro")}</p>
+        <>
+          <p className="merchant-note">{t("campaigns.intro", { merchantSlug: merchantSlug || "your-slug" })}</p>
+          {merchantSlug ? (
+            <p className="merchant-note">
+              {t("campaigns.merchantHomeUrl", { merchantSlug })}{" "}
+              <a href={`/campaign/${merchantSlug}`} target="_blank" rel="noopener noreferrer">
+                /campaign/{merchantSlug}
+              </a>
+            </p>
+          ) : null}
+        </>
       )}
 
       {note ? <p className="merchant-note">{note}</p> : null}

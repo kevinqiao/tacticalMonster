@@ -1,15 +1,10 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import type { OpenCasualRunAssignment } from "../casual/service/casualOpenRunAssignment";
 import { canOpenPortalHistoryReport } from "./service/portalHistoryReport";
 import type { PortalGameHistoryRow } from "./service/usePortalManager";
 import { portalMatchTypeLabel } from "./service/portalOpenRunHelpers";
-
-function formatMatchType(matchType: string): string {
-  if (matchType === "solo_p75") return "单人挑战";
-  if (matchType === "multi_ranked") return "多人竞技";
-  return matchType;
-}
 
 export const PortalHistoryList: React.FC<{
   openAssignments: OpenCasualRunAssignment[];
@@ -17,8 +12,10 @@ export const PortalHistoryList: React.FC<{
   onOpenAssignment: (hit: OpenCasualRunAssignment) => void;
   onOpenReport: (row: PortalGameHistoryRow) => void;
 }> = ({ openAssignments, gameHistory, onOpenAssignment, onOpenReport }) => {
+  const { t } = useTranslation("portal.player");
+
   if (openAssignments.length === 0 && gameHistory.length === 0) {
-    return <p className="portal-muted portal-history-empty">暂无对局</p>;
+    return <p className="portal-muted portal-history-empty">{t("history.empty")}</p>;
   }
 
   return (
@@ -32,10 +29,10 @@ export const PortalHistoryList: React.FC<{
           >
             <div className="portal-history-main">
               <strong>{portalMatchTypeLabel(a.templateId)}</strong>
-              <span className="portal-history-badge">进行中</span>
+              <span className="portal-history-badge">{t("history.ongoing")}</span>
             </div>
             <div className="portal-history-meta">
-              <span className="portal-history-enter">点击进入 ›</span>
+              <span className="portal-history-enter">{t("history.enter")}</span>
               <span className="portal-muted">{new Date(a.createdAt).toLocaleString()}</span>
             </div>
           </button>
@@ -47,25 +44,26 @@ export const PortalHistoryList: React.FC<{
         return (
           <li key={row.entryId} className="portal-history-row portal-history-row--done">
             <div className="portal-history-main">
-              <strong>{formatMatchType(row.matchType)}</strong>
+              <strong>{portalMatchTypeLabel(row.matchType)}</strong>
               <span>
-                分数 {row.score ?? "—"}
-                {row.rank != null ? ` · 第 ${row.rank} 名` : ""}
+                {t("history.score", { score: row.score ?? t("common.dash") })}
+                {row.rank != null ? ` · ${t("history.rank", { rank: row.rank })}` : ""}
               </span>
             </div>
             <div className="portal-history-meta">
               {row.pointDelta != null && (
                 <span className={row.pointDelta >= 0 ? "portal-pts-pos" : "portal-pts-neg"}>
-                  {row.pointDelta >= 0 ? "+" : ""}
-                  {row.pointDelta} 分
+                  {t("history.points", {
+                    delta: `${row.pointDelta >= 0 ? "+" : ""}${row.pointDelta}`,
+                  })}
                 </span>
               )}
               <span className="portal-muted">
                 {pendingSettlement
-                  ? "等待结算中"
+                  ? t("history.pendingSettlement")
                   : row.submittedAt
                     ? new Date(row.submittedAt).toLocaleString()
-                    : "—"}
+                    : t("common.dash")}
               </span>
             </div>
             {showReport && (
@@ -75,7 +73,7 @@ export const PortalHistoryList: React.FC<{
                   className="portal-history-report-btn"
                   onClick={() => onOpenReport(row)}
                 >
-                  战报
+                  {t("history.report")}
                 </button>
               </div>
             )}
@@ -97,40 +95,46 @@ export const PortalWeeklyLeaderboardPanel: React.FC<{
   }[];
   myPoints?: number;
   myRank?: number | null;
-}> = ({ rows, myPoints, myRank }) => (
-  <div className="portal-lb">
-    {typeof myPoints === "number" && (
-      <p className="portal-lb-me portal-lb-me--block">
-        我的本周 {myPoints} 分{myRank ? ` · 第 ${myRank} 名` : ""}
-      </p>
-    )}
-    <table className="portal-lb-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>玩家</th>
-          <th>积分</th>
-          <th>局数</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.length === 0 ? (
+}> = ({ rows, myPoints, myRank }) => {
+  const { t } = useTranslation("portal.player");
+
+  return (
+    <div className="portal-lb">
+      {typeof myPoints === "number" && (
+        <p className="portal-lb-me portal-lb-me--block">
+          {myRank
+            ? t("leaderboard.myWeekWithRank", { points: myPoints, rank: myRank })
+            : t("leaderboard.myWeek", { points: myPoints })}
+        </p>
+      )}
+      <table className="portal-lb-table">
+        <thead>
           <tr>
-            <td colSpan={4} className="portal-muted">
-              暂无排行数据
-            </td>
+            <th>{t("leaderboard.columns.rank")}</th>
+            <th>{t("leaderboard.columns.player")}</th>
+            <th>{t("leaderboard.columns.points")}</th>
+            <th>{t("leaderboard.columns.matches")}</th>
           </tr>
-        ) : (
-          rows.map((r) => (
-            <tr key={`${r.rank}-${r.uid}`}>
-              <td>{r.rank}</td>
-              <td>{r.displayName ?? r.uid.slice(0, 12)}</td>
-              <td>{r.points}</td>
-              <td>{r.matchCount}</td>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="portal-muted">
+                {t("leaderboard.empty")}
+              </td>
             </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
-);
+          ) : (
+            rows.map((r) => (
+              <tr key={`${r.rank}-${r.uid}`}>
+                <td>{r.rank}</td>
+                <td>{r.displayName ?? r.uid.slice(0, 12)}</td>
+                <td>{r.points}</td>
+                <td>{r.matchCount}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+};

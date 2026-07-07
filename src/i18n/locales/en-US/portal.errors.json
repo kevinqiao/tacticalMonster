@@ -1,0 +1,30 @@
+{
+  "unknown": "Something went wrong: {{code}}",
+  "unknown_no_code": "Something went wrong",
+  "purchase_default": "Redemption failed. Please try again later.",
+  "flow": {
+    "signInToChallenge": "Please sign in before starting a challenge.",
+    "alreadyInQueue": "You are already in the match queue. Leave the queue or wait for a table."
+  },
+  "giftcard": {
+    "linkOpened": "Redemption link opened",
+    "notReady": "Gift card is still processing",
+    "redeemFailed": "Redemption failed. Please try again later.",
+    "resendSuccess": "Backup email sent",
+    "resendFailed": "Failed to send email. Please try again later."
+  },
+  "codes": {
+    "insufficient_coins": "Not enough coins",
+    "weekly_limit_reached": "Weekly purchase limit reached",
+    "sku_not_found": "Item not found",
+    "verification_required": "Please verify your email or phone number first",
+    "region_required": "Please select a redemption region first",
+    "region_mismatch": "This gift card is not available in your region",
+    "account_too_new": "Account must be at least 7 days old to redeem",
+    "insufficient_engagement": "Play at least one weekly league match before redeeming",
+    "region_locked": "Redemption region cannot be changed for 30 days",
+    "not_logged_in_or_no_backend": "Not signed in or Portal backend is not configured",
+    "unknown_mode": "Unknown mode",
+    "join_failed": "Failed to join"
+  }
+}

@@ -52,16 +52,25 @@ const MerchantHomePanel: React.FC = () => {
 
   return (
     <>
+      {merchants.length > 0 ? (
+        <section className="merchant-onboarding">
+          <h2>{t("home.gettingStarted")}</h2>
+          <p className="merchant-note">{t("home.gettingStartedSteps")}</p>
+        </section>
+      ) : null}
       <h2>{t("home.myMerchants")}</h2>
       <section>
-            {merchants.length === 0 ? (
-              <p className="merchant-note">{t("home.subtitle")}</p>
-            ) : null}
             {merchants.map((m) => (
               <article key={m.merchantId} className="merchant-card">
                 <strong>{m.name}</strong>
                 <p className="merchant-note">
                   /{m.slug} · {m.role}
+                </p>
+                <p className="merchant-note">
+                  {t("home.homepageLink")}:{" "}
+                  <a href={`/campaign/${m.slug}`} target="_blank" rel="noopener noreferrer">
+                    /campaign/{m.slug}
+                  </a>
                 </p>
                 <nav className="merchant-nav">
                   <MerchantNavLink

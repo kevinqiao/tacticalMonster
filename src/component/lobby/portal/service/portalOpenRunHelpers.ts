@@ -1,5 +1,6 @@
 import { getPortalTournamentDefinition } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import type { RegisteredPortalGameType } from "@/convex/portal/convex/data/portalGameRegistry";
+import i18n from "@/i18n";
 
 import {
   assignmentMatchesAwaitWatch,
@@ -45,8 +46,18 @@ export function pickActivePortalOpenAssignmentsForGameType(
 
 export function portalMatchTypeLabel(templateId: string): string {
   const def = getPortalTournamentDefinition(templateId);
-  if (def?.matchType === "solo_p75") return "单人挑战";
-  if (def?.matchType === "multi_ranked") return "多人竞技";
+  if (def?.matchType === "solo_p75") {
+    return i18n.t("history.matchTypes.solo_p75", { ns: "portal.player" });
+  }
+  if (def?.matchType === "multi_ranked") {
+    return i18n.t("history.matchTypes.multi_ranked", { ns: "portal.player" });
+  }
+  if (templateId === "solo_p75") {
+    return i18n.t("history.matchTypes.solo_p75", { ns: "portal.player" });
+  }
+  if (templateId === "multi_ranked") {
+    return i18n.t("history.matchTypes.multi_ranked", { ns: "portal.player" });
+  }
   return templateId;
 }
 

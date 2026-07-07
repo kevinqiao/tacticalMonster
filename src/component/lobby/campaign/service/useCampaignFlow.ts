@@ -523,7 +523,6 @@ export function useCampaignFlow(args: {
       const outcome = await portal.joinTournament(mode, {
         merchantSlug: args.merchantSlug,
         campaignSlug: args.campaignSlug,
-        ...(user?.partner != null ? { sessionPartnerId: user.partner } : {}),
       });
       if (outcome.kind === "ready") {
         openCampaignAssignment({

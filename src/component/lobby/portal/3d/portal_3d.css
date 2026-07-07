@@ -1007,7 +1007,7 @@
   padding: 0 4px;
   color: #f4dfc0;
   font-family: Inter, var(--default-font-family);
-  font-size: 35px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -1043,6 +1043,52 @@
   z-index: 200;
   transform-origin: top right;
   pointer-events: auto;
+}
+
+.fixedAuthCluster {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 200;
+  transform-origin: top right;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.fixedAuthCluster .fixedAuthButton {
+  position: relative;
+  top: auto;
+  right: auto;
+}
+
+.campaign-locale-switcher--portal {
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(8, 20, 40, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.campaign-locale-switcher--portal .campaign-locale-switcher__btn {
+  min-width: 44px;
+  padding: 4px 10px;
+  border: 1px solid rgba(232, 244, 252, 0.35);
+  border-radius: 999px;
+  background: transparent;
+  color: #e8f4fc;
+  font-family: Inter, var(--default-font-family);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.campaign-locale-switcher--portal .campaign-locale-switcher__btn--active {
+  background: rgba(232, 244, 252, 0.18);
+  border-color: #e8f4fc;
 }
 
 .fixedAuthBackground {
@@ -1262,11 +1308,19 @@
 .tierRewardLine {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   color: #7a4c12;
   font-family: Inter, var(--default-font-family);
   font-size: 22px;
   font-weight: 800;
+}
+
+.tierRewardLineMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .tierRewardCoin {
@@ -1290,8 +1344,10 @@
 
 .tierUnclaimedChip {
   box-sizing: border-box;
+  flex-shrink: 0;
   width: 226px;
   min-height: 58px;
+  margin-left: auto;
   padding: 8px 14px 8px 10px;
   display: flex;
   align-items: center;
@@ -1635,6 +1691,7 @@
 
 .tierStripRowPortrait .tierRewardLine {
   font-size: 25px;
+  flex-wrap: nowrap;
 }
 
 .tierStripRowPortrait .tierBtnGroup {
@@ -1650,11 +1707,9 @@
 }
 
 .tierStripRowPortrait .tierUnclaimedChip {
-  flex: 1 1 100%;
-  width: 100%;
-  max-width: none;
-  min-height: 68px;
-  justify-content: center;
+  width: auto;
+  max-width: min(100%, 320px);
+  min-height: 58px;
 }
 
 .tierStripRowPortrait .tierUnclaimedText {

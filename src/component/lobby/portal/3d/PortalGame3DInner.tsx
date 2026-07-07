@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { styles } from "./portal_3d_classes";
 import {
@@ -61,6 +62,8 @@ export interface PortalGame3DInnerProps {
   onOpenLeaderboard?: () => void;
   onOpenFullHistory?: () => void;
   onOpenShop?: () => void;
+  /** Hide shop entry when catalog has no visible SKUs for this partner. Default true. */
+  showShop?: boolean;
   onSignOut?: () => void;
   onSignIn?: () => void;
   /** Top-right SignIn/SignOut; default hidden on Partner portal and embed shells. */
@@ -89,6 +92,7 @@ export function PortalGame3DInner({
   onOpenLeaderboard,
   onOpenFullHistory,
   onOpenShop,
+  showShop = true,
   onSignOut,
   onSignIn,
   showAuthButton,
@@ -96,6 +100,7 @@ export function PortalGame3DInner({
   onOpenUnclaimedRewards,
   pageActive = true,
 }: PortalGame3DInnerProps) {
+  const { t } = useTranslation("portal.player");
   const authButtonVisible = showAuthButton ?? shouldShowPortalAuthButton();
   const containerRef = useRef<HTMLDivElement>(null);
   const shopRef = useRef<HTMLDivElement>(null);
@@ -192,6 +197,10 @@ export function PortalGame3DInner({
     markPortalBootPainted();
   }, [pageActive]);
 
+  const promoteTo = tier?.promoteTo ?? 10;
+  const demoteFrom = tier?.demoteFrom ?? 41;
+  const cohortSize = tier?.cohortSize ?? 50;
+
   return (
     <div
       className={styles.scaleWrapper}
@@ -205,21 +214,25 @@ export function PortalGame3DInner({
       }}
     >
       <div ref={shopRef} className={styles.fixedShopCluster}>
-        <div
-          className={styles.fixedShopButton}
-          onClick={handleShopClick}
-          style={{ cursor: "pointer" }}
-          role="button"
-          aria-label={
-            coinBalance != null
-              ? `Shop，当前金币 ${coinBalance.toLocaleString()}`
-              : "Shop"
-          }
-        >
-          <div className={styles.fixedShopBackground}>
-            <span className={styles.fixedShopText}>SHOP</span>
+        {showShop ? (
+          <div
+            className={styles.fixedShopButton}
+            onClick={handleShopClick}
+            style={{ cursor: "pointer" }}
+            role="button"
+            aria-label={
+              coinBalance != null
+                ? t("lobby.shopWithBalanceAria", {
+                    coins: coinBalance.toLocaleString(),
+                  })
+                : t("lobby.shopAria")
+            }
+          >
+            <div className={styles.fixedShopBackground}>
+              <span className={styles.fixedShopText}>{t("lobby.shop")}</span>
+            </div>
           </div>
-        </div>
+        ) : null}
         {coinBalance != null ? (
           <div className={styles.coinChip} aria-hidden>
             <span className={styles.coinChipIcon} />
@@ -230,14 +243,17 @@ export function PortalGame3DInner({
         ) : null}
       </div>
       {authButtonVisible ? (
-        <div
-          ref={authRef}
-          className={styles.fixedAuthButton}
-          onClick={authed ? onSignOut : onSignIn}
-          style={{ cursor: "pointer" }}
-        >
-          <div className={styles.fixedAuthBackground}>
-            <span className={styles.fixedAuthText}>{authed ? "SignOut" : "SignIn"}</span>
+        <div ref={authRef} className={styles.fixedAuthCluster}>
+          <div
+            className={styles.fixedAuthButton}
+            onClick={authed ? onSignOut : onSignIn}
+            style={{ cursor: "pointer" }}
+          >
+            <div className={styles.fixedAuthBackground}>
+              <span className={styles.fixedAuthText}>
+                {authed ? t("lobby.signOut") : t("lobby.signIn")}
+              </span>
+            </div>
           </div>
         </div>
       ) : null}
@@ -278,29 +294,32 @@ export function PortalGame3DInner({
               <div className={styles.tierCenter}>
                 <div className={styles.tierTopLine}>
                   <span className={styles.tierCohortNo}>
-                    {tier.cohortNo != null ? `组 #${tier.cohortNo}` : "本周分组"}
+                    {tier.cohortNo != null
+                      ? t("lobby.cohortLabel", { no: tier.cohortNo })
+                      : t("lobby.cohortPending")}
                     <span
                       className={styles.tierHelpBtn}
                       onClick={() => onOpenRules?.("tiers")}
                       role="button"
-                      aria-label="Game rules"
+                      aria-label={t("lobby.rulesAria")}
                     />
                   </span>
                   <span className={styles.tierRankText}>
-                    Rank {tier.rank != null ? `#${tier.rank}` : "—"} /{" "}
-                    {tier.cohortSize ?? 50}
+                    {t("lobby.rankLabel", {
+                      rank: tier.rank != null ? `#${tier.rank}` : t("common.dash"),
+                      size: cohortSize,
+                    })}
                   </span>
                 </div>
                 <div className={styles.tierZoneBar}>
                   <div className={styles.tierZonePromote}>
-                    ↑ 升级区 1-{tier.promoteTo ?? 10}
+                    {t("lobby.zonePromote", { from: 1, to: promoteTo })}
                   </div>
                   <div className={styles.tierZoneKeep}>
-                    保级区 {(tier.promoteTo ?? 10) + 1}-
-                    {(tier.demoteFrom ?? 41) - 1}
+                    {t("lobby.zoneKeep", { from: promoteTo + 1, to: demoteFrom - 1 })}
                   </div>
                   <div className={styles.tierZoneDemote}>
-                    ↓ 降级区 {tier.demoteFrom ?? 41}-{tier.cohortSize ?? 50}
+                    {t("lobby.zoneDemote", { from: demoteFrom, to: cohortSize })}
                   </div>
                   {tier.rank != null ? (
                     <div
@@ -310,58 +329,67 @@ export function PortalGame3DInner({
                           100,
                           Math.max(
                             0,
-                            ((tier.rank - 0.5) / (tier.cohortSize ?? 50)) * 100
+                            ((tier.rank - 0.5) / cohortSize) * 100
                           )
                         )}%`,
                       }}
                     />
                   ) : null}
                 </div>
-                {tier.projectedCoins != null ? (
+                {tier.projectedCoins != null ||
+                (unclaimedRewards && unclaimedRewards.coins > 0) ? (
                   <div className={styles.tierRewardLine}>
-                    <span>预计结算奖励</span>
-                    <div className={styles.tierRewardCoin} />
-                    <span className={styles.tierRewardNum}>
-                      +{tier.projectedCoins}
-                    </span>
+                    {tier.projectedCoins != null ? (
+                      <div className={styles.tierRewardLineMain}>
+                        <span>{t("lobby.projectedReward")}</span>
+                        <div className={styles.tierRewardCoin} />
+                        <span className={styles.tierRewardNum}>
+                          +{tier.projectedCoins}
+                        </span>
+                      </div>
+                    ) : null}
+                    {unclaimedRewards && unclaimedRewards.coins > 0 ? (
+                      <div
+                        className={styles.tierUnclaimedChip}
+                        onClick={onOpenUnclaimedRewards}
+                        role="button"
+                        aria-label={t("lobby.unclaimedCoinsAria", {
+                          coins: unclaimedRewards.coins.toLocaleString(),
+                        })}
+                      >
+                        <span className={styles.tierUnclaimedIcon} aria-hidden />
+                        <span className={styles.tierUnclaimedText}>
+                          {t("lobby.unclaimedCoins", {
+                            coins: unclaimedRewards.coins.toLocaleString(),
+                          })}
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
               <div className={styles.tierBtnGroup}>
-                {unclaimedRewards && unclaimedRewards.coins > 0 ? (
-                  <div
-                    className={styles.tierUnclaimedChip}
-                    onClick={onOpenUnclaimedRewards}
-                    role="button"
-                    aria-label={`待领 ${unclaimedRewards.coins.toLocaleString()} 金币`}
-                  >
-                    <span className={styles.tierUnclaimedIcon} aria-hidden />
-                    <span className={styles.tierUnclaimedText}>
-                      待领 {unclaimedRewards.coins.toLocaleString()}
-                    </span>
-                  </div>
-                ) : null}
                 <div
                   className={styles.tierLbBtn}
                   onClick={onOpenLeaderboard}
                   role="button"
-                  aria-label="Leaderboard"
+                  aria-label={t("lobby.leaderboardAria")}
                 >
                   <div className={styles.tierLbBtnBg}>
                     <div className={styles.tierLbTrophy} />
-                    <span className={styles.tierLbText}>LEADERBOARD</span>
+                    <span className={styles.tierLbText}>{t("lobby.leaderboard")}</span>
                   </div>
                 </div>
                 <div
                   className={styles.tierHistoryBtn}
                   onClick={onOpenFullHistory}
                   role="button"
-                  aria-label="History"
+                  aria-label={t("lobby.historyAria")}
                   style={{ opacity: onOpenFullHistory ? 1 : 0.6 }}
                 >
                   <div className={styles.tierLbBtnBg}>
                     <div className={styles.tierHistoryIcon} />
-                    <span className={styles.tierLbText}>HISTORY</span>
+                    <span className={styles.tierLbText}>{t("lobby.history")}</span>
                   </div>
                 </div>
               </div>
@@ -373,7 +401,7 @@ export function PortalGame3DInner({
             <div className={`${styles.modeCard} ${styles.modeCardSolo}`}>
               <div className={styles.modeCardTopRow}>
                 <div className={styles.modeIconSolo} />
-                <span className={styles.modeTitle}>CHALLENGE</span>
+                <span className={styles.modeTitle}>{t("lobby.modes.challenge")}</span>
               </div>
               <div
                 className={`${styles.modePlayBtn} ${styles.modePlayBtnSolo}`}
@@ -385,10 +413,10 @@ export function PortalGame3DInner({
               >
                 <span className={styles.modePlayText}>
                   {joining === "solo"
-                    ? "JOINING..."
+                    ? t("lobby.joining")
                     : soloOpenAssignment
-                      ? "CONTINUE"
-                      : "PLAY"}
+                      ? t("lobby.continue")
+                      : t("lobby.play")}
                 </span>
               </div>
             </div>
@@ -397,7 +425,7 @@ export function PortalGame3DInner({
             <div className={`${styles.modeCard} ${styles.modeCardArena}`}>
               <div className={styles.modeCardTopRow}>
                 <div className={styles.modeIconArena} />
-                <span className={styles.modeTitle}>ARENA</span>
+                <span className={styles.modeTitle}>{t("lobby.modes.arena")}</span>
               </div>
               <div
                 className={`${styles.modePlayBtn} ${styles.modePlayBtnArena}`}
@@ -409,12 +437,12 @@ export function PortalGame3DInner({
               >
                 <span className={styles.modePlayText}>
                   {joining === "multi"
-                    ? "MATCHING..."
+                    ? t("lobby.matching")
                     : queueWaiting
-                      ? "MATCHING..."
+                      ? t("lobby.matching")
                       : multiOpenAssignment
-                        ? "CONTINUE"
-                        : "PLAY"}
+                        ? t("lobby.continue")
+                        : t("lobby.play")}
                 </span>
               </div>
             </div>

@@ -92,3 +92,36 @@ export const spendPortalCoins = internalMutation({
     return { ok: true as const, balanceAfter };
   },
 });
+
+type RefundPortalCoinsResult =
+  | { ok: true; balanceAfter: number }
+  | { ok: false; error: "no_player" | "invalid_amount" };
+
+export const refundPortalCoins = internalMutation({
+  args: {
+    uid: v.string(),
+    amount: v.number(),
+    reason: v.optional(v.string()),
+    gameType: v.optional(v.string()),
+  },
+  handler: async (ctx, { uid, amount, reason, gameType }): Promise<RefundPortalCoinsResult> => {
+    const row = await ctx.runQuery(internal.dao.portalPlayerDao.findByUid, { uid });
+    if (!row) return { ok: false as const, error: "no_player" };
+    const refund = Math.max(0, Math.floor(amount));
+    if (refund === 0) return { ok: true as const, balanceAfter: row.coins ?? 0 };
+
+    const now = Date.now();
+    const balanceAfter = (row.coins ?? 0) + refund;
+    await ctx.db.patch(row._id, { coins: balanceAfter, updatedAt: now });
+    await ctx.db.insert("portal_coin_ledger", {
+      uid,
+      kind: "coins",
+      delta: refund,
+      balanceAfter,
+      reason: reason ?? "refund",
+      gameType,
+      createdAt: now,
+    });
+    return { ok: true as const, balanceAfter };
+  },
+});
