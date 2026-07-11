@@ -46,6 +46,10 @@ import { buildCasualPlatformRunActionArgs } from '../../../shared/casualPlatform
 
 import { fetchCasualAsyncTableSummaryForGame } from '../../../shared/fetchCasualAsyncTableSummary';
 
+import { executeCasualRunReplay } from '../../../shared/executeCasualRunReplay';
+
+import { confirmCasualRunWithoutReplayForBridge } from '../../../shared/confirmCasualRunWithoutReplay';
+
 import { CasualGameScoreReportOverlay } from '../../../shared/CasualGameScoreReportOverlay';
 
 import { CasualPostSettleSummaryOverlay } from '../../../shared/CasualPostSettleSummaryOverlay';
@@ -192,9 +196,13 @@ type YatzGameContextValue = {
 
   postCasualReplayOffered: boolean;
 
+  postCasualReplayMode: 'ad' | 'token';
+
   postCasualReplayTokenCount: number;
 
   postCasualReplayWindowEndsAt?: number;
+
+  postCasualAdReplayDailyRemaining?: number;
 
   casualReplayBusy: boolean;
 
@@ -303,7 +311,15 @@ const YatzGameProvider: React.FC<Props> = ({
 
   const [postCasualReplayTokenCount, setPostCasualReplayTokenCount] = useState(0);
 
+  const [postCasualReplayMode, setPostCasualReplayMode] = useState<'ad' | 'token'>('token');
+
   const [postCasualReplayWindowEndsAt, setPostCasualReplayWindowEndsAt] = useState<
+
+    number | undefined
+
+  >();
+
+  const [postCasualAdReplayDailyRemaining, setPostCasualAdReplayDailyRemaining] = useState<
 
     number | undefined
 
@@ -408,6 +424,8 @@ const YatzGameProvider: React.FC<Props> = ({
 
     setPostCasualReplayTokenCount(0);
 
+    setPostCasualReplayMode('token');
+
     setPostCasualReplayWindowEndsAt(undefined);
 
     setPostCasualScoreReportOpen(false);
@@ -482,6 +500,8 @@ const YatzGameProvider: React.FC<Props> = ({
 
       setPostCasualReplayTokenCount(0);
 
+      setPostCasualReplayMode('token');
+
       setPostCasualCanReplay(false);
 
       setPostCasualReplayWindowEndsAt(undefined);
@@ -503,6 +523,10 @@ const YatzGameProvider: React.FC<Props> = ({
           setCanReplay: setPostCasualCanReplay,
 
           setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+
+          setReplayMode: setPostCasualReplayMode,
+
+          setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
 
         });
 
@@ -528,6 +552,10 @@ const YatzGameProvider: React.FC<Props> = ({
               setCanReplay: setPostCasualCanReplay,
 
               setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+
+              setReplayMode: setPostCasualReplayMode,
+
+              setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
 
             });
 
@@ -666,18 +694,23 @@ const YatzGameProvider: React.FC<Props> = ({
 
     try {
 
-      const rr = (await convex.action(api.proxy.controller.replayCasualRun, {
+      const rr = await executeCasualRunReplay({
 
-        ...buildCasualPlatformRunActionArgs({
-          gameId: gs.gameId,
-          platformBridge: casualPlatformBridge,
-        }),
+        convex,
 
-      })) as { ok?: boolean; error?: string };
+        gameId: gs.gameId,
 
-      if (!rr?.ok) {
+        platformBridge: casualPlatformBridge,
 
-        console.warn('[yatz] replayCasualRun', rr?.error);
+        replayAction: (actionArgs) =>
+
+          convex.action(api.proxy.controller.replayCasualRun, actionArgs),
+
+      });
+
+      if (!rr.ok) {
+
+        console.warn('[yatz] replayCasualRun', rr.error);
 
         return;
 
@@ -723,9 +756,21 @@ const YatzGameProvider: React.FC<Props> = ({
 
         try {
 
-          await casual.confirmCasualRunWithoutReplay(gs.gameId);
+          await confirmCasualRunWithoutReplayForBridge({
 
-          await casual.refreshCasualPlayer();
+            matchGameId: gs.gameId,
+
+            platformBridge: casualPlatformBridge,
+
+            casualConfirm: casual.confirmCasualRunWithoutReplay,
+
+          });
+
+          if (casualPlatformBridge !== 'portal') {
+
+            await casual.refreshCasualPlayer();
+
+          }
 
         } catch (e) {
 
@@ -741,7 +786,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     },
 
-    [casual, casualTournamentId, user?.uid, clearPostCasualOverlays, onGameSubmit]
+    [casual, casualTournamentId, casualPlatformBridge, user?.uid, clearPostCasualOverlays, onGameSubmit]
 
   );
 
@@ -1268,9 +1313,13 @@ const YatzGameProvider: React.FC<Props> = ({
 
         postCasualReplayOffered,
 
+        postCasualReplayMode,
+
         postCasualReplayTokenCount,
 
         postCasualReplayWindowEndsAt,
+
+        postCasualAdReplayDailyRemaining,
 
         casualReplayBusy,
 

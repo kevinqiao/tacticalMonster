@@ -181,9 +181,20 @@ export const openCasualTableFromQueue = internalAction({
         error: claim.error,
         ...( "uid" in claim ? { uid: claim.uid } : {}),
       });
+      if (claim.error === "already_in_open_match") {
+        /** 已有 open 桌时清掉排队，避免 UI 永久「匹配中」 */
+        for (const qid of queueRowIds) {
+          await ctx.runMutation(internal.service.tournament.join.casualMatchmaking.deleteQueueRow, {
+            queueRowId: qid,
+          });
+        }
+        return claim;
+      }
       if (
         queueRowIds.length === 1 &&
-        (claim.error === "charge_failed" || OPEN_TABLE_RETRY_ERRORS.has(claim.error))
+        (claim.error === "charge_failed" ||
+          claim.error === "invalid_queue_row" ||
+          OPEN_TABLE_RETRY_ERRORS.has(claim.error))
       ) {
         await scheduleSoloOpenRetry(ctx, queueRowIds[0]!);
       }
@@ -231,6 +242,20 @@ export const openCasualSoloTable = internalAction({
         matchId: existingOpen.matchId,
         runTournamentId: existingOpen.runTournamentId,
       };
+    }
+
+    if (!campaignId) {
+      const daily = await ctx.runQuery(
+        internal.service.tournament.join.portalDailyPlayLimit.assertPortalDailyPlayLimitQuery,
+        {
+          uid,
+          templateId,
+          ...(dayTimezone ? { dayTimezone } : {}),
+        }
+      );
+      if (!daily.ok) {
+        return { ok: false as const, error: daily.error };
+      }
     }
 
     const charge = await ctx.runMutation(
@@ -284,6 +309,13 @@ export const processCasualMatchQueueForTemplate = internalAction({
   args: { templateId: v.string() },
   handler: async (ctx, { templateId }) => {
     const openedMatchIds: string[] = [];
+    const fatalSeedErrors = new Set([
+      "no_unused_seed_for_tier",
+      "no_active_pool",
+      "unregistered_game_type",
+      "bound_seed_missing_from_pool",
+      "match_seed_conflict",
+    ]);
     for (let round = 0; round < 64; round++) {
       const claim = await ctx.runMutation(
         internal.service.tournament.join.casualOpenTableMutations.claimNextMultiBatch,
@@ -297,6 +329,10 @@ export const processCasualMatchQueueForTemplate = internalAction({
           templateId,
           error: opened.error,
         });
+        /** 种子池失败时 abort 会把行放回 waiting；若 continue 会同一秒空转 64 次 */
+        if (fatalSeedErrors.has(opened.error)) {
+          break;
+        }
         continue;
       }
       openedMatchIds.push(opened.matchId);

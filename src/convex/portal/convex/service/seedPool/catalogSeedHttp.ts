@@ -29,6 +29,14 @@ const scoreBand = v.object({
   count: v.optional(v.number()),
 });
 
+/** 首选档位 → 其余档位回退（避免 multi medium 空池时开桌失败） */
+function uniqueSeedTiersToTry(
+  preferred: "easy" | "medium" | "hard"
+): Array<"easy" | "medium" | "hard"> {
+  const rest = (["easy", "medium", "hard"] as const).filter((t) => t !== preferred);
+  return [preferred, ...rest];
+}
+
 export const pickCasualMatchSeed = internalMutation({
   args: {
     gameType: catalogGameType,
@@ -64,23 +72,31 @@ export const pickCasualMatchSeed = internalMutation({
     }
 
     const usedSeedIds = await loadUsedSeedIdsForUids(ctx.db, gameType, version, uids);
-    let entry = await pickDeterministicSeedForTier(
-      ctx.db,
-      gameType,
-      version,
-      tier,
-      args.sessionKey,
-      usedSeedIds
-    );
-    if (!entry) {
+    const tierOrder = uniqueSeedTiersToTry(tier);
+    let entry = null as Awaited<ReturnType<typeof pickDeterministicSeedForTier>>;
+    for (const tryTier of tierOrder) {
       entry = await pickDeterministicSeedForTier(
         ctx.db,
         gameType,
         version,
-        tier,
-        `${args.sessionKey}|reuse`,
-        new Set()
+        tryTier,
+        args.sessionKey,
+        usedSeedIds
       );
+      if (entry) break;
+    }
+    if (!entry) {
+      for (const tryTier of tierOrder) {
+        entry = await pickDeterministicSeedForTier(
+          ctx.db,
+          gameType,
+          version,
+          tryTier,
+          `${args.sessionKey}|reuse`,
+          new Set()
+        );
+        if (entry) break;
+      }
     }
     if (!entry) {
       return { ok: false as const, error: "no_unused_seed_for_tier" as const };

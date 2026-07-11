@@ -59,10 +59,16 @@ export type PortalGameHistoryRow = {
   /** 真人已交分，run 尚未完成结算 */
   settlementPending?: boolean;
   runStartedAt?: number;
+  /** 商家活动桌；Portal 每日限次展示需排除 */
+  campaignId?: string;
   rank?: number | null;
   participantCount?: number;
   pointDelta?: number | null;
   weeklyPointsAfter?: number | null;
+  /** 单人挑战目标分 */
+  seedScoreThreshold?: number | null;
+  /** 单人挑战是否达标 */
+  challengeSuccess?: boolean | null;
   tableSummary?: CasualAsyncTableSummaryUI;
 };
 
@@ -85,22 +91,6 @@ export type PortalMatchQueueEntry = {
   createdAt: number;
 };
 
-export type PortalMyWeeklyPoints = {
-  weekKey: string;
-  weekEndsAt: number;
-  byMode: {
-    solo: { points: number; matchCount: number; rank: number | null };
-    multi: { points: number; matchCount: number; rank: number | null };
-  };
-  total: {
-    points: number;
-    matchCount: number;
-    soloPoints: number;
-    multiPoints: number;
-    rank: number | null;
-  };
-};
-
 export type PortalWeeklyLeagueTierView = {
   weekKey: string;
   weekEndsAt: number;
@@ -108,7 +98,10 @@ export type PortalWeeklyLeagueTierView = {
   tierId: string;
   cohortNo: string | null;
   cohortRank: number | null;
+  /** 设计容量（三区条） */
   cohortSize: number;
+  /** 当前可见人数（名次分母） */
+  cohortMemberCount: number;
   points: number;
   promoteTo: number;
   demoteFrom: number;
@@ -186,31 +179,43 @@ export type PortalGiftCardOrderRow = {
   hasCachedLink: boolean;
 };
 
+export type PortalModeDailyPlayQuota = {
+  playsToday: number;
+  maxPlaysPerDay: number;
+  remainingPlaysToday: number;
+};
+
+export type PortalDailyPlayQuota = {
+  solo: PortalModeDailyPlayQuota;
+  multi: PortalModeDailyPlayQuota;
+  dayResetsAt: number;
+  dayInstanceKey: string;
+  dayTimezone: string;
+};
+
 type PortalDataSnapshot = {
-  totalLeaderboard: PortalWeeklyLeaderboardRow[];
   cohortLeaderboard: PortalWeeklyLeaderboardRow[];
   weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
   playerWallet: PortalPlayerWallet | null;
   shopCatalog: PortalShopCatalogView | null;
   giftCardOrders: PortalGiftCardOrderRow[];
-  myWeeklyPoints: PortalMyWeeklyPoints | null;
   gameHistory: PortalGameHistoryRow[];
   openRunAssignments: OpenCasualRunAssignment[];
   matchQueueEntries: PortalMatchQueueEntry[];
+  dailyPlayQuota: PortalDailyPlayQuota | null;
   weekEndsAt: number | null;
 };
 
 const emptyData = (): PortalDataSnapshot => ({
-  totalLeaderboard: [],
   cohortLeaderboard: [],
   weeklyLeagueTierView: null,
   playerWallet: null,
   shopCatalog: null,
   giftCardOrders: [],
-  myWeeklyPoints: null,
   gameHistory: [],
   openRunAssignments: [],
   matchQueueEntries: [],
+  dailyPlayQuota: null,
   weekEndsAt: null,
 });
 
@@ -236,16 +241,15 @@ export function portalGameDisplayName(gameType: RegisteredPortalGameType): strin
 type PortalContextValue = {
   convexUrl: string;
   gameType: RegisteredPortalGameType | null;
-  totalLeaderboard: PortalWeeklyLeaderboardRow[];
   cohortLeaderboard: PortalWeeklyLeaderboardRow[];
   weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
   playerWallet: PortalPlayerWallet | null;
   shopCatalog: PortalShopCatalogView | null;
   giftCardOrders: PortalGiftCardOrderRow[];
-  myWeeklyPoints: PortalMyWeeklyPoints | null;
   gameHistory: PortalGameHistoryRow[];
   openRunAssignments: OpenCasualRunAssignment[];
   matchQueueEntries: PortalMatchQueueEntry[];
+  dailyPlayQuota: PortalDailyPlayQuota | null;
   weekEndsAt: number | null;
   joinTournament: (
     mode: "solo" | "multi",
@@ -277,6 +281,8 @@ type PortalContextValue = {
   resendGiftCardEmail: (orderId: string) => Promise<{ ok: boolean; error?: string }>;
   refresh: () => Promise<void>;
   portalSessionReady: boolean;
+  /** 本组排行弹层打开时开启排行轮询；关闭则只轮询段位栏 */
+  setCohortLeaderboardPolling: (active: boolean) => void;
   getCampaignDailyPlayQuota: (args: {
     campaignId: string;
     maxPlaysPerDay?: number;
@@ -349,9 +355,30 @@ export const PortalProvider: React.FC<{
   const { user } = useUserManager();
   const uid = user?.uid;
   const [portalSessionReady, setPortalSessionReady] = useState(false);
+  const [cohortLeaderboardPolling, setCohortLeaderboardPolling] = useState(false);
   const reconcileInFlightRef = useRef(new Set<string>());
   const historySettleInFlightRef = useRef(new Set<string>());
   const snapshot = useSyncExternalStore(subscribe, () => dataSnapshot, () => dataSnapshot);
+
+  const ensureWeeklyLeagueMember = useCallback(async (gt: RegisteredPortalGameType) => {
+    const http = getHttp();
+    if (!http) return;
+    try {
+      const res = (await http.mutation(portalTournamentFns.ensurePortalWeeklyLeagueMember, {
+        gameType: gt,
+      })) as { ok?: boolean; memberId?: string | null };
+      if (!res?.ok || !res.memberId) {
+        console.warn("[Portal] ensurePortalWeeklyLeagueMember not ok", res);
+        return;
+      }
+      console.info("[Portal] ensurePortalWeeklyLeagueMember ok", {
+        gameType: gt,
+        memberId: res.memberId,
+      });
+    } catch (e) {
+      console.warn("[Portal] ensurePortalWeeklyLeagueMember", e);
+    }
+  }, []);
 
   const authenticatePortal = useCallback(async (opts?: { force?: boolean }) => {
     const http = getHttp();
@@ -371,6 +398,10 @@ export const PortalProvider: React.FC<{
         if (result?.uid) {
           portalAuthFailedKey = "";
           setPortalSessionReady(true);
+          // 鉴权成功后立刻入组（同 HttpClient / JWT），避免依赖二次 effect 或旧包未触发。
+          if (gameType) {
+            await ensureWeeklyLeagueMember(gameType);
+          }
         } else {
           portalAuthFailedKey = key;
           setPortalSessionReady(false);
@@ -382,7 +413,7 @@ export const PortalProvider: React.FC<{
         setPortalSessionReady(false);
       }
     });
-  }, [user]);
+  }, [user, gameType, ensureWeeklyLeagueMember]);
 
   const refresh = useCallback(async () => {
     if (!uid || !gameType) return;
@@ -393,68 +424,16 @@ export const PortalProvider: React.FC<{
     void refresh();
   }, [refresh]);
 
+  // 已鉴权但 gameType 后到（或热更新后）时补一次入组。
   useEffect(() => {
-    const live = getLive();
-    if (!live || !gameType || !portalSessionReady || !uid) return;
-    void live
-      .mutation(portalTournamentFns.ensurePortalWeeklyLeagueMember, { gameType })
-      .catch((e) => console.warn("[Portal] ensurePortalWeeklyLeagueMember", e));
-  }, [gameType, portalSessionReady, uid]);
-
-  useEffect(() => {
-    const live = getLive();
-    if (!live || !gameType) return;
-    void live
-      .mutation(portalTournamentFns.ensureWeeklyBoardBotsForGame, { gameType })
-      .catch((e) => console.warn("[Portal] ensureWeeklyBoardBots", e));
-    void live
-      .mutation(portalTournamentFns.ensureWeeklyTotalPointsForGame, { gameType })
-      .catch((e) => console.warn("[Portal] ensureWeeklyTotalPoints", e));
-  }, [gameType]);
-
-  useEffect(() => {
-    const live = getLive();
-    if (!live || !gameType) return;
-
-    const unsubs: Array<{ unsubscribe: () => void }> = [];
-    const sub = (
-      ref: Parameters<ConvexClient["onUpdate"]>[0],
-      args: Record<string, unknown>,
-      onVal: (v: unknown) => void,
-      label: string
-    ) => {
-      const h = live.onUpdate(
-        ref,
-        args as Parameters<ConvexClient["onUpdate"]>[1],
-        (rows) => onVal(rows),
-        (err) => console.error(`[Portal] ${label}`, err)
-      );
-      unsubs.push(h);
-    };
-
-    sub(
-      portalTournamentFns.getPortalWeeklyTotalLeaderboard,
-      { gameType, limit: 50 },
-      (rows) => {
-        const r = rows as { rows?: PortalWeeklyLeaderboardRow[]; weekEndsAt?: number };
-        patchData({
-          totalLeaderboard: r.rows ?? [],
-          weekEndsAt: r.weekEndsAt ?? null,
-        });
-      },
-      "totalLeaderboard"
-    );
-
-    return () => {
-      for (const u of unsubs) u.unsubscribe();
-    };
-  }, [gameType]);
+    if (!portalSessionReady || !uid || !gameType) return;
+    void ensureWeeklyLeagueMember(gameType);
+  }, [gameType, portalSessionReady, uid, ensureWeeklyLeagueMember]);
 
   useEffect(() => {
     const live = getLive();
     if (!live || !uid || !gameType) {
       patchData({
-        myWeeklyPoints: null,
         weeklyLeagueTierView: null,
         playerWallet: null,
         shopCatalog: null,
@@ -463,6 +442,8 @@ export const PortalProvider: React.FC<{
         gameHistory: [],
         openRunAssignments: [],
         matchQueueEntries: [],
+        dailyPlayQuota: null,
+        weekEndsAt: null,
       });
       return;
     }
@@ -483,19 +464,13 @@ export const PortalProvider: React.FC<{
     };
 
     sub(
-      portalTournamentFns.getMyWeeklyPoints,
-      { gameType },
-      (rows) => {
-        patchData({ myWeeklyPoints: rows as PortalDataSnapshot["myWeeklyPoints"] });
-      },
-      "myWeeklyPoints"
-    );
-    sub(
       portalTournamentFns.getPortalWeeklyLeagueTierView,
       { gameType },
       (rows) => {
+        const view = rows as PortalWeeklyLeagueTierView | null;
         patchData({
-          weeklyLeagueTierView: rows as PortalWeeklyLeagueTierView | null,
+          weeklyLeagueTierView: view,
+          weekEndsAt: view?.weekEndsAt ?? null,
         });
       },
       "weeklyLeagueTierView"
@@ -527,10 +502,16 @@ export const PortalProvider: React.FC<{
     );
     sub(
       portalTournamentFns.getPortalWeeklyLeagueCohortLeaderboard,
-      { gameType, limit: 50 },
+      { gameType, limit: 30 },
       (rows) => {
-        const r = rows as { rows?: PortalWeeklyLeaderboardRow[] };
-        patchData({ cohortLeaderboard: r.rows ?? [] });
+        const r = rows as {
+          rows?: PortalWeeklyLeaderboardRow[];
+          weekEndsAt?: number;
+        };
+        patchData({
+          cohortLeaderboard: r.rows ?? [],
+          ...(r.weekEndsAt != null ? { weekEndsAt: r.weekEndsAt } : {}),
+        });
       },
       "cohortLeaderboard"
     );
@@ -564,11 +545,85 @@ export const PortalProvider: React.FC<{
       },
       "listCasualMatchQueueForUid"
     );
+    sub(
+      portalTournamentFns.getPortalDailyPlayQuota,
+      { gameType },
+      (rows) => {
+        patchData({
+          dailyPlayQuota: (rows as PortalDailyPlayQuota | null) ?? null,
+        });
+      },
+      "getPortalDailyPlayQuota"
+    );
 
     return () => {
       for (const u of unsubs) u.unsubscribe();
     };
   }, [uid, gameType]);
+
+  /** 段位栏始终轮询；分组排行仅在弹层打开时轮询 */
+  useEffect(() => {
+    if (!portalSessionReady || !uid || !gameType) return;
+    const http = getHttp();
+    if (!http) return;
+
+    const POLL_MS = 30_000;
+    let cancelled = false;
+
+    const pollWeeklyLeague = async () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+      try {
+        const viewPromise = http.query(portalTournamentFns.getPortalWeeklyLeagueTierView, {
+          gameType,
+        });
+        const boardPromise = cohortLeaderboardPolling
+          ? http.query(portalTournamentFns.getPortalWeeklyLeagueCohortLeaderboard, {
+              gameType,
+              limit: 30,
+            })
+          : null;
+
+        const [view, board] = await Promise.all([viewPromise, boardPromise]);
+        if (cancelled) return;
+        const v = view as PortalWeeklyLeagueTierView | null;
+        const patch: Partial<PortalDataSnapshot> = {
+          weeklyLeagueTierView: v,
+          ...(v?.weekEndsAt != null ? { weekEndsAt: v.weekEndsAt } : {}),
+        };
+        if (board != null) {
+          const r = board as {
+            rows?: PortalWeeklyLeaderboardRow[];
+            weekEndsAt?: number;
+          };
+          patch.cohortLeaderboard = r.rows ?? [];
+          if (r.weekEndsAt != null) patch.weekEndsAt = r.weekEndsAt;
+        }
+        patchData(patch);
+      } catch (e) {
+        console.warn("[Portal] weekly league poll", e);
+      }
+    };
+
+    void pollWeeklyLeague();
+
+    const id = window.setInterval(() => {
+      void pollWeeklyLeague();
+    }, POLL_MS);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void pollWeeklyLeague();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [portalSessionReady, uid, gameType, cohortLeaderboardPolling]);
 
   useEffect(() => {
     const http = getHttp();
@@ -890,17 +945,16 @@ export const PortalProvider: React.FC<{
     () => ({
       convexUrl: PORTAL_CONVEX_URL,
       gameType,
-      totalLeaderboard: snapshot.totalLeaderboard,
       cohortLeaderboard: snapshot.cohortLeaderboard,
       weeklyLeagueTierView: snapshot.weeklyLeagueTierView,
       playerWallet: snapshot.playerWallet,
       shopCatalog: snapshot.shopCatalog,
       giftCardOrders: snapshot.giftCardOrders,
-      myWeeklyPoints: snapshot.myWeeklyPoints,
       gameHistory: snapshot.gameHistory,
       openRunAssignments: snapshot.openRunAssignments,
       matchQueueEntries: snapshot.matchQueueEntries,
-      weekEndsAt: snapshot.weekEndsAt ?? snapshot.myWeeklyPoints?.weekEndsAt ?? null,
+      dailyPlayQuota: snapshot.dailyPlayQuota,
+      weekEndsAt: snapshot.weekEndsAt,
       joinTournament,
       leaveCasualMatchQueue,
       reconcilePendingHistorySettlements,
@@ -912,6 +966,7 @@ export const PortalProvider: React.FC<{
       resendGiftCardEmail,
       refresh,
       portalSessionReady,
+      setCohortLeaderboardPolling,
       getCampaignDailyPlayQuota,
       getCampaignPlayHistory,
     }),
@@ -929,6 +984,7 @@ export const PortalProvider: React.FC<{
       resendGiftCardEmail,
       refresh,
       portalSessionReady,
+      setCohortLeaderboardPolling,
       getCampaignDailyPlayQuota,
       getCampaignPlayHistory,
     ]

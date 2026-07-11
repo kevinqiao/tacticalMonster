@@ -129,6 +129,20 @@ export async function resolveIngestPlatformBotFillPlan(
     if (computedThreshold != null) {
       mergedSeedScoreThreshold = computedThreshold;
     }
+  } else if (submitCtx.successThresholdQuantile && submitCtx.seedBinding) {
+    /** 单人挑战：seed 分位覆盖客户端传入，避免错误 +3/-1 */
+    const authoritative = await resolvePlatformSeedScoreThreshold(ctx, {
+      successThresholdQuantile: submitCtx.successThresholdQuantile,
+      seedBinding: submitCtx.seedBinding,
+      gameType: submitCtx.primaryGameType ?? submitCtx.gameType,
+    });
+    timing.mark("resolvePlatformSeedScoreThreshold.overridePreset", {
+      preset: mergedSeedScoreThreshold,
+      authoritative: authoritative ?? null,
+    });
+    if (authoritative != null) {
+      mergedSeedScoreThreshold = Math.floor(authoritative);
+    }
   }
 
   timing.finish("ok", { botFillCount: mergedBotFills?.length ?? 0 });

@@ -4,6 +4,7 @@
  *
  *   npx tsx scripts/solitaire/seed-pool.mjs clean
  *   npx tsx scripts/solitaire/seed-pool.mjs create
+ *   npx tsx scripts/solitaire/seed-pool.mjs create-casual
  *   npx tsx scripts/solitaire/seed-pool.mjs create --resume
  *   npx tsx scripts/solitaire/seed-pool.mjs load
  *   npx tsx scripts/solitaire/seed-pool.mjs append
@@ -29,6 +30,13 @@ const DEFAULT_ROLLOUTS = 40;
 const DEFAULT_MIN_SCORE_P25 = 200;
 const DEFAULT_MIN_SCORE_SPREAD = 100;
 const DEFAULT_OVERSAMPLE_FACTOR = 2;
+/** 休闲向 create-casual 预设（偏简单、开局可走、easy tier 占比更高） */
+const CASUAL_MIN_SCORE_P25 = 700;
+const CASUAL_MIN_SCORE_SPREAD = 650;
+const CASUAL_OVERSAMPLE_FACTOR = 3;
+const CASUAL_MIN_OPENING_MOVES = 4;
+const CASUAL_TIER_EASY = 0.4;
+const CASUAL_TIER_MEDIUM = 0.35;
 const DEFAULT_MIN_ENTRIES = 0; // 0 = 自动使用 index 实际条数
 const DEFAULT_BATCH_SIZE = process.platform === "win32" ? 2 : 8;
 const CATALOG_GAME_TYPE = CATALOG_GAME_TYPES.solitaire;
@@ -41,9 +49,10 @@ Usage:
   npx tsx scripts/solitaire/seed-pool.mjs <command> [options] [-- extra-args...]
 
 Commands:
-  clean     清空 casualPlatform seed pool（可选清本地 output）
-  create    离线生成/续跑 index.json（generate-seed-pool.mjs）
-  load      全量导入 casualPlatform（默认先 clean 再 import）
+  clean         清空 casualPlatform seed pool（可选清本地 output）
+  create        离线生成/续跑 index.json（generate-seed-pool.mjs）
+  create-casual 休闲向生成（更高 P25、min-opening-moves=2、3× 过采样、easy 40%）
+  load          全量导入 casualPlatform（默认先 clean 再 import）
   append    增量导入 platform seed pool（仅 DB 中不存在的 seedId）
   regen     仅重算 rolloutSummaries（+ metrics）写回 index；--sync 同步 catalog rollout 子表
   help      显示本帮助
@@ -67,12 +76,15 @@ Common options (before --):
   --local               clean 时同时删除本地 --out 目录
   --resume              create 断点续跑（等同 generate --resume）
   --index-only          不写 rolloutSummaries / 仅 metrics 导入
+  --skip-solvability    create：跳过可解性搜索（透传 generate）
   --seed <seedId>       regen：只更新该 seed
   --sync                regen：本地更新后 upsert catalog rollout 子表
   --all                 regen：index 内全部 seed（慎用，耗时长）
 
 Examples:
   npx tsx scripts/solitaire/seed-pool.mjs create
+  npx tsx scripts/solitaire/seed-pool.mjs create-casual
+  npx tsx scripts/solitaire/seed-pool.mjs create-casual --resume
   npx tsx scripts/solitaire/seed-pool.mjs create --resume
   npx tsx scripts/solitaire/seed-pool.mjs load
   npx tsx scripts/solitaire/seed-pool.mjs load --no-clear --min-entries 100
@@ -85,6 +97,30 @@ function splitPassthrough(argv) {
   const i = argv.indexOf("--");
   if (i === -1) return { flags: argv, extra: [] };
   return { flags: argv.slice(0, i), extra: argv.slice(i + 1) };
+}
+
+function argvHasFlag(flags, extra, name) {
+  return flags.includes(name) || extra.includes(name);
+}
+
+function applyCasualCreatePreset(opts, flags, extra) {
+  if (!flags.includes("--min-score-p25")) opts.minScoreP25 = CASUAL_MIN_SCORE_P25;
+  if (!flags.includes("--min-score-spread")) opts.minScoreSpread = CASUAL_MIN_SCORE_SPREAD;
+  if (!flags.includes("--oversample-factor")) opts.oversampleFactor = CASUAL_OVERSAMPLE_FACTOR;
+}
+
+function buildCasualGenerateExtra(flags, extra) {
+  const preset = [];
+  if (!argvHasFlag(flags, extra, "--min-opening-moves")) {
+    preset.push("--min-opening-moves", String(CASUAL_MIN_OPENING_MOVES));
+  }
+  if (!argvHasFlag(flags, extra, "--tier-easy")) {
+    preset.push("--tier-easy", String(CASUAL_TIER_EASY));
+  }
+  if (!argvHasFlag(flags, extra, "--tier-medium")) {
+    preset.push("--tier-medium", String(CASUAL_TIER_MEDIUM));
+  }
+  return [...preset, ...extra];
 }
 
 function parseCommon(flags, defaults) {
@@ -264,6 +300,15 @@ async function main() {
       break;
     case "create":
       cmdCreate(opts, extra);
+      break;
+    case "create-casual":
+      applyCasualCreatePreset(opts, flags, extra);
+      console.log(
+        `create-casual preset: minScoreP25=${opts.minScoreP25} minScoreSpread=${opts.minScoreSpread} ` +
+          `oversample=${opts.oversampleFactor} minOpeningMoves=${CASUAL_MIN_OPENING_MOVES} ` +
+          `tierEasy=${CASUAL_TIER_EASY} tierMedium=${CASUAL_TIER_MEDIUM}`
+      );
+      cmdCreate(opts, buildCasualGenerateExtra(flags, extra));
       break;
     case "load":
       cmdLoad(opts, extra, { append: false });

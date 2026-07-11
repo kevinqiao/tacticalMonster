@@ -126,7 +126,11 @@ async function closeOnePortalCohort(
 
             {
 
+              uid: member.uid,
+
               revealAt: member.revealAt,
+
+              botStartPoints: member.botStartPoints,
 
               botWeekEndPoints: member.botWeekEndPoints,
 
@@ -134,7 +138,23 @@ async function closeOnePortalCohort(
 
             },
 
-            cohort,
+            {
+
+              _id: String(cohort._id),
+
+              weekKey: cohort.weekKey,
+
+              gameType: cohort.gameType,
+
+              leagueTierId: cohort.leagueTierId,
+
+              startsAt: cohort.startsAt,
+
+              endsAt: cohort.endsAt,
+
+              status: cohort.status,
+
+            },
 
             rankAt
 

@@ -37,6 +37,7 @@ import {
 } from "./casualMatchSeedBinding";
 import { assertNoGlobalOpenCasualMatch } from "./casualOpenTableGuard";
 import { assertCampaignDailyPlayLimit } from "./campaignDailyPlayLimit";
+import { assertPortalDailyPlayLimit } from "./portalDailyPlayLimit";
 import {
   computeMultiTableBatchSize,
   purgeExtraCasualMatchQueueRows,
@@ -254,6 +255,17 @@ export const insertMatchShell = internalMutation({
           uid,
           campaignId: args.campaignId,
           maxPlaysPerDay: args.maxPlaysPerDay,
+          ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+        });
+        if (!daily.ok) {
+          return { ok: false as const, error: daily.error };
+        }
+      }
+    } else if (!args.campaignId) {
+      for (const uid of uids) {
+        const daily = await assertPortalDailyPlayLimit(ctx, {
+          uid,
+          templateId: args.templateId,
           ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
         });
         if (!daily.ok) {
@@ -560,6 +572,16 @@ export const claimNextMultiBatch = internalMutation({
       return await ctx.runMutation(
         internal.service.tournament.join.casualOpenTableMutations.claimQueueAndCharge,
         { templateId, queueRowIds: batchIds }
+      );
+    }
+
+    /** eff=1：Bot 补位开桌（与 openSoloAsyncTableFromQueue 双保险） */
+    const soloFill = waiting.filter((r) => resolveQueueEffectiveHumans(r) === 1);
+    if (soloFill.length > 0) {
+      soloFill.sort((a, b) => a.createdAt - b.createdAt);
+      return await ctx.runMutation(
+        internal.service.tournament.join.casualOpenTableMutations.claimQueueAndCharge,
+        { templateId, queueRowIds: [soloFill[0]!._id] }
       );
     }
 

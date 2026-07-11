@@ -7,6 +7,14 @@ import { internalMutation, type MutationCtx } from "../../../_generated/server";
 import { getPortalTournamentDefinition, isPeriodScopedTournament } from "../../../data/portalTournamentConfigs";
 import { effectiveScoreAggregation } from "../../../data/portalTournamentConfigs";
 import {
+  isPortalAdReplayTemplate,
+} from "../../../data/portalAdReplayConfig";
+import {
+  assertPortalAdReplayOfferEligible,
+  normalizeReplayEpoch,
+  resolveSourceReplayEpoch,
+} from "../../ads/portalAdReplayService";
+import {
   RUN_PLAYER_TOURNAMENT_OPEN,
   RUN_TOURNAMENT_OPEN,
 } from "../join/casualTournamentJoinCore";
@@ -100,6 +108,7 @@ export async function authorizeCasualRunReplayCore(
     uid: string;
     matchGameId: string;
     replayTokenId?: Id<"casual_replay_tokens">;
+    adReplayClaimId?: Id<"portal_ad_replay_claims">;
   }
 ): Promise<AuthorizeCasualRunReplayResult> {
   const pg = await findPlayerGameByGameId(ctx, args.matchGameId);
@@ -146,26 +155,57 @@ export async function authorizeCasualRunReplayCore(
     return { ok: false, error: "bots_not_seeded" };
   }
 
-  let tokenId = args.replayTokenId;
-  if (!tokenId) {
-    const picked = await findOldestUnusedReplayTokenId(ctx, args.uid);
-    if (!picked) {
-      return { ok: false, error: "no_replay_token" };
+  if (isPortalAdReplayTemplate(pm.templateId)) {
+    const eligible = await assertPortalAdReplayOfferEligible(ctx, {
+      uid: args.uid,
+      pm: freshPm,
+      matchGameId: args.matchGameId,
+    });
+    if (!eligible.ok) {
+      return { ok: false, error: "replay_not_allowed" };
     }
-    tokenId = picked;
-  }
+    if (!args.adReplayClaimId) {
+      return { ok: false, error: "ad_replay_required" };
+    }
+    const claim = await ctx.db.get(args.adReplayClaimId);
+    if (!claim || claim.uid !== args.uid || claim.matchGameId !== args.matchGameId) {
+      return { ok: false, error: "ad_replay_invalid" };
+    }
+    const claimEpoch = normalizeReplayEpoch(claim.replayEpoch);
+    const sourceEpoch = resolveSourceReplayEpoch(pg, freshPm);
+    if (claimEpoch !== sourceEpoch) {
+      return { ok: false, error: "ad_replay_epoch_mismatch" };
+    }
+  } else {
+    let tokenId = args.replayTokenId;
+    if (!tokenId) {
+      const picked = await findOldestUnusedReplayTokenId(ctx, args.uid);
+      if (!picked) {
+        return { ok: false, error: "no_replay_token" };
+      }
+      tokenId = picked;
+    }
 
-  const consumed = await consumeReplayToken(ctx, {
-    uid: args.uid,
-    tokenId,
-    tournamentId: pm.templateId,
-  });
-  if (!consumed.ok) {
-    return { ok: false, error: consumed.error };
+    const consumed = await consumeReplayToken(ctx, {
+      uid: args.uid,
+      tokenId,
+      tournamentId: pm.templateId,
+    });
+    if (!consumed.ok) {
+      return { ok: false, error: consumed.error };
+    }
   }
 
   const priorScore = freshPm.score ?? 0;
-  const nextEpoch = (pg.replayEpoch ?? freshPm.replayEpoch ?? 0) + 1;
+  const currentEpoch = Math.max(
+    typeof pg.replayEpoch === "number" && Number.isFinite(pg.replayEpoch)
+      ? Math.floor(pg.replayEpoch)
+      : 0,
+    typeof freshPm.replayEpoch === "number" && Number.isFinite(freshPm.replayEpoch)
+      ? Math.floor(freshPm.replayEpoch)
+      : 0
+  );
+  const nextEpoch = currentEpoch + 1;
 
   const seatGames = await listPlayerGamesForSeat(ctx, freshPm._id);
   seatGames.sort((a, b) => a.gameIndex - b.gameIndex);
@@ -195,6 +235,8 @@ export async function authorizeCasualRunReplayCore(
       finishedAt: undefined,
       replayEpoch: nextEpoch,
       gameId: firstLeg.gameId,
+      /** 再战前成绩；交分时与新分取较高者 */
+      replayBaselineScore: priorScore,
       updatedAt: now,
     });
   } else {
@@ -215,6 +257,7 @@ export async function authorizeCasualRunReplayCore(
       finishedAt: undefined,
       replayEpoch: nextEpoch,
       gameId: pg.gameId,
+      replayBaselineScore: priorScore,
       updatedAt: now,
     });
   }
@@ -308,6 +351,7 @@ export const authorizeCasualRunReplay = internalMutation({
     uid: v.string(),
     matchGameId: v.string(),
     replayTokenId: v.optional(v.id("casual_replay_tokens")),
+    adReplayClaimId: v.optional(v.id("portal_ad_replay_claims")),
   },
   handler: async (ctx, args) => authorizeCasualRunReplayCore(ctx, args),
 });

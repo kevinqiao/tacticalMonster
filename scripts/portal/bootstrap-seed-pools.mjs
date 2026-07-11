@@ -21,7 +21,7 @@ for (const { gameType, index } of pools) {
   console.log(`\n=== portal seed import: ${gameType} ===`);
   const result = spawnSync(
     "npx",
-    ["tsx", importer, "--game-type", gameType, "--index", index],
+    ["tsx", importer, gameType, "--index", index],
     { cwd: repoRoot, stdio: "inherit", shell: process.platform === "win32" }
   );
   if (result.status !== 0) {

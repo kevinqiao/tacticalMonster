@@ -104,6 +104,13 @@ async function writeSeedPoolBatch(
       tier: e.tier,
       difficultyScore: e.difficultyScore,
       metrics: e.metrics,
+      ...(e.solvable != null
+        ? {
+            solvable: e.solvable,
+            solvableSource: e.solvableSource,
+            solvableReason: e.solvableReason ?? null,
+          }
+        : {}),
     };
     if (existing) {
       await ctx.db.patch(existing._id, doc);

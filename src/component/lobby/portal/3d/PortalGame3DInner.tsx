@@ -27,14 +27,17 @@ export interface Portal3DTierInfo {
   cohortNo?: string | null;
   /** 组内名次（1-based） */
   rank?: number | null;
+  /** 设计容量（三区条 / 降级文案 to） */
   cohortSize?: number;
+  /** 当前可见人数（名次 #x / N） */
+  cohortMemberCount?: number;
   /** 本周总积分 */
   points?: number;
   /** 按当前名次预估的结算金币；null 隐藏该行 */
   projectedCoins?: number | null;
   /** 晋升区最后一名（默认 10） */
   promoteTo?: number;
-  /** 降级区第一名（默认 41） */
+  /** 降级区第一名（默认 23） */
   demoteFrom?: number;
 }
 
@@ -50,6 +53,18 @@ export interface PortalGame3DInnerProps {
   multiJoinBlocked?: boolean;
   soloOpenAssignment?: unknown;
   multiOpenAssignment?: unknown;
+  /** 今日已挑战次数（单人） */
+  soloPlaysToday?: number;
+  /** 今日上限（单人） */
+  soloMaxPlaysPerDay?: number;
+  /** 今日已挑战次数（多人） */
+  multiPlaysToday?: number;
+  /** 今日上限（多人） */
+  multiMaxPlaysPerDay?: number;
+  /** 单人今日次数已用尽（无进行中对局时「开始」应灰掉） */
+  soloDailyExhausted?: boolean;
+  /** 多人今日次数已用尽 */
+  multiDailyExhausted?: boolean;
   queueWaiting?: boolean;
   weekEndsAt?: number | null;
   bgUrl?: string;
@@ -58,7 +73,7 @@ export interface PortalGame3DInnerProps {
   onJoin?: (mode: "solo" | "multi") => void;
   /** 打开统一玩法规则弹窗并定位到对应段落 */
   onOpenRules?: (anchor: Portal3DRulesAnchor) => void;
-  /** 打开统一周总榜（cohort 组榜） */
+  /** 打开周联赛本组排行 */
   onOpenLeaderboard?: () => void;
   onOpenFullHistory?: () => void;
   onOpenShop?: () => void;
@@ -84,6 +99,12 @@ export function PortalGame3DInner({
   multiJoinBlocked = false,
   soloOpenAssignment,
   multiOpenAssignment,
+  soloPlaysToday = 0,
+  soloMaxPlaysPerDay = 3,
+  multiPlaysToday = 0,
+  multiMaxPlaysPerDay = 10,
+  soloDailyExhausted = false,
+  multiDailyExhausted = false,
   queueWaiting = false,
   weekEndsAt,
   bgUrl,
@@ -103,27 +124,35 @@ export function PortalGame3DInner({
   const { t } = useTranslation("portal.player");
   const authButtonVisible = showAuthButton ?? shouldShowPortalAuthButton();
   const containerRef = useRef<HTMLDivElement>(null);
+  const scaleWrapperRef = useRef<HTMLDivElement>(null);
   const shopRef = useRef<HTMLDivElement>(null);
   const authRef = useRef<HTMLDivElement>(null);
   const [isPortrait, setIsPortrait] = useState(false);
 
   useEffect(() => {
+    const wrapper = scaleWrapperRef.current;
+    if (!wrapper) return;
+
     function applyScale() {
       const container = containerRef.current;
-      if (!container) return;
+      if (!container || !wrapper) return;
 
-      const portrait = window.innerWidth / window.innerHeight < 132 / 182;
+      const viewW = wrapper.clientWidth;
+      const viewH = wrapper.clientHeight;
+      if (viewW <= 0 || viewH <= 0) return;
+
+      const portrait = viewW / viewH < 132 / 182;
       setIsPortrait(portrait);
 
       const designWidth = 1440;
       const designHeight = portrait ? 2560 : 1080;
 
-      const scaleX = window.innerWidth / designWidth;
-      const scaleY = window.innerHeight / designHeight;
+      const scaleX = viewW / designWidth;
+      const scaleY = viewH / designHeight;
       const scale = Math.min(scaleX, scaleY);
 
-      const offsetX = (window.innerWidth - designWidth * scale) / 2;
-      const offsetY = (window.innerHeight - designHeight * scale) / 2;
+      const offsetX = (viewW - designWidth * scale) / 2;
+      const offsetY = (viewH - designHeight * scale) / 2;
       container.style.transform =
         `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 
@@ -143,12 +172,25 @@ export function PortalGame3DInner({
     }
 
     applyScale();
+    const observer = new ResizeObserver(() => applyScale());
+    observer.observe(wrapper);
     window.addEventListener("resize", applyScale);
-    return () => window.removeEventListener("resize", applyScale);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", applyScale);
+    };
   }, []);
 
   const soloJoinDisabled = !authed || joining != null || soloJoinBlocked;
   const multiJoinDisabled = !authed || joining != null || multiJoinBlocked;
+  /** 次数用尽（或其它原因不可新开）且无「继续」时，开始按钮灰掉 */
+  const soloStartGrayed =
+    authed && !soloOpenAssignment && (soloDailyExhausted || soloJoinDisabled);
+  const multiStartGrayed =
+    authed &&
+    !multiOpenAssignment &&
+    !queueWaiting &&
+    (multiDailyExhausted || multiJoinDisabled);
 
   const handleSoloClick = () => {
     if (!authed) {
@@ -197,12 +239,14 @@ export function PortalGame3DInner({
     markPortalBootPainted();
   }, [pageActive]);
 
-  const promoteTo = tier?.promoteTo ?? 10;
-  const demoteFrom = tier?.demoteFrom ?? 41;
-  const cohortSize = tier?.cohortSize ?? 50;
+  const promoteTo = tier?.promoteTo ?? 8;
+  const demoteFrom = tier?.demoteFrom ?? 23;
+  const cohortSize = tier?.cohortSize ?? 30;
+  const cohortMemberCount = tier?.cohortMemberCount ?? cohortSize;
 
   return (
     <div
+      ref={scaleWrapperRef}
       className={styles.scaleWrapper}
       style={{
         backgroundImage: `url(${currentBgUrl})`,
@@ -280,16 +324,19 @@ export function PortalGame3DInner({
             <div className={styles.tierStrip}>
               <div className={styles.tierBadgeWrap}>
                 <div
-                  className={styles.tierBadge}
+                  className={`${styles.tierBadge}${authed ? "" : ` ${styles.tierBadgeLocked}`}`}
                   style={{
                     backgroundImage: `url(${resolvePortal3DTierBadge(tier.tierId)})`,
                   }}
+                  aria-hidden={!authed}
                 >
-                  {tier.division ? (
+                  {authed && tier.division ? (
                     <span className={styles.tierDivision}>{tier.division}</span>
                   ) : null}
                 </div>
-                <span className={styles.tierName}>{tier.tierLabel}</span>
+                {authed ? (
+                  <span className={styles.tierName}>{tier.tierLabel}</span>
+                ) : null}
               </div>
               <div className={styles.tierCenter}>
                 <div className={styles.tierTopLine}>
@@ -307,7 +354,7 @@ export function PortalGame3DInner({
                   <span className={styles.tierRankText}>
                     {t("lobby.rankLabel", {
                       rank: tier.rank != null ? `#${tier.rank}` : t("common.dash"),
-                      size: cohortSize,
+                      size: cohortMemberCount,
                     })}
                   </span>
                 </div>
@@ -370,10 +417,11 @@ export function PortalGame3DInner({
               </div>
               <div className={styles.tierBtnGroup}>
                 <div
-                  className={styles.tierLbBtn}
-                  onClick={onOpenLeaderboard}
+                  className={`${styles.tierLbBtn}${authed ? "" : ` ${styles.tierActionDisabled}`}`}
+                  onClick={authed ? onOpenLeaderboard : undefined}
                   role="button"
                   aria-label={t("lobby.leaderboardAria")}
+                  aria-disabled={!authed}
                 >
                   <div className={styles.tierLbBtnBg}>
                     <div className={styles.tierLbTrophy} />
@@ -381,11 +429,11 @@ export function PortalGame3DInner({
                   </div>
                 </div>
                 <div
-                  className={styles.tierHistoryBtn}
-                  onClick={onOpenFullHistory}
+                  className={`${styles.tierHistoryBtn}${authed ? "" : ` ${styles.tierActionDisabled}`}`}
+                  onClick={authed ? onOpenFullHistory : undefined}
                   role="button"
                   aria-label={t("lobby.historyAria")}
-                  style={{ opacity: onOpenFullHistory ? 1 : 0.6 }}
+                  aria-disabled={!authed}
                 >
                   <div className={styles.tierLbBtnBg}>
                     <div className={styles.tierHistoryIcon} />
@@ -403,12 +451,21 @@ export function PortalGame3DInner({
                 <div className={styles.modeIconSolo} />
                 <span className={styles.modeTitle}>{t("lobby.modes.challenge")}</span>
               </div>
+              <div className={styles.modeQuota}>
+                {t("lobby.modes.playsToday", {
+                  playsToday: soloPlaysToday,
+                  maxPlaysPerDay: soloMaxPlaysPerDay,
+                })}
+              </div>
               <div
-                className={`${styles.modePlayBtn} ${styles.modePlayBtnSolo}`}
+                className={`${styles.modePlayBtn} ${styles.modePlayBtnSolo}${
+                  soloStartGrayed ? ` ${styles.modePlayBtnDisabled}` : ""
+                }`}
                 onClick={handleSoloClick}
+                role="button"
+                aria-disabled={soloStartGrayed || undefined}
                 style={{
                   cursor: !authed || !soloJoinDisabled ? "pointer" : "not-allowed",
-                  opacity: authed && soloJoinDisabled ? 0.7 : 1,
                 }}
               >
                 <span className={styles.modePlayText}>
@@ -427,12 +484,21 @@ export function PortalGame3DInner({
                 <div className={styles.modeIconArena} />
                 <span className={styles.modeTitle}>{t("lobby.modes.arena")}</span>
               </div>
+              <div className={styles.modeQuota}>
+                {t("lobby.modes.playsToday", {
+                  playsToday: multiPlaysToday,
+                  maxPlaysPerDay: multiMaxPlaysPerDay,
+                })}
+              </div>
               <div
-                className={`${styles.modePlayBtn} ${styles.modePlayBtnArena}`}
+                className={`${styles.modePlayBtn} ${styles.modePlayBtnArena}${
+                  multiStartGrayed ? ` ${styles.modePlayBtnDisabled}` : ""
+                }`}
                 onClick={handleMultiClick}
+                role="button"
+                aria-disabled={multiStartGrayed || undefined}
                 style={{
                   cursor: !authed || !multiJoinDisabled ? "pointer" : "not-allowed",
-                  opacity: authed && multiJoinDisabled ? 0.7 : 1,
                 }}
               >
                 <span className={styles.modePlayText}>

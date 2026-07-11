@@ -1,7 +1,9 @@
 /**
- * Portal 周联赛 cohort 分配（按 gameType + 段位，每组最多 50 真人）。
+ * Portal 周联赛 cohort 分配（按 gameType + 段位，每组最多 15 真人）。
+ * 匹配窗口内可加入；满员或超时后关闭匹配。
  */
 import {
+  PORTAL_WEEKLY_LEAGUE_MATCHING_DURATION_MS,
   PORTAL_WEEKLY_LEAGUE_MAX_HUMANS_PER_COHORT,
   portalWeeklyLeagueDisplayCohortNo,
   type PortalWeeklyLeagueTierId,
@@ -10,16 +12,18 @@ import { weeklyWindowMsShanghai } from "../../utils/casualTaskPeriod";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { ensureWeeklyLeagueProfile } from "./casualWeeklyLeagueProfile";
-import { syncPortalWeeklyLeagueBotPadding } from "./portalWeeklyLeagueBotFill";
+import {
+  maybeCloseMatchingIfFull,
+  seedPortalWeeklyLeagueInitialBots,
+  syncPortalWeeklyLeagueBotPadding,
+} from "./portalWeeklyLeagueBotFill";
 
 async function cohortHumanCount(
   ctx: MutationCtx | QueryCtx,
-  cohortId: Id<"portal_weekly_league_cohorts">,
-  cohortRow?: { humanCount?: number } | null
+  cohortId: Id<"portal_weekly_league_cohorts">
 ): Promise<number> {
-  if (typeof cohortRow?.humanCount === "number") {
-    return cohortRow.humanCount;
-  }
+  // 始终从 members 实算：新建 cohort 的 humanCount 初值为 0，
+  // 若信任缓存会在首真人入组后仍读到 0，导致 Bot 池/容量判断错误。
   const members = await ctx.db
     .query("portal_weekly_league_members")
     .withIndex("by_cohort", (q) => q.eq("cohortId", cohortId))
@@ -27,11 +31,25 @@ async function cohortHumanCount(
   return members.filter((m) => !m.isBot).length;
 }
 
+function isMatchingOpen(
+  cohort: {
+    matchingClosedAt?: number;
+    matchingEndsAt?: number;
+    createdAt: number;
+  },
+  now: number
+): boolean {
+  if (cohort.matchingClosedAt != null) return false;
+  const endsAt = cohort.matchingEndsAt ?? cohort.createdAt + PORTAL_WEEKLY_LEAGUE_MATCHING_DURATION_MS;
+  return now < endsAt;
+}
+
 export async function findOpenCohortForTier(
   ctx: MutationCtx,
   weekKey: string,
   gameType: string,
-  leagueTierId: PortalWeeklyLeagueTierId
+  leagueTierId: PortalWeeklyLeagueTierId,
+  now: number = Date.now()
 ): Promise<Id<"portal_weekly_league_cohorts"> | null> {
   const open = await ctx.db
     .query("portal_weekly_league_cohorts")
@@ -47,7 +65,8 @@ export async function findOpenCohortForTier(
   const withRoom: Array<{ id: Id<"portal_weekly_league_cohorts">; cohortIndex: number; humans: number }> =
     [];
   for (const c of open) {
-    const humans = await cohortHumanCount(ctx, c._id, c);
+    if (!isMatchingOpen(c, now)) continue;
+    const humans = await cohortHumanCount(ctx, c._id);
     if (humans < PORTAL_WEEKLY_LEAGUE_MAX_HUMANS_PER_COHORT) {
       withRoom.push({ id: c._id, cohortIndex: c.cohortIndex, humans });
     }
@@ -78,7 +97,7 @@ export async function createCohort(
     leagueTierId,
     cohortIndex: nextIndex,
   });
-  return await ctx.db.insert("portal_weekly_league_cohorts", {
+  const cohortId = await ctx.db.insert("portal_weekly_league_cohorts", {
     weekKey,
     gameType,
     leagueTierId,
@@ -86,11 +105,15 @@ export async function createCohort(
     displayCode,
     humanCount: 0,
     status: "open",
+    matchingEndsAt: now + PORTAL_WEEKLY_LEAGUE_MATCHING_DURATION_MS,
     startsAt: window.startsAt,
     endsAt: window.endsAt,
     createdAt: now,
     updatedAt: now,
   });
+  // 创建时固定种入 15 Bot：立即可见 3–10，其余在 5h 内陆续可见
+  await seedPortalWeeklyLeagueInitialBots(ctx, cohortId, now);
+  return cohortId;
 }
 
 export async function assignCohortForUid(
@@ -101,7 +124,7 @@ export async function assignCohortForUid(
   now: number
 ): Promise<Id<"portal_weekly_league_cohorts">> {
   const { weeklyLeagueTier } = await ensureWeeklyLeagueProfile(ctx, uid, gameType, now);
-  let cohortId = await findOpenCohortForTier(ctx, weekKey, gameType, weeklyLeagueTier);
+  let cohortId = await findOpenCohortForTier(ctx, weekKey, gameType, weeklyLeagueTier, now);
   if (!cohortId) {
     cohortId = await createCohort(ctx, weekKey, gameType, weeklyLeagueTier, now);
   }
@@ -115,9 +138,17 @@ export async function refreshCohortAfterHumanJoin(
 ): Promise<void> {
   const cohort = await ctx.db.get(cohortId);
   if (!cohort) return;
-  const humanCount = await cohortHumanCount(ctx, cohortId, cohort);
-  await ctx.db.patch(cohortId, { humanCount, updatedAt: now });
-  await syncPortalWeeklyLeagueBotPadding(ctx, cohortId, now);
+  const humanCount = await cohortHumanCount(ctx, cohortId);
+  await ctx.db.patch(cohortId, {
+    humanCount,
+    humanAnchorAt: cohort.humanAnchorAt ?? now,
+    updatedAt: now,
+  });
+  // 匹配窗口内不新种初始 Bot（创建时已种）；满员则立刻关匹配并可能补位
+  const closed = await maybeCloseMatchingIfFull(ctx, cohortId, now);
+  if (!closed) {
+    await syncPortalWeeklyLeagueBotPadding(ctx, cohortId, now);
+  }
 }
 
 export type PortalCohortMemberRow = {
@@ -125,6 +156,7 @@ export type PortalCohortMemberRow = {
   weeklyPoints: number;
   isBot: boolean;
   revealAt?: number;
+  botStartPoints?: number;
   botWeekEndPoints?: number;
   finalRank?: number;
   outcome?: string;
@@ -153,6 +185,7 @@ export async function listCohortMembers(
       weeklyPoints: r.weeklyPoints,
       isBot: r.isBot,
       revealAt: r.revealAt,
+      botStartPoints: r.botStartPoints,
       botWeekEndPoints: r.botWeekEndPoints,
       finalRank: r.finalRank,
       outcome: r.outcome,

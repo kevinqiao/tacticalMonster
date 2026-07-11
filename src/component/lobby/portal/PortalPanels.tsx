@@ -41,14 +41,30 @@ export const PortalHistoryList: React.FC<{
       {gameHistory.map((row) => {
         const showReport = canOpenPortalHistoryReport(row);
         const pendingSettlement = row.settlementPending === true;
+        const isSoloChallenge = row.matchType === "solo_p75";
+        const detail = isSoloChallenge ? (
+          <>
+            {t("history.soloScore", { score: row.score ?? t("common.dash") })}
+            {row.seedScoreThreshold != null
+              ? ` · ${t("history.soloTarget", { target: row.seedScoreThreshold })}`
+              : ""}
+            {row.challengeSuccess === true
+              ? ` · ${t("history.challengeSuccess")}`
+              : row.challengeSuccess === false
+                ? ` · ${t("history.challengeFail")}`
+                : ""}
+          </>
+        ) : (
+          <>
+            {t("history.score", { score: row.score ?? t("common.dash") })}
+            {row.rank != null ? ` · ${t("history.rank", { rank: row.rank })}` : ""}
+          </>
+        );
         return (
           <li key={row.entryId} className="portal-history-row portal-history-row--done">
             <div className="portal-history-main">
-              <strong>{portalMatchTypeLabel(row.matchType)}</strong>
-              <span>
-                {t("history.score", { score: row.score ?? t("common.dash") })}
-                {row.rank != null ? ` · ${t("history.rank", { rank: row.rank })}` : ""}
-              </span>
+              <strong>{portalMatchTypeLabel(row.tournamentId || row.matchType)}</strong>
+              <span>{detail}</span>
             </div>
             <div className="portal-history-meta">
               {row.pointDelta != null && (
@@ -113,13 +129,12 @@ export const PortalWeeklyLeaderboardPanel: React.FC<{
             <th>{t("leaderboard.columns.rank")}</th>
             <th>{t("leaderboard.columns.player")}</th>
             <th>{t("leaderboard.columns.points")}</th>
-            <th>{t("leaderboard.columns.matches")}</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={4} className="portal-muted">
+              <td colSpan={3} className="portal-muted">
                 {t("leaderboard.empty")}
               </td>
             </tr>
@@ -129,7 +144,6 @@ export const PortalWeeklyLeaderboardPanel: React.FC<{
                 <td>{r.rank}</td>
                 <td>{r.displayName ?? r.uid.slice(0, 12)}</td>
                 <td>{r.points}</td>
-                <td>{r.matchCount}</td>
               </tr>
             ))
           )}

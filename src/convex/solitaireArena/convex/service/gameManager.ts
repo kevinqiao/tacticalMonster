@@ -146,17 +146,27 @@ export class GameManager {
         playStartedAt?: number;
         recordedOps?: SolitaireRecordedStep[];
         lastOpAt?: number;
+        /** 整表替换牌面（dev cheat 等），避免按 id patch 漏字段 */
+        replaceCards?: boolean;
     }) {
         if (!this.game) return;
         if (data.cards) {
-            for (const c of data.cards) {
-                const card: Card | undefined = this.game.cards.find((cc: Card) => cc.id === c.id);
+            if (data.replaceCards) {
+                this.game.cards = data.cards.map((c) => ({ ...c }));
+            } else {
+                for (const c of data.cards) {
+                    const card: Card | undefined = this.game.cards.find((cc: Card) => cc.id === c.id);
 
-                if (card) {
-                    card.isRevealed = c.isRevealed;
-                    card.zone = c.zone;
-                    card.zoneId = c.zoneId;
-                    card.zoneIndex = c.zoneIndex;
+                    if (card) {
+                        if (c.isRevealed != null) card.isRevealed = c.isRevealed;
+                        if (c.zone != null) card.zone = c.zone;
+                        if (c.zoneId != null) card.zoneId = c.zoneId;
+                        if (c.zoneIndex != null) card.zoneIndex = c.zoneIndex;
+                        if (c.rank != null) card.rank = c.rank;
+                        if (c.suit != null) card.suit = c.suit;
+                        if (c.value != null) card.value = c.value;
+                        if (c.isRed != null) card.isRed = c.isRed;
+                    }
                 }
             }
         }
@@ -176,6 +186,9 @@ export class GameManager {
             score: this.game.score,
             recordedOps: this.game.recordedOps,
         };
+        if (this.game.zones?.length) {
+            patch.zones = this.game.zones;
+        }
         if (this.game.playStartedAt != null) {
             patch.playStartedAt = this.game.playStartedAt;
         }
@@ -245,8 +258,35 @@ export class GameManager {
     }
     async move(cardId: string, toZone: string): Promise<any> {
         if (!this.game) return { ok: false };
+        if (!this.game.zones?.length) {
+            this.game.zones = createZones();
+        }
+        const st = this.game.status as number;
+        if (st === SoloGameStatus.CANCELLED) {
+            return { ok: false, error: "terminal" };
+        }
+        if (st === SoloGameStatus.COMPLETED) {
+            const leftover = (this.game.cards as Card[]).some(
+                (c) =>
+                    c.zone !== ZoneType.FOUNDATION &&
+                    !String(c.zoneId ?? "").startsWith("foundation-")
+            );
+            if (!leftover) {
+                return { ok: false, error: "terminal" };
+            }
+            await this.save({ status: SoloGameStatus.PLAYING });
+        }
         const card = this.game.cards.find((c: Card) => c.id === cardId);
-        if (!card) return { ok: false };
+        if (!card) return { ok: false, error: "card_not_found" };
+        // 幂等：牌已在目标区（双 auto-complete / 重试）视为成功
+        if (card.zoneId === toZone) {
+            return {
+                ok: true,
+                idempotent: true,
+                data: { move: toClientCardPatches([card]) },
+                ...this.progressSnapshot(),
+            };
+        }
         const from =
             card.zone === ZoneType.WASTE
                 ? "waste"
@@ -254,7 +294,9 @@ export class GameManager {
                     ? card.zoneId
                     : card.zoneId;
         const result = SoloGameEngine.moveCard(this.game, card, toZone);
-        if (!result.ok) return result;
+        if (!result.ok) {
+            return { ...result, error: result.error ?? "illegal_move" };
+        }
         appendRecordedStep(this.game, {
             op: "move",
             suit: card.suit as SolitaireSuit,
@@ -337,6 +379,94 @@ export class GameManager {
         return { ok: true, ...this.progressSnapshot() };
     }
 
+    /**
+     * 自动清盘一步：服务端选下一张可收 foundation 的牌并 move（避免客户端规划与权威态脱节）。
+     */
+    async autoCompleteFoundationStep(): Promise<any> {
+        if (!this.game) return { ok: false, error: "no_game" };
+        // zones 缺失时补齐，否则 planMoveCard 找不到目标区
+        if (!this.game.zones?.length) {
+            this.game.zones = createZones();
+        }
+        const st = this.game.status as number;
+        if (st === SoloGameStatus.CANCELLED) {
+            return { ok: false, error: "terminal", done: true, ...this.progressSnapshot() };
+        }
+        // 过早 COMPLETED（旧 isGameWon / 状态不同步）但牌未收齐：拉回 PLAYING 继续收
+        if (st === SoloGameStatus.COMPLETED) {
+            const leftover = (this.game.cards as Card[]).some(
+                (c) =>
+                    c.zone !== ZoneType.FOUNDATION &&
+                    !String(c.zoneId ?? "").startsWith("foundation-")
+            );
+            if (!leftover) {
+                return { ok: false, error: "terminal", done: true, ...this.progressSnapshot() };
+            }
+            await this.save({ status: SoloGameStatus.PLAYING });
+        }
+        // move() 本身不拦 COMPLETED；这里再兜底一次 find
+        const next = SoloGameEngine.findNextFoundationMove(this.game);
+        if (!next) {
+            return {
+                ok: false,
+                error: "no_move",
+                done: true,
+                status: this.game.status,
+                leftover: (this.game.cards as Card[])
+                    .filter(
+                        (c) =>
+                            c.zone !== ZoneType.FOUNDATION &&
+                            !String(c.zoneId ?? "").startsWith("foundation-")
+                    )
+                    .map((c) => `${c.rank}${c.suit}:${c.zoneId}`),
+                ...this.progressSnapshot(),
+            };
+        }
+        return await this.move(next.card.id, next.toZoneId);
+    }
+
+    /**
+     * Dev-only：把牌面推到「全明 + 仅差自动收 foundation」布局（服务端权威）。
+     */
+    async devForceNearAutoComplete(): Promise<
+        | ({ ok: true; data: SoloGameState } & ReturnType<GameManager["progressSnapshot"]>)
+        | { ok: false; error: string }
+    > {
+        if (!this.game) return { ok: false, error: "no_game" };
+        const st = this.game.status as number;
+        // 允许从过早 COMPLETED 拉回（牌未收齐时），方便反复测 Ctrl+Shift+A
+        if (st === SoloGameStatus.CANCELLED) {
+            return { ok: false, error: "terminal" };
+        }
+        if (st === SoloGameStatus.COMPLETED) {
+            const leftover = (this.game.cards as Card[]).some(
+                (c) =>
+                    c.zone !== ZoneType.FOUNDATION &&
+                    !String(c.zoneId ?? "").startsWith("foundation-")
+            );
+            if (!leftover) {
+                return { ok: false, error: "terminal" };
+            }
+        }
+        const layout = SoloGameEngine.buildDevNearAutoCompleteLayout(this.game.cards);
+        if (!layout) return { ok: false, error: "layout_failed" };
+        const playStartedAt = ensurePlayStarted(this.game);
+        if (!this.game.zones?.length) {
+            this.game.zones = createZones();
+        }
+        await this.save({
+            cards: layout,
+            status: SoloGameStatus.PLAYING,
+            playStartedAt,
+            replaceCards: true,
+        });
+        return {
+            ok: true,
+            data: toClientGameState(this.game),
+            ...this.progressSnapshot(),
+        };
+    }
+
     buildScoreReport(nowMs: number = Date.now()) {
         const baseScore = Math.max(0, Math.floor(this.game?.score ?? 0));
         const playStartedAt = this.game?.playStartedAt;
@@ -353,13 +483,23 @@ export const createGame = internalMutation({
         seed: v.optional(v.string()),
         gameId: v.string(),
         replayEpoch: v.optional(v.number()),
+        forceRecreate: v.optional(v.boolean()),
     },
-    handler: async (ctx, { seed, gameId, replayEpoch }) => {
+    handler: async (ctx, { seed, gameId, replayEpoch, forceRecreate }) => {
         try {
             await healDuplicateSolitaireGamesForGameId(ctx, gameId);
+            if (forceRecreate === true) {
+                await ctx.runMutation(internal.service.casualGameLifecycle.cancelCasualTimeoutJob, {
+                    gameId,
+                });
+                const stale = await collectSolitaireGamesByGameId(ctx, gameId);
+                for (const row of stale) {
+                    await ctx.db.delete(row._id);
+                }
+            }
             const rows = await collectSolitaireGamesByGameId(ctx, gameId);
             const existing = latestSolitaireGameRow(rows);
-            if (existing) {
+            if (existing && forceRecreate !== true) {
                 if (existing.recordedOps === undefined) {
                     await ctx.db.patch(existing._id, { recordedOps: [] });
                     existing.recordedOps = [];
@@ -546,6 +686,26 @@ export const recycle = mutation({
         const result = await gameManager.recycle();
         if (!result.ok) return { ok: false as const };
         return { ok: true as const, ...gameManager.progressSnapshot() };
+    },
+});
+
+/** 自动清盘：服务端挑选并执行一步 foundation 收牌 */
+export const autoCompleteFoundationStep = mutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const gameManager = new GameManager(ctx);
+        await gameManager.load(gameId);
+        return await gameManager.autoCompleteFoundationStep();
+    },
+});
+
+/** DEV：Ctrl+Shift+A — 推到近自动清盘布局（仅本地开发客户端会调用） */
+export const devForceNearAutoComplete = mutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const gameManager = new GameManager(ctx);
+        await gameManager.load(gameId);
+        return await gameManager.devForceNearAutoComplete();
     },
 });
 

@@ -1,7 +1,7 @@
 /**
  * Block Blast 主界面（对齐 solitaireSolo：测量 board、终局自动进入休闲结算弹窗）
  */
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { registerCasualGameModalExitHandler } from '../../shared/casualGameModalExitBridge';
 import { useBlockBlastGameManager } from './service/GameManager';
 import {
@@ -12,6 +12,7 @@ import {
 import { useGameVisualTheme } from '../../shared/visualTheme/useGameVisualTheme';
 import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
 import { CasualPostSettleSummaryOverlay } from '../../shared/CasualPostSettleSummaryOverlay';
+import { resolveCasualPostSettleReplayPresentation } from '../../shared/casualGameScoreReportUI';
 import {
     MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST,
     ManualSettleConfirmOverlay,
@@ -53,7 +54,9 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
         postCasualWaitingForPeers,
         postCasualCanReplay,
         postCasualReplayOffered,
+        postCasualReplayMode,
         postCasualReplayWindowEndsAt,
+        postCasualAdReplayDailyRemaining,
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,
@@ -71,13 +74,23 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
         setWatchTarget(null);
         setWatchTargetLabel('');
     }, []);
-    const openSelfReplay = useCallback(() => {
-        const gid = gameState?.gameId;
-        if (!gid) return;
-        openWatch({ kind: 'recorded', gameId: gid }, '你');
-    }, [gameState?.gameId, openWatch]);
-
-    const postCasualReplayDisabled = postCasualReplayOffered && !postCasualCanReplay;
+    const postSettleReplay = useMemo(
+        () =>
+            resolveCasualPostSettleReplayPresentation({
+                replayOffered: postCasualReplayOffered,
+                canReplay: postCasualCanReplay,
+                replayMode: postCasualReplayMode,
+                adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+                replayWindowEndsAt: postCasualReplayWindowEndsAt,
+            }),
+        [
+            postCasualReplayOffered,
+            postCasualCanReplay,
+            postCasualReplayMode,
+            postCasualAdReplayDailyRemaining,
+            postCasualReplayWindowEndsAt,
+        ]
+    );
 
     useEffect(() => {
         if (replayMode) return;
@@ -307,19 +320,18 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
                         open={postCasualScoreReportOpen && watchTarget == null}
                         report={postCasualScoreReport}
                         onConfirm={dismissPostCasualScoreReport}
-                        secondaryLabel="复盘本局"
-                        onSecondary={openSelfReplay}
                     />
                     <CasualPostSettleSummaryOverlay
                         open={postCasualSummaryOpen && watchTarget == null}
                         title="同桌成绩"
                         summary={postCasualTableSummary}
                         waitingForPeers={postCasualWaitingForPeers}
-                        replayAvailable={postCasualReplayOffered}
-                        replayDisabled={postCasualReplayDisabled}
+                        replayAvailable={postSettleReplay.showReplay}
+                        replayMode={postCasualReplayMode}
                         replayBusy={casualReplayBusy}
                         replayWindowEndsAt={postCasualReplayWindowEndsAt}
-                        onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
+                        onReplay={postSettleReplay.showReplay ? () => void replayCasualRun() : undefined}
+                        replayLabel={postSettleReplay.replayLabel}
                         onDismiss={dismissPostCasualSummary}
                         weeklyLeagueSettle={postCasualWeeklyLeagueSettle}
                     />

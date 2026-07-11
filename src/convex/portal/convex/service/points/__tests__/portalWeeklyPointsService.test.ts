@@ -45,6 +45,12 @@ describe("portal points config", () => {
     expect(portalRankPointDelta(multiDef, 5)).toBe(-2);
   });
 
+  it("weekly points floor at zero after negative delta", () => {
+    expect(Math.max(0, 0 + portalSoloPointDelta(soloDef, 50, 90))).toBe(0);
+    expect(Math.max(0, 1 + portalSoloPointDelta(soloDef, 50, 90))).toBe(0);
+    expect(Math.max(0, 5 + portalRankPointDelta(multiDef, 5))).toBe(3);
+  });
+
   it("weekly period key is stable string", () => {
     const k = weeklyPeriodKey(Date.UTC(2026, 5, 18, 12, 0, 0));
     expect(k.startsWith("w:")).toBe(true);

@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { usePartnerManager } from "host/service/PartnerManager";
+import { useModalManager } from "host/service/ModalManager";
 
 import CasualPlayMatchOverlay from "../../casual/view/play/CasualPlayMatchOverlay";
 import { PortalCenterModal } from "../PortalCenterModal";
@@ -30,6 +31,7 @@ type PortalGame3DOverlaysProps = {
 export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
   const { t } = useTranslation("portal.player");
   const { partnerPid } = usePartnerManager();
+  const { openModal } = useModalManager();
   const {
     portal,
     visible,
@@ -83,11 +85,7 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
 
       <PortalCenterModal
         open={panelModal === "lb"}
-        title={
-          portal.weeklyLeagueTierView?.enrolled && portal.cohortLeaderboard.length > 0
-            ? t("leaderboard.cohortTitle")
-            : t("leaderboard.totalTitle")
-        }
+        title={t("leaderboard.cohortTitle")}
         onClose={() => setPanelModal(null)}
       >
         <PortalWeeklyLeaderboardPanel
@@ -185,6 +183,29 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
         onCloseWatch={historyReport.closeWatch}
         onWatchFromReport={historyReport.openWatchFromReport}
       />
+
+      {import.meta.env.DEV ? (
+        <button
+          type="button"
+          onClick={() => openModal({ name: "solitaire_victory_anim_dev" })}
+          style={{
+            position: "fixed",
+            right: 12,
+            bottom: 12,
+            zIndex: 99999,
+            padding: "8px 10px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.25)",
+            background: "rgba(0,0,0,0.65)",
+            color: "#e8f5e9",
+            fontSize: 12,
+            cursor: "pointer",
+          }}
+          title="Solitaire victory animation lab"
+        >
+          WinAnim Lab
+        </button>
+      ) : null}
     </>
   );
 }

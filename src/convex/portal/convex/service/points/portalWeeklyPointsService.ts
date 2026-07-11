@@ -1,14 +1,20 @@
+/**
+ * Portal 周积分：结算加分只写入 portal_weekly_league_members（+ ledger 审计）。
+ */
 import type { Id } from "../../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
+import type { MutationCtx } from "../../_generated/server";
+import { PORTAL_WEEKLY_LEAGUE_ENABLED } from "../../data/portalWeeklyLeagueConfig";
 import type { PortalTournamentDefinition } from "../../data/portalTournamentConfigs";
 import {
   isPortalP75Success,
   portalRankPointDelta,
   portalSoloPointDelta,
 } from "../../data/portalTournamentConfigs";
-import { ensurePortalWeeklyBoardBots } from "./portalWeeklyBoardBotFill";
-import { syncWeeklyTotalPoints } from "./portalWeeklyTotalPointsService";
+import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
+import {
+  ensurePortalWeeklyLeagueMember,
+  getWeeklyLeagueMember,
+} from "../weeklyLeague/portalWeeklyLeagueService";
 
 export type PortalWeeklyMode = "solo" | "multi";
 
@@ -16,77 +22,7 @@ export function portalModeFromDef(def: PortalTournamentDefinition): PortalWeekly
   return def.matchType === "solo_p75" ? "solo" : "multi";
 }
 
-export async function getWeeklyPointsRow(
-  ctx: QueryCtx | MutationCtx,
-  args: { uid: string; gameType: string; mode: PortalWeeklyMode; weekKey: string }
-) {
-  return await ctx.db
-    .query("portal_weekly_points")
-    .withIndex("by_uid_game_mode_week", (q) =>
-      q
-        .eq("uid", args.uid)
-        .eq("gameType", args.gameType)
-        .eq("mode", args.mode)
-        .eq("weekKey", args.weekKey)
-    )
-    .unique();
-}
-
-export async function addWeeklyPoints(
-  ctx: MutationCtx,
-  args: {
-    uid: string;
-    gameType: string;
-    mode: PortalWeeklyMode;
-    delta: number;
-    now?: number;
-  }
-): Promise<{ points: number; weekKey: string }> {
-  const now = args.now ?? Date.now();
-  const weekKey = weeklyPeriodKey(now);
-  const existing = await getWeeklyPointsRow(ctx, {
-    uid: args.uid,
-    gameType: args.gameType,
-    mode: args.mode,
-    weekKey,
-  });
-  const nextPoints = (existing?.points ?? 0) + args.delta;
-  const nextCount = (existing?.matchCount ?? 0) + 1;
-  if (existing) {
-    await ctx.db.patch(existing._id, {
-      points: nextPoints,
-      matchCount: nextCount,
-      updatedAt: now,
-    });
-  } else {
-    await ctx.db.insert("portal_weekly_points", {
-      uid: args.uid,
-      gameType: args.gameType,
-      mode: args.mode,
-      weekKey,
-      points: nextPoints,
-      matchCount: nextCount,
-      updatedAt: now,
-    });
-  }
-
-  await ensurePortalWeeklyBoardBots(ctx, {
-    gameType: args.gameType,
-    mode: args.mode,
-    weekKey,
-    now,
-  });
-
-  await syncWeeklyTotalPoints(ctx, {
-    uid: args.uid,
-    gameType: args.gameType,
-    weekKey,
-    now,
-  });
-
-  return { points: nextPoints, weekKey };
-}
-
+/** 结算加分：确保本周已入组，再累加 league member.weeklyPoints。 */
 export async function applyPortalMatchPoints(
   ctx: MutationCtx,
   args: {
@@ -113,25 +49,45 @@ export async function applyPortalMatchPoints(
     delta = portalRankPointDelta(args.def, rank);
     reason = `multi_rank_${rank}`;
   }
-  const { points, weekKey } = await addWeeklyPoints(ctx, {
-    uid: args.uid,
-    gameType: args.def.gameType,
-    mode,
-    delta,
-    now,
-  });
+
+  const gameType = args.def.gameType;
+  const weekKey = weeklyPeriodKey(now);
+  let weeklyPointsAfter = Math.max(0, delta);
+  let appliedDelta = weeklyPointsAfter;
+
+  if (PORTAL_WEEKLY_LEAGUE_ENABLED) {
+    await ensurePortalWeeklyLeagueMember(ctx, args.uid, gameType, now);
+    const member = await getWeeklyLeagueMember(ctx, {
+      uid: args.uid,
+      gameType,
+      weekKey,
+    });
+    if (!member) {
+      throw new Error(
+        `portal weekly league member missing after ensure uid=${args.uid} gameType=${gameType}`
+      );
+    }
+    weeklyPointsAfter = Math.max(0, member.weeklyPoints + delta);
+    appliedDelta = weeklyPointsAfter - member.weeklyPoints;
+    await ctx.db.patch(member._id, {
+      weeklyPoints: weeklyPointsAfter,
+      updatedAt: now,
+    });
+  }
+
   await ctx.db.insert("portal_point_ledger", {
     uid: args.uid,
     runTournamentId: args.runTournamentId,
-    gameType: args.def.gameType,
+    gameType,
     mode,
     weekKey,
-    delta,
+    delta: appliedDelta,
     reason,
     rank: args.rank,
     p75Success,
     createdAt: now,
   });
+
   const pt = await ctx.db
     .query("portal_run_player_tournaments")
     .withIndex("by_tournament_uid", (q) =>
@@ -140,10 +96,15 @@ export async function applyPortalMatchPoints(
     .unique();
   if (pt) {
     await ctx.db.patch(pt._id, {
-      pointDelta: delta,
-      weeklyPointsAfter: points,
+      pointDelta: appliedDelta,
+      weeklyPointsAfter,
       updatedAt: now,
+      ...(typeof args.seedScoreThreshold === "number" && Number.isFinite(args.seedScoreThreshold)
+        ? { seedScoreThreshold: Math.floor(args.seedScoreThreshold) }
+        : {}),
+      ...(typeof p75Success === "boolean" ? { challengeSuccess: p75Success } : {}),
     });
   }
-  return { pointDelta: delta, weeklyPointsAfter: points, weekKey };
+
+  return { pointDelta: appliedDelta, weeklyPointsAfter, weekKey };
 }

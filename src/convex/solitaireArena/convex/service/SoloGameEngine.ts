@@ -146,7 +146,9 @@ export class SoloGameEngine {
 
         if (toZoneId === card.zoneId) return result;
 
-        const targetZone = gameState.zones.find((z: SoloZone) => z.id === toZoneId);
+        const targetZone =
+            gameState.zones?.find((z: SoloZone) => z.id === toZoneId) ??
+            createZones().find((z) => z.id === toZoneId);
         if (!targetZone) return result;
 
         const zoneCards = gameState.cards
@@ -192,6 +194,16 @@ export class SoloGameEngine {
     public static moveCard(gameState: SoloGameState, card: Card, toZoneId: string): ActionResult {
         const plan = SoloGameEngine.planMoveCard(gameState, card, toZoneId);
         if (!plan.ok) return plan;
+
+        // 立刻写回 gameState，避免仅依赖 save patch 时内存态落后
+        for (const m of plan.data?.move ?? []) {
+            const c = gameState.cards.find((x: Card) => x.id === m.id);
+            if (!c) continue;
+            c.zone = m.zone;
+            c.zoneId = m.zoneId;
+            c.zoneIndex = m.zoneIndex;
+            if (m.isRevealed != null) c.isRevealed = m.isRevealed;
+        }
 
         const flipStub = plan.data?.flip?.[0];
         if (flipStub) {
@@ -244,10 +256,20 @@ export class SoloGameEngine {
         return result;
     }
 
-    /** 非收牌区的牌是否均已翻开（含 talon / waste / tableau） */
+    /** 非收牌区的牌是否均已翻开（含 talon / waste / tableau）；翻开牌必须带 rank/suit */
     public static areAllNonFoundationCardsRevealed(gameState: SoloGameState): boolean {
         if (!gameState?.cards?.length) return false;
-        return gameState.cards.every((c) => c.zone === ZoneType.FOUNDATION || Boolean(c.isRevealed));
+        return gameState.cards.every((c) => {
+            if (
+                c.zone === ZoneType.FOUNDATION ||
+                String(c.zoneId ?? "").startsWith("foundation-")
+            ) {
+                return true;
+            }
+            if (!c.isRevealed) return false;
+            // 无 identity 的「假翻开」不能进自动清盘（否则模拟/判胜会乱）
+            return Boolean(c.rank && c.suit);
+        });
     }
 
     /**
@@ -257,22 +279,28 @@ export class SoloGameEngine {
     public static findNextFoundationMove(gameState: SoloGameState): { card: Card; toZoneId: string } | null {
         if (!gameState) return null;
         const rm = new SoloRuleManager(gameState, GameInteractionPhase.idle);
-        const foundationZones = gameState.zones.filter((z) => z.type === ZoneType.FOUNDATION);
+        // 不依赖 zones 数组（空数组 [] 也要走 fallback，否则 ?? 不会触发）
+        const fromZones = gameState.zones?.filter((z) => z.type === ZoneType.FOUNDATION).map((z) => z.id) ?? [];
+        const foundationIds = fromZones.length > 0 ? fromZones : CARD_SUITS.map((s) => `foundation-${s}`);
         const tryCard = (card: Card | undefined): { card: Card; toZoneId: string } | null => {
             if (!card?.isRevealed || !card.rank) return null;
-            for (const fz of foundationZones) {
-                if (rm.canMoveToFoundation(card, fz.id)) return { card, toZoneId: fz.id };
+            for (const id of foundationIds) {
+                if (rm.canMoveToFoundation(card, id)) return { card, toZoneId: id };
             }
             return null;
         };
         const wasteTop = gameState.cards
-            .filter((c) => c.zone === ZoneType.WASTE)
+            .filter((c) => c.zone === ZoneType.WASTE || c.zoneId === "waste")
             .sort((a, b) => b.zoneIndex - a.zoneIndex)[0];
         const fromWaste = tryCard(wasteTop);
         if (fromWaste) return fromWaste;
         for (let col = 0; col < 7; col++) {
             const top = gameState.cards
-                .filter((c) => c.zone === ZoneType.TABLEAU && c.zoneId === `tableau-${col}`)
+                .filter(
+                    (c) =>
+                        (c.zone === ZoneType.TABLEAU || String(c.zoneId ?? "").startsWith("tableau-")) &&
+                        c.zoneId === `tableau-${col}`
+                )
                 .sort((a, b) => b.zoneIndex - a.zoneIndex)[0];
             const t = tryCard(top);
             if (t) return t;
@@ -281,10 +309,11 @@ export class SoloGameEngine {
     }
 
     private static cloneStateForSimulation(gameState: SoloGameState): SoloGameState {
+        const zones = gameState.zones?.length ? gameState.zones : createZones();
         return {
             ...gameState,
             cards: gameState.cards.map((c) => ({ ...c })),
-            zones: gameState.zones.map((z) => ({ ...z }))
+            zones: zones.map((z) => ({ ...z })),
         };
     }
 
@@ -305,6 +334,11 @@ export class SoloGameEngine {
     public static canAutoCompleteWithFoundationOnly(gameState: SoloGameState): boolean {
         if (!gameState) return false;
         if (!SoloGameEngine.areAllNonFoundationCardsRevealed(gameState)) return false;
+        const wonNow = new SoloRuleManager(gameState, GameInteractionPhase.idle).isGameWon();
+        if (wonNow) return true;
+        // 当前就必须有一步可收；避免空 zones / 误判 isGameWon 导致「假可清盘」
+        if (!SoloGameEngine.findNextFoundationMove(gameState)) return false;
+
         const sim = SoloGameEngine.cloneStateForSimulation(gameState);
         for (let step = 0; step < 200; step++) {
             const rm = new SoloRuleManager(sim, GameInteractionPhase.idle);
@@ -316,5 +350,54 @@ export class SoloGameEngine {
             SoloGameEngine.applyMovedCardsToClone(sim, res.data.move);
         }
         return new SoloRuleManager(sim, GameInteractionPhase.idle).isGameWon();
+    }
+
+    /**
+     * Dev cheat：foundation 各花色 A–10，tableau-0..3 各放该花色 K→Q→J（J 在顶，全明）。
+     * 满足 canAutoCompleteWithFoundationOnly，便于测自动清盘。
+     * 按 suit+rank 重排现有牌（保留 id）。
+     */
+    public static buildDevNearAutoCompleteLayout(cards: Card[]): Card[] | null {
+        if (!cards?.length || cards.length !== 52) return null;
+        const byKey = new Map<string, Card>();
+        for (const c of cards) {
+            if (!c.suit || !c.rank) return null;
+            byKey.set(`${c.suit}-${c.rank}`, c);
+        }
+        if (byKey.size !== 52) return null;
+
+        const foundationRanks = CARD_RANKS.slice(0, 10); // A..10
+        const tableauStack = ["K", "Q", "J"] as const; // 底→顶，顶牌 J 可收
+        const next: Card[] = [];
+
+        for (const suit of CARD_SUITS) {
+            foundationRanks.forEach((rank, zoneIndex) => {
+                const src = byKey.get(`${suit}-${rank}`);
+                if (!src) return;
+                next.push({
+                    ...src,
+                    isRevealed: true,
+                    zone: ZoneType.FOUNDATION,
+                    zoneId: `foundation-${suit}`,
+                    zoneIndex,
+                });
+            });
+        }
+
+        CARD_SUITS.forEach((suit, col) => {
+            tableauStack.forEach((rank, zoneIndex) => {
+                const src = byKey.get(`${suit}-${rank}`);
+                if (!src) return;
+                next.push({
+                    ...src,
+                    isRevealed: true,
+                    zone: ZoneType.TABLEAU,
+                    zoneId: `tableau-${col}`,
+                    zoneIndex,
+                });
+            });
+        });
+
+        return next.length === 52 ? next : null;
     }
 }

@@ -60,6 +60,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   './battle/games/solitaireSolo/battle/PlaySolitaireSolo': () => import('component/battle/games/solitaireSolo/battle/PlaySolitaireSolo'),
   './battle/games/solitaireSolo/battle/replay/SolitaireRolloutReplayPage': () =>
     import('component/battle/games/solitaireSolo/battle/replay/SolitaireRolloutReplayPage'),
+  './battle/games/solitaireSolo/battle/replay/SolitaireVictoryAnimLabPage': () =>
+    import('component/battle/games/solitaireSolo/battle/replay/SolitaireVictoryAnimLabPage'),
   './battle/games/solitaireSolo/battle/replay/SolitaireRolloutAnimatedPanel': () =>
     import('component/battle/games/solitaireSolo/battle/replay/SolitaireRolloutAnimatedPanel'),
   './battle/games/blockBlast/battle/PlayBlockBlast': () => import('component/battle/games/blockBlast/battle/PlayBlockBlast'),

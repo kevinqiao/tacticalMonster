@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 
 import { internal } from "../../_generated/api";
-import { mutation } from "../../_generated/server";
 import { authedMutation, authedQuery } from "../../custom/session";
 import { weeklyPeriodKey, weeklyWindowMsShanghai } from "../../utils/casualTaskPeriod";
 import {
@@ -17,7 +16,17 @@ export const ensurePortalWeeklyLeagueMemberMutation = authedMutation({
     gameType: v.string(),
   },
   handler: async (ctx, { gameType }) => {
+    console.log("[portal] ensurePortalWeeklyLeagueMemberMutation", {
+      uid: ctx.uid,
+      gameType,
+    });
     const memberId = await ensurePortalWeeklyLeagueMember(ctx, ctx.uid, gameType);
+    console.log("[portal] ensurePortalWeeklyLeagueMemberMutation done", {
+      uid: ctx.uid,
+      gameType,
+      ok: memberId != null,
+      memberId,
+    });
     return { ok: memberId != null, memberId };
   },
 });
@@ -45,27 +54,6 @@ export const getPortalWeeklyLeagueCohortLeaderboard = authedQuery({
       return { weekEndsAt: window.endsAt, cohortNo: null, rows: [] as const };
     }
     return { weekEndsAt: window.endsAt, cohortNo: board.cohortNo, rows: board.rows };
-  },
-});
-
-/** 运维/迁移：为已有分模式积分用户批量入组（通常由 ensureMember 在登录时触发）。 */
-export const backfillPortalWeeklyLeagueMembersForGame = mutation({
-  args: {
-    gameType: v.string(),
-    weekKey: v.optional(v.string()),
-  },
-  handler: async (ctx, { gameType, weekKey }) => {
-    const key = weekKey ?? weeklyPeriodKey(Date.now());
-    const rows = await ctx.db
-      .query("portal_weekly_total_points")
-      .withIndex("by_game_week_points", (q) => q.eq("gameType", gameType).eq("weekKey", key))
-      .collect();
-    let synced = 0;
-    for (const row of rows) {
-      await ensurePortalWeeklyLeagueMember(ctx, row.uid, gameType);
-      synced += 1;
-    }
-    return { weekKey: key, synced };
   },
 });
 

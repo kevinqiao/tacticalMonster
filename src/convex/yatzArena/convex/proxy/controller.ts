@@ -17,6 +17,7 @@ import {
   type PlatformBridge,
 } from "../service/casualBridgeEnv";
 import { resolveCasualIngestScoreFromRow } from "../service/yatzScoring";
+import { casualTableSummaryFromParsed } from "../../../shared/casualIngestTableSummaryClient";
 import type { YatzGameState } from "../types/YatzTypes";
 
 const tournament_url = "https://beloved-mouse-699.convex.site";
@@ -49,76 +50,6 @@ function mapCasualIngestClientResponse(
     ...(parsed.nextGame ? { nextGame: parsed.nextGame } : {}),
     ...(seedScoreThreshold != null ? { seedScoreThreshold } : {}),
     ...(success != null ? { success } : {}),
-  };
-}
-
-function casualTableSummaryFromParsed(v: unknown):
-  | {
-      maxPlayers: number;
-      rows: Array<{
-        rank: number;
-        score?: number;
-        rowState?: "scored" | "playing" | "matching";
-        displayLabel: string;
-        isYou: boolean;
-        isBot?: boolean;
-      }>;
-      isBoardStable?: boolean;
-    }
-  | undefined {
-  if (!v || typeof v !== "object") return undefined;
-  const o = v as Record<string, unknown>;
-  if (typeof o.maxPlayers !== "number" || !Array.isArray(o.rows)) return undefined;
-  const rows: Array<{
-    rank: number;
-    score?: number;
-    rowState?: "scored" | "playing" | "matching";
-    displayLabel: string;
-    isYou: boolean;
-    isBot?: boolean;
-  }> = [];
-  for (const item of o.rows) {
-    if (!item || typeof item !== "object") return undefined;
-    const r = item as Record<string, unknown>;
-    if (typeof r.rank !== "number" || typeof r.displayLabel !== "string" || typeof r.isYou !== "boolean") {
-      return undefined;
-    }
-    if (r.rowState === "matching") {
-      rows.push({
-        rank: r.rank,
-        rowState: "matching",
-        displayLabel: r.displayLabel,
-        isYou: r.isYou,
-        ...(r.isBot === true ? { isBot: true as const } : {}),
-      });
-      continue;
-    }
-    const rowState = r.rowState === "playing" || r.rowState === "scored" ? r.rowState : undefined;
-    if (rowState === "playing") {
-      rows.push({
-        rank: r.rank,
-        rowState: "playing",
-        displayLabel: r.displayLabel,
-        isYou: r.isYou,
-        ...(r.isBot === true ? { isBot: true as const } : {}),
-      });
-      continue;
-    }
-    if (typeof r.score !== "number") return undefined;
-    rows.push({
-      rank: r.rank,
-      score: r.score,
-      rowState: rowState ?? "scored",
-      displayLabel: r.displayLabel,
-      isYou: r.isYou,
-      ...(r.isBot === true ? { isBot: true as const } : {}),
-    });
-  }
-  if (rows.length === 0) return undefined;
-  return {
-    maxPlayers: o.maxPlayers,
-    rows,
-    ...(typeof o.isBoardStable === "boolean" ? { isBoardStable: o.isBoardStable } : {}),
   };
 }
 

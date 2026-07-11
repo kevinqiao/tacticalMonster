@@ -2,7 +2,9 @@
 /**
  * Import seed catalog into Portal Convex (`src/convex/portal`).
  *
- *   npm run portal:seed-pool:import -- --game-type block_blast --index scripts/blockblast/output/pool-v3/index.json
+ *   npm run portal:seed-pool:import -- solitaire --clear-first
+ *   npm run portal:seed-pool:import -- solitaire --limit 50 --clear-first
+ *   npm run portal:seed-pool:import -- sol --append
  */
 import { spawnSync } from "node:child_process";
 import path from "node:path";

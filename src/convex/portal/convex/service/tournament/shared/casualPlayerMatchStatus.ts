@@ -10,7 +10,7 @@ export const CASUAL_TRIATHLON_REPLAY_WINDOW_MS = 5 * 60 * 1000;
 
 export function getReplayWindowMs(templateId: string): number {
   if (templateId.startsWith("portal_")) {
-    return 0;
+    return CASUAL_DEFAULT_REPLAY_WINDOW_MS;
   }
   const def = getPortalTournamentDefinition(templateId);
   if (def?.gameType === "triathlon") {
@@ -91,8 +91,8 @@ export function allHumansConfirmed(humanPms: Array<{ status: string }>): boolean
 }
 
 export function canUseReplayForTemplate(templateId: string): boolean {
-  if (templateId.startsWith("portal_")) return false;
   const def = getPortalTournamentDefinition(templateId);
   if (!def) return false;
-  return def.entry.kind !== "seasonVouchers";
+  if (def.entry.kind === "seasonVouchers") return false;
+  return true;
 }

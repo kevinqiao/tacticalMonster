@@ -41,7 +41,8 @@ import {
 } from "../shared/casualPlayerMatchStatus";
 import { buildPartialIngestResponse } from "./casualRunIngestHelpers";
 import { resolvePlayerGameIngestContext } from "./casualPlayerGameIngest";
-import { playerGameId, loadSeedScoreQuantilesForSeat } from "../shared/casualPlayerGameTypes";
+import { playerGameId, listPlayerGamesForSeat, loadSeedScoreQuantilesForSeat } from "../shared/casualPlayerGameTypes";
+import { resolvePortalSoloSeedScoreThresholdForPlayerGame } from "../../ads/portalAdReplayEligibility";
 import { incrementRankCountsForSettledHumans } from "../shared/casualPlayerTournamentRankStats";
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
 import { getOrRepairPortalRunMatchDoc } from "../shared/portalRunMatchShell";
@@ -67,6 +68,26 @@ export async function settleSoloMaxPlayersOneCasualRun(
   }
 ) {
   const { def, pm, matchDoc, uid, score, now, gameType } = args;
+
+  /** 单人目标分以 seat seed 为准，不信任客户端传入的 threshold */
+  let seedScoreThreshold = args.seedScoreThreshold;
+  const games = await listPlayerGamesForSeat(ctx, pm._id);
+  const primaryPg = games[0];
+  if (primaryPg) {
+    const fromSeed = await resolvePortalSoloSeedScoreThresholdForPlayerGame(ctx, {
+      def,
+      pg: primaryPg,
+    });
+    if (fromSeed != null) {
+      seedScoreThreshold = fromSeed;
+    }
+  } else {
+    const quantiles = args.seedScoreQuantiles ?? (await loadSeedScoreQuantilesForSeat(ctx, pm._id));
+    if (typeof quantiles?.p75 === "number" && Number.isFinite(quantiles.p75)) {
+      seedScoreThreshold = Math.floor(quantiles.p75);
+    }
+  }
+
   const runTid = pm.tournamentId as Id<"portal_run_tournaments">;
   const runRow = await ctx.db.get(runTid);
   const skipPeriodWallet = Boolean(isPeriodScopedTournament(def) && runRow?.instanceId);
@@ -155,8 +176,8 @@ export async function settleSoloMaxPlayersOneCasualRun(
     runTournamentId: pm.tournamentId,
     multiplayerFinalRank: 1,
     sessionKind: pm.sessionKind,
-    ...(typeof args.seedScoreThreshold === "number"
-      ? { seedScoreThreshold: args.seedScoreThreshold }
+    ...(typeof seedScoreThreshold === "number"
+      ? { seedScoreThreshold }
       : {}),
     ...(args.seedScoreQuantiles ? { seedScoreQuantiles: args.seedScoreQuantiles } : {}),
   });
@@ -179,8 +200,8 @@ export async function settleSoloMaxPlayersOneCasualRun(
     score,
     rank: 1,
     p75Success:
-      typeof args.seedScoreThreshold === "number"
-        ? score >= args.seedScoreThreshold
+      typeof seedScoreThreshold === "number"
+        ? score >= seedScoreThreshold
         : undefined,
   });
 
@@ -188,10 +209,10 @@ export async function settleSoloMaxPlayersOneCasualRun(
     ok: true as const,
     tableSummary,
     ...extra,
-    ...(typeof args.seedScoreThreshold === "number"
+    ...(typeof seedScoreThreshold === "number"
       ? {
-          seedScoreThreshold: args.seedScoreThreshold,
-          success: score >= args.seedScoreThreshold,
+          seedScoreThreshold,
+          success: score >= seedScoreThreshold,
         }
       : {}),
   };

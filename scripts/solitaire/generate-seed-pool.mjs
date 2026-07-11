@@ -44,6 +44,9 @@ function parseArgs(argv) {
     oversampleFactor: 1,
     writeRolloutSummaries: false,
     writeRolloutFiles: false,
+    checkSolvability: true,
+    solveMaxNodes: 50_000,
+    solveTimeoutMs: 15_000,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -77,7 +80,9 @@ function parseArgs(argv) {
         opts.writeRolloutSummaries = true;
         opts.writeRolloutFiles = true;
       }
-    }
+    } else if (a === "--skip-solvability") opts.checkSolvability = false;
+    else if (a === "--solve-max-nodes") opts.solveMaxNodes = Number(next());
+    else if (a === "--solve-timeout-ms") opts.solveTimeoutMs = Number(next());
   }
   return opts;
 }
@@ -325,7 +330,8 @@ async function main() {
     `version=${opts.version} start=${opts.start} target=${targetAccepted} candidates=${candidateCount} rollouts=${opts.rollouts} matchSeconds=${opts.matchSeconds}`
   );
   console.log(
-    `out=${opts.out} summaries=${opts.writeRolloutSummaries} rolloutFiles=${opts.writeRolloutFiles}`
+    `out=${opts.out} summaries=${opts.writeRolloutSummaries} rolloutFiles=${opts.writeRolloutFiles} ` +
+      `solvability=${opts.checkSolvability} solveMaxNodes=${opts.solveMaxNodes} solveTimeoutMs=${opts.solveTimeoutMs}`
   );
   if (
     opts.minOpeningMoves > 0 ||
@@ -383,6 +389,11 @@ async function main() {
     playerFriendly: playerFriendlyOpts(opts),
     writeRolloutSummaries: opts.writeRolloutSummaries,
     writeRolloutFiles: opts.writeRolloutFiles,
+    checkSolvability: opts.checkSolvability,
+    solveOpts: {
+      maxNodes: opts.solveMaxNodes,
+      timeoutMs: opts.solveTimeoutMs,
+    },
   };
 
   for (let i = opts.start; i < scanEnd; i++) {
@@ -433,6 +444,9 @@ async function main() {
       difficultyScore: e.difficultyScore,
       metrics: e.metrics,
       rolloutSummaries: e.rolloutSummaries,
+      solvable: e.solvable,
+      solvableSource: e.solvableSource,
+      solvableReason: e.solvableReason,
     })),
     ...trimmedBatch,
   ];

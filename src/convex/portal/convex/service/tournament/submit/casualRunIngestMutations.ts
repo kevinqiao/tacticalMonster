@@ -15,6 +15,9 @@ import {
   buildCasualReplayOfferForPlayer,
   buildPartialIngestResponse,
   buildIngestTableSummaryForPlayer,
+  buildDeferredSoloPortalIngestResponse,
+  shouldDeferSoloSettleForPortalAdReplay,
+  enrichIngestTableSummaryWithReplay,
   attachIngestSyncResponse,
   maybeGrantDevReplayTokensOnSubmit,
 } from "./casualRunIngestHelpers";
@@ -31,9 +34,12 @@ import {
   type AsyncBotFill,
   type CasualAsyncTableSummary,
 } from "../settle/casualRunSettlementFill";
+import { casualTableSummarySolo } from "../settle/async/casualAsyncTableSummary";
+import { resolvePortalSoloChallengeSuccessForPlayerGame } from "../../ads/portalAdReplayEligibility";
 import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes";
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
-import type { Id } from "../../../_generated/dataModel";
+import type { Id, Doc } from "../../../_generated/dataModel";
+import { isPortalAdReplayTemplate } from "../../../data/portalAdReplayConfig";
 import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
 import { cancelOpenRunSettleCheckForGameId } from "../settle/casualOpenRunSettleCheck";
 import { serializeWatchReplaySnapshot } from "../shared/casualWatchReplaySnapshot";
@@ -62,11 +68,102 @@ async function finishIngestWithSyncTableSummary(
     templateId: string;
     uid: string;
     matchId: string;
+    matchGameId: string;
+    pm: Doc<"portal_run_player_matches">;
+    now: number;
     seedScoreThreshold?: number;
   },
   finishExtra?: Record<string, unknown>
 ) {
-  const tableSummary = await buildIngestTableSummaryForPlayer(ctx, args);
+  if (args.def.maxPlayers <= 1 && shouldDeferSoloSettleForPortalAdReplay(args.templateId)) {
+    const freshPm = (await ctx.db.get(args.pm._id)) ?? args.pm;
+    const deferBody = await buildDeferredSoloPortalIngestResponse(ctx, {
+      def: args.def,
+      pm: freshPm,
+      uid: args.uid,
+      now: args.now,
+      matchGameId: args.matchGameId,
+      totalScore: freshPm.score ?? 0,
+      ...(typeof args.seedScoreThreshold === "number"
+        ? { seedScoreThreshold: args.seedScoreThreshold }
+        : {}),
+    });
+    /** 无再战窗口时不得挂起结算（否则历史一直「等待结算」） */
+    if (
+      deferBody.tableSummary.replayOffered &&
+      freshPm.status !== "settled"
+    ) {
+      timing.finish(finishLabel, {
+        hasTableSummary: Boolean(deferBody.tableSummary),
+        deferredSoloSettle: true,
+        ...finishExtra,
+      });
+      return attachIngestSyncResponse(body, {
+        tableSummary: deferBody.tableSummary,
+        seedScoreThreshold: deferBody.seedScoreThreshold ?? args.seedScoreThreshold,
+        ...(typeof deferBody.success === "boolean" ? { success: deferBody.success } : {}),
+      });
+    }
+    if (
+      freshPm.status !== "settled" &&
+      freshPm.score != null &&
+      Number.isFinite(freshPm.score)
+    ) {
+      const matchDoc = await ctx.db.get(args.matchId as Id<"portal_run_matches">);
+      if (matchDoc) {
+        const gameTypeCheck = assertRegisteredMatchGameType(args.def.gameType);
+        if (gameTypeCheck.ok) {
+          const soloResult = await settleSoloMaxPlayersOneCasualRun(ctx, {
+            def: args.def,
+            pm: freshPm,
+            matchDoc,
+            uid: args.uid,
+            score: freshPm.score as number,
+            now: args.now,
+            gameType: args.def.gameType,
+            ...(typeof args.seedScoreThreshold === "number"
+              ? { seedScoreThreshold: args.seedScoreThreshold }
+              : {}),
+          });
+          timing.finish(finishLabel, {
+            hasTableSummary: Boolean(soloResult.tableSummary ?? deferBody.tableSummary),
+            settledDeferredSolo: true,
+            ...finishExtra,
+          });
+          return attachIngestSyncResponse(
+            { ...body, ...soloResult },
+            {
+              tableSummary: soloResult.tableSummary ?? deferBody.tableSummary,
+              seedScoreThreshold:
+                deferBody.seedScoreThreshold ?? args.seedScoreThreshold,
+              ...(typeof deferBody.success === "boolean"
+                ? { success: deferBody.success }
+                : {}),
+            }
+          );
+        }
+      }
+    }
+    timing.finish(finishLabel, {
+      hasTableSummary: Boolean(deferBody.tableSummary),
+      ...finishExtra,
+    });
+    return attachIngestSyncResponse(body, {
+      tableSummary: deferBody.tableSummary,
+      seedScoreThreshold: deferBody.seedScoreThreshold ?? args.seedScoreThreshold,
+      ...(typeof deferBody.success === "boolean" ? { success: deferBody.success } : {}),
+    });
+  }
+
+  let tableSummary = await buildIngestTableSummaryForPlayer(ctx, args);
+  tableSummary = await enrichIngestTableSummaryWithReplay(ctx, {
+    def: args.def,
+    pm: args.pm,
+    uid: args.uid,
+    now: args.now,
+    matchGameId: args.matchGameId,
+    tableSummary,
+  });
   timing.finish(finishLabel, {
     hasTableSummary: Boolean(tableSummary),
     ...finishExtra,
@@ -92,8 +189,38 @@ export const getCasualAsyncTableSummaryForGame = authedQuery({
       return null;
     }
     const def = getPortalTournamentDefinition(pm.templateId);
-    if (!def || def.maxPlayers <= 1) {
+    if (!def) {
       return null;
+    }
+    const now = Date.now();
+    if (def.maxPlayers <= 1) {
+      if (!isPortalAdReplayTemplate(pm.templateId)) {
+        return null;
+      }
+      const tableSummary = casualTableSummarySolo(def.maxPlayers, pm.score ?? 0);
+      const challengeSuccess = await resolvePortalSoloChallengeSuccessForPlayerGame(ctx, {
+        def,
+        pg,
+        score: pm.score ?? 0,
+      });
+      const replay = await buildCasualReplayOfferForPlayer(ctx, {
+        def,
+        pm,
+        uid,
+        now,
+        matchGameId,
+        tableSummary,
+        challengeSuccess,
+      });
+      return {
+        ...tableSummary,
+        replayOffered: replay.replayOffered,
+        replayMode: replay.replayMode,
+        replayTokenCount: replay.replayTokenCount,
+        canReplay: replay.canReplay,
+        adReplayDailyRemaining: replay.adReplayDailyRemaining,
+        ...(replay.replayWindowEndsAt != null ? { replayWindowEndsAt: replay.replayWindowEndsAt } : {}),
+      };
     }
     const matchRows = await ctx.db
       .query("portal_run_player_matches")
@@ -110,19 +237,21 @@ export const getCasualAsyncTableSummaryForGame = authedQuery({
       allHumansSettled,
     });
     if (!tableSummary) return null;
-    const now = Date.now();
     const replay = await buildCasualReplayOfferForPlayer(ctx, {
       def,
       pm,
       uid,
       now,
+      matchGameId,
       tableSummary,
     });
     return {
       ...tableSummary,
       replayOffered: replay.replayOffered,
+      replayMode: replay.replayMode,
       replayTokenCount: replay.replayTokenCount,
       canReplay: replay.canReplay,
+      adReplayDailyRemaining: replay.adReplayDailyRemaining,
       ...(replay.replayWindowEndsAt != null ? { replayWindowEndsAt: replay.replayWindowEndsAt } : {}),
     };
   },
@@ -201,6 +330,9 @@ export const submitCasualRunScoreCore = internalMutation({
       templateId: pm.templateId,
       uid,
       matchId: pm.matchId,
+      matchGameId,
+      pm,
+      now: Date.now(),
       seedScoreThreshold,
     };
 
@@ -397,6 +529,25 @@ export const submitCasualRunScoreCore = internalMutation({
         timing.finish("abort.match_not_found.solo");
         return { ok: false as const, error: "match_not_found" };
       }
+      if (shouldDeferSoloSettleForPortalAdReplay(pm.templateId)) {
+        timing.mark("solo.deferredSettleForAdReplay.start");
+        const deferBody = await buildDeferredSoloPortalIngestResponse(ctx, {
+          def,
+          pm: pmAfterFinish,
+          uid,
+          now,
+          matchGameId,
+          totalScore,
+          ...(typeof seedScoreThreshold === "number" ? { seedScoreThreshold } : {}),
+        });
+        if (deferBody.tableSummary.replayOffered) {
+          timing.finish("solo.deferredSettleForAdReplay", {
+            replayOffered: true,
+          });
+          return attachIngestSeedScoreThreshold(deferBody, seedScoreThreshold);
+        }
+        timing.mark("solo.deferredSettleSkippedNoReplayOffer");
+      }
       timing.mark("settleSoloMaxPlayersOneCasualRun.start");
       const soloResult = await settleSoloMaxPlayersOneCasualRun(ctx, {
         def,
@@ -429,9 +580,16 @@ export const submitCasualRunScoreCore = internalMutation({
       const finWithSummary = finAttempt.fin as Record<string, unknown> & {
         tableSummary?: CasualAsyncTableSummary;
       };
-      const tableSummary =
-        finWithSummary.tableSummary ??
-        (await buildIngestTableSummaryForPlayer(ctx, syncSummaryArgs));
+      const tableSummary = await enrichIngestTableSummaryWithReplay(ctx, {
+        def,
+        pm,
+        uid,
+        now,
+        matchGameId,
+        tableSummary:
+          finWithSummary.tableSummary ??
+          (await buildIngestTableSummaryForPlayer(ctx, syncSummaryArgs)),
+      });
       return attachIngestSyncResponse(finWithSummary, {
         tableSummary,
         seedScoreThreshold,

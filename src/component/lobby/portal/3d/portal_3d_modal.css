@@ -532,20 +532,21 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
+/* 30 人组：升 8 / 保 14 / 降 8 → 4:7:4 */
 .portal-rules-zone--promote {
-  flex: 0 0 24%;
+  flex: 4;
   background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 100%);
 }
 
 .portal-rules-zone--keep {
-  flex: 1;
+  flex: 7;
   background: linear-gradient(180deg, #ffd561 0%, #f0a32a 100%);
   color: #7a4a10;
   text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 
 .portal-rules-zone--demote {
-  flex: 0 0 24%;
+  flex: 4;
   background: linear-gradient(180deg, #ff8a5c 0%, #d63a1c 100%);
 }
 

@@ -22,15 +22,6 @@ export const portalTournamentFns = {
   getCasualAsyncTableSummaryForGame: makeFunctionReference<"query">(
     "service/tournament/submit/casualRunIngestMutations:getCasualAsyncTableSummaryForGame"
   ),
-  getWeeklyLeaderboard: makeFunctionReference<"query">(
-    "service/points/portalLeaderboardQueries:getWeeklyLeaderboard"
-  ),
-  getPortalWeeklyTotalLeaderboard: makeFunctionReference<"query">(
-    "service/points/portalLeaderboardQueries:getPortalWeeklyTotalLeaderboard"
-  ),
-  ensureWeeklyTotalPointsForGame: makeFunctionReference<"mutation">(
-    "service/points/portalLeaderboardQueries:ensureWeeklyTotalPointsForGame"
-  ),
   ensurePortalWeeklyLeagueMember: makeFunctionReference<"mutation">(
     "service/weeklyLeague/portalWeeklyLeagueQueries:ensurePortalWeeklyLeagueMemberMutation"
   ),
@@ -73,12 +64,6 @@ export const portalTournamentFns = {
   resendGiftCardEmail: makeFunctionReference<"action">(
     "service/giftcard/giftCardActions:resendGiftCardEmail"
   ),
-  getMyWeeklyPoints: makeFunctionReference<"query">(
-    "service/points/portalLeaderboardQueries:getMyWeeklyPoints"
-  ),
-  ensureWeeklyBoardBotsForGame: makeFunctionReference<"mutation">(
-    "service/points/portalLeaderboardQueries:ensureWeeklyBoardBotsForGame"
-  ),
   reconcilePendingCasualHistorySettlements: makeFunctionReference<"mutation">(
     "service/tournament/settle/casualHistorySettleReconcile:reconcilePendingCasualHistorySettlements"
   ),
@@ -91,7 +76,19 @@ export const portalTournamentFns = {
   getCampaignDailyPlayQuota: makeFunctionReference<"query">(
     "service/tournament/join/campaignDailyPlayLimit:getCampaignDailyPlayQuota"
   ),
+  getPortalDailyPlayQuota: makeFunctionReference<"query">(
+    "service/tournament/join/portalDailyPlayLimit:getPortalDailyPlayQuota"
+  ),
   listCampaignPlayHistory: makeFunctionReference<"query">(
     "service/tournament/join/campaignPlayHistory:listCampaignPlayHistory"
+  ),
+  beginAdReplaySession: makeFunctionReference<"mutation">(
+    "service/ads/portalAdReplayMutations:beginAdReplaySession"
+  ),
+  completeAdReplaySession: makeFunctionReference<"mutation">(
+    "service/ads/portalAdReplayMutations:completeAdReplaySession"
+  ),
+  confirmCasualRunWithoutReplay: makeFunctionReference<"mutation">(
+    "service/tournament/submit/casualRunIngestMutations:confirmCasualRunWithoutReplay"
   ),
 } as const;

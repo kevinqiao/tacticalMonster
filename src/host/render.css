@@ -21,7 +21,7 @@
   pointer-events: auto;
   visibility: hidden;
   opacity: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.72);
 }
 
 /* 弹层关闭钮：红色糖果圆钮，与卡通主题一致 */

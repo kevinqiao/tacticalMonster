@@ -5,6 +5,7 @@ import { usePartnerManager } from "host/service/PartnerManager";
 
 import { usePortal } from "../service/usePortalManager";
 
+import { PortalGame3DViewport } from "./PortalGame3DViewport";
 import { PortalGame3DInner } from "./PortalGame3DInner";
 import { PortalGame3DOverlays } from "./PortalGame3DOverlays";
 import { PortalGame3DShadowHost } from "./PortalGame3DShadowHost";
@@ -39,10 +40,18 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
     portal.shopCatalog != null
   );
 
+  const modalOpen =
+    ctrl.shopModalOpen ||
+    ctrl.rulesModalOpen != null ||
+    ctrl.panelModal != null ||
+    ctrl.giftCardOrdersModalOpen ||
+    ctrl.weeklyCloseModalOpen;
+
   return (
     <>
-      <PortalGame3DShadowHost>
-        <PortalGame3DInner
+      <PortalGame3DViewport pageActive={visible > 0} modalOpen={modalOpen}>
+        <PortalGame3DShadowHost>
+          <PortalGame3DInner
           gameType={portal.gameType}
           heroLogoUrl={heroLogoUrl}
           authed={ctrl.authed}
@@ -59,13 +68,21 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           multiJoinBlocked={ctrl.multiJoinBlocked}
           soloOpenAssignment={ctrl.soloOpenAssignment}
           multiOpenAssignment={ctrl.multiOpenAssignment}
+          soloPlaysToday={ctrl.soloPlaysToday}
+          soloMaxPlaysPerDay={ctrl.soloMaxPlaysPerDay}
+          multiPlaysToday={ctrl.multiPlaysToday}
+          multiMaxPlaysPerDay={ctrl.multiMaxPlaysPerDay}
+          soloDailyExhausted={ctrl.soloDailyExhausted}
+          multiDailyExhausted={ctrl.multiDailyExhausted}
           queueWaiting={ctrl.queueWaiting}
           weekEndsAt={portal.weekEndsAt}
           onJoin={(mode) => void ctrl.handleJoin(mode)}
           onOpenRules={(anchor) => ctrl.setRulesModalOpen(anchor)}
-          onOpenLeaderboard={() => ctrl.setPanelModal("lb")}
+          onOpenLeaderboard={
+            ctrl.authed ? () => ctrl.setPanelModal("lb") : undefined
+          }
           onOpenFullHistory={
-            ctrl.user?.uid ? () => ctrl.setPanelModal("history") : undefined
+            ctrl.authed ? () => ctrl.setPanelModal("history") : undefined
           }
           onOpenShop={showShop ? () => ctrl.setShopModalOpen(true) : undefined}
           showShop={showShop}
@@ -75,7 +92,8 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           onOpenUnclaimedRewards={ctrl.openWeeklyCloseModal}
           pageActive={visible > 0}
         />
-      </PortalGame3DShadowHost>
+        </PortalGame3DShadowHost>
+      </PortalGame3DViewport>
       <PortalGame3DOverlays ctrl={ctrl} />
       <PortalGame3DToast note={ctrl.note} />
     </>

@@ -2,7 +2,9 @@ import { v } from "convex/values";
 import {
   getPortalTournamentDefinition,
   isPeriodScopedTournament,
+  isPortalP75Success,
   listPlayCasualTournaments,
+  portalSoloPointDelta,
   shouldAppearInCasualPlayLobby,
 } from "../../../data/portalTournamentConfigs";
 import { resolveInstanceWindow } from "../../../data/portalInstanceWindow";
@@ -28,6 +30,7 @@ import { prunePendingWalletRewards } from "../settle/casualRunScoreEffects";
 import {
   findPlayerGameByGameId,
   listPlayerGamesForSeat,
+  loadSeedScoreQuantilesForSeat,
 } from "../shared/casualPlayerGameTypes";
 
 async function attachCasualHistoryTableSummary(
@@ -407,6 +410,29 @@ export const gameHistory = authedQuery({
             })
           : null;
 
+        let seedScoreThreshold: number | null = null;
+        let challengeSuccess: boolean | null = null;
+        let pointDelta: number | null = pt.pointDelta ?? null;
+
+        if (def?.matchType === "solo_p75" && selfPm) {
+          const quantiles = await loadSeedScoreQuantilesForSeat(ctx, selfPm._id);
+          const p75 = quantiles?.p75;
+          if (typeof p75 === "number" && Number.isFinite(p75)) {
+            seedScoreThreshold = Math.floor(p75);
+          } else if (
+            typeof pt.seedScoreThreshold === "number" &&
+            Number.isFinite(pt.seedScoreThreshold)
+          ) {
+            seedScoreThreshold = Math.floor(pt.seedScoreThreshold);
+          }
+          if (displayScore != null && seedScoreThreshold != null) {
+            challengeSuccess = isPortalP75Success(def, displayScore, seedScoreThreshold);
+            pointDelta = portalSoloPointDelta(def, displayScore, seedScoreThreshold);
+          } else if (typeof pt.challengeSuccess === "boolean") {
+            challengeSuccess = pt.challengeSuccess;
+          }
+        }
+
         let periodInstanceKey: string | undefined;
         let periodTournament = false;
 
@@ -435,12 +461,15 @@ export const gameHistory = authedQuery({
           entryStatus: completed ? ("submitted" as const) : ("joined" as const),
           settlementPending: !completed,
           runStartedAt: run?.createdAt ?? pt.createdAt,
-          rank,
+          rank: def?.matchType === "solo_p75" ? null : rank,
           participantCount,
-          pointDelta: pt.pointDelta ?? null,
+          pointDelta,
           weeklyPointsAfter: pt.weeklyPointsAfter ?? null,
+          seedScoreThreshold,
+          challengeSuccess,
           periodTournament,
           periodInstanceKey,
+          ...(run?.campaignId ? { campaignId: run.campaignId } : {}),
           ...(tableSummary ? { tableSummary } : {}),
         };
       })

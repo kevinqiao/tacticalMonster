@@ -62,6 +62,22 @@ export function seasonPeriodKey(seasonId: string): string {
 
 const HOUR_MS = 3600000;
 
+/** 二分查找：区间内第一个使 `pred` 为 true 的时刻（假定 [lo,hi] 上 false→true 单次跳变）。 */
+function firstTrueMs(
+  lo: number,
+  hi: number,
+  pred: (ms: number) => boolean
+): number {
+  let left = lo;
+  let right = hi;
+  while (right - left > 1) {
+    const mid = Math.floor((left + right) / 2);
+    if (pred(mid)) right = mid;
+    else left = mid;
+  }
+  return right;
+}
+
 /** 当前运营日周期 `[startsAt, endsAt]`（与 `dailyPeriodKey` 一致），用于周期锦标日桶。 */
 export function dailyWindowMsShanghai(nowMs: number): {
   instanceKey: string;
@@ -69,22 +85,28 @@ export function dailyWindowMsShanghai(nowMs: number): {
   endsAt: number;
 } {
   const key = dailyPeriodKey(nowMs);
-  let lo = nowMs - 48 * HOUR_MS;
-  while (dailyPeriodKey(lo) !== key) {
-    lo += HOUR_MS;
-    if (lo > nowMs + 48 * HOUR_MS) {
-      return { instanceKey: key, startsAt: nowMs - 24 * HOUR_MS, endsAt: nowMs + 24 * HOUR_MS };
+  const inPeriod = (ms: number) => dailyPeriodKey(ms) === key;
+
+  let probe = nowMs - 36 * HOUR_MS;
+  while (inPeriod(probe)) {
+    probe -= 24 * HOUR_MS;
+    if (probe < nowMs - 96 * HOUR_MS) {
+      return {
+        instanceKey: key,
+        startsAt: nowMs - 24 * HOUR_MS,
+        endsAt: nowMs + 24 * HOUR_MS,
+      };
     }
   }
-  while (lo > nowMs - 72 * HOUR_MS && dailyPeriodKey(lo - HOUR_MS) === key) {
-    lo -= HOUR_MS;
+  const startsAt = firstTrueMs(probe, nowMs, inPeriod);
+
+  let after = startsAt + 20 * HOUR_MS;
+  while (inPeriod(after)) {
+    after += HOUR_MS;
+    if (after > startsAt + 48 * HOUR_MS) break;
   }
-  let hi = lo + HOUR_MS;
-  while (dailyPeriodKey(hi) === key) {
-    hi += HOUR_MS;
-    if (hi > lo + 72 * HOUR_MS) break;
-  }
-  return { instanceKey: key, startsAt: lo, endsAt: hi - 1 };
+  const nextStart = firstTrueMs(startsAt, after, (ms) => !inPeriod(ms));
+  return { instanceKey: key, startsAt, endsAt: nextStart - 1 };
 }
 
 /** 当前运营周周期 `[startsAt, endsAt]`（与 `weeklyPeriodKey` 一致）。 */
@@ -94,20 +116,26 @@ export function weeklyWindowMsShanghai(nowMs: number): {
   endsAt: number;
 } {
   const key = weeklyPeriodKey(nowMs);
-  let lo = nowMs - 14 * 24 * HOUR_MS;
-  while (weeklyPeriodKey(lo) !== key) {
-    lo += HOUR_MS;
-    if (lo > nowMs + 14 * 24 * HOUR_MS) {
-      return { instanceKey: key, startsAt: nowMs - 7 * 24 * HOUR_MS, endsAt: nowMs + 7 * 24 * HOUR_MS };
+  const inPeriod = (ms: number) => weeklyPeriodKey(ms) === key;
+
+  let probe = nowMs - 10 * 24 * HOUR_MS;
+  while (inPeriod(probe)) {
+    probe -= 7 * 24 * HOUR_MS;
+    if (probe < nowMs - 40 * 24 * HOUR_MS) {
+      return {
+        instanceKey: key,
+        startsAt: nowMs - 7 * 24 * HOUR_MS,
+        endsAt: nowMs + 7 * 24 * HOUR_MS,
+      };
     }
   }
-  while (lo > nowMs - 21 * 24 * HOUR_MS && weeklyPeriodKey(lo - HOUR_MS) === key) {
-    lo -= HOUR_MS;
+  const startsAt = firstTrueMs(probe, nowMs, inPeriod);
+
+  let after = startsAt + 5 * 24 * HOUR_MS;
+  while (inPeriod(after)) {
+    after += HOUR_MS;
+    if (after > startsAt + 10 * 24 * HOUR_MS) break;
   }
-  let hi = lo + HOUR_MS;
-  while (weeklyPeriodKey(hi) === key) {
-    hi += HOUR_MS;
-    if (hi > lo + 21 * 24 * HOUR_MS) break;
-  }
-  return { instanceKey: key, startsAt: lo, endsAt: hi - 1 };
+  const nextStart = firstTrueMs(startsAt, after, (ms) => !inPeriod(ms));
+  return { instanceKey: key, startsAt, endsAt: nextStart - 1 };
 }

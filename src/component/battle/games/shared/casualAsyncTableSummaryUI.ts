@@ -49,8 +49,10 @@ export type CasualAsyncTableSummaryUI = {
   triathlonLegs?: CasualTriathlonLegTableSummaryUI[];
   /** `getCasualAsyncTableSummaryForGame` 附带（非 ingest 响应） */
   replayOffered?: boolean;
+  replayMode?: "ad" | "token";
   replayTokenCount?: number;
   canReplay?: boolean;
+  adReplayDailyRemaining?: number;
   replayWindowEndsAt?: number;
 };
 
@@ -83,8 +85,10 @@ export type ManualSettleConfirmExtras = {
   /** 同桌尚未全部提交，暂无本桌名次表 */
   pendingOthers?: boolean;
   replayOffered?: boolean;
+  replayMode?: "ad" | "token";
   replayTokenCount?: number;
   canReplay?: boolean;
+  adReplayDailyRemaining?: number;
   /** epoch ms；再战窗口结束时刻，供同桌摘要倒计时 */
   replayWindowEndsAt?: number;
   /** solo_p75_challenge：目标分（P75） */
@@ -105,18 +109,29 @@ export function applyCasualTableSummaryFromQuery(
     setReplayTokenCount: (v: number) => void;
     setCanReplay: (v: boolean) => void;
     setReplayWindowEndsAt: (v: number | undefined) => void;
+    setReplayMode?: (v: "ad" | "token") => void;
+    setAdReplayDailyRemaining?: (v: number | undefined) => void;
   }
 ) {
   setters.setTableSummary(summary);
-  const offered = Boolean(summary.replayOffered ?? summary.canReplay);
-  setters.setReplayOffered(offered);
+  setters.setReplayOffered(Boolean(summary.replayOffered));
   setters.setReplayTokenCount(
     typeof summary.replayTokenCount === 'number' ? summary.replayTokenCount : 0
   );
   setters.setCanReplay(Boolean(summary.canReplay));
+  if (setters.setAdReplayDailyRemaining) {
+    setters.setAdReplayDailyRemaining(
+      typeof summary.adReplayDailyRemaining === 'number'
+        ? summary.adReplayDailyRemaining
+        : undefined
+    );
+  }
   setters.setReplayWindowEndsAt(
     typeof summary.replayWindowEndsAt === 'number' ? summary.replayWindowEndsAt : undefined
   );
+  if (setters.setReplayMode) {
+    setters.setReplayMode(summary.replayMode === "ad" ? "ad" : "token");
+  }
 }
 
 /** 历史战报表头：本局名次 + 获得积分（替代「本桌至多 N 席 · 已计分 M 人」） */

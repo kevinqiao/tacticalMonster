@@ -1189,6 +1189,11 @@
   justify-content: center;
 }
 
+.tierBadgeLocked {
+  filter: grayscale(1) brightness(0.72) contrast(0.9);
+  opacity: 0.78;
+}
+
 .tierDivision {
   color: #5b6470;
   font-family: "Fredoka", "Segoe UI Rounded", "Nunito", "Arial Black", Inter, var(--default-font-family);
@@ -1276,19 +1281,20 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
+/* 30 人组：升 8 / 保 14 / 降 8 → 4:7:4 */
 .tierZonePromote {
-  flex: 1;
+  flex: 4;
   background: linear-gradient(#7ac95f, #4ea83e);
   border-radius: 18px 0 0 18px;
 }
 
 .tierZoneKeep {
-  flex: 3;
+  flex: 7;
   background: linear-gradient(#f5c451, #e09a2e);
 }
 
 .tierZoneDemote {
-  flex: 1;
+  flex: 4;
   background: linear-gradient(#ef7a63, #d64a34);
   border-radius: 0 18px 18px 0;
 }
@@ -1413,6 +1419,14 @@
   filter: brightness(1.07);
 }
 
+.tierActionDisabled,
+.tierActionDisabled:hover {
+  cursor: not-allowed;
+  filter: grayscale(1) brightness(0.78);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .tierHistoryIcon {
   position: absolute;
   left: 16px;
@@ -1462,15 +1476,18 @@
 .modeCard {
   position: relative;
   width: 541px;
-  height: 288px;
+  height: 310px;
   margin: 4px 0 0 9px;
-  padding: 28px 34px 30px;
+  padding: 22px 34px 24px;
   background-repeat: no-repeat;
   background-position: center;
   background-size: 100% 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  overflow: visible;
 }
 
 .modeCardSolo {
@@ -1485,26 +1502,27 @@
   display: flex;
   align-items: center;
   gap: 18px;
+  flex-shrink: 0;
 }
 
 /* 右端占位与左侧图标等宽，保证标题在卡片上居中 */
 .modeCardTopRow::after {
   content: "";
-  flex: 0 0 104px;
+  flex: 0 0 88px;
 }
 
 .modeIconSolo {
   flex-shrink: 0;
-  width: 104px;
-  height: 112px;
+  width: 88px;
+  height: 94px;
   background: url(/assets/portal/3d/ui/icon-target.png) no-repeat center;
   background-size: contain;
 }
 
 .modeIconArena {
   flex-shrink: 0;
-  width: 106px;
-  height: 110px;
+  width: 90px;
+  height: 92px;
   background: url(/assets/portal/3d/ui/icon-swords.png) no-repeat center;
   background-size: contain;
 }
@@ -1532,8 +1550,30 @@
      2px  4px 0px rgba(0, 0, 0, 0.35);
 }
 
-.modePlayBtn {
+.modeQuota {
+  flex-shrink: 0;
   align-self: center;
+  z-index: 1;
+  color: rgba(255, 248, 230, 0.98);
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", "Arial Black", Inter, var(--default-font-family);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1.15;
+  white-space: nowrap;
+  text-align: center;
+  text-shadow:
+    -1px -1px 0 #5c3b1e,
+     1px -1px 0 #5c3b1e,
+    -1px  1px 0 #5c3b1e,
+     1px  1px 0 #5c3b1e,
+     0px  2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.modePlayBtn {
+  flex-shrink: 0;
+  align-self: center;
+  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1550,6 +1590,17 @@
 
 .modePlayBtnArena {
   background-image: url(/assets/portal/3d/ui/btn-compete.png);
+}
+
+.modePlayBtnDisabled {
+  filter: grayscale(1) brightness(0.72) contrast(0.92);
+  opacity: 0.55;
+  pointer-events: auto;
+}
+
+.modePlayBtnDisabled .modePlayText {
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: none;
 }
 
 .modePlayText {

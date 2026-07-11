@@ -86,6 +86,22 @@ export function seasonPeriodKey(seasonId: string): string {
 
 const HOUR_MS = 3600000;
 
+/** 二分查找：区间内第一个使 `pred` 为 true 的时刻（假定 [lo,hi] 上 false→true 单次跳变）。 */
+function firstTrueMs(
+  lo: number,
+  hi: number,
+  pred: (ms: number) => boolean
+): number {
+  let left = lo;
+  let right = hi;
+  while (right - left > 1) {
+    const mid = Math.floor((left + right) / 2);
+    if (pred(mid)) right = mid;
+    else left = mid;
+  }
+  return right;
+}
+
 /** 当前运营日周期 `[startsAt, endsAt]`（05:00 切日，可指定 IANA 时区）。 */
 export function dailyWindowMsForOpsZone(
   nowMs: number,
@@ -99,10 +115,14 @@ export function dailyWindowMsForOpsZone(
   const tz = normalizeOpsTimeZone(timeZone);
   const periodKey = (ms: number) => dailyPeriodKeyForOpsZone(ms, tz);
   const key = periodKey(nowMs);
-  let lo = nowMs - 48 * HOUR_MS;
-  while (periodKey(lo) !== key) {
-    lo += HOUR_MS;
-    if (lo > nowMs + 48 * HOUR_MS) {
+  const inPeriod = (ms: number) => periodKey(ms) === key;
+
+  // 不可用「从 now 起按整点步进」：now 未对齐整点时会错过真正的 05:00 切日点，
+  // 导致 startsAt≈now，今日已开桌全部被滤掉。
+  let probe = nowMs - 36 * HOUR_MS;
+  while (inPeriod(probe)) {
+    probe -= 24 * HOUR_MS;
+    if (probe < nowMs - 96 * HOUR_MS) {
       return {
         instanceKey: key,
         startsAt: nowMs - 24 * HOUR_MS,
@@ -111,15 +131,20 @@ export function dailyWindowMsForOpsZone(
       };
     }
   }
-  while (lo > nowMs - 72 * HOUR_MS && periodKey(lo - HOUR_MS) === key) {
-    lo -= HOUR_MS;
+  const startsAt = firstTrueMs(probe, nowMs, inPeriod);
+
+  let after = startsAt + 20 * HOUR_MS;
+  while (inPeriod(after)) {
+    after += HOUR_MS;
+    if (after > startsAt + 48 * HOUR_MS) break;
   }
-  let hi = lo + HOUR_MS;
-  while (periodKey(hi) === key) {
-    hi += HOUR_MS;
-    if (hi > lo + 72 * HOUR_MS) break;
-  }
-  return { instanceKey: key, startsAt: lo, endsAt: hi - 1, timeZone: tz };
+  const nextStart = firstTrueMs(startsAt, after, (ms) => !inPeriod(ms));
+  return {
+    instanceKey: key,
+    startsAt,
+    endsAt: nextStart - 1,
+    timeZone: tz,
+  };
 }
 
 /** 当前运营日周期 `[startsAt, endsAt]`（与 `dailyPeriodKey` 一致），用于周期锦标日桶。 */
@@ -142,20 +167,26 @@ export function weeklyWindowMsShanghai(nowMs: number): {
   endsAt: number;
 } {
   const key = weeklyPeriodKey(nowMs);
-  let lo = nowMs - 14 * 24 * HOUR_MS;
-  while (weeklyPeriodKey(lo) !== key) {
-    lo += HOUR_MS;
-    if (lo > nowMs + 14 * 24 * HOUR_MS) {
-      return { instanceKey: key, startsAt: nowMs - 7 * 24 * HOUR_MS, endsAt: nowMs + 7 * 24 * HOUR_MS };
+  const inPeriod = (ms: number) => weeklyPeriodKey(ms) === key;
+
+  let probe = nowMs - 10 * 24 * HOUR_MS;
+  while (inPeriod(probe)) {
+    probe -= 7 * 24 * HOUR_MS;
+    if (probe < nowMs - 40 * 24 * HOUR_MS) {
+      return {
+        instanceKey: key,
+        startsAt: nowMs - 7 * 24 * HOUR_MS,
+        endsAt: nowMs + 7 * 24 * HOUR_MS,
+      };
     }
   }
-  while (lo > nowMs - 21 * 24 * HOUR_MS && weeklyPeriodKey(lo - HOUR_MS) === key) {
-    lo -= HOUR_MS;
+  const startsAt = firstTrueMs(probe, nowMs, inPeriod);
+
+  let after = startsAt + 5 * 24 * HOUR_MS;
+  while (inPeriod(after)) {
+    after += HOUR_MS;
+    if (after > startsAt + 10 * 24 * HOUR_MS) break;
   }
-  let hi = lo + HOUR_MS;
-  while (weeklyPeriodKey(hi) === key) {
-    hi += HOUR_MS;
-    if (hi > lo + 21 * 24 * HOUR_MS) break;
-  }
-  return { instanceKey: key, startsAt: lo, endsAt: hi - 1 };
+  const nextStart = firstTrueMs(startsAt, after, (ms) => !inPeriod(ms));
+  return { instanceKey: key, startsAt, endsAt: nextStart - 1 };
 }

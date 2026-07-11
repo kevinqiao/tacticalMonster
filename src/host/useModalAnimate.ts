@@ -21,6 +21,29 @@ function toCssSize(value: unknown, fallback: string) {
   return fallback;
 }
 
+/**
+ * popCenter 稳态布局：用 inset + margin:auto 居中，不用 translate(-50%)/force3D，
+ * 避免整层落在亚像素合成层上导致小尺寸文字与牌面发糊。
+ */
+function setPopCenterRestLayout(ele: HTMLElement, width: string, height: string) {
+  gsap.set(ele, {
+    clearProps: "transform,transformOrigin,willChange,backfaceVisibility",
+    force3D: false,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    margin: "auto",
+    width,
+    height,
+    x: 0,
+    y: 0,
+    xPercent: 0,
+    yPercent: 0,
+    scale: 1,
+  });
+}
+
 const OPEN_EFFECTS = new Set(["popCenter", "popCenterIn", "swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
 const CLOSE_EFFECTS = new Set(["popCenter", "popCenterIn", "swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
 
@@ -51,20 +74,7 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
           {
             const width = toCssSize(effect.args?.width, "80%");
             const height = toCssSize(effect.args?.height, "80%");
-            gsap.set(container.ele, {
-              top: "50%",
-              left: "50%",
-              right: "auto",
-              bottom: "auto",
-              width,
-              height,
-              xPercent: -50,
-              yPercent: -50,
-              x: 0,
-              y: 0,
-              scale: 1,
-              transformOrigin: "center center",
-            });
+            setPopCenterRestLayout(container.ele, width, height);
           }
           break;
         case "swipeRight":
@@ -132,38 +142,42 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
       }
       killModalTweens(container);
       console.log("playOpen", container.name, effect);
+      const width = toCssSize(effect.args?.width, "80%");
+      const height = toCssSize(effect.args?.height, "80%");
       const tl = gsap.timeline({
         onComplete: () => {
-          // applyModalOpenRestLayout(container, effect);
+          if (effect.name === "popCenter" && container.ele) {
+            setPopCenterRestLayout(container.ele, width, height);
+            gsap.set(container.ele, { autoAlpha: 1 });
+          }
+          if (container.mask) {
+            gsap.set(container.mask, { clearProps: "willChange", force3D: false, autoAlpha: 1 });
+          }
           onComplete?.();
         },
       });
       gsap.set(container.ele, { clearProps: "transform,transformOrigin" });
-      if (container.ele) {
-        gsap.set(container.ele, {
-          force3D: true,
-          willChange: "transform,opacity",
-          backfaceVisibility: "hidden",
-        });
-      }
       switch (effect.name) {
         case "popCenter":
           {
-            const width = toCssSize(effect.args?.width, "80%");
-            const height = toCssSize(effect.args?.height, "80%");
+            // 动画期间短暂用 scale；结束后清掉 transform，避免长期 GPU 层发糊
             gsap.set(container.ele, {
-              top: "50%",
-              left: "50%",
-              right: "auto",
-              bottom: "auto",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              margin: "auto",
               width,
               height,
-              xPercent: -50,
-              yPercent: -50,
               x: 0,
               y: 0,
+              xPercent: 0,
+              yPercent: 0,
               scale: 0.5,
               autoAlpha: 0,
+              transformOrigin: "center center",
+              force3D: true,
+              willChange: "transform,opacity",
             });
           }
           tl.to(container.ele, {
@@ -228,8 +242,8 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
           break;
       }
       if (container.mask) {
-        gsap.set(container.mask, { force3D: true, willChange: "opacity" });
-        tl.to(container.mask, { autoAlpha: 0.38, duration: SWIPE_OPEN_DUR, ease: SWIPE_OPEN_EASE }, "<");
+        gsap.set(container.mask, { willChange: "opacity" });
+        tl.to(container.mask, { autoAlpha: 1, duration: SWIPE_OPEN_DUR, ease: SWIPE_OPEN_EASE }, "<");
       }
       if (container.closeEle) {
         tl.to(container.closeEle, { autoAlpha: 1, duration: 0.2, ease: "power2.out" }, "<+0.16");

@@ -27,17 +27,17 @@ const REWARD_MATRIX: {
     coins: { bronze: 120, silver: 180, gold: 300, platinum: 480, diamond: 720 },
   },
   {
-    rangeKey: "rank4_10",
+    rangeKey: "rank4_8",
     zone: "promote",
     coins: { bronze: 60, silver: 90, gold: 150, platinum: 240, diamond: 360 },
   },
   {
-    rangeKey: "rank11_40",
+    rangeKey: "rank9_22",
     zone: "keep",
     coins: { bronze: 20, silver: 30, gold: 50, platinum: 80, diamond: 120 },
   },
   {
-    rangeKey: "rank41_50",
+    rangeKey: "rank23_30",
     zone: "demote",
     coins: { bronze: null, silver: null, gold: null, platinum: null, diamond: null },
   },

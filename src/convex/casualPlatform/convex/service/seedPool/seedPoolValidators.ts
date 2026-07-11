@@ -44,12 +44,26 @@ export const rolloutTerminalReason = v.union(
   v.literal("exited")
 );
 
+export const seedPoolSolvableStatus = v.union(
+  v.literal("solvable"),
+  v.literal("unsolvable"),
+  v.literal("unknown")
+);
+
+export const seedPoolSolvableSource = v.union(
+  v.literal("empirical_completed"),
+  v.literal("search")
+);
+
 export const seedPoolEntryImport = v.object({
   seedId: v.string(),
   poolVersion: v.string(),
   tier: catalogSeedTier,
   difficultyScore: v.number(),
   metrics: rolloutDistributionMetrics,
+  solvable: v.optional(seedPoolSolvableStatus),
+  solvableSource: v.optional(seedPoolSolvableSource),
+  solvableReason: v.optional(v.union(v.string(), v.null())),
 });
 
 export const rolloutSummaryImport = v.object({

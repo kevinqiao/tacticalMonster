@@ -177,26 +177,19 @@ const PlayCasualTriathlonSession: React.FC<ModalProp> = ({ visible, data, close 
     onTriathlonNextGame: makeAdvanceHandler(activeLeg.gameType),
   };
 
-  if (kind !== 'match_3') {
-    return (
-      <div className="casual-game-stage-full">
-        <div className="casual-triathlon-stage__badge">{badge}</div>
-        {kind === 'block_blast' ? (
-          <BlockBlastGame key={activeLeg.gameId} {...gameProps} />
-        ) : (
-          <SolitaireGame key={activeLeg.gameId} {...gameProps} />
-        )}
-      </div>
-    );
-  }
-
   return (
     <CasualTriathlonGameStage badge={badge}>
-      <Match3Game
-        key={activeLeg.gameId}
-        {...gameProps}
-        onTriathlonSessionReplay={onTriathlonSessionReplay}
-      />
+      {kind === 'block_blast' ? (
+        <BlockBlastGame key={activeLeg.gameId} {...gameProps} />
+      ) : kind === 'match_3' ? (
+        <Match3Game
+          key={activeLeg.gameId}
+          {...gameProps}
+          onTriathlonSessionReplay={onTriathlonSessionReplay}
+        />
+      ) : (
+        <SolitaireGame key={activeLeg.gameId} {...gameProps} />
+      )}
     </CasualTriathlonGameStage>
   );
 };

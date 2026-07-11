@@ -38,6 +38,9 @@ export interface SoloGameHeaderProps {
 
     targetScore?: number;
 
+    /** 倒计时归零时触发强制结束（与 useActHandler 定时器互为兜底） */
+    onMatchTimeout?: () => void;
+
 }
 
 
@@ -52,11 +55,17 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
 
     targetScore,
 
+    onMatchTimeout,
+
 }) => {
 
     const [remainingSec, setRemainingSec] = useState<number | null>(null);
 
+    const matchTimeoutFiredRef = React.useRef(false);
+
     useEffect(() => {
+
+        matchTimeoutFiredRef.current = false;
 
         if (dueTime == null || !Number.isFinite(dueTime)) {
 
@@ -68,7 +77,17 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
 
         const tick = () => {
 
-            setRemainingSec(Math.max(0, (dueTime - Date.now()) / 1000));
+            const sec = Math.max(0, (dueTime - Date.now()) / 1000);
+
+            setRemainingSec(sec);
+
+            if (sec <= 0 && onMatchTimeout && !matchTimeoutFiredRef.current) {
+
+                matchTimeoutFiredRef.current = true;
+
+                onMatchTimeout();
+
+            }
 
         };
 
@@ -78,7 +97,7 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
 
         return () => window.clearInterval(id);
 
-    }, [dueTime]);
+    }, [dueTime, onMatchTimeout]);
 
 
 

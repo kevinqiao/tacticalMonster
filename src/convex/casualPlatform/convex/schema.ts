@@ -647,10 +647,18 @@ export default defineSchema({
     tier: catalogSeedTier,
     difficultyScore: v.number(),
     metrics: rolloutDistributionMetrics,
+    solvable: v.optional(
+      v.union(v.literal("solvable"), v.literal("unsolvable"), v.literal("unknown"))
+    ),
+    solvableSource: v.optional(
+      v.union(v.literal("empirical_completed"), v.literal("search"))
+    ),
+    solvableReason: v.optional(v.union(v.string(), v.null())),
   })
     .index("by_gameType_and_poolVersion", ["gameType", "poolVersion"])
     .index("by_gameType_poolVersion_seedId", ["gameType", "poolVersion", "seedId"])
-    .index("by_gameType_poolVersion_tier", ["gameType", "poolVersion", "tier"]),
+    .index("by_gameType_poolVersion_tier", ["gameType", "poolVersion", "tier"])
+    .index("by_gameType_poolVersion_solvable", ["gameType", "poolVersion", "solvable"]),
 
   seed_pool_rollout_summaries: defineTable({
     gameType: catalogGameType,

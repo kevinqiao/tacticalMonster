@@ -13,11 +13,12 @@
     "shop": "商店",
     "signIn": "登录",
     "signOut": "退出",
-    "leaderboard": "排行榜",
-    "history": "历史",
+    "leaderboard": "本组排行",
+    "history": "战绩",
     "modes": {
       "challenge": "关卡挑战",
-      "arena": "竞技场"
+      "arena": "竞技场",
+      "playsToday": "今日已挑战 {{playsToday}}/{{maxPlaysPerDay}}"
     },
     "play": "开始",
     "continue": "继续",
@@ -37,8 +38,8 @@
     "shopAria": "商店",
     "shopWithBalanceAria": "商店，当前金币 {{coins}}",
     "rulesAria": "玩法规则",
-    "leaderboardAria": "排行榜",
-    "historyAria": "历史记录"
+    "leaderboardAria": "本组排行",
+    "historyAria": "对局记录"
   },
   "tiers": {
     "bronze": "青铜",
@@ -53,6 +54,10 @@
     "ongoing": "进行中",
     "enter": "点击进入 ›",
     "score": "分数 {{score}}",
+    "soloScore": "成绩 {{score}}",
+    "soloTarget": "目标 {{target}}",
+    "challengeSuccess": "挑战成功",
+    "challengeFail": "挑战失败",
     "rank": "第 {{rank}} 名",
     "points": "{{delta}} 分",
     "pendingSettlement": "等待结算中",
@@ -64,15 +69,13 @@
   },
   "leaderboard": {
     "cohortTitle": "本组排行",
-    "totalTitle": "本周总榜",
     "myWeek": "我的本周 {{points}} 分",
     "myWeekWithRank": "我的本周 {{points}} 分 · 第 {{rank}} 名",
     "empty": "暂无排行数据",
     "columns": {
       "rank": "#",
       "player": "玩家",
-      "points": "积分",
-      "matches": "局数"
+      "points": "积分"
     }
   },
   "weeklyLeague": {
@@ -152,7 +155,7 @@
     "EU": "欧洲 (EU)"
   },
   "modals": {
-    "historyTitle": "历史记录",
+    "historyTitle": "对局记录",
     "rulesTitle": "玩法规则"
   },
   "report": {
@@ -185,12 +188,12 @@
     "tiers": {
       "title": "段位与分组",
       "bullets": [
-        "每周与<strong>同段位</strong>玩家分入一个 <strong>50 人小组</strong>，只和组内选手比名次；",
-        "每周结算时按组内名次晋降级："
+        "每周与<strong>同段位</strong>玩家分入一个 <strong>30 人小组</strong>（最多 15 真人 + 15 Bot），只和组内选手比名次；",
+        "分组时先入 15 个 Bot（部分立即可见，其余在 <strong>5 小时内</strong>陆续出现）；超时或满员后若仍有空位再补满，并按组内名次晋降级："
       ],
-      "zonePromote": "↑ 升级区 1-10",
-      "zoneKeep": "保级区 11-40",
-      "zoneDemote": "↓ 降级区 41-50",
+      "zonePromote": "↑ 升级区 1-8",
+      "zoneKeep": "保级区 9-22",
+      "zoneDemote": "↓ 降级区 23-30",
       "resetBullet": "新的一周积分清零，按新段位重新分组，重新出发。"
     },
     "rewards": {
@@ -200,9 +203,9 @@
       "ranges": {
         "rank1": "第 1 名",
         "rank2_3": "第 2–3 名",
-        "rank4_10": "第 4–10 名",
-        "rank11_40": "第 11–40 名",
-        "rank41_50": "第 41–50 名"
+        "rank4_8": "第 4–8 名",
+        "rank9_22": "第 9–22 名",
+        "rank23_30": "第 23–30 名"
       },
       "legendPromote": "晋级下一段位",
       "legendKeep": "保持段位",

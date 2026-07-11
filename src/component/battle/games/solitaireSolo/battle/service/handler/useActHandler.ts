@@ -1,4 +1,7 @@
-import { SoloGameEngine } from "@/convex/solitaireArena/convex/service/SoloGameEngine";
+import {
+    createZones,
+    SoloGameEngine,
+} from "@/convex/solitaireArena/convex/service/SoloGameEngine";
 import { useCasualPlatform } from "component/lobby/casual/service/useCasualPlatformManager";
 import { useUserManager } from "host/service/UserManager";
 import { usePlatformAuth } from "host/service/platformAuth/PlatformAuthProvider";
@@ -6,6 +9,7 @@ import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken"
 import { useConvex } from "convex/react";
 import gsap from "gsap";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { api } from "../../../../../../../convex/solitaireArena/convex/_generated/api";
 import { popCard } from "../../animation/effects/popCard";
 import type { FlipGenericSession } from "../../animation/effects/flipGeneric";
@@ -25,15 +29,21 @@ import {
     ZoneType,
 } from "../../types/SoloTypes";
 import { getCardCoord, syncCardStackZIndexFromGameState, soloCardZIndex } from "../../Utils";
+import { layoutAllSoloCardsFromModel } from "../../soloCardLayout";
 import { useSoloGameManager } from "../GameManager";
+import { autoCompleteLayoutGate } from "../../autoCompleteLayoutGate";
 import {
     buildSolitaireScoreReport,
+    isCasualSoloP75ChallengeTemplate,
     shouldOpenCasualTableSummaryAfterScoreReport,
     type CasualGameScoreReportUI,
 } from "../../../../shared/casualGameScoreReportUI";
 import type { CasualWatchContext } from "../../../../shared/casualAsyncTableSummaryUI";
 import { buildCasualPlatformRunActionArgs } from "../../../../shared/casualPlatformActionArgs";
 import { fetchCasualAsyncTableSummaryForGame } from "../../../../shared/fetchCasualAsyncTableSummary";
+import { confirmCasualRunWithoutReplayForBridge } from "../../../../shared/confirmCasualRunWithoutReplay";
+import { executeCasualRunReplay } from "../../../../shared/executeCasualRunReplay";
+import { portalErrorMessage } from "component/lobby/portal/shared/portalErrorMessage";
 import {
     applyCasualTableSummaryFromQuery,
     type CasualAsyncTableSummaryUI,
@@ -103,10 +113,64 @@ function casualSettleErrorMessage(error?: string): string {
     }
 }
 
-function mergeServerProgress(gs: SoloGameState, p: ServerProgress) {
-    if (typeof p.score === "number") gs.score = p.score;
-    if (typeof p.moves === "number") gs.moves = p.moves;
-    if (typeof p.gameStatus === "number") gs.status = p.gameStatus;
+function applyServerProgress(
+    syncReplayScore: (source: SoloGameState) => void,
+    gs: SoloGameState,
+    p: ServerProgress,
+    opts?: { allowCompleted?: boolean }
+): SoloGameState {
+    let gameStatus = p.gameStatus;
+    // 默认不信任服务端 COMPLETED（旧 isGameWon / 空 zones 会误标）；仅 allowCompleted 时接受
+    if (
+        typeof gameStatus === "number" &&
+        Number(gameStatus) === SoloGameStatus.COMPLETED &&
+        opts?.allowCompleted !== true
+    ) {
+        gameStatus = SoloGameStatus.PLAYING;
+    }
+    const next = {
+        ...gs,
+        ...(typeof p.score === "number" ? { score: p.score } : {}),
+        ...(typeof p.moves === "number" ? { moves: p.moves } : {}),
+        ...(typeof gameStatus === "number" ? { status: gameStatus } : {}),
+    };
+    if (
+        typeof p.score !== "number" &&
+        typeof p.moves !== "number" &&
+        typeof gameStatus !== "number"
+    ) {
+        return gs;
+    }
+    syncReplayScore(next);
+    return next;
+}
+
+/** 把 mutation 返回的牌面 patch 合进本地 state（供 ref / 终局立刻使用，不等 React 重渲染） */
+function mergeCardPatches(
+    gs: SoloGameState,
+    patches: SoloCard[]
+): SoloGameState {
+    if (!patches.length) return gs;
+    const byId = new Map(patches.map((c) => [c.id, c]));
+    return {
+        ...gs,
+        cards: gs.cards.map((c) => {
+            const p = byId.get(c.id);
+            if (!p) return c;
+            return {
+                ...c,
+                isRevealed: p.isRevealed ?? c.isRevealed,
+                zone: p.zone ?? c.zone,
+                zoneId: p.zoneId ?? c.zoneId,
+                zoneIndex: p.zoneIndex ?? c.zoneIndex,
+                ...(p.rank != null ? { rank: p.rank } : {}),
+                ...(p.suit != null ? { suit: p.suit } : {}),
+                ...(p.value != null ? { value: p.value } : {}),
+                ...(p.isRed != null ? { isRed: p.isRed } : {}),
+                ele: c.ele,
+            };
+        }),
+    };
 }
 
 function mergeServerFaceOntoDomCard(dom: SoloCard | undefined, patch: SoloCard): SoloCard {
@@ -124,10 +188,29 @@ function attachMovePlanEle(gameState: SoloGameState, movePlan: SoloCard[]): Solo
     });
 }
 
+function isAllCardsOnFoundation(gs: SoloGameState): boolean {
+    return gs.cards.every(
+        (c) =>
+            c.zone === ZoneType.FOUNDATION ||
+            String(c.zoneId ?? "").startsWith("foundation-")
+    );
+}
+
+/** 用于判断 React state 是否已追上 cheat / 本地规划后的牌面 */
+function cardLayoutKey(gs: SoloGameState): string {
+    return gs.cards
+        .map((c) => `${c.id}:${c.zoneId}:${c.zoneIndex}:${c.isRevealed ? 1 : 0}`)
+        .sort()
+        .join("|");
+}
+
 function isTerminalSoloStatus(status: SoloGameStatus | number | undefined): boolean {
     const n = Number(status);
     return n === SoloGameStatus.COMPLETED || n === SoloGameStatus.CANCELLED;
 }
+
+/** 跨 StrictMode / 双 effect 的单飞锁，避免同一局并行跑两套 auto-complete */
+const autoCompleteGameLocks = new Set<string>();
 
 const useActHandler = () => {
     const convex = useConvex();
@@ -146,6 +229,10 @@ const useActHandler = () => {
         onTriathlonNextGame,
         reloadCasualRun,
         saveUpdate,
+        syncReplayScore,
+        syncReplayState,
+        replayMode,
+        targetScore,
     } = useSoloGameManager();
 
     const triathlonSessionActive = Boolean(onTriathlonNextGame);
@@ -157,6 +244,8 @@ const useActHandler = () => {
     const casual = useCasualPlatform({ enabled: casualPlatformBridge !== "portal" });
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
     const [postCasualScoreReportOpen, setPostCasualScoreReportOpen] = useState(false);
+    /** 结算过渡（卸遮罩 / 清 victory overflow / 开得分页）期间冻结牌桌重测，避免闪屏 */
+    const postSettleLayoutFreezeRef = useRef(false);
     const [postCasualScoreReport, setPostCasualScoreReport] = useState<CasualGameScoreReportUI | null>(null);
     const [postCasualSummaryOpen, setPostCasualSummaryOpen] = useState(false);
     const [postCasualTableSummary, setPostCasualTableSummary] = useState<CasualAsyncTableSummaryUI | null>(
@@ -168,18 +257,26 @@ const useActHandler = () => {
     const [postCasualCanReplay, setPostCasualCanReplay] = useState(false);
     const [postCasualReplayOffered, setPostCasualReplayOffered] = useState(false);
     const [postCasualReplayTokenCount, setPostCasualReplayTokenCount] = useState(0);
+    const [postCasualReplayMode, setPostCasualReplayMode] = useState<"ad" | "token">("token");
     const [postCasualReplayWindowEndsAt, setPostCasualReplayWindowEndsAt] = useState<number | undefined>(
         undefined
     );
+    const [postCasualAdReplayDailyRemaining, setPostCasualAdReplayDailyRemaining] = useState<
+        number | undefined
+    >(undefined);
     const [casualReplayBusy, setCasualReplayBusy] = useState(false);
+    const [casualReplayError, setCasualReplayError] = useState<string | null>(null);
     const [triathlonDeferTableSummary, setTriathlonDeferTableSummary] = useState(false);
     const [watchTarget, setWatchTarget] = useState<CasualWatchContext | null>(null);
     const [watchTargetLabel, setWatchTargetLabel] = useState("");
     const casualRunSubmittedRef = useRef(false);
+    const timeoutUiShownRef = useRef(false);
     const pendingTriathlonAdvanceRef = useRef<TriathlonPendingAdvance | null>(null);
     const settleInFlightRef = useRef(false);
     const gameStateRef = useRef<SoloGameState | null>(null);
     const interactionPhaseRef = useRef<GameInteractionPhase>(GameInteractionPhase.idle);
+    /** 自动清盘进行中：阻止 React 用旧 state 覆盖已推进的 ref */
+    const autoCompleteRunningRef = useRef(false);
 
     const fetchTableSummaryForGame = useCallback(
         (matchGameId: string) =>
@@ -206,20 +303,193 @@ const useActHandler = () => {
                 setReplayTokenCount: setPostCasualReplayTokenCount,
                 setCanReplay: setPostCasualCanReplay,
                 setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                setReplayMode: setPostCasualReplayMode,
+                setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
             });
         },
     });
 
+    const holdGameStateRefSync = useRef(false);
+    /** 广告再战等清档重开：下一帧 React gameState 必须覆盖 ref（哪怕 moves 变少） */
+    const acceptReloadedGameStateRef = useRef(false);
+
     useEffect(() => {
-        gameStateRef.current = gameState ?? null;
+        if (!gameState) {
+            gameStateRef.current = null;
+            holdGameStateRefSync.current = false;
+            acceptReloadedGameStateRef.current = false;
+            return;
+        }
+        const cur = gameStateRef.current;
+        if (acceptReloadedGameStateRef.current) {
+            acceptReloadedGameStateRef.current = false;
+            holdGameStateRefSync.current = false;
+            gameStateRef.current = gameState;
+            return;
+        }
+        // Ctrl+Shift+A 等会先写 ref；在 React state 追上前禁止旧 render 覆盖
+        if (holdGameStateRefSync.current) {
+            if (cur && cardLayoutKey(cur) === cardLayoutKey(gameState)) {
+                holdGameStateRefSync.current = false;
+                gameStateRef.current = gameState;
+            }
+            return;
+        }
+        // 自动清盘等路径会先写 ref 再等 React 提交；勿用更旧的 render 覆盖
+        if (cur && (cur.moves ?? 0) > (gameState.moves ?? 0)) {
+            // 同 gameId 再战 / 清档：终局→新开局时 moves 归零，必须放行，否则抽牌走子仍读旧终局 ref
+            const resetAfterTerminal =
+                isTerminalSoloStatus(cur.status) && !isTerminalSoloStatus(gameState.status);
+            if (!resetAfterTerminal) return;
+        }
+        if (autoCompleteRunningRef.current) return;
+        gameStateRef.current = gameState;
     }, [gameState]);
 
     useEffect(() => {
         interactionPhaseRef.current = interactionPhase;
     }, [interactionPhase]);
 
+    /** DEV：Ctrl+Shift+A → 服务端推到近自动清盘布局，本地同步后应触发 autoComplete */
+    useEffect(() => {
+        if (!import.meta.env.DEV) return;
+        if (replayMode) return;
+
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (!(e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a"))) return;
+            if (e.repeat) return;
+            const target = e.target as HTMLElement | null;
+            if (
+                target &&
+                (target.tagName === "INPUT" ||
+                    target.tagName === "TEXTAREA" ||
+                    target.isContentEditable)
+            ) {
+                return;
+            }
+            e.preventDefault();
+            const gs = gameStateRef.current;
+            if (!gs?.gameId) {
+                console.warn("[Solitaire DEV] Ctrl+Shift+A: no active game");
+                return;
+            }
+            // 允许从过早 COMPLETED（牌未收齐）再 cheat；真正收齐或已放弃才拦
+            if (Number(gs.status) === SoloGameStatus.CANCELLED) {
+                console.warn("[Solitaire DEV] Ctrl+Shift+A: game cancelled");
+                return;
+            }
+            if (
+                Number(gs.status) === SoloGameStatus.COMPLETED &&
+                isAllCardsOnFoundation(gs)
+            ) {
+                console.warn("[Solitaire DEV] Ctrl+Shift+A: already cleared");
+                return;
+            }
+            if (autoCompleteRunningRef.current) {
+                console.warn("[Solitaire DEV] Ctrl+Shift+A: auto-complete already running");
+                return;
+            }
+            if (casualRunSubmittedRef.current) {
+                console.warn("[Solitaire DEV] Ctrl+Shift+A: run already settled");
+                return;
+            }
+            void (async () => {
+                try {
+                    setInteractionPhase(GameInteractionPhase.animating);
+                    const result = (await convex.mutation(api.service.gameManager.devForceNearAutoComplete, {
+                        gameId: gs.gameId,
+                    })) as {
+                        ok?: boolean;
+                        error?: string;
+                        data?: SoloGameState;
+                        score?: number;
+                        moves?: number;
+                        gameStatus?: number;
+                    };
+                    if (!result?.ok || !result.data) {
+                        console.warn("[Solitaire DEV] near-auto-complete failed", result?.error ?? result);
+                        return;
+                    }
+                    const zones =
+                        result.data.zones?.length > 0
+                            ? result.data.zones
+                            : gs.zones?.length
+                              ? gs.zones
+                              : createZones();
+                    const merged: SoloGameState = {
+                        ...gs,
+                        ...result.data,
+                        zones,
+                        cards: gs.cards.map((t) => {
+                            const s = result.data!.cards.find((c) => c.id === t.id);
+                            if (!s) return t;
+                            return {
+                                ...t,
+                                isRevealed: s.isRevealed ?? t.isRevealed,
+                                zone: s.zone ?? t.zone,
+                                zoneId: s.zoneId ?? t.zoneId,
+                                zoneIndex: s.zoneIndex ?? t.zoneIndex,
+                                ...(s.rank != null ? { rank: s.rank } : {}),
+                                ...(s.suit != null ? { suit: s.suit } : {}),
+                                ...(s.value != null ? { value: s.value } : {}),
+                                ...(s.isRed != null ? { isRed: s.isRed } : {}),
+                                ele: t.ele,
+                            };
+                        }),
+                        score: result.score ?? result.data.score ?? gs.score,
+                        moves: result.moves ?? result.data.moves ?? gs.moves,
+                        // 强制 PLAYING：避免服务端过早 COMPLETED 残留挡住 auto-complete
+                        status: SoloGameStatus.PLAYING,
+                    };
+                    syncReplayState(merged);
+                    gameStateRef.current = merged;
+                    holdGameStateRefSync.current = true;
+                    // 立刻落到布局坐标，避免残留拖拽/飞牌 transform
+                    for (const card of merged.cards) {
+                        if (!card.ele) continue;
+                        const zoneCards = merged.cards
+                            .filter((c) => c.zoneId === card.zoneId)
+                            .sort((a, b) => a.zoneIndex - b.zoneIndex);
+                        const { x, y } = getCardCoord(card, zoneCards, boardDimensionRef);
+                        gsap.set(card.ele, { x, y, rotate: 0, scale: 1, clearProps: "zIndex" });
+                    }
+                    syncCardStackZIndexFromGameState(merged);
+                    const probe = SoloGameEngine.findNextFoundationMove(merged);
+                    console.info(
+                        "[Solitaire DEV] near-auto-complete ready — auto-complete should run (Ctrl+Shift+A)",
+                        {
+                            next: probe
+                                ? `${probe.card.rank}${probe.card.suit}→${probe.toZoneId}`
+                                : null,
+                            canAuto: SoloGameEngine.canAutoCompleteWithFoundationOnly(merged),
+                            leftover: merged.cards.filter(
+                                (c) =>
+                                    c.zone !== ZoneType.FOUNDATION &&
+                                    !String(c.zoneId ?? "").startsWith("foundation-")
+                            ).length,
+                        }
+                    );
+                } catch (err) {
+                    console.error("[Solitaire DEV] near-auto-complete", err);
+                } finally {
+                    setInteractionPhase(GameInteractionPhase.idle);
+                }
+            })();
+        };
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [
+        replayMode,
+        convex,
+        syncReplayState,
+        setInteractionPhase,
+        boardDimensionRef,
+    ]);
+
     useEffect(() => {
         casualRunSubmittedRef.current = false;
+        timeoutUiShownRef.current = false;
         pendingTriathlonAdvanceRef.current = null;
         setTriathlonDeferTableSummary(false);
         setSettleConfirmOpen(false);
@@ -229,7 +499,9 @@ const useActHandler = () => {
         setPostCasualTableSummary(null);
         setPostCasualWaitingForPeers(false);
         setPostCasualCanReplay(false);
+        setPostCasualReplayMode("token");
         setPostCasualReplayWindowEndsAt(undefined);
+        setPostCasualAdReplayDailyRemaining(undefined);
         setCasualReplayBusy(false);
         setWatchTarget(null);
         setWatchTargetLabel("");
@@ -268,16 +540,41 @@ const useActHandler = () => {
                 seedScoreThreshold?: number;
                 success?: boolean;
                 deferTriathlonTableSummary?: boolean;
+            },
+            options?: {
+                /**
+                 * 手动结算：等明细就绪后再开「本局得分」，并与关掉「正在结算」同帧切换，
+                 * 避免双遮罩 / 占位→明细撑高导致的闪屏抖动。
+                 */
+                holdUntilReady?: boolean;
             }
         ) => {
-            const report = await loadSolitaireScoreReport(gameId, fallbackScore);
-            if (typeof settle.seedScoreThreshold === "number") {
-                report.challenge = {
-                    targetScore: settle.seedScoreThreshold,
-                    achievedScore: report.totalScore,
-                    success: Boolean(settle.success),
+            postSettleLayoutFreezeRef.current = true;
+
+            const challengeThreshold =
+                typeof settle.seedScoreThreshold === "number"
+                    ? settle.seedScoreThreshold
+                    : typeof targetScore === "number"
+                      ? targetScore
+                      : undefined;
+
+            const attachChallenge = (report: CasualGameScoreReportUI): CasualGameScoreReportUI => {
+                if (challengeThreshold == null) return report;
+                const achievedScore = report.totalScore;
+                const success =
+                    typeof settle.success === "boolean"
+                        ? settle.success
+                        : achievedScore >= challengeThreshold;
+                return {
+                    ...report,
+                    challenge: {
+                        targetScore: challengeThreshold,
+                        achievedScore,
+                        success,
+                    },
                 };
-            }
+            };
+
             const deferTableSummary =
                 Boolean(settle.deferTriathlonTableSummary) ||
                 shouldDeferTriathlonTableSummaryForLeg(
@@ -286,6 +583,29 @@ const useActHandler = () => {
                     triathlonSessionActive
                 );
             setTriathlonDeferTableSummary(deferTableSummary);
+
+            const holdUntilReady = options?.holdUntilReady === true;
+
+            if (!holdUntilReady) {
+                // 通关路径：庆祝刚结束立刻盖层，避免裸桌
+                const provisional = attachChallenge({
+                    gameLabel: "Solitaire",
+                    lines: [{ label: "本局得分", value: fallbackScore }],
+                    totalScore: fallbackScore,
+                });
+                setPostCasualScoreReport(provisional);
+                setPostCasualTableSummary(deferTableSummary ? null : settle.tableSummary ?? null);
+                setPostCasualWeeklyLeagueSettle(settle.weeklyLeagueSettle ?? null);
+                setPostCasualWaitingForPeers(deferTableSummary ? false : Boolean(settle.pendingOthers));
+                setPostCasualReplayOffered(false);
+                setPostCasualReplayTokenCount(0);
+                setPostCasualCanReplay(false);
+                setPostCasualReplayWindowEndsAt(undefined);
+                setPostCasualAdReplayDailyRemaining(undefined);
+                setPostCasualScoreReportOpen(true);
+            }
+
+            const report = attachChallenge(await loadSolitaireScoreReport(gameId, fallbackScore));
 
             if (
                 deferTableSummary &&
@@ -303,6 +623,8 @@ const useActHandler = () => {
             ) {
                 pendingTriathlonAdvanceRef.current = null;
                 setTriathlonDeferTableSummary(false);
+                setPostCasualScoreReportOpen(false);
+                setPostCasualScoreReport(null);
                 return;
             }
 
@@ -314,6 +636,7 @@ const useActHandler = () => {
             setPostCasualReplayTokenCount(0);
             setPostCasualCanReplay(false);
             setPostCasualReplayWindowEndsAt(undefined);
+            setPostCasualAdReplayDailyRemaining(undefined);
             setPostCasualScoreReportOpen(true);
 
             if (deferTableSummary) {
@@ -327,17 +650,26 @@ const useActHandler = () => {
                     setReplayTokenCount: setPostCasualReplayTokenCount,
                     setCanReplay: setPostCasualCanReplay,
                     setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                    setReplayMode: setPostCasualReplayMode,
+                    setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
                 });
-            } else {
+            }
+
+            const shouldRefreshSoloPortalReplay =
+                isCasualSoloP75ChallengeTemplate(casualTournamentId) &&
+                casualTournamentId?.startsWith("portal_");
+            if (shouldRefreshSoloPortalReplay || !settle.tableSummary) {
                 try {
                     const summary = await fetchTableSummaryForGame(gameId);
-                    if (summary?.rows?.length) {
+                    if (summary) {
                         applyCasualTableSummaryFromQuery(summary, {
                             setTableSummary: setPostCasualTableSummary,
                             setReplayOffered: setPostCasualReplayOffered,
                             setReplayTokenCount: setPostCasualReplayTokenCount,
                             setCanReplay: setPostCasualCanReplay,
                             setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                            setReplayMode: setPostCasualReplayMode,
+                            setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
                         });
                     }
                 } catch (e) {
@@ -345,7 +677,60 @@ const useActHandler = () => {
                 }
             }
         },
-        [loadSolitaireScoreReport, fetchTableSummaryForGame, casualTournamentId, triathlonSessionActive, onTriathlonNextGame]
+        [loadSolitaireScoreReport, fetchTableSummaryForGame, casualTournamentId, triathlonSessionActive, onTriathlonNextGame, targetScore]
+    );
+
+    const mergeCasualSettleIntoOpenOverlays = useCallback(
+        (settled: Extract<CasualRunSubmitOutcome, { ok: true }>) => {
+            if (settled.triathlonScoreReportOnly) return;
+            if (typeof settled.seedScoreThreshold === "number") {
+                setPostCasualScoreReport((prev) => {
+                    if (!prev) return prev;
+                    const success =
+                        typeof settled.success === "boolean"
+                            ? settled.success
+                            : prev.totalScore >= settled.seedScoreThreshold!;
+                    return {
+                        ...prev,
+                        challenge: {
+                            targetScore: settled.seedScoreThreshold!,
+                            achievedScore: prev.totalScore,
+                            success,
+                        },
+                    };
+                });
+            } else if (typeof targetScore === "number") {
+                setPostCasualScoreReport((prev) => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        challenge: {
+                            targetScore: targetScore,
+                            achievedScore: prev.totalScore,
+                            success: prev.totalScore >= targetScore,
+                        },
+                    };
+                });
+            }
+            if (settled.tableSummary) {
+                applyCasualTableSummaryFromQuery(settled.tableSummary, {
+                    setTableSummary: setPostCasualTableSummary,
+                    setReplayOffered: setPostCasualReplayOffered,
+                    setReplayTokenCount: setPostCasualReplayTokenCount,
+                    setCanReplay: setPostCasualCanReplay,
+                    setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                    setReplayMode: setPostCasualReplayMode,
+                    setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                });
+            }
+            if (settled.pendingOthers) {
+                setPostCasualWaitingForPeers(true);
+            }
+            if (settled.weeklyLeagueSettle) {
+                setPostCasualWeeklyLeagueSettle(settled.weeklyLeagueSettle);
+            }
+        },
+        [targetScore]
     );
 
     const mapCasualPlatformRunActionResult = (
@@ -377,13 +762,21 @@ const useActHandler = () => {
         if (!deferHost) {
             onGameSubmit?.();
         }
+        const threshold =
+            typeof cr.seedScoreThreshold === "number" ? cr.seedScoreThreshold : undefined;
+        const success =
+            typeof cr.success === "boolean"
+                ? cr.success
+                : threshold != null
+                  ? score >= threshold
+                  : undefined;
         return {
             ok: true,
             ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
             ...(cr.pendingOthers ? { pendingOthers: true } : {}),
             ...(cr.weeklyLeagueSettle ? { weeklyLeagueSettle: cr.weeklyLeagueSettle } : {}),
-            ...(typeof cr.seedScoreThreshold === "number" ? { seedScoreThreshold: cr.seedScoreThreshold } : {}),
-            ...(typeof cr.success === "boolean" ? { success: cr.success } : {}),
+            ...(threshold != null ? { seedScoreThreshold: threshold } : {}),
+            ...(typeof success === "boolean" ? { success } : {}),
         };
     };
 
@@ -495,7 +888,7 @@ const useActHandler = () => {
                     casualRunSubmittedRef.current = false;
                     return { ok: false, error: cr.error };
                 }
-                mergeServerProgress(gs, { gameStatus: SoloGameStatus.CANCELLED });
+                applyServerProgress(syncReplayScore, gs, { gameStatus: SoloGameStatus.CANCELLED });
                 const score = Math.max(0, Math.floor(gs.score ?? 0));
                 return mapCasualPlatformRunActionResult(cr, deferHost, score, gs.gameId);
             } catch (e) {
@@ -508,34 +901,243 @@ const useActHandler = () => {
                 return { ok: false, error: "network_error" };
             }
         },
-        [convex, casualTournamentId, casualPlatformAuthed, onGameSubmit, triathlonSessionActive, casualPlatformBridge]
+        [convex, casualTournamentId, casualPlatformAuthed, onGameSubmit, triathlonSessionActive, casualPlatformBridge, syncReplayScore]
     );
 
-    const completeCasualSolitaireRun = useCallback(async () => {
-        if (!gameState || casualRunSubmittedRef.current) return;
-        if (!isTerminalSoloStatus(gameState.status)) return;
-        const score = Math.max(0, Math.floor(gameState.score ?? 0));
+    const completeCasualSolitaireRunOnTimeout = useCallback(async () => {
+        const gs = gameStateRef.current;
+        if (!gs || settleInFlightRef.current) return;
+        if (isTerminalSoloStatus(gs.status)) return;
+        if (gs.dueTime == null || Date.now() < gs.dueTime) return;
+        if (typeof gs.gameId !== "string" || !gs.gameId.startsWith("game_")) return;
+
+        settleInFlightRef.current = true;
+        const matchGameId = gs.gameId;
+        const score = Math.max(0, Math.floor(gs.score ?? 0));
+        try {
+            if (!timeoutUiShownRef.current) {
+                timeoutUiShownRef.current = true;
+                applyServerProgress(syncReplayScore, gs, { gameStatus: SoloGameStatus.CANCELLED });
+                await beginCasualPostSettleFlow(matchGameId, score, {});
+            }
+
+            if (!casualPlatformAuthed || casualRunSubmittedRef.current) return;
+
+            const settled = await runForceEndCasualSettlement({ deferHostNotify: true });
+            if (settled.ok) {
+                if (settled.triathlonScoreReportOnly) {
+                    return;
+                }
+                mergeCasualSettleIntoOpenOverlays(settled);
+                return;
+            }
+            console.warn("[Solitaire] forceEnd on timeout failed", settled.error);
+            const summary = await fetchTableSummaryForGame(matchGameId);
+            if (summary) {
+                applyCasualTableSummaryFromQuery(summary, {
+                    setTableSummary: setPostCasualTableSummary,
+                    setReplayOffered: setPostCasualReplayOffered,
+                    setReplayTokenCount: setPostCasualReplayTokenCount,
+                    setCanReplay: setPostCasualCanReplay,
+                    setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                    setReplayMode: setPostCasualReplayMode,
+                    setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                });
+            }
+        } catch (e) {
+            console.error("[Solitaire] completeCasualSolitaireRunOnTimeout", e);
+        } finally {
+            settleInFlightRef.current = false;
+        }
+    }, [
+        casualPlatformAuthed,
+        runForceEndCasualSettlement,
+        fetchTableSummaryForGame,
+        syncReplayScore,
+        beginCasualPostSettleFlow,
+        mergeCasualSettleIntoOpenOverlays,
+    ]);
+
+    useEffect(() => {
+        if (replayMode) return;
+        const gs = gameState;
+        if (!gs?.dueTime || isTerminalSoloStatus(gs.status)) return;
+
+        let intervalId: number | undefined;
+        const fire = () => {
+            void completeCasualSolitaireRunOnTimeout();
+        };
+        const startPoll = () => {
+            fire();
+            intervalId = window.setInterval(fire, 1000);
+        };
+
+        const ms = gs.dueTime - Date.now();
+        let timeoutId: number | undefined;
+        if (ms <= 0) {
+            startPoll();
+        } else {
+            timeoutId = window.setTimeout(startPoll, ms);
+        }
+
+        return () => {
+            if (timeoutId != null) window.clearTimeout(timeoutId);
+            if (intervalId != null) window.clearInterval(intervalId);
+        };
+    }, [
+        replayMode,
+        gameState?.gameId,
+        gameState?.dueTime,
+        gameState?.status,
+        completeCasualSolitaireRunOnTimeout,
+    ]);
+
+    const completeCasualSolitaireRun = useCallback(async (overrideGs?: SoloGameState | null) => {
+        const gs = overrideGs ?? gameStateRef.current ?? gameState;
+        if (!gs || casualRunSubmittedRef.current) return;
+        if (!isTerminalSoloStatus(gs.status)) return;
+        const score = Math.max(0, Math.floor(gs.score ?? 0));
+        postSettleLayoutFreezeRef.current = true;
         const r = await runSolitaireSettlement(score, { deferHostNotify: true });
         if (!r.ok) {
-            console.warn("[Solitaire] completeCasualSolitaireRun submit failed");
+            console.warn("[Solitaire] completeCasualSolitaireRun submit failed", r);
+            postSettleLayoutFreezeRef.current = false;
             return;
         }
         const isCasualRun =
             Boolean(casualTournamentId) &&
-            typeof gameState.gameId === "string" &&
-            gameState.gameId.startsWith("game_");
+            typeof gs.gameId === "string" &&
+            gs.gameId.startsWith("game_");
         if (isCasualRun) {
             if (r.triathlonScoreReportOnly) {
-                await beginCasualPostSettleFlow(gameState.gameId, score, {
+                await beginCasualPostSettleFlow(gs.gameId, score, {
                     deferTriathlonTableSummary: true,
                 });
                 return;
             }
-            await beginCasualPostSettleFlow(gameState.gameId, score, r);
+            await beginCasualPostSettleFlow(gs.gameId, score, r);
+            console.info("[Solitaire] post-settle UI opened", {
+                gameId: gs.gameId,
+                score,
+            });
         } else {
             onGameSubmit?.();
         }
     }, [gameState, runSolitaireSettlement, casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]);
+
+    /**
+     * 通关：庆祝动画与结算提交并行；动画 onComplete 当下立刻打开结束流程（不等网络空档）。
+     */
+    const finishWinWithVictoryEffect = useCallback(
+        async (nextGs: SoloGameState) => {
+            setInteractionPhase(GameInteractionPhase.animating);
+            gameStateRef.current = nextGs;
+            // 同步 React status=COMPLETED，避免布局 effect 在 idle 窗口把牌拽回 foundation
+            syncReplayState(nextGs);
+
+            const score = Math.max(0, Math.floor(nextGs.score ?? 0));
+            const settlePromise = runSolitaireSettlement(score, { deferHostNotify: true });
+
+            const victoryRoot =
+                document.querySelector(".solo-player-container") ??
+                document.querySelector(".solo-board-surface");
+            victoryRoot?.setAttribute("data-solo-victory", "1");
+
+            try {
+                const dim = boardDimensionRef.current;
+                if (dim) {
+                    layoutAllSoloCardsFromModel(nextGs, dim, boardDimensionRef);
+                }
+                await new Promise<void>((r) => requestAnimationFrame(() => r()));
+                await new Promise<void>((r) => requestAnimationFrame(() => r()));
+                await new Promise<void>((resolve) => {
+                    const fallback = window.setTimeout(resolve, 8000);
+                    PlayEffects.gameOver({
+                        effectType: "classicSimple",
+                        data: {
+                            cards: nextGs.cards,
+                            boardDimension: boardDimensionRef.current,
+                            gameState: nextGs,
+                        },
+                        onComplete: () => {
+                            window.clearTimeout(fallback);
+                            resolve();
+                        },
+                    });
+                });
+            } catch (e) {
+                console.warn("[Solitaire] victory effect", e);
+            }
+
+            // 庆祝结束立刻盖上得分遮罩，避免等 settle/findReport 时裸桌闪屏
+            postSettleLayoutFreezeRef.current = true;
+            // 解锁交互相位：否则再战重开前若仍 animating，会与终局 ref 叠成「看得见却不能操作」
+            setInteractionPhase(GameInteractionPhase.idle);
+            setPostCasualScoreReport({
+                gameLabel: "Solitaire",
+                lines: [{ label: "本局得分", value: score }],
+                totalScore: score,
+                ...(typeof targetScore === "number"
+                    ? {
+                          challenge: {
+                              targetScore,
+                              achievedScore: score,
+                              success: score >= targetScore,
+                          },
+                      }
+                    : {}),
+            });
+            setPostCasualScoreReportOpen(true);
+
+            const r = await settlePromise;
+            if (!r.ok) {
+                console.warn("[Solitaire] win settle failed", r);
+                victoryRoot?.removeAttribute("data-solo-victory");
+                postSettleLayoutFreezeRef.current = false;
+                setPostCasualScoreReportOpen(false);
+                setPostCasualScoreReport(null);
+                await completeCasualSolitaireRun(nextGs);
+                return;
+            }
+            const isCasualRun =
+                Boolean(casualTournamentId) &&
+                typeof nextGs.gameId === "string" &&
+                nextGs.gameId.startsWith("game_");
+            if (isCasualRun) {
+                if (r.triathlonScoreReportOnly) {
+                    await beginCasualPostSettleFlow(nextGs.gameId, score, {
+                        deferTriathlonTableSummary: true,
+                    });
+                } else {
+                    await beginCasualPostSettleFlow(nextGs.gameId, score, r);
+                    console.info("[Solitaire] post-settle UI opened (with victory)", {
+                        gameId: nextGs.gameId,
+                        score,
+                    });
+                }
+                requestAnimationFrame(() => {
+                    victoryRoot?.removeAttribute("data-solo-victory");
+                });
+            } else {
+                victoryRoot?.removeAttribute("data-solo-victory");
+                postSettleLayoutFreezeRef.current = false;
+                setPostCasualScoreReportOpen(false);
+                setPostCasualScoreReport(null);
+                onGameSubmit?.();
+            }
+        },
+        [
+            boardDimensionRef,
+            runSolitaireSettlement,
+            casualTournamentId,
+            beginCasualPostSettleFlow,
+            completeCasualSolitaireRun,
+            onGameSubmit,
+            setInteractionPhase,
+            syncReplayState,
+            targetScore,
+        ]
+    );
 
     const exitCasualRunAfterSettle = useCallback(
         async (opts: { hadReplayOffer: boolean }) => {
@@ -547,8 +1149,14 @@ const useActHandler = () => {
                 gs.gameId.startsWith("game_");
             if (opts.hadReplayOffer && isCasualRun && user?.uid) {
                 try {
-                    await casual.confirmCasualRunWithoutReplay(gs.gameId);
-                    await casual.refreshCasualPlayer();
+                    await confirmCasualRunWithoutReplayForBridge({
+                        matchGameId: gs.gameId,
+                        platformBridge: casualPlatformBridge,
+                        casualConfirm: casual.confirmCasualRunWithoutReplay,
+                    });
+                    if (casualPlatformBridge !== "portal") {
+                        await casual.refreshCasualPlayer();
+                    }
                 } catch (e) {
                     console.warn("[Solitaire] confirmCasualRunWithoutReplay", e);
                 }
@@ -562,9 +1170,10 @@ const useActHandler = () => {
             setPostCasualReplayWindowEndsAt(undefined);
             setPostCasualScoreReportOpen(false);
             setPostCasualScoreReport(null);
+            postSettleLayoutFreezeRef.current = false;
             onGameSubmit?.();
         },
-        [casual, casualTournamentId, user?.uid, onGameSubmit]
+        [casual, casualTournamentId, casualPlatformBridge, user?.uid, onGameSubmit]
     );
 
     const dismissPostCasualScoreReport = useCallback(() => {
@@ -581,8 +1190,6 @@ const useActHandler = () => {
         const legScore =
             postCasualScoreReport?.totalScore ?? Math.max(0, Math.floor(gs?.score ?? 0));
         const scoreReportSnapshot = postCasualScoreReport;
-        setPostCasualScoreReportOpen(false);
-        setPostCasualScoreReport(null);
         setTriathlonDeferTableSummary(false);
         if (
             tryAdvanceTriathlonMidSession({
@@ -596,6 +1203,8 @@ const useActHandler = () => {
             })
         ) {
             pendingTriathlonAdvanceRef.current = null;
+            setPostCasualScoreReportOpen(false);
+            setPostCasualScoreReport(null);
             return;
         }
         if (
@@ -607,11 +1216,17 @@ const useActHandler = () => {
                     deferTriathlonTableSummary: deferTableSummary,
                     triathlonSessionActive,
                     triathlonGameId: matchGameId,
+                    replayOffered: postCasualReplayOffered,
                 }
             )
         ) {
+            // 先开同桌榜再关得分页，避免中间一帧裸桌闪跳
             setPostCasualSummaryOpen(true);
+            setPostCasualScoreReportOpen(false);
+            setPostCasualScoreReport(null);
         } else {
+            setPostCasualScoreReportOpen(false);
+            setPostCasualScoreReport(null);
             void exitCasualRunAfterSettle({ hadReplayOffer: hadReplayOffer });
         }
     }, [
@@ -649,43 +1264,73 @@ const useActHandler = () => {
         const gs = gameStateRef.current;
         if (!gs || !casualPlatformAuthed || casualReplayBusy) return;
         if (typeof gs.gameId !== "string" || !gs.gameId.startsWith("game_")) return;
+        setCasualReplayError(null);
         setCasualReplayBusy(true);
         try {
-            const rr = (await convex.action(api.proxy.controller.replayCasualRun, {
+            const rr = await executeCasualRunReplay({
+                convex,
                 gameId: gs.gameId,
-                ...(casualPlatformBridge ? { platformBridge: casualPlatformBridge } : {}),
-            })) as { ok?: boolean; error?: string };
-            if (!rr?.ok) {
-                console.warn("[Solitaire] replayCasualRun", rr?.error);
+                platformBridge: casualPlatformBridge,
+                replayAction: (actionArgs) =>
+                    convex.action(api.proxy.controller.replayCasualRun, actionArgs),
+            });
+            if (!rr.ok) {
+                setCasualReplayError(portalErrorMessage(rr.error));
+                console.warn("[Solitaire] replayCasualRun", rr.error);
                 return;
             }
+            const reloaded = await reloadCasualRun();
+            if (!reloaded) {
+                setCasualReplayError(portalErrorMessage("match_not_open"));
+                console.warn("[Solitaire] replayCasualRun reloadCasualRun failed");
+                return;
+            }
+            // 放行下一帧新局写入 ref（moves 归零不会被「旧 render」守卫挡住）
+            acceptReloadedGameStateRef.current = true;
+            holdGameStateRefSync.current = false;
             casualRunSubmittedRef.current = false;
+            autoCompleteRunningRef.current = false;
+            setInteractionPhase(GameInteractionPhase.idle);
+            document.querySelector(".solo-player-container")?.removeAttribute("data-solo-victory");
+            document.querySelector(".solo-board-surface")?.removeAttribute("data-solo-victory");
             setPostCasualSummaryOpen(false);
             setPostCasualTableSummary(null);
             setPostCasualWaitingForPeers(false);
             setPostCasualCanReplay(false);
             setPostCasualReplayOffered(false);
             setPostCasualReplayTokenCount(0);
+            setPostCasualReplayMode("token");
             setPostCasualReplayWindowEndsAt(undefined);
+            setPostCasualAdReplayDailyRemaining(undefined);
             setPostCasualScoreReportOpen(false);
             setPostCasualScoreReport(null);
-            await reloadCasualRun();
+            setCasualReplayError(null);
+            postSettleLayoutFreezeRef.current = false;
         } catch (e) {
+            setCasualReplayError(portalErrorMessage("complete_failed"));
             console.error("[Solitaire] replayCasualRun", e);
         } finally {
             setCasualReplayBusy(false);
         }
-    }, [convex, casualPlatformAuthed, casualReplayBusy, reloadCasualRun, casualPlatformBridge]);
+    }, [
+        convex,
+        casualPlatformAuthed,
+        casualReplayBusy,
+        reloadCasualRun,
+        casualPlatformBridge,
+        setInteractionPhase,
+    ]);
 
     const cancelSettleConfirm = useCallback(() => {
         setSettleConfirmOpen(false);
         settleInFlightRef.current = false;
         casualRunSubmittedRef.current = false;
+        postSettleLayoutFreezeRef.current = false;
     }, []);
 
     const finishManualSettleSuccess = useCallback(
         (extras?: ManualSettleConfirmExtras) => {
-            setSettleConfirmOpen(false);
+            postSettleLayoutFreezeRef.current = true;
             const gs = gameStateRef.current;
             const isCasualRun =
                 Boolean(casualTournamentId) &&
@@ -693,20 +1338,37 @@ const useActHandler = () => {
                 typeof gs.gameId === "string" &&
                 gs.gameId.startsWith("game_");
             if (!isCasualRun || !gs) {
+                setSettleConfirmOpen(false);
+                postSettleLayoutFreezeRef.current = false;
                 onGameSubmit?.();
                 return;
             }
             const score = Math.max(0, Math.floor(gs.score ?? 0));
-            void beginCasualPostSettleFlow(gs.gameId, score, {
-                tableSummary: extras?.tableSummary ?? undefined,
-                pendingOthers: extras?.pendingOthers,
-                ...(extras?.triathlonScoreReportOnly || extras?.deferTriathlonTableSummary
-                    ? { deferTriathlonTableSummary: true }
-                    : {}),
-                ...(typeof extras?.seedScoreThreshold === "number"
-                    ? { seedScoreThreshold: extras.seedScoreThreshold, success: extras.success }
-                    : {}),
-            });
+            // 保持「正在结算」直到明细就绪，再同帧切到「本局得分」，避免双遮罩卸层闪动
+            void (async () => {
+                try {
+                    await beginCasualPostSettleFlow(
+                        gs.gameId,
+                        score,
+                        {
+                            tableSummary: extras?.tableSummary ?? undefined,
+                            pendingOthers: extras?.pendingOthers,
+                            ...(extras?.triathlonScoreReportOnly || extras?.deferTriathlonTableSummary
+                                ? { deferTriathlonTableSummary: true }
+                                : {}),
+                            ...(typeof extras?.seedScoreThreshold === "number"
+                                ? {
+                                      seedScoreThreshold: extras.seedScoreThreshold,
+                                      success: extras.success,
+                                  }
+                                : {}),
+                        },
+                        { holdUntilReady: true }
+                    );
+                } finally {
+                    setSettleConfirmOpen(false);
+                }
+            })();
         },
         [casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]
     );
@@ -738,12 +1400,12 @@ const useActHandler = () => {
                       if (!res?.ok) {
                           throw new Error("认输失败，请重试");
                       }
-                      mergeServerProgress(gs, {
+                      const nextGs = applyServerProgress(syncReplayScore, gs, {
                           score: res.score,
                           moves: res.moves,
                           gameStatus: res.gameStatus,
                       });
-                      const score = Math.max(0, Math.floor(gs.score ?? 0));
+                      const score = Math.max(0, Math.floor(nextGs.score ?? 0));
                       return runSolitaireSettlement(score, { deferHostNotify: true });
                   })();
 
@@ -755,7 +1417,14 @@ const useActHandler = () => {
             if (settled.pendingOthers) out.pendingOthers = true;
             if (typeof settled.seedScoreThreshold === "number") {
                 out.seedScoreThreshold = settled.seedScoreThreshold;
-                out.success = Boolean(settled.success);
+                out.success =
+                    typeof settled.success === "boolean"
+                        ? settled.success
+                        : Math.max(0, Math.floor(gs.score ?? 0)) >= settled.seedScoreThreshold;
+            } else if (typeof targetScore === "number" && Number.isFinite(targetScore)) {
+                const score = Math.max(0, Math.floor(gs.score ?? 0));
+                out.seedScoreThreshold = targetScore;
+                out.success = score >= targetScore;
             }
             if (settled.triathlonScoreReportOnly) {
                 out.triathlonScoreReportOnly = true;
@@ -769,7 +1438,7 @@ const useActHandler = () => {
         } finally {
             settleInFlightRef.current = false;
         }
-    }, [convex, casualTournamentId, casualPlatformAuthed, runSolitaireSettlement, runForceEndCasualSettlement]);
+    }, [convex, casualTournamentId, casualPlatformAuthed, runSolitaireSettlement, runForceEndCasualSettlement, targetScore]);
 
     const settleManuallyAndExit = useCallback(async () => {
         if (settleConfirmOpen) {
@@ -842,16 +1511,18 @@ const useActHandler = () => {
 
     const drawCard = useCallback(async (data: SoloActionData) => {
         const { card } = data;
-        if (!gameState || !ruleManager || !card) return;
-        if (isTerminalSoloStatus(gameState.status)) return;
-        if (!ruleManager.canDraw(card.id)) return;
+        // 必须用 ref：自动清盘循环会长时间持有旧的 callback 闭包
+        const gs = gameStateRef.current;
+        if (!gs || !card) return;
+        if (isTerminalSoloStatus(gs.status)) return;
+        if (!SoloGameEngine.planDrawCard(gs, card.id).ok) return;
 
         setInteractionPhase(GameInteractionPhase.animating);
         let updateCards: SoloCard[] = [];
         let serverSnap: ServerProgress = {};
         try {
             const result = (await convex.mutation(api.service.gameManager.draw, {
-                gameId: gameState.gameId,
+                gameId: gs.gameId,
                 cardId: card.id,
             })) as ActionResult & ServerProgress;
 
@@ -866,9 +1537,10 @@ const useActHandler = () => {
                 gameStatus: result.gameStatus,
             };
 
+            const baseGs = gameStateRef.current ?? gs;
             const drawnWithEle = updateCards.map((c) =>
                 mergeServerFaceOntoDomCard(
-                    gameState.cards.find((gc) => gc.id === c.id),
+                    baseGs.cards.find((gc) => gc.id === c.id),
                     c
                 )
             );
@@ -880,41 +1552,48 @@ const useActHandler = () => {
 
             await new Promise<void>((resolve) => {
                 PlayEffects.drawCard({
-                    data: { cards: drawnWithEle, boardDimensionRef, gameState },
+                    data: { cards: drawnWithEle, boardDimensionRef, gameState: baseGs },
                     onComplete: () => resolve(),
                 });
             });
 
             saveUpdate(updateCards);
-            mergeServerProgress(gameState, serverSnap);
-            void completeCasualSolitaireRun();
+            const nextGs = mergeCardPatches(
+                applyServerProgress(syncReplayScore, baseGs, serverSnap),
+                updateCards
+            );
+            gameStateRef.current = nextGs;
+            void completeCasualSolitaireRun(nextGs);
         } catch (e) {
             console.error("drawCard failed:", e);
         } finally {
             setInteractionPhase(GameInteractionPhase.idle);
         }
     }, [
-        ruleManager,
-        gameState,
         boardDimensionRef,
         convex,
         saveUpdate,
+        syncReplayScore,
         setInteractionPhase,
         completeCasualSolitaireRun,
     ]);
 
-    const moveCard = useCallback(async (data: SoloActionData) => {
+    const moveCard = useCallback(async (data: SoloActionData): Promise<boolean> => {
         const { card, dropTarget, autoFoundationMove } = data;
-        if (!gameState || !ruleManager || !card || !dropTarget) return;
-        if (isTerminalSoloStatus(gameState.status)) return;
+        // 必须用 ref：自动清盘循环持有的 moveCard 闭包里的 gameState 会停在触发瞬间
+        const gs = gameStateRef.current;
+        if (!gs || !card || !dropTarget) return false;
+        if (isTerminalSoloStatus(gs.status)) return false;
 
-        const plan = SoloGameEngine.planMoveCard(gameState, card as Card, dropTarget.zoneId);
+        const liveCard =
+            (gs.cards.find((c) => c.id === card.id) as SoloCard | undefined) ?? (card as SoloCard);
+        const plan = SoloGameEngine.planMoveCard(gs, liveCard as Card, dropTarget.zoneId);
         if (!plan.ok) {
             console.log("moveCard failed", plan);
-            return;
+            return false;
         }
 
-        const moveData = attachMovePlanEle(gameState, (plan.data?.move ?? []) as SoloCard[]);
+        const moveData = attachMovePlanEle(gs, (plan.data?.move ?? []) as SoloCard[]);
         const pendingFlipId = plan.data?.flip?.[0]?.id;
         const flipDuration = autoFoundationMove
             ? SOLO_ANIMATION_CONFIG.duration.flip.autoFoundation
@@ -926,7 +1605,7 @@ const useActHandler = () => {
         let flipSession: FlipGenericSession | null = null;
 
         if (pendingFlipId) {
-            const flipDom = gameState.cards.find((c: SoloCard) => c.id === pendingFlipId);
+            const flipDom = gs.cards.find((c: SoloCard) => c.id === pendingFlipId);
             if (flipDom) {
                 flipSession = startFlipGeneric({ card: flipDom, duration: flipDuration });
             }
@@ -935,12 +1614,13 @@ const useActHandler = () => {
         try {
             const mutationPromise = convex
                 .mutation(api.service.gameManager.move, {
-                    gameId: gameState.gameId,
-                    cardId: card.id,
+                    gameId: gs.gameId,
+                    cardId: liveCard.id,
                     toZone: dropTarget.zoneId,
                 })
                 .then((result: ActionResult & ServerProgress) => {
                     if (!result.ok || !result.data?.move?.length) {
+                        console.warn("[Solitaire] move rejected", result);
                         throw new Error("move_failed");
                     }
                     updateCards.push(...(result.data.move as SoloCard[]));
@@ -959,7 +1639,7 @@ const useActHandler = () => {
                 PlayEffects.moveCard({
                     data: {
                         boardDimensionRef,
-                        gameState,
+                        gameState: gs,
                         moveCards: moveData,
                         targetZoneId: dropTarget.zoneId,
                         autoFoundationMove,
@@ -969,11 +1649,12 @@ const useActHandler = () => {
             });
 
             const result = await Promise.all([mutationPromise, movePromise]).then(([r]) => r);
+            const baseGs = gameStateRef.current ?? gs;
 
             const serverFlip = result.data?.flip?.[0] as SoloCard | undefined;
             if (serverFlip?.rank && serverFlip?.suit) {
                 const faceCard = mergeServerFaceOntoDomCard(
-                    gameState.cards.find((c: SoloCard) => c.id === serverFlip.id),
+                    baseGs.cards.find((c: SoloCard) => c.id === serverFlip.id),
                     serverFlip
                 );
                 await new Promise<void>((resolve) => {
@@ -983,7 +1664,7 @@ const useActHandler = () => {
                         PlayEffects.flipCard({
                             data: {
                                 card: faceCard,
-                                gameState,
+                                gameState: baseGs,
                                 duration: flipDuration,
                             },
                             onComplete: resolve,
@@ -997,24 +1678,48 @@ const useActHandler = () => {
             }
 
             saveUpdate(updateCards);
-            mergeServerProgress(gameState, serverSnap);
-            void completeCasualSolitaireRun();
+            let nextGs = mergeCardPatches(
+                applyServerProgress(syncReplayScore, baseGs, serverSnap),
+                updateCards
+            );
+            // 服务端误标 COMPLETED 时保持可玩，避免 idle 后误触发 auto-complete
+            if (
+                isTerminalSoloStatus(nextGs.status) &&
+                !isAllCardsOnFoundation(nextGs)
+            ) {
+                nextGs = { ...nextGs, status: SoloGameStatus.PLAYING };
+                console.warn(
+                    "[Solitaire] COMPLETED but board not clear — keep PLAYING, skip victory/settle"
+                );
+            }
+            gameStateRef.current = nextGs;
+            syncCardStackZIndexFromGameState(nextGs);
+            if (isAllCardsOnFoundation(nextGs)) {
+                await finishWinWithVictoryEffect({
+                    ...nextGs,
+                    status: SoloGameStatus.COMPLETED,
+                });
+                return true;
+            }
+            void completeCasualSolitaireRun(nextGs);
+            return true;
         } catch (e) {
             console.error("moveCard failed:", e);
             if (flipSession) {
                 await new Promise<void>((resolve) => flipSession!.cancel(resolve));
             }
+            return false;
         } finally {
             setInteractionPhase(GameInteractionPhase.idle);
         }
     }, [
-        gameState,
         boardDimensionRef,
-        ruleManager,
         convex,
         saveUpdate,
+        syncReplayScore,
         setInteractionPhase,
         completeCasualSolitaireRun,
+        finishWinWithVictoryEffect,
     ]);
 
     const onDrop = useCallback(async (data: SoloActionData) => {
@@ -1124,7 +1829,7 @@ const useActHandler = () => {
                 data: { gameState, boardDimensionRef, cards },
                 onComplete: () => {
                     saveUpdate(cards);
-                    mergeServerProgress(gameState, serverSnap);
+                    applyServerProgress(syncReplayScore, gameState, serverSnap);
                     setInteractionPhase(GameInteractionPhase.idle);
                     resolve();
                 },
@@ -1133,7 +1838,7 @@ const useActHandler = () => {
         await Promise.all([recyclePromise, playPromise]);
         setInteractionPhase(GameInteractionPhase.idle);
         return;
-    }, [gameState, boardDimensionRef, convex, saveUpdate, setInteractionPhase]);
+    }, [gameState, boardDimensionRef, convex, saveUpdate, syncReplayScore, setInteractionPhase]);
     const deal = useCallback(async (effectType: 'default' | 'fan' | 'spiral' | 'wave' | 'explosion' = 'default') => {
         if (!gameState) return;
         setInteractionPhase(GameInteractionPhase.animating);
@@ -1158,21 +1863,258 @@ const useActHandler = () => {
 
     /** 全明且贪心收 foundation 可胜利时，连续执行收牌（需 config.autoComplete） */
     const runAutoCompleteToFoundation = useCallback(async () => {
-        if (!gameState || !config.autoComplete) return;
-        if (isTerminalSoloStatus(gameState.status)) return;
-        if (interactionPhase !== GameInteractionPhase.idle) return;
-        if (!SoloGameEngine.canAutoCompleteWithFoundationOnly(gameState)) return;
-        while (true) {
-            const next = SoloGameEngine.findNextFoundationMove(gameState);
-            if (!next) break;
-            await moveCard({
-                card: next.card as SoloCard,
-                dropTarget: { zoneId: next.toZoneId },
-                actModes: [ActMode.DRAG],
-                autoFoundationMove: true
-            });
+        if (!config.autoComplete) return;
+        if (autoCompleteRunningRef.current) return;
+        let gs = gameStateRef.current;
+        if (!gs || isTerminalSoloStatus(gs.status)) return;
+        const lockId = gs.gameId;
+        if (!lockId || autoCompleteGameLocks.has(lockId)) return;
+        if (!gs.zones?.length) {
+            gs = { ...gs, zones: createZones() };
+            gameStateRef.current = gs;
         }
-    }, [gameState, config.autoComplete, interactionPhase, moveCard]);
+        if (!SoloGameEngine.canAutoCompleteWithFoundationOnly(gs)) return;
+
+        console.info("[Solitaire] auto-complete v2 (local-first)");
+        autoCompleteRunningRef.current = true;
+        autoCompleteGameLocks.add(lockId);
+        holdGameStateRefSync.current = true;
+        autoCompleteLayoutGate.blocked = true;
+        setInteractionPhase(GameInteractionPhase.animating);
+
+        const playFoundationMove = async (
+            state: SoloGameState,
+            moveCards: SoloCard[],
+            targetZoneId: string,
+            serverFlip?: SoloCard
+        ) => {
+            const moveData = attachMovePlanEle(state, moveCards);
+            await new Promise<void>((resolve) => {
+                PlayEffects.moveCard({
+                    data: {
+                        boardDimensionRef,
+                        gameState: state,
+                        moveCards: moveData,
+                        targetZoneId,
+                        autoFoundationMove: true,
+                    },
+                    onComplete: () => resolve(),
+                });
+            });
+            if (serverFlip?.rank && serverFlip?.suit) {
+                const faceCard = mergeServerFaceOntoDomCard(
+                    state.cards.find((c) => c.id === serverFlip.id),
+                    serverFlip
+                );
+                if (faceCard.ele) {
+                    await new Promise<void>((resolve) => {
+                        PlayEffects.flipCard({
+                            data: {
+                                card: faceCard,
+                                gameState: state,
+                                duration: SOLO_ANIMATION_CONFIG.duration.flip.autoFoundation,
+                            },
+                            onComplete: resolve,
+                        });
+                    });
+                }
+            }
+        };
+
+        const logDrainBlocker = (cur: SoloGameState) => {
+            const tops = [0, 1, 2, 3, 4, 5, 6].map((col) => {
+                const top = cur.cards
+                    .filter((c) => c.zoneId === `tableau-${col}`)
+                    .sort((a, b) => b.zoneIndex - a.zoneIndex)[0];
+                return top
+                    ? `${col}:${top.rank ?? "?"}${top.suit?.[0] ?? "?"}(rev=${top.isRevealed ? 1 : 0})`
+                    : `${col}:-`;
+            });
+            const foundations = ["hearts", "diamonds", "clubs", "spades"].map((suit) => {
+                const pile = cur.cards
+                    .filter((c) => c.zoneId === `foundation-${suit}`)
+                    .sort((a, b) => a.zoneIndex - b.zoneIndex);
+                const top = pile[pile.length - 1];
+                return `${suit}:${pile.length}:${top?.rank ?? "?"}`;
+            });
+            console.warn("[Solitaire] local drain blocked", { tops, foundations });
+        };
+
+        try {
+            // 本地规划为主：每步 plan → 动画 → 尽力 sync 服务端 move（失败不中断本地收牌）
+            for (let step = 0; step < 60; step++) {
+                gs = gameStateRef.current;
+                if (!gs) break;
+                if (!gs.zones?.length) {
+                    gs = { ...gs, zones: createZones() };
+                    gameStateRef.current = gs;
+                }
+                if (isAllCardsOnFoundation(gs)) {
+                    const wonGs = { ...gs, status: SoloGameStatus.COMPLETED };
+                    gameStateRef.current = wonGs;
+                    await finishWinWithVictoryEffect(wonGs);
+                    return;
+                }
+
+                const next = SoloGameEngine.findNextFoundationMove(gs);
+                if (!next) {
+                    logDrainBlocker(gs);
+                    // 服务端可能已收齐而本地落后：再试一步服务端（含过早 COMPLETED heal）
+                    try {
+                        const result = (await convex.mutation(
+                            api.service.gameManager.autoCompleteFoundationStep,
+                            { gameId: gs.gameId }
+                        )) as ActionResult & ServerProgress & { error?: string; done?: boolean };
+                        if (result?.ok && result.data?.move?.length) {
+                            const updateCards = [
+                                ...(result.data.move as SoloCard[]),
+                                ...((result.data.flip as SoloCard[] | undefined) ?? []),
+                            ];
+                            const moveCards = result.data.move as SoloCard[];
+                            await playFoundationMove(
+                                gs,
+                                moveCards,
+                                moveCards[0]!.zoneId,
+                                result.data?.flip?.[0] as SoloCard | undefined
+                            );
+                            let nextGs = mergeCardPatches(gs, updateCards);
+                            const clear = isAllCardsOnFoundation(nextGs);
+                            nextGs = applyServerProgress(
+                                syncReplayScore,
+                                nextGs,
+                                {
+                                    score: result.score,
+                                    moves: result.moves,
+                                    gameStatus: result.gameStatus,
+                                },
+                                { allowCompleted: clear }
+                            );
+                            if (clear) nextGs = { ...nextGs, status: SoloGameStatus.COMPLETED };
+                            gameStateRef.current = nextGs;
+                            continue;
+                        }
+                    } catch (e) {
+                        console.warn("[Solitaire] autoCompleteFoundationStep fallback", e);
+                    }
+                    break;
+                }
+
+                const live = gs.cards.find((c) => c.id === next.card.id) ?? next.card;
+                const plan = SoloGameEngine.planMoveCard(gs, live as Card, next.toZoneId);
+                if (!plan.ok || !plan.data?.move?.length) {
+                    console.warn("[Solitaire] auto-complete planMoveCard failed", {
+                        card: `${live.rank}${live.suit}`,
+                        to: next.toZoneId,
+                        zones: gs.zones?.length ?? 0,
+                    });
+                    logDrainBlocker(gs);
+                    break;
+                }
+
+                const moveCards = plan.data.move as SoloCard[];
+                const targetZoneId = next.toZoneId;
+
+                // 先动画再更新 ref。清盘过程中不要 syncReplayState：
+                // 会按 zoneIndex 重排 DOM，冲掉 GSAP 飞行动画，看起来像「没动画」。
+                await playFoundationMove(gs, moveCards, targetZoneId);
+
+                let nextGs = mergeCardPatches(gs, moveCards);
+                nextGs = { ...nextGs, status: SoloGameStatus.PLAYING };
+                gameStateRef.current = nextGs;
+
+                try {
+                    const result = (await convex.mutation(api.service.gameManager.move, {
+                        gameId: gs.gameId,
+                        cardId: live.id,
+                        toZone: targetZoneId,
+                    })) as ActionResult & ServerProgress & { error?: string; idempotent?: boolean };
+                    if (result?.ok) {
+                        const flip = result.data?.flip as SoloCard[] | undefined;
+                        if (flip?.length) {
+                            nextGs = mergeCardPatches(nextGs, flip);
+                        }
+                        const clear = isAllCardsOnFoundation(nextGs);
+                        nextGs = applyServerProgress(
+                            syncReplayScore,
+                            nextGs,
+                            {
+                                score: result.score,
+                                moves: result.moves,
+                                gameStatus: result.gameStatus,
+                            },
+                            { allowCompleted: clear }
+                        );
+                        if (clear) nextGs = { ...nextGs, status: SoloGameStatus.COMPLETED };
+                        gameStateRef.current = nextGs;
+                    } else if (result?.error === "terminal") {
+                        // 另一路已收齐 / 本局已结束：本地继续收完即可
+                    } else {
+                        console.warn(
+                            "[Solitaire] auto-complete server move skipped",
+                            result?.error ?? "rejected",
+                            `${live.rank ?? "?"}${live.suit?.[0] ?? "?"}→${targetZoneId}`
+                        );
+                    }
+                } catch (e) {
+                    console.warn("[Solitaire] auto-complete server move error — continuing locally", e);
+                }
+            }
+
+            const finalGs = gameStateRef.current;
+            if (finalGs && isAllCardsOnFoundation(finalGs)) {
+                const wonGs = { ...finalGs, status: SoloGameStatus.COMPLETED };
+                gameStateRef.current = wonGs;
+                await finishWinWithVictoryEffect(wonGs);
+                return;
+            }
+            if (finalGs) {
+                console.warn(
+                    "[Solitaire] auto-complete ended with leftover cards",
+                    finalGs.cards
+                        .filter(
+                            (c) =>
+                                c.zone !== ZoneType.FOUNDATION &&
+                                !String(c.zoneId ?? "").startsWith("foundation-")
+                        )
+                        .map((c) => `${c.rank}${c.suit?.[0]}:${c.zoneId}`)
+                );
+            }
+        } finally {
+            const snap = gameStateRef.current;
+            // 必须在解除 layout 锁 / 切 idle 之前把权威牌面刷进 React
+            if (snap) {
+                flushSync(() => {
+                    syncReplayState(snap);
+                });
+            }
+            autoCompleteRunningRef.current = false;
+            autoCompleteGameLocks.delete(lockId);
+            holdGameStateRefSync.current = false;
+            autoCompleteLayoutGate.blocked = false;
+            setInteractionPhase(GameInteractionPhase.idle);
+        }
+    }, [
+        config.autoComplete,
+        convex,
+        boardDimensionRef,
+        syncReplayScore,
+        syncReplayState,
+        setInteractionPhase,
+        finishWinWithVictoryEffect,
+    ]);
+
+    useEffect(() => {
+        if (!config.autoComplete) return;
+        if (interactionPhase !== GameInteractionPhase.idle) return;
+        if (casualRunSubmittedRef.current) return;
+        if (autoCompleteRunningRef.current) return;
+        // 优先 ref：Ctrl+Shift+A 后 React state 可能尚未追上
+        const gs = gameStateRef.current ?? gameState;
+        if (!gs) return;
+        if (isTerminalSoloStatus(gs.status)) return;
+        if (!SoloGameEngine.canAutoCompleteWithFoundationOnly(gs)) return;
+        void runAutoCompleteToFoundation();
+    }, [gameState, interactionPhase, config.autoComplete, runAutoCompleteToFoundation]);
 
     return {
         onClickOrTouch,
@@ -1196,8 +2138,11 @@ const useActHandler = () => {
         postCasualCanReplay,
         postCasualReplayOffered,
         postCasualReplayTokenCount,
+        postCasualReplayMode,
         postCasualReplayWindowEndsAt,
+        postCasualAdReplayDailyRemaining,
         casualReplayBusy,
+        casualReplayError,
         replayCasualRun,
         dismissPostCasualSummary,
         watchTarget,
@@ -1205,6 +2150,8 @@ const useActHandler = () => {
         openWatch,
         closeWatch,
         openSelfReplay,
+        completeCasualSolitaireRunOnTimeout,
+        postSettleLayoutFreezeRef,
     };
 };
 

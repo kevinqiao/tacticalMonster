@@ -527,10 +527,15 @@ http.route({
       uid: string;
       matchGameId: string;
       replayTokenId?: import("./_generated/dataModel").Id<"casual_replay_tokens">;
+      adReplayClaimId?: import("./_generated/dataModel").Id<"portal_ad_replay_claims">;
     } = { uid, matchGameId };
     if (typeof b.replayTokenId === "string" && b.replayTokenId.length > 0) {
       mutationArgs.replayTokenId =
         b.replayTokenId as import("./_generated/dataModel").Id<"casual_replay_tokens">;
+    }
+    if (typeof b.adReplayClaimId === "string" && b.adReplayClaimId.length > 0) {
+      mutationArgs.adReplayClaimId =
+        b.adReplayClaimId as import("./_generated/dataModel").Id<"portal_ad_replay_claims">;
     }
 
     const result = await ctx.runMutation(

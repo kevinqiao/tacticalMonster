@@ -1,39 +1,41 @@
 import React from 'react';
 import { SoloCard } from '../types/SoloTypes';
 import "./card.css";
+
 interface CardSVGProps {
   card: SoloCard;
   width?: string;
   height?: string;
 }
 
+/** 高对比色 + 常规字重；避免过粗字重在小尺寸下显粗糙 */
+const FACE_TEXT_PROPS = {
+  fontFamily: '"Fredoka", "Segoe UI", Arial, sans-serif',
+  fontWeight: 600,
+};
 
 export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
-
   const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
   const color = isRed
-    ? 'var(--card-face-red, #c0392b)'
-    : 'var(--card-face-black, #1a1a2e)';
+    ? 'var(--card-face-red, #d80f1c)'
+    : 'var(--card-face-black, #0a0a0c)';
 
   return (
     <>
       <svg className="back" width={width} height={height} viewBox="0 0 100 150" preserveAspectRatio="xMidYMid meet">
-        {/* 背景矩形，增加阴影 */}
         <rect
           width="100%"
           height="100%"
-          fill="var(--card-back-fill, #1a3c34)"
-          stroke="var(--card-back-pattern, #555)"
-          strokeWidth="2" // 描边加粗
+          fill="var(--card-back-fill, #0e2a24)"
+          stroke="var(--card-back-edge, #c8e6df)"
+          strokeWidth="2.5"
           rx="5"
           ry="5"
-          style={{ filter: 'drop-shadow(2px 2px 2px rgba(0,0,0,0.3))' }} // 添加阴影
         />
 
-        {/* 调整图案密度和对比度 */}
         <pattern
           id="diagonal"
-          width="8" // 减小宽度，增加图案密度
+          width="8"
           height="8"
           patternTransform="rotate(45)"
           patternUnits="userSpaceOnUse"
@@ -43,53 +45,57 @@ export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps)
             y1="0"
             x2="0"
             y2="8"
-            stroke="var(--card-back-pattern, #5a8a82)"
-            strokeWidth="2"
+            stroke="var(--card-back-pattern, #6fb8ab)"
+            strokeWidth="2.4"
           />
         </pattern>
 
-        {/* 内部矩形 */}
-        <rect
-          x="5"
-          y="5"
-          width="90"
-          height="140"
-          fill="url(#diagonal)"
-        />
+        <rect x="5" y="5" width="90" height="140" fill="url(#diagonal)" />
 
-        {/* 中心圆圈 */}
         <circle
           cx="50"
           cy="75"
           r="20"
           fill="none"
-          stroke="#fff"
-          strokeWidth="2.5" // 稍加粗描边
+          stroke="var(--card-back-accent, #ffffff)"
+          strokeWidth="3"
         />
 
-        {/* 中心路径 */}
         <path
           d="M50 55 A20 20 0 0 1 70 75 A20 20 0 0 1 50 95 A20 20 0 0 1 30 75 A20 20 0 0 1 50 55"
           fill="none"
-          stroke="#fff"
-          strokeWidth="1.5" // 稍加粗描边
+          stroke="var(--card-back-accent, #ffffff)"
+          strokeWidth="2"
         />
       </svg>
       <svg className="front" width={width} height={height} viewBox="0 0 100 150" preserveAspectRatio="xMidYMid meet">
-        <rect width="100%" height="100%" fill="white" stroke="#333" strokeWidth="1" rx="5" ry="5" />
-        <text x="10" y="25" fontSize="20" fill={color} fontFamily="Arial, sans-serif"></text>
-        <text x="10" y="45" fontSize="20" fill={color} fontFamily="Arial, sans-serif"></text>
+        <rect
+          width="100%"
+          height="100%"
+          fill="var(--card-face-bg, #ffffff)"
+          stroke="var(--card-face-border, #1c1c1c)"
+          strokeWidth="1.8"
+          rx="5"
+          ry="5"
+        />
+        {/* 文案由 popCard 写入；y 坐标勿改（hideCard/popCard 用属性选择器） */}
+        <text x="10" y="25" fontSize="20" fill={color} {...FACE_TEXT_PROPS} />
+        <text x="10" y="45" fontSize="18" fill={color} {...FACE_TEXT_PROPS} />
         <g transform="translate(90, 145) rotate(180)">
-          <text x="0" y="20" fontSize="20" fill={color} fontFamily="Arial, sans-serif"></text>
-          <text x="0" y="40" fontSize="20" fill={color} fontFamily="Arial, sans-serif"></text>
+          <text x="0" y="20" fontSize="20" fill={color} {...FACE_TEXT_PROPS} />
+          <text x="0" y="40" fontSize="18" fill={color} {...FACE_TEXT_PROPS} />
         </g>
-        <text x="50" y="90" fontSize="40" fill={color} textAnchor="middle" fontFamily="Arial, sans-serif"></text>
+        <text
+          x="50"
+          y="90"
+          fontSize="40"
+          fill={color}
+          textAnchor="middle"
+          {...FACE_TEXT_PROPS}
+        />
       </svg>
     </>
   );
 };
-
-
-
 
 export default CardSVG;

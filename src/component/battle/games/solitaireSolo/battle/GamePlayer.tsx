@@ -10,8 +10,12 @@ import useActHandler from './service/handler/useActHandler';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
 
 import {
-    CasualGameScoreReportOverlay,
-} from '../../shared/CasualGameScoreReportOverlay';
+    isCasualSoloChallengeFinalScoreReport,
+    resolveCasualScoreReportSecondaryAction,
+    resolveCasualPostSettleSummaryPresentation,
+    resolveCasualPostSettleReplayPresentation,
+} from '../../shared/casualGameScoreReportUI';
+import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
 import {
     CasualPostSettleSummaryOverlay,
 } from '../../shared/CasualPostSettleSummaryOverlay';
@@ -25,12 +29,12 @@ import {
     GameInteractionPhase,
     SoloBoardDimension,
     SoloGameStatus,
-    isSolitairePlayableStatus,
     SUIT_ICONS,
     ZoneType
 } from './types/SoloTypes';
 import { layoutAllSoloCardsFromModel } from './soloCardLayout';
-import { soloCardZIndex, wasteFanStepPx } from './Utils';
+import { autoCompleteLayoutGate } from './autoCompleteLayoutGate';
+import { wasteFanStepPx } from './Utils';
 import { useGameVisualTheme } from '../../shared/visualTheme/useGameVisualTheme';
 import SoloDnDCard from './view/SoloDnDCard';
 import SoloGameHeader from './view/SoloGameHeader';
@@ -58,6 +62,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         boardDimensionRef,
         replayMode,
         targetScore,
+        casualTournamentId,
     } = useSoloGameManager();
     const { cards } = gameState || {};
     /** Solitaire Cash：局中 base 可因 recycle 暂为负，展示与结算一致不低于 0 */
@@ -81,16 +86,49 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         postCasualWaitingForPeers,
         postCasualCanReplay,
         postCasualReplayOffered,
+        postCasualReplayMode,
         postCasualReplayWindowEndsAt,
+        postCasualAdReplayDailyRemaining,
         casualReplayBusy,
+        casualReplayError,
         replayCasualRun,
         dismissPostCasualSummary,
         watchTarget,
         watchTargetLabel,
         openWatch,
         closeWatch,
-        openSelfReplay,
+        completeCasualSolitaireRunOnTimeout,
+        postSettleLayoutFreezeRef,
     } = useActHandler();
+
+    const postSettlePresentation = useMemo(
+        () => resolveCasualPostSettleSummaryPresentation(casualTournamentId, postCasualTableSummary),
+        [casualTournamentId, postCasualTableSummary]
+    );
+
+    const scoreReportActions = useMemo(
+        () =>
+            resolveCasualScoreReportSecondaryAction({
+                templateId: casualTournamentId,
+                replayOffered: postCasualReplayOffered,
+                canReplay: postCasualCanReplay,
+                replayMode: postCasualReplayMode,
+                challengeSuccess: postCasualScoreReport?.challenge?.success,
+                adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+            }),
+        [
+            casualTournamentId,
+            postCasualReplayOffered,
+            postCasualCanReplay,
+            postCasualReplayMode,
+            postCasualScoreReport?.challenge?.success,
+            postCasualAdReplayDailyRemaining,
+        ]
+    );
+
+    const showPostSettleSummary =
+        postCasualSummaryOpen &&
+        !isCasualSoloChallengeFinalScoreReport(casualTournamentId);
 
     useEffect(() => {
         if (replayMode) return;
@@ -100,7 +138,24 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         return () => registerCasualGameModalExitHandler(null);
     }, [replayMode, settleManuallyAndExit]);
 
-    const postCasualReplayDisabled = postCasualReplayOffered && !postCasualCanReplay;
+    const postSettleReplay = useMemo(
+        () =>
+            resolveCasualPostSettleReplayPresentation({
+                replayOffered: postCasualReplayOffered,
+                canReplay: postCasualCanReplay,
+                replayMode: postCasualReplayMode,
+                adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+                replayWindowEndsAt: postCasualReplayWindowEndsAt,
+            }),
+        [
+            postCasualReplayOffered,
+            postCasualCanReplay,
+            postCasualReplayMode,
+            postCasualAdReplayDailyRemaining,
+            postCasualReplayWindowEndsAt,
+        ]
+    );
+
     const { actionData } = useSoloDnDManager();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
@@ -143,37 +198,68 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
         };
 
-        const fRects = slots.filter((s): s is HTMLDivElement => !!s).map(rel);
-        const tRects = tabs.filter((t): t is HTMLDivElement => !!t).map(rel);
+        let fRects = slots.filter((s): s is HTMLDivElement => !!s).map(rel);
+        let tRects = tabs.filter((t): t is HTMLDivElement => !!t).map(rel);
         if (fRects.length < 4 || tRects.length < 7) return null;
 
-        const r0 = fRects[0];
-        const r1 = fRects[1];
-        const u0 = tRects[0];
-        const u1 = tRects[1];
+        /* 列宽取 tableau 格（始终 1fr），勿用已缩成牌宽的 foundation 槽，否则扁屏后无法回弹 */
+        const colW = tRects[0]!.width;
+        const boardStyle = getComputedStyle(board);
+        const rowGap =
+            parseFloat(boardStyle.rowGap) ||
+            parseFloat(boardStyle.getPropertyValue('--solo-foundation-tableau-gap')) ||
+            0;
+        const padY =
+            (parseFloat(boardStyle.paddingTop) || 0) + (parseFloat(boardStyle.paddingBottom) || 0);
+        const boardInnerH = Math.max(0, board.clientHeight - padY);
+        /* 预留 foundation 一行 + 至少一行牌高的 tableau，避免扁屏下槽位仍按列宽撑高、牌被压扁 */
+        const CARD_H_OVER_W = 7 / 5;
+        const maxCardH = Math.max(22, (boardInnerH - rowGap) / 2);
+        let cardW = Math.min(colW, maxCardH / CARD_H_OVER_W);
+        let cardH = cardW * CARD_H_OVER_W;
+        if (cardW < 16 || cardH < 22) return null;
+
+        const cardWRounded = Math.round(cardW);
+        const cardHRounded = Math.round(cardH);
+        /* 先同步宽高 CSS 变量并 reflow，再测槽位，保证区与牌同尺 */
+        const nextW = `${cardWRounded}px`;
+        const nextH = `${cardHRounded}px`;
+        const nextFan = `${wasteFanStepPx(cardWRounded)}px`;
+        const cssChanged =
+            board.style.getPropertyValue('--solo-card-width') !== nextW ||
+            board.style.getPropertyValue('--solo-card-height') !== nextH ||
+            board.style.getPropertyValue('--solo-waste-fan-step') !== nextFan;
+        if (cssChanged) {
+            board.style.setProperty('--solo-card-width', nextW);
+            board.style.setProperty('--solo-card-height', nextH);
+            board.style.setProperty('--solo-waste-fan-step', nextFan);
+            void board.offsetHeight;
+        }
+
+        fRects = slots.filter((s): s is HTMLDivElement => !!s).map(rel);
+        tRects = tabs.filter((t): t is HTMLDivElement => !!t).map(rel);
+        if (fRects.length < 4 || tRects.length < 7) return null;
+
+        const r0 = fRects[0]!;
+        const r1 = fRects[1]!;
+        const u0 = tRects[0]!;
+        const u1 = tRects[1]!;
         const spacingF = Math.max(0, r1.x - (r0.x + r0.width));
         const spacingT = Math.max(0, u1.x - (u0.x + u0.width));
         const spacing = Math.round((spacingF + spacingT) / 2);
 
-        const cardW = Math.min(r0.width, u0.width);
-        const cardH = Math.min(r0.height, u0.height);
-        if (cardW < 16 || cardH < 22) return null;
-
-        const cardWRounded = Math.round(cardW);
-        /* 先同步 CSS 变量再测 waste，否则槽宽仍用默认 56px，居中 x 与牌 fan 错位 */
-        board.style.setProperty('--solo-card-width', `${cardWRounded}px`);
-        board.style.setProperty('--solo-waste-fan-step', `${wasteFanStepPx(cardWRounded)}px`);
-        void wasteEl.offsetWidth;
-
         const foundationColX = [fRects[0]!.x, fRects[1]!.x, fRects[2]!.x, fRects[3]!.x] as const;
+        /* 扁屏下牌宽可小于 1fr 列宽：tableau 牌与 foundation 一样按列居中 */
+        const centerInCol = (r: { x: number; width: number }) =>
+            r.x + Math.max(0, (r.width - cardWRounded) / 2);
         const tableauColX = [
-            tRects[0]!.x,
-            tRects[1]!.x,
-            tRects[2]!.x,
-            tRects[3]!.x,
-            tRects[4]!.x,
-            tRects[5]!.x,
-            tRects[6]!.x
+            centerInCol(tRects[0]!),
+            centerInCol(tRects[1]!),
+            centerInCol(tRects[2]!),
+            centerInCol(tRects[3]!),
+            centerInCol(tRects[4]!),
+            centerInCol(tRects[5]!),
+            centerInCol(tRects[6]!)
         ] as const;
 
         const outerRect = outer.getBoundingClientRect();
@@ -189,7 +275,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             width: board.clientWidth,
             height: board.clientHeight,
             cardWidth: cardWRounded,
-            cardHeight: Math.round(cardH),
+            cardHeight: cardHRounded,
             spacing,
             foundationColX,
             tableauColX,
@@ -202,28 +288,51 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         };
     }, []);
 
+    const settleUiOpenRef = useRef(false);
+    settleUiOpenRef.current =
+        postSettleLayoutFreezeRef.current ||
+        settleConfirmOpen ||
+        postCasualScoreReportOpen ||
+        postCasualSummaryOpen;
+
     useLayoutEffect(() => {
         const board = boardSurfaceRef.current;
         const outer = containerRef.current;
         if (!board || !outer) return;
 
+        let cancelled = false;
+        let measureRaf = 0;
+
         const runMeasure = () => {
+            if (cancelled) return;
             const dimension = measureBoardDimension();
             if (dimension) updateBoardDimension(dimension);
+        };
+
+        /** RO 回调里同步改 CSS/布局会触发 “ResizeObserver loop …”；合并到下一帧再测 */
+        const scheduleMeasure = () => {
+            if (cancelled || measureRaf) return;
+            // freeze ref 在 setState 前就会写 true；须直接读，不能等下一次 render
+            if (postSettleLayoutFreezeRef.current || settleUiOpenRef.current) return;
+            measureRaf = requestAnimationFrame(() => {
+                measureRaf = 0;
+                if (postSettleLayoutFreezeRef.current || settleUiOpenRef.current) return;
+                runMeasure();
+            });
         };
 
         runMeasure();
         // 首屏：父级 flex、字体、dvh/1fr 网格常在后续帧才稳定；只测一次会错位，调窗口后 RO 才纠正
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
+                if (cancelled) return;
                 runMeasure();
                 requestAnimationFrame(() => {
-                    runMeasure();
+                    if (!cancelled) runMeasure();
                 });
             });
         });
 
-        let cancelled = false;
         const lateId = window.setTimeout(() => {
             if (!cancelled) runMeasure();
         }, 80);
@@ -235,18 +344,15 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         }
 
         const ro = new ResizeObserver(() => {
-            runMeasure();
+            scheduleMeasure();
         });
         ro.observe(board);
         ro.observe(outer);
-        const wasteElObs = wasteZoneRef.current;
-        const talonElObs = talonZoneRef.current;
-        if (wasteElObs) ro.observe(wasteElObs);
-        if (talonElObs) ro.observe(talonElObs);
+        /* 不观察 waste/talon：改 --solo-card-* 会改它们尺寸，再测再改会形成 RO 死循环 */
 
         const vv = typeof window !== 'undefined' ? window.visualViewport : null;
         const onVv = () => {
-            if (!cancelled) runMeasure();
+            scheduleMeasure();
         };
         if (vv) {
             vv.addEventListener('resize', onVv);
@@ -255,6 +361,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
 
         return () => {
             cancelled = true;
+            if (measureRaf) cancelAnimationFrame(measureRaf);
             window.clearTimeout(lateId);
             if (vv) {
                 vv.removeEventListener('resize', onVv);
@@ -271,14 +378,26 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     useLayoutEffect(() => {
         if (!gameState || !boardDimension || !boardDimensionRef.current) return;
         if (interactionPhase === GameInteractionPhase.pointerDrag) return;
+        // 自动清盘中：禁止用（可能滞后的）React model 把牌拽回 tableau
+        if (autoCompleteLayoutGate.blocked) return;
 
         const st = gameState.status as SoloGameStatus | number | undefined;
-        const playable = isSolitairePlayableStatus(st);
+        // 终局胜利动画期间禁止把牌拽回 foundation（否则与 Lab 效果不一致）
+        if (
+            Number(st) === SoloGameStatus.COMPLETED ||
+            Number(st) === SoloGameStatus.CANCELLED
+        ) {
+            return;
+        }
+
+        // 仅发牌阶段允许在 animating 下做一次批量落位；PLAYING 自动清盘时绝不能用旧 model 重排
+        const isDealPhase =
+            Number(st) === SoloGameStatus.OPEN || Number(st) === SoloGameStatus.DEALED;
         const allMounted =
             gameState.cards.length > 0 && gameState.cards.every((c) => c.ele != null);
         const allowWhileAnimatingDeal =
+            isDealPhase &&
             interactionPhase === GameInteractionPhase.animating &&
-            playable &&
             !postDealBatchLayoutDoneRef.current &&
             allMounted;
 
@@ -379,7 +498,10 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     }, [loadZone]);
     const renderCards = useMemo(() => {
         if (!cards) return null;
-        return [...cards].sort((a, b) => (a.zoneIndex || 0) - (b.zoneIndex || 0)).map((card, cardIndex) => (
+        // 稳定按 id 排序，避免 zone 变化时 React 重排 DOM 冲掉 GSAP transform
+        return [...cards]
+            .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+            .map((card) => (
             <SoloDnDCard
                 key={card.id}
                 card={card}
@@ -388,8 +510,8 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                     position: 'absolute',
                     top: 0,
                     left: 0,
-                    opacity: 0,
-                    zIndex: soloCardZIndex(card, gameState?.cards.filter((c) => c.zoneId === card.zoneId) ?? [])
+                    // z-index 只由 GSAP / soloCardZIndex 管理；React style 会在
+                    // setInteractionPhase 重渲染时盖掉飞行层 z，导致左→右首次落子穿到牌堆后
                 }}
             />
         ))
@@ -416,6 +538,9 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 displayMoves={displayMoves}
                 dueTime={replayMode ? undefined : gameState?.dueTime}
                 targetScore={replayMode ? undefined : targetScore}
+                onMatchTimeout={
+                    replayMode ? undefined : () => void completeCasualSolitaireRunOnTimeout()
+                }
             />
             {/* {renderControlPanel()} */}
             <div
@@ -427,6 +552,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                     boardDimension
                         ? ({
                               ['--solo-card-width' as string]: `${boardDimension.cardWidth}px`,
+                              ['--solo-card-height' as string]: `${boardDimension.cardHeight}px`,
                               ['--solo-waste-fan-step' as string]: `${wasteFanStepPx(boardDimension.cardWidth)}px`,
                           } as React.CSSProperties)
                         : undefined
@@ -441,7 +567,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             {!replayMode && (
                 <>
                     <ManualSettleConfirmOverlay
-                        open={settleConfirmOpen}
+                        open={settleConfirmOpen && !postCasualScoreReportOpen}
                         defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_SOLITAIRE}
                         onCancel={cancelSettleConfirm}
                         onConfirm={confirmSettleAndExit}
@@ -451,19 +577,38 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                         open={postCasualScoreReportOpen && watchTarget == null}
                         report={postCasualScoreReport}
                         onConfirm={dismissPostCasualScoreReport}
-                        secondaryLabel="复盘本局"
-                        onSecondary={openSelfReplay}
+                        secondaryLabel={
+                            scoreReportActions.showReplaySecondary
+                                ? scoreReportActions.secondaryLabel
+                                : undefined
+                        }
+                        onSecondary={
+                            scoreReportActions.showReplaySecondary
+                                ? () => void replayCasualRun()
+                                : undefined
+                        }
+                        secondaryDisabled={
+                            scoreReportActions.showReplaySecondary && !postCasualCanReplay
+                        }
+                        secondaryBusy={casualReplayBusy}
+                        secondaryError={casualReplayError ?? undefined}
+                        replayWindowEndsAt={
+                            scoreReportActions.showReplaySecondary
+                                ? postCasualReplayWindowEndsAt
+                                : undefined
+                        }
                     />
                     <CasualPostSettleSummaryOverlay
-                        open={postCasualSummaryOpen && watchTarget == null}
-                        title="同桌成绩"
-                        summary={postCasualTableSummary}
+                        open={showPostSettleSummary && watchTarget == null}
+                        title={postSettlePresentation.title}
+                        summary={postSettlePresentation.summary}
                         waitingForPeers={postCasualWaitingForPeers}
-                        replayAvailable={postCasualReplayOffered}
-                        replayDisabled={postCasualReplayDisabled}
+                        replayAvailable={postSettleReplay.showReplay}
+                        replayMode={postCasualReplayMode}
                         replayBusy={casualReplayBusy}
                         replayWindowEndsAt={postCasualReplayWindowEndsAt}
-                        onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
+                        onReplay={postSettleReplay.showReplay ? () => void replayCasualRun() : undefined}
+                        replayLabel={postSettleReplay.replayLabel}
                         onDismiss={dismissPostCasualSummary}
                         weeklyLeagueSettle={postCasualWeeklyLeagueSettle}
                     />

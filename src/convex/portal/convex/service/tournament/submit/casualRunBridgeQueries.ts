@@ -30,7 +30,14 @@ export const findMatchByGameForBridge = internalQuery({
     if (pm.status !== "open" && pm.status !== "replaying") {
       return { ok: false as const, error: "match_not_open" as const };
     }
-    const replayEpoch = pg.replayEpoch ?? pm.replayEpoch ?? 0;
+    const replayEpoch = Math.max(
+      typeof pg.replayEpoch === "number" && Number.isFinite(pg.replayEpoch)
+        ? Math.floor(pg.replayEpoch)
+        : 0,
+      typeof pm.replayEpoch === "number" && Number.isFinite(pm.replayEpoch)
+        ? Math.floor(pm.replayEpoch)
+        : 0
+    );
     const reg = getPortalGameRegistration(pg.gameType)!;
 
     const templateDef = getPortalTournamentDefinition(pg.templateId);

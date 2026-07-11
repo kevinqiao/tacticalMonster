@@ -12,10 +12,15 @@ const PlaySolitaireSolo: React.FC<ModalProp> = ({ visible, data, close }) => {
         typeof data?.casualTournamentId === 'string' ? data.casualTournamentId : undefined;
     const casualMatchGameId =
         typeof data?.casualMatchGameId === 'string' ? data.casualMatchGameId : undefined;
+    const sessionKey =
+        typeof data?.casualSessionKey === 'string'
+            ? data.casualSessionKey
+            : casualMatchGameId;
 
     return (
-        <PlayCasualGameModalShell visible={visible} data={data} close={close} layout="full">
+        <PlayCasualGameModalShell visible={visible} data={data} close={close}>
             <SolitaireGame
+                key={sessionKey ?? 'solitaire'}
                 casualTournamentId={casualTournamentId}
                 casualMatchGameId={casualMatchGameId}
                 onGameSubmit={close}

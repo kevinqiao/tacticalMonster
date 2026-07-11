@@ -113,10 +113,13 @@ export default defineSchema({
     status: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    /** 周期型：指向当前开放桶；`single_match` 省略 */
+    instanceId: v.optional(v.id("portal_tournament_instances")),
     campaignId: v.optional(v.string()),
     merchantId: v.optional(v.string()),
   })
     .index("by_templateId", ["templateId"])
+    .index("by_instanceId", ["instanceId"])
     .index("by_campaignId_createdAt", ["campaignId", "createdAt"]),
 
   portal_run_player_tournaments: defineTable({
@@ -129,11 +132,82 @@ export default defineSchema({
     updatedAt: v.number(),
     pointDelta: v.optional(v.number()),
     weeklyPointsAfter: v.optional(v.number()),
+    /** 单人挑战：目标分（P75） */
+    seedScoreThreshold: v.optional(v.number()),
+    /** 单人挑战：是否达标 */
+    challengeSuccess: v.optional(v.boolean()),
   })
     .index("by_tournament_uid", ["tournamentId", "uid"])
     .index("by_uid_template", ["uid", "templateId"])
     .index("by_uid_updatedAt", ["uid", "updatedAt"])
     .index("by_tournament", ["tournamentId"]),
+
+  /**
+   * 周期场分档预发奖：每档一条文档，领取前钱包不落账；`gameHistory` 将同一局同批多档合并为一行展示。
+   * `matchGameId` = `portal_run_player_matches.gameId`（`game_${matchId}_${uid}`）。
+   */
+  portal_score_tier_pending: defineTable({
+    uid: v.string(),
+    instanceId: v.id("portal_tournament_instances"),
+    runTournamentId: v.id("portal_run_tournaments"),
+    templateId: v.string(),
+    minScore: v.number(),
+    matchGameId: v.string(),
+    gameType: v.string(),
+    coins: v.number(),
+    gems: v.number(),
+    status: v.union(v.literal("pending"), v.literal("claimed")),
+    createdAt: v.number(),
+    claimedAt: v.optional(v.number()),
+  })
+    .index("by_uid", ["uid"])
+    .index("by_instance_uid", ["instanceId", "uid"]),
+
+  /** 周期型锦标时间桶（日/周/季）：同一 `templateId` + `instanceKey` 唯一；`single_match` 不写此表。 */
+  portal_tournament_instances: defineTable({
+    templateId: v.string(),
+    instanceKey: v.string(),
+    startsAt: v.number(),
+    endsAt: v.number(),
+    status: v.union(v.literal("open"), v.literal("closed")),
+    /** 建桶时固化，收尾排行用 */
+    scoreAggregation: v.union(
+      v.literal("single_match"),
+      v.literal("best_score"),
+      v.literal("sum_scores")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_template_instanceKey", ["templateId", "instanceKey"])
+    .index("by_template_status_endsAt", ["templateId", "status", "endsAt"]),
+
+  /** 玩家在某一周期实例内的聚合分与周期结束待领奖励 */
+  portal_instance_player_state: defineTable({
+    instanceId: v.id("portal_tournament_instances"),
+    uid: v.string(),
+    /** `per_instance` 时仅首局扣入场 */
+    entryFeeCharged: v.boolean(),
+    bestScore: v.optional(v.number()),
+    sumScore: v.optional(v.number()),
+    matchCount: v.number(),
+    /** 实例收尾后写入，供历史页领取 */
+    pendingInstanceRewards: v.optional(
+      v.object({
+        coins: v.optional(v.number()),
+        gems: v.optional(v.number()),
+        seasonVoucher: v.optional(v.number()),
+      })
+    ),
+    instanceRewardsClaimedAt: v.optional(v.number()),
+    /** 收尾时写入（展示） */
+    finalRank: v.optional(v.number()),
+    aggregatedScore: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_instance_uid", ["instanceId", "uid"])
+    .index("by_uid", ["uid"]),
 
   portal_run_matches: defineTable({
     tournamentId: v.id("portal_run_tournaments"),
@@ -279,30 +353,6 @@ export default defineSchema({
     .index("by_personaId", ["botPersonaId"])
     .index("by_poolIndex", ["poolIndex"]),
 
-  portal_weekly_board_cohorts: defineTable({
-    gameType: v.string(),
-    mode: v.union(v.literal("solo"), v.literal("multi")),
-    weekKey: v.string(),
-    startsAt: v.number(),
-    endsAt: v.number(),
-    humanAnchorAt: v.number(),
-    status: v.union(v.literal("open"), v.literal("closed")),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  }).index("by_game_mode_week", ["gameType", "mode", "weekKey"]),
-
-  portal_weekly_board_bot_members: defineTable({
-    cohortId: v.id("portal_weekly_board_cohorts"),
-    slot: v.number(),
-    botPersonaId: v.string(),
-    revealAt: v.number(),
-    weekEndPoints: v.number(),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_cohort", ["cohortId"])
-    .index("by_cohort_slot", ["cohortId", "slot"]),
-
   portal_run_player_matches: defineTable({
     matchId: v.string(),
     tournamentId: v.string(),
@@ -323,6 +373,11 @@ export default defineSchema({
     ),
     finishedAt: v.optional(v.number()),
     replayEpoch: v.optional(v.number()),
+    /**
+     * 再战授权时写入的开局前成绩；交分时与新分取 max，较差再战分丢弃。
+     * 结算后清除。
+     */
+    replayBaselineScore: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
     campaignId: v.optional(v.string()),
@@ -336,32 +391,6 @@ export default defineSchema({
     .index("by_templateId", ["templateId"])
     .index("by_run_uid", ["tournamentId", "uid"])
     .index("by_run_tournament", ["tournamentId"]),
-
-  portal_weekly_points: defineTable({
-    uid: v.string(),
-    gameType: v.string(),
-    mode: v.union(v.literal("solo"), v.literal("multi")),
-    weekKey: v.string(),
-    points: v.number(),
-    matchCount: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_game_mode_week_points", ["gameType", "mode", "weekKey", "points"])
-    .index("by_uid_game_mode_week", ["uid", "gameType", "mode", "weekKey"]),
-
-  /** Challenge + Arena 周积分合并后的统一总榜（Phase 1） */
-  portal_weekly_total_points: defineTable({
-    uid: v.string(),
-    gameType: v.string(),
-    weekKey: v.string(),
-    totalPoints: v.number(),
-    soloPoints: v.number(),
-    multiPoints: v.number(),
-    matchCount: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_game_week_points", ["gameType", "weekKey", "totalPoints"])
-    .index("by_uid_game_week", ["uid", "gameType", "weekKey"]),
 
   /** 周联赛档案：按 gameType 持久段位 */
   portal_weekly_league_profile: defineTable({
@@ -381,10 +410,14 @@ export default defineSchema({
     /** 用户可见 8 位字母数字组号 */
     displayCode: v.optional(v.string()),
     humanCount: v.number(),
-    /** 固定 Bot 池人数（首真人入组时 seed） */
+    /** Bot 池人数（创建时 15；匹配结束可能再补） */
     botPoolSize: v.optional(v.number()),
     memberCount: v.optional(v.number()),
     humanAnchorAt: v.optional(v.number()),
+    /** 分组创建后匹配截止时间（默认 +5h；亦为延迟 Bot 可见窗口） */
+    matchingEndsAt: v.optional(v.number()),
+    /** 匹配已结束（满员或超时）；真人不足时再补 Bot 至 30 */
+    matchingClosedAt: v.optional(v.number()),
     status: v.union(v.literal("open"), v.literal("closed")),
     startsAt: v.number(),
     endsAt: v.number(),
@@ -392,9 +425,10 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_week_game_tier_status", ["weekKey", "gameType", "leagueTierId", "status"])
-    .index("by_week_game_tier_index", ["weekKey", "gameType", "leagueTierId", "cohortIndex"]),
+    .index("by_week_game_tier_index", ["weekKey", "gameType", "leagueTierId", "cohortIndex"])
+    .index("by_status_matching_ends", ["status", "matchingEndsAt"]),
 
-  /** 周联赛成员：组内按 weeklyPoints 排名（与 portal_weekly_total_points 同步） */
+  /** 周联赛成员：组内按 weeklyPoints 排名（结算直接累加） */
   portal_weekly_league_members: defineTable({
     weekKey: v.string(),
     uid: v.string(),
@@ -404,6 +438,8 @@ export default defineSchema({
     weeklyPoints: v.number(),
     isBot: v.boolean(),
     revealAt: v.optional(v.number()),
+    /** Bot 可见起始分（2–20） */
+    botStartPoints: v.optional(v.number()),
     botWeekEndPoints: v.optional(v.number()),
     finalRank: v.optional(v.number()),
     outcome: v.optional(
@@ -437,7 +473,47 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_uid", ["uid"]),
 
-  /** 再战令（与 casualPlatform 对齐；Portal 模板默认 `canUseReplayForTemplate` 关闭） */
+  /** 广告再战会话（begin → complete，短生命周期） */
+  portal_ad_replay_sessions: defineTable({
+    sessionId: v.string(),
+    uid: v.string(),
+    matchGameId: v.string(),
+    matchId: v.string(),
+    channel: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("expired"),
+      v.literal("cancelled")
+    ),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    completedAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+    clientProof: v.optional(v.string()),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_uid", ["uid"])
+    .index("by_uid_matchGameId", ["uid", "matchGameId"]),
+
+  /** 广告再战审计（每日上限见 PORTAL_AD_REPLAY_DAILY_CAP；同一 gameId 每 replayEpoch 一次） */
+  portal_ad_replay_claims: defineTable({
+    uid: v.string(),
+    matchGameId: v.string(),
+    sessionId: v.string(),
+    channel: v.string(),
+    weekKey: v.string(),
+    dayKey: v.string(),
+    /** authorize 前的 replayEpoch；同一 epoch 仅允许一次广告再战 */
+    replayEpoch: v.optional(v.number()),
+    clientProof: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_uid_matchGameId", ["uid", "matchGameId"])
+    .index("by_uid_matchGameId_replayEpoch", ["uid", "matchGameId", "replayEpoch"])
+    .index("by_uid_dayKey", ["uid", "dayKey"]),
+
+  /** 再战令（casualPlatform 路径；Portal 改用广告再战） */
   casual_replay_tokens: defineTable({
     uid: v.string(),
     createdAt: v.number(),
@@ -466,10 +542,18 @@ export default defineSchema({
     tier: catalogSeedTier,
     difficultyScore: v.number(),
     metrics: rolloutDistributionMetrics,
+    solvable: v.optional(
+      v.union(v.literal("solvable"), v.literal("unsolvable"), v.literal("unknown"))
+    ),
+    solvableSource: v.optional(
+      v.union(v.literal("empirical_completed"), v.literal("search"))
+    ),
+    solvableReason: v.optional(v.union(v.string(), v.null())),
   })
     .index("by_gameType_and_poolVersion", ["gameType", "poolVersion"])
     .index("by_gameType_poolVersion_seedId", ["gameType", "poolVersion", "seedId"])
-    .index("by_gameType_poolVersion_tier", ["gameType", "poolVersion", "tier"]),
+    .index("by_gameType_poolVersion_tier", ["gameType", "poolVersion", "tier"])
+    .index("by_gameType_poolVersion_solvable", ["gameType", "poolVersion", "solvable"]),
 
   seed_pool_rollout_summaries: defineTable({
     gameType: catalogGameType,

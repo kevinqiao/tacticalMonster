@@ -25,6 +25,18 @@
     "region_locked": "兑换地区 30 天内不可更改",
     "not_logged_in_or_no_backend": "未登录或未配置 Portal 后端",
     "unknown_mode": "未知模式",
-    "join_failed": "加入失败"
+    "join_failed": "加入失败",
+    "invalid_channel": "广告渠道不可用，请在 Portal Convex 设置 PORTAL_AD_REPLAY_MOCK=1",
+    "begin_failed": "无法开始广告再战，请稍后重试",
+    "complete_failed": "广告播放完成但再战失败，请稍后重试",
+    "reload_failed": "再战成功但重新发牌失败，请刷新页面",
+    "ad_channel_unsupported": "当前环境不支持广告播放（本地开发会自动启用模拟广告）",
+    "user_dismissed": "已取消广告播放",
+    "replay_not_allowed": "当前不可再战",
+    "replay_window_closed": "再战窗口已关闭",
+    "daily_cap_reached": "今日广告再战次数已用完",
+    "already_claimed": "本局已使用过广告再战",
+    "match_not_open": "再战未生效，请重试或刷新页面",
+    "match_not_replayable": "当前对局不可再战"
   }
 }

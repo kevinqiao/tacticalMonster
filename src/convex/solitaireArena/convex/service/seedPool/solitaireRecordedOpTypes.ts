@@ -174,7 +174,14 @@ export type SeedPoolEntry = {
    * Omitted in index-only pools. Regenerate via `simulateRolloutsForSeedEntry(seedId, …)`.
    */
   rolloutSummaries?: RolloutSummary[];
+  /** Layout solvability (seed-level; not per-rollout). */
+  solvable?: SeedSolvableStatus;
+  solvableSource?: SeedSolvableSource;
+  solvableReason?: string | null;
 };
+
+export type SeedSolvableStatus = "solvable" | "unsolvable" | "unknown";
+export type SeedSolvableSource = "empirical_completed" | "search";
 
 export type SeedPoolRejectReason =
   | "duplicate_layout"

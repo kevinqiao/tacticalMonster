@@ -224,6 +224,35 @@ function unionDragPileClientRect(pile: SoloCard[]): { left: number; right: numbe
     return { left, right, top, bottom };
 }
 
+export type DropZoneCacheEntry = {
+    zoneId: string;
+    element: Element;
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+};
+
+/** 拖拽开始时缓存落点区几何，避免 pointermove 每帧 querySelectorAll + getBoundingClientRect */
+export function buildDropZoneCache(): DropZoneCacheEntry[] {
+    const dropZones = document.querySelectorAll("[data-drop-zone]");
+    const out: DropZoneCacheEntry[] = [];
+    dropZones.forEach((zone) => {
+        const zoneId = zone.getAttribute("data-zone-id");
+        if (!zoneId) return;
+        const raw = zone.getBoundingClientRect();
+        out.push({
+            zoneId,
+            element: zone,
+            left: raw.left,
+            right: raw.right,
+            top: raw.top,
+            bottom: raw.bottom,
+        });
+    });
+    return out;
+}
+
 // 改进的 findBestDropTarget 函数 - 使用动态卡牌尺寸
 export const findBestDropTarget = (
     position: { x: number; y: number },
@@ -232,7 +261,11 @@ export const findBestDropTarget = (
     /** 若提供，仅在「规则允许落到该区」的候选里取最优，避免与 foundation 等区域几何重叠时误选高优先级非法区 */
     isLegalDrop?: (zoneId: string) => boolean,
     /** tableau 跟牌与主牌同一 x，垂直叠放；仅测主牌盒时底部可能与目标列无交集，需合并整摞盒 */
-    dragFollowers?: SoloCard[] | null
+    dragFollowers?: SoloCard[] | null,
+    /** 拖拽开始缓存的落点区；缺省则现场查询（兼容旧调用） */
+    zoneCache?: DropZoneCacheEntry[] | null,
+    /** 已知视口包围盒时跳过 getBoundingClientRect */
+    dragBox?: { left: number; right: number; top: number; bottom: number } | null
 ): { zoneId: string; element: Element; priority: number; count: number; area: number } | null => {
     try {
         // 从 boardDimension 获取实际的卡牌尺寸
@@ -240,7 +273,7 @@ export const findBestDropTarget = (
         const cardHeight = boardDimension.cardHeight;
 
         const pile = [card, ...(dragFollowers ?? [])];
-        const union = unionDragPileClientRect(pile);
+        const union = dragBox ?? unionDragPileClientRect(pile);
         let cardLeft: number;
         let cardRight: number;
         let cardTop: number;
@@ -261,56 +294,87 @@ export const findBestDropTarget = (
         const cx = (cardLeft + cardRight) / 2;
         const cy = (cardTop + cardBottom) / 2;
 
-        const dropZones = document.querySelectorAll('[data-drop-zone]');
+        type ZoneBox = {
+            zoneId: string;
+            element: Element;
+            left: number;
+            right: number;
+            top: number;
+            bottom: number;
+        };
+        let zones: ZoneBox[];
+        if (zoneCache && zoneCache.length > 0) {
+            zones = zoneCache;
+        } else {
+            zones = [];
+            document.querySelectorAll("[data-drop-zone]").forEach((zone) => {
+                const zoneId = zone.getAttribute("data-zone-id");
+                if (!zoneId) return;
+                const raw = zone.getBoundingClientRect();
+                zones.push({
+                    zoneId,
+                    element: zone,
+                    left: raw.left,
+                    right: raw.right,
+                    top: raw.top,
+                    bottom: raw.bottom,
+                });
+            });
+        }
 
         type Hit = { zoneId: string; element: Element; priority: number; area: number; score: number };
         const hits: Hit[] = [];
 
         const addHitsFromBox = () => {
-            dropZones.forEach((zone) => {
-                const raw = zone.getBoundingClientRect();
-                const zoneId = zone.getAttribute('data-zone-id');
-                if (!zoneId) return;
-
+            for (const zone of zones) {
                 const r = {
-                    left: raw.left - DROP_PAD,
-                    right: raw.right + DROP_PAD,
-                    top: raw.top - DROP_PAD,
-                    bottom: raw.bottom + DROP_PAD,
+                    left: zone.left - DROP_PAD,
+                    right: zone.right + DROP_PAD,
+                    top: zone.top - DROP_PAD,
+                    bottom: zone.bottom + DROP_PAD,
                 };
 
                 const il = Math.max(cardLeft, r.left);
                 const ir = Math.min(cardRight, r.right);
                 const it = Math.max(cardTop, r.top);
                 const ib = Math.min(cardBottom, r.bottom);
-                if (il >= ir || it >= ib) return;
+                if (il >= ir || it >= ib) continue;
 
                 const area = (ir - il) * (ib - it);
-                if (area <= 0) return;
+                if (area <= 0) continue;
 
-                const priority = getZonePriority(zoneId, card);
+                const priority = getZonePriority(zone.zoneId, card);
                 const score = priority * 100 + area;
-                hits.push({ zoneId, element: zone, priority, area, score });
-            });
+                hits.push({
+                    zoneId: zone.zoneId,
+                    element: zone.element,
+                    priority,
+                    area,
+                    score,
+                });
+            }
         };
 
         addHitsFromBox();
 
         if (hits.length === 0) {
-            dropZones.forEach((zone) => {
-                const raw = zone.getBoundingClientRect();
-                const zoneId = zone.getAttribute('data-zone-id');
-                if (!zoneId) return;
+            for (const zone of zones) {
                 const r = {
-                    left: raw.left - DROP_PAD,
-                    right: raw.right + DROP_PAD,
-                    top: raw.top - DROP_PAD,
-                    bottom: raw.bottom + DROP_PAD,
+                    left: zone.left - DROP_PAD,
+                    right: zone.right + DROP_PAD,
+                    top: zone.top - DROP_PAD,
+                    bottom: zone.bottom + DROP_PAD,
                 };
-                if (cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) return;
-                const priority = getZonePriority(zoneId, card);
-                hits.push({ zoneId, element: zone, priority, area: 1, score: priority * 100 + 1 });
-            });
+                if (cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) continue;
+                const priority = getZonePriority(zone.zoneId, card);
+                hits.push({
+                    zoneId: zone.zoneId,
+                    element: zone.element,
+                    priority,
+                    area: 1,
+                    score: priority * 100 + 1,
+                });
+            }
         }
 
         if (hits.length === 0) {

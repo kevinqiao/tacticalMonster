@@ -39,6 +39,8 @@ import {
 import { resetTriathlonCasualGameServers } from '../../../shared/triathlonCasualReplayReset';
 import { buildCasualPlatformRunActionArgs } from '../../../shared/casualPlatformActionArgs';
 import { fetchCasualAsyncTableSummaryForGame } from '../../../shared/fetchCasualAsyncTableSummary';
+import { executeCasualRunReplay } from '../../../shared/executeCasualRunReplay';
+import { confirmCasualRunWithoutReplayForBridge } from '../../../shared/confirmCasualRunWithoutReplay';
 import type { TriathlonNextGame } from 'component/lobby/casual/service/useCasualTriathlonSession';
 import { useCasualTableSummaryPoll } from '../../../shared/useCasualTableSummaryPoll';
 import { allocateGridCellRefs, type GridCellRefs } from '../animation/gridCellRefs';
@@ -128,8 +130,10 @@ interface IMatch3GameContext {
   postCasualWaitingForPeers: boolean;
   postCasualCanReplay: boolean;
   postCasualReplayOffered: boolean;
+  postCasualReplayMode: 'ad' | 'token';
   postCasualReplayTokenCount: number;
   postCasualReplayWindowEndsAt?: number;
+  postCasualAdReplayDailyRemaining?: number;
   casualReplayBusy: boolean;
   replayCasualRun: () => Promise<void>;
   triathlonSessionActive: boolean;
@@ -197,7 +201,11 @@ export const Match3GameProvider: React.FC<Props> = ({
   const [postCasualCanReplay, setPostCasualCanReplay] = useState(false);
   const [postCasualReplayOffered, setPostCasualReplayOffered] = useState(false);
   const [postCasualReplayTokenCount, setPostCasualReplayTokenCount] = useState(0);
+  const [postCasualReplayMode, setPostCasualReplayMode] = useState<'ad' | 'token'>('token');
   const [postCasualReplayWindowEndsAt, setPostCasualReplayWindowEndsAt] = useState<
+    number | undefined
+  >(undefined);
+  const [postCasualAdReplayDailyRemaining, setPostCasualAdReplayDailyRemaining] = useState<
     number | undefined
   >(undefined);
   const [casualReplayBusy, setCasualReplayBusy] = useState(false);
@@ -231,6 +239,7 @@ export const Match3GameProvider: React.FC<Props> = ({
     setPostCasualCanReplay(false);
     setPostCasualReplayOffered(false);
     setPostCasualReplayTokenCount(0);
+    setPostCasualReplayMode('token');
     setPostCasualReplayWindowEndsAt(undefined);
     setCasualReplayBusy(false);
   }, [gameState?.gameId]);
@@ -252,6 +261,8 @@ export const Match3GameProvider: React.FC<Props> = ({
         setReplayTokenCount: setPostCasualReplayTokenCount,
         setCanReplay: setPostCasualCanReplay,
         setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+        setReplayMode: setPostCasualReplayMode,
+        setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
       });
     },
   });
@@ -409,6 +420,8 @@ export const Match3GameProvider: React.FC<Props> = ({
           setReplayTokenCount: setPostCasualReplayTokenCount,
           setCanReplay: setPostCasualCanReplay,
           setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+          setReplayMode: setPostCasualReplayMode,
+          setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
         });
       } else {
         try {
@@ -423,6 +436,8 @@ export const Match3GameProvider: React.FC<Props> = ({
               setReplayTokenCount: setPostCasualReplayTokenCount,
               setCanReplay: setPostCasualCanReplay,
               setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+              setReplayMode: setPostCasualReplayMode,
+              setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
             });
           }
         } catch (e) {
@@ -755,6 +770,7 @@ export const Match3GameProvider: React.FC<Props> = ({
     setPostCasualCanReplay(false);
     setPostCasualReplayOffered(false);
     setPostCasualReplayTokenCount(0);
+    setPostCasualReplayMode('token');
     setPostCasualReplayWindowEndsAt(undefined);
     setPostCasualScoreReportOpen(false);
     setPostCasualScoreReport(null);
@@ -766,14 +782,15 @@ export const Match3GameProvider: React.FC<Props> = ({
     if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
     setCasualReplayBusy(true);
     try {
-      const rr = (await convex.action(api.proxy.controller.replayCasualRun, {
-        ...buildCasualPlatformRunActionArgs({
-          gameId: gs.gameId,
-          platformBridge: casualPlatformBridge,
-        }),
-      })) as { ok?: boolean; error?: string; gameId?: string };
-      if (!rr?.ok) {
-        console.warn('[match3] replayCasualRun', rr?.error);
+      const rr = await executeCasualRunReplay({
+        convex,
+        gameId: gs.gameId,
+        platformBridge: casualPlatformBridge,
+        replayAction: (actionArgs) =>
+          convex.action(api.proxy.controller.replayCasualRun, actionArgs),
+      });
+      if (!rr.ok) {
+        console.warn('[match3] replayCasualRun', rr.error);
         return;
       }
       casualRunSubmittedRef.current = false;
@@ -815,8 +832,14 @@ export const Match3GameProvider: React.FC<Props> = ({
         gs.gameId.startsWith('game_');
       if (opts.hadReplayOffer && isCasualRun && user?.uid) {
         try {
-          await casual.confirmCasualRunWithoutReplay(gs.gameId);
-          await casual.refreshCasualPlayer();
+          await confirmCasualRunWithoutReplayForBridge({
+            matchGameId: gs.gameId,
+            platformBridge: casualPlatformBridge,
+            casualConfirm: casual.confirmCasualRunWithoutReplay,
+          });
+          if (casualPlatformBridge !== 'portal') {
+            await casual.refreshCasualPlayer();
+          }
         } catch (e) {
           console.warn('[match3] confirmCasualRunWithoutReplay', e);
         }
@@ -824,7 +847,7 @@ export const Match3GameProvider: React.FC<Props> = ({
       clearPostCasualOverlays();
       onGameSubmit?.();
     },
-    [casual, casualTournamentId, user?.uid, clearPostCasualOverlays, onGameSubmit]
+    [casual, casualTournamentId, casualPlatformBridge, user?.uid, clearPostCasualOverlays, onGameSubmit]
   );
 
   const dismissPostCasualScoreReport = useCallback(() => {
@@ -867,6 +890,7 @@ export const Match3GameProvider: React.FC<Props> = ({
           deferTriathlonTableSummary: deferTableSummary,
           triathlonSessionActive,
           triathlonGameId: matchGameId,
+          replayOffered: hadReplayOffer,
         }
       )
     ) {
@@ -936,8 +960,10 @@ export const Match3GameProvider: React.FC<Props> = ({
     postCasualWaitingForPeers,
     postCasualCanReplay,
     postCasualReplayOffered,
+    postCasualReplayMode,
     postCasualReplayTokenCount,
     postCasualReplayWindowEndsAt,
+    postCasualAdReplayDailyRemaining,
     casualReplayBusy,
     replayCasualRun,
     triathlonSessionActive,

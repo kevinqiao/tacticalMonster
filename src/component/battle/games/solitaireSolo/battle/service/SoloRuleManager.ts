@@ -75,7 +75,9 @@ export class SoloRuleManager implements SolitaireRule {
      * 有跟串时只能整串在 tableau 间移动，不能单张进 foundation。
      */
     private hasTableauCardsAbove(card: Card): boolean {
-        if (card.zone !== ZoneType.TABLEAU) return false;
+        const onTableau =
+            card.zone === ZoneType.TABLEAU || String(card.zoneId ?? "").startsWith("tableau-");
+        if (!onTableau) return false;
         return this.gameState.cards.some(
             (c) => c.zoneId === card.zoneId && c.zoneIndex > card.zoneIndex
         );
@@ -88,18 +90,21 @@ export class SoloRuleManager implements SolitaireRule {
         if (!card.isRevealed || !card.rank) return false;
         if (this.hasTableauCardsAbove(card)) return false;
 
-        // 获取基础堆中的卡牌（按zoneId过滤）
+        // 按 zoneId 认 foundation（避免 zone 字段偶发不一致导致堆顶识别失败）
         const foundationCards = this.gameState.cards
-            .filter(c => c.zone === ZoneType.FOUNDATION && c.zoneId === foundationZoneId)
+            .filter(
+                (c) =>
+                    c.zoneId === foundationZoneId &&
+                    (c.zone === ZoneType.FOUNDATION ||
+                        String(c.zoneId ?? "").startsWith("foundation-"))
+            )
             .sort((a, b) => a.zoneIndex - b.zoneIndex);
 
-        // 基础堆必须按花色和顺序排列
-        const targetSuit = foundationZoneId.split('-')[1]; // 从 "foundation-hearts" 提取花色
+        const targetSuit = foundationZoneId.split("-")[1];
         if (card.suit !== targetSuit) return false;
 
         if (foundationCards.length === 0) {
-            // 空基础堆只能放A
-            return card.rank === 'A';
+            return card.rank === "A";
         }
 
         const topCard = foundationCards[foundationCards.length - 1];
@@ -448,16 +453,31 @@ export class SoloRuleManager implements SolitaireRule {
      */
     canMoveToZone(card: Card, zoneId: string): boolean {
         if (!card.isRevealed || card.zoneId === zoneId || zoneId === ZoneType.TALON || zoneId === ZoneType.WASTE) return false;
-        const zone = this.gameState.zones.find(z => z.id === card.zoneId);
-        if (!zone) return false;
+        // 不依赖 zones[]：用 zoneId / zone 推断来源类型（zones 缺失时旧逻辑会直接 false）
+        const sourceType =
+            this.gameState.zones?.find((z) => z.id === card.zoneId)?.type ??
+            (String(card.zoneId ?? "").startsWith("foundation-")
+                ? ZoneType.FOUNDATION
+                : String(card.zoneId ?? "").startsWith("tableau-")
+                  ? ZoneType.TABLEAU
+                  : card.zoneId === "waste" || card.zone === ZoneType.WASTE
+                    ? ZoneType.WASTE
+                    : card.zoneId === "talon" || card.zone === ZoneType.TALON
+                      ? ZoneType.TALON
+                      : card.zone);
+        if (!sourceType) return false;
 
-        const zoneCards = this.gameState.cards.filter(c => c.zoneId === card.zoneId);
+        const zoneCards = this.gameState.cards.filter((c) => c.zoneId === card.zoneId);
         zoneCards.sort((a, b) => b.zoneIndex - a.zoneIndex);
-        if ((zone.type === ZoneType.FOUNDATION || zone.type === ZoneType.WASTE) && zoneCards.length > 0 && zoneCards[0].id !== card.id) {
+        if (
+            (sourceType === ZoneType.FOUNDATION || sourceType === ZoneType.WASTE) &&
+            zoneCards.length > 0 &&
+            zoneCards[0].id !== card.id
+        ) {
             return false;
         }
 
-        const targetZoneType = zoneId.split('-')[0]
+        const targetZoneType = zoneId.split("-")[0];
 
         switch (targetZoneType) {
             case ZoneType.FOUNDATION:
@@ -514,32 +534,24 @@ export class SoloRuleManager implements SolitaireRule {
     }
     /**
      * 检查游戏是否胜利
-     * 胜利条件：所有4个 foundation 堆都装满了13张牌（每种花色从A到K）
+     * 以牌面为准：52 张都必须在 foundation（不依赖 zones 数组是否完整）
      */
     isGameWon(): boolean {
-        const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
-        console.log("foundationZones", foundationZones);
-        // 检查每个 foundation 堆
-        for (const foundationZone of foundationZones) {
-            const foundationCards = this.gameState.cards.filter(
-                c => c.zone === ZoneType.FOUNDATION && c.zoneId === foundationZone.id
-            );
-
-            // 每个 foundation 堆应该有13张牌（A到K）
-            if (foundationCards.length !== 13) {
+        const foundationCards = this.gameState.cards.filter(
+            (c) =>
+                c.zone === ZoneType.FOUNDATION ||
+                String(c.zoneId ?? "").startsWith("foundation-")
+        );
+        if (foundationCards.length !== 52) {
+            return false;
+        }
+        const suits = ["hearts", "diamonds", "clubs", "spades"] as const;
+        for (const suit of suits) {
+            const pile = foundationCards.filter((c) => c.zoneId === `foundation-${suit}`);
+            if (pile.length !== 13) {
                 return false;
             }
-
-            // 可选：验证顺序是否正确（A到K）
-            const sortedCards = foundationCards.sort((a, b) => (a.value || 0) - (b.value || 0));
-            for (let i = 0; i < sortedCards.length; i++) {
-                if (sortedCards[i].value !== i + 1) {
-                    return false;
-                }
-            }
         }
-
-        // 所有4个 foundation 堆都满了，游戏胜利
         return true;
     }
 }

@@ -91,11 +91,8 @@ export const ManualSettleConfirmOverlay: React.FC<ManualSettleConfirmOverlayProp
   const handleBackdrop = useCallback(() => {
     if (phase === 'prompt') {
       onCancel();
-      return;
     }
-    if (phase === 'settling') {
-      onCancel();
-    }
+    // settling：不可取消，忽略背景点击
   }, [phase, onCancel]);
 
   const handleConfirm = useCallback(async () => {
@@ -127,8 +124,9 @@ export const ManualSettleConfirmOverlay: React.FC<ManualSettleConfirmOverlayProp
       <button
         type="button"
         className={`msc-backdrop${phase === 'settling' ? ' msc-backdrop--inactive' : ''}`}
-        aria-label={phase === 'prompt' || phase === 'settling' ? '关闭' : undefined}
-        onClick={phase === 'error' ? undefined : handleBackdrop}
+        aria-label={phase === 'prompt' ? '关闭' : undefined}
+        onClick={phase === 'prompt' ? handleBackdrop : undefined}
+        tabIndex={phase === 'settling' ? -1 : undefined}
       />
       <div
         className="msc-dialog"
@@ -167,11 +165,6 @@ export const ManualSettleConfirmOverlay: React.FC<ManualSettleConfirmOverlayProp
               <div className="msc-settlingRow" aria-live="polite">
                 <span className="msc-spinner" aria-hidden />
                 <p className="ssc__body msc-settlingBody">{settlingBody}</p>
-              </div>
-              <div className="ssc__actions">
-                <button type="button" className="ssc__btn ssc__btn--ghost" onClick={onCancel}>
-                  取消
-                </button>
               </div>
             </>
           ) : null}

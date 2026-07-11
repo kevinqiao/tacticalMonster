@@ -1,157 +1,197 @@
 import gsap from "gsap";
 import { SoloCard, ZoneType } from "../../../types/SoloTypes";
+import { getCardCoord } from "../../../Utils";
+
+const SUITS = ["hearts", "diamonds", "clubs", "spades"] as const;
+
+function resolveEle(card: SoloCard, root?: ParentNode | null): HTMLElement | null {
+  if (card.ele?.isConnected) return card.ele;
+  const scope = root ?? document;
+  const live = scope.querySelector(
+    `.solo-board-cards-layer .card[data-card-id="${card.id}"], .card[data-card-id="${card.id}"]`
+  ) as HTMLElement | null;
+  if (live) {
+    card.ele = live as HTMLDivElement;
+    return live;
+  }
+  return null;
+}
 
 /**
- * 经典 Solitaire 简化版 - 只动画部分卡牌，轨迹更清晰
+ * 胜利动画：foundation → 叠到中心 → 像打开扇子一样弧形展开 → 淡出
  */
-export const cascadeClassicSimple = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
-    const { cards, boardDimension } = data;
+export const cascadeClassicSimple = ({
+  data,
+  onComplete,
+}: {
+  data: any;
+  onComplete?: () => void;
+}) => {
+  const { cards, boardDimension } = data;
+  const list = (cards as SoloCard[] | undefined) ?? [];
+  const boardRoot =
+    document.querySelector(".solo-board-cards-layer")?.parentElement ??
+    document.querySelector(".solo-board-surface");
 
-    if (!cards || cards.length === 0) {
-        onComplete?.();
-        return;
+  const items = list
+    .filter(
+      (c) =>
+        c.zone === ZoneType.FOUNDATION ||
+        String(c.zoneId ?? "").startsWith("foundation-")
+    )
+    .map((card) => {
+      const ele = resolveEle(card, boardRoot);
+      return ele ? { card, ele } : null;
+    })
+    .filter((x): x is { card: SoloCard; ele: HTMLElement } => x != null);
+
+  if (items.length === 0) {
+    console.warn("[Solitaire] fan victory: 0 cards");
+    onComplete?.();
+    return;
+  }
+
+  const width = boardDimension?.width ?? 900;
+  const height = boardDimension?.height ?? 640;
+  const cardW = boardDimension?.cardWidth ?? 72;
+  const cardH = boardDimension?.cardHeight ?? 108;
+
+  // 汇聚落点（叠中心）
+  const stackX = width / 2 - cardW / 2;
+  const stackY = height / 2 - cardH / 2;
+
+  // 扇子枢轴略靠下，扇面向上打开
+  const pivotX = stackX;
+  const pivotY = Math.min(height * 0.68, height - cardH * 0.35);
+  const fanRadius = Math.min(width, height) * 0.4;
+  const fanSpanDeg = 156; // 总张角
+  const fanStartDeg = -fanSpanDeg / 2;
+
+  const byZone = new Map<string, typeof items>();
+  for (const it of items) {
+    const id = it.card.zoneId || "foundation-hearts";
+    const arr = byZone.get(id) ?? [];
+    arr.push(it);
+    byZone.set(id, arr);
+  }
+  for (const arr of byZone.values()) {
+    arr.sort((a, b) => a.card.zoneIndex - b.card.zoneIndex);
+  }
+
+  for (const { card, ele } of items) {
+    gsap.killTweensOf(ele);
+    const zoneCards = (byZone.get(card.zoneId) ?? []).map((x) => x.card);
+    let x = Number(gsap.getProperty(ele, "x")) || 0;
+    let y = Number(gsap.getProperty(ele, "y")) || 0;
+    if (boardDimension) {
+      const c = getCardCoord(card, zoneCards, boardDimension);
+      x = Math.round(c.x);
+      y = Math.round(c.y);
     }
-
-    const foundationCards = cards.filter((c: SoloCard) => c.zone === ZoneType.FOUNDATION);
-
-    if (foundationCards.length === 0) {
-        onComplete?.();
-        return;
-    }
-
-    const tl = gsap.timeline({
-        onComplete: () => {
-            console.log('🎊 Classic simple cascade complete!');
-            onComplete?.();
-        }
+    gsap.set(ele, {
+      autoAlpha: 1,
+      x,
+      y,
+      width: cardW,
+      height: cardH,
+      scale: 1,
+      rotation: 0,
+      rotateZ: 0,
+      rotateY: 180,
+      zIndex: 200 + (card.zoneIndex || 0),
+      force3D: true,
+      transformOrigin: "50% 85%",
     });
+    ele.classList.add("card--flat-anim");
+  }
 
-    const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
-    const groundY = boardDimension.height * 0.75;
+  // 顶牌先动汇聚
+  const ordered: typeof items = [];
+  SUITS.forEach((suit) => {
+    const pile = (byZone.get(`foundation-${suit}`) ?? []).slice().reverse();
+    ordered.push(...pile);
+  });
 
-    console.log('🎬 Classic Simple Cascade - Animating only top 5 cards per suit');
+  const n = ordered.length;
+  const master = gsap.timeline({
+    onComplete: () => onComplete?.(),
+  });
 
-    // 只处理每堆的前5张（K, Q, J, 10, 9）
-    const maxCardsPerSuit = 5;
+  // —— 1) 汇聚：叠到中心 ——
+  const gatherDur = 0.32;
+  const gatherStagger = 0.02;
+  ordered.forEach((item, i) => {
+    gsap.set(item.ele, { zIndex: 3000 + i });
+    master.to(
+      item.ele,
+      {
+        x: stackX,
+        y: stackY,
+        rotation: 0,
+        scale: 1,
+        duration: gatherDur,
+        ease: "power2.in",
+      },
+      i * gatherStagger
+    );
+  });
 
-    suits.forEach((suit, suitIndex) => {
-        const suitCards = foundationCards
-            .filter((c: SoloCard) => c.zoneId === `foundation-${suit}`)
-            .sort((a: SoloCard, b: SoloCard) => (b.value || 0) - (a.value || 0))
-            .slice(0, maxCardsPerSuit); // 只取前5张
+  const gatherEnd = (n - 1) * gatherStagger + gatherDur;
+  // 等全部叠到中心后再开扇（局内若提前开扇，看起来像四堆各扇一下）
+  const fanAt = gatherEnd + 0.06;
 
-        if (suitCards.length === 0) return;
+  // —— 2) 打开扇子：从中心向两侧展开 ——
+  const openDur = 0.72;
+  const mid = (n - 1) / 2;
 
-        console.log(`Processing ${suit}: ${suitCards.length} cards (K to ${suitCards[suitCards.length - 1].rank})`);
+  ordered.forEach((item, i) => {
+    const t = n <= 1 ? 0.5 : i / (n - 1);
+    const deg = fanStartDeg + t * fanSpanDeg;
+    const rad = (deg * Math.PI) / 180;
+    // 0° 朝上
+    const tx = pivotX + Math.sin(rad) * fanRadius;
+    const ty = pivotY - Math.cos(rad) * fanRadius;
+    // 从中间往两边打开
+    const delay = Math.abs(i - mid) * 0.014;
+    const t0 = fanAt + delay;
 
-        suitCards.forEach((card: SoloCard, cardIndex: number) => {
-            if (!card.ele) return;
+    gsap.set(item.ele, { zIndex: 5000 + i });
 
-            // 大幅延迟，确保一次只有1-2张卡在动画
-            const totalDelay = suitIndex * 0.8 + cardIndex * 0.25;
+    master.to(
+      item.ele,
+      {
+        x: tx,
+        y: ty,
+        rotation: deg,
+        scale: 1,
+        duration: openDur,
+        ease: "power2.out",
+      },
+      t0
+    );
+  });
 
-            // 固定目标位置
-            const targetColumn = suitIndex * 1.5 + cardIndex * 0.3;
-            const targetX = boardDimension.width * 0.2 + targetColumn * 80;
+  const fanOpenEnd = fanAt + mid * 0.014 + openDur;
 
-            const currentX = gsap.getProperty(card.ele, "x") as number;
-            const currentY = gsap.getProperty(card.ele, "y") as number;
+  // —— 3) 扇面定格一瞬后整体淡出 ——
+  const hold = 0.18;
+  const fadeDur = 0.35;
+  ordered.forEach((item, i) => {
+    master.to(
+      item.ele,
+      {
+        autoAlpha: 0,
+        y: `+=${12 + (i % 5)}`,
+        duration: fadeDur,
+        ease: "power1.in",
+      },
+      fanOpenEnd + hold
+    );
+  });
 
-            if (cardIndex === 0) {
-                console.log(`  ${suit} K at delay ${totalDelay.toFixed(2)}s: (${currentX},${currentY}) → (${targetX},${groundY})`);
-            }
-
-            // 设置高 zIndex
-            gsap.set(card.ele, { zIndex: 3000 + suitIndex * 10 + cardIndex });
-
-            const cardTL = gsap.timeline();
-
-            // 第1段：垂直向上（只上升，不横移）
-            cardTL.to(card.ele, {
-                y: currentY - 200,
-                width: boardDimension.cardWidth,
-                height: boardDimension.cardHeight,
-                scale: 1.2,
-                duration: 0.5,
-                ease: "power2.out",
-                onStart: () => {
-                    if (cardIndex === 0) console.log(`  ⬆️ ${suit} K rising`);
-                }
-            });
-
-            // 第2段：抛物线下落（横移+下落）
-            cardTL.to(card.ele, {
-                x: targetX,
-                y: groundY,
-                width: boardDimension.cardWidth,
-                height: boardDimension.cardHeight,
-                rotation: randomRotation,
-                scale: 1,
-                duration: 0.6,
-                ease: "power2.in",
-                onStart: () => {
-                    if (cardIndex === 0) console.log(`  ↘️ ${suit} K falling`);
-                }
-            });
-
-            // 第3段：大弹跳
-            cardTL.to(card.ele, {
-                y: groundY - 120,
-                width: boardDimension.cardWidth,
-                height: boardDimension.cardHeight,
-                duration: 0.35,
-                ease: "power1.out",
-                onStart: () => {
-                    if (cardIndex === 0) console.log(`  🔺 ${suit} K bounce 1`);
-                }
-            })
-                .to(card.ele, {
-                    y: groundY,
-                    width: boardDimension.cardWidth,
-                    height: boardDimension.cardHeight,
-                    duration: 0.35,
-                    ease: "power2.in"
-                });
-
-            // 第4段：中弹跳
-            cardTL.to(card.ele, {
-                y: groundY - 60,
-                width: boardDimension.cardWidth,
-                height: boardDimension.cardHeight,
-                duration: 0.25,
-                ease: "power1.out"
-            })
-                .to(card.ele, {
-                    y: groundY,
-                    width: boardDimension.cardWidth,
-                    height: boardDimension.cardHeight,
-                    duration: 0.25,
-                    ease: "power2.in"
-                });
-
-            // 第5段：小弹跳
-            cardTL.to(card.ele, {
-                y: groundY - 25,
-                width: boardDimension.cardWidth,
-                height: boardDimension.cardHeight,
-                duration: 0.15,
-                ease: "power1.out"
-            })
-                .to(card.ele, {
-                    y: groundY,
-                    width: boardDimension.cardWidth,
-                    height: boardDimension.cardHeight,
-                    duration: 0.15,
-                    ease: "sine.in",
-                    onComplete: () => {
-                        if (cardIndex === 0) console.log(`  ✅ ${suit} K settled`);
-                    }
-                });
-
-            tl.add(cardTL, totalDelay);
-        });
-    });
-
-    tl.play();
+  if (master.duration() < 0.05) {
+    onComplete?.();
+    return;
+  }
+  master.play();
 };
-

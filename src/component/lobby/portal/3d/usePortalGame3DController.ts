@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getPortalTournamentDefinition } from "@/convex/portal/convex/data/portalTournamentConfigs";
+import { getPortalDailyPlayLimits } from "@/convex/portal/convex/data/portalDailyPlayLimits";
 import { useModalManager } from "host/service/ModalManager";
 import { useUserManager } from "host/service/UserManager";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
@@ -33,6 +34,7 @@ import {
   portalFlowMessage,
 } from "../shared/portalErrorMessage";
 import { leaveMatchQueueErrorText } from "./portalGame3DFormatters";
+import { countPortalModePlaysToday } from "./portalDailyPlayQuotaClient";
 import { resolvePortalWeeklyCloseDisplay } from "./portalWeeklyCloseDisplay";
 import { portalTierDisplayLabel, type PortalTierId } from "./portalGame3DTheme";
 import type {
@@ -81,6 +83,11 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   const [weeklyCloseModalOpen, setWeeklyCloseModalOpen] = useState(false);
   const weeklyCloseShownRef = useRef<string | null>(null);
 
+  useEffect(() => {
+    portal.setCohortLeaderboardPolling(panelModal === "lb");
+    return () => portal.setCohortLeaderboardPolling(false);
+  }, [panelModal, portal]);
+
   const openAssignments = useMemo(() => {
     if (!portal.gameType) return [];
     return pickPortalOpenAssignmentsForGameType(
@@ -124,10 +131,54 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   const hasOpenRun = openAssignments.length > 0;
   const matchOverlayOpen =
     awaitingMatch != null || queueWaiting || queueClaiming;
+
+  const dailyPlayLimits = getPortalDailyPlayLimits();
+  const soloMaxPlaysPerDay =
+    portal.dailyPlayQuota?.solo.maxPlaysPerDay ?? dailyPlayLimits.solo;
+  const multiMaxPlaysPerDay =
+    portal.dailyPlayQuota?.multi.maxPlaysPerDay ?? dailyPlayLimits.multi;
+  const clientSoloPlays = portal.gameType
+    ? countPortalModePlaysToday({
+        gameHistory: portal.gameHistory,
+        openAssignments: portal.openRunAssignments,
+        gameType: portal.gameType,
+        mode: "solo",
+      })
+    : 0;
+  const clientMultiPlays = portal.gameType
+    ? countPortalModePlaysToday({
+        gameHistory: portal.gameHistory,
+        openAssignments: portal.openRunAssignments,
+        gameType: portal.gameType,
+        mode: "multi",
+      })
+    : 0;
+  /**
+   * 展示/灰钮：取服务端与战绩推算的较大值。
+   * 服务端返回 0 时 `??` 不会回退到 client，会导致一直显示 0/3。
+   */
+  const soloPlaysTodayRaw = Math.max(
+    portal.dailyPlayQuota?.solo.playsToday ?? 0,
+    clientSoloPlays
+  );
+  const multiPlaysTodayRaw = Math.max(
+    portal.dailyPlayQuota?.multi.playsToday ?? 0,
+    clientMultiPlays
+  );
+  const soloDailyExhausted = authed && soloPlaysTodayRaw >= soloMaxPlaysPerDay;
+  const multiDailyExhausted = authed && multiPlaysTodayRaw >= multiMaxPlaysPerDay;
+  /** 展示不超过上限，避免限次上线前超额场次显示成 6/3 */
+  const soloPlaysToday = Math.min(soloPlaysTodayRaw, soloMaxPlaysPerDay);
+  const multiPlaysToday = Math.min(multiPlaysTodayRaw, multiMaxPlaysPerDay);
+
   const soloJoinBlocked =
-    matchOverlayOpen || (hasGlobalOpenRun && soloOpenAssignment == null);
+    matchOverlayOpen ||
+    (hasGlobalOpenRun && soloOpenAssignment == null) ||
+    (soloDailyExhausted && soloOpenAssignment == null);
   const multiJoinBlocked =
-    matchOverlayOpen || (hasGlobalOpenRun && multiOpenAssignment == null);
+    matchOverlayOpen ||
+    (hasGlobalOpenRun && multiOpenAssignment == null) ||
+    (multiDailyExhausted && multiOpenAssignment == null);
 
   const openAssignment = useCallback(
     (hit: OpenCasualRunAssignment) => {
@@ -142,45 +193,26 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   );
 
   const league = portal.weeklyLeagueTierView;
-  const totalLeaderboard = portal.totalLeaderboard;
   const cohortLeaderboard = portal.cohortLeaderboard;
-  const leaderboardRows =
-    league?.enrolled && cohortLeaderboard.length > 0
-      ? cohortLeaderboard
-      : totalLeaderboard;
+  const leaderboardRows = cohortLeaderboard;
 
   const tierView: Portal3DTierInfo = useMemo(() => {
-    if (league) {
-      const tierId = (league.tierId as PortalTierId) ?? "bronze";
-      const { tierLabel, division } = portalTierDisplayLabel(tierId);
-      return {
-        tierId,
-        tierLabel,
-        division,
-        cohortNo: league.cohortNo,
-        rank: league.cohortRank,
-        cohortSize: league.cohortSize,
-        points: league.points,
-        projectedCoins: league.projectedCoins,
-        promoteTo: league.promoteTo,
-        demoteFrom: league.demoteFrom,
-      };
-    }
-    const myTotal = portal.myWeeklyPoints?.total;
-    const { tierLabel, division } = portalTierDisplayLabel("bronze");
+    const tierId = (league?.tierId as PortalTierId) ?? "bronze";
+    const { tierLabel, division } = portalTierDisplayLabel(tierId);
     return {
-      tierId: "bronze",
+      tierId,
       tierLabel,
       division,
-      cohortNo: null,
-      rank: myTotal?.rank ?? null,
-      cohortSize: 50,
-      points: myTotal?.points ?? 0,
-      projectedCoins: null,
-      promoteTo: 10,
-      demoteFrom: 41,
+      cohortNo: league?.cohortNo ?? null,
+      rank: league?.cohortRank ?? null,
+      cohortSize: league?.cohortSize ?? 30,
+      cohortMemberCount: league?.cohortMemberCount ?? 0,
+      points: league?.points ?? 0,
+      projectedCoins: league?.projectedCoins ?? null,
+      promoteTo: league?.promoteTo ?? 8,
+      demoteFrom: league?.demoteFrom ?? 23,
     };
-  }, [league, portal.myWeeklyPoints?.total]);
+  }, [league]);
 
   const unclaimedRewards = league?.unclaimedRewards ?? null;
   const weeklyCloseDisplay = useMemo(
@@ -298,11 +330,19 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
         return;
       }
       if (mode === "multi" && multiJoinBlocked && !queueWaiting) {
-        setNote(campaignFlowErrorMessage("matchingInProgress"));
+        setNote(
+          multiDailyExhausted && !multiOpenAssignment
+            ? joinEntryErrorMessage("daily_play_limit_reached")
+            : campaignFlowErrorMessage("matchingInProgress")
+        );
         return;
       }
       if (mode === "solo" && soloJoinBlocked) {
-        setNote(campaignFlowErrorMessage("matchingInProgress"));
+        setNote(
+          soloDailyExhausted && !soloOpenAssignment
+            ? joinEntryErrorMessage("daily_play_limit_reached")
+            : campaignFlowErrorMessage("matchingInProgress")
+        );
         return;
       }
 
@@ -345,6 +385,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       askAuth,
       authed,
       hasGlobalOpenRun,
+      multiDailyExhausted,
       multiJoinBlocked,
       multiOpenAssignment,
       openAssignment,
@@ -353,6 +394,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       portal.joinTournament,
       portal.portalSessionReady,
       queueWaiting,
+      soloDailyExhausted,
       soloJoinBlocked,
       soloOpenAssignment,
     ]
@@ -386,6 +428,12 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     multiOpenAssignment,
     soloJoinBlocked,
     multiJoinBlocked,
+    soloPlaysToday,
+    multiPlaysToday,
+    soloMaxPlaysPerDay,
+    multiMaxPlaysPerDay,
+    soloDailyExhausted,
+    multiDailyExhausted,
     queueWaiting,
     queueClaiming,
     hasOpenRun,
@@ -395,7 +443,6 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     handleJoin,
     handleLeaveMatchQueue,
     openAssignment,
-    totalLeaderboard,
     cohortLeaderboard,
     leaderboardRows,
     tierView,

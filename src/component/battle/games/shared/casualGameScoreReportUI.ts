@@ -80,9 +80,13 @@ export function shouldOpenCasualTableSummaryAfterScoreReport(
     deferTriathlonTableSummary?: boolean;
     triathlonSessionActive?: boolean;
     triathlonGameId?: string;
+    replayOffered?: boolean;
   }
 ): boolean {
-  if (isCasualSoloP75ChallengeTemplate(templateId)) return false;
+  /** 单人 P75 挑战无同桌榜；再战走单独提示页，不展示「同桌成绩」。 */
+  if (isCasualSoloP75ChallengeTemplate(templateId)) {
+    return false;
+  }
   if (
     options?.triathlonSessionActive &&
     options.triathlonGameId &&
@@ -96,4 +100,102 @@ export function shouldOpenCasualTableSummaryAfterScoreReport(
     return false;
   }
   return Boolean(tableSummary?.rows?.length) || waitingForPeers;
+}
+
+/** 单人 P75：得分明细即最终结算页，不再打开后续「本局已结算 / 同桌成绩」层。 */
+export function isCasualSoloChallengeFinalScoreReport(templateId: string | undefined): boolean {
+  return isCasualSoloP75ChallengeTemplate(templateId);
+}
+
+export function isCasualReplayWindowOpen(replayWindowEndsAt?: number): boolean {
+  if (replayWindowEndsAt == null || !Number.isFinite(replayWindowEndsAt)) return true;
+  return replayWindowEndsAt > Date.now();
+}
+
+export function formatCasualAdReplayButtonLabel(adReplayDailyRemaining?: number): string {
+  if (
+    typeof adReplayDailyRemaining === 'number' &&
+    Number.isFinite(adReplayDailyRemaining)
+  ) {
+    const n = Math.max(0, Math.floor(adReplayDailyRemaining));
+    return `🎬 看广告再战（今日剩 ${n} 次）`;
+  }
+  return '🎬 看广告再战';
+}
+
+/** 同桌结算层 / 多人竞技：与单人 P75 一致，不可战时不展示按钮。 */
+export function resolveCasualPostSettleReplayPresentation(opts: {
+  replayOffered: boolean;
+  canReplay: boolean;
+  replayMode: 'ad' | 'token';
+  adReplayDailyRemaining?: number;
+  replayWindowEndsAt?: number;
+  customLabel?: string;
+}): { showReplay: boolean; replayLabel: string } {
+  const showReplay =
+    opts.replayOffered &&
+    opts.canReplay &&
+    isCasualReplayWindowOpen(opts.replayWindowEndsAt);
+  if (!showReplay) {
+    return { showReplay: false, replayLabel: '' };
+  }
+  if (opts.customLabel) {
+    return { showReplay: true, replayLabel: opts.customLabel };
+  }
+  if (opts.replayMode === 'ad') {
+    return {
+      showReplay: true,
+      replayLabel: formatCasualAdReplayButtonLabel(opts.adReplayDailyRemaining),
+    };
+  }
+  return { showReplay: true, replayLabel: '再战' };
+}
+
+export function resolveCasualScoreReportSecondaryAction(opts: {
+  templateId: string | undefined;
+  replayOffered: boolean;
+  canReplay: boolean;
+  replayMode: 'ad' | 'token';
+  /** 单人 P75：true=达标，false=未达标；未设置时不展示再战 */
+  challengeSuccess?: boolean;
+  /** Portal 广告再战：今日剩余次数（展示在按钮文案） */
+  adReplayDailyRemaining?: number;
+}): {
+  /** 单人挑战：得分页为最后一步 */
+  soloChallengeFinalStep: boolean;
+  /** 展示再战副按钮（非「复盘本局」） */
+  showReplaySecondary: boolean;
+  secondaryLabel?: string;
+} {
+  const solo = isCasualSoloP75ChallengeTemplate(opts.templateId);
+  if (solo) {
+    const showReplay =
+      opts.replayOffered && opts.challengeSuccess === false && opts.canReplay;
+    return {
+      soloChallengeFinalStep: true,
+      showReplaySecondary: showReplay,
+      ...(showReplay
+        ? {
+            secondaryLabel:
+              opts.replayMode === 'ad'
+                ? formatCasualAdReplayButtonLabel(opts.adReplayDailyRemaining)
+                : '再战',
+          }
+        : {}),
+    };
+  }
+  return {
+    soloChallengeFinalStep: false,
+    showReplaySecondary: false,
+  };
+}
+
+export function resolveCasualPostSettleSummaryPresentation(
+  templateId: string | undefined,
+  tableSummary: CasualAsyncTableSummaryUI | null | undefined
+): { title: string; summary: CasualAsyncTableSummaryUI | null } {
+  if (isCasualSoloP75ChallengeTemplate(templateId)) {
+    return { title: '本局已结算', summary: null };
+  }
+  return { title: '同桌成绩', summary: tableSummary ?? null };
 }

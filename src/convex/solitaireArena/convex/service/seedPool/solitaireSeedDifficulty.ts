@@ -188,6 +188,9 @@ export type TierCandidate = {
   difficultyScore: number;
   metrics: RolloutDistributionMetrics;
   rolloutSummaries?: RolloutSummary[];
+  solvable?: SeedPoolEntry["solvable"];
+  solvableSource?: SeedPoolEntry["solvableSource"];
+  solvableReason?: SeedPoolEntry["solvableReason"];
 };
 
 export function assignTiers(
@@ -218,6 +221,13 @@ export function assignTiers(
       difficultyScore: c.difficultyScore,
       metrics: c.metrics,
       rolloutSummaries: c.rolloutSummaries,
+      ...(c.solvable != null
+        ? {
+            solvable: c.solvable,
+            solvableSource: c.solvableSource,
+            solvableReason: c.solvableReason ?? null,
+          }
+        : {}),
     };
   });
 }

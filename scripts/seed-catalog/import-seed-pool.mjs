@@ -2,18 +2,20 @@
 /**
  * Import index.json into casualPlatform seed catalog (meta + entries + rollout rows).
  *
- *   npx tsx scripts/seed-catalog/import-seed-pool.mjs \
- *     --game-type block_blast \
- *     --index scripts/blockblast/output/pool-v3/index.json
- *
- *   npx tsx scripts/seed-catalog/import-seed-pool.mjs --game-type solitaire --index ... --append
- *   npx tsx scripts/seed-catalog/import-seed-pool.mjs --game-type match_3 --index ... --clear-first
+ *   npx tsx scripts/seed-catalog/import-seed-pool.mjs solitaire --clear-first
+ *   npx tsx scripts/seed-catalog/import-seed-pool.mjs solitaire --limit 50 --clear-first
+ *   npx tsx scripts/seed-catalog/import-seed-pool.mjs --game solitaire --index path/to/index.json
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assertCatalogGameType } from "./catalog-game-types.mjs";
+import {
+  gameAliasHelp,
+  normalizeGameAlias,
+  resolveDefaultIndexPath,
+} from "./default-pool-index.mjs";
 import {
   clearSeedPoolFully,
   convexPayloadBytes,
@@ -32,6 +34,33 @@ function defaultBatchSize(indexOnly) {
   return process.platform === "win32" ? 2 : 8;
 }
 
+function usage() {
+  console.log(`Import seed pool index into Convex catalog
+
+Usage:
+  npx tsx scripts/seed-catalog/import-seed-pool.mjs <game> [options]
+  npx tsx scripts/seed-catalog/import-seed-pool.mjs --game <game> [options]
+
+Games: ${gameAliasHelp()}
+
+Options:
+  --game, --game-type <name>   game（与 positional 二选一）
+  --index <path>               index.json（省略则用该 game 默认路径）
+  --limit <n>                  按 easy/medium/hard 均分抽样 n 条（避免只抽到 easy）
+  --clear-first                导入前清空该 poolVersion
+  --append                     增量导入（跳过已有 seedId）
+  --update-existing            append 时覆盖已有 seed
+  --min-entries <n>            finalize 最少条数（默认=实际导入数）
+  --batch-size <n>             批大小（Windows 含 rollout 建议 ≤2）
+  --pool-version <v>           覆盖 index 内 poolVersion
+  --index-only                 不写 rollout 子表
+
+Examples:
+  npx tsx scripts/seed-catalog/import-seed-pool.mjs solitaire --limit 50 --clear-first
+  npm run portal:seed-pool:import -- solitaire --append
+`);
+}
+
 function parseArgs(argv) {
   const opts = {
     gameType: "",
@@ -43,14 +72,20 @@ function parseArgs(argv) {
     append: false,
     updateExisting: false,
     poolVersion: "",
+    limit: 0,
   };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    const next = () => argv[++i];
-    if (a === "--game-type") opts.gameType = next();
+  const flags = [...argv];
+  if (flags.length > 0 && !flags[0].startsWith("-")) {
+    opts.gameType = flags.shift();
+  }
+  for (let i = 0; i < flags.length; i++) {
+    const a = flags[i];
+    const next = () => flags[++i];
+    if (a === "--game-type" || a === "--game") opts.gameType = next();
     else if (a === "--index") opts.index = path.resolve(next());
     else if (a === "--batch-size") opts.batchSize = Number(next());
     else if (a === "--min-entries") opts.minEntries = Number(next());
+    else if (a === "--limit") opts.limit = Number(next());
     else if (a === "--index-only") opts.indexOnly = true;
     else if (a === "--clear-first") opts.clearFirst = true;
     else if (a === "--append") opts.append = true;
@@ -58,6 +93,48 @@ function parseArgs(argv) {
     else if (a === "--pool-version") opts.poolVersion = next();
   }
   return opts;
+}
+
+function stratifyEntriesByTier(entries, limit) {
+  const n = Math.floor(limit);
+  if (n < 1) return [];
+  const buckets = { easy: [], medium: [], hard: [], other: [] };
+  for (const e of entries) {
+    const t = e?.tier;
+    if (t === "easy" || t === "medium" || t === "hard") buckets[t].push(e);
+    else buckets.other.push(e);
+  }
+  const tiers = ["easy", "medium", "hard"].filter((t) => buckets[t].length > 0);
+  if (tiers.length === 0) return entries.slice(0, n);
+
+  const base = Math.floor(n / tiers.length);
+  let rem = n - base * tiers.length;
+  const picked = [];
+  const counts = {};
+  for (const t of tiers) {
+    const take = base + (rem > 0 ? 1 : 0);
+    if (rem > 0) rem -= 1;
+    const slice = buckets[t].slice(0, Math.min(take, buckets[t].length));
+    counts[t] = slice.length;
+    picked.push(...slice);
+  }
+  if (picked.length < n && buckets.other.length > 0) {
+    const extra = buckets.other.slice(0, n - picked.length);
+    counts.other = extra.length;
+    picked.push(...extra);
+  }
+  // 某档不足时从其它档补齐
+  if (picked.length < n) {
+    const used = new Set(picked.map((e) => e.seedId));
+    for (const e of entries) {
+      if (picked.length >= n) break;
+      if (used.has(e.seedId)) continue;
+      picked.push(e);
+      used.add(e.seedId);
+    }
+  }
+  console.log(`limit stratify: ${JSON.stringify(counts)} (total ${picked.length}/${entries.length})`);
+  return picked;
 }
 
 function flattenRollouts(entries, poolVersion) {
@@ -115,13 +192,21 @@ function stripCatalogMetrics(metrics) {
 }
 
 function toEntryImport(e, poolVersion) {
-  return {
+  const out = {
     seedId: e.seedId,
     poolVersion,
     tier: e.tier,
     difficultyScore: e.difficultyScore,
     metrics: stripCatalogMetrics(e.metrics),
   };
+  if (e.solvable === "solvable" || e.solvable === "unsolvable" || e.solvable === "unknown") {
+    out.solvable = e.solvable;
+    if (e.solvableSource === "empirical_completed" || e.solvableSource === "search") {
+      out.solvableSource = e.solvableSource;
+    }
+    out.solvableReason = e.solvableReason ?? null;
+  }
+  return out;
 }
 
 function buildBatchArgs(gameType, poolVersion, batchEntries, indexOnly) {
@@ -255,15 +340,20 @@ async function clearPool(gameType, poolVersion) {
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  if (!opts.gameType) {
-    console.error("missing required --game-type (block_blast | solitaire | match_3 | tower_arena | yatz)");
-    process.exit(1);
+  if (!opts.gameType || opts.gameType === "help" || opts.gameType === "-h" || opts.gameType === "--help") {
+    usage();
+    process.exit(opts.gameType ? 0 : 1);
   }
-  const gameType = assertCatalogGameType(opts.gameType);
+
+  const gameType = assertCatalogGameType(normalizeGameAlias(opts.gameType));
 
   if (!opts.index) {
-    console.error("missing required --index <path-to-index.json>");
-    process.exit(1);
+    opts.index = await resolveDefaultIndexPath(repoRoot, gameType);
+    if (!opts.index) {
+      console.error(`no default index for game=${gameType}; pass --index`);
+      process.exit(1);
+    }
+    console.log(`index: ${opts.index} (default)`);
   }
 
   const raw = await readFile(opts.index, "utf8");
@@ -278,6 +368,16 @@ async function main() {
   if (entries.length === 0) {
     console.error("no entries in index");
     process.exit(1);
+  }
+
+  const indexEntryCount = entries.length;
+  if (opts.limit > 0) {
+    if (!Number.isFinite(opts.limit) || opts.limit < 1) {
+      console.error("--limit must be a positive integer");
+      process.exit(1);
+    }
+    entries = stratifyEntriesByTier(entries, opts.limit);
+    console.log(`limit: using ${entries.length}/${indexEntryCount} entries from index`);
   }
 
   if (opts.append && opts.clearFirst) {

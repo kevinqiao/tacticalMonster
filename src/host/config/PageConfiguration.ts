@@ -209,35 +209,36 @@ export const Modals: Record<string, ModalConfig> = {
         path: "./battle/games/solitaireSolo/battle/PlaySolitaireSolo",
         auth: 1,
         contexts: ["shared"],
-        effects: [{ name: "popCenter", args: { width: "min(100%, 960px)", height: "100%" } }],
+        /** 屏宽高比 > 10/13：高满屏、宽按 10/13；否则满宽满高 */
+        effects: [{ name: "popCenter", args: { width: "min(100%, calc(100vh * 10 / 13))", height: "100%" } }],
     },
     "play_block_blast": {
         name: "play_block_blast",
         path: "./battle/games/blockBlast/battle/PlayBlockBlast",
         auth: 1,
         contexts: ["shared"],
-        effects: [{ name: "popCenter", args: { width: "min(100%, 960px)", height: "100%" } }],
+        effects: [{ name: "popCenter", args: { width: "min(100%, calc(100vh * 10 / 13))", height: "100%" } }],
     },
     "play_match_3": {
         name: "play_match_3",
         path: "./battle/games/match3/battle/PlayMatch3",
         auth: 1,
         contexts: ["shared"],
-        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
+        effects: [{ name: "popCenter", args: { width: "min(100%, calc(100vh * 10 / 13))", height: "100%" } }],
     },
     "play_yatz": {
         name: "play_yatz",
         path: "./battle/games/yatz/battle/PlayYatz",
         auth: 1,
         contexts: ["shared"],
-        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
+        effects: [{ name: "popCenter", args: { width: "min(100%, calc(100vh * 10 / 13))", height: "100%" } }],
     },
     "play_tower_arena": {
         name: "play_tower_arena",
         path: "./battle/games/towerArena/battle/PlayTowerArena",
         auth: 1,
         contexts: ["shared"],
-        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
+        effects: [{ name: "popCenter", args: { width: "min(100%, calc(100vh * 10 / 13))", height: "100%" } }],
     },
     "casual_tasks_sheet": {
         name: "casual_tasks_sheet",
@@ -274,7 +275,7 @@ export const Modals: Record<string, ModalConfig> = {
         path: "./lobby/casual/view/play/PlayCasualTriathlonSession",
         auth: 0,
         contexts: ["casual"],
-        effects: [{ name: "popCenter", args: { width: "100%", height: "100%" } }],
+        effects: [{ name: "popCenter", args: { width: "min(100%, calc(100vh * 10 / 13))", height: "100%" } }],
     },
     "casual_weekly_league": {
         name: "casual_weekly_league",
@@ -324,6 +325,13 @@ export const Modals: Record<string, ModalConfig> = {
         auth: 0,
         contexts: ["shared"],
         effects: [{ name: "popCenter", args: { width: "min(100%, 1100px)", height: "min(92vh, 900px)" } }],
+    },
+    "solitaire_victory_anim_dev": {
+        name: "solitaire_victory_anim_dev",
+        path: "./battle/games/solitaireSolo/battle/replay/SolitaireVictoryAnimLabPage",
+        auth: 0,
+        contexts: ["shared"],
+        effects: [{ name: "popCenter", args: { width: "min(100%, 1100px)", height: "min(92vh, 860px)" } }],
     },
 }
 // export const animates: { [k: number]: any } = {

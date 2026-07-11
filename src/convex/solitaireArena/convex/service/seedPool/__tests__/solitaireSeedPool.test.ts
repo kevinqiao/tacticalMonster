@@ -346,6 +346,9 @@ describe("solitaireSeedQuickScreen", () => {
           rejectDead: false,
           rolloutCount: 8,
           matchSeconds: 300,
+          writeRolloutSummaries: false,
+          writeRolloutFiles: false,
+          checkSolvability: false,
           playerFriendly: {
             ...DEFAULT_PLAYER_FRIENDLY_OPTIONS,
             minOpeningMoves: 0,

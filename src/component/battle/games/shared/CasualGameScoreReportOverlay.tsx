@@ -1,6 +1,7 @@
 import React, { useId } from 'react';
 
 import type { CasualGameScoreReportUI } from './casualGameScoreReportUI';
+import { useReplayWindowCountdown } from './useReplayWindowCountdown';
 import './manualSettleConfirmOverlay.css';
 
 export type CasualGameScoreReportOverlayProps = {
@@ -11,9 +12,15 @@ export type CasualGameScoreReportOverlayProps = {
   confirmLabel?: string;
   secondaryLabel?: string;
   onSecondary?: () => void;
+  secondaryDisabled?: boolean;
+  secondaryBusy?: boolean;
+  /** epoch ms；再战窗口倒计时展示在副按钮上 */
+  replayWindowEndsAt?: number;
+  /** 再战失败时在按钮下方展示 */
+  secondaryError?: string;
 };
 
-/** 休闲场：结算后第一步，展示本局得分构成（非同桌总榜；再战仅在同桌摘要页）。 */
+/** 休闲场：结算后展示本局得分构成；单人 P75 挑战时即为最终页（含看广告再战）。 */
 export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlayProps> = ({
   open,
   report,
@@ -22,11 +29,25 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   confirmLabel = '确定',
   secondaryLabel,
   onSecondary,
+  secondaryDisabled = false,
+  secondaryBusy = false,
+  replayWindowEndsAt,
+  secondaryError,
 }) => {
   const titleId = useId();
+  const replayCountdown = useReplayWindowCountdown(replayWindowEndsAt);
   if (!open || !report) return null;
 
   const challenge = report.challenge;
+  let secondaryText = secondaryLabel;
+  if (secondaryText && secondaryBusy) {
+    secondaryText = secondaryText.includes('广告') ? '广告加载中…' : '匹配中…';
+  } else if (secondaryText && secondaryDisabled) {
+    secondaryText = `${secondaryText}（不可用）`;
+  }
+  if (secondaryText && replayCountdown) {
+    secondaryText = `${secondaryText} ${replayCountdown}`;
+  }
 
   return (
     <div className="msc-overlay" role="presentation">
@@ -94,14 +115,24 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
           </ul>
           <div className="ssc__actions">
             {secondaryLabel && onSecondary ? (
-              <button type="button" className="ssc__btn ssc__btn--secondary" onClick={onSecondary}>
-                {secondaryLabel}
+              <button
+                type="button"
+                className="ssc__btn ssc__btn--secondary"
+                disabled={secondaryDisabled || secondaryBusy}
+                onClick={onSecondary}
+              >
+                {secondaryText ?? secondaryLabel}
               </button>
             ) : null}
             <button type="button" className="ssc__btn ssc__btn--primary" onClick={onConfirm}>
               {confirmLabel}
             </button>
           </div>
+          {secondaryError ? (
+            <p className="msc-scoreReportSub msc-scoreReportSub--error" role="alert">
+              {secondaryError}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

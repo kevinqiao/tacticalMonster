@@ -12,6 +12,7 @@ import {
 } from '../../shared/ManualSettleConfirmOverlay';
 import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
 import { CasualPostSettleSummaryOverlay } from '../../shared/CasualPostSettleSummaryOverlay';
+import { resolveCasualPostSettleReplayPresentation } from '../../shared/casualGameScoreReportUI';
 import YatzWatchOverlay from './replay/YatzWatchOverlay';
 
 const UPPER_CATEGORIES = YATZ_CATEGORIES.slice(0, 6);
@@ -168,6 +169,24 @@ const GamePlayer: React.FC = () => {
     if (!gs) return new Set<YatzCategory>();
     return new Set(YATZ_CATEGORIES.filter((c) => gs.categoryScores[c] != null));
   }, [gs]);
+
+  const postSettleReplay = useMemo(
+    () =>
+      resolveCasualPostSettleReplayPresentation({
+        replayOffered: yatz.postCasualReplayOffered,
+        canReplay: yatz.postCasualCanReplay,
+        replayMode: yatz.postCasualReplayMode,
+        adReplayDailyRemaining: yatz.postCasualAdReplayDailyRemaining,
+        replayWindowEndsAt: yatz.postCasualReplayWindowEndsAt,
+      }),
+    [
+      yatz.postCasualReplayOffered,
+      yatz.postCasualCanReplay,
+      yatz.postCasualReplayMode,
+      yatz.postCasualAdReplayDailyRemaining,
+      yatz.postCasualReplayWindowEndsAt,
+    ]
+  );
 
   const upperSubtotal = useMemo(() => {
     if (!gs) return 0;
@@ -349,8 +368,6 @@ const GamePlayer: React.FC = () => {
         open={yatz.postCasualScoreReportOpen && yatz.watchTarget == null}
         report={yatz.postCasualScoreReport}
         onConfirm={yatz.dismissPostCasualScoreReport}
-        secondaryLabel="复盘本局"
-        onSecondary={yatz.openSelfReplay}
       />
       <CasualPostSettleSummaryOverlay
         open={yatz.postCasualSummaryOpen && yatz.watchTarget == null}
@@ -358,12 +375,12 @@ const GamePlayer: React.FC = () => {
         summary={yatz.postCasualTableSummary}
         waitingForPeers={yatz.postCasualWaitingForPeers}
         onDismiss={yatz.dismissPostCasualSummary}
-        replayAvailable={yatz.postCasualReplayOffered}
-        replayDisabled={!yatz.postCasualCanReplay}
+        replayAvailable={postSettleReplay.showReplay}
+        replayMode={yatz.postCasualReplayMode}
         replayWindowEndsAt={yatz.postCasualReplayWindowEndsAt}
         replayBusy={yatz.casualReplayBusy}
-        onReplay={() => void yatz.replayCasualRun()}
-        replayLabel="再战"
+        onReplay={postSettleReplay.showReplay ? () => void yatz.replayCasualRun() : undefined}
+        replayLabel={postSettleReplay.replayLabel}
       />
       <YatzWatchOverlay
         open={yatz.watchTarget != null}

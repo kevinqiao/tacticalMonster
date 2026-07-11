@@ -245,8 +245,13 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
     openModal({ name: "solitaire_rollout_replay_dev" });
   }, [openModal]);
 
+  const openVictoryAnimLabDev = useCallback(() => {
+    openModal({ name: "solitaire_victory_anim_dev" });
+  }, [openModal]);
+
   /** 顶栏 Rollout 入口（隐藏；功能仍可通过 openModal 打开） */
   const showRolloutDevNavEntry = false;
+  const showVictoryAnimLabEntry = import.meta.env.DEV;
 
   const openPlayerProfile = useCallback(() => {
     openModal({
@@ -283,6 +288,19 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
       aria-label="Rollout replay (dev)"
     >
       Rollout
+    </button>
+  ) : null;
+
+  const victoryAnimLabEntry =
+    showVictoryAnimLabEntry ? (
+    <button
+      type="button"
+      className="head-nav-hud__casual-dev-rollout"
+      onClick={openVictoryAnimLabDev}
+      aria-label="Victory anim lab (dev)"
+      title="Solitaire victory animation lab"
+    >
+      WinAnim
     </button>
   ) : null;
 
@@ -367,6 +385,7 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
           </div>
           {stretch}
           {rolloutReplayDevEntry}
+          {victoryAnimLabEntry}
           {battlePassEntry}
           <button
             ref={menuBtnRef}
@@ -394,6 +413,7 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
           {currencyHud}
           {stretch}
           {rolloutReplayDevEntry}
+          {victoryAnimLabEntry}
           {battlePassEntry}
         </>
       )}

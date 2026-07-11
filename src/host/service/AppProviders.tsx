@@ -8,6 +8,7 @@ import EmbedAuthBridge from "./platformAuth/EmbedAuthBridge";
 import { PartnerSessionGuard } from "./platformAuth/PartnerSessionGuard";
 import { PlatformAuthProvider } from "./platformAuth/PlatformAuthProvider";
 import PartnerProvider from "./PartnerManager";
+import { MockRewardedAdOverlay } from "./ads/rewarded/MockRewardedAdOverlay";
 import { ModalProvider } from "./ModalManager";
 import { PageProvider } from "./PageManager";
 import { SharedPageDataProvider } from "./SharedPageDataManager";
@@ -39,6 +40,7 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
                                 <SharedPageDataProvider>
                                     <PageProvider>
                                         <BootLoadingOverlay />
+                                        <MockRewardedAdOverlay />
                                         <ModalProvider>{children}</ModalProvider>
                                     </PageProvider>
                                 </SharedPageDataProvider>

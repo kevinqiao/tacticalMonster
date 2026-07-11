@@ -23,6 +23,19 @@ import { DEFAULT_MATCH_TIME_LIMIT_SEC } from "./solitaireSimTime";
 import { buildDealtState, openingMoveCount } from "./solitaireOpCodec";
 import { layoutFingerprint } from "./solitaireSeedDifficulty";
 import { simulateSeedRollouts } from "./solitaireSeedSimulator";
+import {
+  resolveSeedSolvability,
+  type SolitaireSolveOptions,
+} from "./solitaireSolver";
+
+/** Generate-time solvability defaults (tighter than offline annotate). */
+export const DEFAULT_GENERATE_SOLVE_OPTS: SolitaireSolveOptions = {
+  algorithm: "greedy",
+  maxNodes: 50_000,
+  timeoutMs: 15_000,
+  allowFoundationToTableau: false,
+  preferFoundation: true,
+};
 
 export type GeneratePoolOptions = {
   poolVersion: string;
@@ -37,6 +50,9 @@ export type GeneratePoolOptions = {
   writeRolloutSummaries: boolean;
   /** When true, also write rollouts/*.json with full ops (implies summaries). */
   writeRolloutFiles: boolean;
+  /** When false, skip solvability search (faster). Default true. */
+  checkSolvability?: boolean;
+  solveOpts?: SolitaireSolveOptions;
 };
 
 export const DEFAULT_PLAYER_FRIENDLY_OPTIONS: PlayerFriendlyOptions = {
@@ -87,6 +103,8 @@ export function processOneSeed(
     | "playerFriendly"
     | "writeRolloutSummaries"
     | "writeRolloutFiles"
+    | "checkSolvability"
+    | "solveOpts"
   >,
   seenFingerprints: Set<string>
 ): ProcessOneSeedResult {
@@ -98,6 +116,8 @@ export function processOneSeed(
     playerFriendly,
     writeRolloutSummaries,
     writeRolloutFiles,
+    checkSolvability = true,
+    solveOpts,
   } = options;
   const persistRolloutDetail = writeRolloutSummaries || writeRolloutFiles;
   const seedId = makeSeedId(poolVersion, seedIndex);
@@ -170,6 +190,19 @@ export function processOneSeed(
     }
   }
 
+  const rolloutSummaries = persistRolloutDetail ? toRolloutSummaries(allRollouts) : [];
+  const solvability =
+    checkSolvability !== false
+      ? resolveSeedSolvability({
+          seedId,
+          hasAnyCompleted: metrics.hasAnyCompleted,
+          rolloutSummaries: persistRolloutDetail
+            ? rolloutSummaries
+            : allRollouts.map((r) => ({ completed: r.completed })),
+          solveOpts: { ...DEFAULT_GENERATE_SOLVE_OPTS, ...solveOpts },
+        })
+      : null;
+
   return {
     kind: "accepted",
     candidate: {
@@ -177,7 +210,14 @@ export function processOneSeed(
       poolVersion,
       difficultyScore: metrics.scoreP50,
       metrics,
-      rolloutSummaries: persistRolloutDetail ? toRolloutSummaries(allRollouts) : [],
+      rolloutSummaries,
+      ...(solvability
+        ? {
+            solvable: solvability.solvable,
+            solvableSource: solvability.solvableSource,
+            solvableReason: solvability.solvableReason,
+          }
+        : {}),
     },
     rollouts: writeRolloutFiles ? rollouts : [],
   };
@@ -211,15 +251,36 @@ export function candidateFromRollouts(
   seedId: string,
   poolVersion: string,
   rollouts: SolitaireRolloutScript[],
-  layout: { openingMoveCount: number; layoutFingerprint: string; matchTimeLimitSec: number }
+  layout: { openingMoveCount: number; layoutFingerprint: string; matchTimeLimitSec: number },
+  solvabilityOpts?: {
+    checkSolvability?: boolean;
+    solveOpts?: SolitaireSolveOptions;
+  }
 ): TierCandidate {
   const metrics = computeDistributionMetrics(rollouts, layout);
+  const summaries = toRolloutSummaries(rollouts);
+  const check = solvabilityOpts?.checkSolvability !== false;
+  const solvability = check
+    ? resolveSeedSolvability({
+        seedId,
+        hasAnyCompleted: metrics.hasAnyCompleted,
+        rolloutSummaries: summaries,
+        solveOpts: { ...DEFAULT_GENERATE_SOLVE_OPTS, ...solvabilityOpts?.solveOpts },
+      })
+    : null;
   return {
     seedId,
     poolVersion,
     difficultyScore: metrics.scoreP50,
     metrics,
-    rolloutSummaries: toRolloutSummaries(rollouts),
+    rolloutSummaries: summaries,
+    ...(solvability
+      ? {
+          solvable: solvability.solvable,
+          solvableSource: solvability.solvableSource,
+          solvableReason: solvability.solvableReason,
+        }
+      : {}),
   };
 }
 

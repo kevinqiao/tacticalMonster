@@ -13,11 +13,12 @@
     "shop": "Shop",
     "signIn": "Sign In",
     "signOut": "Sign Out",
-    "leaderboard": "Leaderboard",
-    "history": "History",
+    "leaderboard": "Standings",
+    "history": "Matches",
     "modes": {
       "challenge": "Challenge",
-      "arena": "Arena"
+      "arena": "Arena",
+      "playsToday": "Today {{playsToday}}/{{maxPlaysPerDay}}"
     },
     "play": "Play",
     "continue": "Continue",
@@ -37,8 +38,8 @@
     "shopAria": "Shop",
     "shopWithBalanceAria": "Shop, {{coins}} coins",
     "rulesAria": "Game rules",
-    "leaderboardAria": "Leaderboard",
-    "historyAria": "History"
+    "leaderboardAria": "Standings",
+    "historyAria": "Match history"
   },
   "tiers": {
     "bronze": "Bronze",
@@ -53,6 +54,10 @@
     "ongoing": "In progress",
     "enter": "Tap to enter ›",
     "score": "Score {{score}}",
+    "soloScore": "Score {{score}}",
+    "soloTarget": "Target {{target}}",
+    "challengeSuccess": "Challenge cleared",
+    "challengeFail": "Challenge failed",
     "rank": "Rank {{rank}}",
     "points": "{{delta}} pts",
     "pendingSettlement": "Awaiting settlement",
@@ -63,16 +68,14 @@
     }
   },
   "leaderboard": {
-    "cohortTitle": "Group standings",
-    "totalTitle": "Weekly leaderboard",
+    "cohortTitle": "Standings",
     "myWeek": "My week: {{points}} pts",
     "myWeekWithRank": "My week: {{points}} pts · Rank {{rank}}",
     "empty": "No leaderboard data yet",
     "columns": {
       "rank": "#",
       "player": "Player",
-      "points": "Points",
-      "matches": "Matches"
+      "points": "Points"
     }
   },
   "weeklyLeague": {
@@ -185,12 +188,12 @@
     "tiers": {
       "title": "Tiers & groups",
       "bullets": [
-        "Each week you join a <strong>50-player group</strong> with players in the <strong>same tier</strong>;",
-        "At weekly reset, ranks within the group determine promotion:"
+        "Each week you join a <strong>30-player group</strong> (up to 15 humans + 15 bots) in the <strong>same tier</strong>;",
+        "15 bots are seeded at group creation (some visible immediately, the rest over <strong>5 hours</strong>); empty seats may fill after matching ends. Weekly ranks decide promotion:"
       ],
-      "zonePromote": "↑ Promote 1-10",
-      "zoneKeep": "Safe 11-40",
-      "zoneDemote": "↓ Demote 41-50",
+      "zonePromote": "↑ Promote 1-8",
+      "zoneKeep": "Safe 9-22",
+      "zoneDemote": "↓ Demote 23-30",
       "resetBullet": "Points reset each week. You are regrouped at your new tier."
     },
     "rewards": {
@@ -200,9 +203,9 @@
       "ranges": {
         "rank1": "1st place",
         "rank2_3": "2nd–3rd",
-        "rank4_10": "4th–10th",
-        "rank11_40": "11th–40th",
-        "rank41_50": "41st–50th"
+        "rank4_8": "4th–8th",
+        "rank9_22": "9th–22nd",
+        "rank23_30": "23rd–30th"
       },
       "legendPromote": "Promote to next tier",
       "legendKeep": "Hold tier",

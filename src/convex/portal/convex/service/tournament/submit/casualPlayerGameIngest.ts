@@ -13,6 +13,7 @@ import {
   type PlayerMatchRow,
 } from "../shared/casualPlayerGameTypes";
 import { scheduleOpenRunSettleCheckForPlayerGame } from "../settle/casualOpenRunSettleCheck";
+import { resolveReplayKeepBestScore } from "../replay/casualReplayKeepBestScore";
 
 export type ResolvedPlayerGameContext = {
   pg: PlayerGameRow;
@@ -92,12 +93,30 @@ export async function finalizeSeatScoreFromGames(
   playerMatchId: Id<"portal_run_player_matches">,
   now: number
 ): Promise<number> {
-  const totalScore = await sumPlayerGameScores(ctx, playerMatchId);
+  const pm = await ctx.db.get(playerMatchId);
+  const rawTotal = await sumPlayerGameScores(ctx, playerMatchId);
+  const { score: finalScore, keptBaseline } = resolveReplayKeepBestScore({
+    rawScore: rawTotal,
+    replayBaselineScore: pm?.replayBaselineScore,
+  });
+
+  // 再战分更低被丢弃时，单腿局把 pg.score 同步回保留分，避免战报/展示仍显示较差分
+  if (keptBaseline) {
+    const games = await listPlayerGamesForSeat(ctx, playerMatchId);
+    if (games.length === 1 && games[0]) {
+      await ctx.db.patch(games[0]._id, {
+        score: finalScore,
+        updatedAt: now,
+      });
+    }
+  }
+
   await ctx.db.patch(playerMatchId, {
-    score: totalScore,
+    score: finalScore,
     status: "finished",
     finishedAt: now,
     updatedAt: now,
+    replayBaselineScore: undefined,
   });
-  return totalScore;
+  return finalScore;
 }

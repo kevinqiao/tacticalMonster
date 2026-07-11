@@ -4,14 +4,25 @@
 
 export const PORTAL_WEEKLY_LEAGUE_ENABLED = true;
 
-/** cohort 设计容量（UI 三区条按 50 人） */
-export const PORTAL_WEEKLY_LEAGUE_COHORT_SIZE = 50;
+/** cohort 设计容量（UI 三区条按 30 人） */
+export const PORTAL_WEEKLY_LEAGUE_COHORT_SIZE = 30;
 
-/** 首真人入组时固定的 Bot 池规模（与真人合计 50 人） */
-export const PORTAL_WEEKLY_LEAGUE_BOT_POOL_SIZE = 25;
+/**
+ * 创建分组时固定种入的 Bot 数（15 真人 + 15 Bot = 30）。
+ * 可见：立即可见数 3–10 伪随机，其余在匹配窗口 5h 内陆续出现。
+ * 匹配结束时若真人不足，再补 Bot 至 COHORT_SIZE。
+ */
+export const PORTAL_WEEKLY_LEAGUE_BOT_POOL_SIZE = 15;
 
-/** 每个 cohort 最多真人数量（25 真人 + 25 Bot = 50） */
-export const PORTAL_WEEKLY_LEAGUE_MAX_HUMANS_PER_COHORT = 25;
+/** 每个 cohort 最多真人数量（15 真人 + 15 Bot = 30） */
+export const PORTAL_WEEKLY_LEAGUE_MAX_HUMANS_PER_COHORT = 15;
+
+/** 分组创建后匹配窗口（亦为延迟 Bot 可见分布区间） */
+export const PORTAL_WEEKLY_LEAGUE_MATCHING_DURATION_MS = 5 * 60 * 60 * 1000;
+
+/** Bot 可见起始分（闭区间）— bronze 基线；高段位由曲线缩放抬升 */
+export const PORTAL_WEEKLY_LEAGUE_BOT_START_POINTS_MIN = 2;
+export const PORTAL_WEEKLY_LEAGUE_BOT_START_POINTS_MAX = 20;
 
 export const PORTAL_WEEKLY_LEAGUE_TIER_IDS = [
   "bronze",
@@ -25,6 +36,51 @@ export type PortalWeeklyLeagueTierId = (typeof PORTAL_WEEKLY_LEAGUE_TIER_IDS)[nu
 
 export const DEFAULT_PORTAL_WEEKLY_LEAGUE_TIER: PortalWeeklyLeagueTierId = "bronze";
 
+/** Bot 段位加压曲线：ease-in（低段缓、高段陡） */
+export const PORTAL_WEEKLY_LEAGUE_BOT_TIER_CURVE_GAMMA = 1.6;
+
+export type PortalWeeklyLeagueBotTierScaling = {
+  startPointsMin: number;
+  startPointsMax: number;
+  personaFloor: number;
+  personaCeiling: number;
+  playIntentMul: number;
+  /** solo 失败后「等效广告再战」救回概率；不接 ads 表 */
+  replayRecoveryBias: number;
+};
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+export function isPortalWeeklyLeagueTierId(id: string): id is PortalWeeklyLeagueTierId {
+  return (PORTAL_WEEKLY_LEAGUE_TIER_IDS as readonly string[]).includes(id);
+}
+
+/** pressure ∈ [0,1]：bronze=0 … diamond=1，γ>1 前缓后陡 */
+export function portalWeeklyLeagueBotTierPressure(
+  tierId: PortalWeeklyLeagueTierId | string
+): number {
+  const ids = PORTAL_WEEKLY_LEAGUE_TIER_IDS;
+  const i = isPortalWeeklyLeagueTierId(tierId) ? ids.indexOf(tierId) : 0;
+  const t = Math.max(0, i) / Math.max(1, ids.length - 1);
+  return Math.pow(t, PORTAL_WEEKLY_LEAGUE_BOT_TIER_CURVE_GAMMA);
+}
+
+export function resolvePortalWeeklyLeagueBotTierScaling(
+  tierId: PortalWeeklyLeagueTierId | string
+): PortalWeeklyLeagueBotTierScaling {
+  const p = portalWeeklyLeagueBotTierPressure(tierId);
+  return {
+    startPointsMin: Math.round(lerp(PORTAL_WEEKLY_LEAGUE_BOT_START_POINTS_MIN, 8, p)),
+    startPointsMax: Math.round(lerp(PORTAL_WEEKLY_LEAGUE_BOT_START_POINTS_MAX, 35, p)),
+    personaFloor: lerp(0.25, 0.48, p),
+    personaCeiling: 1,
+    playIntentMul: lerp(1, 1.22, p),
+    replayRecoveryBias: lerp(0, 0.18, p),
+  };
+}
+
 export type PortalWeeklyLeagueZone = "promote" | "safe" | "demote";
 
 export type PortalWeeklyLeagueZoneBands = {
@@ -32,16 +88,16 @@ export type PortalWeeklyLeagueZoneBands = {
   safeMaxRank: number;
 };
 
-/** 50 人组：1–10 升、11–40 保、41–50 降 */
+/** 30 人组：1–8 升、9–22 保、23–30 降 */
 export const PORTAL_WEEKLY_LEAGUE_ZONE_BANDS: Record<
   PortalWeeklyLeagueTierId,
   PortalWeeklyLeagueZoneBands
 > = {
-  bronze: { promoteMaxRank: 10, safeMaxRank: 40 },
-  silver: { promoteMaxRank: 10, safeMaxRank: 40 },
-  gold: { promoteMaxRank: 10, safeMaxRank: 40 },
-  platinum: { promoteMaxRank: 10, safeMaxRank: 40 },
-  diamond: { promoteMaxRank: 10, safeMaxRank: 40 },
+  bronze: { promoteMaxRank: 8, safeMaxRank: 22 },
+  silver: { promoteMaxRank: 8, safeMaxRank: 22 },
+  gold: { promoteMaxRank: 8, safeMaxRank: 22 },
+  platinum: { promoteMaxRank: 8, safeMaxRank: 22 },
+  diamond: { promoteMaxRank: 8, safeMaxRank: 22 },
 };
 
 export function portalWeeklyLeagueZoneForRank(
@@ -153,13 +209,13 @@ export function resolvePortalCohortDisplayCode(
 /** 按当前组内名次预估结算金币（与 PortalRulesContent 矩阵对齐） */
 const PROJECTED_COINS: Record<
   PortalWeeklyLeagueTierId,
-  { r1: number; r2_3: number; r4_10: number; r11_40: number }
+  { r1: number; r2_3: number; r4_8: number; r9_22: number }
 > = {
-  bronze: { r1: 200, r2_3: 120, r4_10: 60, r11_40: 20 },
-  silver: { r1: 300, r2_3: 180, r4_10: 90, r11_40: 30 },
-  gold: { r1: 500, r2_3: 300, r4_10: 150, r11_40: 50 },
-  platinum: { r1: 800, r2_3: 480, r4_10: 240, r11_40: 80 },
-  diamond: { r1: 1200, r2_3: 720, r4_10: 360, r11_40: 120 },
+  bronze: { r1: 200, r2_3: 120, r4_8: 60, r9_22: 20 },
+  silver: { r1: 300, r2_3: 180, r4_8: 90, r9_22: 30 },
+  gold: { r1: 500, r2_3: 300, r4_8: 150, r9_22: 50 },
+  platinum: { r1: 800, r2_3: 480, r4_8: 240, r9_22: 80 },
+  diamond: { r1: 1200, r2_3: 720, r4_8: 360, r9_22: 120 },
 };
 
 export function portalWeeklyLeagueProjectedCoins(
@@ -170,7 +226,7 @@ export function portalWeeklyLeagueProjectedCoins(
   const row = PROJECTED_COINS[tierId] ?? PROJECTED_COINS.bronze;
   if (rank === 1) return row.r1;
   if (rank <= 3) return row.r2_3;
-  if (rank <= 10) return row.r4_10;
-  if (rank <= 40) return row.r11_40;
+  if (rank <= 8) return row.r4_8;
+  if (rank <= 22) return row.r9_22;
   return null;
 }

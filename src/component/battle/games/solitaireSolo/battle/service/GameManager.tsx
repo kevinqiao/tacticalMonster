@@ -19,6 +19,41 @@ import {
 } from '../types/SoloTypes';
 import { createRolloutReplayState } from '../replay/solitaireRolloutReplay';
 import SoloRuleManager from './SoloRuleManager';
+import { createZones } from '@/convex/solitaireArena/convex/service/SoloGameEngine';
+
+const DIM_EPS = 0.75;
+
+function near(a: number, b: number, eps = DIM_EPS): boolean {
+    return Math.abs(a - b) <= eps;
+}
+
+function zoneNear(
+    a: { x: number; y: number; width: number; height: number },
+    b: { x: number; y: number; width: number; height: number }
+): boolean {
+    return near(a.x, b.x) && near(a.y, b.y) && near(a.width, b.width) && near(a.height, b.height);
+}
+
+/** 测量结果与上次实质相同则视为未变（忽略亚像素抖动） */
+function soloBoardDimensionNearlyEqual(a: SoloBoardDimension, b: SoloBoardDimension): boolean {
+    if (a.cardWidth !== b.cardWidth || a.cardHeight !== b.cardHeight || a.spacing !== b.spacing) {
+        return false;
+    }
+    if (!near(a.width, b.width) || !near(a.height, b.height)) return false;
+    if (!near(a.left, b.left) || !near(a.top, b.top)) return false;
+    for (let i = 0; i < 4; i++) {
+        if (!near(a.foundationColX[i]!, b.foundationColX[i]!)) return false;
+    }
+    for (let i = 0; i < 7; i++) {
+        if (!near(a.tableauColX[i]!, b.tableauColX[i]!)) return false;
+    }
+    return (
+        zoneNear(a.zones.foundations, b.zones.foundations) &&
+        zoneNear(a.zones.talon, b.zones.talon) &&
+        zoneNear(a.zones.waste, b.zones.waste) &&
+        zoneNear(a.zones.tableau, b.zones.tableau)
+    );
+}
 
 interface ISoloGameContext {
     gameState: SoloGameState | null;
@@ -119,8 +154,12 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     }, [gameState, interactionPhase]);
 
 
-    // 更新棋盘尺寸
+    // 更新棋盘尺寸（尺寸未变则跳过 setState，避免 CSS 变量 → ResizeObserver → 测量死循环）
     const updateBoardDimension = useCallback((dimension: SoloBoardDimension) => {
+        const prev = boardDimensionRef.current;
+        if (prev && soloBoardDimensionNearlyEqual(prev, dimension)) {
+            return;
+        }
         Object.values(timelinesRef.current).forEach(tl => {
             if (tl.timeline.isActive()) {
                 tl.timeline.invalidate();
@@ -165,7 +204,10 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         }
         const raw = res.game as SoloGameState & { actionStatus?: string };
         const { actionStatus: _drop, ...rest } = raw;
-        const game = rest as SoloGameState;
+        const game = {
+            ...rest,
+            zones: rest.zones?.length ? rest.zones : createZones(),
+        } as SoloGameState;
         const event = res.events?.find((e: { name?: string }) => e.name === "deal");
         const st = Number(game.status);
         const skipDealAnim =
@@ -201,7 +243,10 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         }
         const raw = res.game as SoloGameState & { actionStatus?: string };
         const { actionStatus: _drop, ...rest } = raw;
-        const game = rest as SoloGameState;
+        const game = {
+            ...rest,
+            zones: rest.zones?.length ? rest.zones : createZones(),
+        } as SoloGameState;
         const event = res.events?.find((e: { name?: string }) => e.name === "deal");
         const st = Number(game.status);
         const skipDealAnim =
@@ -270,10 +315,14 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
                 if (!s) return t;
                 return {
                     ...t,
-                    isRevealed: s.isRevealed,
-                    zone: s.zone,
-                    zoneId: s.zoneId,
-                    zoneIndex: s.zoneIndex,
+                    isRevealed: s.isRevealed ?? t.isRevealed,
+                    zone: s.zone ?? t.zone,
+                    zoneId: s.zoneId ?? t.zoneId,
+                    zoneIndex: s.zoneIndex ?? t.zoneIndex,
+                    ...(s.rank != null ? { rank: s.rank } : {}),
+                    ...(s.suit != null ? { suit: s.suit } : {}),
+                    ...(s.value != null ? { value: s.value } : {}),
+                    ...(s.isRed != null ? { isRed: s.isRed } : {}),
                 };
             });
             return {
@@ -281,6 +330,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
                 score: source.score,
                 moves: source.moves ?? 0,
                 status: source.status,
+                ...(source.zones?.length ? { zones: source.zones } : {}),
                 cards: nextCards,
             };
         });
@@ -315,7 +365,10 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
 
     useEffect(() => {
         if (replaySeedId && !gameId) return;
-        loadGame();
+        setGameState(null);
+        setDealEvent(null);
+        setInteractionPhase(GameInteractionPhase.idle);
+        void loadGame();
     }, [loadGame, replaySeedId, gameId]);
 
     /** 发牌/走子动画异常未回调时，避免长期锁在 animating（表现为「有遮罩、不能操作」） */

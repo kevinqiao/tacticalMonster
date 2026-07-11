@@ -48,10 +48,8 @@ describe("portalShopCatalog giftcard SKUs", () => {
     expect(row.requiresVerifiedContact).toBe(true);
   });
 
-  it("keeps virtual replay SKUs unchanged", () => {
-    const replay = PORTAL_SHOP_SKU_CATALOG.find((s) => s.skuId === "portal_shop_replay_3")!;
-    const row = mapPortalShopSkuRow(replay);
-    expect(row.skuKind).toBe("virtual");
-    expect(row.grantReplayTokenCount).toBe(3);
+  it("has no virtual replay SKUs in catalog", () => {
+    const virtual = PORTAL_SHOP_SKU_CATALOG.filter((s) => s.skuKind === "virtual");
+    expect(virtual).toHaveLength(0);
   });
 });

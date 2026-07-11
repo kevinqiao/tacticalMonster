@@ -19,6 +19,7 @@ import { useMatch3GameManager } from './service/GameManager';
 import { useActHandler } from './service/handler/useActHandler';
 import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
 import { CasualPostSettleSummaryOverlay } from '../../shared/CasualPostSettleSummaryOverlay';
+import { resolveCasualPostSettleReplayPresentation } from '../../shared/casualGameScoreReportUI';
 import Match3WatchOverlay from './replay/Match3WatchOverlay';
 import { ManualSettleConfirmOverlay, MANUAL_SETTLE_DEFAULT_MESSAGE_MATCH3 } from '../../shared/ManualSettleConfirmOverlay';
 
@@ -117,7 +118,9 @@ const Match3Player: React.FC = () => {
     postCasualWaitingForPeers,
     postCasualCanReplay,
     postCasualReplayOffered,
+    postCasualReplayMode,
     postCasualReplayWindowEndsAt,
+    postCasualAdReplayDailyRemaining,
     casualReplayBusy,
     replayCasualRun,
     triathlonSessionActive,
@@ -126,7 +129,6 @@ const Match3Player: React.FC = () => {
     watchTargetLabel,
     openWatch,
     closeWatch,
-    openSelfReplay,
     targetScore,
   } = useMatch3GameManager();
   const { trySwap } = useActHandler({
@@ -142,6 +144,25 @@ const Match3Player: React.FC = () => {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  const postSettleReplay = useMemo(
+    () =>
+      resolveCasualPostSettleReplayPresentation({
+        replayOffered: postCasualReplayOffered,
+        canReplay: postCasualCanReplay,
+        replayMode: postCasualReplayMode,
+        adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+        replayWindowEndsAt: postCasualReplayWindowEndsAt,
+        customLabel: triathlonSessionActive ? '三局再战' : undefined,
+      }),
+    [
+      postCasualReplayOffered,
+      postCasualCanReplay,
+      postCasualReplayMode,
+      postCasualAdReplayDailyRemaining,
+      postCasualReplayWindowEndsAt,
+      triathlonSessionActive,
+    ]
+  );
   const cellStepPx = boardMetrics.cellStepPx;
 
   useLayoutEffect(() => {
@@ -481,8 +502,6 @@ const Match3Player: React.FC = () => {
         open={postCasualScoreReportOpen && watchTarget == null}
         report={postCasualScoreReport}
         onConfirm={dismissPostCasualScoreReport}
-        secondaryLabel="复盘本局"
-        onSecondary={openSelfReplay}
       />
       <CasualPostSettleSummaryOverlay
         open={postCasualSummaryOpen && watchTarget == null}
@@ -490,12 +509,12 @@ const Match3Player: React.FC = () => {
         summary={postCasualTableSummary}
         waitingForPeers={postCasualWaitingForPeers}
         onDismiss={dismissPostCasualSummary}
-        replayAvailable={postCasualReplayOffered}
-        replayDisabled={!postCasualCanReplay}
+        replayAvailable={postSettleReplay.showReplay}
+        replayMode={postCasualReplayMode}
         replayWindowEndsAt={postCasualReplayWindowEndsAt}
         replayBusy={casualReplayBusy}
-        onReplay={() => void replayCasualRun()}
-        replayLabel={triathlonSessionActive ? '三局再战' : '再战'}
+        onReplay={postSettleReplay.showReplay ? () => void replayCasualRun() : undefined}
+        replayLabel={postSettleReplay.replayLabel}
         triathlonSessionReplay={triathlonSessionActive}
       />
       <Match3WatchOverlay

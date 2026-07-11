@@ -74,20 +74,49 @@ function flattenRollouts(poolVersion, seedId, rolloutSummaries) {
   }));
 }
 
+function stripCatalogMetrics(metrics) {
+  const q = metrics.scoreQuantiles;
+  const out = {
+    rolloutCount: metrics.rolloutCount,
+    scoreMin: metrics.scoreMin,
+    scoreP50: metrics.scoreP50,
+    scoreP90: metrics.scoreP90,
+    scoreMax: metrics.scoreMax,
+    scoreSpread: metrics.scoreSpread,
+    scoreQuantiles: {
+      p10: q.p10,
+      p25: q.p25,
+      p30: q.p30,
+      p33: q.p33,
+      p50: q.p50,
+      p66: q.p66,
+      p70: q.p70,
+      p75: q.p75,
+      p90: q.p90,
+    },
+  };
+  if (metrics.scoreHistogram) out.scoreHistogram = metrics.scoreHistogram;
+  return out;
+}
+
 async function syncSeedToCatalog(poolVersion, entry, rolloutSummaries) {
   const seedId = entry.seedId;
+  const entryDoc = {
+    seedId,
+    poolVersion,
+    tier: entry.tier,
+    difficultyScore: entry.difficultyScore,
+    metrics: stripCatalogMetrics(entry.metrics),
+  };
+  if (entry.solvable != null) {
+    entryDoc.solvable = entry.solvable;
+    entryDoc.solvableSource = entry.solvableSource;
+    entryDoc.solvableReason = entry.solvableReason ?? null;
+  }
   await runConvexCatalog(`${ADMIN}:importSeedPoolAppendBatch`, {
     gameType: CATALOG_GAME_TYPE,
     poolVersion,
-    entries: [
-      {
-        seedId,
-        poolVersion,
-        tier: entry.tier,
-        difficultyScore: entry.difficultyScore,
-        metrics: entry.metrics,
-      },
-    ],
+    entries: [entryDoc],
     rollouts: flattenRollouts(poolVersion, seedId, rolloutSummaries),
     indexOnly: false,
   });
@@ -123,10 +152,17 @@ async function main() {
     "src/convex/solitaireArena/convex/service/seedPool/solitaireSeedDifficulty.ts"
   );
 
-  const { toRolloutSummaries } = await import(pathToFileURL(runnerPath).href);
+  const { toRolloutSummaries, DEFAULT_GENERATE_SOLVE_OPTS } = await import(
+    pathToFileURL(runnerPath).href
+  );
   const { simulateSeedRollouts } = await import(pathToFileURL(simPath).href);
   const { verifyAllRollouts } = await import(pathToFileURL(verifyPath).href);
   const { assignTiers, buildTierIndex } = await import(pathToFileURL(diffPath).href);
+  const solverPath = path.join(
+    repoRoot,
+    "src/convex/solitaireArena/convex/service/seedPool/solitaireSolver.ts"
+  );
+  const { resolveSeedSolvability } = await import(pathToFileURL(solverPath).href);
   const modules = { simulateSeedRollouts, verifyAllRollouts, toRolloutSummaries };
 
   const targetIds = opts.all
@@ -149,15 +185,30 @@ async function main() {
       failed.push({ seedId, reason: result.reason });
       continue;
     }
-    updatedBySeed.set(seedId, result);
+    const solvability = resolveSeedSolvability({
+      seedId,
+      hasAnyCompleted: result.metrics.hasAnyCompleted,
+      rolloutSummaries: result.rolloutSummaries,
+      solveOpts: DEFAULT_GENERATE_SOLVE_OPTS,
+    });
+    const withSolve = {
+      ...result,
+      solvable: solvability.solvable,
+      solvableSource: solvability.solvableSource,
+      solvableReason: solvability.solvableReason,
+    };
+    updatedBySeed.set(seedId, withSolve);
     if (opts.sync) {
       const patchedEntry = {
         ...entry,
-        difficultyScore: result.difficultyScore,
-        metrics: result.metrics,
-        rolloutSummaries: result.rolloutSummaries,
+        difficultyScore: withSolve.difficultyScore,
+        metrics: withSolve.metrics,
+        rolloutSummaries: withSolve.rolloutSummaries,
+        solvable: withSolve.solvable,
+        solvableSource: withSolve.solvableSource,
+        solvableReason: withSolve.solvableReason,
       };
-      const syncRes = await syncSeedToCatalog(poolVersion, patchedEntry, result.rolloutSummaries);
+      const syncRes = await syncSeedToCatalog(poolVersion, patchedEntry, withSolve.rolloutSummaries);
       console.log(`  synced to catalog:`, syncRes);
     }
   }
@@ -170,6 +221,9 @@ async function main() {
       difficultyScore: u.difficultyScore,
       metrics: u.metrics,
       rolloutSummaries: u.rolloutSummaries,
+      solvable: u.solvable,
+      solvableSource: u.solvableSource,
+      solvableReason: u.solvableReason,
     };
   });
 
@@ -180,6 +234,9 @@ async function main() {
       difficultyScore: e.difficultyScore,
       metrics: e.metrics,
       rolloutSummaries: e.rolloutSummaries ?? [],
+      solvable: e.solvable,
+      solvableSource: e.solvableSource,
+      solvableReason: e.solvableReason,
     })),
     { easy: 0.3, medium: 0.4 }
   );

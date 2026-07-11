@@ -1,52 +1,30 @@
-/** 单局全屏舞台（接龙等）：占满 modal，无 1:1.3 居中框 */
-.casual-game-stage-full {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  /* 暖色深木调，与卡通主题一致（游戏容器覆盖其上，仅边缘可能透出） */
-  background: linear-gradient(180deg, #4a2f12 0%, #33200a 55%, #241505 100%);
-  box-sizing: border-box;
-}
-
-.casual-game-stage-full .casual-triathlon-stage__badge {
-  flex-shrink: 0;
-  align-self: center;
-}
-
-.casual-game-stage-full .solo-game-container,
-.casual-game-stage-full .blockblast-game-container {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  height: 100%;
-  position: relative;
-  box-sizing: border-box;
-}
-
-.casual-game-stage-full .solo-player-container,
-.casual-game-stage-full .blockblast-player-container {
-  width: 100%;
-  height: 100%;
+/* 胜利扇子动画：临时取消裁剪，与 Lab 一致 */
+.casual-triathlon-stage:has([data-solo-victory="1"]),
+.casual-triathlon-stage__game:has([data-solo-victory="1"]) {
+  overflow: visible !important;
 }
 
 /**
- * 三场合战 / 混合战：统一 1:1.3（宽:高）战斗区，在可用空间内最大化并居中。
+ * 铺满最外层 modal-container；比例由外层 width/height 规则决定（非内层再套 10:13）。
  */
 .casual-triathlon-stage {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   background: linear-gradient(180deg, #4a2f12 0%, #33200a 55%, #241505 100%);
   overflow: hidden;
   box-sizing: border-box;
+  border-radius: clamp(10px, 2vw, 16px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.55),
+    0 0 0 4px #6f4318;
 }
 
 .casual-triathlon-stage__badge {
   flex-shrink: 0;
+  align-self: center;
   margin: clamp(6px, 1.5vw, 10px) 0 clamp(4px, 1vw, 8px);
   padding: 6px 14px;
   border-radius: 999px;
@@ -59,59 +37,17 @@
   z-index: 2;
 }
 
-.casual-triathlon-stage__viewport {
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-  display: grid;
-  place-items: center;
-  padding: clamp(4px, 1.2vw, 10px);
-  box-sizing: border-box;
-  container-type: size;
-  overflow: hidden;
-}
-
-.casual-triathlon-stage__frame {
-  /*
-    宽:高 = 1:1.3（10:13）。双轴 contain：宽、高都不超出 viewport，在此前提下尽量大。
-  */
-  aspect-ratio: 10 / 13;
-  min-width: 0;
-  min-height: 0;
-  width: min(100cqw, calc(100cqh * 10 / 13));
-  height: min(100cqh, calc(100cqw * 13 / 10));
-  max-width: 100%;
-  max-height: 100%;
-  position: relative;
-  overflow: hidden;
-  border-radius: clamp(10px, 2vw, 16px);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.55),
-    0 0 0 4px #6f4318;
-  background: #33200a;
-  box-sizing: border-box;
-}
-
-/* cqw/cqh 不可用时的兜底：仍保证不超出父级 */
-@supports not (width: 1cqw) {
-  .casual-triathlon-stage__frame {
-    width: 100%;
-    height: auto;
-    max-width: 100%;
-    max-height: 100%;
-  }
-}
-
 .casual-triathlon-stage__game {
-  position: absolute;
-  inset: 0;
+  flex: 1;
   min-width: 0;
   min-height: 0;
+  position: relative;
+  width: 100%;
   overflow: hidden;
   box-sizing: border-box;
 }
 
-/* 子游戏根容器填满舞台 */
+/* 子游戏根容器填满舞台（与弹窗同大） */
 .casual-triathlon-stage__game .blockblast-game-container,
 .casual-triathlon-stage__game .solo-game-container,
 .casual-triathlon-stage__game .match3-game-root,
@@ -121,6 +57,12 @@
   height: 100%;
   max-height: 100%;
   box-sizing: border-box;
+}
+
+.casual-triathlon-stage__game .solo-player-container,
+.casual-triathlon-stage__game .blockblast-player-container {
+  width: 100%;
+  height: 100%;
 }
 
 .casual-triathlon-stage__game .blockblast-game-container {
@@ -145,14 +87,4 @@
   padding: 24px;
   color: #fff;
   text-align: center;
-}
-
-/** 接龙 / Block Blast：与 Portal 主页同宽，满高自适应 */
-.casual-game-stage-full:has(.solo-game-container),
-.casual-game-stage-full:has(.blockblast-game-container) {
-  max-width: 960px;
-  width: 100%;
-  margin-inline: auto;
-  left: 0;
-  right: 0;
 }

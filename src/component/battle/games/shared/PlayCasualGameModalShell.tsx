@@ -6,17 +6,14 @@ import './casualTriathlonGameStage.css';
 
 type Props = ModalProp & {
   children: React.ReactNode;
-  /** triathlon = 1:1.3 居中框；full = 占满弹层（接龙等宽牌桌） */
-  layout?: 'triathlon' | 'full';
 };
 
-/** 休闲单局弹层：默认与合战相同的 1:1.3 居中战斗视口 */
+/** 休闲单局弹层：铺满外层 modal（外层按屏宽高比相对 10/13 定尺寸） */
 export const PlayCasualGameModalShell: React.FC<Props> = ({
   visible,
   data,
   close,
   children,
-  layout = 'triathlon',
 }) => {
   if (!visible) return null;
 
@@ -34,10 +31,6 @@ export const PlayCasualGameModalShell: React.FC<Props> = ({
         </button>
       </div>
     );
-  }
-
-  if (layout === 'full') {
-    return <div className="casual-game-stage-full">{children}</div>;
   }
 
   return <CasualTriathlonGameStage>{children}</CasualTriathlonGameStage>;

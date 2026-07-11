@@ -15,6 +15,8 @@ export function layoutSoloCardFromModel(
     const height = boardDimension.cardHeight;
     const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === card.zoneId);
     const coord = getCardCoord(card, zoneCards, boardDimensionRef);
+    const x = Math.round(coord.x);
+    const y = Math.round(coord.y);
     const rotateY = card.isRevealed && card.zone !== 'talon' ? 180 : 0;
     popCard(card);
     const stackZ = soloCardZIndex(card, zoneCards);
@@ -23,11 +25,20 @@ export function layoutSoloCardFromModel(
     const samePos =
         Number.isFinite(cx) &&
         Number.isFinite(cy) &&
-        Math.hypot(cx - coord.x, cy - coord.y) < 1.2;
+        Math.hypot(cx - x, cy - y) < 1.2;
     if (samePos) {
-        gsap.set(card.ele, { autoAlpha: 1, width, height, rotateY, zIndex: stackZ });
+        gsap.set(card.ele, { autoAlpha: 1, width, height, rotateY, zIndex: stackZ, force3D: false });
     } else {
-        gsap.set(card.ele, { autoAlpha: 1, width, height, x: coord.x, y: coord.y, rotateY, zIndex: stackZ });
+        gsap.set(card.ele, {
+            autoAlpha: 1,
+            width,
+            height,
+            x,
+            y,
+            rotateY,
+            zIndex: stackZ,
+            force3D: false,
+        });
     }
 }
 

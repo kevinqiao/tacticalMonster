@@ -20,6 +20,8 @@ import {
   assertJoinEntryEligible,
 } from "./casualTournamentJoinCore";
 import { findAnyGlobalOpenCasualMatch } from "./casualOpenTableGuard";
+import { assertCampaignDailyPlayLimit } from "./campaignDailyPlayLimit";
+import { assertPortalDailyPlayLimit } from "./portalDailyPlayLimit";
 import {
   recoverStaleClaimingQueueRow,
   reconcileCasualMatchQueueForJoin,
@@ -144,6 +146,27 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       return { ok: false as const, error: preview.error };
     }
 
+    if (campaignId && maxPlaysPerDay != null && maxPlaysPerDay >= 1) {
+      const daily = await assertCampaignDailyPlayLimit(ctx, {
+        uid,
+        campaignId,
+        maxPlaysPerDay,
+        ...(dayTimezone ? { dayTimezone } : {}),
+      });
+      if (!daily.ok) {
+        return { ok: false as const, error: daily.error };
+      }
+    } else if (!campaignId) {
+      const daily = await assertPortalDailyPlayLimit(ctx, {
+        uid,
+        templateId: tournamentId,
+        ...(dayTimezone ? { dayTimezone } : {}),
+      });
+      if (!daily.ok) {
+        return { ok: false as const, error: daily.error };
+      }
+    }
+
     const profile = await resolvePlayerBotStrategyContext(ctx, {
       uid,
       templateId: tournamentId,
@@ -205,6 +228,12 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         CASUAL_SOLO_ASYNC_OPEN_DELAY_MS,
         internal.service.tournament.join.casualOpenTableActions.openSoloAsyncTableFromQueue,
         { queueRowId }
+      );
+      /** 双保险：processQueue 也会 claim eff=1，避免 solo open 调度丢失后一直「匹配中」 */
+      await ctx.scheduler.runAfter(
+        CASUAL_SOLO_ASYNC_OPEN_DELAY_MS + 500,
+        internal.service.tournament.join.casualOpenTableActions.processCasualMatchQueueForTemplate,
+        { templateId: tournamentId }
       );
     } else {
       if (expiresAt != null) {

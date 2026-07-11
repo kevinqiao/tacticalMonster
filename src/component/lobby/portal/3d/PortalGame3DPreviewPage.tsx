@@ -25,7 +25,8 @@ export default function PortalGame3DPreviewPage({
           division: "III",
           cohortNo: "A3K9M2X7",
           rank: 12,
-          cohortSize: 50,
+          cohortSize: 30,
+          cohortMemberCount: 22,
           points: 245,
           projectedCoins: 80,
         }}

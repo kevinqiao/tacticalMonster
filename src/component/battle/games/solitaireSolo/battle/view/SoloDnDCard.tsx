@@ -2,9 +2,8 @@
  * 单人纸牌游戏可拖拽卡牌组件（Pointer Events）
  */
 import React, { useCallback, useMemo } from 'react';
-import { useSoloGameManager } from '../service/GameManager';
 import { useSoloDnDManager } from '../service/SoloDnDProvider';
-import { ActMode, SoloCard } from '../types/SoloTypes';
+import { SoloCard } from '../types/SoloTypes';
 import './card.css';
 
 import CardSVG from './CardSVG';
@@ -23,7 +22,6 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     onCardDomChange,
 }) => {
     const { onPointerDragStart } = useSoloDnDManager();
-    const { ruleManager } = useSoloGameManager();
 
     const cardStyle = useMemo(() => {
         const baseStyle: React.CSSProperties = {
@@ -37,19 +35,6 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         e.stopPropagation();
         onPointerDragStart(card, e);
     }, [card, onPointerDragStart]);
-
-    const handlePointerEnter = useCallback((e: React.PointerEvent) => {
-        e.stopPropagation();
-        const actModes = ruleManager?.getActModes(card) || [];
-        if (actModes.includes(ActMode.DRAG)) {
-            document.body.style.cursor = 'grab';
-        }
-    }, [ruleManager, card]);
-
-    const handlePointerLeave = useCallback((e: React.PointerEvent) => {
-        e.stopPropagation();
-        document.body.style.cursor = 'default';
-    }, []);
 
     const handleClick = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
@@ -79,8 +64,6 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             className={`card ${className}`.trim()}
             style={cardStyle}
             onPointerDown={handlePointerDown}
-            onPointerEnter={handlePointerEnter}
-            onPointerLeave={handlePointerLeave}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
         >

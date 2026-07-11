@@ -1,14 +1,17 @@
 import { v } from "convex/values";
 
 import type { Id } from "../../../_generated/dataModel";
-import { mutation } from "../../../_generated/server";
 import { authedMutation } from "../../../custom/session";
 import { getPortalTournamentDefinition } from "../../../data/portalTournamentConfigs";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "../join/casualTournamentJoinCore";
+import { playerGameId } from "../shared/casualPlayerGameTypes";
 import { isHumanSubmittedStatus } from "../shared/casualPlayerMatchStatus";
-import { tryFinalizeCasualAsyncMatch } from "../submit/casualRunIngestCore";
+import {
+  runConfirmCasualRunWithoutReplay,
+  tryFinalizeCasualAsyncMatch,
+} from "../submit/casualRunIngestCore";
 
-/** 历史页兜底：对已交分但未完成 run 的异步桌尝试 finalize / 补 schedule */
+/** 历史页兜底：对已交分但未完成 run 的异步桌尝试 finalize；单人延迟结算走 confirm */
 export const reconcilePendingCasualHistorySettlements = authedMutation({
   args: {
     gameType: v.optional(v.string()),
@@ -29,13 +32,14 @@ export const reconcilePendingCasualHistorySettlements = authedMutation({
     let finalized = 0;
     let scheduled = 0;
     let promotedOnly = 0;
+    let soloConfirmed = 0;
 
     for (const pt of pts) {
       if (scanned >= n) break;
       if (pt.status === RUN_PLAYER_TOURNAMENT_COMPLETED) continue;
 
       const def = getPortalTournamentDefinition(pt.templateId);
-      if (!def || def.maxPlayers <= 1) continue;
+      if (!def) continue;
       if (gameType && def.gameType !== gameType) continue;
 
       const runIdStr = String(pt.tournamentId);
@@ -57,12 +61,33 @@ export const reconcilePendingCasualHistorySettlements = authedMutation({
       if (!matchDoc || matchDoc.completed) continue;
 
       scanned += 1;
+
+      if (def.maxPlayers <= 1) {
+        const matchGameId = playerGameId(pm.matchId, uid, 0);
+        const conf = await runConfirmCasualRunWithoutReplay(ctx, {
+          uid,
+          matchGameId,
+        });
+        if (conf.ok && "finalized" in conf && conf.finalized) {
+          soloConfirmed += 1;
+          finalized += 1;
+        }
+        continue;
+      }
+
       const r = await tryFinalizeCasualAsyncMatch(ctx, pm.matchId, now);
       if (r.finalized) finalized += 1;
       else if (r.scheduled) scheduled += 1;
       else if (r.promotedOnly) promotedOnly += 1;
     }
 
-    return { ok: true as const, scanned, finalized, scheduled, promotedOnly };
+    return {
+      ok: true as const,
+      scanned,
+      finalized,
+      scheduled,
+      promotedOnly,
+      soloConfirmed,
+    };
   },
 });
