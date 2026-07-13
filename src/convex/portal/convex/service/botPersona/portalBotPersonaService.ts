@@ -1,4 +1,5 @@
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
+import { generateDisplayName } from "../../../../shared/displayName";
 import {
   PORTAL_BOT_PERSONA_DEFAULTS,
   PORTAL_BOT_PERSONA_POOL_SIZE,
@@ -56,14 +57,11 @@ export async function loadBotPersonaDisplayMap(
   const map = new Map<string, { displayName: string; avatarUrl?: string }>();
   for (const id of unique) {
     const row = await getBotPersonaById(ctx, id);
-    if (row) {
-      map.set(id, {
-        displayName: row.displayName,
-        ...(row.avatarUrl ? { avatarUrl: row.avatarUrl } : {}),
-      });
-    } else {
-      map.set(id, { displayName: id });
-    }
+    map.set(id, {
+      // Prefer unified generator so DB seed names stay in sync with Adj+Noun scheme
+      displayName: generateDisplayName(id),
+      ...(row?.avatarUrl ? { avatarUrl: row.avatarUrl } : {}),
+    });
   }
   return map;
 }

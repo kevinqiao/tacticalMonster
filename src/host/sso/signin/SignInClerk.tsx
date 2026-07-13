@@ -1,4 +1,4 @@
-import { SignIn, useAuth } from "@clerk/clerk-react";
+import { SignIn, useAuth, useClerk } from "@clerk/clerk-react";
 import React, { useCallback, useEffect, useRef } from "react";
 
 import type { User } from "host/service/UserManager";
@@ -18,12 +18,13 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
   void cid;
 
   const { partnerPid, partnerResolveReady, campaignMerchantSlug } = usePartnerManager();
-  const { isSignedIn, getToken } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { signOut } = useClerk();
   const exchangedRef = useRef(false);
   const retryTimerRef = useRef<number | null>(null);
   const returnUrl = clerkReturnUrl();
 
-  const { exchangeSession, busy, error } = useClerkSignIn({
+  const { exchangeSession, busy, error, clearError } = useClerkSignIn({
     partnerId: partnerPid,
     onSuccess: onComplete,
   });
@@ -37,7 +38,11 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
     exchangedRef.current = true;
     const ok = await exchangeSession(token);
     if (!ok) {
-      exchangedRef.current = false;
+      // Stop the 800ms hammer on hard failures; user can retry via sign-out.
+      if (retryTimerRef.current != null) {
+        window.clearInterval(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
       return;
     }
 
@@ -64,14 +69,31 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
     };
   }, [isSignedIn, partnerResolveReady, tryExchange]);
 
+  // Popup cannot rely on window.closed once the IdP sets COOP:same-origin
+  // (parent same-origin-allow-popups is not enough). Use popup only in iframes
+  // (CrazyGames); first-party Netlify uses redirect.
+  const prefersOauthPopup =
+    typeof window !== "undefined" &&
+    (() => {
+      try {
+        return window.self !== window.top;
+      } catch {
+        return true;
+      }
+    })();
+
   const clerkSignInProps = {
     routing: "virtual" as const,
-    oauthFlow: "popup" as const,
+    oauthFlow: (prefersOauthPopup ? "popup" : "redirect") as "popup" | "redirect",
     withSignUp: false,
     transferable: false,
     redirectUrl: returnUrl,
     signInUrl: returnUrl,
   };
+
+  // Single-session Clerk apps must not mount <SignIn /> while already signed in
+  // (dev warning + redirect to afterSignInUrl). Show exchange status instead.
+  const showClerkForm = isLoaded && !isSignedIn;
 
   return (
     <div className={portalTheme ? "sso-auth-form sso-auth-form--portal" : "sso-auth-form"}>
@@ -80,11 +102,33 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
         {campaignMerchantSlug ? ` · 商户 ${campaignMerchantSlug}` : ""}。
       </p>
 
-      <SignIn {...clerkSignInProps} />
+      {showClerkForm ? <SignIn {...clerkSignInProps} /> : null}
 
-      {busy ? <p style={{ margin: 0, fontSize: 13, color: "#666" }}>正在换取平台会话…</p> : null}
+      {!isLoaded || (isSignedIn && !error) ? (
+        <p style={{ margin: 0, fontSize: 13, color: "#666", textAlign: "center" }}>
+          {!isLoaded
+            ? "正在加载登录状态…"
+            : busy || !partnerResolveReady
+              ? "已登录 Clerk，正在换取平台会话…"
+              : "已登录 Clerk…"}
+        </p>
+      ) : null}
       {error ? (
         <p style={{ margin: 0, fontSize: 13, color: "#b91c1c", textAlign: "center" }}>{error}</p>
+      ) : null}
+      {isSignedIn && error ? (
+        <button
+          type="button"
+          className={portalTheme ? "portal-btn" : undefined}
+          style={{ marginTop: 8 }}
+          onClick={() => {
+            exchangedRef.current = false;
+            clearError();
+            void signOut({ redirectUrl: returnUrl });
+          }}
+        >
+          退出 Clerk 并重试
+        </button>
       ) : null}
     </div>
   );

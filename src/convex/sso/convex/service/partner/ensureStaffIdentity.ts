@@ -59,7 +59,8 @@ async function upsertWebUser(
   ctx: MutationCtx,
   accountId: string,
   contactEmail: string | undefined,
-  passwordHash: string
+  passwordHash: string,
+  name?: string
 ) {
   const existingByAccount = await ctx.db
     .query("user")
@@ -82,11 +83,13 @@ async function upsertWebUser(
 
   const now = Date.now();
   const existing = existingByAccount;
+  const trimmedName = name?.trim();
 
   if (existing) {
     await ctx.db.patch(existing._id, {
       accountId,
       ...(contactEmail ? { email: contactEmail } : {}),
+      ...(trimmedName ? { name: trimmedName } : {}),
       passwordHash,
       updatedAt: now,
     });
@@ -96,6 +99,7 @@ async function upsertWebUser(
   await ctx.db.insert("user", {
     accountId,
     ...(contactEmail ? { email: contactEmail } : {}),
+    ...(trimmedName ? { name: trimmedName } : {}),
     passwordHash,
     createdAt: now,
     updatedAt: now,
@@ -107,13 +111,15 @@ async function ensureWebAuthIdentity(
   uid: string,
   accountId: string,
   contactEmail: string | undefined,
-  partnerId: number
+  partnerId: number,
+  name?: string
 ) {
   const existing =
     (await findWebIdentityByPartnerSubject(ctx, partnerId, accountId)) ??
     (await findIdentityByUid(ctx, uid));
 
   const now = Date.now();
+  const trimmedName = name?.trim();
 
   if (existing) {
     await ctx.db.patch(existing._id, {
@@ -121,6 +127,7 @@ async function ensureWebAuthIdentity(
       provider: "web",
       partnerId,
       ...(contactEmail ? { email: contactEmail } : {}),
+      ...(trimmedName ? { name: trimmedName } : {}),
       updatedAt: now,
     });
     for (const dup of await listIdentitiesByUid(ctx, existing.uid)) {
@@ -137,6 +144,7 @@ async function ensureWebAuthIdentity(
     subject: accountId,
     partnerId,
     ...(contactEmail ? { email: contactEmail } : {}),
+    ...(trimmedName ? { name: trimmedName } : {}),
     cid: 0,
     lastUpdate: now,
     expire: now + REFRESH_TOKEN_EXPIRE_MS,
@@ -152,7 +160,8 @@ export async function provisionWebStaffAccount(
   loginAccountIdRaw: string,
   passwordHash: string,
   platformUid: string,
-  partnerId: number
+  partnerId: number,
+  name?: string
 ): Promise<string> {
   if (!passwordHash) {
     throw new Error("password_required");
@@ -164,6 +173,6 @@ export async function provisionWebStaffAccount(
     platformUid,
     partnerId
   );
-  await upsertWebUser(ctx, accountId, contactEmail, passwordHash);
-  return await ensureWebAuthIdentity(ctx, uid, accountId, contactEmail, partnerId);
+  await upsertWebUser(ctx, accountId, contactEmail, passwordHash, name);
+  return await ensureWebAuthIdentity(ctx, uid, accountId, contactEmail, partnerId, name);
 }

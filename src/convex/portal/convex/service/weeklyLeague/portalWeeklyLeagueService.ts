@@ -26,6 +26,11 @@ import {
 import { resolvePortalWeeklyLeagueBotPoints } from "./portalWeeklyLeagueBotPoints";
 import { isPortalWeeklyLeagueBotRevealed } from "./portalWeeklyLeagueBotReveal";
 import { ensureWeeklyLeagueProfile, readWeeklyLeagueTier } from "./casualWeeklyLeagueProfile";
+import {
+  ensureUniqueDisplayNames,
+  resolvePlayerDisplayName,
+} from "../../../../shared/displayName";
+import { loadDisplayNameMap } from "../player/portalDisplayNameLookup";
 
 export async function getWeeklyLeagueMember(
   ctx: QueryCtx | MutationCtx,
@@ -339,6 +344,17 @@ export async function listPortalWeeklyLeagueCohortBoard(
     (a, b) => b.points - a.points || a.member.uid.localeCompare(b.member.uid)
   );
   const slice = ranked.slice(0, limit);
+  const customNames = await loadDisplayNameMap(
+    ctx,
+    slice.filter(({ member: m }) => !m.isBot).map(({ member: m }) => m.uid)
+  );
+  const names = ensureUniqueDisplayNames(
+    slice.map(({ member: m }) => ({
+      key: m.uid,
+      seed: m.uid,
+      preferredName: customNames.get(m.uid) ?? null,
+    }))
+  );
 
   return {
     cohortNo: resolvePortalCohortDisplayCode(cohort),
@@ -347,9 +363,10 @@ export async function listPortalWeeklyLeagueCohortBoard(
       uid: m.uid,
       points,
       matchCount: 0,
-      displayName: m.isBot
-        ? `Bot ${m.uid.split("_").pop() ?? i + 1}`
-        : m.uid.slice(0, 12),
+      displayName: names[i] ?? resolvePlayerDisplayName({
+        uid: m.uid,
+        customName: customNames.get(m.uid),
+      }),
       isBot: m.isBot,
     })),
   };

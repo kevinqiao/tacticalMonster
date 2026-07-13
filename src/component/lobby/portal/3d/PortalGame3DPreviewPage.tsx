@@ -40,6 +40,8 @@ export default function PortalGame3DPreviewPage({
         onOpenShop={() => {}}
         onSignIn={() => {}}
         onSignOut={() => {}}
+        onOpenAccount={() => {}}
+        onOpenBackpack={() => {}}
         showAuthButton
       />
     </PortalGame3DShadowHost>

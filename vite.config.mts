@@ -70,6 +70,15 @@ export default defineConfig({
     open: true,
     sourcemapIgnoreList: false,
     hmr: process.env.VITE_HMR === '1' ? { overlay: true } : false,
+    headers: {
+      // Match Netlify: allow Clerk OAuth popup to keep opener relationship.
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+    },
+  },
+  preview: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+    },
   },
   esbuild: {
     jsx: 'automatic',
@@ -83,17 +92,30 @@ export default defineConfig({
     minify: 'esbuild',
     rollupOptions: {
       external: (id) => {
+        // Node-only packages — keep out of the browser bundle.
         if (id.includes('jsonwebtoken') || id.includes('buffer-equal-constant-time')) {
           return true;
         }
-        // Frontend imports shared score logic from convex service path.
-        // Never externalize it, otherwise Rollup may leave runtime imports to ../src/... in dist assets.
+        // Never externalize `@/` (or other src aliases). Doing so leaves bare
+        // `@/convex/.../service/...` specifiers in dist that browsers cannot resolve.
         // Guarded by scripts/verify-dist-runtime-imports.mjs.
-        if (/sharedScoreService(\.[a-z]+)?$/i.test(id) || id.includes('sharedScoreService')) {
+        const normalized = id.replace(/\\/g, '/');
+        if (
+          id.startsWith('@/') ||
+          id.startsWith('component/') ||
+          id.startsWith('host/') ||
+          id.startsWith('service/') ||
+          id.startsWith('util/') ||
+          id.startsWith('model/') ||
+          id.startsWith('animate/') ||
+          id.startsWith('components/') ||
+          normalized.includes('/src/')
+        ) {
           return false;
         }
-        if (id.includes('/convex/') && (id.includes('/service/') || id.includes('/dao/'))) {
-          return true;
+        // Bare `convex/<project>/...` is aliased into src; must be bundled when imported from UI.
+        if (/^convex\//.test(id) && !/^convex\/(server|react|values|browser)$/.test(id)) {
+          return false;
         }
         return false;
       },

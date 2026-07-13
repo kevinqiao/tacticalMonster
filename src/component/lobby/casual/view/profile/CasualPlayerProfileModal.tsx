@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useCasualPlatform } from "../../service/useCasualPlatformManager";
 import { casualLadderTierLabel } from "../play/casualSeasonLadderLabels";
 import { getAchievementTemplate } from "@/convex/casualPlatform/convex/data/casualAchievementTemplates";
+import { resolvePlayerDisplayName } from "@/convex/shared/displayName";
 
 import avatarPlaceholderUrl from "../../../tactical/control/head/assets/avatar-placeholder.svg?url";
 import "./casualPlayerProfileModal.css";
@@ -35,7 +36,7 @@ function profileDisplayName(u: User): string {
   const d = u.data as Record<string, unknown> | undefined;
   const dn = d?.["displayName"] ?? d?.["username"] ?? d?.["nickName"];
   if (typeof dn === "string" && dn.trim()) return dn.trim();
-  return u.uid ? `玩家 ${u.uid.slice(0, 8)}…` : "玩家";
+  return u.uid ? resolvePlayerDisplayName({ uid: u.uid }) : "Player";
 }
 
 const CasualPlayerProfileModal: React.FC<ModalProp> = ({ visible, close }) => {

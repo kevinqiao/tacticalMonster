@@ -19,10 +19,14 @@ export function convexPayloadBytes(args) {
 
 export function runConvexCatalog(functionRef, args, convexArgs = []) {
   const payload = JSON.stringify(args);
+  const fromEnv = (process.env.SEED_CATALOG_CONVEX_ARGS ?? "")
+    .split(/\s+/)
+    .filter(Boolean);
+  const allConvexArgs = [...convexArgs, ...fromEnv];
 
   const result = spawnSync(
     process.execPath,
-    [CONVEX_CLI, "run", functionRef, payload, ...convexArgs],
+    [CONVEX_CLI, "run", functionRef, payload, ...allConvexArgs],
     {
       encoding: "utf8",
       stdio: "pipe",

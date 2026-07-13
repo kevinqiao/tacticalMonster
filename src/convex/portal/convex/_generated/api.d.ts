@@ -37,6 +37,7 @@ import type * as http from "../http.js";
 import type * as service_activity_casualActivityService from "../service/activity/casualActivityService.js";
 import type * as service_ads_portalAdReplayEligibility from "../service/ads/portalAdReplayEligibility.js";
 import type * as service_ads_portalAdReplayMutations from "../service/ads/portalAdReplayMutations.js";
+import type * as service_ads_portalAdReplayQueries from "../service/ads/portalAdReplayQueries.js";
 import type * as service_ads_portalAdReplayService from "../service/ads/portalAdReplayService.js";
 import type * as service_auth_jwtAccessSecret from "../service/auth/jwtAccessSecret.js";
 import type * as service_auth_platformJwtVerify from "../service/auth/platformJwtVerify.js";
@@ -72,6 +73,8 @@ import type * as service_giftcard_giftCardQueries from "../service/giftcard/gift
 import type * as service_giftcard_tangoClient from "../service/giftcard/tangoClient.js";
 import type * as service_giftcard_tangoTypes from "../service/giftcard/tangoTypes.js";
 import type * as service_player_playerManager from "../service/player/playerManager.js";
+import type * as service_player_portalDisplayNameLookup from "../service/player/portalDisplayNameLookup.js";
+import type * as service_player_portalPlayerProfile from "../service/player/portalPlayerProfile.js";
 import type * as service_points_portalWeeklyPointsService from "../service/points/portalWeeklyPointsService.js";
 import type * as service_reward_casualRewardRegistry from "../service/reward/casualRewardRegistry.js";
 import type * as service_season_casualSeasonService from "../service/season/casualSeasonService.js";
@@ -201,6 +204,7 @@ declare const fullApi: ApiFromModules<{
   "service/activity/casualActivityService": typeof service_activity_casualActivityService;
   "service/ads/portalAdReplayEligibility": typeof service_ads_portalAdReplayEligibility;
   "service/ads/portalAdReplayMutations": typeof service_ads_portalAdReplayMutations;
+  "service/ads/portalAdReplayQueries": typeof service_ads_portalAdReplayQueries;
   "service/ads/portalAdReplayService": typeof service_ads_portalAdReplayService;
   "service/auth/jwtAccessSecret": typeof service_auth_jwtAccessSecret;
   "service/auth/platformJwtVerify": typeof service_auth_platformJwtVerify;
@@ -236,6 +240,8 @@ declare const fullApi: ApiFromModules<{
   "service/giftcard/tangoClient": typeof service_giftcard_tangoClient;
   "service/giftcard/tangoTypes": typeof service_giftcard_tangoTypes;
   "service/player/playerManager": typeof service_player_playerManager;
+  "service/player/portalDisplayNameLookup": typeof service_player_portalDisplayNameLookup;
+  "service/player/portalPlayerProfile": typeof service_player_portalPlayerProfile;
   "service/points/portalWeeklyPointsService": typeof service_points_portalWeeklyPointsService;
   "service/reward/casualRewardRegistry": typeof service_reward_casualRewardRegistry;
   "service/season/casualSeasonService": typeof service_season_casualSeasonService;

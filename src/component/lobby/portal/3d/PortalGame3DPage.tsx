@@ -3,6 +3,7 @@ import React from "react";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import { usePartnerManager } from "host/service/PartnerManager";
 
+import { shouldShowPortalAuthMenuActions } from "../portalAuthButtonVisible";
 import { usePortal } from "../service/usePortalManager";
 
 import { PortalGame3DViewport } from "./PortalGame3DViewport";
@@ -20,8 +21,10 @@ type PortalGame3DPageProps = {
 
 const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
   const portal = usePortal();
-  const { partnerPid } = usePartnerManager();
+  const { partnerPid, isFirstPartyPortal } = usePartnerManager();
   const ctrl = usePortalGame3DController({ visible });
+  const showAuthMenuActions =
+    isFirstPartyPortal && shouldShowPortalAuthMenuActions();
 
   if (!portal.gameType) {
     return (
@@ -88,6 +91,9 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           showShop={showShop}
           onSignOut={ctrl.signOut}
           onSignIn={ctrl.signIn}
+          showAuthMenuActions={showAuthMenuActions}
+          onOpenAccount={() => ctrl.setAccountModalOpen(true)}
+          onOpenBackpack={() => ctrl.setBackpackModalOpen(true)}
           unclaimedRewards={ctrl.unclaimedRewards}
           onOpenUnclaimedRewards={ctrl.openWeeklyCloseModal}
           pageActive={visible > 0}

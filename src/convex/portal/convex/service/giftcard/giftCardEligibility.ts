@@ -106,6 +106,7 @@ export function buildRedemptionProfileView(
   return {
     region: player?.redemptionRegion ?? null,
     verifiedEmail: player?.verifiedEmail ?? null,
+    verifiedPhone: player?.verifiedPhone ?? null,
     hasVerifiedContact: Boolean(player?.verifiedEmail || player?.verifiedPhone),
     accountAgeDays: daysSince(createdAt, now),
     canChangeRegion: player ? canChangeRedemptionRegion(player, now) : true,

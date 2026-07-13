@@ -12,6 +12,7 @@ export const partnerAdminFns = {
   listAuthChannelCatalog: api.service.partner.partnerAdmin.listAuthChannelCatalog,
   listPartnerTeam: api.service.partner.partnerAdmin.listPartnerTeam,
   addPartnerStaff: api.service.partner.staffAccountActions.addPartnerStaff,
+  updatePartnerStaffProfile: api.service.partner.staffAccountActions.updatePartnerStaffProfile,
   removePartnerStaff: api.service.partner.partnerAdmin.removePartnerStaff,
   getPartnerPortalConfig: api.service.partner.partnerAdmin.getPartnerPortalConfig,
   updatePartnerPortalConfig: api.service.partner.partnerAdmin.updatePartnerPortalConfig,
@@ -65,6 +66,7 @@ export function usePartnerAdminMutations() {
     updatePartnerAuthChannels: useMutation(partnerAdminFns.updatePartnerAuthChannels),
     updatePartnerStaffAuthChannels: useMutation(partnerAdminFns.updatePartnerStaffAuthChannels),
     addPartnerStaff: useAction(partnerAdminFns.addPartnerStaff),
+    updatePartnerStaffProfile: useAction(partnerAdminFns.updatePartnerStaffProfile),
     removePartnerStaff: useMutation(partnerAdminFns.removePartnerStaff),
     updatePartnerPortalConfig: useMutation(partnerAdminFns.updatePartnerPortalConfig),
   };

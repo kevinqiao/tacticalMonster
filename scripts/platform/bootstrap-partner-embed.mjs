@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Seed SSO partner row with embed JWT config (dev WebView handoff).
+ * Seed SSO partner row with embed JWT config (dev WebView handoff / prod partners).
  *
  * Usage:
  *   node scripts/platform/bootstrap-partner-embed.mjs
  *   node scripts/platform/bootstrap-partner-embed.mjs --apply
- *   node scripts/platform/bootstrap-partner-embed.mjs --apply --pid=0 --secret=my-secret
+ *   node scripts/platform/bootstrap-partner-embed.mjs --apply --pid=100 --name=CrazyGames --host=https://www.crazygames.com --embed-method=crazygames_jwt --prod
  *
  * Env (optional):
  *   PARTNER_EMBED_BOOTSTRAP_SECRET  (default dev-local-partner-embed-bootstrap)
@@ -31,6 +31,8 @@ function parseArgs(argv) {
     name: get("--name") ?? "Dev Partner Embed",
     host: get("--host") ?? "http://localhost:3000",
     jwtSecret: get("--secret"),
+    embedMethod: get("--embed-method") ?? "jwt_local",
+    enabledContexts: (get("--contexts") ?? "portal").split(",").map((s) => s.trim()).filter(Boolean),
     bootstrapSecret:
       get("--bootstrap-secret") ??
       process.env.PARTNER_EMBED_BOOTSTRAP_SECRET ??
@@ -45,6 +47,8 @@ console.log("== Partner embed bootstrap ==");
 console.log("  pid:", config.pid);
 console.log("  name:", config.name);
 console.log("  host:", config.host);
+console.log("  embedMethod:", config.embedMethod);
+console.log("  enabledContexts:", config.enabledContexts);
 console.log("  jwtSecret:", config.jwtSecret ?? `(default partner-dev-secret-${config.pid})`);
 console.log("  apply:", config.apply);
 
@@ -53,6 +57,11 @@ if (!config.apply) {
   process.exit(0);
 }
 
+const allowedOrigins =
+  config.embedMethod === "crazygames_jwt"
+    ? ["https://www.crazygames.com", "https://games.crazygames.com"]
+    : ["http://localhost:3000", "http://127.0.0.1:3000"];
+
 const out = runConvexSso(
   "service/partner/partnerEmbedBootstrap:bootstrapDevPartnerEmbed",
   {
@@ -60,8 +69,10 @@ const out = runConvexSso(
     pid: config.pid,
     name: config.name,
     host: config.host,
+    embedMethod: config.embedMethod,
+    enabledContexts: config.enabledContexts,
     ...(config.jwtSecret ? { jwtSecret: config.jwtSecret } : {}),
-    allowedOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    allowedOrigins,
   },
   config.convexArgs
 );

@@ -15,6 +15,10 @@ export default defineSchema({
     gems: v.optional(v.number()),
     createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
+    /** In-game nickname (authoritative for boards); optional until user renames. */
+    displayName: v.optional(v.string()),
+    displayNameNormalized: v.optional(v.string()),
+    displayNameUpdatedAt: v.optional(v.number()),
     /** 礼品卡兑换锁定地区（US / CA / GB / EU …） */
     redemptionRegion: v.optional(v.string()),
     redemptionRegionLockedAt: v.optional(v.number()),
@@ -24,7 +28,9 @@ export default defineSchema({
     redemptionProfileSyncedAt: v.optional(v.number()),
     /** @deprecated legacy session token; do not write */
     token: v.optional(v.string()),
-  }).index("by_uid", ["uid"]),
+  })
+    .index("by_uid", ["uid"])
+    .index("by_displayNameNormalized", ["displayNameNormalized"]),
 
   /** 金币/钻流水（周联赛领奖、商店等） */
   portal_coin_ledger: defineTable({

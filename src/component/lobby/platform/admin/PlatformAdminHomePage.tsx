@@ -9,6 +9,7 @@ import {
 } from "./platformAdminHelpers";
 import PlatformAdminToolbar from "./PlatformAdminToolbar";
 import PlatformPartnerTeamModal from "./PlatformPartnerTeamModal";
+import PlatformStaffEditModal, { type PlatformStaffEditMember } from "./PlatformStaffEditModal";
 import {
   useAllPartners,
   usePlatformAdminAuth,
@@ -27,17 +28,20 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
   const isOperator = access?.isOperator === true;
   const partners = useAllPartners(isOperator);
   const team = usePlatformTeam(isOperator);
-  const { createPartner, addPlatformStaff, removePlatformStaff } = usePlatformAdminMutations();
+  const { createPartner, addPlatformStaff, updatePlatformStaffProfile, removePlatformStaff } =
+    usePlatformAdminMutations();
 
   const [name, setName] = useState("");
   const [host, setHost] = useState("");
   const [staffAccountId, setStaffAccountId] = useState("");
+  const [staffName, setStaffName] = useState("");
   const [staffPassword, setStaffPassword] = useState("");
   const [staffRole, setStaffRole] = useState<(typeof STAFF_ROLES)[number]>("admin");
   const [note, setNote] = useState<string | null>(null);
   const [teamModalPartner, setTeamModalPartner] = useState<{ pid: number; name: string } | null>(
     null
   );
+  const [editingMember, setEditingMember] = useState<PlatformStaffEditMember | null>(null);
 
   const canManageTeam = access?.role === "owner";
 
@@ -68,8 +72,10 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
         accountId: staffAccountId.trim(),
         password: staffPassword,
         role: staffRole,
+        name: staffName.trim() || undefined,
       });
       setStaffAccountId("");
+      setStaffName("");
       setStaffPassword("");
       setNote("运营成员已添加。");
     } catch (e) {
@@ -167,14 +173,35 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
               <>
                 {team.map((member) => (
                   <article key={member.uid} className="merchant-card">
-                    <strong>{member.name ?? member.email ?? member.uid}</strong>
-                    <p className="merchant-note">
-                      {member.uid} · {member.role}
-                    </p>
-                    {canManageTeam && member.role !== "owner" ? (
-                      <button type="button" className="merchant-btn" onClick={() => void onRemoveStaff(member.uid)}>
-                        移除
-                      </button>
+                    <strong>{member.name || member.email || member.webAccountId || member.uid}</strong>
+                    <p className="merchant-note">{member.role}</p>
+                    {canManageTeam ? (
+                      <nav className="merchant-nav">
+                        <button
+                          type="button"
+                          className="merchant-link-btn"
+                          onClick={() =>
+                            setEditingMember({
+                              uid: member.uid,
+                              role: member.role,
+                              name: member.name,
+                              email: member.email,
+                              webAccountId: member.webAccountId,
+                            })
+                          }
+                        >
+                          编辑资料
+                        </button>
+                        {member.role !== "owner" ? (
+                          <button
+                            type="button"
+                            className="merchant-btn"
+                            onClick={() => void onRemoveStaff(member.uid)}
+                          >
+                            移除
+                          </button>
+                        ) : null}
+                      </nav>
                     ) : null}
                   </article>
                 ))}
@@ -187,6 +214,15 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                         onChange={(e) => setStaffAccountId(e.target.value)}
                         autoComplete="username"
                         placeholder="admin"
+                      />
+                    </label>
+                    <label className="merchant-field">
+                      显示名
+                      <input
+                        value={staffName}
+                        onChange={(e) => setStaffName(e.target.value)}
+                        autoComplete="nickname"
+                        placeholder="可选"
                       />
                     </label>
                     <label className="merchant-field">
@@ -223,6 +259,21 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
           </section>
         </>
       )}
+      {editingMember ? (
+        <PlatformStaffEditModal
+          member={editingMember}
+          onClose={() => setEditingMember(null)}
+          onSave={async ({ uid, name, role, password }) => {
+            await updatePlatformStaffProfile({
+              uid,
+              name,
+              role,
+              password,
+            });
+            setNote("成员资料已更新。");
+          }}
+        />
+      ) : null}
       {teamModalPartner ? (
         <PlatformPartnerTeamModal
           partnerId={teamModalPartner.pid}

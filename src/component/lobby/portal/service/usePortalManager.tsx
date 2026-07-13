@@ -8,7 +8,10 @@ import {
 } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import { useUserManager } from "host/service/UserManager";
-import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
+import {
+  registerConvexAuthClient,
+  syncPlatformAuthTokenToClients,
+} from "host/service/platformAuth/convexAuthRegistry";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import React, {
   createContext,
@@ -128,11 +131,20 @@ export type PortalPlayerWallet = {
 export type PortalRedemptionProfileView = {
   region: string | null;
   verifiedEmail: string | null;
+  verifiedPhone?: string | null;
   hasVerifiedContact: boolean;
   accountAgeDays: number;
   canChangeRegion: boolean;
   eligible: boolean;
   ineligibleReason: string | null;
+};
+
+export type PortalPlayerProfileView = {
+  displayName: string | null;
+  resolvedDisplayName: string;
+  verifiedEmail: string | null;
+  verifiedPhone: string | null;
+  displayNameUpdatedAt: number | null;
 };
 
 export type PortalShopSkuView = {
@@ -199,6 +211,9 @@ type PortalDataSnapshot = {
   playerWallet: PortalPlayerWallet | null;
   shopCatalog: PortalShopCatalogView | null;
   giftCardOrders: PortalGiftCardOrderRow[];
+  replayTokenCount: number;
+  adReplayDailyRemaining: number | null;
+  playerProfile: PortalPlayerProfileView | null;
   gameHistory: PortalGameHistoryRow[];
   openRunAssignments: OpenCasualRunAssignment[];
   matchQueueEntries: PortalMatchQueueEntry[];
@@ -212,6 +227,9 @@ const emptyData = (): PortalDataSnapshot => ({
   playerWallet: null,
   shopCatalog: null,
   giftCardOrders: [],
+  replayTokenCount: 0,
+  adReplayDailyRemaining: null,
+  playerProfile: null,
   gameHistory: [],
   openRunAssignments: [],
   matchQueueEntries: [],
@@ -246,6 +264,9 @@ type PortalContextValue = {
   playerWallet: PortalPlayerWallet | null;
   shopCatalog: PortalShopCatalogView | null;
   giftCardOrders: PortalGiftCardOrderRow[];
+  replayTokenCount: number;
+  adReplayDailyRemaining: number | null;
+  playerProfile: PortalPlayerProfileView | null;
   gameHistory: PortalGameHistoryRow[];
   openRunAssignments: OpenCasualRunAssignment[];
   matchQueueEntries: PortalMatchQueueEntry[];
@@ -275,6 +296,9 @@ type PortalContextValue = {
     verifiedPhone?: string;
     redemptionRegion?: string;
   }) => Promise<{ ok: boolean; error?: string }>;
+  updatePortalDisplayName: (
+    displayName: string
+  ) => Promise<{ ok: boolean; error?: string; displayName?: string }>;
   redeemGiftCard: (
     orderId: string
   ) => Promise<{ ok: boolean; error?: string; rewardLink?: string }>;
@@ -393,6 +417,9 @@ export const PortalProvider: React.FC<{
       return;
     }
     await enqueuePortalAuthenticate(async () => {
+      // Push JWT onto HttpClient before authedAction — PlatformAuthProvider may
+      // not have synced yet when PortalProvider first mounts with a restored session.
+      syncPlatformAuthTokenToClients(platformToken);
       try {
         const result = await http.action(portalTournamentFns.authenticatePlayer, {});
         if (result?.uid) {
@@ -408,6 +435,27 @@ export const PortalProvider: React.FC<{
           console.warn("[Portal] authenticate returned no uid — check portal Convex auth.config / dev server");
         }
       } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        // One retry after re-sync: first paint often races setAuth.
+        if (!opts?.force && /unauthenticated/i.test(msg)) {
+          syncPlatformAuthTokenToClients(platformToken);
+          try {
+            const retry = await http.action(portalTournamentFns.authenticatePlayer, {});
+            if (retry?.uid) {
+              portalAuthFailedKey = "";
+              setPortalSessionReady(true);
+              if (gameType) {
+                await ensureWeeklyLeagueMember(gameType);
+              }
+              return;
+            }
+          } catch (retryErr) {
+            console.error("[Portal] authenticate", retryErr);
+            portalAuthFailedKey = key;
+            setPortalSessionReady(false);
+            return;
+          }
+        }
         console.error("[Portal] authenticate", e);
         portalAuthFailedKey = key;
         setPortalSessionReady(false);
@@ -438,6 +486,9 @@ export const PortalProvider: React.FC<{
         playerWallet: null,
         shopCatalog: null,
         giftCardOrders: [],
+        replayTokenCount: 0,
+        adReplayDailyRemaining: null,
+        playerProfile: null,
         cohortLeaderboard: [],
         gameHistory: [],
         openRunAssignments: [],
@@ -499,6 +550,50 @@ export const PortalProvider: React.FC<{
         patchData({ giftCardOrders: r.orders ?? [] });
       },
       "giftCardOrders"
+    );
+    sub(
+      portalTournamentFns.countUnusedReplayTokensForUid,
+      {},
+      (rows) => {
+        const r = rows as { count?: number } | number | null;
+        const raw = typeof r === "number" ? r : r?.count;
+        const n =
+          typeof raw === "number" && Number.isFinite(raw)
+            ? Math.max(0, Math.floor(raw))
+            : 0;
+        patchData({ replayTokenCount: n });
+      },
+      "replayTokenCount"
+    );
+    sub(
+      portalTournamentFns.getAdReplayDailyRemaining,
+      {},
+      (rows) => {
+        const r = rows as {
+          remaining?: number;
+          enabled?: boolean;
+        } | null;
+        if (!r || r.enabled === false) {
+          patchData({ adReplayDailyRemaining: null });
+          return;
+        }
+        const n =
+          typeof r.remaining === "number" && Number.isFinite(r.remaining)
+            ? Math.max(0, Math.floor(r.remaining))
+            : 0;
+        patchData({ adReplayDailyRemaining: n });
+      },
+      "adReplayDailyRemaining"
+    );
+    sub(
+      portalTournamentFns.getPortalPlayerProfile,
+      {},
+      (rows) => {
+        patchData({
+          playerProfile: (rows as PortalPlayerProfileView | null) ?? null,
+        });
+      },
+      "playerProfile"
     );
     sub(
       portalTournamentFns.getPortalWeeklyLeagueCohortLeaderboard,
@@ -758,6 +853,31 @@ export const PortalProvider: React.FC<{
     [uid]
   );
 
+  const updatePortalDisplayName = useCallback(
+    async (displayName: string) => {
+      const http = getHttp();
+      if (!http || !uid) return { ok: false, error: "no_auth" };
+      try {
+        const res = (await http.mutation(portalTournamentFns.updatePortalDisplayName, {
+          displayName,
+        })) as {
+          ok?: boolean;
+          error?: string;
+          displayName?: string;
+        };
+        return {
+          ok: Boolean(res?.ok),
+          error: res?.error,
+          displayName: res?.displayName,
+        };
+      } catch (e) {
+        console.error("[Portal] updatePortalDisplayName", e);
+        return { ok: false, error: "update_failed" };
+      }
+    },
+    [uid]
+  );
+
   const redeemGiftCard = useCallback(
     async (orderId: string) => {
       const http = getHttp();
@@ -950,6 +1070,9 @@ export const PortalProvider: React.FC<{
       playerWallet: snapshot.playerWallet,
       shopCatalog: snapshot.shopCatalog,
       giftCardOrders: snapshot.giftCardOrders,
+      replayTokenCount: snapshot.replayTokenCount,
+      adReplayDailyRemaining: snapshot.adReplayDailyRemaining,
+      playerProfile: snapshot.playerProfile,
       gameHistory: snapshot.gameHistory,
       openRunAssignments: snapshot.openRunAssignments,
       matchQueueEntries: snapshot.matchQueueEntries,
@@ -962,6 +1085,7 @@ export const PortalProvider: React.FC<{
       dismissPortalWeeklyLeagueClose,
       purchasePortalShopSku,
       syncRedemptionProfile,
+      updatePortalDisplayName,
       redeemGiftCard,
       resendGiftCardEmail,
       refresh,
@@ -980,6 +1104,7 @@ export const PortalProvider: React.FC<{
       dismissPortalWeeklyLeagueClose,
       purchasePortalShopSku,
       syncRedemptionProfile,
+      updatePortalDisplayName,
       redeemGiftCard,
       resendGiftCardEmail,
       refresh,

@@ -5,6 +5,7 @@ import type { OpenCasualRunAssignment } from "../casual/service/casualOpenRunAss
 import { canOpenPortalHistoryReport } from "./service/portalHistoryReport";
 import type { PortalGameHistoryRow } from "./service/usePortalManager";
 import { portalMatchTypeLabel } from "./service/portalOpenRunHelpers";
+import { resolvePlayerDisplayName } from "@/convex/shared/displayName";
 
 export const PortalHistoryList: React.FC<{
   openAssignments: OpenCasualRunAssignment[];
@@ -142,7 +143,7 @@ export const PortalWeeklyLeaderboardPanel: React.FC<{
             rows.map((r) => (
               <tr key={`${r.rank}-${r.uid}`}>
                 <td>{r.rank}</td>
-                <td>{r.displayName ?? r.uid.slice(0, 12)}</td>
+                <td>{r.displayName ?? resolvePlayerDisplayName({ uid: r.uid })}</td>
                 <td>{r.points}</td>
               </tr>
             ))

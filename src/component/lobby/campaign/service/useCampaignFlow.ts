@@ -495,10 +495,6 @@ export function useCampaignFlow(args: {
       setNote(flowT("dailyPlayLimitReached"));
       return;
     }
-    if (!portal.portalSessionReady) {
-      setNote(flowT("syncingSession"));
-      return;
-    }
     if (mode === "multi" && matchOverlayOpen) {
       setNote(flowT("matchingInProgress"));
       return;
@@ -520,11 +516,17 @@ export function useCampaignFlow(args: {
     setJoining(true);
     setNote(null);
     try {
+      if (!portal.portalSessionReady) {
+        setNote(flowT("syncingSession"));
+        await portal.refresh();
+        setNote(null);
+      }
       const outcome = await portal.joinTournament(mode, {
         merchantSlug: args.merchantSlug,
         campaignSlug: args.campaignSlug,
       });
       if (outcome.kind === "ready") {
+        setNote(null);
         openCampaignAssignment({
           templateId: outcome.templateId,
           gameId: outcome.gameId,
@@ -583,6 +585,7 @@ export function useCampaignFlow(args: {
     portal.joinTournament,
     portal.openRunAssignments,
     portal.portalSessionReady,
+    portal.refresh,
     user?.partner,
     refreshCoupons,
     refreshDailyQuota,

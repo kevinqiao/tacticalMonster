@@ -22,6 +22,7 @@ import type * as service_campaignBoard_campaignLeaderboardMerge from "../service
 import type * as service_merchant_campaignExperienceType from "../service/merchant/campaignExperienceType.js";
 import type * as service_merchant_campaignJoinAuthorize from "../service/merchant/campaignJoinAuthorize.js";
 import type * as service_merchant_campaignLeaderboardSettlement from "../service/merchant/campaignLeaderboardSettlement.js";
+import type * as service_merchant_campaignPartnerSession from "../service/merchant/campaignPartnerSession.js";
 import type * as service_merchant_campaignPosterUrls from "../service/merchant/campaignPosterUrls.js";
 import type * as service_merchant_campaignRankRewardTiers from "../service/merchant/campaignRankRewardTiers.js";
 import type * as service_merchant_campaignRewardModel from "../service/merchant/campaignRewardModel.js";
@@ -38,6 +39,7 @@ import type * as service_merchant_merchantStaffAdmin from "../service/merchant/m
 import type * as service_merchant_merchantThemeSync from "../service/merchant/merchantThemeSync.js";
 import type * as service_merchant_merchantThemeSyncMutations from "../service/merchant/merchantThemeSyncMutations.js";
 import type * as service_merchant_validators from "../service/merchant/validators.js";
+import type * as shared_platformAuth_parsePlatformUid from "../shared/platformAuth/parsePlatformUid.js";
 import type * as shared_platformAuth_platformJwtConstants from "../shared/platformAuth/platformJwtConstants.js";
 import type * as shared_platformAuth_requireIdentity from "../shared/platformAuth/requireIdentity.js";
 import type * as shared_pseudoUnit from "../shared/pseudoUnit.js";
@@ -63,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   "service/merchant/campaignExperienceType": typeof service_merchant_campaignExperienceType;
   "service/merchant/campaignJoinAuthorize": typeof service_merchant_campaignJoinAuthorize;
   "service/merchant/campaignLeaderboardSettlement": typeof service_merchant_campaignLeaderboardSettlement;
+  "service/merchant/campaignPartnerSession": typeof service_merchant_campaignPartnerSession;
   "service/merchant/campaignPosterUrls": typeof service_merchant_campaignPosterUrls;
   "service/merchant/campaignRankRewardTiers": typeof service_merchant_campaignRankRewardTiers;
   "service/merchant/campaignRewardModel": typeof service_merchant_campaignRewardModel;
@@ -79,6 +82,7 @@ declare const fullApi: ApiFromModules<{
   "service/merchant/merchantThemeSync": typeof service_merchant_merchantThemeSync;
   "service/merchant/merchantThemeSyncMutations": typeof service_merchant_merchantThemeSyncMutations;
   "service/merchant/validators": typeof service_merchant_validators;
+  "shared/platformAuth/parsePlatformUid": typeof shared_platformAuth_parsePlatformUid;
   "shared/platformAuth/platformJwtConstants": typeof shared_platformAuth_platformJwtConstants;
   "shared/platformAuth/requireIdentity": typeof shared_platformAuth_requireIdentity;
   "shared/pseudoUnit": typeof shared_pseudoUnit;

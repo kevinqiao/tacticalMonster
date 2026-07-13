@@ -63,3 +63,9 @@ src/component/lobby/casual/view/town/assets/illustration/raw/**
 docs/**
 !docs/
 !docs/CLAUDE.md
+portal-prod-dist.zip
+.env.production
+
+
+# Local Netlify folder
+.netlify

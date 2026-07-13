@@ -213,6 +213,7 @@ export const listPartnerTeam = authedQuery({
 
       let webAccountId: string | undefined;
       let hasWebUser = false;
+      let webUserName: string | undefined;
       if (identity?.provider === "web") {
         const subject = identity.subject;
         const webUser = subject
@@ -223,6 +224,7 @@ export const listPartnerTeam = authedQuery({
           : null;
         hasWebUser = Boolean(webUser?.passwordHash);
         webAccountId = webUser?.accountId ?? identity.subject;
+        webUserName = webUser?.name;
       }
 
       out.push({
@@ -230,7 +232,7 @@ export const listPartnerTeam = authedQuery({
         role: row.role as PartnerRole,
         provider: identity?.provider,
         email: identity?.email,
-        name: identity?.name,
+        name: identity?.name ?? webUserName,
         webAccountId,
         hasWebUser,
         createdAt: row.createdAt,
@@ -248,8 +250,9 @@ export const applyAddPartnerStaff = internalMutation({
     platformUid: v.string(),
     passwordHash: v.string(),
     role: partnerRoleValidator,
+    name: v.optional(v.string()),
   },
-  handler: async (ctx, { actorUid, partnerId, accountId, platformUid, passwordHash, role }) => {
+  handler: async (ctx, { actorUid, partnerId, accountId, platformUid, passwordHash, role, name }) => {
     if (!(await isPlatformOperator(ctx, actorUid))) {
       await requirePartnerStaff({ ...ctx, user: { uid: actorUid } }, partnerId, "owner");
     }
@@ -259,7 +262,8 @@ export const applyAddPartnerStaff = internalMutation({
       accountId,
       passwordHash,
       platformUid,
-      partnerId
+      partnerId,
+      name
     );
 
     const existing = await getPartnerStaffRow(ctx, partnerId, targetUid);
@@ -271,6 +275,72 @@ export const applyAddPartnerStaff = internalMutation({
       role,
       createdAt: Date.now(),
     });
+    return { ok: true as const, uid: targetUid };
+  },
+});
+
+export const applyUpdatePartnerStaffProfile = internalMutation({
+  args: {
+    actorUid: v.string(),
+    partnerId: v.number(),
+    uid: v.string(),
+    name: v.optional(v.string()),
+    role: v.optional(partnerRoleValidator),
+    passwordHash: v.optional(v.string()),
+  },
+  handler: async (ctx, { actorUid, partnerId, uid, name, role, passwordHash }) => {
+    if (!(await isPlatformOperator(ctx, actorUid))) {
+      await requirePartnerStaff({ ...ctx, user: { uid: actorUid } }, partnerId, "owner");
+    }
+
+    const targetUid = uid.trim();
+    const row = await getPartnerStaffRow(ctx, partnerId, targetUid);
+    if (!row) throw new Error("not_found");
+
+    if (role && role !== row.role) {
+      if (row.role === "owner" && role !== "owner") {
+        const owners = await ctx.db
+          .query("partner_staff")
+          .withIndex("by_partner", (q) => q.eq("partnerId", partnerId))
+          .collect();
+        const ownerCount = owners.filter((o) => o.role === "owner").length;
+        if (ownerCount <= 1) throw new Error("last_owner");
+      }
+      await ctx.db.patch(row._id, { role });
+    }
+
+    const identity = await ctx.db
+      .query("auth_identities")
+      .withIndex("by_uid", (q) => q.eq("uid", targetUid))
+      .unique();
+    if (!identity) throw new Error("user_not_found");
+
+    const now = Date.now();
+    const identityPatch: { name?: string; updatedAt: number } = { updatedAt: now };
+    if (name !== undefined) {
+      identityPatch.name = name.trim();
+    }
+    await ctx.db.patch(identity._id, identityPatch);
+
+    if (identity.provider === "web" && identity.subject) {
+      const webUser = await ctx.db
+        .query("user")
+        .withIndex("by_accountId", (q) => q.eq("accountId", identity.subject))
+        .unique();
+      if (webUser) {
+        const userPatch: { name?: string; passwordHash?: string; updatedAt: number } = {
+          updatedAt: now,
+        };
+        if (name !== undefined) userPatch.name = name.trim();
+        if (passwordHash) userPatch.passwordHash = passwordHash;
+        await ctx.db.patch(webUser._id, userPatch);
+      } else if (passwordHash) {
+        throw new Error("user_not_found");
+      }
+    } else if (passwordHash) {
+      throw new Error("user_not_found");
+    }
+
     return { ok: true as const, uid: targetUid };
   },
 });

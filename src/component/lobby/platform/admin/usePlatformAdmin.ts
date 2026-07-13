@@ -10,6 +10,7 @@ export const platformAdminFns = {
   createPartner: api.service.partner.platformAdmin.createPartner,
   listPlatformTeam: api.service.partner.platformAdmin.listPlatformTeam,
   addPlatformStaff: api.service.partner.staffAccountActions.addPlatformStaff,
+  updatePlatformStaffProfile: api.service.partner.staffAccountActions.updatePlatformStaffProfile,
   removePlatformStaff: api.service.partner.platformAdmin.removePlatformStaff,
 };
 
@@ -40,6 +41,7 @@ export function usePlatformAdminMutations() {
   return {
     createPartner: useMutation(platformAdminFns.createPartner),
     addPlatformStaff: useAction(platformAdminFns.addPlatformStaff),
+    updatePlatformStaffProfile: useAction(platformAdminFns.updatePlatformStaffProfile),
     removePlatformStaff: useMutation(platformAdminFns.removePlatformStaff),
   };
 }

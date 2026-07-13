@@ -38,6 +38,34 @@
     "shopAria": "Shop",
     "shopWithBalanceAria": "Shop, {{coins}} coins",
     "rulesAria": "Game rules",
+    "accountMenu": {
+      "myAccount": "My Account",
+      "backpack": "My Backpack",
+      "openAria": "Account menu",
+      "nickname": "Nickname",
+      "email": "Email",
+      "phone": "Phone",
+      "emailPlaceholder": "you@example.com",
+      "phonePlaceholder": "+1 …",
+      "editHint": "Nickname: 3–16 letters, numbers, spaces or _. Email and phone are used for gift-card delivery.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Account updated",
+      "errors": {
+        "invalidName": "Nickname must be 3–16 characters (letters, numbers, spaces, _).",
+        "nameTaken": "That nickname is taken.",
+        "cooldown": "You can change your nickname again in 7 days.",
+        "invalidEmail": "Enter a valid email address.",
+        "noAuth": "Sign in to edit your account.",
+        "saveFailed": "Could not save. Try again."
+      },
+      "replayTokens": "Replay tokens",
+      "adReplayRemaining": "Ad replays left today",
+      "coupons": "Coupons",
+      "tickets": "Tickets",
+      "emptyItem": "None yet",
+      "viewGiftCards": "Gift card orders ({{count}})"
+    },
     "leaderboardAria": "Standings",
     "historyAria": "Match history"
   },
@@ -200,6 +228,7 @@
       "title": "Rewards",
       "intro": "Coins are granted by <strong>group rank</strong> at weekly reset. Higher rank and <strong>higher tier</strong> mean more coins:",
       "rankColumn": "Group rank",
+      "pickTierAria": "Choose a tier to view rewards",
       "ranges": {
         "rank1": "1st place",
         "rank2_3": "2nd–3rd",

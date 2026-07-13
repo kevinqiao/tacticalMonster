@@ -1,5 +1,6 @@
 ﻿import {
   crazyGamesPartnerPid,
+  ensureCrazyGamesSdkInitialized,
   fetchCrazyGamesUserToken,
   isCrazyGamesEmbedEnvironment,
   isCrazyGamesUserAccountAvailable,
@@ -24,6 +25,9 @@ export const CRAZYGAMES_SDK_SPEC: EmbedSdkSpec = {
   id: "crazygames_v3",
   scriptUrl: "https://sdk.crazygames.com/crazygames-sdk-v3.js",
   globalProbe: () => Boolean(typeof window !== "undefined" && window.CrazyGames?.SDK),
+  afterLoad: async () => {
+    await ensureCrazyGamesSdkInitialized();
+  },
 };
 
 function crazyGamesEnvProbe(): boolean {

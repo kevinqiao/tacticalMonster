@@ -80,15 +80,85 @@ export const listPlatformTeam = authedQuery({
         .query("auth_identities")
         .withIndex("by_uid", (q) => q.eq("uid", row.uid))
         .unique();
+      let webAccountId: string | undefined;
+      let webUserName: string | undefined;
+      if (identity?.provider === "web" && identity.subject) {
+        const webUser = await ctx.db
+          .query("user")
+          .withIndex("by_accountId", (q) => q.eq("accountId", identity.subject))
+          .unique();
+        webAccountId = webUser?.accountId ?? identity.subject;
+        webUserName = webUser?.name;
+      }
       out.push({
         uid: row.uid,
         role: row.role as PlatformStaffRole,
         email: identity?.email,
-        name: identity?.name,
+        name: identity?.name ?? webUserName,
+        webAccountId,
         createdAt: row.createdAt,
       });
     }
     return out.sort((a, b) => a.createdAt - b.createdAt);
+  },
+});
+
+export const applyUpdatePlatformStaffProfile = internalMutation({
+  args: {
+    actorUid: v.string(),
+    uid: v.string(),
+    name: v.optional(v.string()),
+    role: v.optional(platformStaffRoleValidator),
+    passwordHash: v.optional(v.string()),
+  },
+  handler: async (ctx, { actorUid, uid, name, role, passwordHash }) => {
+    await requirePlatformStaff({ ...ctx, user: { uid: actorUid } }, "owner");
+    const targetUid = uid.trim();
+    const row = await getPlatformStaffRow(ctx, targetUid);
+    if (!row) throw new Error("not_found");
+
+    if (role && role !== row.role) {
+      if (row.role === "owner" && role !== "owner") {
+        const owners = (await listPlatformStaffRows(ctx)).filter((r) => r.role === "owner");
+        if (owners.length <= 1) throw new Error("last_owner");
+      }
+      await ctx.db.patch(row._id, { role });
+    }
+
+    const identity = await ctx.db
+      .query("auth_identities")
+      .withIndex("by_uid", (q) => q.eq("uid", targetUid))
+      .unique();
+    if (!identity) throw new Error("user_not_found");
+
+    const now = Date.now();
+    const identityPatch: { name?: string; updatedAt: number } = { updatedAt: now };
+    if (name !== undefined) {
+      identityPatch.name = name.trim();
+    }
+
+    await ctx.db.patch(identity._id, identityPatch);
+
+    if (identity.provider === "web" && identity.subject) {
+      const webUser = await ctx.db
+        .query("user")
+        .withIndex("by_accountId", (q) => q.eq("accountId", identity.subject))
+        .unique();
+      if (webUser) {
+        const userPatch: { name?: string; passwordHash?: string; updatedAt: number } = {
+          updatedAt: now,
+        };
+        if (name !== undefined) userPatch.name = name.trim();
+        if (passwordHash) userPatch.passwordHash = passwordHash;
+        await ctx.db.patch(webUser._id, userPatch);
+      } else if (passwordHash) {
+        throw new Error("user_not_found");
+      }
+    } else if (passwordHash) {
+      throw new Error("user_not_found");
+    }
+
+    return { ok: true as const, uid: targetUid };
   },
 });
 
@@ -99,15 +169,17 @@ export const applyAddPlatformStaff = internalMutation({
     platformUid: v.string(),
     passwordHash: v.string(),
     role: platformStaffRoleValidator,
+    name: v.optional(v.string()),
   },
-  handler: async (ctx, { actorUid, accountId, platformUid, passwordHash, role }) => {
+  handler: async (ctx, { actorUid, accountId, platformUid, passwordHash, role, name }) => {
     await requirePlatformStaff({ ...ctx, user: { uid: actorUid } }, "owner");
     const targetUid = await provisionWebStaffAccount(
       ctx,
       accountId,
       passwordHash,
       platformUid,
-      PLATFORM_NAMESPACE_PARTNER_ID
+      PLATFORM_NAMESPACE_PARTNER_ID,
+      name
     );
 
     const existing = await getPlatformStaffRow(ctx, targetUid);

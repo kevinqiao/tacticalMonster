@@ -270,7 +270,6 @@
 
 .campaign-hero__subtitle,
 .campaign-hero__period,
-.campaign-note,
 .campaign-progress,
 .campaign-rank-rewards,
 .campaign-coupons {
@@ -280,7 +279,6 @@
 
 .campaign-hero__subtitle,
 .campaign-hero__period,
-.campaign-note,
 .campaign-progress {
   margin: 0;
   font-size: 0.875rem;
@@ -415,8 +413,16 @@
 }
 
 .campaign-note {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
-  color: var(--ui-color-text-muted, rgba(26, 26, 26, 0.62));
+  font-size: 0.875rem;
+  line-height: 1.35;
+  font-weight: 700;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: #fde68a;
+  text-shadow: var(--campaign-dock-text-shadow, 0 1px 3px rgba(0, 0, 0, 0.85));
 }
 
 .campaign-progress {

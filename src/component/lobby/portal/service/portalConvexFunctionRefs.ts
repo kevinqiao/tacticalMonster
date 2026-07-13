@@ -49,6 +49,12 @@ export const portalTournamentFns = {
   syncRedemptionProfile: makeFunctionReference<"mutation">(
     "service/giftcard/giftCardQueries:syncRedemptionProfile"
   ),
+  getPortalPlayerProfile: makeFunctionReference<"query">(
+    "service/player/portalPlayerProfile:getPortalPlayerProfile"
+  ),
+  updatePortalDisplayName: makeFunctionReference<"mutation">(
+    "service/player/portalPlayerProfile:updatePortalDisplayName"
+  ),
   listMyGiftCardOrders: makeFunctionReference<"query">(
     "service/giftcard/giftCardQueries:listMyGiftCardOrders"
   ),
@@ -90,5 +96,11 @@ export const portalTournamentFns = {
   ),
   confirmCasualRunWithoutReplay: makeFunctionReference<"mutation">(
     "service/tournament/submit/casualRunIngestMutations:confirmCasualRunWithoutReplay"
+  ),
+  countUnusedReplayTokensForUid: makeFunctionReference<"query">(
+    "service/tournament/replay/casualReplayPassService:countUnusedReplayTokensForUid"
+  ),
+  getAdReplayDailyRemaining: makeFunctionReference<"query">(
+    "service/ads/portalAdReplayQueries:getAdReplayDailyRemaining"
   ),
 } as const;

@@ -26,6 +26,7 @@ export function partnerAdminSuccessMessage(key: string): string {
     profileSaved: "Profile saved.",
     authChannelsSaved: "Auth channels updated.",
     memberAdded: "Team member added.",
+    memberUpdated: "Team member updated.",
     memberRemoved: "Team member removed.",
     portalSaved: "Portal configuration saved.",
   };

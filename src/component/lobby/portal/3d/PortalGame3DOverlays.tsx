@@ -14,6 +14,8 @@ import { PortalHistoryReportOverlays } from "../PortalHistoryReportOverlays";
 import { PortalRulesContent } from "./PortalRulesContent";
 import { PortalGiftCardPanel } from "./PortalGiftCardPanel";
 import { PortalShopPanel } from "./PortalShopPanel";
+import { PortalAccountPanel } from "./PortalAccountPanel";
+import { PortalBackpackPanel } from "./PortalBackpackPanel";
 import {
   resolvePortalShopSkus,
 } from "./portalShopCatalogFallback";
@@ -43,6 +45,10 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
     setShopModalOpen,
     giftCardOrdersModalOpen,
     setGiftCardOrdersModalOpen,
+    accountModalOpen,
+    setAccountModalOpen,
+    backpackModalOpen,
+    setBackpackModalOpen,
     weeklyCloseModalOpen,
     setWeeklyCloseModalOpen,
     weeklyCloseDisplay,
@@ -134,6 +140,49 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
           onDismiss={portal.dismissPortalWeeklyLeagueClose}
           onClose={() => setWeeklyCloseModalOpen(false)}
           onClaimed={(coins) => showNote(t("weeklyLeague.claimedToast", { coins: coins.toLocaleString() }))}
+        />
+      </PortalCenterModal>
+
+      <PortalCenterModal
+        open={accountModalOpen}
+        title={t("lobby.accountMenu.myAccount")}
+        onClose={() => setAccountModalOpen(false)}
+      >
+        <PortalAccountPanel
+          uid={ctrl.user?.uid}
+          ssoName={ctrl.user?.name}
+          email={ctrl.userEmail}
+          phone={ctrl.userPhone}
+          verifiedEmail={
+            portal.playerProfile?.verifiedEmail ??
+            portal.shopCatalog?.redemptionProfile?.verifiedEmail
+          }
+          verifiedPhone={
+            portal.playerProfile?.verifiedPhone ??
+            portal.shopCatalog?.redemptionProfile?.verifiedPhone
+          }
+          customDisplayName={portal.playerProfile?.displayName}
+          resolvedDisplayName={portal.playerProfile?.resolvedDisplayName}
+          onSaveDisplayName={portal.updatePortalDisplayName}
+          onSaveContact={portal.syncRedemptionProfile}
+          onFeedback={ctrl.showNote}
+          onSaved={() => setAccountModalOpen(false)}
+        />
+      </PortalCenterModal>
+
+      <PortalCenterModal
+        open={backpackModalOpen}
+        title={t("lobby.accountMenu.backpack")}
+        onClose={() => setBackpackModalOpen(false)}
+      >
+        <PortalBackpackPanel
+          replayTokenCount={portal.replayTokenCount}
+          adReplayDailyRemaining={portal.adReplayDailyRemaining}
+          giftCardOrderCount={portal.giftCardOrders?.length ?? 0}
+          onOpenGiftCards={() => {
+            setBackpackModalOpen(false);
+            setGiftCardOrdersModalOpen(true);
+          }}
         />
       </PortalCenterModal>
 

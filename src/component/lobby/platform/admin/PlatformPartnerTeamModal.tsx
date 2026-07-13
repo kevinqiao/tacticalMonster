@@ -22,7 +22,8 @@ type Props = {
 
 const PlatformPartnerTeamModal: React.FC<Props> = ({ partnerId, partnerName, onClose }) => {
   const team = usePartnerTeam(partnerId);
-  const { addPartnerStaff, removePartnerStaff } = usePartnerAdminMutations();
+  const { addPartnerStaff, updatePartnerStaffProfile, removePartnerStaff } =
+    usePartnerAdminMutations();
   const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,28 +68,46 @@ const PlatformPartnerTeamModal: React.FC<Props> = ({ partnerId, partnerName, onC
             labels={{
               membersTitle: "成员",
               addTitle: "添加成员",
-              addHint: "填写 accountId（如 admin）与密码；email 为可选项（仅邮箱登录时填写）。",
+              addHint: "填写 accountId（如 admin）、可选显示名与密码；email 为可选项（仅邮箱登录时填写）。",
               accountIdLabel: "accountId",
+              nameLabel: "显示名",
               passwordLabel: "密码",
               roleLabel: "角色",
               addButton: "添加",
               removeButton: "移除",
+              editButton: "编辑资料",
               loading: "加载中…",
               empty: "尚无成员。",
               webAccount: "accountId（subject）",
               noWebUser: "无 user 行",
             }}
-            onAdd={async (accountId, password, role) => {
+            onAdd={async (accountId, password, role, name) => {
               try {
                 await addPartnerStaff({
                   partnerId,
                   accountId,
                   password,
                   role: role as (typeof PARTNER_ROLE_OPTIONS)[number],
+                  name,
                 });
                 setNote(partnerAdminSuccessMessage("memberAdded"));
               } catch (e) {
                 setNote(mapError(e));
+              }
+            }}
+            onEdit={async ({ uid, name, role, password }) => {
+              try {
+                await updatePartnerStaffProfile({
+                  partnerId,
+                  uid,
+                  name,
+                  role: role as (typeof PARTNER_ROLE_OPTIONS)[number],
+                  password,
+                });
+                setNote(partnerAdminSuccessMessage("memberUpdated"));
+              } catch (e) {
+                setNote(mapError(e));
+                throw e;
               }
             }}
             onRemove={async (uid) => {

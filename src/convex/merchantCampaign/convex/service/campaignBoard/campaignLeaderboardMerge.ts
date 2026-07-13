@@ -1,7 +1,7 @@
 import type { Doc } from "../../_generated/dataModel";
 import type { QueryCtx } from "../../_generated/server";
 import type { CampaignBoardMode } from "../../data/campaignBoardBotConfig";
-import { getCampaignBotPersonaDisplay } from "./campaignBotPersonaDefaults";
+import { generateDisplayName, resolvePlayerDisplayName } from "../../../../shared/displayName";
 import {
   estimateCampaignBoardBotPlayCount,
   resolveCampaignBoardBotState,
@@ -73,7 +73,7 @@ export async function buildMergedCampaignLeaderboard(
     const sortValue = sortValueForHuman(mode, h);
     return {
       uid: h.uid,
-      displayName: h.uid.slice(0, 8),
+      displayName: resolvePlayerDisplayName({ uid: h.uid }),
       isBot: false,
       bestScore: mode === "solo" ? sortValue : h.bestScore,
       rankPoints: mode === "multi" ? sortValue : h.rankPoints,
@@ -122,7 +122,7 @@ export async function buildMergedCampaignLeaderboard(
         : estimateCampaignBoardBotPlayCount({ mode, value });
     entries.push({
       uid: botBoardUid(args.campaign.campaignId, member.slot),
-      displayName: getCampaignBotPersonaDisplay(member.botPersonaId),
+      displayName: generateDisplayName(member.botPersonaId),
       isBot: true,
       botPersonaId: member.botPersonaId,
       bestScore: mode === "solo" ? value : undefined,

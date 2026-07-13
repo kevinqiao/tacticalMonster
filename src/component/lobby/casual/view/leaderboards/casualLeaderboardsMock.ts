@@ -1,5 +1,7 @@
 /** 排行榜 Tab：无数据或离线时的界面演示数据 */
 
+import { resolvePlayerDisplayName } from "@/convex/shared/displayName";
+
 export const MOCK_LEADERBOARD_SELF_RANK = 9;
 
 const now = Date.now();
@@ -51,42 +53,42 @@ export const MOCK_C_ARENA_LEADERBOARD: Array<{ rank: number; uid: string; points
 ];
 
 const MOCK_DISPLAY_NAMES: Record<string, string> = {
-  lb_m1: "霓虹疾风",
-  lb_m2: "方块学徒",
-  lb_m3: "CoffeeRun",
-  lb_m4: "夜猫子阿乐",
-  lb_m5: "Lucky_7",
-  lb_m6: "静音模式",
-  lb_m7: "海风 17",
-  lb_m8: "T-REX",
-  lb_m10: "小透明",
-  lb_m11: "周末战士",
-  lb_m12: "练习号",
-  lb_s1: "赛季主宰",
-  lb_s2: "积分猎人",
-  lb_s3: "稳健上分",
-  lb_s4: "追分少年",
-  lb_s5: "路过打酱油",
-  lb_s6: "任务党",
-  lb_s7: "早起鸟",
-  lb_s8: "晚班车",
-  lb_s10: "佛系玩家",
-  lb_c1: "C 场之王",
-  lb_c2: "连击机器",
-  lb_c3: "守擂者",
-  lb_c4: "快攻流",
-  lb_c5: "控场大师",
-  lb_c6: "新人王",
-  lb_c7: "双排队友",
-  lb_c8: "单排上分",
-  lb_c10: "观战学习",
+  lb_m1: resolvePlayerDisplayName({ uid: "lb_m1" }),
+  lb_m2: resolvePlayerDisplayName({ uid: "lb_m2" }),
+  lb_m3: resolvePlayerDisplayName({ uid: "lb_m3" }),
+  lb_m4: resolvePlayerDisplayName({ uid: "lb_m4" }),
+  lb_m5: resolvePlayerDisplayName({ uid: "lb_m5" }),
+  lb_m6: resolvePlayerDisplayName({ uid: "lb_m6" }),
+  lb_m7: resolvePlayerDisplayName({ uid: "lb_m7" }),
+  lb_m8: resolvePlayerDisplayName({ uid: "lb_m8" }),
+  lb_m10: resolvePlayerDisplayName({ uid: "lb_m10" }),
+  lb_m11: resolvePlayerDisplayName({ uid: "lb_m11" }),
+  lb_m12: resolvePlayerDisplayName({ uid: "lb_m12" }),
+  lb_s1: resolvePlayerDisplayName({ uid: "lb_s1" }),
+  lb_s2: resolvePlayerDisplayName({ uid: "lb_s2" }),
+  lb_s3: resolvePlayerDisplayName({ uid: "lb_s3" }),
+  lb_s4: resolvePlayerDisplayName({ uid: "lb_s4" }),
+  lb_s5: resolvePlayerDisplayName({ uid: "lb_s5" }),
+  lb_s6: resolvePlayerDisplayName({ uid: "lb_s6" }),
+  lb_s7: resolvePlayerDisplayName({ uid: "lb_s7" }),
+  lb_s8: resolvePlayerDisplayName({ uid: "lb_s8" }),
+  lb_s10: resolvePlayerDisplayName({ uid: "lb_s10" }),
+  lb_c1: resolvePlayerDisplayName({ uid: "lb_c1" }),
+  lb_c2: resolvePlayerDisplayName({ uid: "lb_c2" }),
+  lb_c3: resolvePlayerDisplayName({ uid: "lb_c3" }),
+  lb_c4: resolvePlayerDisplayName({ uid: "lb_c4" }),
+  lb_c5: resolvePlayerDisplayName({ uid: "lb_c5" }),
+  lb_c6: resolvePlayerDisplayName({ uid: "lb_c6" }),
+  lb_c7: resolvePlayerDisplayName({ uid: "lb_c7" }),
+  lb_c8: resolvePlayerDisplayName({ uid: "lb_c8" }),
+  lb_c10: resolvePlayerDisplayName({ uid: "lb_c10" }),
 };
 
 export function leaderboardDisplayName(uid: string): string {
   if (uid === "lb_self_slot") return "我";
   const nick = MOCK_DISPLAY_NAMES[uid];
   if (nick) return nick;
-  return `玩家 ${uid.slice(0, 8)}…`;
+  return resolvePlayerDisplayName({ uid });
 }
 
 export function formatSubmittedRelative(submittedAt: number): string {

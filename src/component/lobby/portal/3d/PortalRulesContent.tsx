@@ -65,6 +65,18 @@ function RulesBulletList({ items }: { items: string[] }) {
   );
 }
 
+function scrollAnchorIntoModalBody(el: HTMLElement) {
+  const body = el.closest(".portal-modal-body");
+  if (!(body instanceof HTMLElement)) {
+    el.scrollIntoView({ block: "start", inline: "nearest" });
+    return;
+  }
+  // Only scroll the modal body — never the page / overlay (breaks bottom-sheet).
+  const bodyTop = body.getBoundingClientRect().top;
+  const elTop = el.getBoundingClientRect().top;
+  body.scrollTop += elTop - bodyTop - 12;
+}
+
 /** 玩法规则弹窗内容：积分 / 段位与分组 / 奖励 三段式（light DOM，卡通主题） */
 export function PortalRulesContent({
   anchor,
@@ -76,6 +88,9 @@ export function PortalRulesContent({
 }) {
   const { t } = useTranslation("portal.player");
   const [activeTab, setActiveTab] = useState<RulesSection>(sectionOfAnchor(anchor));
+  const [rewardTier, setRewardTier] = useState<PortalTierId>(
+    currentTierId && TIER_IDS.includes(currentTierId) ? currentTierId : "bronze"
+  );
   const sectionRefs = {
     points: useRef<HTMLDivElement>(null),
     tiers: useRef<HTMLDivElement>(null),
@@ -83,6 +98,12 @@ export function PortalRulesContent({
   };
   const soloRef = useRef<HTMLDivElement>(null);
   const multiRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (currentTierId && TIER_IDS.includes(currentTierId)) {
+      setRewardTier(currentTierId);
+    }
+  }, [currentTierId]);
 
   const soloBullets = t("rules.points.soloBullets", {
     returnObjects: true,
@@ -103,19 +124,19 @@ export function PortalRulesContent({
         : anchor === "multi"
           ? multiRef.current
           : sectionRefs[sectionOfAnchor(anchor)].current;
+    // Wait for PortalCenterModal slide-up (~0.5s) so scrollIntoView does not
+    // fight the sheet transform on mobile.
     const timer = window.setTimeout(() => {
-      target?.scrollIntoView({ block: "start" });
-    }, 60);
+      if (target) scrollAnchorIntoModalBody(target);
+    }, 560);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchor]);
 
   const goTo = (section: RulesSection) => {
     setActiveTab(section);
-    sectionRefs[section].current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    const target = sectionRefs[section].current;
+    if (target) scrollAnchorIntoModalBody(target);
   };
 
   const tabItems: [RulesSection, string][] = [
@@ -197,56 +218,114 @@ export function PortalRulesContent({
           className="portal-rules-intro"
           dangerouslySetInnerHTML={{ __html: t("rules.rewards.intro") }}
         />
-        <table className="portal-rules-reward-table">
-          <thead>
-            <tr>
-              <th>{t("rules.rewards.rankColumn")}</th>
-              {TIER_IDS.map((tierId) => (
-                <th
-                  key={tierId}
-                  className={
-                    currentTierId === tierId ? "portal-rules-reward-col--me" : undefined
-                  }
-                >
-                  <img
-                    className="portal-rules-reward-badge"
-                    src={PORTAL_3D_TIER_BADGES[tierId]}
-                    alt={t(`tiers.${tierId}`)}
-                  />
-                  <span>{t(`tiers.${tierId}`)}</span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {REWARD_MATRIX.map((row) => (
-              <tr key={row.rangeKey}>
-                <td>
-                  <span
-                    className={`portal-rules-zone-mark ${ZONE_MARKS[row.zone].className}`}
-                  >
-                    {ZONE_MARKS[row.zone].mark}
-                  </span>
-                  {t(`rules.rewards.ranges.${row.rangeKey}`)}
-                </td>
+        <div className="portal-rules-reward-table-wrap portal-rules-reward--desktop">
+          <table className="portal-rules-reward-table">
+            <thead>
+              <tr>
+                <th>{t("rules.rewards.rankColumn")}</th>
                 {TIER_IDS.map((tierId) => (
-                  <td
+                  <th
                     key={tierId}
-                    className={`portal-rules-reward-coins${
-                      currentTierId === tierId ? " portal-rules-reward-col--me" : ""
-                    }`}
+                    className={
+                      currentTierId === tierId ? "portal-rules-reward-col--me" : undefined
+                    }
                   >
-                    {row.coins[tierId] == null ? (
-                      t("common.dash")
-                    ) : (
-                      <>🪙 {row.coins[tierId]}</>
-                    )}
-                  </td>
+                    <img
+                      className="portal-rules-reward-badge"
+                      src={PORTAL_3D_TIER_BADGES[tierId]}
+                      alt={t(`tiers.${tierId}`)}
+                    />
+                    <span>{t(`tiers.${tierId}`)}</span>
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {REWARD_MATRIX.map((row) => (
+                <tr key={row.rangeKey}>
+                  <td>
+                    <span
+                      className={`portal-rules-zone-mark ${ZONE_MARKS[row.zone].className}`}
+                    >
+                      {ZONE_MARKS[row.zone].mark}
+                    </span>
+                    {t(`rules.rewards.ranges.${row.rangeKey}`)}
+                  </td>
+                  {TIER_IDS.map((tierId) => (
+                    <td
+                      key={tierId}
+                      className={`portal-rules-reward-coins${
+                        currentTierId === tierId ? " portal-rules-reward-col--me" : ""
+                      }`}
+                    >
+                      {row.coins[tierId] == null ? (
+                        t("common.dash")
+                      ) : (
+                        <>🪙 {row.coins[tierId]}</>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Portrait: pick one tier, then a vertical rank → coins list (no horizontal scroll). */}
+        <div className="portal-rules-reward--portrait">
+          <div
+            className="portal-rules-reward-tier-picks"
+            role="tablist"
+            aria-label={t("rules.rewards.pickTierAria")}
+          >
+            {TIER_IDS.map((tierId) => {
+              const selected = rewardTier === tierId;
+              const isMine = currentTierId === tierId;
+              return (
+                <button
+                  key={tierId}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  className={`portal-rules-reward-tier-pick${
+                    selected ? " portal-rules-reward-tier-pick--active" : ""
+                  }${isMine ? " portal-rules-reward-tier-pick--me" : ""}`}
+                  onClick={() => setRewardTier(tierId)}
+                >
+                  <img
+                    src={PORTAL_3D_TIER_BADGES[tierId]}
+                    alt=""
+                    aria-hidden
+                  />
+                  <span>{t(`tiers.${tierId}`)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <ul className="portal-rules-reward-list">
+            {REWARD_MATRIX.map((row) => {
+              const coins = row.coins[rewardTier];
+              return (
+                <li
+                  key={row.rangeKey}
+                  className={`portal-rules-reward-list-row portal-rules-reward-list-row--${row.zone}`}
+                >
+                  <span className="portal-rules-reward-list-rank">
+                    <span
+                      className={`portal-rules-zone-mark ${ZONE_MARKS[row.zone].className}`}
+                    >
+                      {ZONE_MARKS[row.zone].mark}
+                    </span>
+                    {t(`rules.rewards.ranges.${row.rangeKey}`)}
+                  </span>
+                  <span className="portal-rules-reward-list-coins">
+                    {coins == null ? t("common.dash") : <>🪙 {coins}</>}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
         <p className="portal-rules-reward-legend">
           <span className="portal-rules-zone-mark portal-rules-zone-mark--promote">↑</span>
           {t("rules.rewards.legendPromote")}

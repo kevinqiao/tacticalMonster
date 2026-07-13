@@ -77,6 +77,8 @@
     "build:verify": "vite build && npm run verify:dist-runtime-imports",
     "build:analyze": "cross-env ANALYZE=true vite build",
     "preview": "vite preview",
+    "netlify:deploy": "netlify deploy --dir=dist",
+    "netlify:deploy:prod": "netlify deploy --prod --dir=dist",
     "test": "cross-env NODE_ENV=test jest",
     "test:vitest": "vitest",
     "test:vitest:ui": "vitest --ui",

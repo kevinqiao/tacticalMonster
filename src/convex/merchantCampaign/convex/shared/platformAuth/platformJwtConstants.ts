@@ -3,6 +3,7 @@
 export const PLATFORM_JWT_ISSUER = "https://platform.tacticalmonster.dev";
 export const PLATFORM_JWT_AUDIENCE = "convex";
 export const PLATFORM_JWT_KID = "platform-dev";
+export const PLATFORM_JWT_KID_PROD = "platform-prod";
 export const PLATFORM_JWT_TTL_SEC = 7 * 24 * 60 * 60;
 
 export const PLATFORM_JWT_PRIVATE_KEY_DEV = `-----BEGIN PRIVATE KEY-----
@@ -42,6 +43,14 @@ export const PLATFORM_JWKS_DEV_JSON = JSON.stringify({
       e: "AQAB",
       use: "sig",
       kid: "platform-dev",
+      alg: "RS256",
+    },
+    {
+      kty: "RSA",
+      n: "tK4-fzOt7H5fHUWUy8Dp_ushEE4l99PgSWk1TT-wKdaNwfkS1zlLa6sPwt3Ub9QVuCVOz9MksN0YmGWZaQoiJKab_1sT0wWLVz_8zY2gqjdCR164oLLh0bdeZUIyumFzC5_-WkgGowfUiIdF4qNINLsi4HY717NJJxhN1MiY6BiyABLNLVrGy-_3G90N_ezlg4KaCzfrtZ87aFqUW2sXDWrqKNUcThlwe3avb1fGydxd3yugU9lw48TZSYB7dkmAxeGmiQu9bvaQtgR3WXZl85gyh6WGIbuCQBqt69kXXS1WieTeeb7PUboOmR1wOpTFfxwpwQ-mX8Snc7SN6YwbhQ",
+      e: "AQAB",
+      use: "sig",
+      kid: "platform-prod",
       alg: "RS256",
     },
   ],

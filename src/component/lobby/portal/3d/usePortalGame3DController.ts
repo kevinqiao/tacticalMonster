@@ -80,6 +80,8 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     useState<Portal3DRulesAnchor | null>(null);
   const [shopModalOpen, setShopModalOpen] = useState(false);
   const [giftCardOrdersModalOpen, setGiftCardOrdersModalOpen] = useState(false);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [backpackModalOpen, setBackpackModalOpen] = useState(false);
   const [weeklyCloseModalOpen, setWeeklyCloseModalOpen] = useState(false);
   const weeklyCloseShownRef = useRef<string | null>(null);
 
@@ -421,6 +423,10 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     setShopModalOpen,
     giftCardOrdersModalOpen,
     setGiftCardOrdersModalOpen,
+    accountModalOpen,
+    setAccountModalOpen,
+    backpackModalOpen,
+    setBackpackModalOpen,
     weeklyCloseModalOpen,
     setWeeklyCloseModalOpen,
     openAssignments,

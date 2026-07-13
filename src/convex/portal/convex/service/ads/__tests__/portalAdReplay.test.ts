@@ -414,8 +414,8 @@ describe("portalAdReplayEligibility", () => {
       isBoardStable: true,
       rows: [
         { rank: 1, score: 500, rowState: "scored" as const, displayLabel: "你", isYou: true },
-        { rank: 2, score: 400, rowState: "scored" as const, displayLabel: "补位 1", isYou: false, isBot: true },
-        { rank: 3, score: 300, rowState: "scored" as const, displayLabel: "补位 2", isYou: false, isBot: true },
+        { rank: 2, score: 400, rowState: "scored" as const, displayLabel: "NeonFox", isYou: false, isBot: true },
+        { rank: 3, score: 300, rowState: "scored" as const, displayLabel: "QuietRiver", isYou: false, isBot: true },
       ],
     };
     expect(isMultiplayerWinnerAllScoredSuppressAdReplay(multiDef, tableSummary)).toBe(true);
@@ -439,7 +439,7 @@ describe("portalAdReplayEligibility", () => {
       maxPlayers: 5,
       isBoardStable: true,
       rows: [
-        { rank: 1, score: 500, rowState: "scored" as const, displayLabel: "补位 1", isYou: false, isBot: true },
+        { rank: 1, score: 500, rowState: "scored" as const, displayLabel: "NeonFox", isYou: false, isBot: true },
         { rank: 2, score: 400, rowState: "scored" as const, displayLabel: "你", isYou: true },
       ],
     };

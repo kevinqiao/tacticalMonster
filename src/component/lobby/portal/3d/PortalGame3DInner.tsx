@@ -11,7 +11,10 @@ import type { RegisteredPortalGameType } from "@/convex/portal/convex/data/porta
 import type { PortalWeeklyLeagueUnclaimedRewards } from "../service/usePortalManager";
 import { getBootFallbackBg } from "@/host/bootTheme";
 import { markPortalBootPainted } from "@/host/bootHandoff";
-import { shouldShowPortalAuthButton } from "../portalAuthButtonVisible";
+import {
+  shouldShowPortalAccountChrome,
+  shouldShowPortalAuthMenuActions,
+} from "../portalAuthButtonVisible";
 import { formatWeekRemaining } from "./portalGame3DFormatters";
 
 /** 统一规则弹窗的定位锚点：solo/multi 定位到积分段的对应模式卡 */
@@ -81,8 +84,14 @@ export interface PortalGame3DInnerProps {
   showShop?: boolean;
   onSignOut?: () => void;
   onSignIn?: () => void;
-  /** Top-right SignIn/SignOut; default hidden on Partner portal and embed shells. */
+  /** Override account chrome visibility (preview). */
   showAuthButton?: boolean;
+  /** Override Sign In / Sign Out menu items (embed/partner should be false). */
+  showAuthMenuActions?: boolean;
+  /** Open My Account panel */
+  onOpenAccount?: () => void;
+  /** Open backpack panel */
+  onOpenBackpack?: () => void;
   /** 未领取的周联赛金币；有值时在段位条显示「待领」胶囊 */
   unclaimedRewards?: PortalWeeklyLeagueUnclaimedRewards | null;
   onOpenUnclaimedRewards?: () => void;
@@ -117,17 +126,43 @@ export function PortalGame3DInner({
   onSignOut,
   onSignIn,
   showAuthButton,
+  showAuthMenuActions: showAuthMenuActionsProp,
+  onOpenAccount,
+  onOpenBackpack,
   unclaimedRewards,
   onOpenUnclaimedRewards,
   pageActive = true,
 }: PortalGame3DInnerProps) {
   const { t } = useTranslation("portal.player");
-  const authButtonVisible = showAuthButton ?? shouldShowPortalAuthButton();
+  const showAuthActions =
+    showAuthMenuActionsProp ?? shouldShowPortalAuthMenuActions();
+  const accountChromeVisible =
+    showAuthButton ?? shouldShowPortalAccountChrome(authed);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleWrapperRef = useRef<HTMLDivElement>(null);
   const shopRef = useRef<HTMLDivElement>(null);
   const authRef = useRef<HTMLDivElement>(null);
   const [isPortrait, setIsPortrait] = useState(false);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const onDocPointer = (e: PointerEvent) => {
+      const root = authRef.current;
+      if (!root) return;
+      // Shadow DOM retargets e.target to the host; use composedPath.
+      const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+      if (path.includes(root)) return;
+      if (e.target instanceof Node && root.contains(e.target)) return;
+      setAccountMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onDocPointer, true);
+    return () => document.removeEventListener("pointerdown", onDocPointer, true);
+  }, [accountMenuOpen]);
+
+  useEffect(() => {
+    if (!authed) setAccountMenuOpen(false);
+  }, [authed]);
 
   useEffect(() => {
     const wrapper = scaleWrapperRef.current;
@@ -156,18 +191,23 @@ export function PortalGame3DInner({
       container.style.transform =
         `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 
+      // Keep corner chrome readable/tappable on phones (canvas scale ~0.27).
+      // Auth needs a larger floor; shop art is already wide — use a lower floor.
+      const authChromeScale = Math.min(1, Math.max(scale, 0.6));
+      const shopChromeScale = Math.min(1, Math.max(scale, 0.4));
+
       const shop = shopRef.current;
       if (shop) {
-        shop.style.transform = `scale(${scale})`;
-        shop.style.top = `${24 * scale}px`;
-        shop.style.left = `${24 * scale}px`;
+        shop.style.transform = `scale(${shopChromeScale})`;
+        shop.style.top = `${24 * shopChromeScale}px`;
+        shop.style.left = `${24 * shopChromeScale}px`;
       }
 
       const auth = authRef.current;
       if (auth) {
-        auth.style.transform = `scale(${scale})`;
-        auth.style.top = `${24 * scale}px`;
-        auth.style.right = `${24 * scale}px`;
+        auth.style.transform = `scale(${authChromeScale})`;
+        auth.style.top = `${24 * authChromeScale}px`;
+        auth.style.right = `${24 * authChromeScale}px`;
       }
     }
 
@@ -286,19 +326,83 @@ export function PortalGame3DInner({
           </div>
         ) : null}
       </div>
-      {authButtonVisible ? (
+      {accountChromeVisible ? (
         <div ref={authRef} className={styles.fixedAuthCluster}>
           <div
             className={styles.fixedAuthButton}
-            onClick={authed ? onSignOut : onSignIn}
+            role="button"
+            tabIndex={0}
+            aria-label={
+              authed
+                ? t("lobby.accountMenu.openAria")
+                : t("lobby.signIn")
+            }
+            aria-haspopup={authed ? "menu" : undefined}
+            aria-expanded={authed ? accountMenuOpen : undefined}
+            onClick={() => {
+              if (!authed) {
+                if (showAuthActions) onSignIn?.();
+                return;
+              }
+              setAccountMenuOpen((v) => !v);
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" && e.key !== " ") return;
+              e.preventDefault();
+              if (!authed) {
+                if (showAuthActions) onSignIn?.();
+                return;
+              }
+              setAccountMenuOpen((v) => !v);
+            }}
             style={{ cursor: "pointer" }}
           >
             <div className={styles.fixedAuthBackground}>
-              <span className={styles.fixedAuthText}>
-                {authed ? t("lobby.signOut") : t("lobby.signIn")}
-              </span>
+              <span className={styles.fixedAuthIcon} aria-hidden />
             </div>
           </div>
+          {authed && accountMenuOpen ? (
+            <div className={styles.fixedAuthMenu} role="menu">
+              <button
+                type="button"
+                className={styles.fixedAuthMenuItem}
+                role="menuitem"
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  onOpenAccount?.();
+                }}
+              >
+                {t("lobby.accountMenu.myAccount")}
+              </button>
+              <button
+                type="button"
+                className={styles.fixedAuthMenuItem}
+                role="menuitem"
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  onOpenBackpack?.();
+                }}
+              >
+                {t("lobby.accountMenu.backpack")}
+              </button>
+              {showAuthActions ? (
+                <>
+                  <div className={styles.fixedAuthMenuSep} role="separator" />
+                  <button
+                    type="button"
+                    className={`${styles.fixedAuthMenuItem} ${styles.fixedAuthMenuItemDanger}`}
+                    role="menuitem"
+                    onClick={() => {
+                      setAccountMenuOpen(false);
+                      onSignOut?.();
+                    }}
+                  >
+                    {t("lobby.signOut")}
+                  </button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
       <div
@@ -340,22 +444,33 @@ export function PortalGame3DInner({
               </div>
               <div className={styles.tierCenter}>
                 <div className={styles.tierTopLine}>
-                  <span className={styles.tierCohortNo}>
-                    {tier.cohortNo != null
-                      ? t("lobby.cohortLabel", { no: tier.cohortNo })
-                      : t("lobby.cohortPending")}
-                    <span
-                      className={styles.tierHelpBtn}
-                      onClick={() => onOpenRules?.("tiers")}
-                      role="button"
-                      aria-label={t("lobby.rulesAria")}
-                    />
-                  </span>
+                  {/* Portrait: hide cohort id to free vertical space; keep ? next to rank */}
+                  {!isPortrait ? (
+                    <span className={styles.tierCohortNo}>
+                      {tier.cohortNo != null
+                        ? t("lobby.cohortLabel", { no: tier.cohortNo })
+                        : t("lobby.cohortPending")}
+                      <span
+                        className={styles.tierHelpBtn}
+                        onClick={() => onOpenRules?.("tiers")}
+                        role="button"
+                        aria-label={t("lobby.rulesAria")}
+                      />
+                    </span>
+                  ) : null}
                   <span className={styles.tierRankText}>
                     {t("lobby.rankLabel", {
                       rank: tier.rank != null ? `#${tier.rank}` : t("common.dash"),
                       size: cohortMemberCount,
                     })}
+                    {isPortrait ? (
+                      <span
+                        className={styles.tierHelpBtn}
+                        onClick={() => onOpenRules?.("tiers")}
+                        role="button"
+                        aria-label={t("lobby.rulesAria")}
+                      />
+                    ) : null}
                   </span>
                 </div>
                 <div className={styles.tierZoneBar}>
@@ -383,10 +498,11 @@ export function PortalGame3DInner({
                     />
                   ) : null}
                 </div>
-                {tier.projectedCoins != null ||
+                {/* Portrait: hide projected settlement text; keep claimable chip if any */}
+                {(!isPortrait && tier.projectedCoins != null) ||
                 (unclaimedRewards && unclaimedRewards.coins > 0) ? (
                   <div className={styles.tierRewardLine}>
-                    {tier.projectedCoins != null ? (
+                    {!isPortrait && tier.projectedCoins != null ? (
                       <div className={styles.tierRewardLineMain}>
                         <span>{t("lobby.projectedReward")}</span>
                         <div className={styles.tierRewardCoin} />

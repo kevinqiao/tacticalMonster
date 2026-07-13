@@ -11,6 +11,8 @@ export type EmbedSdkSpec = {
   id: string;
   scriptUrl: string;
   globalProbe: () => boolean;
+  /** After script is present (e.g. CrazyGames SDK.init). */
+  afterLoad?: () => Promise<void>;
 };
 
 const DEFAULT_PROBE_INTERVAL_MS = 50;
@@ -47,8 +49,15 @@ export function loadEmbedSdk(spec: EmbedSdkSpec): Promise<void> {
   console.info("[EmbedAuth]", "sdk load start", { sdkId: spec.id, scriptUrl: spec.scriptUrl });
   const promise = (async () => {
     try {
+      const finishReady = async () => {
+        if (spec.afterLoad) {
+          await spec.afterLoad();
+        }
+        logEmbedSdkLoad(spec.id, "ready", spec.scriptUrl);
+      };
       if (spec.globalProbe()) {
         logEmbedSdkLoad(spec.id, "already_present", spec.scriptUrl);
+        await finishReady();
         return;
       }
       if (typeof document === "undefined") {
@@ -57,6 +66,7 @@ export function loadEmbedSdk(spec: EmbedSdkSpec): Promise<void> {
       const existing = document.querySelector(`script[data-embed-sdk="${spec.id}"]`);
       if (existing && spec.globalProbe()) {
         logEmbedSdkLoad(spec.id, "already_present", spec.scriptUrl);
+        await finishReady();
         return;
       }
       if (!existing) {
@@ -64,7 +74,7 @@ export function loadEmbedSdk(spec: EmbedSdkSpec): Promise<void> {
         logEmbedSdkLoad(spec.id, "script_injected", spec.scriptUrl);
       }
       await waitUntilEmbedSdkProbe(spec.globalProbe);
-      logEmbedSdkLoad(spec.id, "ready", spec.scriptUrl);
+      await finishReady();
     } catch (error) {
       logEmbedSdkLoadFailed(spec.id, error);
       throw error;

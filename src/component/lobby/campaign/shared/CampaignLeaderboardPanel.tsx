@@ -2,6 +2,8 @@ import React from "react";
 
 import { useTranslation } from "react-i18next";
 
+import { resolvePlayerDisplayName } from "@/convex/shared/displayName";
+
 
 
 type Row = {
@@ -79,10 +81,12 @@ export const CampaignLeaderboardPanel: React.FC<Props> = ({ mode, rows, viewerUi
         const isViewer = !row.isBot && viewerUid != null && row.uid === viewerUid;
 
         const label =
-
           row.displayName ??
-
-          (isViewer ? t("leaderboard.you") : row.isBot ? t("leaderboard.competitor") : row.uid.slice(0, 8));
+          (isViewer
+            ? t("leaderboard.you")
+            : row.isBot
+              ? t("leaderboard.competitor")
+              : resolvePlayerDisplayName({ uid: row.uid }));
 
         const rank = row.rank ?? index + 1;
 

@@ -118,7 +118,7 @@ export const CasualTableSummaryPanel: React.FC<{
         </table>
       </div>
       <p className="msc-tableSummary__foot">
-        分数越高名次越靠前。「补位」为系统对手自动补位，与真人同桌一并计名次。
+        分数越高名次越靠前。带「系统对手」标记的为自动补位玩家，与真人同桌一并计名次。
       </p>
     </div>
   );

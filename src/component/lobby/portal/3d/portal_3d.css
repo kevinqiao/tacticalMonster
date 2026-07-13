@@ -1019,17 +1019,19 @@
 .fixedShopText {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   position: absolute;
-  height: 38px;
-  right: 32px;
-  bottom: 28px;
+  /* Right column: gem overlay is x≈29–86 on 228px art */
+  top: 0;
+  right: 18px;
+  bottom: 0;
+  left: 90px;
   color: #f4ebdd;
   font-family: Inter, var(--default-font-family);
   font-size: 32px;
   font-weight: 900;
-  line-height: 38px;
-  text-align: left;
+  line-height: 1;
+  text-align: center;
   white-space: nowrap;
   z-index: 101;
 }
@@ -1038,8 +1040,8 @@
   position: absolute;
   top: 24px;
   right: 24px;
-  width: 228px;
-  height: 87px;
+  width: 80px;
+  height: 80px;
   z-index: 200;
   transform-origin: top right;
   pointer-events: auto;
@@ -1093,31 +1095,68 @@
 
 .fixedAuthBackground {
   position: relative;
-  width: 228px;
-  height: 87px;
-  background-image: url(/assets/portal/solitaire/buttons/btn-signout-default.png);
-  background-repeat: no-repeat;
-  background-position: center;
+  box-sizing: border-box;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(8, 20, 40, 0.78);
+  border: 3px solid rgba(232, 244, 252, 0.4);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
+}
+
+.fixedAuthIcon {
+  display: block;
+  width: 40px;
+  height: 44px;
+  background: url(/assets/portal/3d/ui/btn-auth-icon.png) no-repeat center;
   background-size: contain;
 }
 
-.fixedAuthText {
+.fixedAuthMenu {
+  position: relative;
+  z-index: 210;
+  min-width: 280px;
+  padding: 14px 12px;
+  border-radius: 16px;
+  border: 2px solid rgba(232, 244, 252, 0.35);
+  background: linear-gradient(180deg, rgba(18, 42, 78, 0.96) 0%, rgba(10, 24, 48, 0.98) 100%);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  position: absolute;
-  height: 38px;
-  right: 24px;
-  bottom: 28px;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.fixedAuthMenuItem {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: transparent;
   color: #e8f4fc;
   font-family: Inter, var(--default-font-family);
   font-size: 28px;
-  font-weight: 900;
-  line-height: 38px;
+  font-weight: 800;
   text-align: left;
-  white-space: nowrap;
-  z-index: 101;
-  text-shadow: 0 1px 2px rgba(15, 55, 120, 0.35);
+  cursor: pointer;
+}
+
+.fixedAuthMenuItem:hover {
+  background: rgba(232, 244, 252, 0.12);
+}
+
+.fixedAuthMenuItemDanger {
+  color: #ffb4b4;
+}
+
+.fixedAuthMenuSep {
+  height: 1px;
+  margin: 6px 10px;
+  background: rgba(232, 244, 252, 0.18);
 }
 
 /* ===== 段位主区（tier strip）+ 压缩模式卡 ===== */
@@ -1636,7 +1675,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 90px 0 0;
+  /* Bottom pad: scaled mode cards (1.9×) paint below their layout box */
+  padding: 90px 0 200px;
 }
 
 .mainContainerPortrait,
@@ -1670,36 +1710,38 @@
   justify-content: center;
   width: 1440px;
   height: auto;
-  margin: 300px 0 0;
-  gap: 470px;
+  /* Tighter top margin after hiding cohort/projected reward on mobile */
+  margin: 180px 0 0;
+  gap: 420px;
+  flex-shrink: 0;
 }
 
 /* scale() 不改变布局盒：1.9 倍卡片上下各视觉溢出约 133px，
-   margin/gap 需预留（gap 470 → 视觉间距约 204px）。 */
-.flexRowBPortrait .groups5 {
-  transform: scale(1.9);
-  transform-origin: center;
-}
-
+   margin/gap 需预留（gap 420 → 视觉间距约 154px）。 */
+.flexRowBPortrait .groups5,
 .flexRowBPortrait .groups10 {
   transform: scale(1.9);
   transform-origin: center;
+  height: 310px;
+  overflow: visible;
 }
 
-/* 竖屏：段位栏与模式卡视觉同宽（1062 ≈ 559×1.9），按钮组单起一行 */
+/* 竖屏：段位栏与模式卡视觉同宽（1062 ≈ 559×1.9），按钮组单起一行。
+   字号/按钮约 2×，抵消画布 scale(~0.27) 在手机上过小。 */
 .tierStripRowPortrait {
   width: 1062px;
   height: auto;
-  margin: 170px auto 0;
+  margin: 100px auto 0;
+  flex-shrink: 0;
 }
 
 .tierStripRowPortrait .tierStrip {
   /* 徽章跨两行垂直居中；按钮行整宽居中。贴图底部木框比顶部厚（图内约 85px vs 60px），底部内边距更大防按钮压框 */
   display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   align-items: center;
   height: auto;
-  padding: 48px 60px 68px;
+  padding: 44px 52px 56px;
 }
 
 .tierStripRowPortrait .tierBadgeWrap {
@@ -1713,35 +1755,34 @@
 }
 
 .tierStripRowPortrait .tierBadge {
-  width: 128px;
-  height: 140px;
+  width: 168px;
+  height: 184px;
 }
 
 .tierStripRowPortrait .tierHelpBtn {
-  width: 40px;
-  height: 42px;
-}
-
-.tierStripRowPortrait .tierCohortNo {
-  font-size: 38px;
+  width: 56px;
+  height: 58px;
 }
 
 .tierStripRowPortrait .tierRankText {
-  font-size: 31px;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 58px;
 }
 
 .tierStripRowPortrait .tierZoneBar {
-  height: 46px;
+  height: 72px;
 }
 
 .tierStripRowPortrait .tierZonePromote,
 .tierStripRowPortrait .tierZoneKeep,
 .tierStripRowPortrait .tierZoneDemote {
-  font-size: 19px;
+  font-size: 36px;
 }
 
 .tierStripRowPortrait .tierRewardLine {
-  font-size: 25px;
+  font-size: 48px;
   flex-wrap: nowrap;
 }
 
@@ -1759,12 +1800,18 @@
 
 .tierStripRowPortrait .tierUnclaimedChip {
   width: auto;
-  max-width: min(100%, 320px);
-  min-height: 58px;
+  max-width: min(100%, 420px);
+  min-height: 100px;
+  padding: 12px 18px 12px 14px;
+}
+
+.tierStripRowPortrait .tierUnclaimedIcon {
+  width: 48px;
+  height: 48px;
 }
 
 .tierStripRowPortrait .tierUnclaimedText {
-  font-size: 25px;
+  font-size: 44px;
 }
 
 .tierStripRowPortrait .tierLbBtn,
@@ -1773,10 +1820,23 @@
   min-width: 0;
   width: auto;
   max-width: none;
-  height: 68px;
+  height: 120px;
+}
+
+.tierStripRowPortrait .tierLbBtnBg {
+  padding: 0 22px 0 56px;
+  border-radius: 16px;
+  border-width: 4px;
+}
+
+.tierStripRowPortrait .tierLbTrophy,
+.tierStripRowPortrait .tierHistoryIcon {
+  width: 44px;
+  height: 40px;
+  left: 20px;
 }
 
 .tierStripRowPortrait .tierLbText {
-  font-size: 23px;
+  font-size: 44px;
 }
 

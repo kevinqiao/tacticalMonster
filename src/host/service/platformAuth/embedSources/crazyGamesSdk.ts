@@ -2,6 +2,7 @@ declare global {
   interface Window {
     CrazyGames?: {
       SDK?: {
+        init?: () => Promise<void>;
         getEnvironment?: (callback?: (error: unknown, environment: string) => void) => Promise<string> | void;
         ad?: {
           requestAd?: (
@@ -12,6 +13,10 @@ declare global {
               adError?: (error: unknown, errorData?: unknown) => void;
             }
           ) => void;
+        };
+        banner?: {
+          requestResponsiveBanner?: (containerId: string) => void | Promise<void>;
+          clearAllBanners?: () => void;
         };
         user?: {
           isUserAccountAvailable?: boolean;
@@ -26,6 +31,8 @@ export type CrazyGamesEnvironment = "local" | "crazygames" | "disabled" | string
 
 const DEFAULT_CRAZYGAMES_PARTNER_PID = 100;
 
+let initPromise: Promise<boolean> | null = null;
+
 export function crazyGamesPartnerPid(): number {
   const raw = import.meta.env.VITE_CRAZYGAMES_PARTNER_PID;
   const n = raw != null && String(raw).trim() !== "" ? Number(raw) : DEFAULT_CRAZYGAMES_PARTNER_PID;
@@ -37,7 +44,33 @@ function crazyGamesSdk() {
   return window.CrazyGames?.SDK;
 }
 
+/**
+ * CrazyGames SDK v3: script load only exposes `window.CrazyGames.SDK`;
+ * APIs throw until `await SDK.init()` resolves. Deduped across callers.
+ */
+export function ensureCrazyGamesSdkInitialized(): Promise<boolean> {
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    const sdk = crazyGamesSdk();
+    if (!sdk) return false;
+    const init = sdk.init;
+    if (typeof init !== "function") {
+      return Boolean(sdk.banner || sdk.ad || sdk.user || sdk.getEnvironment);
+    }
+    try {
+      await init.call(sdk);
+      return true;
+    } catch (error) {
+      console.warn("[CrazyGames] SDK.init failed", error);
+      return false;
+    }
+  })();
+  return initPromise;
+}
+
 export async function getCrazyGamesEnvironment(): Promise<CrazyGamesEnvironment | null> {
+  const ready = await ensureCrazyGamesSdkInitialized();
+  if (!ready) return null;
   const sdk = crazyGamesSdk();
   if (!sdk?.getEnvironment) return null;
   try {
@@ -59,6 +92,8 @@ export function isCrazyGamesUserAccountAvailable(): boolean {
 }
 
 export async function fetchCrazyGamesUserToken(): Promise<string | null> {
+  const ready = await ensureCrazyGamesSdkInitialized();
+  if (!ready) return null;
   const sdk = crazyGamesSdk();
   const getUserToken = sdk?.user?.getUserToken;
   if (!getUserToken) return null;
@@ -75,11 +110,15 @@ export type CrazyGamesRewardedAdResult =
   | { ok: false; reason: "unfilled" | "sdk_error" | "unsupported" };
 
 /** CrazyGames SDK v3 rewarded ad（须在用户手势内调用）。 */
-export function requestCrazyGamesRewardedAd(): Promise<CrazyGamesRewardedAdResult> {
+export async function requestCrazyGamesRewardedAd(): Promise<CrazyGamesRewardedAdResult> {
+  const ready = await ensureCrazyGamesSdkInitialized();
+  if (!ready) {
+    return { ok: false, reason: "unsupported" };
+  }
   const sdk = crazyGamesSdk();
   const requestAd = sdk?.ad?.requestAd;
   if (!requestAd) {
-    return Promise.resolve({ ok: false, reason: "unsupported" });
+    return { ok: false, reason: "unsupported" };
   }
 
   return new Promise((resolve) => {
@@ -106,4 +145,9 @@ export function requestCrazyGamesRewardedAd(): Promise<CrazyGamesRewardedAdResul
       finish({ ok: false, reason: "sdk_error" });
     }, 120_000);
   });
+}
+
+/** Test helper */
+export function resetCrazyGamesSdkInitForTests(): void {
+  initPromise = null;
 }

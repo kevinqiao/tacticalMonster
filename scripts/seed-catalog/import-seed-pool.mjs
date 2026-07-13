@@ -73,6 +73,7 @@ function parseArgs(argv) {
     updateExisting: false,
     poolVersion: "",
     limit: 0,
+    convexArgs: [],
   };
   const flags = [...argv];
   if (flags.length > 0 && !flags[0].startsWith("-")) {
@@ -91,6 +92,7 @@ function parseArgs(argv) {
     else if (a === "--append") opts.append = true;
     else if (a === "--update-existing") opts.updateExisting = true;
     else if (a === "--pool-version") opts.poolVersion = next();
+    else if (a === "--prod") opts.convexArgs.push("--prod");
   }
   return opts;
 }

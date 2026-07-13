@@ -147,6 +147,8 @@
   inset: 0;
   z-index: 10000;
   box-sizing: border-box;
+  /* Closed until GSAP opens — avoids one-frame full-panel flash on first mount. */
+  visibility: hidden;
 }
 
 .portal-modal-overlay--fullscreen {
@@ -191,12 +193,15 @@
 
 .portal-modal-panel--fullscreen {
   position: absolute;
-  inset: 0;
-  /* 与 left/right inset 并用时勿设 width:100%，否则会溢出裁切右边框 */
-  width: auto;
+  /* Closed pose matches host swipeBottom; GSAP owns top/y on open. */
+  top: 100%;
+  left: 0;
+  right: auto;
+  bottom: auto;
+  width: 100%;
   max-width: 100%;
   max-height: none;
-  height: 100%;
+  height: calc(100% - 16px);
   box-sizing: border-box;
   border: none;
   border-radius: 0;
@@ -204,6 +209,7 @@
   background: #0f1419;
   color: #e8ecf4;
   will-change: transform;
+  transform: none;
 }
 
 .portal-modal-head {

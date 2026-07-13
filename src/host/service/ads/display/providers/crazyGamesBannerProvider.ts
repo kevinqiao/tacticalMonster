@@ -1,9 +1,11 @@
+import { ensureCrazyGamesSdkInitialized } from "../../../platformAuth/embedSources/crazyGamesSdk";
+
 declare global {
   interface Window {
     CrazyGames?: {
       SDK?: {
         banner?: {
-          requestResponsiveBanner?: (containerId: string) => void;
+          requestResponsiveBanner?: (containerId: string) => void | Promise<void>;
           clearAllBanners?: () => void;
         };
       };
@@ -20,17 +22,24 @@ export const crazyGamesBannerProvider = {
   },
 
   async mountResponsiveBanner(containerId: string) {
+    const ready = await ensureCrazyGamesSdkInitialized();
+    if (!ready) return { ok: false };
     const request = window.CrazyGames?.SDK?.banner?.requestResponsiveBanner;
     if (!request) return { ok: false };
     try {
-      request(containerId);
+      await request(containerId);
       return { ok: true };
-    } catch {
+    } catch (error) {
+      console.warn("[CrazyGames] requestResponsiveBanner failed", error);
       return { ok: false };
     }
   },
 
   clearAll() {
-    window.CrazyGames?.SDK?.banner?.clearAllBanners?.();
+    try {
+      window.CrazyGames?.SDK?.banner?.clearAllBanners?.();
+    } catch {
+      /* ignore pre-init clear */
+    }
   },
 };

@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as custom_session from "../custom/session.js";
 import type * as http from "../http.js";
 import type * as proxy_controller from "../proxy/controller.js";
 import type * as service_TowerDefenseGameEngine from "../service/TowerDefenseGameEngine.js";
@@ -60,6 +61,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "custom/session": typeof custom_session;
   http: typeof http;
   "proxy/controller": typeof proxy_controller;
   "service/TowerDefenseGameEngine": typeof service_TowerDefenseGameEngine;

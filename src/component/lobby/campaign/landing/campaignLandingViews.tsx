@@ -557,7 +557,11 @@ export const CampaignLandingBody: React.FC<{
 
 
 
-                  {flow.note ? <p className="campaign-note">{flow.note}</p> : null}
+                  {flow.note ? (
+                    <p className="campaign-note" role="status" aria-live="polite">
+                      {flow.note}
+                    </p>
+                  ) : null}
 
                 </div>
 

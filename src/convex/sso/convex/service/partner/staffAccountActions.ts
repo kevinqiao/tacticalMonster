@@ -31,8 +31,9 @@ export const addPartnerStaff = authedAction({
     accountId: v.string(),
     password: v.string(),
     role: partnerRoleValidator,
+    name: v.optional(v.string()),
   },
-  handler: async (ctx, { partnerId, accountId, password, role }) => {
+  handler: async (ctx, { partnerId, accountId, password, role, name }) => {
     const trimmed = accountId.trim();
     if (!trimmed) throw new Error("account_id_required");
     if (!password) throw new Error("password_required");
@@ -44,7 +45,37 @@ export const addPartnerStaff = authedAction({
       platformUid: webPlatformUidForAccount(trimmed, partnerId),
       passwordHash: hashWebPassword(password),
       role,
+      name: name?.trim() || undefined,
     });
+  },
+});
+
+export const updatePartnerStaffProfile = authedAction({
+  args: {
+    partnerId: v.number(),
+    uid: v.string(),
+    name: v.optional(v.string()),
+    role: v.optional(partnerRoleValidator),
+    password: v.optional(v.string()),
+  },
+  handler: async (ctx, { partnerId, uid, name, role, password }) => {
+    const targetUid = uid.trim();
+    if (!targetUid) throw new Error("uid_required");
+    if (password !== undefined && password.length === 0) {
+      throw new Error("password_required");
+    }
+
+    return await ctx.runMutation(
+      internal.service.partner.partnerAdmin.applyUpdatePartnerStaffProfile,
+      {
+        actorUid: ctx.identity.subject,
+        partnerId,
+        uid: targetUid,
+        name,
+        role,
+        passwordHash: password ? hashWebPassword(password) : undefined,
+      }
+    );
   },
 });
 
@@ -53,8 +84,9 @@ export const addPlatformStaff = authedAction({
     accountId: v.string(),
     password: v.string(),
     role: platformStaffRoleValidator,
+    name: v.optional(v.string()),
   },
-  handler: async (ctx, { accountId, password, role }) => {
+  handler: async (ctx, { accountId, password, role, name }) => {
     const trimmed = accountId.trim();
     if (!trimmed) throw new Error("account_id_required");
     if (!password) throw new Error("password_required");
@@ -65,7 +97,35 @@ export const addPlatformStaff = authedAction({
       platformUid: platformStaffUidForAccount(trimmed),
       passwordHash: hashWebPassword(password),
       role,
+      name: name?.trim() || undefined,
     });
+  },
+});
+
+export const updatePlatformStaffProfile = authedAction({
+  args: {
+    uid: v.string(),
+    name: v.optional(v.string()),
+    role: v.optional(platformStaffRoleValidator),
+    password: v.optional(v.string()),
+  },
+  handler: async (ctx, { uid, name, role, password }) => {
+    const targetUid = uid.trim();
+    if (!targetUid) throw new Error("uid_required");
+    if (password !== undefined && password.length === 0) {
+      throw new Error("password_required");
+    }
+
+    return await ctx.runMutation(
+      internal.service.partner.platformAdmin.applyUpdatePlatformStaffProfile,
+      {
+        actorUid: ctx.identity.subject,
+        uid: targetUid,
+        name,
+        role,
+        passwordHash: password ? hashWebPassword(password) : undefined,
+      }
+    );
   },
 });
 

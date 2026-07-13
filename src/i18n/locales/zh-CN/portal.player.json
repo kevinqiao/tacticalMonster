@@ -38,6 +38,34 @@
     "shopAria": "商店",
     "shopWithBalanceAria": "商店，当前金币 {{coins}}",
     "rulesAria": "玩法规则",
+    "accountMenu": {
+      "myAccount": "我的账户",
+      "backpack": "我的背包",
+      "openAria": "账户菜单",
+      "nickname": "昵称",
+      "email": "邮箱",
+      "phone": "手机",
+      "emailPlaceholder": "you@example.com",
+      "phonePlaceholder": "+86 …",
+      "editHint": "昵称：3–16 位字母/数字/空格/下划线。邮箱与手机用于礼品卡发放。",
+      "save": "保存",
+      "saving": "保存中…",
+      "saved": "账户已更新",
+      "errors": {
+        "invalidName": "昵称需为 3–16 位（字母、数字、空格、下划线）。",
+        "nameTaken": "该昵称已被占用。",
+        "cooldown": "昵称每 7 天只能修改一次。",
+        "invalidEmail": "请输入有效邮箱。",
+        "noAuth": "请先登录后再编辑账户。",
+        "saveFailed": "保存失败，请重试。"
+      },
+      "replayTokens": "再战令",
+      "adReplayRemaining": "今日广告再战剩余",
+      "coupons": "优惠券",
+      "tickets": "入场券",
+      "emptyItem": "暂无",
+      "viewGiftCards": "礼品卡订单（{{count}}）"
+    },
     "leaderboardAria": "本组排行",
     "historyAria": "对局记录"
   },
@@ -200,6 +228,7 @@
       "title": "奖励",
       "intro": "每周结算时按<strong>组内名次</strong>发放金币，名次越高奖励越多；<strong>段位越高，同名次的金币也越多</strong>：",
       "rankColumn": "组内名次",
+      "pickTierAria": "选择段位查看奖励",
       "ranges": {
         "rank1": "第 1 名",
         "rank2_3": "第 2–3 名",

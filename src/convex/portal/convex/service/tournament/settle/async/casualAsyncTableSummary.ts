@@ -14,6 +14,11 @@ import {
 } from "./casualAsyncTypes";
 import type { PlayerGameRow } from "../../shared/casualPlayerGameTypes";
 import { parseWatchReplayStepsFromPlayerGame } from "../../shared/casualWatchReplaySnapshot";
+import {
+  ensureUniqueDisplayNames,
+  generateDisplayName,
+  resolvePlayerDisplayName,
+} from "../../../../../../shared/displayName";
 
 export { resolveAsyncLeaderboardRowState } from "../../../../data/portalAsyncLeaderboardRowState";
 
@@ -40,7 +45,7 @@ export type CasualAsyncTableLeaderboardRow = {
   rowState?: "scored" | "playing" | "matching";
   /** bot ???:? reveal ????(ms),??????????? */
   revealAt?: number;
-  /** ????:???/??? n?(??)/??? n?(????),??? uid */
+  /** 「你」/ 仿真昵称（真人+Bot 同源）/「正在匹配中」；不暴露 uid */
   displayLabel: string;
   isBot?: boolean;
   isYou: boolean;
@@ -303,26 +308,39 @@ export async function assignMatchRanksByScoreDesc(
   return withScore.length;
 }
 
+function peerNameSeed(uid: string, pm?: PlayerMatchRow): string {
+  if (isCasualAsyncVirtualOpponentUid(uid) && typeof pm?.botPersonaId === "string" && pm.botPersonaId) {
+    return pm.botPersonaId;
+  }
+  return uid;
+}
+
 function buildLeaderboardRowsFromScored(
   scored: Array<{ uid: string; score: number }>,
   uid: string,
   watchOpts?: WatchAttachOpts
 ): CasualAsyncTableLeaderboardRow[] {
   const sorted = sortScoredUidsByScoreDesc(scored);
-  let humanPeerIdx = 0;
-  let botPeerIdx = 0;
+  const peerSeeds: Array<{ key: string; seed: string }> = [];
+  const peerIndexByUid = new Map<string, number>();
+  for (const e of sorted) {
+    if (e.uid === uid) continue;
+    const pm = watchOpts?.pmByUid.get(e.uid);
+    peerIndexByUid.set(e.uid, peerSeeds.length);
+    peerSeeds.push({ key: e.uid, seed: peerNameSeed(e.uid, pm) });
+  }
+  const peerNames = ensureUniqueDisplayNames(peerSeeds);
+
   return sorted.map((e, idx) => {
     const isYou = e.uid === uid;
     const isBot = isCasualAsyncVirtualOpponentUid(e.uid);
-    let displayLabel: string;
-    if (isYou) {
-      displayLabel = "你";
-    } else if (isBot) {
-      displayLabel = `补位 ${++botPeerIdx}`;
-    } else {
-      displayLabel = `同桌 ${++humanPeerIdx}`;
-    }
     const pm = watchOpts?.pmByUid.get(e.uid);
+    const peerIdx = peerIndexByUid.get(e.uid);
+    const displayLabel = isYou
+      ? "你"
+      : peerIdx != null
+        ? (peerNames[peerIdx] ?? resolvePlayerDisplayName({ uid: e.uid, nameSeed: peerNameSeed(e.uid, pm) }))
+        : resolvePlayerDisplayName({ uid: e.uid, nameSeed: peerNameSeed(e.uid, pm) });
     const watchContext = attachCasualWatchContext(pm, watchOpts, { expectedScore: e.score });
     return {
       rank: idx + 1,
@@ -349,10 +367,11 @@ function buildPartialAsyncTableSummaryRows(args: {
   const targetBotCount = casualAsyncVirtualOpponentCount(maxPlayers, humanCountPlanned);
 
   const scoredEntries: Array<{ uid: string; score: number }> = [];
-  const playingRows: CasualAsyncTableLeaderboardRow[] = [];
+  const playingMeta: Array<{
+    row: Omit<CasualAsyncTableLeaderboardRow, "displayLabel"> & { displayLabel?: string };
+    seed: string | null;
+  }> = [];
   let matchingSlots = 0;
-  let humanPeerIdx = 0;
-  let botPeerIdx = 0;
 
   const humans = rows.filter((r) => !isCasualAsyncVirtualOpponentUid(r.uid));
   const bots = rows
@@ -368,12 +387,15 @@ function buildPartialAsyncTableSummaryRows(args: {
     }
     if (state === "playing") {
       const watchContext = attachCasualWatchContext(h, watchOpts);
-      playingRows.push({
-        rank: 0,
-        rowState: "playing",
-        displayLabel: isYou ? "你" : `同桌 ${++humanPeerIdx}`,
-        isYou,
-        ...(watchContext ? { watchContext } : {}),
+      playingMeta.push({
+        seed: isYou ? null : peerNameSeed(h.uid, h),
+        row: {
+          rank: 0,
+          rowState: "playing",
+          displayLabel: isYou ? "你" : "",
+          isYou,
+          ...(watchContext ? { watchContext } : {}),
+        },
       });
     }
   }
@@ -392,22 +414,24 @@ function buildPartialAsyncTableSummaryRows(args: {
       matchingSlots += 1;
       continue;
     }
-    const label = `补位 ${++botPeerIdx}`;
     if (state === "playing") {
       const watchContext = attachCasualWatchContext(b, watchOpts, {
         revealAt: timing.revealAt,
         duration: timing.duration,
       });
-      playingRows.push({
-        rank: 0,
-        rowState: "playing",
-        displayLabel: label,
-        isBot: true,
-        isYou: false,
-        ...(timing.revealAt != null && Number.isFinite(timing.revealAt)
-          ? { revealAt: timing.revealAt }
-          : {}),
-        ...(watchContext ? { watchContext } : {}),
+      playingMeta.push({
+        seed: peerNameSeed(b.uid, b),
+        row: {
+          rank: 0,
+          rowState: "playing",
+          displayLabel: "",
+          isBot: true,
+          isYou: false,
+          ...(timing.revealAt != null && Number.isFinite(timing.revealAt)
+            ? { revealAt: timing.revealAt }
+            : {}),
+          ...(watchContext ? { watchContext } : {}),
+        },
       });
       continue;
     }
@@ -420,6 +444,21 @@ function buildPartialAsyncTableSummaryRows(args: {
   matchingSlots += unrevealedFromTarget;
 
   const outRows = buildLeaderboardRowsFromScored(scoredEntries, uid, watchOpts);
+  const usedNames = new Set(outRows.map((r) => r.displayLabel));
+  const playingRows: CasualAsyncTableLeaderboardRow[] = playingMeta.map((p) => {
+    if (p.seed == null) {
+      return { ...p.row, displayLabel: "你" };
+    }
+    let salt = 0;
+    let name = generateDisplayName(p.seed, salt);
+    while (usedNames.has(name) && salt < 64) {
+      salt += 1;
+      name = generateDisplayName(p.seed, salt);
+    }
+    usedNames.add(name);
+    return { ...p.row, displayLabel: name };
+  });
+
   outRows.push(...playingRows);
   for (let i = 0; i < matchingSlots; i++) {
     outRows.push({

@@ -1,6 +1,8 @@
 import gsap from "gsap";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { usePortalDocumentStylesReady } from "./usePortalDocumentStyles";
 
 type PortalCenterModalProps = {
   open: boolean;
@@ -11,11 +13,16 @@ type PortalCenterModalProps = {
   wide?: boolean;
 };
 
+/** Same timing as host `useModalAnimate` swipe effects. */
 const OPEN_DUR = 0.5;
 const CLOSE_DUR = 0.5;
 const OPEN_EASE = "power2.inOut";
 const CLOSE_EASE = "power2.inOut";
 
+/**
+ * Portal bottom sheet — animation matches host `swipeBottom` in
+ * `src/host/useModalAnimate.ts`: park at `top: 100%`, then tween `y: "-100%"`.
+ */
 export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
   open,
   title,
@@ -23,55 +30,84 @@ export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
   children,
 }) => {
   const { t } = useTranslation("portal.player");
+  const stylesReady = usePortalDocumentStylesReady();
   const overlayRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLButtonElement>(null);
   const tweenRef = useRef<gsap.core.Timeline | null>(null);
-  const [mounted, setMounted] = useState(open);
+  const [mounted, setMounted] = useState(false);
+
+  const sheetHeight = () => {
+    // Narrow viewports: edge-to-edge with a small top gap (matches portal_3d_modal).
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 963px)").matches) {
+      return "calc(100% - 8px)";
+    }
+    return "calc(100% - 16px)";
+  };
 
   const playOpen = useCallback(() => {
     const panel = panelRef.current;
     const backdrop = backdropRef.current;
-    if (!panel) return;
+    const overlay = overlayRef.current;
+    if (!panel || !overlay) return;
 
     tweenRef.current?.kill();
-    gsap.set(panel, { y: "100%", autoAlpha: 1 });
+    gsap.set(overlay, { visibility: "visible" });
+
+    // Mirror host swipeBottom open pose (useModalAnimate.ts).
+    gsap.set(panel, {
+      top: "100%",
+      left: 0,
+      right: "auto",
+      bottom: "auto",
+      width: "100%",
+      height: sheetHeight(),
+      x: 0,
+      y: 0,
+      autoAlpha: 1,
+    });
     if (backdrop) gsap.set(backdrop, { autoAlpha: 0 });
 
     const tl = gsap.timeline();
-    tl.to(panel, { y: 0, duration: OPEN_DUR, ease: OPEN_EASE });
+    tl.to(panel, { y: "-100%", duration: OPEN_DUR, ease: OPEN_EASE });
     if (backdrop) {
       tl.to(backdrop, { autoAlpha: 1, duration: OPEN_DUR, ease: OPEN_EASE }, "<");
     }
     tweenRef.current = tl;
   }, []);
 
-  const playClose = useCallback(
-    (after?: () => void) => {
-      const panel = panelRef.current;
-      const backdrop = backdropRef.current;
-      const overlay = overlayRef.current;
-      if (!panel) {
-        after?.();
-        return;
-      }
+  const playClose = useCallback((after?: () => void) => {
+    const panel = panelRef.current;
+    const backdrop = backdropRef.current;
+    const overlay = overlayRef.current;
+    if (!panel) {
+      after?.();
+      return;
+    }
 
-      tweenRef.current?.kill();
-      const tl = gsap.timeline({
-        onComplete: () => {
-          // 勿 clearProps transform：会把 y 重置为 0，卸载前会闪一下主页
-          if (overlay) gsap.set(overlay, { visibility: "hidden" });
-          after?.();
-        },
-      });
-      tl.to(panel, { y: "100%", duration: CLOSE_DUR, ease: CLOSE_EASE });
-      if (backdrop) {
-        tl.to(backdrop, { autoAlpha: 0, duration: CLOSE_DUR, ease: CLOSE_EASE }, "<");
-      }
-      tweenRef.current = tl;
-    },
-    []
-  );
+    tweenRef.current?.kill();
+    // Mirror host swipeBottom close: return to y:0 while still parked at top:100%.
+    const tl = gsap.timeline({
+      onComplete: () => {
+        if (overlay) gsap.set(overlay, { visibility: "hidden" });
+        // Reset like useModalAnimate close — avoid leaving off-screen transform.
+        gsap.set(panel, { x: 0, y: 0, autoAlpha: 0 });
+        after?.();
+      },
+    });
+    tl.to(panel, { y: 0, duration: CLOSE_DUR, ease: CLOSE_EASE });
+    if (backdrop) {
+      tl.to(backdrop, { autoAlpha: 0, duration: CLOSE_DUR, ease: CLOSE_EASE }, "<");
+    }
+    tweenRef.current = tl;
+  }, []);
+
+  // Defer mount until theme CSS is ready so first paint is not FOUC.
+  useLayoutEffect(() => {
+    if (open && stylesReady) {
+      setMounted(true);
+    }
+  }, [open, stylesReady]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -82,21 +118,17 @@ export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
     };
   }, [mounted]);
 
-  useEffect(() => {
-    if (open) {
-      setMounted(true);
-    }
-  }, [open]);
-
-  useEffect(() => {
+  // Apply open/close before browser paint to avoid one-frame full-panel flash.
+  useLayoutEffect(() => {
     if (!mounted) return;
-    if (open) {
-      if (overlayRef.current) gsap.set(overlayRef.current, { visibility: "visible" });
-      requestAnimationFrame(() => playOpen());
+    if (open && stylesReady) {
+      playOpen();
       return;
     }
-    playClose(() => setMounted(false));
-  }, [open, mounted, playClose, playOpen]);
+    if (!open) {
+      playClose(() => setMounted(false));
+    }
+  }, [open, mounted, stylesReady, playClose, playOpen]);
 
   useEffect(() => {
     if (!open) return;

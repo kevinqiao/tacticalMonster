@@ -8,11 +8,9 @@ import {
   isValidPortalGameType,
   PortalProvider,
 } from "./service/usePortalManager";
-import { usePortalDocumentStyles } from "./usePortalDocumentStyles";
+import { PortalDocumentStylesProvider } from "./usePortalDocumentStyles";
 
 const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
-  // 弹窗（排行榜/规则/商店）渲染在 light DOM，需要 document 级 portal.css
-  usePortalDocumentStyles();
   const raw = data?.gameType ?? data?.params?.gameType;
   const fromPath =
     typeof window !== "undefined"
@@ -33,9 +31,13 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
   }, []);
 
   return (
-    <PortalProvider gameType={gameType}>
-      <PortalGame3DPage visible={visible} />
-    </PortalProvider>
+    // 弹窗（排行榜/规则/商店）渲染在 light DOM，需 document 级主题 CSS；
+    // Provider 会等样式就绪后再允许 PortalCenterModal 首帧绘制。
+    <PortalDocumentStylesProvider>
+      <PortalProvider gameType={gameType}>
+        <PortalGame3DPage visible={visible} />
+      </PortalProvider>
+    </PortalDocumentStylesProvider>
   );
 };
 
