@@ -20,7 +20,14 @@ export type MerchantCouponDefOption = {
   couponDefId: string;
   name: string;
   status: string;
-  reward: Doc<"merchant_coupon_defs">["reward"];
+  reward: Doc<"coupon_defs">["reward"];
+  /** Usage rules copy; empty / omitted means none. */
+  usageRules?: string;
+  validity?: { kind: "duration_hours"; hours: number };
+  activation?:
+    | { kind: "immediate" }
+    | { kind: "delay_hours"; hours: number }
+    | { kind: "fixed_at"; atMs: number };
 };
 
 export type CampaignExperienceType = "game" | "display";
@@ -76,6 +83,17 @@ export const PORTAL_GAME_OPTIONS = [
   { value: "tower_arena", label: "Tower Arena" },
   { value: "yatz", label: "Yatz" },
 ] as const;
+
+/** Label lookup for campaign details; prefer live partner options when editing. */
+export function partnerGameLabel(
+  gameType: string,
+  options?: ReadonlyArray<{ value: string; label: string }>
+): string {
+  const fromOpts = options?.find((g) => g.value === gameType);
+  if (fromOpts) return fromOpts.label;
+  const hit = PORTAL_GAME_OPTIONS.find((g) => g.value === gameType);
+  return hit?.label ?? gameType;
+}
 
 export function msToDatetimeLocal(ms: number): string {
   const d = new Date(ms);
@@ -149,23 +167,26 @@ export function defaultDisplayCampaignForm(now = Date.now()): CampaignFormState 
   };
 }
 
-function inferRewardModel(campaign: Doc<"merchant_campaigns">): CampaignRewardModel {
+function inferRewardModel(campaign: Doc<"campaigns">): CampaignRewardModel {
   if (
     campaign.rewardModel === "pass_per_run" ||
     campaign.rewardModel === "competitive_leaderboard"
   ) {
     return campaign.rewardModel;
   }
-  const hasLeaderboardRule = campaign.rewardRules.some(
-    (r) => r.kind === "campaign_leaderboard_rank_top_n" || r.kind === "multi_rank_top_n"
-  );
-  if (hasLeaderboardRule || campaign.mode === "multi") {
+  if (campaign.rewardRules.some((r) => r.kind === "campaign_leaderboard_rank_top_n")) {
+    return "competitive_leaderboard";
+  }
+  if (campaign.rewardRules.some((r) => r.kind === "multi_rank_top_n")) {
+    return "pass_per_run";
+  }
+  if (campaign.mode === "multi") {
     return "competitive_leaderboard";
   }
   return "pass_per_run";
 }
 
-export function campaignFormFromDoc(campaign: Doc<"merchant_campaigns">): CampaignFormState {
+export function campaignFormFromDoc(campaign: Doc<"campaigns">): CampaignFormState {
   const experienceType =
     campaign.experienceType === "display" ? ("display" as const) : ("game" as const);
 
@@ -261,7 +282,7 @@ export function couponDefLabel(def: MerchantCouponDefOption | undefined): string
 function resolveCouponDefReward(
   couponDefId: string,
   couponDefs: MerchantCouponDefOption[]
-): Doc<"merchant_campaigns">["rewardRules"][number]["reward"] {
+): Doc<"campaigns">["rewardRules"][number]["reward"] {
   const fallbackLabel = i18n.t("rewardLabel.default", { ns: "campaign.merchant" });
   const def = couponDefs.find((d) => d.couponDefId === couponDefId);
   return (
@@ -270,13 +291,13 @@ function resolveCouponDefReward(
       type: "free_item" as const,
       itemLabel: fallbackLabel,
       displayText: fallbackLabel,
-    } satisfies Doc<"merchant_campaigns">["rewardRules"][number]["reward"])
+    } satisfies Doc<"campaigns">["rewardRules"][number]["reward"])
   );
 }
 
 export function buildDisplayConfigFromForm(
   form: CampaignFormState
-): Doc<"merchant_campaigns">["displayConfig"] {
+): Doc<"campaigns">["displayConfig"] {
   const kind = form.ctaKind;
   const highlightText = form.highlightText.trim();
   if (kind === "none") {
@@ -337,7 +358,7 @@ export function experienceTypeLabel(experienceType: CampaignExperienceType): str
 export function buildRewardRulesFromForm(
   form: CampaignFormState,
   couponDefs: MerchantCouponDefOption[]
-): Doc<"merchant_campaigns">["rewardRules"] {
+): Doc<"campaigns">["rewardRules"] {
   if (form.rewardModel === "competitive_leaderboard") {
     if (form.rankRewardTiers.length === 0) {
       throw new Error("reward_rules_required");
@@ -352,6 +373,30 @@ export function buildRewardRulesFromForm(
       return {
         ruleId: `leaderboard_reward_${index + 1}`,
         kind: "campaign_leaderboard_rank_top_n" as const,
+        rankFrom,
+        rankTo,
+        topN: rankTo,
+        couponDefId,
+        reward: resolveCouponDefReward(couponDefId, couponDefs),
+      };
+    });
+  }
+
+  // pass_per_run + multi: per-match place rewards
+  if (form.mode === "multi") {
+    if (form.rankRewardTiers.length === 0) {
+      throw new Error("reward_rules_required");
+    }
+    return form.rankRewardTiers.map((tier, index) => {
+      if (!tier.couponDefId.trim()) {
+        throw new Error("coupon_def_required");
+      }
+      const rankFrom = Math.max(1, Number.parseInt(tier.rankFrom, 10) || 1);
+      const rankTo = Math.max(rankFrom, Number.parseInt(tier.rankTo, 10) || rankFrom);
+      const couponDefId = tier.couponDefId.trim();
+      return {
+        ruleId: `match_rank_reward_${index + 1}`,
+        kind: "multi_rank_top_n" as const,
         rankFrom,
         rankTo,
         topN: rankTo,
@@ -403,7 +448,7 @@ export function formatRankTierRangeLabel(from: number, to: number): string {
 }
 
 export function rewardKindLabel(form: CampaignFormState): string {
-  if (form.rewardModel === "competitive_leaderboard") {
+  if (formUsesRankRewardTiers(form)) {
     if (form.rankRewardTiers.length <= 1) {
       const tier = form.rankRewardTiers[0];
       if (tier) {
@@ -446,9 +491,17 @@ export function portalTemplateLabel(mode: "solo" | "multi", gameType: string): s
   return mode === "solo" ? `portal_solo_p75_${gameType}` : `portal_multi_${gameType}`;
 }
 
+/** Rank tiers for competitive end-board OR pass_per_run multi (per-match place). */
+export function formUsesRankRewardTiers(form: CampaignFormState): boolean {
+  return (
+    form.rewardModel === "competitive_leaderboard" ||
+    (form.rewardModel === "pass_per_run" && form.mode === "multi")
+  );
+}
+
 export function normalizeFormForRewardModel(form: CampaignFormState): CampaignFormState {
-  if (form.rewardModel === "pass_per_run") {
-    return { ...form, mode: "solo" };
+  if (!formUsesRankRewardTiers(form)) {
+    return form;
   }
   const couponDefId = form.couponDefId || form.rankRewardTiers[0]?.couponDefId || "";
   const rankRewardTiers =

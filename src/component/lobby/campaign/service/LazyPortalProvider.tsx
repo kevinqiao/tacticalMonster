@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, type ReactNode } from "react";
 
-import type { RegisteredPortalGameType } from "@/convex/portal/convex/data/portalGameRegistry";
+import type { RegisteredPartnerGameType } from "@/convex/portal/convex/data/partnerGameRegistry";
 
 const PortalProviderLazy = lazy(() =>
   import("../../portal/service/usePortalManager").then((mod) => ({
@@ -9,7 +9,7 @@ const PortalProviderLazy = lazy(() =>
 );
 
 type LazyPortalProviderProps = {
-  gameType: RegisteredPortalGameType | null;
+  gameType: RegisteredPartnerGameType | null;
   children: ReactNode;
   fallback?: ReactNode;
 };

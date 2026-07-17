@@ -92,10 +92,19 @@ export async function settleSoloMaxPlayersOneCasualRun(
   const runRow = await ctx.db.get(runTid);
   const skipPeriodWallet = Boolean(isPeriodScopedTournament(def) && runRow?.instanceId);
 
+  const challengeSuccess =
+    typeof seedScoreThreshold === "number" && Number.isFinite(seedScoreThreshold)
+      ? score >= seedScoreThreshold
+      : undefined;
+
   await ctx.db.patch(pm._id, {
     status: "settled",
     rank: 1,
     updatedAt: now,
+    ...(typeof seedScoreThreshold === "number" && Number.isFinite(seedScoreThreshold)
+      ? { seedScoreThreshold: Math.floor(seedScoreThreshold) }
+      : {}),
+    ...(typeof challengeSuccess === "boolean" ? { challengeSuccess } : {}),
   });
 
   await ctx.db.patch(matchDoc._id, {
@@ -199,10 +208,7 @@ export async function settleSoloMaxPlayersOneCasualRun(
     uid,
     score,
     rank: 1,
-    p75Success:
-      typeof seedScoreThreshold === "number"
-        ? score >= seedScoreThreshold
-        : undefined,
+    isPassed: challengeSuccess,
   });
 
   return {

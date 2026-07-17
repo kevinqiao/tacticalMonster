@@ -1,0 +1,19 @@
+{
+  "name": "campaign",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Convex backend for partner campaign SaaS (coupons, themes, store redeem)",
+  "scripts": {
+    "dev": "convex dev",
+    "codegen": "convex codegen",
+    "test": "echo \"No tests\" && exit 0"
+  },
+  "dependencies": {
+    "convex": "^1.24.8",
+    "convex-helpers": "^0.1.10-alpha.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6"
+  }
+}

@@ -22,6 +22,7 @@ const CLOSE_EASE = "power2.inOut";
 /**
  * Portal bottom sheet — animation matches host `swipeBottom` in
  * `src/host/useModalAnimate.ts`: park at `top: 100%`, then tween `y: "-100%"`.
+ * Close control lives in the sheet head and moves with the panel (no separate fade/hide).
  */
 export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
   open,
@@ -34,7 +35,7 @@ export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
   const overlayRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLButtonElement>(null);
-  const tweenRef = useRef<gsap.core.Timeline | null>(null);
+  const tweenRef = useRef<gsap.core.Animation | null>(null);
   const [mounted, setMounted] = useState(false);
 
   const sheetHeight = () => {
@@ -90,7 +91,6 @@ export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
     const tl = gsap.timeline({
       onComplete: () => {
         if (overlay) gsap.set(overlay, { visibility: "hidden" });
-        // Reset like useModalAnimate close — avoid leaving off-screen transform.
         gsap.set(panel, { x: 0, y: 0, autoAlpha: 0 });
         after?.();
       },
@@ -170,7 +170,12 @@ export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
         <div ref={panelRef} className="portal-modal-panel portal-modal-panel--fullscreen">
           <div className="portal-modal-head">
             <h2 id="portal-modal-title">{title}</h2>
-            <button type="button" className="portal-modal-close" onClick={handleClose} aria-label={t("common.close")}>
+            <button
+              type="button"
+              className="portal-modal-close"
+              onClick={handleClose}
+              aria-label={t("common.close")}
+            >
               ×
             </button>
           </div>

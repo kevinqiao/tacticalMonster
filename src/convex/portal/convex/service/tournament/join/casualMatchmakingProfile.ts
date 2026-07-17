@@ -15,8 +15,8 @@ import {
 } from "../../../data/portalMatchmakingConfig";
 import {
   getDefaultPrimaryGameType,
-  isRegisteredPortalGameType,
-} from "../../../data/portalGameRegistry";
+  isRegisteredPartnerGameType,
+} from "../../../data/partnerGameRegistry";
 import {
   CASUAL_LOSS_STREAK_LOOKBACK_MAX,
   isCasualMultiplayerAsyncTemplate,
@@ -82,7 +82,7 @@ export async function resolvePlayerBotStrategyContext(
   }
 ): Promise<BotStrategyPlayerContext> {
   const { uid, templateId, def } = args;
-  const gameType = isRegisteredPortalGameType(def.gameType)
+  const gameType = isRegisteredPartnerGameType(def.gameType)
     ? def.gameType
     : getDefaultPrimaryGameType();
 

@@ -5,17 +5,18 @@ import type { EmbedCredentialSource } from "./types";
 
 const SOURCE_ID = "partner_postmessage";
 
+/**
+ * Generic WebView / iframe JWT handoff (`jwt_local`).
+ * Host-SDK mutual exclusion lives in `selectEmbedSourcesToListen` via other sources'
+ * `claimsHost` — do not list partner SDK globals here.
+ */
 export const partnerPostMessageSource: EmbedCredentialSource = {
   id: SOURCE_ID,
   priority: 10,
   method: "jwt_local",
 
   shouldListen(ctx) {
-    if (!ctx.partnerResolveReady) return false;
-    if (typeof window !== "undefined" && window.CrazyGames?.SDK) return false;
-    const params = new URLSearchParams(ctx.search);
-    if (params.get("crazygames") === "1") return false;
-    return true;
+    return ctx.partnerResolveReady;
   },
 
   isActive(ctx) {
@@ -32,7 +33,7 @@ export const partnerPostMessageSource: EmbedCredentialSource = {
         credential: token,
         method: "jwt_local",
         pid: ctx.partnerPid,
-        ...(ctx.campaignMerchantSlug ? { merchantSlug: ctx.campaignMerchantSlug } : {}),
+        ...(ctx.campaignPartnerSlug ? { partnerSlug: ctx.campaignPartnerSlug } : {}),
       });
     });
   },

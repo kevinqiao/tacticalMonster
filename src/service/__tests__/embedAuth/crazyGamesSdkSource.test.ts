@@ -12,7 +12,7 @@ function portalCtx(overrides: {
     partnerPid: overrides.partnerPid,
     partner: overrides.partner,
     partnerResolveReady: true,
-    campaignMerchantSlug: null,
+    campaignPartnerSlug: null,
     portalPartnerKey: "cg-test",
     isFirstPartyPortal: false,
     search: overrides.search ?? "",
@@ -35,7 +35,8 @@ describe("crazyGamesSdkSource eligibility", () => {
       partner: {
         pid: 200,
         authChannelIds: [2],
-        data: { embed: { method: "crazygames_jwt" }, enabledContexts: ["portal"] },
+        capabilities: { portalGames: true, campaignOps: false },
+        data: { embed: { method: "crazygames_jwt" } },
       },
     });
     expect(crazyGamesSdkSource.shouldPreload?.(ctx)).toBe(true);
@@ -52,7 +53,8 @@ describe("crazyGamesSdkSource eligibility", () => {
       partner: {
         pid: 100,
         authChannelIds: [2],
-        data: { embed: { method: "jwt_local" }, enabledContexts: ["portal"] },
+        capabilities: { portalGames: true, campaignOps: false },
+        data: { embed: { method: "jwt_local" } },
       },
     });
     expect(crazyGamesSdkSource.shouldPreload?.(ctx)).toBe(false);
@@ -68,7 +70,7 @@ describe("crazyGamesSdkSource eligibility", () => {
       partnerPid: 100,
       partner: null,
       partnerResolveReady: true,
-      campaignMerchantSlug: null,
+      campaignPartnerSlug: null,
       portalPartnerKey: "cg-test",
       isFirstPartyPortal: false,
       search: "",

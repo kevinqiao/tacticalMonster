@@ -14,9 +14,6 @@ import {
   webAccountIdForEmail,
 } from "../provider/AuthenticatorFactory";
 import { assertStaffAuthChannel } from "./partnerChannelPolicy";
-import {
-  assertMerchantStaffViaHttp,
-} from "../bridge/merchantCampaignStaffBridge";
 
 const staffGateValidator = v.union(
   v.literal("none"),
@@ -57,9 +54,10 @@ async function signInPartnerStaffWebAccount(
     partnerId?: number;
   }
 ): Promise<User> {
-  const scopedPartnerId = args.partnerId ?? PLATFORM_NAMESPACE_PARTNER_ID;
-  const partnerRow = await loadPartnerRow(ctx, scopedPartnerId);
-  assertStaffAuthChannel(partnerRow, WEB_AUTH_CHANNEL_CID);
+  // Channel check uses Default Partner when partnerId omitted (shared staff Web).
+  const channelPartnerId = args.partnerId ?? PLATFORM_NAMESPACE_PARTNER_ID;
+  const channelPartnerRow = await loadPartnerRow(ctx, channelPartnerId);
+  assertStaffAuthChannel(channelPartnerRow, WEB_AUTH_CHANNEL_CID);
 
   const loginId = args.accountId.trim();
   const webUser = await ctx.runQuery(internal.dao.userDao.findByLoginId, { loginId });
@@ -77,6 +75,16 @@ async function signInPartnerStaffWebAccount(
   );
   if (!session) {
     throw new Error("not_partner_staff");
+  }
+
+  // Prefer asserting the resolved partner also allows staff Web when scoped.
+  if (session.partnerId !== channelPartnerId) {
+    const resolvedPartner = await loadPartnerRow(ctx, session.partnerId);
+    try {
+      assertStaffAuthChannel(resolvedPartner, WEB_AUTH_CHANNEL_CID);
+    } catch {
+      // Fall back to Default Partner channel policy already checked above.
+    }
   }
 
   const refreshed = await ctx.runMutation(internal.dao.authIdentityDao.refreshWebSession, {
@@ -110,7 +118,7 @@ async function signInMerchantStaffWebAccount(
 
   const canonicalAccountId = webAccountIdForEmail(loginId);
   const candidates = await ctx.runQuery(
-    internal.dao.merchantStaffSignInDao.listWebMerchantStaffCandidates,
+    internal.dao.storeStaffSignInDao.listWebStoreStaffCandidates,
     {
       accountId: canonicalAccountId,
       partnerId: scopedPartnerId,
@@ -119,19 +127,19 @@ async function signInMerchantStaffWebAccount(
 
   let session: { uid: string; partnerId: number } | null = null;
   for (const candidate of candidates) {
-    const assert = await assertMerchantStaffViaHttp({ uid: candidate.uid });
+    const assert = await ctx.runQuery(
+      internal.service.partner.storeAdmin.assertStoreStaffInternal,
+      { uid: candidate.uid }
+    );
     if (assert.ok) {
       session = candidate;
       break;
-    }
-    if (assert.error === "merchant_unreachable") {
-      throw new Error("merchant_unreachable");
     }
   }
 
   if (!session) {
     if (candidates.length > 0) {
-      throw new Error("not_merchant_staff");
+      throw new Error("not_store_staff");
     }
     throw new Error("invalid_credentials");
   }
@@ -206,6 +214,35 @@ export async function signInWebAccountHandler(
   return toClientUser(user as Record<string, unknown>);
 }
 
+/** Expected auth failures — return to client (no Convex "Server Error" console noise). */
+const EXPECTED_SIGN_IN_ERROR_CODES = new Set([
+  "account_id_required",
+  "password_required",
+  "invalid_credentials",
+  "not_platform_staff",
+  "not_partner_staff",
+  "not_merchant_staff",
+  "not_store_staff",
+  "auth_channel_unavailable",
+  "staff_auth_channel_unavailable",
+  "invalid_consumer_auth_channel",
+  "invalid_staff_auth_channel",
+  "consumer_web_disabled",
+]);
+
+export type SignInWebAccountResult =
+  | { ok: true; user: User }
+  | { ok: false; error: string };
+
+function expectedSignInFailure(error: unknown): SignInWebAccountResult | null {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  const code = raw.replace(/^Error:\s*/i, "").trim().split(/\s|\n/)[0] ?? "";
+  if (EXPECTED_SIGN_IN_ERROR_CODES.has(code)) {
+    return { ok: false, error: code };
+  }
+  return null;
+}
+
 export const signInWebAccount = action({
   args: {
     accountId: v.string(),
@@ -213,5 +250,14 @@ export const signInWebAccount = action({
     staffGate: staffGateValidator,
     partnerId: v.optional(v.number()),
   },
-  handler: async (ctx, args) => signInWebAccountHandler(ctx, args),
+  handler: async (ctx, args): Promise<SignInWebAccountResult> => {
+    try {
+      const user = await signInWebAccountHandler(ctx, args);
+      return { ok: true, user };
+    } catch (e) {
+      const failure = expectedSignInFailure(e);
+      if (failure) return failure;
+      throw e;
+    }
+  },
 });

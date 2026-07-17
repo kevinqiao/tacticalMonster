@@ -18,13 +18,13 @@ import { merchantCampaignFns } from "./campaignConvexFunctionRefs";
 import type { CampaignCouponView } from "../shared/campaignTypes";
 import type { MerchantThemeJson } from "./applyMerchantTheme";
 
-const _merchantUrlRaw = import.meta.env.VITE_CONVEX_URL_MERCHANT;
-const DEV_MERCHANT_CONVEX_URL = "https://curious-goldfish-112.convex.cloud";
+const _campaignUrlRaw = import.meta.env.VITE_CONVEX_URL_CAMPAIGN;
+const DEV_CAMPAIGN_CONVEX_URL = "https://curious-goldfish-112.convex.cloud";
 
-export const MERCHANT_CONVEX_URL =
-  typeof _merchantUrlRaw === "string" && _merchantUrlRaw.trim() !== ""
-    ? _merchantUrlRaw.trim()
-    : DEV_MERCHANT_CONVEX_URL;
+export const CAMPAIGN_CONVEX_URL =
+  typeof _campaignUrlRaw === "string" && _campaignUrlRaw.trim() !== ""
+    ? _campaignUrlRaw.trim()
+    : DEV_CAMPAIGN_CONVEX_URL;
 
 export type CampaignRewardModel = "pass_per_run" | "competitive_leaderboard";
 
@@ -69,11 +69,10 @@ export type CampaignPassRewardView = {
 };
 
 export type CampaignPublicView = {
-  merchant: {
-    merchantId: string;
+  partner: {
+    partnerId: number;
     slug: string;
     name: string;
-    partnerId: number;
     logoUrl: string | null;
   };
   campaign: {
@@ -120,16 +119,23 @@ export type MerchantCampaignCarouselItem = {
 type MerchantCampaignContextValue = {
   convexUrl: string;
   fetchCampaignPublic: (
-    merchantSlug: string,
+    partnerSlug: string,
     campaignSlug: string
   ) => Promise<CampaignPublicView | null>;
-  fetchMerchantCampaignsPublic: (
-    merchantSlug: string
+  fetchPartnerCampaignsPublic: (
+    partnerSlug: string
   ) => Promise<MerchantCampaignCarouselItem[]>;
   fetchMyCoupon: (campaignId: string) => Promise<unknown | null>;
   fetchMyCoupons: (campaignId: string) => Promise<CampaignCouponView[]>;
   fetchLeaderboard: (campaignId: string, hasLeaderboard: boolean) => Promise<unknown[]>;
   triggerLeaderboardSettlement: (campaignId: string) => Promise<unknown>;
+  updateCampaignDisplayName: (
+    displayName: string
+  ) => Promise<{ ok: boolean; error?: string; displayName?: string }>;
+  syncCampaignContactProfile: (args: {
+    verifiedEmail?: string;
+    verifiedPhone?: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
 };
 
 const MerchantCampaignContext = createContext<MerchantCampaignContextValue | null>(null);
@@ -138,18 +144,18 @@ let sharedHttp: ConvexHttpClient | null = null;
 let merchantReactClient: ConvexReactClient | null = null;
 
 function getHttp(): ConvexHttpClient | null {
-  if (!MERCHANT_CONVEX_URL) return null;
+  if (!CAMPAIGN_CONVEX_URL) return null;
   if (!sharedHttp) {
-    sharedHttp = new ConvexHttpClient(MERCHANT_CONVEX_URL);
+    sharedHttp = new ConvexHttpClient(CAMPAIGN_CONVEX_URL);
     registerConvexAuthClient(sharedHttp);
   }
   return sharedHttp;
 }
 
 function getMerchantReactClient(): ConvexReactClient | null {
-  if (!MERCHANT_CONVEX_URL) return null;
+  if (!CAMPAIGN_CONVEX_URL) return null;
   if (!merchantReactClient) {
-    merchantReactClient = new ConvexReactClient(MERCHANT_CONVEX_URL);
+    merchantReactClient = new ConvexReactClient(CAMPAIGN_CONVEX_URL);
     registerConvexAuthClient(merchantReactClient);
   }
   return merchantReactClient;
@@ -160,12 +166,12 @@ export function MerchantCampaignContextProvider({ children }: { children: React.
   const userRef = useRef(user);
   userRef.current = user;
 
-  const fetchCampaignPublic = useCallback(async (merchantSlug: string, campaignSlug: string) => {
+  const fetchCampaignPublic = useCallback(async (partnerSlug: string, campaignSlug: string) => {
     const http = getHttp();
     if (!http) return null;
     try {
       return (await http.query(merchantCampaignFns.getCampaignPublic, {
-        merchantSlug,
+        partnerSlug,
         campaignSlug,
       })) as CampaignPublicView | null;
     } catch (e) {
@@ -174,16 +180,16 @@ export function MerchantCampaignContextProvider({ children }: { children: React.
     }
   }, []);
 
-  const fetchMerchantCampaignsPublic = useCallback(async (merchantSlug: string) => {
+  const fetchPartnerCampaignsPublic = useCallback(async (partnerSlug: string) => {
     const http = getHttp();
     if (!http) return [];
     try {
-      const rows = (await http.query(merchantCampaignFns.listMerchantCampaignsPublic, {
-        merchantSlug,
+      const rows = (await http.query(merchantCampaignFns.listPartnerCampaignsPublic, {
+        partnerSlug,
       })) as MerchantCampaignCarouselItem[] | null;
       return rows ?? [];
     } catch (e) {
-      console.error("[Campaign] listMerchantCampaignsPublic", e);
+      console.error("[Campaign] listPartnerCampaignsPublic", e);
       return [];
     }
   }, []);
@@ -217,10 +223,10 @@ export function MerchantCampaignContextProvider({ children }: { children: React.
     const http = getHttp();
     if (!http || !hasLeaderboard) return [];
     try {
-      await http.mutation(merchantCampaignFns.ensureCampaignBoardBotsForLeaderboard, {
+      await http.action(merchantCampaignFns.ensureCampaignBoardBotsForLeaderboard, {
         campaignId,
       });
-      return ((await http.query(merchantCampaignFns.getCampaignLeaderboard, {
+      return ((await http.action(merchantCampaignFns.getCampaignLeaderboard, {
         campaignId,
         limit: 20,
       })) ?? []) as unknown[];
@@ -236,7 +242,7 @@ export function MerchantCampaignContextProvider({ children }: { children: React.
       return { ok: false as const, error: "unauthenticated" };
     }
     try {
-      return await http.mutation(merchantCampaignFns.triggerCampaignLeaderboardSettlement, {
+      return await http.action(merchantCampaignFns.triggerCampaignLeaderboardSettlement, {
         campaignId,
       });
     } catch (e) {
@@ -245,17 +251,68 @@ export function MerchantCampaignContextProvider({ children }: { children: React.
     }
   }, []);
 
+  const updateCampaignDisplayName = useCallback(async (displayName: string) => {
+    const http = getHttp();
+    if (!http || !isPlatformAuthed(userRef.current)) {
+      return { ok: false as const, error: "no_auth" };
+    }
+    try {
+      const res = (await http.mutation(merchantCampaignFns.updateCampaignDisplayName, {
+        displayName,
+      })) as { ok?: boolean; error?: string; displayName?: string };
+      return {
+        ok: Boolean(res?.ok),
+        error: res?.error,
+        displayName: res?.displayName,
+      };
+    } catch (e) {
+      console.error("[Campaign] updateCampaignDisplayName", e);
+      return { ok: false as const, error: "save_failed" };
+    }
+  }, []);
+
+  const syncCampaignContactProfile = useCallback(
+    async (args: { verifiedEmail?: string; verifiedPhone?: string }) => {
+      const http = getHttp();
+      if (!http || !isPlatformAuthed(userRef.current)) {
+        return { ok: false as const, error: "no_auth" };
+      }
+      try {
+        const res = (await http.mutation(merchantCampaignFns.syncCampaignContactProfile, args)) as {
+          ok?: boolean;
+          error?: string;
+        };
+        return { ok: Boolean(res?.ok), error: res?.error };
+      } catch (e) {
+        console.error("[Campaign] syncCampaignContactProfile", e);
+        return { ok: false as const, error: "save_failed" };
+      }
+    },
+    []
+  );
+
   const value = useMemo<MerchantCampaignContextValue>(
     () => ({
-      convexUrl: MERCHANT_CONVEX_URL,
+      convexUrl: CAMPAIGN_CONVEX_URL,
       fetchCampaignPublic,
-      fetchMerchantCampaignsPublic,
+      fetchPartnerCampaignsPublic,
       fetchMyCoupon,
       fetchMyCoupons,
       fetchLeaderboard,
       triggerLeaderboardSettlement,
+      updateCampaignDisplayName,
+      syncCampaignContactProfile,
     }),
-    [fetchCampaignPublic, fetchMerchantCampaignsPublic, fetchMyCoupon, fetchMyCoupons, fetchLeaderboard, triggerLeaderboardSettlement]
+    [
+      fetchCampaignPublic,
+      fetchPartnerCampaignsPublic,
+      fetchMyCoupon,
+      fetchMyCoupons,
+      fetchLeaderboard,
+      triggerLeaderboardSettlement,
+      updateCampaignDisplayName,
+      syncCampaignContactProfile,
+    ]
   );
 
   return (
@@ -280,25 +337,25 @@ function MerchantCampaignConvexShell({ children }: { children: React.ReactNode }
 
 export { MerchantCampaignConvexShell as MerchantCampaignProvider };
 
-/** Live subscription to merchant carousel slides (live/scheduled campaigns). */
-export function useMerchantCampaignsPublicLive(merchantSlug: string) {
+/** Live subscription to partner carousel slides (live / scheduled / ended). */
+export function usePartnerCampaignsPublicLive(partnerSlug: string) {
   const rows = useQuery(
-    merchantCampaignFns.listMerchantCampaignsPublic,
-    merchantSlug ? { merchantSlug } : "skip"
+    merchantCampaignFns.listPartnerCampaignsPublic,
+    partnerSlug ? { partnerSlug } : "skip"
   );
   return {
     slides: rows as MerchantCampaignCarouselItem[] | undefined,
-    isLoading: rows === undefined && Boolean(merchantSlug),
+    isLoading: rows === undefined && Boolean(partnerSlug),
   };
 }
 
-/** Live subscription to a player's coupons at a merchant (requires platform JWT). */
-export function useMerchantPlayerCouponsLive(merchantId: string | null | undefined) {
+/** Live subscription to a player's coupons for a partner (requires platform JWT). */
+export function usePartnerPlayerCouponsLive(partnerId: number | null | undefined) {
   const { user } = useUserManager();
-  const enabled = Boolean(merchantId && isPlatformAuthed(user));
+  const enabled = Boolean(partnerId != null && isPlatformAuthed(user));
   const rows = useQuery(
-    merchantCampaignFns.listPlayerCouponsForMerchant,
-    enabled ? { merchantId: merchantId! } : "skip"
+    merchantCampaignFns.listPlayerCouponsForPartner,
+    enabled ? { partnerId: partnerId! } : "skip"
   );
   return {
     coupons: rows as CampaignCouponView[] | undefined,
@@ -308,13 +365,13 @@ export function useMerchantPlayerCouponsLive(merchantId: string | null | undefin
 
 /** Live subscription to a single campaign public payload. */
 export function useCampaignPublicLive(
-  merchantSlug: string,
+  partnerSlug: string,
   campaignSlug: string | null | undefined
 ) {
-  const enabled = Boolean(merchantSlug && campaignSlug);
+  const enabled = Boolean(partnerSlug && campaignSlug);
   const row = useQuery(
     merchantCampaignFns.getCampaignPublic,
-    enabled ? { merchantSlug, campaignSlug: campaignSlug! } : "skip"
+    enabled ? { partnerSlug, campaignSlug: campaignSlug! } : "skip"
   );
   return {
     campaignPublic:
@@ -344,40 +401,40 @@ export function useMerchantCampaignClient() {
   );
 }
 
-export function useMerchantCampaignAdmin(merchantId: string | null) {
+export function useMerchantCampaignAdmin(partnerId: number | null) {
   const { http, authed, fns } = useMerchantCampaignClient();
   const [campaigns, setCampaigns] = useState<unknown[]>([]);
   const [couponDefs, setCouponDefs] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refreshCouponDefs = useCallback(async () => {
-    if (!http || !authed || !merchantId) {
+    if (!http || !authed || partnerId == null) {
       setCouponDefs([]);
       return;
     }
-    const rows = await http.query(fns.listCouponDefsForStaff, { merchantId });
+    const rows = await http.action(fns.listCouponDefsForStaff, { partnerId });
     setCouponDefs(rows ?? []);
-  }, [http, authed, merchantId, fns.listCouponDefsForStaff]);
+  }, [http, authed, partnerId, fns.listCouponDefsForStaff]);
 
   const refresh = useCallback(async () => {
-    if (!http || !authed || !merchantId) {
+    if (!http || !authed || partnerId == null) {
       setCampaigns([]);
       setCouponDefs([]);
       return;
     }
     setLoading(true);
     try {
-      const rows = await http.query(fns.listCampaigns, { merchantId });
+      const rows = await http.action(fns.listCampaigns, { partnerId });
       setCampaigns(rows ?? []);
       await refreshCouponDefs();
     } finally {
       setLoading(false);
     }
-  }, [http, authed, merchantId, fns.listCampaigns, refreshCouponDefs]);
+  }, [http, authed, partnerId, fns.listCampaigns, refreshCouponDefs]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  return { campaigns, couponDefs, loading, refresh, refreshCouponDefs, http, authed, fns };
+  return { campaigns, couponDefs, loading, refresh, refreshCouponDefs, http, authed, fns, partnerId };
 }

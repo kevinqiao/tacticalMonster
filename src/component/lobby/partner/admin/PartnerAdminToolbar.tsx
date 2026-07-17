@@ -17,7 +17,7 @@ const PartnerAdminToolbar: React.FC<PartnerAdminToolbarProps> = ({ partnerId }) 
       <div className="merchant-toolbar__actions">
         {user?.uid ? (
           <>
-            <span className="merchant-note">{user.email ?? user.uid}</span>
+            <span className="merchant-note">{user.name ?? user.email ?? user.uid}</span>
             <button type="button" className="merchant-auth-btn" onClick={() => void logout()}>
               退出
             </button>

@@ -1,11 +1,21 @@
+import {
+  LEGACY_CAMPAIGN_MERCHANT_PATH,
+  PARTNER_ADMIN_PATH,
+  PARTNER_OPERATION_PATH,
+  partnerAdminHref,
+  partnerOperationHref,
+} from "../../partner/partnerPaths";
+
 export type MerchantEmbeddedRoute =
   | { view: "home" }
-  | { view: "campaigns"; merchantId: string; merchantName?: string }
-  | { view: "coupon-defs"; merchantId: string; merchantName?: string }
-  | { view: "coupons"; merchantId: string; merchantName?: string; campaignId?: string }
-  | { view: "redeem"; merchantId: string; merchantName?: string }
-  | { view: "brand"; merchantId: string; merchantName?: string }
-  | { view: "team"; merchantId: string; merchantName?: string };
+  /** Partner-admin embedded nav (partnerId, not store). */
+  | { view: "campaigns"; partnerId: string }
+  | { view: "coupon-defs"; partnerId: string }
+  | { view: "coupons"; partnerId: string; campaignId?: string }
+  | { view: "brand"; partnerId: string }
+  /** Store console: storeId optional on redeem (QR may only carry code). */
+  | { view: "redeem"; storeId?: string; storeName?: string }
+  | { view: "team"; storeId: string; storeName?: string };
 
 const MERCHANT_SHELL_VIEWS = [
   "campaigns",
@@ -22,40 +32,82 @@ export function isMerchantShellView(value: string | null): value is MerchantShel
   return value !== null && (MERCHANT_SHELL_VIEWS as readonly string[]).includes(value);
 }
 
+function isStoreConsolePath(pathname: string): boolean {
+  return (
+    pathname.startsWith(PARTNER_OPERATION_PATH) ||
+    pathname.startsWith(LEGACY_CAMPAIGN_MERCHANT_PATH)
+  );
+}
+
+function storeIdFromSearch(params: URLSearchParams): string {
+  return (params.get("storeId") ?? params.get("merchantId") ?? "").trim();
+}
+
+function storeNameFromSearch(params: URLSearchParams): string | undefined {
+  return params.get("storeName") ?? params.get("merchantName") ?? undefined;
+}
+
 /** Deep link / legacy child paths → in-app route (SPA). */
 export function parseMerchantRouteFromLocation(
   pathname = typeof window !== "undefined" ? window.location.pathname : "",
   search = typeof window !== "undefined" ? window.location.search : ""
 ): MerchantEmbeddedRoute | null {
+  if (!isStoreConsolePath(pathname)) {
+    return null;
+  }
+
   const params = new URLSearchParams(search);
-  const merchantId = (params.get("merchantId") ?? "").trim();
+  const storeId = storeIdFromSearch(params);
+  const storeName = storeNameFromSearch(params);
+  const code = (params.get("code") ?? "").trim();
   let viewParam = params.get("view")?.trim() ?? null;
 
   const parts = pathname.split("/").filter(Boolean);
   if (parts[0] === "campaign" && parts[1] === "merchant" && parts[2]) {
     viewParam = parts[2];
   }
+  if (parts[0] === "partner" && parts[1] === "operation" && parts[2]) {
+    viewParam = parts[2];
+  }
 
-  if (!merchantId || !isMerchantShellView(viewParam)) {
+  if (!viewParam && code) {
+    viewParam = "redeem";
+  }
+
+  if (!viewParam) {
+    return null;
+  }
+
+  if (viewParam === "redeem") {
+    return {
+      view: "redeem",
+      ...(storeId ? { storeId, ...(storeName ? { storeName } : {}) } : {}),
+    };
+  }
+
+  if (viewParam === "team") {
+    if (!storeId) return null;
+    return { view: "team", storeId, ...(storeName ? { storeName } : {}) };
+  }
+
+  // Partner-ops views on operation console are unused; keep parse for legacy links.
+  const partnerId = (params.get("partnerId") ?? storeId).trim();
+  if (!partnerId || !isMerchantShellView(viewParam)) {
     return null;
   }
 
   const campaignId = params.get("campaignId")?.trim();
-  const base = { merchantId, merchantName: params.get("merchantName") ?? undefined };
-
   switch (viewParam) {
     case "campaigns":
-      return { view: "campaigns", ...base };
+      return { view: "campaigns", partnerId };
     case "coupon-defs":
-      return { view: "coupon-defs", ...base };
+      return { view: "coupon-defs", partnerId };
     case "coupons":
-      return { view: "coupons", ...base, ...(campaignId ? { campaignId } : {}) };
-    case "redeem":
-      return { view: "redeem", ...base };
+      return { view: "coupons", partnerId, ...(campaignId ? { campaignId } : {}) };
     case "brand":
-      return { view: "brand", ...base };
-    case "team":
-      return { view: "team", ...base };
+      return { view: "brand", partnerId };
+    default:
+      return null;
   }
 }
 
@@ -63,18 +115,40 @@ export function parseMerchantRouteFromLocation(
 export function merchantRouteHref(route: MerchantEmbeddedRoute): string {
   switch (route.view) {
     case "home":
-      return "/campaign/merchant";
-    default: {
-      const q = new URLSearchParams({
-        merchantId: route.merchantId,
-        view: route.view,
-      });
-      if (route.merchantName) q.set("merchantName", route.merchantName);
-      if (route.view === "coupons" && route.campaignId) {
-        q.set("campaignId", route.campaignId);
+      // Campaign ops live on Partner Admin; store console home stays operation.
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname.startsWith(PARTNER_ADMIN_PATH)
+      ) {
+        return PARTNER_ADMIN_PATH;
       }
-      return `/campaign/merchant?${q.toString()}`;
+      return PARTNER_OPERATION_PATH;
+    case "redeem": {
+      const q = new URLSearchParams({ view: "redeem" });
+      if (route.storeId) q.set("storeId", route.storeId);
+      if (route.storeName) q.set("storeName", route.storeName);
+      return partnerOperationHref(q);
     }
+    case "team": {
+      const q = new URLSearchParams({
+        view: "team",
+        storeId: route.storeId,
+      });
+      if (route.storeName) q.set("storeName", route.storeName);
+      return partnerOperationHref(q);
+    }
+    // Partner-scoped campaign ops → /partner/admin (not /partner/operation stub).
+    case "campaigns":
+    case "coupon-defs":
+    case "coupons":
+    case "brand":
+      return partnerAdminHref({
+        partnerId: route.partnerId,
+        section: route.view,
+        ...(route.view === "coupons" && route.campaignId
+          ? { campaignId: route.campaignId }
+          : {}),
+      });
   }
 }
 
@@ -83,16 +157,16 @@ export function merchantRouteKey(route: MerchantEmbeddedRoute): string {
     case "home":
       return "home";
     case "campaigns":
-      return `campaigns:${route.merchantId}`;
+      return `campaigns:${route.partnerId}`;
     case "coupon-defs":
-      return `coupon-defs:${route.merchantId}`;
+      return `coupon-defs:${route.partnerId}`;
     case "coupons":
-      return `coupons:${route.merchantId}:${route.campaignId ?? ""}`;
+      return `coupons:${route.partnerId}:${route.campaignId ?? ""}`;
     case "redeem":
-      return `redeem:${route.merchantId}`;
+      return `redeem:${route.storeId ?? ""}`;
     case "brand":
-      return `brand:${route.merchantId}`;
+      return `brand:${route.partnerId}`;
     case "team":
-      return `team:${route.merchantId}`;
+      return `team:${route.storeId}`;
   }
 }

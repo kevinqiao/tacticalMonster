@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import { internalQuery } from "../../../_generated/server";
-import { isRegisteredPortalGameType } from "../../../data/portalGameRegistry";
+import { isRegisteredPartnerGameType } from "../../../data/partnerGameRegistry";
 import { getPoolMetaByVersion } from "../../../service/seedPool/seedPoolStore";
 
 export type ExpiredOpenRunRow = {
@@ -31,7 +31,7 @@ export const listExpiredOpenRunsForReconcile = internalQuery({
       if (rows.length >= n) break;
       if (pg.status !== "open" && pg.status !== "replaying") continue;
       if (gameType && pg.gameType !== gameType) continue;
-      if (!isRegisteredPortalGameType(pg.gameType)) continue;
+      if (!isRegisteredPartnerGameType(pg.gameType)) continue;
 
       const pm = await ctx.db.get(pg.playerMatchId);
       if (!pm || (pm.status !== "open" && pm.status !== "replaying")) continue;

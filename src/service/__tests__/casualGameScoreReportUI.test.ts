@@ -33,7 +33,7 @@ describe("resolveCasualScoreReportSecondaryAction", () => {
 
     expect(result.showReplaySecondary).toBe(true);
 
-    expect(result.secondaryLabel).toBe("🎬 看广告再战（今日剩 3 次）");
+    expect(result.secondaryLabel).toBe("广告再战·3");
 
   });
 
@@ -127,7 +127,7 @@ describe("resolveCasualPostSettleReplayPresentation", () => {
 
     expect(result.showReplay).toBe(true);
 
-    expect(result.replayLabel).toBe("🎬 看广告再战（今日剩 4 次）");
+    expect(result.replayLabel).toBe("广告再战·4");
 
   });
 

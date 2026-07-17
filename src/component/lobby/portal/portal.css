@@ -241,6 +241,56 @@
   color: #e8ecf4;
 }
 
+/* Fallback (non-3d theme) for PortalCenterModal shell close. */
+.portal-sheet-close {
+  position: absolute;
+  top: calc(16px + 10px);
+  right: 14px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #8b95a8;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: none;
+  transition: none;
+}
+
+.portal-sheet-close:hover {
+  color: #e8ecf4;
+  transform: none;
+}
+
+@media (max-width: 963px) {
+  .portal-sheet-close {
+    top: calc(8px + 8px);
+  }
+}
+
+/* Login sheet close is a body sibling of the animating layer. */
+button.sso-auth-close.portal-modal-close--shell {
+  position: fixed;
+  top: calc(16px + 12px);
+  right: 14px;
+}
+
+@media (max-width: 963px) {
+  button.sso-auth-close.portal-modal-close--shell {
+    top: calc(8px + 10px);
+  }
+}
+
 .portal-modal-body {
   flex: 1;
   min-height: 0;

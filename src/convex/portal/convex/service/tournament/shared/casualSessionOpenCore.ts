@@ -26,8 +26,6 @@ export async function insertPlayerSessionForUid(
     uid: string;
     seedBindingsByIndex: SeedBindingByGameIndex;
     now: number;
-    campaignId?: string;
-    merchantId?: string;
   }
 ): Promise<{ playerMatchId: Id<"portal_run_player_matches">; openGameId: string; openGameType: string }> {
   const { matchId, runTournamentId, templateId, def, uid, seedBindingsByIndex, now } = args;
@@ -46,8 +44,6 @@ export async function insertPlayerSessionForUid(
     status: "open",
     createdAt: now,
     updatedAt: now,
-    ...(args.campaignId ? { campaignId: args.campaignId } : {}),
-    ...(args.merchantId ? { merchantId: args.merchantId } : {}),
   });
 
   for (let gameIndex = 0; gameIndex < sequence.length; gameIndex++) {

@@ -172,7 +172,13 @@ export const claimQueueAndCharge = internalMutation({
       instanceId: instanceId ?? undefined,
       activityIds: batchActivityIds,
       ...(rows[0]?.campaignId ? { campaignId: rows[0].campaignId } : {}),
-      ...(rows[0]?.merchantId ? { merchantId: rows[0].merchantId } : {}),
+      ...(rows[0]?.partnerId != null ? { partnerId: rows[0].partnerId } : {}),
+      ...(rows[0]?.campaignRewardMode
+        ? { campaignRewardMode: rows[0].campaignRewardMode }
+        : {}),
+      ...(rows[0]?.campaignDueTime != null
+        ? { campaignDueTime: rows[0].campaignDueTime }
+        : {}),
       ...(rows[0]?.maxPlaysPerDay != null ? { maxPlaysPerDay: rows[0].maxPlaysPerDay } : {}),
       ...(rows[0]?.dayTimezone ? { dayTimezone: rows[0].dayTimezone } : {}),
     };
@@ -234,7 +240,11 @@ export const insertMatchShell = internalMutation({
     joinChargeByUid: joinChargeByUidValidator,
     instanceId: v.optional(v.id("portal_tournament_instances")),
     campaignId: v.optional(v.string()),
-    merchantId: v.optional(v.string()),
+    partnerId: v.optional(v.number()),
+    campaignRewardMode: v.optional(
+      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
+    ),
+    campaignDueTime: v.optional(v.number()),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
   },
@@ -283,7 +293,9 @@ export const insertMatchShell = internalMutation({
       updatedAt: now,
       ...(args.instanceId ? { instanceId: args.instanceId } : {}),
       ...(args.campaignId ? { campaignId: args.campaignId } : {}),
-      ...(args.merchantId ? { merchantId: args.merchantId } : {}),
+      ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
+      ...(args.campaignRewardMode ? { campaignRewardMode: args.campaignRewardMode } : {}),
+      ...(args.campaignDueTime != null ? { campaignDueTime: args.campaignDueTime } : {}),
     });
 
     for (const uid of uids) {
@@ -310,8 +322,6 @@ export const insertMatchShell = internalMutation({
       openPhase: "pending_seed",
       createdAt: now,
       updatedAt: now,
-      ...(args.campaignId ? { campaignId: args.campaignId } : {}),
-      ...(args.merchantId ? { merchantId: args.merchantId } : {}),
     });
 
     console.log("[casual] insertMatchShell", {
@@ -411,11 +421,6 @@ export const finalizeOpenTable = internalMutation({
       updatedAt: now,
     });
 
-    const campaignAttrs = {
-      ...(matchDoc.campaignId ? { campaignId: matchDoc.campaignId } : {}),
-      ...(matchDoc.merchantId ? { merchantId: matchDoc.merchantId } : {}),
-    };
-
     const byUid: Record<string, { gameId: string; gameType: string; gameIndex: number }> = {};
     for (const uid of uids) {
       const opened = await insertPlayerSessionForUid(ctx, {
@@ -426,7 +431,6 @@ export const finalizeOpenTable = internalMutation({
         uid,
         seedBindingsByIndex: seedBindingsByIndex as SeedBindingByGameIndex,
         now,
-        ...campaignAttrs,
       });
       byUid[uid] = {
         gameId: opened.openGameId,

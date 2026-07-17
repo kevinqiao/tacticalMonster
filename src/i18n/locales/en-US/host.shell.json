@@ -1,13 +1,13 @@
-{
-  "boot": {
-    "enteringPortal": "Entering game lobby…",
-    "enteringTacticalLobby": "Entering tactical lobby…",
-    "enteringCasualLobby": "Entering casual lobby…",
-    "enteringCampaign": "Loading campaign…",
-    "enteringCampaignMerchant": "Loading merchant console…",
-    "enteringPlatformAdmin": "Loading platform admin…",
-    "enteringPartnerAdmin": "Loading partner admin…",
-    "enteringLobby": "Entering game lobby…"
-  }
-}
-
+{
+  "boot": {
+    "enteringPortal": "Entering game lobby…",
+    "enteringTacticalLobby": "Entering tactical lobby…",
+    "enteringCasualLobby": "Entering casual lobby…",
+    "enteringCampaign": "Loading campaign…",
+    "enteringPartnerOperation": "Loading store console…",
+    "enteringPlatformAdmin": "Loading platform admin…",
+    "enteringPartnerAdmin": "Loading partner admin…",
+    "enteringLobby": "Entering game lobby…"
+  }
+}
+

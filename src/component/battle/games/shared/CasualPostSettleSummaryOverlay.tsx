@@ -62,7 +62,7 @@ export type CasualPostSettleSummaryOverlayProps = {
 
   weeklyLeagueSettle?: WeeklyLeagueSettleUI | null;
 
-  /** 内容区滚动时底部操作栏固定可见（历史 LeaderBoard 等） */
+  /** 内容区滚动时底部操作栏固定可见（默认开启，避免矮屏溢出） */
 
   pinFooter?: boolean;
 
@@ -118,7 +118,7 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
 
   weeklyLeagueSettle,
 
-  pinFooter = false,
+  pinFooter = true,
 
   tableMetaNote,
 

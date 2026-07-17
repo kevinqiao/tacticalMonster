@@ -1,13 +1,23 @@
-
 import { useConvex } from "convex/react";
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { api } from "@/convex/sso/convex/_generated/api";
+import { isStaffWebSignInContext } from "@/component/lobby/shared/resolveWebSignInFromLocation";
+import type { WebSignInStaffGate } from "@/component/lobby/shared/webSignInHelpers";
 import { ModalItem } from "./ModalManager";
 import { PageItem } from "./PageManager";
 import { usePlatformAuth } from "./platformAuth/PlatformAuthProvider";
 import { isPlatformAuthed } from "./platformAuth/platformAccessToken";
 import {
   clearStoredUser,
+  parseStoredUserJson,
+  PLATFORM_USER_STORAGE_KEY,
   readStoredUser,
   writeStoredUser,
 } from "./platformAuth/platformSessionStorage";
@@ -19,6 +29,11 @@ export interface User {
   /** RS256 JWT for Convex setAuth — sole client session credential. */
   platformAccessToken?: string;
   platformAccessExpire?: number;
+  /**
+   * Which staff console issued this session (`platform` / `partner` / `merchant`).
+   * Used to force re-auth when opening a different staff console in another tab.
+   */
+  staffGate?: WebSignInStaffGate;
   lastUpdate?: number;
   name?: string;
   email?: string;
@@ -44,6 +59,13 @@ interface IUserContext {
   askAuth: ({ page, modal }: { page?: PageItem; modal?: ModalItem }) => void;
   cancelAuth: () => void;
   authComplete: (user: User, persist: number) => void;
+  /** Clear this tab's memory + Convex auth only — does not touch localStorage. */
+  dropLocalSession: () => void;
+  /**
+   * Drop local session and open SSO in one state update (staff re-auth).
+   * Avoids authLevel 2→1 flicker that can cancel playOpen.
+   */
+  forceReauth: () => void;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -53,6 +75,8 @@ const UserContext = createContext<IUserContext>({
   authReady: false,
   askAuth: () => {},
   cancelAuth: () => {},
+  dropLocalSession: () => {},
+  forceReauth: () => {},
   logout: async () => {},
   authComplete: () => null,
   isAuthenticated: false,
@@ -61,8 +85,13 @@ const UserContext = createContext<IUserContext>({
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const userRef = useRef<User | null>(null);
   const convex = useConvex();
   const { applyPlatformSession, clearPlatformSession } = usePlatformAuth();
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const askAuth = useCallback(({ page, modal }: { page?: PageItem; modal?: ModalItem }) => {
     setUser((prev) => {
@@ -98,6 +127,20 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     [applyPlatformSession]
   );
 
+  /** Drop this tab's in-memory session only — never clear localStorage (other tabs own it). */
+  const dropLocalSession = useCallback(() => {
+    void signOutClerkSession();
+    clearPlatformSession();
+    setUser({});
+  }, [clearPlatformSession]);
+
+  /** Staff consoles: exit locally and open SSO without clearing other tabs' storage. */
+  const forceReauth = useCallback(() => {
+    void signOutClerkSession();
+    clearPlatformSession();
+    setUser({ authReq: {} });
+  }, [clearPlatformSession]);
+
   const logout = useCallback(async () => {
     await signOutClerkSession();
     if (user?.platformAccessToken) {
@@ -128,7 +171,14 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
           platformAccessToken: stored.platformAccessToken,
         })) as User | null;
         if (restored?.uid && restored.platformAccessToken) {
-          authComplete(restored, 1);
+          // Preserve client-only staffGate stamped at web console login.
+          authComplete(
+            {
+              ...restored,
+              ...(stored.staffGate ? { staffGate: stored.staffGate } : {}),
+            },
+            1
+          );
         } else {
           clearStoredUser();
           clearPlatformSession();
@@ -146,11 +196,77 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     void restore();
   }, [convex, authComplete, applyPlatformSession, clearPlatformSession]);
 
+  // Cross-tab: another tab changed `user` in localStorage → this tab exits (no toast).
+  // Staff consoles: exit + open SSO (forceReauth). Consumer: silent drop only.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== PLATFORM_USER_STORAGE_KEY) return;
+      if (event.storageArea && event.storageArea !== localStorage) return;
+
+      const prev = userRef.current;
+      const hadSession = Boolean(prev?.uid || prev?.platformAccessToken);
+      const next = parseStoredUserJson(event.newValue);
+      const exit = () => {
+        if (isStaffWebSignInContext()) forceReauth();
+        else dropLocalSession();
+      };
+
+      if (!next?.uid) {
+        if (hadSession) exit();
+        return;
+      }
+
+      // Same account, token refresh elsewhere — stay signed in with new credentials.
+      if (
+        hadSession &&
+        prev?.uid === next.uid &&
+        next.platformAccessToken &&
+        next.platformAccessToken !== prev.platformAccessToken
+      ) {
+        applyPlatformSession(next);
+        setUser((u) => ({ ...(u ?? {}), ...next, authReq: null }));
+        return;
+      }
+
+      if (hadSession && prev?.uid !== next.uid) {
+        exit();
+        return;
+      }
+
+      if (
+        hadSession &&
+        prev?.uid === next.uid &&
+        prev?.platformAccessToken === next.platformAccessToken
+      ) {
+        return;
+      }
+
+      // This tab had a session and storage identity changed in any other way → exit.
+      if (hadSession) {
+        exit();
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [applyPlatformSession, dropLocalSession, forceReauth]);
+
   const isAuthenticated = authReady && isPlatformAuthed(user);
 
-  const value = { user, authReady, authComplete, logout, askAuth, cancelAuth, isAuthenticated };
+  const value = {
+    user,
+    authReady,
+    authComplete,
+    dropLocalSession,
+    forceReauth,
+    logout,
+    askAuth,
+    cancelAuth,
+    isAuthenticated,
+  };
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
+
 
 export const useUserManager = () => useContext(UserContext);
 export default UserProvider;

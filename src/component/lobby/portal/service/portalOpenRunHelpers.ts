@@ -1,5 +1,5 @@
 import { getPortalTournamentDefinition } from "@/convex/portal/convex/data/portalTournamentConfigs";
-import type { RegisteredPortalGameType } from "@/convex/portal/convex/data/portalGameRegistry";
+import type { RegisteredPartnerGameType } from "@/convex/portal/convex/data/partnerGameRegistry";
 import i18n from "@/i18n";
 
 import {
@@ -18,7 +18,7 @@ import type { PortalMatchQueueEntry } from "./usePortalManager";
 
 export function portalAssignmentMatchesGameType(
   a: OpenCasualRunAssignment,
-  gameType: RegisteredPortalGameType
+  gameType: RegisteredPartnerGameType
 ): boolean {
   if (a.gameType === gameType) return true;
   const def = getPortalTournamentDefinition(a.templateId);
@@ -27,7 +27,7 @@ export function portalAssignmentMatchesGameType(
 
 export function pickPortalOpenAssignmentsForGameType(
   assigns: OpenCasualRunAssignment[],
-  gameType: RegisteredPortalGameType
+  gameType: RegisteredPartnerGameType
 ): OpenCasualRunAssignment[] {
   return assigns
     .filter((a) => portalAssignmentMatchesGameType(a, gameType))
@@ -37,7 +37,7 @@ export function pickPortalOpenAssignmentsForGameType(
 /** 排除已超时、待后台 force-end 结算的 open run */
 export function pickActivePortalOpenAssignmentsForGameType(
   assigns: OpenCasualRunAssignment[],
-  gameType: RegisteredPortalGameType
+  gameType: RegisteredPartnerGameType
 ): OpenCasualRunAssignment[] {
   return pickPortalOpenAssignmentsForGameType(assigns, gameType).filter(
     (a) => !isOpenCasualRunExpired(a)
@@ -63,7 +63,7 @@ export function portalMatchTypeLabel(templateId: string): string {
 
 export function portalHasOpenAssignmentForMode(
   assigns: OpenCasualRunAssignment[],
-  gameType: RegisteredPortalGameType,
+  gameType: RegisteredPartnerGameType,
   mode: "solo" | "multi"
 ): boolean {
   const matchType = mode === "solo" ? "solo_p75" : "multi_ranked";
@@ -74,7 +74,7 @@ export function portalHasOpenAssignmentForMode(
 
 export function pickPortalOpenAssignmentForMode(
   assigns: OpenCasualRunAssignment[],
-  gameType: RegisteredPortalGameType,
+  gameType: RegisteredPartnerGameType,
   mode: "solo" | "multi"
 ): OpenCasualRunAssignment | undefined {
   const matchType = mode === "solo" ? "solo_p75" : "multi_ranked";
@@ -86,7 +86,7 @@ export function pickPortalOpenAssignmentForMode(
 /** 仅恢复属于指定活动的 open run（排除超时对局） */
 export function pickPortalOpenAssignmentForCampaignMode(
   assigns: OpenCasualRunAssignment[],
-  gameType: RegisteredPortalGameType,
+  gameType: RegisteredPartnerGameType,
   mode: "solo" | "multi",
   campaignId: string
 ): OpenCasualRunAssignment | undefined {
@@ -112,7 +112,7 @@ export function findCampaignAwaitOpenAssignment(
 
 export function pickPortalMatchQueueForGameType(
   entries: PortalMatchQueueEntry[],
-  gameType: RegisteredPortalGameType
+  gameType: RegisteredPartnerGameType
 ): PortalMatchQueueEntry[] {
   return entries.filter((e) => {
     const def = getPortalTournamentDefinition(e.templateId);

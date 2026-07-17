@@ -8,6 +8,7 @@ import {
 describe("shouldEnforceUrlPartnerSession", () => {
   it("skips staff consoles", () => {
     expect(shouldEnforceUrlPartnerSession("/partner/admin")).toBe(false);
+    expect(shouldEnforceUrlPartnerSession("/partner/operation")).toBe(false);
     expect(shouldEnforceUrlPartnerSession("/platform/admin")).toBe(false);
     expect(shouldEnforceUrlPartnerSession("/campaign/merchant")).toBe(false);
   });

@@ -9,6 +9,13 @@
     "empty": "暂无",
     "dash": "—"
   },
+  "gate": {
+    "loading": "加载中…",
+    "unknownKey": "未知 Portal key：{{key}}",
+    "unknownGame": "未知游戏类型",
+    "gameNotOpen": "该游戏未开放",
+    "portalDisabled": "该 Partner 未开通 Portal"
+  },
   "lobby": {
     "shop": "商店",
     "signIn": "登录",
@@ -193,11 +200,6 @@
     "watch": "回放"
   },
   "rules": {
-    "tabs": {
-      "points": "积分",
-      "tiers": "段位与分组",
-      "rewards": "奖励"
-    },
     "points": {
       "title": "积分",
       "intro": "两种模式的成绩计入<strong>同一个周榜总分</strong>，总分决定你在本周分组中的名次。",
@@ -216,8 +218,8 @@
     "tiers": {
       "title": "段位与分组",
       "bullets": [
-        "每周与<strong>同段位</strong>玩家分入一个 <strong>30 人小组</strong>（最多 15 真人 + 15 Bot），只和组内选手比名次；",
-        "分组时先入 15 个 Bot（部分立即可见，其余在 <strong>5 小时内</strong>陆续出现）；超时或满员后若仍有空位再补满，并按组内名次晋降级："
+        "每周与<strong>同段位</strong>玩家分入一个 <strong>30 人小组</strong>，只和组内选手比名次；",
+        "小组会在一周开始后逐步满员（约 <strong>5 小时内</strong>凑齐），并按组内名次晋降级："
       ],
       "zonePromote": "↑ 升级区 1-8",
       "zoneKeep": "保级区 9-22",

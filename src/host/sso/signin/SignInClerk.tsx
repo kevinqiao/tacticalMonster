@@ -5,6 +5,7 @@ import type { User } from "host/service/UserManager";
 import { usePartnerManager } from "host/service/PartnerManager";
 import { clerkReturnUrl } from "host/service/clerk/clerkReturnUrl";
 import { isClerkConfigured } from "host/service/clerk/clerkEnv";
+import { isCampaignPlayerShellUri } from "host/util/PageUtils";
 
 import { useClerkSignIn } from "@/component/lobby/shared/useClerkSignIn";
 
@@ -17,7 +18,7 @@ type SignInClerkProps = {
 const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalTheme = false }) => {
   void cid;
 
-  const { partnerPid, partnerResolveReady, campaignMerchantSlug } = usePartnerManager();
+  const { partnerPid, partnerResolveReady, campaignPartnerSlug } = usePartnerManager();
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { signOut } = useClerk();
   const exchangedRef = useRef(false);
@@ -69,12 +70,12 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
     };
   }, [isSignedIn, partnerResolveReady, tryExchange]);
 
-  // Popup cannot rely on window.closed once the IdP sets COOP:same-origin
-  // (parent same-origin-allow-popups is not enough). Use popup only in iframes
-  // (CrazyGames); first-party Netlify uses redirect.
+  // Popup: campaign player shells (keep landing SPA) + embeds (CrazyGames iframes).
+  // Other first-party surfaces still use redirect.
   const prefersOauthPopup =
     typeof window !== "undefined" &&
     (() => {
+      if (isCampaignPlayerShellUri(window.location.pathname)) return true;
       try {
         return window.self !== window.top;
       } catch {
@@ -99,7 +100,7 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
     <div className={portalTheme ? "sso-auth-form sso-auth-form--portal" : "sso-auth-form"}>
       <p style={{ margin: 0, fontSize: 14, color: "#444", textAlign: "center" }}>
         Clerk 登录（玩家账号）；Partner PID {partnerPid}
-        {campaignMerchantSlug ? ` · 商户 ${campaignMerchantSlug}` : ""}。
+        {campaignPartnerSlug ? ` · 商户 ${campaignPartnerSlug}` : ""}。
       </p>
 
       {showClerkForm ? <SignIn {...clerkSignInProps} /> : null}

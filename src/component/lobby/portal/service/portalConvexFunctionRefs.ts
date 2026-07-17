@@ -88,6 +88,9 @@ export const portalTournamentFns = {
   listCampaignPlayHistory: makeFunctionReference<"query">(
     "service/tournament/join/campaignPlayHistory:listCampaignPlayHistory"
   ),
+  getCampaignPlayReport: makeFunctionReference<"query">(
+    "service/tournament/join/campaignPlayHistory:getCampaignPlayReport"
+  ),
   beginAdReplaySession: makeFunctionReference<"mutation">(
     "service/ads/portalAdReplayMutations:beginAdReplaySession"
   ),

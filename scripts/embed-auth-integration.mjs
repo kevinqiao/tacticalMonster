@@ -35,7 +35,7 @@ function parseArgs(argv) {
     sub: get("--sub") ?? "embed_integration_user",
     email: get("--email") ?? "embed-integration@test.local",
     jwtSecret: get("--secret"),
-    merchantSlug: get("--merchant-slug") ?? "demo-cafe",
+    merchantSlug: get("--partner-slug") ?? get("--merchant-slug") ?? "demo-partner",
     campaignSlug: get("--campaign-slug") ?? "play-test",
     bootstrapSecret:
       get("--bootstrap-secret") ??
@@ -73,11 +73,11 @@ function assertSession(session) {
   }
 }
 
-function printBrowserHandoff({ token, merchantSlug, campaignSlug }) {
-  const landing = `/campaign/${merchantSlug}/${campaignSlug}`;
+function printBrowserHandoff({ token, partnerSlug, campaignSlug }) {
+  const landing = `/campaign/${partnerSlug}/${campaignSlug}`;
   console.log("\n=== Browser handoff (paste in devtools before/at load) ===\n");
   console.log(`window.__PARTNER_AUTH__ = { token: ${JSON.stringify(token)} };`);
-  console.log("\nLanding URL (partner resolved from merchant slug):");
+  console.log("\nLanding URL:");
   console.log(`  http://localhost:3000${landing}`);
   console.log("\nOr postMessage after load:");
   console.log(
@@ -142,7 +142,7 @@ function main() {
 
   printBrowserHandoff({
     token: credential,
-    merchantSlug: config.merchantSlug,
+    partnerSlug: config.merchantSlug,
     campaignSlug: config.campaignSlug,
   });
 }

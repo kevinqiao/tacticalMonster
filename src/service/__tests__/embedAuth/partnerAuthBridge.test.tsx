@@ -16,7 +16,7 @@ vi.mock("@/host/service/PartnerManager", () => ({
     partnerPid: 9,
     partnerResolveReady: true,
     partner: { pid: 9 },
-    campaignMerchantSlug: "demo-cafe",
+    campaignPartnerSlug: "demo-cafe",
   }),
 }));
 
@@ -61,7 +61,7 @@ describe("PartnerAuthBridge", () => {
 
     await waitFor(() => {
       expect(bootstrapFromPartner).toHaveBeenCalledWith(9, token, {
-        merchantSlug: "demo-cafe",
+        partnerSlug: "demo-cafe",
         method: "jwt_local",
       });
     });
@@ -92,7 +92,7 @@ describe("PartnerAuthBridge", () => {
 
     await waitFor(() => {
       expect(bootstrapFromPartner).toHaveBeenCalledWith(9, token, {
-        merchantSlug: "demo-cafe",
+        partnerSlug: "demo-cafe",
         method: "jwt_local",
       });
     });

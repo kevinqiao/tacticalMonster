@@ -35,7 +35,7 @@ export function buildEmbedSourceContext(args: {
   partnerPid: number;
   partner: Partner | null;
   partnerResolveReady: boolean;
-  campaignMerchantSlug?: string | null;
+  campaignPartnerSlug?: string | null;
   portalPartnerKey?: string | null;
   isFirstPartyPortal?: boolean;
   search?: string;
@@ -46,7 +46,7 @@ export function buildEmbedSourceContext(args: {
     partnerPid: args.partnerPid,
     partner: args.partner,
     partnerResolveReady: args.partnerResolveReady,
-    campaignMerchantSlug: args.campaignMerchantSlug ?? null,
+    campaignPartnerSlug: args.campaignPartnerSlug ?? null,
     portalPartnerKey: args.portalPartnerKey ?? parsed.partnerKey,
     isFirstPartyPortal: args.isFirstPartyPortal ?? parsed.isFirstPartyPortal,
     search: args.search ?? (typeof window !== "undefined" ? window.location.search : ""),
@@ -91,7 +91,7 @@ export function shouldAttemptEmbedGate(args: {
       partnerPid: args.partner?.pid ?? 0,
       partner: args.partner,
       partnerResolveReady: args.partnerResolveReady,
-      campaignMerchantSlug: null,
+      campaignPartnerSlug: null,
       search: typeof window !== "undefined" ? window.location.search : "",
     })
   );

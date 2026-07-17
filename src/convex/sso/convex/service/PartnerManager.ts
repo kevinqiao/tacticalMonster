@@ -10,6 +10,7 @@ import {
   sanitizeConsumerAuthChannelIds,
   sanitizeStaffAuthChannelIds,
 } from "./auth/partnerChannelPolicy";
+import { readPartnerGames } from "./partner/portalPartnerConfig";
 
 function formatPartnerRow(
   partner: Record<string, unknown>,
@@ -17,6 +18,8 @@ function formatPartnerRow(
 ) {
   return {
     ...partner,
+    /** Effective allowlist from partner.games (unset → full registry). */
+    games: readPartnerGames(partner as { games?: string[] | null }),
     /** Consumer channel ids — matches DB column `auth_channels`. */
     auth_channels: resolved.consumerChannelIds,
     /** Staff channel ids — matches DB column `staff_auth_channels`. */
@@ -87,6 +90,8 @@ async function loadPartner(ctx: { db: any }, pid: number) {
           pid: 0,
           name: "Default Partner",
           host: "https://default.com",
+          // First-party portal must work before Default Partner row is seeded.
+          capabilities: { portalGames: true, campaignOps: false },
         },
         synthetic
       );

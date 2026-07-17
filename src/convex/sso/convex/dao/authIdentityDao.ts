@@ -150,18 +150,22 @@ export const ensureWebIdentity = internalMutation({
     name: v.optional(v.string()),
     phone: v.optional(v.string()),
   },
-  handler: async (ctx, { accountId, email, uid, partnerId, name, phone }) => {
-    const scopedPartnerId = partnerId ?? PLATFORM_NAMESPACE_PARTNER_ID;
+  handler: async (ctx, { accountId, email, uid, partnerId: _partnerId, name, phone }) => {
+    // Web = staff console only; identity namespace is always platform partnerId=0.
+    const scopedPartnerId = PLATFORM_NAMESPACE_PARTNER_ID;
     const contactEmail = email?.trim()
       ? email.toLowerCase().trim()
       : undefined;
 
     let existing =
       (await findWebIdentityByPartnerSubject(ctx, scopedPartnerId, accountId)) ??
-      (await findIdentityByUid(ctx, uid));
+      (await findIdentityByUid(ctx, uid)) ??
+      (await findWebIdentityBySubject(ctx, accountId));
 
     if (!existing && contactEmail) {
-      existing = await findWebIdentityByPartnerSubject(ctx, scopedPartnerId, contactEmail);
+      existing =
+        (await findWebIdentityByPartnerSubject(ctx, scopedPartnerId, contactEmail)) ??
+        (await findWebIdentityBySubject(ctx, contactEmail));
     }
 
     const profilePatch = {
@@ -175,10 +179,10 @@ export const ensureWebIdentity = internalMutation({
       await ctx.db.patch(existing._id, {
         subject: accountId,
         provider: "web",
+        partnerId: scopedPartnerId,
         lastUpdate: now,
         expire: now + REFRESH_TOKEN_EXPIRE_MS,
         updatedAt: now,
-        ...(partnerId != null ? { partnerId: scopedPartnerId } : {}),
         ...profilePatch,
       });
 
@@ -192,7 +196,7 @@ export const ensureWebIdentity = internalMutation({
         ...existing,
         uid: existing.uid,
         subject: accountId,
-        partnerId: partnerId ?? existing.partnerId,
+        partnerId: scopedPartnerId,
         ...profilePatch,
         lastUpdate: now,
         expire: now + REFRESH_TOKEN_EXPIRE_MS,
@@ -226,6 +230,7 @@ export const ensureWebIdentity = internalMutation({
 export const refreshWebSession = internalMutation({
   args: {
     uid: v.string(),
+    /** Operating partner for client session only (membership). Not written on web identities. */
     partnerId: v.optional(v.number()),
   },
   handler: async (ctx, { uid, partnerId }) => {
@@ -233,16 +238,25 @@ export const refreshWebSession = internalMutation({
     if (!row) return null;
 
     const now = Date.now();
+    const isWebStaff = row.provider === "web";
+    // Staff Web identity is always platform-wide (partnerId=0). Membership partner
+    // stays in partner_staff / client `partner` only.
     await ctx.db.patch(row._id, {
       lastUpdate: now,
       expire: now + REFRESH_TOKEN_EXPIRE_MS,
       updatedAt: now,
-      ...(partnerId != null ? { partnerId } : {}),
+      ...(isWebStaff
+        ? { partnerId: PLATFORM_NAMESPACE_PARTNER_ID }
+        : partnerId != null
+          ? { partnerId }
+          : {}),
     });
 
     return stripIdentityForClient({
       ...row,
-      partnerId: partnerId ?? row.partnerId,
+      partnerId: isWebStaff
+        ? (partnerId ?? PLATFORM_NAMESPACE_PARTNER_ID)
+        : (partnerId ?? row.partnerId),
       lastUpdate: now,
       expire: now + REFRESH_TOKEN_EXPIRE_MS,
     });

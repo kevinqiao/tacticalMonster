@@ -33,7 +33,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   campaignPublic: CampaignPublicView;
-  merchantSlug: string;
+  partnerSlug: string;
   variant?: "game" | "display";
   flow: FlowSnapshot;
 };
@@ -52,12 +52,12 @@ export const CampaignDetailsSheet: React.FC<Props> = ({
   open,
   onClose,
   campaignPublic,
-  merchantSlug,
+  partnerSlug,
   variant = "game",
   flow,
 }) => {
   const { t } = useTranslation("campaign.player");
-  const { merchant, campaign } = campaignPublic;
+  const { partner, campaign } = campaignPublic;
   const isDisplay = variant === "display" || campaign.experienceType === "display";
   const {
     title,
@@ -77,10 +77,13 @@ export const CampaignDetailsSheet: React.FC<Props> = ({
 
   const isPassMode = rewardModel === "pass_per_run";
   const rankRewards = leaderboardRankRewards ?? [];
-  const showRankRewards = !isDisplay && !isPassMode && rankRewards.length > 0;
+  const showPassSoloRewards = !isDisplay && isPassMode && mode === "solo";
+  const showPassMultiRankRewards =
+    !isDisplay && isPassMode && mode === "multi" && rankRewards.length > 0;
+  const showCompetitiveRankRewards = !isDisplay && !isPassMode && rankRewards.length > 0;
   const settlementSummary =
     !isDisplay && settlement ? campaignSettlementSummary(settlement, flow.campaignEnded) : null;
-  const landingPath = campaignLandingPath(merchantSlug, campaign.slug);
+  const landingPath = campaignLandingPath(partnerSlug, campaign.slug);
   const timezoneLabel = playLimits ? campaignTimezoneLabel(playLimits.dayTimezone) : null;
 
   const cta = displayConfig?.cta;
@@ -139,10 +142,10 @@ export const CampaignDetailsSheet: React.FC<Props> = ({
     >
       <div className="campaign-details">
         <div className="campaign-details__merchant">
-          {merchant.logoUrl ? (
-            <img className="campaign-details__merchant-logo" src={merchant.logoUrl} alt="" />
+          {partner.logoUrl ? (
+            <img className="campaign-details__merchant-logo" src={partner.logoUrl} alt="" />
           ) : null}
-          <p className="campaign-details__merchant-name">{merchant.name}</p>
+          <p className="campaign-details__merchant-name">{partner.name}</p>
         </div>
 
         <h3 className="campaign-details__campaign-title">{title}</h3>
@@ -246,7 +249,7 @@ export const CampaignDetailsSheet: React.FC<Props> = ({
         {!isDisplay ? (
         <section className="campaign-details__section">
           <h4 className="campaign-details__heading">{t("details.rewardRulesHeading")}</h4>
-          {isPassMode ? (
+          {showPassSoloRewards ? (
             <div className="campaign-details__reward-block">
               {passReward ? (
                 <dl className="campaign-details__meta">
@@ -270,7 +273,26 @@ export const CampaignDetailsSheet: React.FC<Props> = ({
                 <p className="campaign-details__claimed">{passClaimedLabel}</p>
               ) : null}
             </div>
-          ) : showRankRewards ? (
+          ) : isPassMode && mode === "multi" ? (
+            <>
+              <p className="campaign-details__hint">{t("details.passMultiHint")}</p>
+              {showPassMultiRankRewards ? (
+                <ul className="campaign-details__reward-list">
+                  {rankRewards.map((reward) => (
+                    <li
+                      key={`${reward.rankFrom}-${reward.rankTo}-${reward.label}`}
+                      className="campaign-details__reward-item"
+                    >
+                      {formatLeaderboardRankRewardLine(reward)}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {passClaimedLabel ? (
+                <p className="campaign-details__claimed">{passClaimedLabel}</p>
+              ) : null}
+            </>
+          ) : showCompetitiveRankRewards ? (
             <>
               <p className="campaign-details__hint">{t("details.competitiveHint")}</p>
               <ul className="campaign-details__reward-list">

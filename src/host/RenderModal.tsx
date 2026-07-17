@@ -199,16 +199,25 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
         data-container-name={container.name}
         data-init={container.init}
       >
-        {SelectedComponent ? (
-          <Suspense fallback={<div />}>
-            <SelectedComponent visible={modal ? true : false} data={modal?.data} close={dismissModal} />
-          </Suspense>
-        ) : null}
-        <div ref={(ele) => container.closeEle = ele ?? undefined} className="modal-close" onClick={requestClose}>
+        <div
+          className="modal-surface"
+          ref={(ele) => (container.surfaceEle = ele ?? undefined)}
+        >
+          {SelectedComponent ? (
+            <Suspense fallback={<div />}>
+              <SelectedComponent visible={modal ? true : false} data={modal?.data} close={dismissModal} />
+            </Suspense>
+          ) : null}
+        </div>
+        {/* On the shell (not surface) so popCenter/swipe motion does not slide the close control. */}
+        <div
+          ref={(ele) => (container.closeEle = ele ?? undefined)}
+          className="modal-close"
+          onClick={requestClose}
+        >
           X
         </div>
       </div>
-
     </div>
   );
   if (typeof document !== "undefined" && document.body) {

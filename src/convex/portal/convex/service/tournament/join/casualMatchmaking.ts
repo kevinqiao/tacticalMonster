@@ -106,13 +106,26 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
     uid: v.string(),
     tournamentId: v.string(),
     campaignId: v.optional(v.string()),
-    merchantId: v.optional(v.string()),
+    partnerId: v.optional(v.number()),
+    campaignRewardMode: v.optional(
+      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
+    ),
+    campaignDueTime: v.optional(v.number()),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
   },
   handler: async (
     ctx,
-    { uid, tournamentId, campaignId, merchantId, maxPlaysPerDay, dayTimezone }
+    {
+      uid,
+      tournamentId,
+      campaignId,
+      partnerId,
+      campaignRewardMode,
+      campaignDueTime,
+      maxPlaysPerDay,
+      dayTimezone,
+    }
   ): Promise<JoinCasualRunResult> => {
     const def = getPortalTournamentDefinition(tournamentId);
     if (!def) {
@@ -196,7 +209,9 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         skipEntryCharge: reconciled.skipEntryCharge,
         updatedAt: now,
         ...(campaignId ? { campaignId } : {}),
-        ...(merchantId ? { merchantId } : {}),
+        ...(partnerId != null ? { partnerId } : {}),
+        ...(campaignRewardMode ? { campaignRewardMode } : {}),
+        ...(campaignDueTime != null ? { campaignDueTime } : {}),
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
         ...(reconciled.status === "claiming"
@@ -217,7 +232,9 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         createdAt: now,
         updatedAt: now,
         ...(campaignId ? { campaignId } : {}),
-        ...(merchantId ? { merchantId } : {}),
+        ...(partnerId != null ? { partnerId } : {}),
+        ...(campaignRewardMode ? { campaignRewardMode } : {}),
+        ...(campaignDueTime != null ? { campaignDueTime } : {}),
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
       });

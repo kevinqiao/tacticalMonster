@@ -1,20 +1,36 @@
 import { v } from "convex/values";
 
+import { internal } from "../../_generated/api";
 import { mutation } from "../../_generated/server";
 import {
   PLATFORM_ADMIN_EMAIL,
 } from "./platformAdminAccount";
 import { getPlatformStaffRow } from "./platformStaff";
-import { getPartnerStaffRow } from "./partnerStaff";
+import { getPartnerStaffRow, getPartnerByPid, nextPartnerId } from "./partnerStaff";
 import { dedupeAuthIdentitiesByUid } from "../../dao/authIdentityHelpers";
 import { normalizeWebAccountId } from "../../utils/webIdentity";
 import { provisionWebStaffAccount } from "./ensureStaffIdentity";
-import { getPartnerByPid } from "./partnerStaff";
 import {
   sanitizeConsumerAuthChannelIds,
   sanitizeStaffAuthChannelIds,
   legacyPartnerChannelPatch,
 } from "../auth/partnerChannelPolicy";
+import { CLERK_AUTH_CHANNEL_CID, WEB_AUTH_CHANNEL_CID } from "../auth/authChannelCatalog";
+import {
+  validatePartnerSlug,
+  type PartnerCapabilities,
+} from "./partnerCapabilities";
+import {
+  sanitizePartnerGames,
+  validatePortalKey,
+} from "./portalPartnerConfig";
+import {
+  assertValidStoreSlug,
+  getStoreBySlug,
+  getStoreStaffRow,
+  newStoreId,
+  normalizeStoreSlug,
+} from "./storeStaff";
 
 const DEV_BOOTSTRAP_SECRET = "dev-local-platform-bootstrap";
 
@@ -228,8 +244,7 @@ export const bootstrapPartnerStaffAccount = mutation({
       ctx,
       loginAccountId,
       args.passwordHash,
-      platformUid,
-      args.partnerId
+      platformUid
     );
 
     const existingStaff = await getPartnerStaffRow(ctx, args.partnerId, uid);
@@ -291,15 +306,14 @@ export const bootstrapDefaultPartnerChannels = mutation({
       };
     }
 
+    const defaultCaps = { portalGames: true, campaignOps: true };
     await ctx.db.insert("partner", {
       pid: 0,
       name: "Default Partner",
       host: "https://default.com",
       auth_channels: consumerIds,
       staff_auth_channels: staffIds,
-      data: {
-        enabledContexts: ["casual", "portal", "campaign", "tactical"],
-      },
+      capabilities: defaultCaps,
     });
     return {
       ok: true as const,
@@ -331,5 +345,227 @@ export const migrateLegacyPartnerAuthChannels = mutation({
     }
 
     return { ok: true as const, migrated };
+  },
+});
+
+/**
+ * Dev-only: ensure campaignOps partner (+ portal games / slug / brand sync).
+ * Returns partnerId so Node scripts can compute the correct platformUid (MD5).
+ */
+export const ensureCampaignOpsDevPartner = mutation({
+  args: {
+    bootstrapSecret: v.string(),
+    partnerId: v.optional(v.number()),
+    partnerSlug: v.optional(v.string()),
+    partnerName: v.optional(v.string()),
+    portalKey: v.optional(v.string()),
+    games: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    assertBootstrapSecret(args.bootstrapSecret);
+
+    const partnerSlug = validatePartnerSlug(args.partnerSlug ?? "demo-partner");
+    if (!partnerSlug) throw new Error("slug_required");
+    const partnerName = (args.partnerName ?? "Demo Partner").trim() || "Demo Partner";
+    const games = sanitizePartnerGames(args.games ?? ["block_blast"]);
+    const portalKey = validatePortalKey(args.portalKey ?? "demo");
+
+    let created = false;
+    let partner =
+      args.partnerId !== undefined
+        ? await getPartnerByPid(ctx, args.partnerId)
+        : await ctx.db
+            .query("partner")
+            .withIndex("by_slug", (q) => q.eq("slug", partnerSlug))
+            .unique();
+
+    if (args.partnerId !== undefined && !partner) {
+      throw new Error("not_found");
+    }
+
+    const capabilities: PartnerCapabilities = {
+      portalGames: true,
+      campaignOps: true,
+    };
+
+    if (!partner) {
+      const slugConflict = await ctx.db
+        .query("partner")
+        .withIndex("by_slug", (q) => q.eq("slug", partnerSlug))
+        .unique();
+      if (slugConflict) throw new Error("slug_taken");
+      const portalConflict = await ctx.db
+        .query("partner")
+        .withIndex("by_portal_key", (q) => q.eq("portal_key", portalKey))
+        .unique();
+      if (portalConflict) throw new Error("portal_key_taken");
+
+      const pid = await nextPartnerId(ctx);
+      await ctx.db.insert("partner", {
+        pid,
+        name: partnerName,
+        auth_channels: [CLERK_AUTH_CHANNEL_CID],
+        staff_auth_channels: [WEB_AUTH_CHANNEL_CID],
+        capabilities,
+        slug: partnerSlug,
+        portal_key: portalKey,
+        games,
+      });
+      partner = await getPartnerByPid(ctx, pid);
+      created = true;
+    }
+
+    if (!partner) throw new Error("partner_create_failed");
+
+    const slugConflict = await ctx.db
+      .query("partner")
+      .withIndex("by_slug", (q) => q.eq("slug", partnerSlug))
+      .unique();
+    if (slugConflict && slugConflict.pid !== partner.pid) {
+      throw new Error("slug_taken");
+    }
+    const portalConflict = await ctx.db
+      .query("partner")
+      .withIndex("by_portal_key", (q) => q.eq("portal_key", portalKey))
+      .unique();
+    if (portalConflict && portalConflict.pid !== partner.pid) {
+      throw new Error("portal_key_taken");
+    }
+
+    const prevData = (partner.data ?? {}) as Record<string, unknown>;
+    const { enabledContexts: _drop, ...dataRest } = prevData;
+    await ctx.db.patch(partner._id, {
+      name: partnerName,
+      capabilities,
+      slug: partnerSlug,
+      portal_key: portalKey,
+      games,
+      data: dataRest,
+    });
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.service.partner.platformAdminBrandSync.syncPartnerBrandSlug,
+      { partnerId: partner.pid, slug: partnerSlug }
+    );
+
+    return {
+      ok: true as const,
+      created,
+      partnerId: partner.pid,
+      partnerSlug,
+      portalKey,
+      games,
+    };
+  },
+});
+
+/**
+ * Dev-only: store + partner_staff + store_staff web login for an existing partner.
+ * Call after ensureCampaignOpsDevPartner with platformUid = platformStaffUidForAccount(account).
+ */
+export const bootstrapCampaignOpsDevStoreStaff = mutation({
+  args: {
+    bootstrapSecret: v.string(),
+    partnerId: v.number(),
+    passwordHash: v.string(),
+    platformUid: v.string(),
+    storeSlug: v.optional(v.string()),
+    storeName: v.optional(v.string()),
+    accountId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    assertBootstrapSecret(args.bootstrapSecret);
+
+    const partner = await getPartnerByPid(ctx, args.partnerId);
+    if (!partner) throw new Error("not_found");
+
+    const storeSlug = normalizeStoreSlug(args.storeSlug ?? "demo-cafe");
+    assertValidStoreSlug(storeSlug);
+    const storeName = (args.storeName ?? "Demo Cafe").trim() || "Demo Cafe";
+    const loginAccountId = args.accountId?.trim() || "admin";
+    const platformUid = args.platformUid.trim();
+    if (!platformUid) throw new Error("uid_required");
+
+    const created = {
+      partnerStaff: false,
+      store: false,
+      storeStaff: false,
+    };
+
+    const uid = await provisionWebStaffAccount(
+      ctx,
+      loginAccountId,
+      args.passwordHash,
+      platformUid
+    );
+
+    const existingPartnerStaff = await getPartnerStaffRow(ctx, partner.pid, uid);
+    if (!existingPartnerStaff) {
+      await ctx.db.insert("partner_staff", {
+        partnerId: partner.pid,
+        uid,
+        role: "owner",
+        createdAt: Date.now(),
+      });
+      created.partnerStaff = true;
+    }
+
+    let store = await getStoreBySlug(ctx, storeSlug);
+    if (store && store.partnerId !== partner.pid) {
+      throw new Error("store_slug_taken");
+    }
+    if (!store) {
+      const storeId = newStoreId();
+      const now = Date.now();
+      await ctx.db.insert("store", {
+        storeId,
+        partnerId: partner.pid,
+        slug: storeSlug,
+        name: storeName,
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      store = await getStoreBySlug(ctx, storeSlug);
+      created.store = true;
+    } else {
+      await ctx.db.patch(store._id, {
+        name: storeName,
+        status: "active",
+        updatedAt: Date.now(),
+      });
+      store = await getStoreBySlug(ctx, storeSlug);
+    }
+    if (!store) throw new Error("store_create_failed");
+
+    const existingStoreStaff = await getStoreStaffRow(ctx, store.storeId, uid);
+    if (!existingStoreStaff) {
+      await ctx.db.insert("store_staff", {
+        storeId: store.storeId,
+        uid,
+        role: "owner",
+        createdAt: Date.now(),
+      });
+      created.storeStaff = true;
+    }
+
+    const accountId = normalizeWebAccountId(loginAccountId);
+    return {
+      ok: true as const,
+      created,
+      partnerId: partner.pid,
+      storeId: store.storeId,
+      storeSlug,
+      storeName,
+      uid,
+      accountId,
+      login: {
+        username: accountId,
+        password: "(see script --password)",
+        partnerAdminPath: "/partner/admin",
+        storeOperationPath: "/partner/operation",
+      },
+    };
   },
 });

@@ -198,7 +198,7 @@
 }
 
 .sso-auth-close--floating {
-  position: absolute;
+  position: fixed;
   top: 12px;
   right: 12px;
   z-index: 2;
@@ -206,10 +206,6 @@
 
 .sso-auth-close:hover {
   transform: scale(1.08);
-}
-
-.sso-auth-layer--portal .sso-auth-head .sso-auth-close:hover {
-  transform: translateY(-50%) scale(1.08);
 }
 
 .sso-auth-panel {

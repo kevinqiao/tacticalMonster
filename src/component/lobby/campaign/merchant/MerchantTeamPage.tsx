@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { ConvexProvider } from "convex/react";
 import { useTranslation } from "react-i18next";
 
 import { PageProp } from "host/RenderApp";
+import { ssoConvexClient } from "host/service/AppProviders";
 import { useUserManager } from "host/service/UserManager";
 
 import PartnerTeamPanel from "../../partner/shared/PartnerTeamPanel";
@@ -10,24 +12,31 @@ import {
   campaignSuccessMessage,
 } from "../shared/campaignErrorMessage";
 import { MerchantPageToolbar } from "../shared/CampaignLocaleSwitcher";
-import { MerchantCampaignProvider } from "../service/useMerchantCampaignManager";
 import { MerchantNavLink } from "./MerchantEmbeddedNavContext";
 import { MERCHANT_STAFF_ROLE_OPTIONS, useMerchantTeam } from "./useMerchantTeam";
 
 import "./merchant.css";
 
-function merchantIdFromLocation(): string {
-  return new URLSearchParams(window.location.search).get("merchantId") ?? "";
+function storeIdFromLocation(): string {
+  const params = new URLSearchParams(window.location.search);
+  // Prefer storeId; accept legacy merchantId query.
+  return (params.get("storeId") ?? params.get("merchantId") ?? "").trim();
 }
 
-export const MerchantTeamInner: React.FC<{
+type MerchantTeamInnerProps = {
   visible: number;
-  merchantId: string;
+  storeId: string;
   embedded?: boolean;
-}> = ({ visible, merchantId, embedded }) => {
+};
+
+const MerchantTeamBody: React.FC<MerchantTeamInnerProps> = ({
+  visible,
+  storeId,
+  embedded,
+}) => {
   const { t } = useTranslation("campaign.merchant");
   const { askAuth } = useUserManager();
-  const { team, canManage, addStaff, removeStaff } = useMerchantTeam(merchantId);
+  const { team, canManage, addStaff, removeStaff } = useMerchantTeam(storeId);
   const [note, setNote] = useState<string | null>(null);
 
   if (visible === 0) return null;
@@ -43,7 +52,7 @@ export const MerchantTeamInner: React.FC<{
       <h2>{t("team.title")}</h2>
       <p className="merchant-note">{t("team.intro")}</p>
 
-      {!merchantId ? (
+      {!storeId ? (
         <p className="merchant-note">{t("team.merchantRequired")}</p>
       ) : (
         <>
@@ -98,18 +107,23 @@ export const MerchantTeamInner: React.FC<{
   );
 };
 
+/** SSO store team APIs — safe under MerchantCampaignProvider / partner admin shells. */
+export const MerchantTeamInner: React.FC<MerchantTeamInnerProps> = (props) => (
+  <ConvexProvider client={ssoConvexClient}>
+    <MerchantTeamBody {...props} />
+  </ConvexProvider>
+);
+
 const MerchantTeamPage: React.FC<PageProp> = ({ visible }) => {
-  const merchantId = merchantIdFromLocation();
+  const storeId = storeIdFromLocation();
 
   if (visible === 0) return null;
 
   return (
-    <MerchantCampaignProvider>
-      <div className="merchant-page">
-        <MerchantPageToolbar />
-        <MerchantTeamInner visible={visible} merchantId={merchantId} />
-      </div>
-    </MerchantCampaignProvider>
+    <div className="merchant-page">
+      <MerchantPageToolbar />
+      <MerchantTeamInner visible={visible} storeId={storeId} />
+    </div>
   );
 };
 

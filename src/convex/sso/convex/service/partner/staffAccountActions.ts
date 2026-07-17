@@ -7,10 +7,8 @@ import { authedAction } from "../../custom/session";
 import { hashWebPassword } from "../auth/webPassword";
 import {
   webAccountIdForEmail,
-  webPlatformUidForAccount,
   platformStaffUidForAccount,
 } from "../provider/AuthenticatorFactory";
-import { assertMerchantOwnerViaHttp } from "../bridge/merchantCampaignStaffBridge";
 
 const partnerRoleValidator = v.union(
   v.literal("owner"),
@@ -42,7 +40,8 @@ export const addPartnerStaff = authedAction({
       actorUid: ctx.identity.subject,
       partnerId,
       accountId: webAccountIdForEmail(trimmed),
-      platformUid: webPlatformUidForAccount(trimmed, partnerId),
+      // Staff identity is platform-wide (partnerId=0); team row keeps real partnerId.
+      platformUid: platformStaffUidForAccount(trimmed),
       passwordHash: hashWebPassword(password),
       role,
       name: name?.trim() || undefined,
@@ -129,23 +128,26 @@ export const updatePlatformStaffProfile = authedAction({
   },
 });
 
-export const provisionMerchantStaffWebLogin = authedAction({
+export const provisionStoreStaffWebLogin = authedAction({
   args: {
-    merchantId: v.string(),
+    storeId: v.string(),
     partnerId: v.number(),
     accountId: v.string(),
     password: v.string(),
   },
-  handler: async (ctx, { merchantId, partnerId, accountId, password }) => {
+  handler: async (ctx, { storeId, partnerId, accountId, password }) => {
     const trimmed = accountId.trim();
     if (!trimmed) throw new Error("account_id_required");
     if (!password) throw new Error("password_required");
-    if (!merchantId.trim()) throw new Error("merchant_id_required");
+    if (!storeId.trim()) throw new Error("store_id_required");
 
-    const assert = await assertMerchantOwnerViaHttp({
-      merchantId: merchantId.trim(),
-      uid: ctx.identity.subject,
-    });
+    const assert = await ctx.runQuery(
+      internal.service.partner.storeAdmin.assertStoreOwnerInternal,
+      {
+        storeId: storeId.trim(),
+        uid: ctx.identity.subject,
+      }
+    );
     if (!assert.ok) {
       throw new Error(assert.error === "forbidden" ? "forbidden" : assert.error);
     }
@@ -156,10 +158,10 @@ export const provisionMerchantStaffWebLogin = authedAction({
         : assert.partnerId;
 
     return await ctx.runMutation(
-      internal.service.partner.merchantStaffIdentity.applyProvisionMerchantStaffWebLogin,
+      internal.service.partner.storeStaffIdentity.applyProvisionStoreStaffWebLogin,
       {
         accountId: webAccountIdForEmail(trimmed),
-        platformUid: webPlatformUidForAccount(trimmed, scopedPartnerId),
+        platformUid: platformStaffUidForAccount(trimmed),
         passwordHash: hashWebPassword(password),
         partnerId: scopedPartnerId,
       }

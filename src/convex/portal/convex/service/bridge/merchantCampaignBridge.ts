@@ -16,16 +16,18 @@ export type AuthorizeCampaignJoinResult =
   | {
       ok: true;
       campaignId: string;
-      merchantId: string;
+      partnerId: number;
       gameType: string;
       mode: "solo" | "multi";
+      rewardMode: "pass_per_run" | "competitive_leaderboard";
+      dueTime: number;
       playLimits: CampaignPlayLimitsFromAuthorize;
     }
   | { ok: false; error: string };
 
 export async function authorizeCampaignJoinViaHttp(args: {
   uid: string;
-  merchantSlug: string;
+  partnerSlug: string;
   campaignSlug: string;
 }): Promise<AuthorizeCampaignJoinResult> {
   const base = merchantCampaignSiteUrl();
@@ -42,13 +44,32 @@ export async function authorizeCampaignJoinViaHttp(args: {
       signal: AbortSignal.timeout(20_000),
     });
   } catch (e) {
-    console.error("[portal] merchant authorize-campaign-join fetch failed", e);
+    console.error("[portal] authorize-campaign-join fetch failed", e);
     return { ok: false, error: "merchant_unreachable" };
   }
   try {
-    const parsed = (await response.json()) as AuthorizeCampaignJoinResult;
+    const parsed = (await response.json()) as AuthorizeCampaignJoinResult & {
+      rewardMode?: string;
+      dueTime?: number;
+    };
     if (!parsed || typeof parsed !== "object") {
       return { ok: false, error: "bad_response" };
+    }
+    if (parsed.ok === true) {
+      if (
+        parsed.rewardMode !== "pass_per_run" &&
+        parsed.rewardMode !== "competitive_leaderboard"
+      ) {
+        return { ok: false, error: "reward_mode_required" };
+      }
+      const rewardMode = parsed.rewardMode;
+      const dueTime =
+        rewardMode === "competitive_leaderboard" &&
+        typeof parsed.dueTime === "number" &&
+        Number.isFinite(parsed.dueTime)
+          ? parsed.dueTime
+          : 0;
+      return { ...parsed, rewardMode, dueTime };
     }
     return parsed;
   } catch {
@@ -56,21 +77,49 @@ export async function authorizeCampaignJoinViaHttp(args: {
   }
 }
 
-export type NotifyMerchantOnRunSettledArgs = {
+export type IssuedCouponFromMerchant = {
+  couponId: string;
+  code: string;
+  ruleId: string;
+  rewardLabel: string;
+};
+
+export type NotifyOnRunSettledArgs = {
   campaignId: string;
-  merchantId: string;
+  partnerId: number;
   uid: string;
-  matchId: string;
+  runTournamentId: string;
+  matchId?: string;
   gameType: string;
   mode: "solo" | "multi";
   score: number;
   rank?: number;
-  p75Success?: boolean;
+  isPassed?: boolean;
 };
 
+export type NotifyOnRunSettledResult =
+  | { ok: true; issued: IssuedCouponFromMerchant[] }
+  | { ok: false; error: string };
+
+function parseIssuedCoupons(raw: unknown): IssuedCouponFromMerchant[] {
+  if (!Array.isArray(raw)) return [];
+  const out: IssuedCouponFromMerchant[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const r = row as Record<string, unknown>;
+    const couponId = typeof r.couponId === "string" ? r.couponId : "";
+    const code = typeof r.code === "string" ? r.code : "";
+    const ruleId = typeof r.ruleId === "string" ? r.ruleId : "";
+    const rewardLabel = typeof r.rewardLabel === "string" ? r.rewardLabel : "";
+    if (!couponId || !ruleId) continue;
+    out.push({ couponId, code, ruleId, rewardLabel });
+  }
+  return out;
+}
+
 export async function notifyMerchantOnRunSettledViaHttp(
-  args: NotifyMerchantOnRunSettledArgs
-): Promise<{ ok: boolean; error?: string }> {
+  args: NotifyOnRunSettledArgs
+): Promise<NotifyOnRunSettledResult> {
   const base = merchantCampaignSiteUrl();
   const url = `${base}/internal/on-run-settled`;
   let response: Response;
@@ -85,15 +134,19 @@ export async function notifyMerchantOnRunSettledViaHttp(
       signal: AbortSignal.timeout(20_000),
     });
   } catch (e) {
-    console.error("[portal] merchant on-run-settled fetch failed", args.matchId, e);
+    console.error("[portal] on-run-settled fetch failed", args.runTournamentId, e);
     return { ok: false, error: "merchant_unreachable" };
   }
   try {
-    const parsed = (await response.json()) as { ok?: boolean; error?: string };
+    const parsed = (await response.json()) as {
+      ok?: boolean;
+      error?: string;
+      issued?: unknown;
+    };
     if (!response.ok || parsed.ok === false) {
       return { ok: false, error: parsed.error ?? "notify_failed" };
     }
-    return { ok: true };
+    return { ok: true, issued: parseIssuedCoupons(parsed.issued) };
   } catch {
     return { ok: false, error: "bad_response" };
   }

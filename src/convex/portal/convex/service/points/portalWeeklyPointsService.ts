@@ -15,6 +15,7 @@ import {
   ensurePortalWeeklyLeagueMember,
   getWeeklyLeagueMember,
 } from "../weeklyLeague/portalWeeklyLeagueService";
+import { persistPlayerMatchChallengeOutcome } from "../tournament/settle/playerMatchChallengeOutcome";
 
 export type PortalWeeklyMode = "solo" | "multi";
 
@@ -99,12 +100,16 @@ export async function applyPortalMatchPoints(
       pointDelta: appliedDelta,
       weeklyPointsAfter,
       updatedAt: now,
-      ...(typeof args.seedScoreThreshold === "number" && Number.isFinite(args.seedScoreThreshold)
-        ? { seedScoreThreshold: Math.floor(args.seedScoreThreshold) }
-        : {}),
-      ...(typeof p75Success === "boolean" ? { challengeSuccess: p75Success } : {}),
     });
   }
+
+  await persistPlayerMatchChallengeOutcome(ctx, {
+    uid: args.uid,
+    runTournamentId: String(args.runTournamentId),
+    seedScoreThreshold: args.seedScoreThreshold,
+    challengeSuccess: p75Success,
+    now,
+  });
 
   return { pointDelta: appliedDelta, weeklyPointsAfter, weekKey };
 }

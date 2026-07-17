@@ -3,24 +3,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 export const CAMPAIGN_CAROUSEL_AUTO_MS = 8000;
 export const CAMPAIGN_CAROUSEL_PAUSE_MS = 30_000;
 
-function campaignPath(merchantSlug: string, campaignSlug: string) {
-  return `/campaign/${merchantSlug}/${campaignSlug}`;
+function campaignPath(partnerSlug: string, campaignSlug: string) {
+  return `/campaign/${partnerSlug}/${campaignSlug}`;
 }
 
-function slugFromLocation(merchantSlug: string): string | null {
+function slugFromLocation(partnerSlug: string): string | null {
   const parts = window.location.pathname.split("/").filter(Boolean);
-  if (parts[0] !== "campaign" || parts[1] !== merchantSlug || !parts[2]) return null;
+  if (parts[0] !== "campaign" || parts[1] !== partnerSlug || !parts[2]) return null;
   return parts[2];
 }
 
 export function useCampaignCarousel(opts: {
-  merchantSlug: string;
+  partnerSlug: string;
   slideSlugs: string[];
   initialCampaignSlug: string;
   enabled: boolean;
   isSwitchBlocked?: () => boolean;
 }) {
-  const { merchantSlug, slideSlugs, initialCampaignSlug, enabled, isSwitchBlocked } = opts;
+  const { partnerSlug, slideSlugs, initialCampaignSlug, enabled, isSwitchBlocked } = opts;
 
   const initialIndex = useMemo(() => {
     const idx = slideSlugs.indexOf(initialCampaignSlug);
@@ -38,12 +38,12 @@ export function useCampaignCarousel(opts: {
     (index: number) => {
       const slug = slideSlugs[index];
       if (!slug) return;
-      const path = campaignPath(merchantSlug, slug);
+      const path = campaignPath(partnerSlug, slug);
       if (window.location.pathname !== path) {
         window.history.replaceState(null, "", path);
       }
     },
-    [merchantSlug, slideSlugs]
+    [partnerSlug, slideSlugs]
   );
 
   const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = "smooth") => {
@@ -122,7 +122,7 @@ export function useCampaignCarousel(opts: {
   useEffect(() => {
     if (slideSlugs.length === 0) return;
 
-    const urlSlug = slugFromLocation(merchantSlug);
+    const urlSlug = slugFromLocation(partnerSlug);
     const urlIndex = urlSlug != null ? slideSlugs.indexOf(urlSlug) : -1;
     const nextIndex =
       urlIndex >= 0
@@ -137,12 +137,12 @@ export function useCampaignCarousel(opts: {
     }
 
     syncUrl(nextIndex);
-  }, [merchantSlug, slideSlugs, scrollToIndex, syncUrl]);
+  }, [partnerSlug, slideSlugs, scrollToIndex, syncUrl]);
 
   useEffect(() => {
     if (!enabled) return;
     const onPopState = () => {
-      const slug = slugFromLocation(merchantSlug);
+      const slug = slugFromLocation(partnerSlug);
       if (!slug) return;
       const index = slideSlugs.indexOf(slug);
       if (index < 0 || index === activeIndexRef.current) return;
@@ -152,7 +152,7 @@ export function useCampaignCarousel(opts: {
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [enabled, merchantSlug, slideSlugs, isSwitchBlocked, scrollToIndex]);
+  }, [enabled, partnerSlug, slideSlugs, isSwitchBlocked, scrollToIndex]);
 
   useEffect(() => {
     if (!enabled || slideSlugs.length <= 1) return;

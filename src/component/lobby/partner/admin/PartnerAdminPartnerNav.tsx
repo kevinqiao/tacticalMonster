@@ -1,15 +1,26 @@
 import React from "react";
 
-export type PartnerAdminSection = "profile" | "auth" | "team" | "merchant" | "portal";
+export type PartnerAdminSection =
+  | "profile"
+  | "auth"
+  | "team"
+  | "campaigns"
+  | "coupon-defs"
+  | "coupons"
+  | "brand"
+  | "stores";
 
 type PartnerAdminPartnerNavProps = {
   partnerId: number;
+  /** When false, campaign ops sections are hidden (CrazyGames-clean). */
+  campaignOps?: boolean;
   onSectionClick: (section: PartnerAdminSection, partnerId: number) => void;
 };
 
 /** Per-partner shortcuts — all open in modals on /partner/admin */
 const PartnerAdminPartnerNav: React.FC<PartnerAdminPartnerNavProps> = ({
   partnerId,
+  campaignOps = false,
   onSectionClick,
 }) => (
   <nav className="merchant-nav">
@@ -34,20 +45,45 @@ const PartnerAdminPartnerNav: React.FC<PartnerAdminPartnerNavProps> = ({
     >
       团队
     </button>
-    <button
-      type="button"
-      className="merchant-link-btn"
-      onClick={() => onSectionClick("merchant", partnerId)}
-    >
-      商户管理
-    </button>
-    <button
-      type="button"
-      className="merchant-link-btn"
-      onClick={() => onSectionClick("portal", partnerId)}
-    >
-      Portal 游戏
-    </button>
+    {campaignOps ? (
+      <>
+        <button
+          type="button"
+          className="merchant-link-btn"
+          onClick={() => onSectionClick("campaigns", partnerId)}
+        >
+          活动
+        </button>
+        <button
+          type="button"
+          className="merchant-link-btn"
+          onClick={() => onSectionClick("coupon-defs", partnerId)}
+        >
+          券定义
+        </button>
+        <button
+          type="button"
+          className="merchant-link-btn"
+          onClick={() => onSectionClick("coupons", partnerId)}
+        >
+          券实例
+        </button>
+        <button
+          type="button"
+          className="merchant-link-btn"
+          onClick={() => onSectionClick("brand", partnerId)}
+        >
+          品牌
+        </button>
+        <button
+          type="button"
+          className="merchant-link-btn"
+          onClick={() => onSectionClick("stores", partnerId)}
+        >
+          门店
+        </button>
+      </>
+    ) : null}
   </nav>
 );
 

@@ -1,17 +1,14 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { MerchantCampaignListInner } from "./MerchantCampaignListPage";
-import { MerchantBrandSettingsInner } from "./MerchantBrandSettingsPage";
-import { MerchantCouponDefListInner } from "./MerchantCouponDefListPage";
-import { MerchantCouponListInner } from "./MerchantCouponListPage";
+import { partnerOperationHref } from "../../partner/partnerPaths";
+import { MerchantRedeemInner } from "./MerchantRedeemPage";
 import MerchantHomePanel from "./MerchantHomePanel";
 import {
   type MerchantEmbeddedRoute,
   merchantRouteKey,
   parseMerchantRouteFromLocation,
 } from "./merchantEmbeddedNav";
-import { MerchantRedeemInner } from "./MerchantRedeemPage";
 import { MerchantTeamInner } from "./MerchantTeamPage";
 
 export function useMerchantShellStack() {
@@ -44,7 +41,9 @@ export function useMerchantShellStack() {
       window.history.replaceState(
         null,
         "",
-        code ? `/campaign/merchant?code=${encodeURIComponent(code)}` : "/campaign/merchant"
+        code
+          ? partnerOperationHref({ view: "redeem", code })
+          : partnerOperationHref()
       );
     }
   }, []);
@@ -79,30 +78,19 @@ export const MerchantShellBody: React.FC<MerchantShellBodyProps> = ({ current, e
         </>
       );
     case "campaigns":
-      return (
-        <MerchantCampaignListInner visible={1} merchantId={current.merchantId} embedded />
-      );
     case "coupon-defs":
-      return (
-        <MerchantCouponDefListInner visible={1} merchantId={current.merchantId} embedded />
-      );
     case "coupons":
-      return (
-        <MerchantCouponListInner
-          visible={1}
-          merchantId={current.merchantId}
-          campaignId={current.campaignId ?? ""}
-          embedded
-        />
-      );
-    case "redeem":
-      return <MerchantRedeemInner visible={1} merchantId={current.merchantId} embedded />;
     case "brand":
       return (
-        <MerchantBrandSettingsInner visible={1} merchantId={current.merchantId} embedded />
+        <p className="merchant-note">
+          活动 / 券 / 品牌已迁至{" "}
+          <a href="/partner/admin">Partner 管理</a>（需 campaignOps）。本控制台仅支持核销与门店团队。
+        </p>
       );
+    case "redeem":
+      return <MerchantRedeemInner visible={1} initialStoreId={current.storeId} embedded />;
     case "team":
-      return <MerchantTeamInner visible={1} merchantId={current.merchantId} embedded />;
+      return <MerchantTeamInner visible={1} storeId={current.storeId} embedded />;
   }
 };
 

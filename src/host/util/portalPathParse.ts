@@ -1,17 +1,17 @@
 import {
-  PORTAL_GAME_TYPES,
-  type RegisteredPortalGameType,
-} from "@/convex/portal/convex/data/portalGameRegistry";
+  PARTNER_GAME_TYPES,
+  type RegisteredPartnerGameType,
+} from "@/convex/portal/convex/data/partnerGameRegistry";
 
 export type ParsedPortalPath = {
   partnerKey: string | null;
-  gameType: RegisteredPortalGameType | null;
+  gameType: RegisteredPartnerGameType | null;
   isFirstPartyPortal: boolean;
 };
 
-function isGameType(segment: string | undefined): segment is RegisteredPortalGameType {
+function isGameType(segment: string | undefined): segment is RegisteredPartnerGameType {
   if (!segment) return false;
-  return (PORTAL_GAME_TYPES as readonly string[]).includes(segment);
+  return (PARTNER_GAME_TYPES as readonly string[]).includes(segment);
 }
 
 export function parsePortalPathFromPathname(pathname: string): ParsedPortalPath {
@@ -30,7 +30,7 @@ export function parsePortalPathFromPathname(pathname: string): ParsedPortalPath 
   return { partnerKey: seg2?.toLowerCase() ?? null, gameType: null, isFirstPartyPortal: false };
 }
 
-export function portalLaunchPath(partnerKey: string | null, gameType: RegisteredPortalGameType): string {
+export function portalLaunchPath(partnerKey: string | null, gameType: RegisteredPartnerGameType): string {
   if (partnerKey) return "/portal/" + partnerKey + "/" + gameType;
   return "/portal/" + gameType;
 }

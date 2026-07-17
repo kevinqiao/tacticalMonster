@@ -1,5 +1,5 @@
 import type { PortalTournamentDefinition } from "../../data/portalTournamentConfigs";
-import { getPortalGameRegistration } from "../../data/portalGameRegistry";
+import { getPartnerGameRegistration } from "../../data/partnerGameRegistry";
 import { resolveSeedTierForTemplate } from "../../data/portalSeedTierPolicy";
 import {
   bridgePickSeed,
@@ -23,7 +23,7 @@ export async function pickCasualMatchSeedBinding(
 ): Promise<{ ok: true; seedBinding: CasualMatchSeedBinding } | { ok: false; error: string }> {
   const { templateId, matchId, uids, def } = args;
   const gameType = args.gameType ?? def.gameType;
-  const reg = getPortalGameRegistration(gameType);
+  const reg = getPartnerGameRegistration(gameType);
   if (!reg) {
     return { ok: false as const, error: "unregistered_game_type" };
   }

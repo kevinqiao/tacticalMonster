@@ -27,10 +27,11 @@ describe("sdkLoader", () => {
         partner: {
           pid: 100,
           authChannelIds: [2],
-          data: { embed: { method: "crazygames_jwt" }, enabledContexts: ["portal"] },
+          data: { embed: { method: "crazygames_jwt" } },
+          capabilities: { portalGames: true, campaignOps: false },
         },
         partnerResolveReady: true,
-        campaignMerchantSlug: null,
+        campaignPartnerSlug: null,
         search: "?crazygames=1",
       })
     );

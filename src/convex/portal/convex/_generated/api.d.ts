@@ -19,10 +19,10 @@ import type * as data_casualPlayerStrategyTypes from "../data/casualPlayerStrate
 import type * as data_casualSeedTierPolicy from "../data/casualSeedTierPolicy.js";
 import type * as data_casualTournamentRewardTypes from "../data/casualTournamentRewardTypes.js";
 import type * as data_casualWeeklyLeagueConfig from "../data/casualWeeklyLeagueConfig.js";
+import type * as data_partnerGameRegistry from "../data/partnerGameRegistry.js";
 import type * as data_portalAdReplayConfig from "../data/portalAdReplayConfig.js";
 import type * as data_portalAsyncLeaderboardRowState from "../data/portalAsyncLeaderboardRowState.js";
 import type * as data_portalDailyPlayLimits from "../data/portalDailyPlayLimits.js";
-import type * as data_portalGameRegistry from "../data/portalGameRegistry.js";
 import type * as data_portalGiftCardEconomy from "../data/portalGiftCardEconomy.js";
 import type * as data_portalInstanceWindow from "../data/portalInstanceWindow.js";
 import type * as data_portalMatchmakingConfig from "../data/portalMatchmakingConfig.js";
@@ -64,6 +64,16 @@ import type * as service_bridge_casualSeedProvider from "../service/bridge/casua
 import type * as service_bridge_merchantCampaignBridge from "../service/bridge/merchantCampaignBridge.js";
 import type * as service_bridge_merchantCampaignBridgeActions from "../service/bridge/merchantCampaignBridgeActions.js";
 import type * as service_bridge_merchantCampaignBridgeEnv from "../service/bridge/merchantCampaignBridgeEnv.js";
+import type * as service_campaignLeague_campaignLeagueBotFill from "../service/campaignLeague/campaignLeagueBotFill.js";
+import type * as service_campaignLeague_campaignLeagueBotPersona from "../service/campaignLeague/campaignLeagueBotPersona.js";
+import type * as service_campaignLeague_campaignLeagueBotPoints from "../service/campaignLeague/campaignLeagueBotPoints.js";
+import type * as service_campaignLeague_campaignLeagueBotReveal from "../service/campaignLeague/campaignLeagueBotReveal.js";
+import type * as service_campaignLeague_campaignLeagueConfig from "../service/campaignLeague/campaignLeagueConfig.js";
+import type * as service_campaignLeague_campaignLeagueMerge from "../service/campaignLeague/campaignLeagueMerge.js";
+import type * as service_campaignLeague_campaignLeagueQueries from "../service/campaignLeague/campaignLeagueQueries.js";
+import type * as service_campaignLeague_campaignLeagueUpsert from "../service/campaignLeague/campaignLeagueUpsert.js";
+import type * as service_campaignLeague_campaignMultiRankPoints from "../service/campaignLeague/campaignMultiRankPoints.js";
+import type * as service_campaignLeague_campaignSoloPoints from "../service/campaignLeague/campaignSoloPoints.js";
 import type * as service_giftcard_giftCardActions from "../service/giftcard/giftCardActions.js";
 import type * as service_giftcard_giftCardDevHarness from "../service/giftcard/giftCardDevHarness.js";
 import type * as service_giftcard_giftCardEligibility from "../service/giftcard/giftCardEligibility.js";
@@ -101,7 +111,6 @@ import type * as service_tournament_join_casualOpenTableMutations from "../servi
 import type * as service_tournament_join_casualTournamentActions from "../service/tournament/join/casualTournamentActions.js";
 import type * as service_tournament_join_casualTournamentJoinCore from "../service/tournament/join/casualTournamentJoinCore.js";
 import type * as service_tournament_join_portalDailyPlayLimit from "../service/tournament/join/portalDailyPlayLimit.js";
-import type * as service_tournament_join_portalTournamentJoinCore from "../service/tournament/join/portalTournamentJoinCore.js";
 import type * as service_tournament_list_casualInstanceService from "../service/tournament/list/casualInstanceService.js";
 import type * as service_tournament_list_casualTournamentQueries from "../service/tournament/list/casualTournamentQueries.js";
 import type * as service_tournament_list_portalInstanceService from "../service/tournament/list/portalInstanceService.js";
@@ -115,6 +124,7 @@ import type * as service_tournament_settle_async_casualAsyncBotReveal from "../s
 import type * as service_tournament_settle_async_casualAsyncTableSummary from "../service/tournament/settle/async/casualAsyncTableSummary.js";
 import type * as service_tournament_settle_async_casualAsyncTypes from "../service/tournament/settle/async/casualAsyncTypes.js";
 import type * as service_tournament_settle_campaignBridgeNotify from "../service/tournament/settle/campaignBridgeNotify.js";
+import type * as service_tournament_settle_campaignPassRunRewardSnapshot from "../service/tournament/settle/campaignPassRunRewardSnapshot.js";
 import type * as service_tournament_settle_casualArenaForceEnd from "../service/tournament/settle/casualArenaForceEnd.js";
 import type * as service_tournament_settle_casualAsyncMatchFinalizeSchedule from "../service/tournament/settle/casualAsyncMatchFinalizeSchedule.js";
 import type * as service_tournament_settle_casualHistorySettleReconcile from "../service/tournament/settle/casualHistorySettleReconcile.js";
@@ -127,6 +137,7 @@ import type * as service_tournament_settle_casualRunMatchFinalize from "../servi
 import type * as service_tournament_settle_casualRunRewardsMutations from "../service/tournament/settle/casualRunRewardsMutations.js";
 import type * as service_tournament_settle_casualRunScoreEffects from "../service/tournament/settle/casualRunScoreEffects.js";
 import type * as service_tournament_settle_casualRunSettlementFill from "../service/tournament/settle/casualRunSettlementFill.js";
+import type * as service_tournament_settle_playerMatchChallengeOutcome from "../service/tournament/settle/playerMatchChallengeOutcome.js";
 import type * as service_tournament_settle_portalRunScoreEffects from "../service/tournament/settle/portalRunScoreEffects.js";
 import type * as service_tournament_shared_casualPlayerGameTypes from "../service/tournament/shared/casualPlayerGameTypes.js";
 import type * as service_tournament_shared_casualPlayerMatchStatus from "../service/tournament/shared/casualPlayerMatchStatus.js";
@@ -186,10 +197,10 @@ declare const fullApi: ApiFromModules<{
   "data/casualSeedTierPolicy": typeof data_casualSeedTierPolicy;
   "data/casualTournamentRewardTypes": typeof data_casualTournamentRewardTypes;
   "data/casualWeeklyLeagueConfig": typeof data_casualWeeklyLeagueConfig;
+  "data/partnerGameRegistry": typeof data_partnerGameRegistry;
   "data/portalAdReplayConfig": typeof data_portalAdReplayConfig;
   "data/portalAsyncLeaderboardRowState": typeof data_portalAsyncLeaderboardRowState;
   "data/portalDailyPlayLimits": typeof data_portalDailyPlayLimits;
-  "data/portalGameRegistry": typeof data_portalGameRegistry;
   "data/portalGiftCardEconomy": typeof data_portalGiftCardEconomy;
   "data/portalInstanceWindow": typeof data_portalInstanceWindow;
   "data/portalMatchmakingConfig": typeof data_portalMatchmakingConfig;
@@ -231,6 +242,16 @@ declare const fullApi: ApiFromModules<{
   "service/bridge/merchantCampaignBridge": typeof service_bridge_merchantCampaignBridge;
   "service/bridge/merchantCampaignBridgeActions": typeof service_bridge_merchantCampaignBridgeActions;
   "service/bridge/merchantCampaignBridgeEnv": typeof service_bridge_merchantCampaignBridgeEnv;
+  "service/campaignLeague/campaignLeagueBotFill": typeof service_campaignLeague_campaignLeagueBotFill;
+  "service/campaignLeague/campaignLeagueBotPersona": typeof service_campaignLeague_campaignLeagueBotPersona;
+  "service/campaignLeague/campaignLeagueBotPoints": typeof service_campaignLeague_campaignLeagueBotPoints;
+  "service/campaignLeague/campaignLeagueBotReveal": typeof service_campaignLeague_campaignLeagueBotReveal;
+  "service/campaignLeague/campaignLeagueConfig": typeof service_campaignLeague_campaignLeagueConfig;
+  "service/campaignLeague/campaignLeagueMerge": typeof service_campaignLeague_campaignLeagueMerge;
+  "service/campaignLeague/campaignLeagueQueries": typeof service_campaignLeague_campaignLeagueQueries;
+  "service/campaignLeague/campaignLeagueUpsert": typeof service_campaignLeague_campaignLeagueUpsert;
+  "service/campaignLeague/campaignMultiRankPoints": typeof service_campaignLeague_campaignMultiRankPoints;
+  "service/campaignLeague/campaignSoloPoints": typeof service_campaignLeague_campaignSoloPoints;
   "service/giftcard/giftCardActions": typeof service_giftcard_giftCardActions;
   "service/giftcard/giftCardDevHarness": typeof service_giftcard_giftCardDevHarness;
   "service/giftcard/giftCardEligibility": typeof service_giftcard_giftCardEligibility;
@@ -268,7 +289,6 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/join/casualTournamentActions": typeof service_tournament_join_casualTournamentActions;
   "service/tournament/join/casualTournamentJoinCore": typeof service_tournament_join_casualTournamentJoinCore;
   "service/tournament/join/portalDailyPlayLimit": typeof service_tournament_join_portalDailyPlayLimit;
-  "service/tournament/join/portalTournamentJoinCore": typeof service_tournament_join_portalTournamentJoinCore;
   "service/tournament/list/casualInstanceService": typeof service_tournament_list_casualInstanceService;
   "service/tournament/list/casualTournamentQueries": typeof service_tournament_list_casualTournamentQueries;
   "service/tournament/list/portalInstanceService": typeof service_tournament_list_portalInstanceService;
@@ -282,6 +302,7 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/settle/async/casualAsyncTableSummary": typeof service_tournament_settle_async_casualAsyncTableSummary;
   "service/tournament/settle/async/casualAsyncTypes": typeof service_tournament_settle_async_casualAsyncTypes;
   "service/tournament/settle/campaignBridgeNotify": typeof service_tournament_settle_campaignBridgeNotify;
+  "service/tournament/settle/campaignPassRunRewardSnapshot": typeof service_tournament_settle_campaignPassRunRewardSnapshot;
   "service/tournament/settle/casualArenaForceEnd": typeof service_tournament_settle_casualArenaForceEnd;
   "service/tournament/settle/casualAsyncMatchFinalizeSchedule": typeof service_tournament_settle_casualAsyncMatchFinalizeSchedule;
   "service/tournament/settle/casualHistorySettleReconcile": typeof service_tournament_settle_casualHistorySettleReconcile;
@@ -294,6 +315,7 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/settle/casualRunRewardsMutations": typeof service_tournament_settle_casualRunRewardsMutations;
   "service/tournament/settle/casualRunScoreEffects": typeof service_tournament_settle_casualRunScoreEffects;
   "service/tournament/settle/casualRunSettlementFill": typeof service_tournament_settle_casualRunSettlementFill;
+  "service/tournament/settle/playerMatchChallengeOutcome": typeof service_tournament_settle_playerMatchChallengeOutcome;
   "service/tournament/settle/portalRunScoreEffects": typeof service_tournament_settle_portalRunScoreEffects;
   "service/tournament/shared/casualPlayerGameTypes": typeof service_tournament_shared_casualPlayerGameTypes;
   "service/tournament/shared/casualPlayerMatchStatus": typeof service_tournament_shared_casualPlayerMatchStatus;

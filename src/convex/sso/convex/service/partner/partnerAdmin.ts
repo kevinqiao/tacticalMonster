@@ -1,8 +1,9 @@
+import { internalMutation, internalQuery, query } from "../../_generated/server";
+import type { QueryCtx } from "../../_generated/server";
 import { v } from "convex/values";
 
-import type { QueryCtx } from "../../_generated/server";
-import { internalMutation } from "../../_generated/server";
 import { authedMutation, authedQuery } from "../../custom/session";
+import { findIdentityByUid } from "../../dao/authIdentityHelpers";
 import {
   getPartnerByPid,
   getPartnerStaffRow,
@@ -18,11 +19,20 @@ import {
 import { isPlatformOperator } from "./platformOperator";
 import { provisionWebStaffAccount } from "./ensureStaffIdentity";
 import {
-  PORTAL_GAME_TYPES,
-  readPortalGamesFromPartnerData,
-  sanitizePortalGames,
-  validatePortalKey,
+  PARTNER_GAME_LABELS,
+  readPartnerGames,
 } from "./portalPartnerConfig";
+import {
+  partnerHasCampaignOps,
+  readPartnerCapabilities,
+} from "./partnerCapabilities";
+
+const ROLE_RANK: Record<PartnerRole, number> = {
+  viewer: 1,
+  developer: 2,
+  admin: 3,
+  owner: 4,
+};
 
 async function requirePartnerAdmin(
   ctx: { user: { uid: string } } & Parameters<typeof requirePartnerStaff>[0],
@@ -32,13 +42,6 @@ async function requirePartnerAdmin(
   if (await isPlatformOperator(ctx, ctx.user.uid)) return;
   await requirePartnerStaff(ctx, partnerId, minRole);
 }
-
-const enabledContextValidator = v.union(
-  v.literal("casual"),
-  v.literal("portal"),
-  v.literal("campaign"),
-  v.literal("tactical")
-);
 
 const partnerRoleValidator = v.union(
   v.literal("owner"),
@@ -52,11 +55,14 @@ async function loadPartnerView(ctx: QueryCtx, partnerId: number) {
   if (!partner) return null;
 
   const resolved = resolvePartnerChannels(partner);
+  const capabilities = readPartnerCapabilities(partner);
 
   return {
     pid: partner.pid,
     name: partner.name ?? "",
     host: partner.host ?? "",
+    slug: partner.slug ?? "",
+    capabilities,
     auth_channels: resolved.consumerChannelIds,
     staff_auth_channels: resolved.staffChannelIds,
     authChannelDefs: resolved.authChannelDefs,
@@ -65,7 +71,6 @@ async function loadPartnerView(ctx: QueryCtx, partnerId: number) {
     staffAuthChannelIds: resolved.staffChannelIds,
     data: (partner.data ?? {}) as {
       allowedOrigins?: string[];
-      enabledContexts?: string[];
       defaultLandingPath?: string;
       branding?: { logoUrl?: string; primaryColor?: string };
     },
@@ -76,19 +81,60 @@ export const listMyPartners = authedQuery({
   args: {},
   handler: async (ctx) => {
     const uid = ctx.user.uid;
-    const staffRows = await ctx.db
+    const staffByPartner = new Map<
+      number,
+      { partnerId: number; uid: string; role: string; createdAt: number }
+    >();
+
+    const addStaff = (staff: {
+      partnerId: number;
+      uid: string;
+      role: string;
+      createdAt: number;
+    }) => {
+      if (!staffByPartner.has(staff.partnerId)) {
+        staffByPartner.set(staff.partnerId, staff);
+      }
+    };
+
+    for (const staff of await ctx.db
       .query("partner_staff")
       .withIndex("by_uid", (q) => q.eq("uid", uid))
-      .collect();
+      .collect()) {
+      addStaff(staff);
+    }
+
+    // Same web accountId may have partner_staff under another namespaced uid
+    // (legacy bootstrap / dual platform+partner identities).
+    const identity = await findIdentityByUid(ctx, uid);
+    if (identity?.provider === "web" && identity.subject) {
+      const siblingIdentities = await ctx.db
+        .query("auth_identities")
+        .withIndex("by_provider_subject", (q) =>
+          q.eq("provider", "web").eq("subject", identity.subject)
+        )
+        .collect();
+      for (const sib of siblingIdentities) {
+        if (!sib.uid || sib.uid === uid) continue;
+        for (const staff of await ctx.db
+          .query("partner_staff")
+          .withIndex("by_uid", (q) => q.eq("uid", sib.uid))
+          .collect()) {
+          addStaff(staff);
+        }
+      }
+    }
 
     const out = [];
-    for (const staff of staffRows) {
+    for (const staff of staffByPartner.values()) {
       const partner = await getPartnerByPid(ctx, staff.partnerId);
       if (!partner) continue;
       out.push({
         pid: partner.pid,
         name: partner.name ?? `Partner ${partner.pid}`,
         host: partner.host ?? "",
+        slug: partner.slug ?? "",
+        capabilities: readPartnerCapabilities(partner),
         role: staff.role as PartnerRole,
       });
     }
@@ -115,7 +161,6 @@ export const updatePartnerProfile = authedMutation({
     name: v.string(),
     host: v.optional(v.string()),
     allowedOrigins: v.optional(v.array(v.string())),
-    enabledContexts: v.optional(v.array(enabledContextValidator)),
     defaultLandingPath: v.optional(v.string()),
     logoUrl: v.optional(v.string()),
     primaryColor: v.optional(v.string()),
@@ -126,8 +171,9 @@ export const updatePartnerProfile = authedMutation({
     if (!partner) throw new Error("not_found");
 
     const prevData = (partner.data ?? {}) as Record<string, unknown>;
+    const { enabledContexts: _drop, ...dataRest } = prevData;
     const branding = {
-      ...((prevData.branding as object) ?? {}),
+      ...((dataRest.branding as object) ?? {}),
       ...(args.logoUrl !== undefined ? { logoUrl: args.logoUrl.trim() || undefined } : {}),
       ...(args.primaryColor !== undefined
         ? { primaryColor: args.primaryColor.trim() || undefined }
@@ -138,16 +184,13 @@ export const updatePartnerProfile = authedMutation({
       name: args.name.trim(),
       host: args.host?.trim() || undefined,
       data: {
-        ...prevData,
+        ...dataRest,
         ...(args.allowedOrigins !== undefined
           ? {
               allowedOrigins: args.allowedOrigins
                 .map((s) => s.trim())
                 .filter(Boolean),
             }
-          : {}),
-        ...(args.enabledContexts !== undefined
-          ? { enabledContexts: args.enabledContexts }
           : {}),
         ...(args.defaultLandingPath !== undefined
           ? { defaultLandingPath: args.defaultLandingPath.trim() || undefined }
@@ -262,7 +305,6 @@ export const applyAddPartnerStaff = internalMutation({
       accountId,
       passwordHash,
       platformUid,
-      partnerId,
       name
     );
 
@@ -370,55 +412,60 @@ export const removePartnerStaff = authedMutation({
     return { ok: true as const };
   },
 });
-export const getPartnerPortalConfig = authedQuery({
+
+/** Partner-enabled games for portal + merchant campaign pickers (public allowlist). */
+export const getPartnerGames = query({
   args: { partnerId: v.number() },
   handler: async (ctx, { partnerId }) => {
-    await requirePartnerAdmin(ctx, partnerId, "viewer");
     const partner = await getPartnerByPid(ctx, partnerId);
-    if (!partner) return null;
-    const portalGames = readPortalGamesFromPartnerData(partner.data);
-    const key = partner.portal_key ?? "";
+    if (!partner && partnerId !== 0) return null;
+    const games = readPartnerGames(partner ?? { games: undefined });
     return {
-      partnerId: partner.pid,
-      portalKey: key,
-      portalGames,
-      launchUrls: portalGames.map((gameType) => "/portal/" + key + "/" + gameType),
-      registryGames: [...PORTAL_GAME_TYPES],
+      partnerId,
+      games,
+      options: games.map((gameType) => ({
+        value: gameType,
+        label: PARTNER_GAME_LABELS[gameType] ?? gameType,
+      })),
     };
   },
 });
 
-export const updatePartnerPortalConfig = authedMutation({
+/**
+ * merchantCampaign bridge: verify uid is partner_staff with campaignOps.
+ * Used by HTTP POST /internal/assert-partner-staff.
+ */
+export const assertPartnerStaffInternal = internalQuery({
   args: {
     partnerId: v.number(),
-    portalKey: v.string(),
-    portalGames: v.array(v.string()),
+    uid: v.string(),
+    minRole: v.optional(
+      v.union(
+        v.literal("owner"),
+        v.literal("admin"),
+        v.literal("developer"),
+        v.literal("viewer")
+      )
+    ),
   },
-  handler: async (ctx, args) => {
-    await requirePartnerAdmin(ctx, args.partnerId, "admin");
-    const partner = await getPartnerByPid(ctx, args.partnerId);
-    if (!partner) throw new Error("not_found");
-
-    const portalKey = validatePortalKey(args.portalKey);
-    const portalGames = sanitizePortalGames(args.portalGames);
-    const prevData = (partner.data ?? {}) as Record<string, unknown>;
-    const enabled = (prevData.enabledContexts as string[] | undefined) ?? [];
-    if (!enabled.includes("portal")) throw new Error("portal_context_required");
-
-    const conflict = await ctx.db
-      .query("partner")
-      .withIndex("by_portal_key", (q) => q.eq("portal_key", portalKey))
-      .unique();
-    if (conflict && conflict.pid !== partner.pid) throw new Error("portal_key_taken");
-
-    await ctx.db.patch(partner._id, {
-      portal_key: portalKey,
-      data: {
-        ...prevData,
-        portalGames,
-      },
-    });
-    return { ok: true as const, portalKey, portalGames };
+  handler: async (ctx, { partnerId, uid, minRole }) => {
+    const partner = await getPartnerByPid(ctx, partnerId);
+    if (!partner) return { ok: false as const, error: "not_found" };
+    if (!partnerHasCampaignOps(partner)) {
+      return { ok: false as const, error: "campaign_ops_disabled", hasCampaignOps: false as const };
+    }
+    const row = await getPartnerStaffRow(ctx, partnerId, uid.trim());
+    const required = (minRole ?? "viewer") as PartnerRole;
+    if (!row || ROLE_RANK[row.role as PartnerRole] < ROLE_RANK[required]) {
+      return { ok: false as const, error: "forbidden", hasCampaignOps: true as const };
+    }
+    return {
+      ok: true as const,
+      hasCampaignOps: true as const,
+      partnerId,
+      role: row.role as PartnerRole,
+      slug: partner.slug ?? "",
+    };
   },
 });
 

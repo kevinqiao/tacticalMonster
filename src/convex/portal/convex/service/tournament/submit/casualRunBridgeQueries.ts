@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalQuery } from "../../../_generated/server";
-import { getPortalGameRegistration } from "../../../data/portalGameRegistry";
+import { getPartnerGameRegistration } from "../../../data/partnerGameRegistry";
 import { getPortalTournamentDefinition } from "../../../data/portalTournamentConfigs";
 import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes";
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
@@ -38,7 +38,7 @@ export const findMatchByGameForBridge = internalQuery({
         ? Math.floor(pm.replayEpoch)
         : 0
     );
-    const reg = getPortalGameRegistration(pg.gameType)!;
+    const reg = getPartnerGameRegistration(pg.gameType)!;
 
     const templateDef = getPortalTournamentDefinition(pg.templateId);
     const inlineP75 =

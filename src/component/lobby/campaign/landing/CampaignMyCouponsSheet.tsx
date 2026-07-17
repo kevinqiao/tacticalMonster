@@ -9,7 +9,7 @@ import { CampaignCouponUseQrModal } from "./CampaignCouponUseQrModal";
 type Props = {
   open: boolean;
   onClose: () => void;
-  merchantId: string;
+  partnerId: number;
   authed: boolean;
   coupons: CampaignCouponView[] | undefined;
   loading: boolean;
@@ -37,10 +37,18 @@ function CouponCopyButton({ code }: { code: string }) {
   );
 }
 
+/** DB may still say `issued` until redeem patches it — treat past expiresAt as expired. */
+function isCouponExpired(coupon: CampaignCouponView, now = Date.now()): boolean {
+  return (
+    coupon.status === "expired" ||
+    (coupon.status === "issued" && coupon.expiresAt > 0 && now > coupon.expiresAt)
+  );
+}
+
 export const CampaignMyCouponsSheet: React.FC<Props> = ({
   open,
   onClose,
-  merchantId,
+  partnerId: _partnerId,
   authed,
   coupons,
   loading,
@@ -79,9 +87,16 @@ export const CampaignMyCouponsSheet: React.FC<Props> = ({
         ) : (
           <ul className="campaign-coupons-sheet__list">
             {coupons.map((coupon) => {
-              const statusLabel = t(`myCoupons.status.${coupon.status}`, {
-                defaultValue: coupon.status,
+              const expired = isCouponExpired(coupon);
+              const displayStatus = expired ? "expired" : coupon.status;
+              const statusLabel = t(`myCoupons.status.${displayStatus}`, {
+                defaultValue: displayStatus,
               });
+              const canUse =
+                coupon.status === "issued" &&
+                !expired &&
+                (coupon.activatesAt ?? coupon.issuedAt) <= Date.now();
+              const showActions = coupon.status === "issued" && !expired;
 
               return (
                 <li key={coupon.couponId} className="campaign-coupons-sheet__item">
@@ -90,22 +105,28 @@ export const CampaignMyCouponsSheet: React.FC<Props> = ({
                       {formatCampaignRewardLabel(coupon.rewardSnapshot)}
                     </strong>
                     <span
-                      className={`campaign-coupons-sheet__status campaign-coupons-sheet__status--${coupon.status}`}
+                      className={`campaign-coupons-sheet__status campaign-coupons-sheet__status--${displayStatus}`}
                     >
                       {statusLabel}
                     </span>
                   </div>
                   <div className="campaign-coupons-sheet__code-row">
                     <code className="campaign-coupons-sheet__code">{coupon.code}</code>
-                    {coupon.status === "issued" ? (
+                    {showActions ? (
                       <div className="campaign-coupons-sheet__actions">
-                        <button
-                          type="button"
-                          className="campaign-coupons-sheet__use"
-                          onClick={() => setQrCoupon(coupon)}
-                        >
-                          {t("myCoupons.use")}
-                        </button>
+                        {canUse ? (
+                          <button
+                            type="button"
+                            className="campaign-coupons-sheet__use"
+                            onClick={() => setQrCoupon(coupon)}
+                          >
+                            {t("myCoupons.use")}
+                          </button>
+                        ) : (
+                          <span className="campaign-coupons-sheet__meta">
+                            {t("myCoupons.notYetActive")}
+                          </span>
+                        )}
                         <CouponCopyButton code={coupon.code} />
                       </div>
                     ) : null}
@@ -113,6 +134,13 @@ export const CampaignMyCouponsSheet: React.FC<Props> = ({
                   <p className="campaign-coupons-sheet__meta">
                     {t("myCoupons.issuedAt", { at: fmt(coupon.issuedAt) })}
                   </p>
+                  {(coupon.activatesAt ?? coupon.issuedAt) > coupon.issuedAt ? (
+                    <p className="campaign-coupons-sheet__meta">
+                      {t("myCoupons.activatesAt", {
+                        at: fmt(coupon.activatesAt ?? coupon.issuedAt),
+                      })}
+                    </p>
+                  ) : null}
                   {coupon.expiresAt ? (
                     <p className="campaign-coupons-sheet__meta">
                       {t("myCoupons.expiresAt", { at: fmt(coupon.expiresAt) })}
@@ -127,7 +155,6 @@ export const CampaignMyCouponsSheet: React.FC<Props> = ({
       <CampaignCouponUseQrModal
         open={qrCoupon !== null}
         onClose={() => setQrCoupon(null)}
-        merchantId={merchantId}
         coupon={qrCoupon}
         locale={locale}
       />

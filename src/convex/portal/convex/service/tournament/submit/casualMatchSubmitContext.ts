@@ -6,9 +6,9 @@ import {
   seatGameTypeForTemplate,
 } from "../../../data/portalTournamentConfigs";
 import {
-  getPortalGameRegistration,
+  getPartnerGameRegistration,
   type CasualBotPolicy,
-} from "../../../data/portalGameRegistry";
+} from "../../../data/partnerGameRegistry";
 import type { Id } from "../../../_generated/dataModel";
 import { internalQuery } from "../../../_generated/server";
 import type { CasualMatchSeedBinding } from "../join/casualMatchSeedBinding";
@@ -39,11 +39,11 @@ function toSlimSeedBinding(
 }
 
 function resolveBotPolicy(primaryGameType: string, seatGameType: string): CasualBotPolicy {
-  const seatReg = getPortalGameRegistration(seatGameType);
+  const seatReg = getPartnerGameRegistration(seatGameType);
   if (seatReg?.botPolicy === "platform_ingest" || seatReg?.botPolicy === "game_ingest") {
     return seatReg.botPolicy;
   }
-  const primaryReg = getPortalGameRegistration(primaryGameType);
+  const primaryReg = getPartnerGameRegistration(primaryGameType);
   return primaryReg?.botPolicy ?? "none";
 }
 

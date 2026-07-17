@@ -1,8 +1,8 @@
 import {
-  PORTAL_GAME_TYPES,
-  type RegisteredPortalGameType,
-} from "@/convex/portal/convex/data/portalGameRegistry";
+  PARTNER_GAME_TYPES,
+  type RegisteredPartnerGameType,
+} from "@/convex/portal/convex/data/partnerGameRegistry";
 
-export function isValidPortalGameType(value: string): value is RegisteredPortalGameType {
-  return (PORTAL_GAME_TYPES as readonly string[]).includes(value);
+export function isValidPortalGameType(value: string): value is RegisteredPartnerGameType {
+  return (PARTNER_GAME_TYPES as readonly string[]).includes(value);
 }

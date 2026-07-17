@@ -1,201 +1,142 @@
 import { makeFunctionReference } from "convex/server";
 
-
-
+/**
+ * Convex function refs for campaign deployment.
+ * Partner-scoped campaign ops use campaignPartnerGameActions (actions + partnerId).
+ * Store CRUD / store_staff live in SSO; redeem validate/redeem/void stay here via storeId.
+ */
 export const merchantCampaignFns = {
-
   getCampaignPublic: makeFunctionReference<"query">(
-
     "service/merchant/merchantCampaigns:getCampaignPublic"
-
   ),
 
-  resolvePartnerByMerchantSlug: makeFunctionReference<"query">(
-
-    "service/merchant/merchantCampaigns:resolvePartnerByMerchantSlug"
-
+  resolvePartnerByPartnerSlug: makeFunctionReference<"query">(
+    "service/merchant/merchantCampaigns:resolvePartnerByPartnerSlug"
   ),
 
-  listMerchantCampaignsPublic: makeFunctionReference<"query">(
-
-    "service/merchant/merchantCampaigns:listMerchantCampaignsPublic"
-
+  listPartnerCampaignsPublic: makeFunctionReference<"query">(
+    "service/merchant/merchantCampaigns:listPartnerCampaignsPublic"
   ),
 
   getMyCampaignCoupon: makeFunctionReference<"query">(
-
     "service/merchant/campaignSettleHook:getMyCampaignCoupon"
-
   ),
 
-  getCampaignLeaderboard: makeFunctionReference<"query">(
-
-    "service/merchant/campaignSettleHook:getCampaignLeaderboard"
-
+  getCampaignLeaderboard: makeFunctionReference<"action">(
+    "service/merchant/campaignSettleHookActions:getCampaignLeaderboard"
   ),
 
   getCampaignSettlementStatus: makeFunctionReference<"query">(
-
     "service/merchant/campaignSettleHook:getCampaignSettlementStatus"
-
   ),
 
-  triggerCampaignLeaderboardSettlement: makeFunctionReference<"mutation">(
-
-    "service/merchant/campaignSettleHook:triggerCampaignLeaderboardSettlement"
-
+  triggerCampaignLeaderboardSettlement: makeFunctionReference<"action">(
+    "service/merchant/campaignSettleHookActions:triggerCampaignLeaderboardSettlement"
   ),
 
-  ensureCampaignBoardBotsForLeaderboard: makeFunctionReference<"mutation">(
-
-    "service/merchant/campaignSettleHook:ensureCampaignBoardBotsForLeaderboard"
-
+  ensureCampaignBoardBotsForLeaderboard: makeFunctionReference<"action">(
+    "service/merchant/campaignSettleHookActions:ensureCampaignBoardBotsForLeaderboard"
   ),
 
   listPlayerCoupons: makeFunctionReference<"query">(
-
     "service/merchant/campaignSettleHook:listPlayerCoupons"
-
   ),
 
-  listPlayerCouponsForMerchant: makeFunctionReference<"query">(
+  listPlayerCouponsForPartner: makeFunctionReference<"query">(
+    "service/merchant/campaignSettleHook:listPlayerCouponsForPartner"
+  ),
 
-    "service/merchant/campaignSettleHook:listPlayerCouponsForMerchant"
+  getCampaignPlayerProfile: makeFunctionReference<"query">(
+    "service/player/campaignPlayerProfile:getCampaignPlayerProfile"
+  ),
 
+  updateCampaignDisplayName: makeFunctionReference<"mutation">(
+    "service/player/campaignPlayerProfile:updateCampaignDisplayName"
+  ),
+
+  syncCampaignContactProfile: makeFunctionReference<"mutation">(
+    "service/player/campaignPlayerProfile:syncCampaignContactProfile"
   ),
 
   listCampaignCouponsForStaff: makeFunctionReference<"query">(
-
     "service/merchant/campaignSettleHook:listCampaignCouponsForStaff"
-
   ),
 
-  createMerchant: makeFunctionReference<"mutation">(
-
-    "service/merchant/merchantCampaigns:createMerchant"
-
+  /** Partner-scoped campaign CRUD (actions). */
+  createCampaign: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:createCampaign"
   ),
 
-  listMyMerchants: makeFunctionReference<"query">(
-
-    "service/merchant/merchantCampaigns:listMyMerchants"
-
+  updateCampaign: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:updateCampaign"
   ),
 
-  listMerchantTeam: makeFunctionReference<"query">(
-    "service/merchant/merchantStaffAdmin:listMerchantTeam"
+  getCampaignForStaff: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:getCampaignForStaff"
   ),
 
-  addMerchantStaff: makeFunctionReference<"mutation">(
-    "service/merchant/merchantStaffAdmin:addMerchantStaff"
+  listCampaigns: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:listCampaigns"
   ),
 
-  removeMerchantStaff: makeFunctionReference<"mutation">(
-    "service/merchant/merchantStaffAdmin:removeMerchantStaff"
+  updateCampaignStatus: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:updateCampaignStatus"
   ),
 
-  createCampaign: makeFunctionReference<"mutation">(
-
-    "service/merchant/merchantCampaigns:createCampaign"
-
+  finalizeCampaignLeaderboardRewardsStaff: makeFunctionReference<"action">(
+    "service/merchant/campaignSettleHookActions:finalizeCampaignLeaderboardRewardsStaff"
   ),
 
-  updateCampaign: makeFunctionReference<"mutation">(
-
-    "service/merchant/merchantCampaigns:updateCampaign"
-
+  generatePosterUploadUrl: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:generatePosterUploadUrl"
   ),
 
-  getCampaignForStaff: makeFunctionReference<"query">(
-
-    "service/merchant/merchantCampaigns:getCampaignForStaff"
-
+  attachCampaignPoster: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:attachCampaignPoster"
   ),
 
-  listCampaigns: makeFunctionReference<"query">(
-
-    "service/merchant/merchantCampaigns:listCampaigns"
-
+  updateMerchantBrandUrl: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:updatePartnerBrandUrl"
   ),
 
-  updateCampaignStatus: makeFunctionReference<"mutation">(
-
-    "service/merchant/merchantCampaigns:updateCampaignStatus"
-
-  ),
-
-  finalizeCampaignLeaderboardRewardsStaff: makeFunctionReference<"mutation">(
-
-    "service/merchant/campaignSettleHook:finalizeCampaignLeaderboardRewardsStaff"
-
-  ),
-
-  generatePosterUploadUrl: makeFunctionReference<"mutation">(
-
-    "service/merchant/merchantCampaigns:generatePosterUploadUrl"
-
-  ),
-
-  attachCampaignPoster: makeFunctionReference<"mutation">(
-
-    "service/merchant/merchantCampaigns:attachCampaignPoster"
-
-  ),
-
-  updateMerchantBrandUrl: makeFunctionReference<"mutation">(
-
-    "service/merchant/merchantCampaigns:updateMerchantBrandUrl"
-
-  ),
-
-  approveMerchantTheme: makeFunctionReference<"mutation">(
-
-    "service/merchant/merchantCampaigns:approveMerchantTheme"
-
+  approveMerchantTheme: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:approvePartnerTheme"
   ),
 
   syncThemeFromUrl: makeFunctionReference<"action">(
-
     "service/merchant/merchantThemeSync:syncThemeFromUrl"
-
   ),
 
-  validateCouponCode: makeFunctionReference<"query">(
-
-    "service/merchant/merchantRedeem:validateCouponCode"
-
+  validateCouponCode: makeFunctionReference<"action">(
+    "service/merchant/merchantRedeemActions:validateCouponCode"
   ),
 
-  redeemCoupon: makeFunctionReference<"mutation">(
-
-    "service/merchant/merchantRedeem:redeemCoupon"
-
+  redeemCoupon: makeFunctionReference<"action">(
+    "service/merchant/merchantRedeemActions:redeemCoupon"
   ),
 
-  voidCoupon: makeFunctionReference<"mutation">(
-
-    "service/merchant/merchantRedeem:voidCoupon"
-
+  voidCoupon: makeFunctionReference<"action">(
+    "service/merchant/merchantRedeemActions:voidCoupon"
   ),
 
   getCampaignReport: makeFunctionReference<"query">(
-
     "service/merchant/campaignSettleHook:getCampaignReport"
-
   ),
 
-  listCouponDefsForStaff: makeFunctionReference<"query">(
-    "service/merchant/merchantCouponDefs:listCouponDefsForStaff"
+  listCouponDefsForStaff: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:listCouponDefsForStaff"
   ),
-  createCouponDef: makeFunctionReference<"mutation">(
-    "service/merchant/merchantCouponDefs:createCouponDef"
+  createCouponDef: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:createCouponDef"
   ),
-  updateCouponDef: makeFunctionReference<"mutation">(
-    "service/merchant/merchantCouponDefs:updateCouponDef"
+  updateCouponDef: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:updateCouponDef"
   ),
-  archiveCouponDef: makeFunctionReference<"mutation">(
-    "service/merchant/merchantCouponDefs:archiveCouponDef"
+  archiveCouponDef: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:archiveCouponDef"
   ),
 
+  upsertPartnerBrand: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:upsertPartnerBrand"
+  ),
 } as const;
-

@@ -52,7 +52,7 @@ export const parseLocation = (): PageItem | undefined => {
     }
     if (ps[1] === "campaign" && ps[2] && ps[2] !== "merchant" && ps[2] !== "home") {
         page.data = {
-            merchantSlug: ps[2],
+            partnerSlug: ps[2],
             ...(ps[3] ? { campaignSlug: ps[3] } : {}),
         };
     }
@@ -91,6 +91,8 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
             navCfg = app.navs.find((nav: any) => nav.uri === "home");
         } else if (res["ctx"] === "partner" && ps[2] === "admin") {
             navCfg = app.navs.find((nav: any) => nav.uri === "admin");
+        } else if (res["ctx"] === "partner" && ps[2] === "operation") {
+            navCfg = app.navs.find((nav: any) => nav.uri === "operation");
         } else if (res["ctx"] === "platform" && ps[2] === "admin") {
             navCfg = app.navs.find((nav: any) => nav.uri === "admin");
         } else if (res["ctx"] === "campaign" && ps[2] && ps[2] !== "merchant") {
@@ -159,19 +161,48 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
                     navItem.data = { ...(navItem.data ?? {}), partnerId };
                 }
             }
+            if (res["ctx"] === "partner" && ps[2] === "operation") {
+                const sub = ps[3]?.trim();
+                if (sub) {
+                    navItem.child = sub;
+                }
+                const storeId =
+                    navItem.params?.storeId ??
+                    navItem.data?.storeId ??
+                    navItem.params?.merchantId ??
+                    navItem.data?.merchantId ??
+                    new URLSearchParams(location.search).get("storeId") ??
+                    new URLSearchParams(location.search).get("merchantId");
+                const campaignId =
+                    navItem.params?.campaignId ??
+                    navItem.data?.campaignId ??
+                    new URLSearchParams(location.search).get("campaignId");
+                if (storeId) {
+                    navItem.data = { ...(navItem.data ?? {}), storeId };
+                }
+                if (campaignId) {
+                    navItem.data = { ...(navItem.data ?? {}), campaignId };
+                }
+            }
             if (res["ctx"] === "campaign") {
                 if (ps[2] === "merchant") {
                     const sub = ps[3]?.trim();
                     if (sub) {
                         navItem.child = sub;
                     }
-                    const merchantId = navItem.params?.merchantId ?? navItem.data?.merchantId;
+                    const storeId =
+                        navItem.params?.storeId ??
+                        navItem.data?.storeId ??
+                        navItem.params?.merchantId ??
+                        navItem.data?.merchantId ??
+                        new URLSearchParams(location.search).get("storeId") ??
+                        new URLSearchParams(location.search).get("merchantId");
                     const campaignId =
                       navItem.params?.campaignId ??
                       navItem.data?.campaignId ??
                       new URLSearchParams(location.search).get("campaignId");
-                    if (merchantId) {
-                        navItem.data = { ...(navItem.data ?? {}), merchantId };
+                    if (storeId) {
+                        navItem.data = { ...(navItem.data ?? {}), storeId };
                     }
                     if (campaignId) {
                         navItem.data = { ...(navItem.data ?? {}), campaignId };
@@ -179,12 +210,12 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
                 } else if (ps[2] && ps[2] !== "merchant") {
                     navItem.data = {
                         ...(navItem.data ?? {}),
-                        merchantSlug: ps[2],
+                        partnerSlug: ps[2],
                         ...(ps[3] ? { campaignSlug: ps[3] } : {}),
                     };
                     navItem.params = {
                         ...(navItem.params ?? {}),
-                        merchantSlug: ps[2],
+                        partnerSlug: ps[2],
                         ...(ps[3] ? { campaignSlug: ps[3] } : {}),
                     };
                 }
@@ -249,34 +280,37 @@ export function normalizePageUri(uri: string): string {
     return t.replace(/\/+$/, "");
 }
 
-/** Campaign landing shell is `/campaign/{merchantSlug}/{campaignSlug}` â€” not `/campaign/merchant/*`. */
+/** Campaign landing shell is `/campaign/{partnerSlug}/{campaignSlug}` — not staff consoles. */
+const CAMPAIGN_PATH_RESERVED = new Set(["home", "merchant"]);
+
 export function isCampaignLandingPageUri(uri: string): boolean {
     const u = normalizePageUri(uri);
     if (!u.startsWith("/campaign/")) return false;
-    if (u.startsWith("/campaign/merchant")) return false;
     const parts = u.split("/").filter(Boolean);
-    return parts.length >= 3;
+    if (parts.length < 3) return false;
+    if (CAMPAIGN_PATH_RESERVED.has(parts[1]!)) return false;
+    return true;
 }
 
-/** Merchant carousel entry: `/campaign/{merchantSlug}` (no campaign slug yet). */
+/** Partner carousel entry: `/campaign/{partnerSlug}` (no campaign slug yet). */
 export function isCampaignMerchantEntryUri(uri: string): boolean {
     const u = normalizePageUri(uri);
     if (!u.startsWith("/campaign/")) return false;
-    if (u.startsWith("/campaign/merchant")) return false;
-    if (u === "/campaign/home") return false;
     const parts = u.split("/").filter(Boolean);
-    return parts.length === 2;
+    if (parts.length !== 2) return false;
+    if (CAMPAIGN_PATH_RESERVED.has(parts[1]!)) return false;
+    return true;
 }
 
-/** Player-facing campaign shell: merchant hub or a specific campaign landing. */
+/** Player-facing campaign shell: partner hub or a specific campaign landing. */
 export function isCampaignPlayerShellUri(uri: string): boolean {
     return isCampaignMerchantEntryUri(uri) || isCampaignLandingPageUri(uri);
 }
 
-/** `/campaign/{merchantSlug}` or `/campaign/{merchantSlug}/{campaignSlug}` â†’ merchant slug. */
-export function parseCampaignMerchantSlugFromPathname(pathname: string): string | null {
+/** `/campaign/{partnerSlug}` or `/campaign/{partnerSlug}/{campaignSlug}` → partner slug. */
+export function parseCampaignPartnerSlugFromPathname(pathname: string): string | null {
     const parts = pathname.split("/").filter(Boolean);
-    if (parts[0] !== "campaign" || !parts[1] || parts[1] === "merchant" || parts[1] === "home") {
+    if (parts[0] !== "campaign" || !parts[1] || CAMPAIGN_PATH_RESERVED.has(parts[1])) {
         return null;
     }
     return parts[1].trim().toLowerCase();

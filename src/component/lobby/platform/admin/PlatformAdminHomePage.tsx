@@ -2,12 +2,14 @@ import React, { useState } from "react";
 
 import { PageProp } from "host/RenderApp";
 
-import WebSignInForm from "../../shared/WebSignInForm";
+import { useLogoutUnauthorizedSession } from "../../shared/useLogoutUnauthorizedSession";
 import {
+  capabilityBadges,
   platformAdminErrorMessage,
   platformAdminSuccessMessage,
 } from "./platformAdminHelpers";
 import PlatformAdminToolbar from "./PlatformAdminToolbar";
+import PlatformPartnerPortalGamesModal from "./PlatformPartnerPortalGamesModal";
 import PlatformPartnerTeamModal from "./PlatformPartnerTeamModal";
 import PlatformStaffEditModal, { type PlatformStaffEditMember } from "./PlatformStaffEditModal";
 import {
@@ -23,16 +25,29 @@ import "../../campaign/merchant/merchant.css";
 const STAFF_ROLES = ["owner", "admin", "viewer"] as const;
 
 const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
-  const { authed, user } = usePlatformAdminAuth();
+  const { authed } = usePlatformAdminAuth();
   const access = usePlatformOperatorAccess();
   const isOperator = access?.isOperator === true;
+  const unauthorized = Boolean(authed && access !== undefined && !isOperator);
+  useLogoutUnauthorizedSession(unauthorized);
+
   const partners = useAllPartners(isOperator);
   const team = usePlatformTeam(isOperator);
-  const { createPartner, addPlatformStaff, updatePlatformStaffProfile, removePlatformStaff } =
-    usePlatformAdminMutations();
+  const {
+    createPartner,
+    deletePartner,
+    updatePartnerCapabilities,
+    addPlatformStaff,
+    updatePlatformStaffProfile,
+    removePlatformStaff,
+  } = usePlatformAdminMutations();
+  const canManagePartners = access?.role === "owner" || access?.role === "admin";
 
   const [name, setName] = useState("");
   const [host, setHost] = useState("");
+  const [portalGames, setPortalGames] = useState(false);
+  const [campaignOps, setCampaignOps] = useState(false);
+  const [slug, setSlug] = useState("");
   const [staffAccountId, setStaffAccountId] = useState("");
   const [staffName, setStaffName] = useState("");
   const [staffPassword, setStaffPassword] = useState("");
@@ -41,6 +56,10 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
   const [teamModalPartner, setTeamModalPartner] = useState<{ pid: number; name: string } | null>(
     null
   );
+  const [portalModalPartner, setPortalModalPartner] = useState<{
+    pid: number;
+    name: string;
+  } | null>(null);
   const [editingMember, setEditingMember] = useState<PlatformStaffEditMember | null>(null);
 
   const canManageTeam = access?.role === "owner";
@@ -56,10 +75,81 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
       const result = await createPartner({
         name: name.trim(),
         host: host.trim() || undefined,
+        portalGames,
+        campaignOps,
+        slug: campaignOps ? slug.trim() || undefined : undefined,
       });
       setName("");
       setHost("");
+      setPortalGames(false);
+      setCampaignOps(false);
+      setSlug("");
       setNote(`${platformAdminSuccessMessage("partnerCreated")} PID ${result.pid}。请在「团队」中添加 owner。`);
+    } catch (e) {
+      setNote(platformAdminErrorMessage(e));
+    }
+  };
+
+  const onDeletePartner = async (p: { pid: number; name: string }) => {
+    if (!canManagePartners) {
+      setNote(platformAdminErrorMessage("forbidden"));
+      return;
+    }
+    const ok = window.confirm(
+      `确认删除 Partner「${p.name}」(PID ${p.pid})？\n将同时移除其 partner_staff 成员关系，此操作不可恢复。`
+    );
+    if (!ok) return;
+    try {
+      await deletePartner({ pid: p.pid });
+      if (teamModalPartner?.pid === p.pid) setTeamModalPartner(null);
+      if (portalModalPartner?.pid === p.pid) setPortalModalPartner(null);
+      setNote(`${platformAdminSuccessMessage("partnerDeleted")} PID ${p.pid}。`);
+    } catch (e) {
+      setNote(platformAdminErrorMessage(e));
+    }
+  };
+
+  const onToggleCampaignOps = async (p: {
+    pid: number;
+    name: string;
+    slug?: string;
+    capabilities?: { portalGames?: boolean; campaignOps?: boolean } | null;
+  }) => {
+    if (!canManagePartners) {
+      setNote(platformAdminErrorMessage("forbidden"));
+      return;
+    }
+    const enabling = !p.capabilities?.campaignOps;
+    let nextSlug = p.slug?.trim() ?? "";
+    if (enabling && !nextSlug) {
+      const entered = window.prompt(
+        `为「${p.name}」开启 campaignOps，请输入 public slug（/campaign/{slug}）：`,
+        p.name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "")
+          .slice(0, 32) || "partner"
+      );
+      if (entered == null) return;
+      nextSlug = entered.trim();
+      if (!nextSlug) {
+        setNote("slug 不能为空。");
+        return;
+      }
+    }
+    try {
+      await updatePartnerCapabilities({
+        partnerId: p.pid,
+        portalGames: p.capabilities?.portalGames === true,
+        campaignOps: enabling,
+        ...(enabling ? { slug: nextSlug } : {}),
+      });
+      setNote(
+        enabling
+          ? `${platformAdminSuccessMessage("capabilitiesSaved")} 已开启 campaignOps（slug=${nextSlug}）。`
+          : `${platformAdminSuccessMessage("capabilitiesSaved")} 已关闭 campaignOps。`
+      );
     } catch (e) {
       setNote(platformAdminErrorMessage(e));
     }
@@ -93,45 +183,86 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
     }
   };
 
+  // Unauthenticated / re-auth: SSO overlay (askAuth after logout). No inline form.
+  if (!authed || unauthorized || (authed && access === undefined)) {
+    return (
+      <div className="merchant-page">
+        <PlatformAdminToolbar />
+        <h1>平台运营</h1>
+        <p className="merchant-note">
+          {unauthorized
+            ? "当前账号无运营权限，正在退出并打开登录…"
+            : !authed
+              ? "请通过登录窗口使用 platform_staff 账号登录（如 admin / admin）。"
+              : "加载中…"}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="merchant-page">
       <PlatformAdminToolbar />
       <h1>平台运营</h1>
       <p className="merchant-note">
         使用 <strong>admin / admin</strong> 登录（Web 账号 + <code>platform_staff</code> 权限）。
-        Partner 日常配置请使用 <a href="/partner/admin">/partner/admin</a>。
+        Partner 日常配置（资料、登录渠道等）请使用 <a href="/partner/admin">/partner/admin</a>。
+        Portal 游戏激活权由平台在此管理。
       </p>
 
-      {!authed ? (
-        <WebSignInForm
-          staffGate="platform"
-          description="使用 admin / admin 登录；须为 platform_staff 成员。"
-        />
-      ) : access === undefined ? (
-        <p className="merchant-note">加载中…</p>
-      ) : !isOperator ? (
-        <section className="merchant-card">
-          <h2>无运营权限</h2>
-          <p className="merchant-note">
-            当前账号（<code>{user?.uid}</code>）不在 <code>platform_staff</code> 中。请用 admin / admin
-            登录，或由 owner 添加成员。
-          </p>
-        </section>
-      ) : (
-        <>
+      <>
           <section>
             <h2>创建 Partner</h2>
-            <label className="merchant-field">
-              名称
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Games" />
-            </label>
-            <label className="merchant-field">
-              Host（可选）
-              <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="games.example.com" />
-            </label>
-            <button type="button" className="merchant-btn" onClick={() => void onCreate()}>
-              创建 Partner
-            </button>
+            {canManagePartners ? (
+              <>
+                <label className="merchant-field">
+                  名称
+                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Games" />
+                </label>
+                <label className="merchant-field">
+                  Host（可选）
+                  <input
+                    value={host}
+                    onChange={(e) => setHost(e.target.value)}
+                    placeholder="games.example.com"
+                  />
+                </label>
+                <fieldset className="merchant-field merchant-field--radio">
+                  <legend>能力</legend>
+                  <label className="merchant-radio">
+                    <input
+                      type="checkbox"
+                      checked={portalGames}
+                      onChange={(e) => setPortalGames(e.target.checked)}
+                    />
+                    portalGames（Portal 游戏）
+                  </label>
+                  <label className="merchant-radio">
+                    <input
+                      type="checkbox"
+                      checked={campaignOps}
+                      onChange={(e) => setCampaignOps(e.target.checked)}
+                    />
+                    campaignOps（活动 / 券 / 门店）
+                  </label>
+                </fieldset>
+                {campaignOps ? (
+                  <label className="merchant-field">
+                    Campaign slug（公开路径 /campaign/{"{slug}"}）
+                    <input
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      placeholder="acme"
+                    />
+                  </label>
+                ) : null}
+                <button type="button" className="merchant-btn" onClick={() => void onCreate()}>
+                  创建 Partner
+                </button>
+              </>
+            ) : (
+              <p className="merchant-note">仅 owner / admin 可创建或删除 Partner。</p>
+            )}
             {note ? <p className="merchant-note">{note}</p> : null}
           </section>
 
@@ -148,6 +279,9 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                   <p className="merchant-note">
                     PID {p.pid}
                     {p.host ? ` · ${p.host}` : ""}
+                    {p.slug ? ` · /campaign/${p.slug}` : ""}
+                    {" · "}
+                    {capabilityBadges(p.capabilities)}
                   </p>
                   <nav className="merchant-nav">
                     <a href={`/partner/admin?partnerId=${p.pid}&section=profile`}>资料</a>
@@ -159,6 +293,36 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                     >
                       团队
                     </button>
+                    {p.capabilities?.portalGames || canManagePartners ? (
+                      <button
+                        type="button"
+                        className="merchant-link-btn"
+                        onClick={() => setPortalModalPartner({ pid: p.pid, name: p.name })}
+                      >
+                        Portal 游戏
+                      </button>
+                    ) : null}
+                    {canManagePartners ? (
+                      <button
+                        type="button"
+                        className="merchant-link-btn"
+                        onClick={() => void onToggleCampaignOps(p)}
+                      >
+                        {p.capabilities?.campaignOps ? "关闭 campaignOps" : "开启 campaignOps"}
+                      </button>
+                    ) : null}
+                    {canManagePartners && Number(p.pid) !== 0 ? (
+                      <button
+                        type="button"
+                        className="merchant-btn"
+                        onClick={() => void onDeletePartner(p)}
+                      >
+                        删除
+                      </button>
+                    ) : null}
+                    {Number(p.pid) === 0 ? (
+                      <span className="merchant-note">系统默认（不可删除）</span>
+                    ) : null}
                   </nav>
                 </article>
               ))
@@ -258,7 +422,6 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
             )}
           </section>
         </>
-      )}
       {editingMember ? (
         <PlatformStaffEditModal
           member={editingMember}
@@ -279,6 +442,14 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
           partnerId={teamModalPartner.pid}
           partnerName={teamModalPartner.name}
           onClose={() => setTeamModalPartner(null)}
+        />
+      ) : null}
+      {portalModalPartner ? (
+        <PlatformPartnerPortalGamesModal
+          partnerId={portalModalPartner.pid}
+          partnerName={portalModalPartner.name}
+          canEdit={canManagePartners}
+          onClose={() => setPortalModalPartner(null)}
         />
       ) : null}
     </div>

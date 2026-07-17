@@ -1,5 +1,10 @@
-/** Keep aligned with portal portalGameRegistry PORTAL_GAME_TYPES. */
-export const PORTAL_GAME_TYPES = [
+/**
+ * Partner portal/campaign game allowlist helpers.
+ * Catalog: keep aligned with portal partnerGameRegistry PARTNER_GAME_TYPES.
+ * DB: partner.games (top-level). Caps portal URLs and merchant campaign gameType.
+ */
+
+export const PARTNER_GAME_TYPES = [
   "solitaire",
   "block_blast",
   "match_3",
@@ -7,7 +12,15 @@ export const PORTAL_GAME_TYPES = [
   "yatz",
 ] as const;
 
-export type PortalGameType = (typeof PORTAL_GAME_TYPES)[number];
+export type PartnerGameType = (typeof PARTNER_GAME_TYPES)[number];
+
+export const PARTNER_GAME_LABELS: Record<PartnerGameType, string> = {
+  solitaire: "Solitaire",
+  block_blast: "Block Blast",
+  match_3: "Match-3",
+  tower_arena: "Tower Arena",
+  yatz: "Yatz",
+};
 
 const PORTAL_KEY_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 
@@ -15,33 +28,42 @@ export function normalizePortalKey(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
-export function isRegisteredPortalGameType(value: string): value is PortalGameType {
-  return (PORTAL_GAME_TYPES as readonly string[]).includes(value);
+export function isRegisteredPartnerGameType(value: string): value is PartnerGameType {
+  return (PARTNER_GAME_TYPES as readonly string[]).includes(value);
 }
 
 export function validatePortalKey(key: string): string {
   const normalized = normalizePortalKey(key);
   if (!normalized) throw new Error("portal_key_required");
   if (!PORTAL_KEY_RE.test(normalized)) throw new Error("portal_key_invalid");
-  if (isRegisteredPortalGameType(normalized)) throw new Error("portal_key_conflicts_game_type");
+  if (isRegisteredPartnerGameType(normalized)) throw new Error("portal_key_conflicts_game_type");
   return normalized;
 }
 
-export function sanitizePortalGames(games: string[]): PortalGameType[] {
-  const out: PortalGameType[] = [];
+export function sanitizePartnerGames(games: string[]): PartnerGameType[] {
+  const out: PartnerGameType[] = [];
   for (const g of games) {
     const trimmed = g.trim();
     if (!trimmed) continue;
-    if (!isRegisteredPortalGameType(trimmed)) throw new Error("portal_game_invalid");
+    if (!isRegisteredPartnerGameType(trimmed)) throw new Error("portal_game_invalid");
     if (!out.includes(trimmed)) out.push(trimmed);
   }
   if (out.length === 0) throw new Error("portal_games_required");
   return out;
 }
 
-export function readPortalGamesFromPartnerData(data: unknown): PortalGameType[] {
-  if (!data || typeof data !== "object") return [...PORTAL_GAME_TYPES];
-  const games = (data as { portalGames?: unknown }).portalGames;
-  if (!Array.isArray(games) || games.length === 0) return [...PORTAL_GAME_TYPES];
-  return games.filter((g): g is PortalGameType => typeof g === "string" && isRegisteredPortalGameType(g));
+/** partner.games; unset/empty → full registry (all enabled). */
+export function readPartnerGames(partner: {
+  games?: string[] | null;
+}): PartnerGameType[] {
+  const games = partner.games;
+  if (!Array.isArray(games) || games.length === 0) return [...PARTNER_GAME_TYPES];
+  return games.filter((g): g is PartnerGameType => typeof g === "string" && isRegisteredPartnerGameType(g));
+}
+
+export function isGameEnabledForPartner(
+  partner: { games?: string[] | null },
+  gameType: string
+): boolean {
+  return readPartnerGames(partner).includes(gameType as PartnerGameType);
 }

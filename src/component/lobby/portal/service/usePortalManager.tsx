@@ -1,8 +1,8 @@
 import {
-  PORTAL_GAME_REGISTRY,
-  PORTAL_GAME_TYPES,
-  type RegisteredPortalGameType,
-} from "@/convex/portal/convex/data/portalGameRegistry";
+  PARTNER_GAME_REGISTRY,
+  PARTNER_GAME_TYPES,
+  type RegisteredPartnerGameType,
+} from "@/convex/portal/convex/data/partnerGameRegistry";
 import {
   portalTournamentIdForMode,
 } from "@/convex/portal/convex/data/portalTournamentConfigs";
@@ -252,13 +252,13 @@ function subscribe(cb: () => void) {
 
 export { isValidPortalGameType } from "./portalGameTypeGuards";
 
-export function portalGameDisplayName(gameType: RegisteredPortalGameType): string {
-  return PORTAL_GAME_REGISTRY[gameType].displayName;
+export function portalGameDisplayName(gameType: RegisteredPartnerGameType): string {
+  return PARTNER_GAME_REGISTRY[gameType].displayName;
 }
 
 type PortalContextValue = {
   convexUrl: string;
-  gameType: RegisteredPortalGameType | null;
+  gameType: RegisteredPartnerGameType | null;
   cohortLeaderboard: PortalWeeklyLeaderboardRow[];
   weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
   playerWallet: PortalPlayerWallet | null;
@@ -274,7 +274,7 @@ type PortalContextValue = {
   weekEndsAt: number | null;
   joinTournament: (
     mode: "solo" | "multi",
-    opts?: { merchantSlug?: string; campaignSlug?: string }
+    opts?: { partnerSlug?: string; campaignSlug?: string }
   ) => Promise<ResolvedJoinTournamentOutcome>;
   leaveCasualMatchQueue: (
     templateId?: string
@@ -325,13 +325,33 @@ type PortalContextValue = {
       matchId: string;
       runTournamentId: string;
       gameType: string;
+      mode?: "solo" | "multi";
+      campaignRewardMode?: "pass_per_run" | "competitive_leaderboard" | null;
       score: number | null;
       rank: number | null;
       status: "open" | "finished" | "confirmed" | "settled" | "replaying";
       playedAt: number;
       startedAt: number;
+      challengeSuccess?: boolean | null;
+      seedScoreThreshold?: number | null;
+      pointsDelta?: number | null;
+      rewardLabel?: string | null;
+      rewardSyncStatus?: "none" | "pending" | "synced" | "failed" | null;
+      canOpenReport?: boolean;
     }>
   >;
+  getCampaignPlayReport: (args: {
+    matchId: string;
+  }) => Promise<CampaignPlayReportPayload | null>;
+};
+
+/** Campaign 历史战报：单人得分明细 / 多人同桌表 */
+export type CampaignPlayReportPayload = {
+  reportKind: "solo_score" | "table";
+  gameType: string;
+  scoreReport?: import("@/component/battle/games/shared/casualGameScoreReportUI").CasualGameScoreReportUI;
+  tableSummary?: import("@/component/battle/games/shared/casualAsyncTableSummaryUI").CasualAsyncTableSummaryUI;
+  watchContext?: import("@/component/battle/games/shared/casualAsyncTableSummaryUI").CasualWatchContext | null;
 };
 
 const PortalContext = createContext<PortalContextValue | null>(null);
@@ -373,7 +393,7 @@ export function portalPlayModalForGameType(gameType: CasualGameKind) {
 }
 
 export const PortalProvider: React.FC<{
-  gameType: RegisteredPortalGameType | null;
+  gameType: RegisteredPartnerGameType | null;
   children: React.ReactNode;
 }> = ({ gameType, children }) => {
   const { user } = useUserManager();
@@ -384,7 +404,7 @@ export const PortalProvider: React.FC<{
   const historySettleInFlightRef = useRef(new Set<string>());
   const snapshot = useSyncExternalStore(subscribe, () => dataSnapshot, () => dataSnapshot);
 
-  const ensureWeeklyLeagueMember = useCallback(async (gt: RegisteredPortalGameType) => {
+  const ensureWeeklyLeagueMember = useCallback(async (gt: RegisteredPartnerGameType) => {
     const http = getHttp();
     if (!http) return;
     try {
@@ -978,13 +998,13 @@ export const PortalProvider: React.FC<{
   const joinTournament = useCallback(
     async (
       mode: "solo" | "multi",
-      opts?: { merchantSlug?: string; campaignSlug?: string }
+      opts?: { partnerSlug?: string; campaignSlug?: string }
     ): Promise<ResolvedJoinTournamentOutcome> => {
       const http = getHttp();
       if (!http || !uid || !isPlatformAuthed(user)) {
         return { kind: "failed", error: portalErrorMessage("not_logged_in_or_no_backend") };
       }
-      const isCampaignJoin = Boolean(opts?.merchantSlug && opts?.campaignSlug);
+      const isCampaignJoin = Boolean(opts?.partnerSlug && opts?.campaignSlug);
       const tournamentId =
         isCampaignJoin || !gameType
           ? undefined
@@ -998,7 +1018,7 @@ export const PortalProvider: React.FC<{
           ...(tournamentId ? { tournamentId } : {}),
           ...(isCampaignJoin
             ? {
-                merchantSlug: opts!.merchantSlug,
+                partnerSlug: opts!.partnerSlug,
                 campaignSlug: opts!.campaignSlug,
               }
             : {}),
@@ -1047,15 +1067,39 @@ export const PortalProvider: React.FC<{
           matchId: string;
           runTournamentId: string;
           gameType: string;
+          mode: "solo" | "multi";
+          campaignRewardMode: "pass_per_run" | "competitive_leaderboard" | null;
           score: number | null;
           rank: number | null;
           status: "open" | "finished" | "confirmed" | "settled" | "replaying";
           playedAt: number;
           startedAt: number;
+          challengeSuccess: boolean | null;
+          seedScoreThreshold: number | null;
+          pointsDelta: number | null;
+          rewardLabel: string | null;
+          rewardSyncStatus: "none" | "pending" | "synced" | "failed" | null;
+          canOpenReport: boolean;
         }>;
       } catch (e) {
         console.warn("[Portal] listCampaignPlayHistory", e);
         return [];
+      }
+    },
+    [uid]
+  );
+
+  const getCampaignPlayReport = useCallback(
+    async (args: { matchId: string }): Promise<CampaignPlayReportPayload | null> => {
+      const http = getHttp();
+      if (!http || !uid || !args.matchId.trim()) return null;
+      try {
+        return ((await http.query(portalTournamentFns.getCampaignPlayReport, {
+          matchId: args.matchId,
+        })) ?? null) as CampaignPlayReportPayload | null;
+      } catch (e) {
+        console.warn("[Portal] getCampaignPlayReport", e);
+        return null;
       }
     },
     [uid]
@@ -1093,6 +1137,7 @@ export const PortalProvider: React.FC<{
       setCohortLeaderboardPolling,
       getCampaignDailyPlayQuota,
       getCampaignPlayHistory,
+      getCampaignPlayReport,
     }),
     [
       gameType,
@@ -1112,6 +1157,7 @@ export const PortalProvider: React.FC<{
       setCohortLeaderboardPolling,
       getCampaignDailyPlayQuota,
       getCampaignPlayHistory,
+      getCampaignPlayReport,
     ]
   );
 

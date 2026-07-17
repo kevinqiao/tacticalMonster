@@ -1,5 +1,7 @@
 import type { QueryCtx, MutationCtx } from "../../_generated/server";
 
+import { findIdentityByUid } from "../../dao/authIdentityHelpers";
+
 export type PartnerRole = "owner" | "admin" | "developer" | "viewer";
 
 const ROLE_RANK: Record<PartnerRole, number> = {
@@ -22,13 +24,40 @@ export async function getPartnerStaffRow(
     .unique();
 }
 
+/** Direct row, or membership under another namespaced uid for the same web accountId. */
+export async function findPartnerStaffForAccountUid(
+  ctx: QueryCtx | MutationCtx,
+  partnerId: number,
+  uid: string
+) {
+  const direct = await getPartnerStaffRow(ctx, partnerId, uid);
+  if (direct) return direct;
+
+  const identity = await findIdentityByUid(ctx, uid);
+  if (identity?.provider !== "web" || !identity.subject) return null;
+
+  const siblings = await ctx.db
+    .query("auth_identities")
+    .withIndex("by_provider_subject", (q) =>
+      q.eq("provider", "web").eq("subject", identity.subject)
+    )
+    .collect();
+
+  for (const sib of siblings) {
+    if (!sib.uid || sib.uid === uid) continue;
+    const row = await getPartnerStaffRow(ctx, partnerId, sib.uid);
+    if (row) return row;
+  }
+  return null;
+}
+
 export async function requirePartnerStaff(
   ctx: (QueryCtx | MutationCtx) & AuthedCtx,
   partnerId: number,
   minRole: PartnerRole = "viewer"
 ) {
   const uid = ctx.user.uid;
-  const row = await getPartnerStaffRow(ctx, partnerId, uid);
+  const row = await findPartnerStaffForAccountUid(ctx, partnerId, uid);
   if (!row || ROLE_RANK[row.role as PartnerRole] < ROLE_RANK[minRole]) {
     throw new Error("forbidden");
   }

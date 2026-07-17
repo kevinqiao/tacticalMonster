@@ -327,8 +327,24 @@ const useActHandler = () => {
             gameStateRef.current = gameState;
             return;
         }
+        // 同 gameId 再战 / 清档：moves 归零的新局必须覆盖 ref（含 hold 期间）
+        const isCasualRedeal =
+            Boolean(cur) &&
+            (gameState.moves ?? 0) === 0 &&
+            (cur!.moves ?? 0) > 0 &&
+            !isTerminalSoloStatus(gameState.status);
+        const resetAfterTerminal =
+            Boolean(cur) &&
+            isTerminalSoloStatus(cur!.status) &&
+            !isTerminalSoloStatus(gameState.status);
+
         // Ctrl+Shift+A 等会先写 ref；在 React state 追上前禁止旧 render 覆盖
         if (holdGameStateRefSync.current) {
+            if (isCasualRedeal || resetAfterTerminal) {
+                holdGameStateRefSync.current = false;
+                gameStateRef.current = gameState;
+                return;
+            }
             if (cur && cardLayoutKey(cur) === cardLayoutKey(gameState)) {
                 holdGameStateRefSync.current = false;
                 gameStateRef.current = gameState;
@@ -337,10 +353,7 @@ const useActHandler = () => {
         }
         // 自动清盘等路径会先写 ref 再等 React 提交；勿用更旧的 render 覆盖
         if (cur && (cur.moves ?? 0) > (gameState.moves ?? 0)) {
-            // 同 gameId 再战 / 清档：终局→新开局时 moves 归零，必须放行，否则抽牌走子仍读旧终局 ref
-            const resetAfterTerminal =
-                isTerminalSoloStatus(cur.status) && !isTerminalSoloStatus(gameState.status);
-            if (!resetAfterTerminal) return;
+            if (!resetAfterTerminal && !isCasualRedeal) return;
         }
         if (autoCompleteRunningRef.current) return;
         gameStateRef.current = gameState;
@@ -1279,13 +1292,18 @@ const useActHandler = () => {
                 console.warn("[Solitaire] replayCasualRun", rr.error);
                 return;
             }
+            // 必须在 reload/setGameState 之前放行：否则 effect 可能先跑，
+            // hold + moves 守卫把新局挡在 ref 外，客户端按旧牌面走子 → move_failed
+            acceptReloadedGameStateRef.current = true;
+            holdGameStateRefSync.current = false;
             const reloaded = await reloadCasualRun();
             if (!reloaded) {
+                acceptReloadedGameStateRef.current = false;
                 setCasualReplayError(portalErrorMessage("match_not_open"));
                 console.warn("[Solitaire] replayCasualRun reloadCasualRun failed");
                 return;
             }
-            // 放行下一帧新局写入 ref（moves 归零不会被「旧 render」守卫挡住）
+            // 再战可能连点：确保后续一帧仍接受 moves 归零的新局
             acceptReloadedGameStateRef.current = true;
             holdGameStateRefSync.current = false;
             casualRunSubmittedRef.current = false;
@@ -1620,8 +1638,16 @@ const useActHandler = () => {
                 })
                 .then((result: ActionResult & ServerProgress) => {
                     if (!result.ok || !result.data?.move?.length) {
-                        console.warn("[Solitaire] move rejected", result);
-                        throw new Error("move_failed");
+                        console.warn("[Solitaire] move rejected", {
+                          error: result.error,
+                          cardId: liveCard.id,
+                          toZone: dropTarget.zoneId,
+                          gameId: gs.gameId,
+                          moves: gs.moves,
+                          status: gs.status,
+                          result,
+                        });
+                        throw new Error(result.error ? `move_failed:${result.error}` : "move_failed");
                     }
                     updateCards.push(...(result.data.move as SoloCard[]));
                     if (result.data.flip?.length) {

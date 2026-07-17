@@ -68,6 +68,8 @@ import {
 
   normalizeFormForRewardModel,
 
+  formUsesRankRewardTiers,
+
   ensureFormCouponDef,
 
   playLimitsFromForm,
@@ -77,6 +79,7 @@ import {
   type MerchantCouponDefOption,
 
 } from "./campaignFormHelpers";
+import { usePartnerGameOptions } from "./usePartnerGameOptions";
 
 import i18n from "@/i18n";
 
@@ -90,10 +93,10 @@ import "./merchant.css";
 
 
 
-function merchantIdFromLocation(): string {
-
-  return new URLSearchParams(window.location.search).get("merchantId") ?? "";
-
+function partnerIdFromLocation(): number {
+  const raw = new URLSearchParams(window.location.search).get("partnerId") ?? "";
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 
@@ -104,15 +107,15 @@ async function uploadCampaignPoster(args: {
 
   fns: ReturnType<typeof useMerchantCampaignClient>["fns"];
 
-  merchantId: string;
+  partnerId: number;
 
   file: File;
 
 }): Promise<string> {
 
-  const uploadUrl = (await args.http.mutation(args.fns.generatePosterUploadUrl, {
+  const uploadUrl = (await args.http.action(args.fns.generatePosterUploadUrl, {
 
-    merchantId: args.merchantId,
+    partnerId: args.partnerId,
 
   })) as string;
 
@@ -142,7 +145,7 @@ async function uploadCampaignPosterPair(args: {
 
   fns: ReturnType<typeof useMerchantCampaignClient>["fns"];
 
-  merchantId: string;
+  partnerId: number;
 
   portraitFile?: File | null;
 
@@ -168,7 +171,7 @@ async function uploadCampaignPosterPair(args: {
 
       fns: args.fns,
 
-      merchantId: args.merchantId,
+      partnerId: args.partnerId,
 
       file: args.portraitFile,
 
@@ -184,7 +187,7 @@ async function uploadCampaignPosterPair(args: {
 
       fns: args.fns,
 
-      merchantId: args.merchantId,
+      partnerId: args.partnerId,
 
       file: args.landscapeFile,
 
@@ -234,6 +237,10 @@ const CampaignFormFields: React.FC<{
 
   onPosterLandscapeSelect?: (file: File | null) => void;
 
+  gameOptions?: ReadonlyArray<{ value: string; label: string }>;
+
+  gamesLoading?: boolean;
+
 }> = ({
   form,
   couponDefs,
@@ -245,6 +252,8 @@ const CampaignFormFields: React.FC<{
   posterLandscapePreview,
   onPosterPortraitSelect,
   onPosterLandscapeSelect,
+  gameOptions = PORTAL_GAME_OPTIONS,
+  gamesLoading = false,
 }) => {
 
   const { t, i18n: i18nInst } = useTranslation("campaign.merchant");
@@ -255,17 +264,23 @@ const CampaignFormFields: React.FC<{
 
   const selectedDef = activeDefs.find((d) => d.couponDefId === form.couponDefId);
 
-  const merchantIdHint =
+  const partnerIdHint =
 
     typeof window !== "undefined"
 
-      ? new URLSearchParams(window.location.search).get("merchantId") ?? ""
+      ? new URLSearchParams(window.location.search).get("partnerId") ?? ""
 
       : "";
 
 
 
   void i18nInst.language;
+
+  useEffect(() => {
+    if (gamesLoading || !gameOptions.length) return;
+    if (gameOptions.some((g) => g.value === form.gameType)) return;
+    onChange({ gameType: gameOptions[0]!.value });
+  }, [gameOptions, gamesLoading, form.gameType, onChange]);
 
 
 
@@ -589,6 +604,73 @@ const CampaignFormFields: React.FC<{
 
       <>
 
+      <h3 className="merchant-section-title">{t("form.gameSection")}</h3>
+
+      <label className="merchant-field">
+
+        {t("form.game")}
+
+        <select
+
+          value={form.gameType}
+
+          disabled={lock || gamesLoading}
+
+          onChange={(e) => onChange({ gameType: e.target.value })}
+
+        >
+
+          {gameOptions.map((g) => (
+
+            <option key={g.value} value={g.value}>
+
+              {g.label}
+
+            </option>
+
+          ))}
+
+        </select>
+
+      </label>
+
+      <label className="merchant-field">
+
+        {t("form.playMode")}
+
+        <select
+
+          value={form.mode}
+
+          disabled={lock}
+
+          onChange={(e) =>
+            onChange(
+              normalizeFormForRewardModel({
+                ...form,
+                mode: e.target.value as CampaignFormState["mode"],
+              })
+            )
+          }
+
+        >
+
+          <option value="solo">{t("form.modeSolo")}</option>
+
+          <option value="multi">{t("form.modeMulti")}</option>
+
+        </select>
+
+      </label>
+
+      <p className="merchant-note">
+
+        {t("form.portalTemplate")}{" "}
+
+        <code>{portalTemplateLabel(form.mode, form.gameType)}</code>
+
+      </p>
+
       <label className="merchant-field">
 
         {t("form.rewardModel")}
@@ -611,11 +693,11 @@ const CampaignFormFields: React.FC<{
 
                 rewardModel,
 
-                mode: rewardModel === "pass_per_run" ? "solo" : form.mode,
-
                 rankRewardTiers:
 
-                  rewardModel === "competitive_leaderboard" && form.rankRewardTiers.length === 0
+                  formUsesRankRewardTiers({ ...form, rewardModel }) &&
+
+                  form.rankRewardTiers.length === 0
 
                     ? defaultRankRewardTiers(
 
@@ -643,11 +725,21 @@ const CampaignFormFields: React.FC<{
 
       <p className="merchant-note">{rewardModelLabel(form.rewardModel)}</p>
 
+      {form.rewardModel === "competitive_leaderboard" ? (
+        <p className="merchant-note">
+          {form.mode === "solo" ? t("form.rankSoloHint") : t("form.rankMultiHint")}
+        </p>
+      ) : form.mode === "multi" ? (
+        <p className="merchant-note">{t("form.passMultiHint")}</p>
+      ) : (
+        <p className="merchant-note">{t("form.passSoloHint")}</p>
+      )}
+
       {structuralLocked ? <p className="merchant-note">{t("form.livePosterHint")}</p> : null}
 
       <h3 className="merchant-section-title">{t("form.couponRewardSection")}</h3>
 
-      {form.rewardModel === "pass_per_run" ? (
+      {form.rewardModel === "pass_per_run" && form.mode === "solo" ? (
 
         <label className="merchant-field">
 
@@ -675,10 +767,14 @@ const CampaignFormFields: React.FC<{
 
         </label>
 
-      ) : (
+      ) : formUsesRankRewardTiers(form) ? (
         <div className="merchant-rank-tiers">
           <div className="merchant-rank-tiers__header">
-            <h4 className="merchant-rank-tiers__title">{t("form.rankRewardTiers")}</h4>
+            <h4 className="merchant-rank-tiers__title">
+              {form.rewardModel === "pass_per_run"
+                ? t("form.matchRankRewardTiers")
+                : t("form.rankRewardTiers")}
+            </h4>
             <button
               type="button"
               className="merchant-btn merchant-btn-secondary merchant-btn--compact"
@@ -706,7 +802,7 @@ const CampaignFormFields: React.FC<{
                   <input
                     type="number"
                     min={1}
-                    max={20}
+                    max={form.rewardModel === "pass_per_run" ? 5 : 20}
                     value={tier.rankFrom}
                     disabled={lock}
                     onChange={(e) =>
@@ -723,7 +819,7 @@ const CampaignFormFields: React.FC<{
                   <input
                     type="number"
                     min={1}
-                    max={20}
+                    max={form.rewardModel === "pass_per_run" ? 5 : 20}
                     value={tier.rankTo}
                     disabled={lock}
                     onChange={(e) =>
@@ -774,9 +870,11 @@ const CampaignFormFields: React.FC<{
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
-      {form.rewardModel === "pass_per_run" && form.rewardKind === "score_threshold" ? (
+      {form.rewardModel === "pass_per_run" &&
+      form.mode === "solo" &&
+      form.rewardKind === "score_threshold" ? (
 
         <label className="merchant-field">
 
@@ -798,7 +896,7 @@ const CampaignFormFields: React.FC<{
 
       ) : null}
 
-      {form.rewardModel === "pass_per_run" ? (
+      {form.rewardModel === "pass_per_run" && form.mode === "solo" ? (
       <label className="merchant-field">
 
         {t("form.couponDef")}
@@ -836,7 +934,7 @@ const CampaignFormFields: React.FC<{
 
           {t("form.noCouponDefs")}{" "}
 
-          <MerchantNavLink route={{ view: "coupon-defs", merchantId: merchantIdHint }}>
+          <MerchantNavLink route={{ view: "coupon-defs", partnerId: String(partnerIdHint) }}>
             {t("nav.couponDefs")}
           </MerchantNavLink>
 
@@ -844,7 +942,7 @@ const CampaignFormFields: React.FC<{
 
       ) : null}
 
-      {form.rewardModel === "pass_per_run" && selectedDef ? (
+      {form.rewardModel === "pass_per_run" && form.mode === "solo" && selectedDef ? (
 
         <p className="merchant-note">
 
@@ -854,7 +952,7 @@ const CampaignFormFields: React.FC<{
 
       ) : null}
 
-      {form.rewardModel === "competitive_leaderboard" && form.rankRewardTiers.length > 0 ? (
+      {formUsesRankRewardTiers(form) && form.rankRewardTiers.length > 0 ? (
         <div className="merchant-rank-tier-preview">
           {rankRewardTierPreviewLines(form, activeDefs).map((line) => (
             <p key={line} className="merchant-note">
@@ -948,84 +1046,6 @@ const CampaignFormFields: React.FC<{
 
       </p>
 
-      <h3 className="merchant-section-title">{t("form.gameSection")}</h3>
-
-      <label className="merchant-field">
-
-        {t("form.game")}
-
-        <select
-
-          value={form.gameType}
-
-          disabled={lock}
-
-          onChange={(e) => onChange({ gameType: e.target.value })}
-
-        >
-
-          {PORTAL_GAME_OPTIONS.map((g) => (
-
-            <option key={g.value} value={g.value}>
-
-              {g.label}
-
-            </option>
-
-          ))}
-
-        </select>
-
-      </label>
-
-      {form.rewardModel === "competitive_leaderboard" ? (
-
-        <label className="merchant-field">
-
-          {t("form.rankDimension")}
-
-          <select
-
-            value={form.mode}
-
-            disabled={lock}
-
-            onChange={(e) => onChange({ mode: e.target.value as CampaignFormState["mode"] })}
-
-          >
-
-            <option value="solo">{t("form.rankSolo")}</option>
-
-            <option value="multi">{t("form.rankMulti")}</option>
-
-          </select>
-
-        </label>
-
-      ) : (
-
-        <p className="merchant-note">
-
-          {t("form.passSoloTemplate")}{" "}
-
-          <code>{portalTemplateLabel("solo", form.gameType)}</code>
-
-        </p>
-
-      )}
-
-      {form.rewardModel === "competitive_leaderboard" ? (
-
-        <p className="merchant-note">
-
-          {t("form.portalTemplate")}{" "}
-
-          <code>{portalTemplateLabel(form.mode, form.gameType)}</code>
-
-        </p>
-
-      ) : null}
-
       </>
 
       ) : null}
@@ -1040,23 +1060,17 @@ const CampaignFormFields: React.FC<{
 
 export const MerchantCampaignListInner: React.FC<{
   visible: number;
-  merchantId: string;
+  partnerId: number;
   embedded?: boolean;
-}> = ({ visible, merchantId, embedded }) => {
+}> = ({ visible, partnerId, embedded }) => {
 
   const { t, i18n: i18nInst } = useTranslation("campaign.merchant");
 
   const { askAuth } = useUserManager();
 
-  const { campaigns, couponDefs, loading, refresh, http, authed, fns } = useMerchantCampaignAdmin(
-
-    merchantId || null
-
-  );
+  const { campaigns, couponDefs, loading, refresh, http, authed, fns } = useMerchantCampaignAdmin(partnerId || null);
 
   const typedCouponDefs = couponDefs as MerchantCouponDefOption[];
-
-  const { http: httpClient } = useMerchantCampaignClient();
 
   const [form, setForm] = useState<CampaignFormState>(() => defaultCampaignForm());
 
@@ -1072,7 +1086,14 @@ export const MerchantCampaignListInner: React.FC<{
 
   const [creating, setCreating] = useState(false);
 
-  const [merchantSlug, setMerchantSlug] = useState("");
+  /** Partner public /campaign/{slug} when available (optional display). */
+  const [partnerSlug, setPartnerSlug] = useState("");
+
+  const { options: partnerGameOptions, loading: partnerGamesLoading } = usePartnerGameOptions(
+    partnerId || null
+  );
+
+  const gameOptions = partnerGameOptions && partnerGameOptions.length > 0 ? partnerGameOptions : [...PORTAL_GAME_OPTIONS];
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -1103,22 +1124,9 @@ export const MerchantCampaignListInner: React.FC<{
 
 
   useEffect(() => {
-
-    if (!httpClient || !authed || !merchantId) return;
-
-    void httpClient.query(fns.listMyMerchants, {}).then((rows) => {
-
-      const hit = (rows as Array<{ merchantId: string; slug: string }>).find(
-
-        (m) => m.merchantId === merchantId
-
-      );
-
-      if (hit) setMerchantSlug(hit.slug);
-
-    });
-
-  }, [httpClient, authed, merchantId, fns.listMyMerchants]);
+    // Partner slug for public /campaign/{slug} links — wire when partner detail is available.
+    setPartnerSlug("");
+  }, [partnerId]);
 
 
 
@@ -1286,7 +1294,7 @@ export const MerchantCampaignListInner: React.FC<{
 
   const createCampaign = async () => {
 
-    if (!http || !authed || !merchantId) {
+    if (!http || !authed || !partnerId) {
 
       askAuth({});
 
@@ -1328,7 +1336,7 @@ export const MerchantCampaignListInner: React.FC<{
 
           fns,
 
-          merchantId,
+          partnerId,
 
           portraitFile: createPosterPortraitFile,
 
@@ -1336,9 +1344,9 @@ export const MerchantCampaignListInner: React.FC<{
 
         }));
 
-        await http.mutation(fns.createCampaign, {
+        await http.action(fns.createCampaign, {
 
-          merchantId,
+          partnerId,
 
           slug: normalized.slug,
 
@@ -1372,7 +1380,7 @@ export const MerchantCampaignListInner: React.FC<{
 
           fns,
 
-          merchantId,
+          partnerId,
 
           portraitFile: createPosterPortraitFile,
 
@@ -1380,9 +1388,9 @@ export const MerchantCampaignListInner: React.FC<{
 
         });
 
-        await http.mutation(fns.createCampaign, {
+        await http.action(fns.createCampaign, {
 
-          merchantId,
+          partnerId,
 
           slug: normalized.slug,
 
@@ -1452,9 +1460,9 @@ export const MerchantCampaignListInner: React.FC<{
 
     try {
 
-      const row = (await http.query(fns.getCampaignForStaff, {
+      const row = (await http.action(fns.getCampaignForStaff, {
 
-        merchantId,
+        partnerId,
 
         campaignId,
 
@@ -1474,9 +1482,9 @@ export const MerchantCampaignListInner: React.FC<{
 
       }
 
-      await http.mutation(fns.updateCampaignStatus, {
+      await http.action(fns.updateCampaignStatus, {
 
-        merchantId,
+        partnerId,
 
         campaignId,
 
@@ -1504,9 +1512,9 @@ export const MerchantCampaignListInner: React.FC<{
 
     try {
 
-      await http.mutation(fns.updateCampaignStatus, {
+      await http.action(fns.updateCampaignStatus, {
 
-        merchantId,
+        partnerId,
 
         campaignId,
 
@@ -1532,6 +1540,25 @@ export const MerchantCampaignListInner: React.FC<{
 
   };
 
+  /** 已结束活动：从公开落地页拿掉（status→draft），与 live「下线改配置」意图不同 */
+  const hideFromLanding = async (campaignId: string) => {
+    if (!http || !authed) return;
+    try {
+      await http.action(fns.updateCampaignStatus, {
+        partnerId,
+        campaignId,
+        status: "draft",
+      });
+      setNote(campaignSuccessMessage("hiddenFromLanding"));
+      if (editingId === campaignId) {
+        setEditingStatus("draft");
+      }
+      await refresh();
+    } catch (e) {
+      setNote(campaignAdminErrorMessage(e));
+    }
+  };
+
 
 
   const startEdit = async (campaignId: string) => {
@@ -1546,7 +1573,7 @@ export const MerchantCampaignListInner: React.FC<{
 
     try {
 
-      const row = await http.query(fns.getCampaignForStaff, { merchantId, campaignId });
+      const row = await http.action(fns.getCampaignForStaff, { partnerId, campaignId });
 
       if (!row) {
 
@@ -1626,7 +1653,7 @@ export const MerchantCampaignListInner: React.FC<{
 
           fns,
 
-          merchantId,
+          partnerId,
 
           portraitFile: editPosterPortraitFile,
 
@@ -1634,9 +1661,9 @@ export const MerchantCampaignListInner: React.FC<{
 
         });
 
-        await http.mutation(fns.updateCampaign, {
+        await http.action(fns.updateCampaign, {
 
-          merchantId,
+          partnerId,
 
           campaignId: editingId,
 
@@ -1690,7 +1717,7 @@ export const MerchantCampaignListInner: React.FC<{
 
             fns,
 
-            merchantId,
+            partnerId,
 
             portraitFile: editPosterPortraitFile,
 
@@ -1698,9 +1725,9 @@ export const MerchantCampaignListInner: React.FC<{
 
           }));
 
-          await http.mutation(fns.updateCampaign, {
+          await http.action(fns.updateCampaign, {
 
-            merchantId,
+            partnerId,
 
             campaignId: editingId,
 
@@ -1732,7 +1759,7 @@ export const MerchantCampaignListInner: React.FC<{
 
             fns,
 
-            merchantId,
+            partnerId,
 
             portraitFile: editPosterPortraitFile,
 
@@ -1740,9 +1767,9 @@ export const MerchantCampaignListInner: React.FC<{
 
           });
 
-          await http.mutation(fns.updateCampaign, {
+          await http.action(fns.updateCampaign, {
 
-            merchantId,
+            partnerId,
 
             campaignId: editingId,
 
@@ -1778,9 +1805,9 @@ export const MerchantCampaignListInner: React.FC<{
 
       }
 
-      const refreshed = (await http.query(fns.getCampaignForStaff, {
+      const refreshed = (await http.action(fns.getCampaignForStaff, {
 
-        merchantId,
+        partnerId,
 
         campaignId: editingId,
 
@@ -1840,9 +1867,9 @@ export const MerchantCampaignListInner: React.FC<{
 
     try {
 
-      const result = (await http.mutation(fns.finalizeCampaignLeaderboardRewardsStaff, {
+      const result = (await http.action(fns.finalizeCampaignLeaderboardRewardsStaff, {
 
-        merchantId,
+        partnerId,
 
         campaignId,
 
@@ -1891,12 +1918,12 @@ export const MerchantCampaignListInner: React.FC<{
         <>
           <MerchantPageToolbar />
           <h1>{t("campaigns.title")}</h1>
-          <p className="merchant-note">{t("campaigns.intro", { merchantSlug: merchantSlug || "your-slug" })}</p>
-          {merchantSlug ? (
+          <p className="merchant-note">{t("campaigns.intro", { partnerSlug: partnerSlug || "your-slug" })}</p>
+          {partnerSlug ? (
             <p className="merchant-note">
-              {t("campaigns.merchantHomeUrl", { merchantSlug })}{" "}
-              <a href={`/campaign/${merchantSlug}`} target="_blank" rel="noopener noreferrer">
-                /campaign/{merchantSlug}
+              {t("campaigns.merchantHomeUrl", { partnerSlug })}{" "}
+              <a href={`/campaign/${partnerSlug}`} target="_blank" rel="noopener noreferrer">
+                /campaign/{partnerSlug}
               </a>
             </p>
           ) : null}
@@ -1906,12 +1933,12 @@ export const MerchantCampaignListInner: React.FC<{
         </>
       ) : (
         <>
-          <p className="merchant-note">{t("campaigns.intro", { merchantSlug: merchantSlug || "your-slug" })}</p>
-          {merchantSlug ? (
+          <p className="merchant-note">{t("campaigns.intro", { partnerSlug: partnerSlug || "your-slug" })}</p>
+          {partnerSlug ? (
             <p className="merchant-note">
-              {t("campaigns.merchantHomeUrl", { merchantSlug })}{" "}
-              <a href={`/campaign/${merchantSlug}`} target="_blank" rel="noopener noreferrer">
-                /campaign/{merchantSlug}
+              {t("campaigns.merchantHomeUrl", { partnerSlug })}{" "}
+              <a href={`/campaign/${partnerSlug}`} target="_blank" rel="noopener noreferrer">
+                /campaign/{partnerSlug}
               </a>
             </p>
           ) : null}
@@ -1960,6 +1987,12 @@ export const MerchantCampaignListInner: React.FC<{
 
           gameType: string;
 
+          settlement?: {
+            status?: string;
+            couponsIssued?: number;
+            winnerCount?: number;
+          };
+
         }>
 
       ).map((c) => {
@@ -1969,6 +2002,12 @@ export const MerchantCampaignListInner: React.FC<{
         const previewDef = resolveCouponDef(formPreview.couponDefId);
 
         const ended = Date.now() >= c.endsAt || c.status === "ended";
+        const settlementStatus = c.settlement?.status;
+        const leaderboardSettled = settlementStatus === "done";
+        const canFinalizeLeaderboard =
+          formPreview.rewardModel === "competitive_leaderboard" &&
+          ended &&
+          !leaderboardSettled;
 
         const locale = i18nInst.language;
 
@@ -2010,7 +2049,7 @@ export const MerchantCampaignListInner: React.FC<{
 
               <p className="merchant-note">{t("campaigns.displayTypeHint")}</p>
 
-            ) : formPreview.rewardModel === "competitive_leaderboard" ? (
+            ) : formUsesRankRewardTiers(formPreview) ? (
               rankRewardTierPreviewLines(formPreview, typedCouponDefs).map((line) => (
                 <p key={line} className="merchant-note">
                   {line}
@@ -2025,11 +2064,11 @@ export const MerchantCampaignListInner: React.FC<{
               </p>
             )}
 
-            {merchantSlug ? (
+            {partnerSlug ? (
 
               <p className="merchant-note">
 
-                {t("campaigns.landingPage", { merchantSlug, slug: c.slug })}
+                {t("campaigns.landingPage", { partnerSlug, slug: c.slug })}
 
               </p>
 
@@ -2043,60 +2082,64 @@ export const MerchantCampaignListInner: React.FC<{
 
             <div className="merchant-nav">
 
-              {c.status !== "live" && c.status !== "ended" ? (
-
+              {c.status !== "live" &&
+              c.status !== "ended" &&
+              !leaderboardSettled ? (
                 <button type="button" className="merchant-btn" onClick={() => void setLive(c.campaignId)}>
-
                   {t("campaigns.goLive")}
-
                 </button>
+              ) : null}
 
+              {c.status !== "live" &&
+              c.status !== "ended" &&
+              leaderboardSettled ? (
+                <p className="merchant-note">{t("campaigns.settledCannotRelive")}</p>
               ) : null}
 
               {c.status === "live" ? (
-
                 <button type="button" className="merchant-btn" onClick={() => void setDraft(c.campaignId)}>
-
                   {t("campaigns.setDraft")}
-
                 </button>
-
               ) : null}
 
-              {c.status !== "ended" ? (
-
-                <button type="button" className="merchant-btn" onClick={() => void startEdit(c.campaignId)}>
-
-                  {t("campaigns.edit")}
-
-                </button>
-
-              ) : null}
-
-              {formPreview.rewardModel === "competitive_leaderboard" && ended ? (
-
+              {c.status === "ended" ? (
                 <button
-
                   type="button"
-
                   className="merchant-btn"
-
-                  onClick={() => void finalizeLeaderboard(c.campaignId)}
-
+                  onClick={() => void hideFromLanding(c.campaignId)}
                 >
-
-                  {t("campaigns.finalizeLeaderboard")}
-
+                  {t("campaigns.hideFromLanding")}
                 </button>
+              ) : null}
 
+              {c.status !== "ended" && !leaderboardSettled ? (
+                <button type="button" className="merchant-btn" onClick={() => void startEdit(c.campaignId)}>
+                  {t("campaigns.edit")}
+                </button>
+              ) : null}
+
+              {formPreview.rewardModel === "competitive_leaderboard" && leaderboardSettled ? (
+                <p className="merchant-note">
+                  {t("campaigns.leaderboardSettled", {
+                    count: c.settlement?.couponsIssued ?? 0,
+                  })}
+                </p>
+              ) : null}
+
+              {canFinalizeLeaderboard ? (
+                <button
+                  type="button"
+                  className="merchant-btn"
+                  onClick={() => void finalizeLeaderboard(c.campaignId)}
+                >
+                  {settlementStatus === "failed"
+                    ? t("campaigns.retryFinalizeLeaderboard")
+                    : t("campaigns.finalizeLeaderboard")}
+                </button>
               ) : null}
 
               <MerchantNavLink
-                route={{
-                  view: "coupons",
-                  merchantId,
-                  campaignId: c.campaignId,
-                }}
+                route={{ view: "coupons", partnerId: String(partnerId), campaignId: c.campaignId }}
               >
                 {t("nav.couponManagement")}
               </MerchantNavLink>
@@ -2139,6 +2182,8 @@ export const MerchantCampaignListInner: React.FC<{
         <CampaignFormFields
           form={form}
           couponDefs={typedCouponDefs}
+          gameOptions={gameOptions}
+          gamesLoading={partnerGamesLoading}
           onChange={patchForm}
           posterPortraitPreview={createPosterPortraitPreview}
           posterLandscapePreview={createPosterLandscapePreview}
@@ -2190,6 +2235,8 @@ export const MerchantCampaignListInner: React.FC<{
           <CampaignFormFields
             form={editForm}
             couponDefs={typedCouponDefs}
+            gameOptions={gameOptions}
+            gamesLoading={partnerGamesLoading}
             structuralLocked={editingStatus === "live"}
             experienceTypeLocked={editingStatus === "live"}
             posterPortraitPreview={editPosterPortraitPreview}
@@ -2208,21 +2255,20 @@ export const MerchantCampaignListInner: React.FC<{
 };
 
 const MerchantCampaignListPage: React.FC<PageProp> = ({ visible, data }) => {
-
-  const merchantId =
-
-    (typeof data?.merchantId === "string" ? data.merchantId : "") || merchantIdFromLocation();
+  const fromData =
+    typeof data?.partnerId === "number"
+      ? data.partnerId
+      : typeof data?.partnerId === "string"
+        ? Number(data.partnerId)
+        : 0;
+  const partnerId =
+    Number.isFinite(fromData) && fromData > 0 ? fromData : partnerIdFromLocation();
 
   return (
-
     <MerchantCampaignProvider>
-
-      <MerchantCampaignListInner visible={visible} merchantId={merchantId} />
-
+      <MerchantCampaignListInner visible={visible} partnerId={partnerId} />
     </MerchantCampaignProvider>
-
   );
-
 };
 
 

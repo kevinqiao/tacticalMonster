@@ -2,13 +2,33 @@
   "auth": {
     "signIn": "Sign in",
     "signOut": "Sign out",
+    "myAccount": "My account",
     "myCoupons": "My coupons",
+    "accountMenuAria": "Account menu",
     "navLabel": "Campaign navigation"
+  },
+  "account": {
+    "nickname": "Nickname",
+    "email": "Email",
+    "phone": "Phone",
+    "emailPlaceholder": "you@example.com",
+    "phonePlaceholder": "+1 …",
+    "editHint": "Nickname: 3–16 letters, numbers, spaces, or underscores (campaign boards). Email and phone are stored in this campaign app for fulfillment contact.",
+    "save": "Save",
+    "saving": "Saving…",
+    "errors": {
+      "invalidName": "Use 3–16 letters, numbers, spaces, or underscores.",
+      "nameTaken": "That nickname is taken.",
+      "cooldown": "You can change your nickname once every 7 days.",
+      "invalidEmail": "Enter a valid email address.",
+      "noAuth": "Sign in to edit your account.",
+      "saveFailed": "Could not save. Try again."
+    }
   },
   "landing": {
     "invalidUrl": "Open a campaign at /campaign/{merchant}/{campaign}.",
     "loading": "Loading campaign…",
-    "noActiveCampaigns": "No active campaigns.",
+    "noActiveCampaigns": "No campaigns available.",
     "campaignNotFound": "Campaign not found.",
     "carouselLabel": "Merchant campaigns",
     "carouselSwitchLabel": "Switch campaign",
@@ -36,6 +56,7 @@
     "leaderboardSolo": "Best score leaderboard",
     "leaderboardMulti": "Total points leaderboard",
     "leaderboardBtn": "Leaderboard",
+    "campaignLeaderboardBtn": "Campaign leaderboard",
     "detailsBtn": "Details",
     "historyBtn": "History"
   },
@@ -45,8 +66,11 @@
     "joining": "Joining…",
     "matching": "Matching…",
     "settling": "Settling…",
-    "dailyLimitReached": "Daily limit reached",
+    "dailyLimitReached": "No challenges left today",
     "couponLimitReached": "Coupon limit reached",
+    "continueUnfinished": "Continue",
+    "startChallenge": "Start challenge",
+    "startWithRank": "Start challenge (rank: {{rank}})",
     "startWithRemaining": "Play ({{remaining}} left today)",
     "continueWithRemaining": "Play again ({{remaining}} left today)",
     "continueChallenge": "Play again",
@@ -74,7 +98,13 @@
   "leaderboard": {
     "closeSheet": "Close leaderboard",
     "close": "Close",
+    "challengeHistoryBtn": "My record",
     "hint": "Includes campaign competitors. Rank rewards are issued once when the campaign ends.",
+    "hintSettlePending": "Campaign ended. Rewards are being finalized…",
+    "hintSettled": "Rewards have been issued.",
+    "hintSettleFailed": "Reward settlement failed. Try again later or contact the merchant.",
+    "viewerRewarded": "You won a reward",
+    "viewerNotRewarded": "No reward this time",
     "empty": "No scores yet. Be the first to play!",
     "bestScore": "Best score",
     "rankPoints": "Total points",
@@ -128,9 +158,10 @@
     "passConditionP75": "Meet seed P75 threshold",
     "passConditionScore": "Score ≥ {{minScore}}",
     "couponReward": "Coupon reward",
-    "passHint": "Earn a coupon each time you pass a run. No leaderboard.",
-    "competitiveHint": "Rank rewards are issued once when the campaign ends.",
-    "competitiveGeneric": "Coupons are issued by final leaderboard rank when the campaign ends.",
+    "passHint": "Earn a coupon each time you pass a run.",
+    "passMultiHint": "Earn a coupon by your place in each multiplayer match (ranks 1–5).",
+    "competitiveHint": "Points accumulate each run; rank rewards are issued once when the campaign ends.",
+    "competitiveGeneric": "Coupons are issued by final points leaderboard rank when the campaign ends.",
     "statusLive": "Live now",
     "status": {
       "draft": "Draft",
@@ -139,8 +170,8 @@
       "ended": "Ended"
     },
     "rewardModel": {
-      "pass_per_run": "Pass per run · coupon each qualifying run",
-      "competitive_leaderboard": "Competitive · coupons by final rank"
+      "pass_per_run": "Per-run · coupon each qualifying run",
+      "competitive_leaderboard": "Points ranking · coupons by final board"
     },
     "mode": {
       "solo": "Solo",
@@ -158,10 +189,20 @@
     "title": "History",
     "empty": "No matches yet. They will appear here after you play.",
     "signInHint": "Sign in to view your match history for this campaign.",
+    "competitiveHint": "Points ranking: rewards are issued by final leaderboard when the campaign ends.",
+    "reportBtn": "Report",
+    "reportLoading": "Loading…",
     "playedAt": "Played {{at}}",
     "score": "Score {{score}}",
     "rank": "Rank #{{rank}}",
     "noScore": "No score yet",
+    "modeSolo": "Solo",
+    "modeMulti": "Multi",
+    "challengeSuccess": "Challenge passed",
+    "challengeFail": "Challenge failed",
+    "pointsDelta": "Match points {{delta}}",
+    "rewardEarned": "Reward: {{label}}",
+    "rewardNone": "No reward this match",
     "status": {
       "inProgress": "In progress",
       "finished": "Finished",
@@ -176,9 +217,11 @@
     "signInHint": "Sign in to view coupons you earned from this merchant.",
     "use": "Use",
     "useTitle": "Show QR code",
-    "qrHint": "Ask staff to scan the QR code below and confirm redemption on the next screen.",
+    "qrHint": "Ask staff to scan this code, sign in, pick their store if needed, then confirm.",
     "issuedAt": "Issued {{at}}",
+    "activatesAt": "Active from {{at}}",
     "expiresAt": "Expires {{at}}",
+    "notYetActive": "Not active yet",
     "status": {
       "issued": "Ready to use",
       "redeemed": "Redeemed",

@@ -122,7 +122,13 @@ export default defineSchema({
     /** 周期型：指向当前开放桶；`single_match` 省略 */
     instanceId: v.optional(v.id("portal_tournament_instances")),
     campaignId: v.optional(v.string()),
-    merchantId: v.optional(v.string()),
+    partnerId: v.optional(v.number()),
+    /** Join authorize snapshot: pass_per_run | competitive_leaderboard */
+    campaignRewardMode: v.optional(
+      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
+    ),
+    /** 0 for pass_per_run; campaign.endsAt for competitive_leaderboard */
+    campaignDueTime: v.optional(v.number()),
   })
     .index("by_templateId", ["templateId"])
     .index("by_instanceId", ["instanceId"])
@@ -138,10 +144,6 @@ export default defineSchema({
     updatedAt: v.number(),
     pointDelta: v.optional(v.number()),
     weeklyPointsAfter: v.optional(v.number()),
-    /** 单人挑战：目标分（P75） */
-    seedScoreThreshold: v.optional(v.number()),
-    /** 单人挑战：是否达标 */
-    challengeSuccess: v.optional(v.boolean()),
   })
     .index("by_tournament_uid", ["tournamentId", "uid"])
     .index("by_uid_template", ["uid", "templateId"])
@@ -258,8 +260,6 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
-    campaignId: v.optional(v.string()),
-    merchantId: v.optional(v.string()),
     asyncMatchFinalizeScheduledId: v.optional(v.id("_scheduled_functions")),
     asyncMatchFinalizeDueAt: v.optional(v.number()),
   }).index("by_tournament", ["tournamentId"]),
@@ -338,7 +338,11 @@ export default defineSchema({
     status: v.union(v.literal("waiting"), v.literal("claiming"), v.literal("matched")),
     matchedRunTournamentId: v.optional(v.id("portal_run_tournaments")),
     campaignId: v.optional(v.string()),
-    merchantId: v.optional(v.string()),
+    partnerId: v.optional(v.number()),
+    campaignRewardMode: v.optional(
+      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
+    ),
+    campaignDueTime: v.optional(v.number()),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
     createdAt: v.number(),
@@ -384,10 +388,28 @@ export default defineSchema({
      * 结算后清除。
      */
     replayBaselineScore: v.optional(v.number()),
+    /** 单人挑战：目标分（P75）；与本局 score/settled 同文档 */
+    seedScoreThreshold: v.optional(v.number()),
+    /** 单人挑战：是否达标 */
+    challengeSuccess: v.optional(v.boolean()),
+    /**
+     * Campaign pass_run 发奖展示快照（HTTP 成功后回写；与券生命周期解耦）。
+     * none=已确认未发券；pending=重试中；synced=历史可展示；failed=重试耗尽。
+     */
+    campaignRewardSyncStatus: v.optional(
+      v.union(
+        v.literal("none"),
+        v.literal("pending"),
+        v.literal("synced"),
+        v.literal("failed")
+      )
+    ),
+    campaignRewardLabel: v.optional(v.string()),
+    campaignRewardCouponId: v.optional(v.string()),
+    campaignRewardSyncedAt: v.optional(v.number()),
+    campaignRewardSyncAttempts: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
-    campaignId: v.optional(v.string()),
-    merchantId: v.optional(v.string()),
   })
     .index("by_gameId", ["gameId"])
     .index("by_matchId", ["matchId"])
@@ -603,4 +625,37 @@ export default defineSchema({
     .index("by_gameType_uid_poolVersion", ["gameType", "uid", "poolVersion"])
     .index("by_gameType_uid_poolVersion_seedId", ["gameType", "uid", "poolVersion", "seedId"])
     .index("by_matchId", ["matchId"]),
+
+  /** Merchant campaign competitive leaderboard (Portal SSOT). */
+  campaign_league_boards: defineTable({
+    campaignId: v.string(),
+    partnerId: v.number(),
+    mode: v.union(v.literal("solo"), v.literal("multi")),
+    startsAt: v.number(),
+    dueTime: v.number(),
+    humanAnchorAt: v.number(),
+    status: v.union(v.literal("open"), v.literal("closed")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_campaignId", ["campaignId"]),
+
+  campaign_league_entries: defineTable({
+    campaignId: v.string(),
+    uid: v.string(),
+    isBot: v.boolean(),
+    bestScore: v.optional(v.number()),
+    rankPoints: v.optional(v.number()),
+    plays: v.number(),
+    lastSubmittedAt: v.optional(v.number()),
+    revealAt: v.optional(v.number()),
+    botPeriodEndValue: v.optional(v.number()),
+    botPersonaId: v.optional(v.string()),
+    slot: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_campaign_uid", ["campaignId", "uid"])
+    .index("by_campaign_score", ["campaignId", "bestScore"])
+    .index("by_campaign_rankPoints", ["campaignId", "rankPoints"])
+    .index("by_campaign_bots", ["campaignId", "isBot"]),
 });

@@ -20,7 +20,7 @@ export class EmbedAuthenticator implements Authenticator {
     data: {
       credential?: string;
       method?: EmbedAuthMethod;
-      merchantSlug?: string;
+      partnerSlug?: string;
     }
   ): Promise<User | null> {
     const pid = partner;
@@ -31,7 +31,7 @@ export class EmbedAuthenticator implements Authenticator {
       pid,
       credential,
       method: data?.method,
-      merchantSlug: data?.merchantSlug,
+      partnerSlug: data?.partnerSlug,
     });
   }
 }

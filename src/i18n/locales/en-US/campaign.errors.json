@@ -33,6 +33,8 @@
     "slug_taken": "Slug already taken",
     "campaign_slug_taken": "Campaign slug already taken",
     "campaign_ended": "Campaign has ended",
+    "campaign_settled_cannot_relive": "Rewards already settled; cannot go live again",
+    "campaign_settled_locked": "Rewards already settled; campaign is locked and cannot be edited",
     "live_campaign_locked": "Live campaign: structural fields are locked",
     "forbidden": "Forbidden",
     "unsupported_game_type": "Unsupported game type",
@@ -50,6 +52,11 @@
     "invalid_fields": "Invalid fields",
     "coupon_def_not_found": "Coupon definition not found",
     "coupon_def_not_active": "Coupon definition is not active",
+    "invalid_coupon_validity_hours": "Validity must be between 1 and 8760 hours",
+    "invalid_coupon_activation_at": "Enter a valid activation time",
+    "invalid_coupon_activation_delay": "Activation delay must be between 0 and 8760 hours",
+    "invalid_coupon_activation": "Invalid activation mode",
+    "not_yet_active": "Not active yet",
     "reward_must_be_free_item": "Reward must be a free item",
     "reward_label_required": "Reward label is required",
     "pass_per_run_requires_solo": "Pass-per-run requires solo mode",
@@ -82,7 +89,8 @@
     "cannot_add_owner": "Cannot add owner via this API",
     "uid_required": "UID required",
     "merchant_id_required": "merchantId required",
-    "not_merchant_staff": "Account is not in merchant_staff"
+    "not_merchant_staff": "Account is not in store_staff",
+    "not_store_staff": "Account is not in store_staff"
   },
   "success": {
     "merchantCreated": "Merchant created",
@@ -90,6 +98,7 @@
     "saved": "Saved",
     "live": "Campaign is now live",
     "drafted": "Moved to draft; all fields editable",
+    "hiddenFromLanding": "Hidden from the landing page (still visible in admin)",
     "couponDefCreated": "Coupon definition created",
     "archived": "Archived",
     "voided": "Voided",

@@ -1759,6 +1759,16 @@
   height: 184px;
 }
 
+.tierStripRowPortrait .tierDivision {
+  font-size: 72px;
+}
+
+.tierStripRowPortrait .tierName {
+  margin-top: 8px;
+  font-size: 56px;
+  letter-spacing: 2px;
+}
+
 .tierStripRowPortrait .tierHelpBtn {
   width: 56px;
   height: 58px;

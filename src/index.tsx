@@ -1,10 +1,12 @@
 import "core-js/stable";
 import ReactDOM from "react-dom/client";
 import { removePortalDocumentStyles } from "component/lobby/portal/usePortalDocumentStyles";
+import { lockMobileViewportZoom } from "host/lockMobileViewportZoom";
 import App from "./App";
 import "./index.css";
 
 removePortalDocumentStyles();
+lockMobileViewportZoom();
 
 try {
   if (typeof sessionStorage !== "undefined") {

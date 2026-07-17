@@ -2,6 +2,7 @@ import { v } from "convex/values";
 
 import { mutation } from "../../_generated/server";
 import { EMBED_AUTH_CHANNEL_CID } from "../embed/embedAuthConstants";
+import type { PartnerCapabilities } from "./partnerCapabilities";
 
 const DEV_BOOTSTRAP_SECRET = "dev-local-partner-embed-bootstrap";
 
@@ -18,7 +19,9 @@ export const bootstrapDevPartnerEmbed = mutation({
     embedMethod: v.optional(
       v.union(v.literal("jwt_local"), v.literal("crazygames_jwt"))
     ),
-    enabledContexts: v.optional(v.array(v.string())),
+    /** When true (default), enable portalGames capability for this partner. */
+    portalGames: v.optional(v.boolean()),
+    campaignOps: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const secret =
@@ -30,14 +33,14 @@ export const bootstrapDevPartnerEmbed = mutation({
     const pid = args.pid ?? 0;
     const jwtSecret = args.jwtSecret?.trim() || `partner-dev-secret-${pid}`;
     const embedMethod = args.embedMethod ?? "jwt_local";
-    const enabledContexts = args.enabledContexts?.length
-      ? args.enabledContexts
-      : ["portal"];
+    const capabilities: PartnerCapabilities = {
+      portalGames: args.portalGames !== false,
+      campaignOps: args.campaignOps === true,
+    };
 
     const partnerData = {
       jwtSecret,
       embed: { method: embedMethod },
-      enabledContexts,
       ...(args.allowedOrigins?.length ? { allowedOrigins: args.allowedOrigins } : {}),
     };
 
@@ -56,12 +59,14 @@ export const bootstrapDevPartnerEmbed = mutation({
         existing.data && typeof existing.data === "object"
           ? (existing.data as Record<string, unknown>)
           : {};
+      const { enabledContexts: _drop, ...priorRest } = prior;
       await ctx.db.patch(existing._id, {
         name: args.name ?? existing.name ?? name,
         host: args.host ?? existing.host ?? host,
         auth_channels: authChannelIds,
         staff_auth_channels: staffAuthChannelIds,
-        data: { ...prior, ...partnerData },
+        capabilities,
+        data: { ...priorRest, ...partnerData },
       });
       return {
         ok: true as const,
@@ -78,6 +83,7 @@ export const bootstrapDevPartnerEmbed = mutation({
       host,
       auth_channels: authChannelIds,
       staff_auth_channels: staffAuthChannelIds,
+      capabilities,
       data: partnerData,
     });
 

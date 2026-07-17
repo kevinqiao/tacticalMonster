@@ -27,7 +27,7 @@ type MerchantNavLinkProps = {
   className?: string;
 };
 
-/** In merchant SPA (embedded or /campaign/merchant): button + stack navigate. Else: shareable `<a>`. */
+/** In store console SPA (embedded or /partner/operation): button + stack navigate. Else: shareable `<a>`. */
 export const MerchantNavLink: React.FC<MerchantNavLinkProps> = ({
   route,
   children,

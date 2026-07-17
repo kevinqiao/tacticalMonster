@@ -14,8 +14,6 @@ export const partnerAdminFns = {
   addPartnerStaff: api.service.partner.staffAccountActions.addPartnerStaff,
   updatePartnerStaffProfile: api.service.partner.staffAccountActions.updatePartnerStaffProfile,
   removePartnerStaff: api.service.partner.partnerAdmin.removePartnerStaff,
-  getPartnerPortalConfig: api.service.partner.partnerAdmin.getPartnerPortalConfig,
-  updatePartnerPortalConfig: api.service.partner.partnerAdmin.updatePartnerPortalConfig,
 };
 
 export function usePartnerAdminAuth() {
@@ -52,14 +50,6 @@ export function usePartnerTeam(partnerId: number | null) {
   );
 }
 
-export function usePartnerPortalConfig(partnerId: number | null) {
-  const { authed } = usePartnerAdminAuth();
-  return useQuery(
-    partnerAdminFns.getPartnerPortalConfig,
-    authed && partnerId ? { partnerId } : "skip"
-  );
-}
-
 export function usePartnerAdminMutations() {
   return {
     updatePartnerProfile: useMutation(partnerAdminFns.updatePartnerProfile),
@@ -68,7 +58,6 @@ export function usePartnerAdminMutations() {
     addPartnerStaff: useAction(partnerAdminFns.addPartnerStaff),
     updatePartnerStaffProfile: useAction(partnerAdminFns.updatePartnerStaffProfile),
     removePartnerStaff: useMutation(partnerAdminFns.removePartnerStaff),
-    updatePartnerPortalConfig: useMutation(partnerAdminFns.updatePartnerPortalConfig),
   };
 }
 

@@ -63,7 +63,11 @@ const WebSignInForm: React.FC<WebSignInFormProps> = ({
       >
         {busy ? "登录中…" : submitLabel ?? "登录"}
       </button>
-      {error ? <p className="merchant-note">{error}</p> : null}
+      {error ? (
+        <p className="merchant-note" style={{ color: "#b91c1c", marginTop: 12 }} role="alert">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 };

@@ -21,9 +21,28 @@ function botPlayingScoreLabel(row: CasualAsyncTableSummaryUI['rows'][number], no
   return '对局中';
 }
 
+function WatchReplayIcon() {
+  return (
+    <svg
+      className="msc-lb-watchBtn__icon"
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      aria-hidden
+      focusable="false"
+    >
+      <path
+        fill="currentColor"
+        d="M8 5.14v13.72a1 1 0 0 0 1.55.83l10.12-6.86a1 1 0 0 0 0-1.66L9.55 4.31A1 1 0 0 0 8 5.14z"
+      />
+    </svg>
+  );
+}
+
 export const CasualTableSummaryPanel: React.FC<{
   s: CasualAsyncTableSummaryUI;
   onWatchRow?: (ctx: Match3WatchContext, displayLabel: string) => void;
+  /** 用于按钮 aria-label（图标按钮不展示文案） */
   watchButtonLabel?: string;
   /** 覆盖默认「本桌至多 N 席 · 已计分 M 人」（历史战报等） */
   metaNote?: string;
@@ -74,7 +93,11 @@ export const CasualTableSummaryPanel: React.FC<{
               <th scope="col">名次</th>
               <th scope="col">玩家</th>
               <th scope="col">得分</th>
-              {onWatchRow ? <th scope="col">{watchButtonLabel}</th> : null}
+              {onWatchRow ? (
+                <th scope="col" className="msc-lb-watchCol">
+                  <span className="msc-lb-srOnly">{watchButtonLabel}</span>
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -83,29 +106,19 @@ export const CasualTableSummaryPanel: React.FC<{
                 <td>
                   {row.rowState === 'playing' || row.rowState === 'matching' ? '—' : row.rank}
                 </td>
-                <td>
-                  {row.displayLabel}
-                  {row.isBot && row.rowState === 'scored' ? (
-                    <span className="msc-lb-botTag" aria-label="系统对手">
-                      系统对手
-                    </span>
-                  ) : null}
-                  {row.isBot && row.rowState === 'playing' ? (
-                    <span className="msc-lb-botTag" aria-label="系统对手">
-                      系统对手
-                    </span>
-                  ) : null}
-                </td>
+                <td>{row.displayLabel}</td>
                 <td>{scoreCell(row)}</td>
                 {onWatchRow ? (
-                  <td>
+                  <td className="msc-lb-watchCol">
                     {row.watchContext ? (
                       <button
                         type="button"
                         className="msc-lb-watchBtn"
+                        aria-label={`${watchButtonLabel} ${row.displayLabel}`}
+                        title={watchButtonLabel}
                         onClick={() => onWatchRow(row.watchContext!, row.displayLabel)}
                       >
-                        {watchButtonLabel}
+                        <WatchReplayIcon />
                       </button>
                     ) : (
                       '—'
@@ -117,9 +130,7 @@ export const CasualTableSummaryPanel: React.FC<{
           </tbody>
         </table>
       </div>
-      <p className="msc-tableSummary__foot">
-        分数越高名次越靠前。带「系统对手」标记的为自动补位玩家，与真人同桌一并计名次。
-      </p>
+      <p className="msc-tableSummary__foot">分数越高名次越靠前。</p>
     </div>
   );
 };

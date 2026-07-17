@@ -117,6 +117,15 @@ export const PartnerPlace =
             enter: "fadeIn",
             exit: "fadeOut",
         },
+        {
+            name: "operation",
+            auth: 1,
+            path: "./lobby/campaign/merchant/MerchantHomePage",
+            uri: "operation",
+            class: "page_container page_container--scroll",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        },
     ],
 }
 
@@ -145,15 +154,16 @@ export const CampaignPlace =
             exit: "fadeOut",
         },
         {
-            name: "merchant",
-            auth: 1,
-            path: "./lobby/campaign/merchant/MerchantHomePage",
+            /** Compat redirect → /partner/operation */
+            name: "merchantLegacyRedirect",
+            auth: 0,
+            path: "./lobby/campaign/merchant/CampaignMerchantLegacyRedirectPage",
             uri: "merchant",
-            class: "page_container page_container--scroll",
+            class: "page_container",
             enter: "fadeIn",
             exit: "fadeOut",
-        }
-    ]
+        },
+    ],
 }
 
 /** @deprecated use CampaignPlace (/campaign) */

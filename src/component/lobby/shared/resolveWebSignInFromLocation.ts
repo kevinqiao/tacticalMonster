@@ -1,4 +1,7 @@
 import type { WebSignInStaffGate } from "./webSignInHelpers";
+import {
+  isPartnerOperationPath,
+} from "../partner/partnerPaths";
 
 export type WebSignInLocationContext = {
   staffGate: WebSignInStaffGate;
@@ -22,6 +25,11 @@ export function resolveWebSignInFromLocation(
     };
   }
 
+  // Store console before generic /partner/ (admin uses partner_staff).
+  if (isPartnerOperationPath(pathname)) {
+    return { staffGate: "merchant" };
+  }
+
   if (pathname.startsWith("/partner/")) {
     const raw = new URLSearchParams(search).get("partnerId");
     const partnerId = raw ? Number(raw) : NaN;
@@ -29,10 +37,6 @@ export function resolveWebSignInFromLocation(
       staffGate: "partner",
       ...(Number.isFinite(partnerId) && partnerId > 0 ? { partnerId } : {}),
     };
-  }
-
-  if (pathname.startsWith("/campaign/merchant")) {
-    return { staffGate: "merchant" };
   }
 
   return { staffGate: "none" };

@@ -77,7 +77,7 @@ function scrollAnchorIntoModalBody(el: HTMLElement) {
   body.scrollTop += elTop - bodyTop - 12;
 }
 
-/** 玩法规则弹窗内容：积分 / 段位与分组 / 奖励 三段式（light DOM，卡通主题） */
+/** 玩法规则弹窗内容：积分 / 段位与分组 / 奖励（连续滚动，无顶部 Tab） */
 export function PortalRulesContent({
   anchor,
   currentTierId,
@@ -87,7 +87,6 @@ export function PortalRulesContent({
   currentTierId?: PortalTierId;
 }) {
   const { t } = useTranslation("portal.player");
-  const [activeTab, setActiveTab] = useState<RulesSection>(sectionOfAnchor(anchor));
   const [rewardTier, setRewardTier] = useState<PortalTierId>(
     currentTierId && TIER_IDS.includes(currentTierId) ? currentTierId : "bronze"
   );
@@ -133,33 +132,8 @@ export function PortalRulesContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchor]);
 
-  const goTo = (section: RulesSection) => {
-    setActiveTab(section);
-    const target = sectionRefs[section].current;
-    if (target) scrollAnchorIntoModalBody(target);
-  };
-
-  const tabItems: [RulesSection, string][] = [
-    ["points", t("rules.tabs.points")],
-    ["tiers", t("rules.tabs.tiers")],
-    ["rewards", t("rules.tabs.rewards")],
-  ];
-
   return (
     <div className="portal-rules">
-      <div className="portal-rules-tabs">
-        {tabItems.map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className={`portal-rules-tab${activeTab === id ? " portal-rules-tab--active" : ""}`}
-            onClick={() => goTo(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
       <div ref={sectionRefs.points} className="portal-rules-section">
         <h3 className="portal-rules-title">{t("rules.points.title")}</h3>
         <p

@@ -1,6 +1,6 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { PORTAL_GAME_TYPES } from "@/convex/portal/convex/data/portalGameRegistry";
+import { PARTNER_GAME_TYPES } from "@/convex/portal/convex/data/partnerGameRegistry";
 import {
   parsePortalPathFromPathname,
   portalLaunchPath,
@@ -49,7 +49,7 @@ describe("parsePortalPathFromPathname", () => {
   });
 
   it("recognizes all registered game types in first-party URLs", () => {
-    for (const gameType of PORTAL_GAME_TYPES) {
+    for (const gameType of PARTNER_GAME_TYPES) {
       const parsed = parsePortalPathFromPathname(`/portal/${gameType}`);
       expect(parsed.isFirstPartyPortal).toBe(true);
       expect(parsed.gameType).toBe(gameType);

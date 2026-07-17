@@ -42,7 +42,7 @@ export const EmbedAuthGateProvider: React.FC<{ children: React.ReactNode }> = ({
     partner,
     partnerPid,
     partnerResolveReady,
-    campaignMerchantSlug,
+    campaignPartnerSlug,
     portalPartnerKey,
     isFirstPartyPortal,
   } = usePartnerManager();
@@ -76,12 +76,18 @@ export const EmbedAuthGateProvider: React.FC<{ children: React.ReactNode }> = ({
     clearGraceTimer();
     let cancelled = false;
 
+    // Staff consoles never wait on embed/Clerk handoff — do not block SSO behind partner resolve.
+    if (isStaffWebSignInContext()) {
+      setPhase("skipped");
+      return;
+    }
+
     if (!authReady || !partnerResolveReady) {
       setPhase("pending");
       return;
     }
 
-    if (isStaffWebSignInContext() || isPlatformAuthed(user)) {
+    if (isPlatformAuthed(user)) {
       setPhase("skipped");
       return;
     }
@@ -97,7 +103,7 @@ export const EmbedAuthGateProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const attempt = shouldAttemptEmbedGate({
-      staffConsole: isStaffWebSignInContext(),
+      staffConsole: false,
       partnerResolveReady,
       authReady,
       partner,
@@ -114,7 +120,7 @@ export const EmbedAuthGateProvider: React.FC<{ children: React.ReactNode }> = ({
       partnerPid,
       partner,
       partnerResolveReady,
-      campaignMerchantSlug,
+      campaignPartnerSlug,
       portalPartnerKey,
       isFirstPartyPortal,
     });
@@ -152,7 +158,7 @@ export const EmbedAuthGateProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [
     authReady,
-    campaignMerchantSlug,
+    campaignPartnerSlug,
     clearGraceTimer,
     isFirstPartyPortal,
     partner,

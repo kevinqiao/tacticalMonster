@@ -12,7 +12,7 @@ import { isValidPortalGameType } from "../../portal/service/portalGameTypeGuards
 import {
   MerchantCampaignProvider,
   useCampaignPublicLive,
-  useMerchantCampaignsPublicLive,
+  usePartnerCampaignsPublicLive,
   isDisplayCampaign,
   type CampaignPublicView,
 } from "../service/useMerchantCampaignManager";
@@ -27,27 +27,27 @@ import "../playForCoupon.css";
 
 import "./campaignLanding.css";
 
-function slugsFromLocation(): { merchantSlug: string; campaignSlug: string } {
+function slugsFromLocation(): { partnerSlug: string; campaignSlug: string } {
   const parts = window.location.pathname.split("/").filter(Boolean);
 
   if (parts[0] === "campaign" && parts[1] && parts[1] !== "merchant") {
-    return { merchantSlug: parts[1], campaignSlug: parts[2] ?? "" };
+    return { partnerSlug: parts[1], campaignSlug: parts[2] ?? "" };
   }
 
-  return { merchantSlug: "", campaignSlug: "" };
+  return { partnerSlug: "", campaignSlug: "" };
 }
 
 const CampaignLandingSingle: React.FC<{
-  merchantSlug: string;
+  partnerSlug: string;
   campaignSlug: string;
   campaignPublic: CampaignPublicView;
   loadingPublic: boolean;
   user: { uid?: string } | null | undefined;
   signOut: () => void;
-}> = ({ merchantSlug, campaignSlug, campaignPublic, loadingPublic, user, signOut }) => {
+}> = ({ partnerSlug, campaignSlug, campaignPublic, loadingPublic, user, signOut }) => {
   if (isDisplayCampaign(campaignPublic.campaign)) {
     return (
-      <CampaignDisplayWithFlow campaignPublic={campaignPublic} merchantSlug={merchantSlug} />
+      <CampaignDisplayWithFlow campaignPublic={campaignPublic} partnerSlug={partnerSlug} />
     );
   }
 
@@ -59,7 +59,7 @@ const CampaignLandingSingle: React.FC<{
     <LazyPortalProvider gameType={gameType}>
       <CampaignLandingWithFlow
         campaignPublic={campaignPublic}
-        merchantSlug={merchantSlug}
+        partnerSlug={partnerSlug}
         campaignSlug={campaignSlug}
         loadingPublic={loadingPublic}
         user={user}
@@ -71,13 +71,13 @@ const CampaignLandingSingle: React.FC<{
 
 const CampaignLandingInner: React.FC<{
   visible: number;
-  merchantSlug: string;
+  partnerSlug: string;
   campaignSlug: string;
-}> = ({ visible, merchantSlug, campaignSlug }) => {
+}> = ({ visible, partnerSlug, campaignSlug }) => {
   const { t } = useTranslation("campaign.player");
   const { user, logout, cancelAuth, askAuth } = useUserManager();
 
-  const { slides, isLoading: slidesLoading } = useMerchantCampaignsPublicLive(merchantSlug);
+  const { slides, isLoading: slidesLoading } = usePartnerCampaignsPublicLive(partnerSlug);
 
   const carouselInitialSlug = useMemo(() => {
     if (!slides?.length) return campaignSlug;
@@ -88,7 +88,7 @@ const CampaignLandingInner: React.FC<{
   const useCarousel = Boolean(slides && slides.length >= 1);
 
   const { campaignPublic: fallbackPublic, isLoading: fallbackLoading } = useCampaignPublicLive(
-    merchantSlug,
+    partnerSlug,
     useCarousel ? null : campaignSlug
   );
 
@@ -99,7 +99,7 @@ const CampaignLandingInner: React.FC<{
 
   if (visible === 0) return null;
 
-  if (!merchantSlug) {
+  if (!partnerSlug) {
     return (
       <div className="campaign-page campaign-page--plain">
         <div className="campaign-error">{t("landing.invalidUrl")}</div>
@@ -118,7 +118,7 @@ const CampaignLandingInner: React.FC<{
   if (useCarousel && slides) {
     return (
       <CampaignMerchantCarousel
-        merchantSlug={merchantSlug}
+        partnerSlug={partnerSlug}
         slides={slides}
         initialCampaignSlug={carouselInitialSlug}
         user={user}
@@ -139,7 +139,7 @@ const CampaignLandingInner: React.FC<{
   if (fallbackPublic) {
     return (
       <CampaignLandingSingle
-        merchantSlug={merchantSlug}
+        partnerSlug={partnerSlug}
         campaignSlug={campaignSlug}
         campaignPublic={fallbackPublic}
         loadingPublic={false}
@@ -166,26 +166,26 @@ const CampaignLandingInner: React.FC<{
 
 const CampaignLandingPage: React.FC<PageProp> = ({ visible, data }) => {
   const fromData = useMemo(() => {
-    const merchantSlug =
-      (typeof data?.merchantSlug === "string" ? data.merchantSlug : "") ||
-      (typeof data?.params?.merchantSlug === "string" ? data.params.merchantSlug : "");
+    const partnerSlug =
+      (typeof data?.partnerSlug === "string" ? data.partnerSlug : "") ||
+      (typeof data?.params?.partnerSlug === "string" ? data.params.partnerSlug : "");
 
     const campaignSlug =
       (typeof data?.campaignSlug === "string" ? data.campaignSlug : "") ||
       (typeof data?.params?.campaignSlug === "string" ? data.params.campaignSlug : "");
 
-    return { merchantSlug, campaignSlug };
+    return { partnerSlug, campaignSlug };
   }, [data]);
 
   const fromPath = slugsFromLocation();
-  const merchantSlug = fromData.merchantSlug || fromPath.merchantSlug;
+  const partnerSlug = fromData.partnerSlug || fromPath.partnerSlug;
   const campaignSlug = fromData.campaignSlug || fromPath.campaignSlug;
 
   return (
     <MerchantCampaignProvider>
       <CampaignLandingInner
         visible={visible}
-        merchantSlug={merchantSlug}
+        partnerSlug={partnerSlug}
         campaignSlug={campaignSlug}
       />
     </MerchantCampaignProvider>

@@ -19,15 +19,40 @@ export default defineSchema({
         /** Platform / Partner admin Web password (cid=0). Consumer uses `auth_channels`. */
         staff_auth_channels: v.optional(v.array(v.number())),
 
+        /**
+         * Bag for runtime config: embed/JWT, branding, allowedOrigins, defaultLandingPath.
+         * Product gates (portal/campaign) live only on `capabilities`.
+         */
         data: v.optional(v.any()),
 
         /** URL segment for /portal/{portal_key}/{gameType} (e.g. crazygames). */
         portal_key: v.optional(v.string()),
 
+        /**
+         * Enabled game types from partnerGameRegistry (allowlist; unset/empty → full registry).
+         * Also caps merchant campaign gameType for merchants bound to this partner.
+         */
+        games: v.optional(v.array(v.string())),
+
+        /**
+         * Product capability flags — sole source of truth for Portal vs Campaign Ops.
+         * Unset → both false.
+         */
+        capabilities: v.optional(
+          v.object({
+            portalGames: v.boolean(),
+            campaignOps: v.boolean(),
+          })
+        ),
+
+        /** Public URL segment for /campaign/{slug}/... when campaignOps. */
+        slug: v.optional(v.string()),
+
     })
         .index("by_pid", ["pid"])
         .index("by_name", ["name"])
-        .index("by_portal_key", ["portal_key"]),
+        .index("by_portal_key", ["portal_key"])
+        .index("by_slug", ["slug"]),
 
 
 
@@ -59,7 +84,29 @@ export default defineSchema({
 
         .index("by_uid", ["uid"]),
 
+    /** Redeem location (门店). Owned by a campaignOps partner. */
+    store: defineTable({
+        storeId: v.string(),
+        partnerId: v.number(),
+        slug: v.string(),
+        name: v.string(),
+        status: v.union(v.literal("active"), v.literal("suspended")),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_storeId", ["storeId"])
+        .index("by_slug", ["slug"])
+        .index("by_partnerId", ["partnerId"]),
 
+    store_staff: defineTable({
+        storeId: v.string(),
+        uid: v.string(),
+        role: v.union(v.literal("owner"), v.literal("staff")),
+        createdAt: v.number(),
+    })
+        .index("by_store", ["storeId"])
+        .index("by_store_uid", ["storeId", "uid"])
+        .index("by_uid", ["uid"]),
 
     platform_staff: defineTable({
 
@@ -103,7 +150,10 @@ export default defineSchema({
 
 
 
-    /** Canonical platform identity: uid = `${cid}_${partnerId}_${hash(subject)}`. JWT subject = uid. */
+    /** Canonical platform identity: uid = `${cid}_${partnerId}_${hash(subject)}`. JWT subject = uid.
+     * Staff Web (cid=0): partnerId is always 0 (one person platform-wide).
+     * Consumers (Clerk/embed/…): partnerId is the real Partner (per-tenant isolation).
+     */
 
     auth_identities: defineTable({
 

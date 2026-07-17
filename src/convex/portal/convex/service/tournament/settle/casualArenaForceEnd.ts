@@ -1,12 +1,12 @@
 "use node";
 
 import {
-  isRegisteredPortalGameType,
-  type RegisteredPortalGameType,
-} from "../../../data/portalGameRegistry";
+  isRegisteredPartnerGameType,
+  type RegisteredPartnerGameType,
+} from "../../../data/partnerGameRegistry";
 import { signPlatformServiceToken } from "../../../../../shared/platformAuth/platformJwtSign";
 
-const DEV_ARENA_CONVEX_URL: Record<RegisteredPortalGameType, string> = {
+const DEV_ARENA_CONVEX_URL: Record<RegisteredPartnerGameType, string> = {
   solitaire: "https://artful-chipmunk-59.convex.cloud",
   block_blast: "https://spotted-marten-367.convex.cloud",
   tower_arena: "https://tower-arena-dev.convex.cloud",
@@ -14,7 +14,7 @@ const DEV_ARENA_CONVEX_URL: Record<RegisteredPortalGameType, string> = {
   yatz: "https://precious-retriever-7.convex.cloud",
 };
 
-const ARENA_CONVEX_ENV: Record<RegisteredPortalGameType, string> = {
+const ARENA_CONVEX_ENV: Record<RegisteredPartnerGameType, string> = {
   solitaire: "SOLITAIRE_CONVEX_URL",
   block_blast: "BLOCK_BLAST_CONVEX_URL",
   tower_arena: "TOWER_CONVEX_URL",
@@ -23,7 +23,7 @@ const ARENA_CONVEX_ENV: Record<RegisteredPortalGameType, string> = {
 };
 
 export function resolveArenaConvexCloudUrl(gameType: string): string | null {
-  if (!isRegisteredPortalGameType(gameType)) return null;
+  if (!isRegisteredPartnerGameType(gameType)) return null;
   const envKey = ARENA_CONVEX_ENV[gameType];
   const fromEnv = process.env[envKey]?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");

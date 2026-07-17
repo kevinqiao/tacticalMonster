@@ -49,6 +49,8 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
     secondaryText = `${secondaryText} ${replayCountdown}`;
   }
 
+  const showSecondary = Boolean(secondaryLabel && onSecondary);
+
   return (
     <div className="msc-overlay" role="presentation">
       <button
@@ -64,75 +66,90 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="ssc">
-          <h2 id={titleId} className="ssc__title msc-successTitle">
-            {challenge ? (challenge.success ? '挑战成功' : '未达成目标') : title}
-          </h2>
-          {challenge ? (
-            <div
-              className={
-                challenge.success
-                  ? 'msc-challengeResult msc-challengeResult--success'
-                  : 'msc-challengeResult msc-challengeResult--fail'
-              }
-              role="status"
-            >
-              <span className="msc-challengeResult__badge">
-                {challenge.success ? '成功' : '未达成'}
-              </span>
-              <div className="msc-challengeResult__rows">
-                <div className="msc-challengeResult__row">
-                  <span>目标分（P75）</span>
-                  <span className="msc-challengeResult__val">
-                    {challenge.targetScore.toLocaleString()}
-                  </span>
-                </div>
-                <div className="msc-challengeResult__row">
-                  <span>游戏分数</span>
-                  <span className="msc-challengeResult__val">
-                    {challenge.achievedScore.toLocaleString()}
-                  </span>
+        <div className="ssc ssc--pinnedFooter">
+          <div className="ssc__scroll">
+            <h2 id={titleId} className="ssc__title msc-successTitle">
+              {challenge ? (challenge.success ? '挑战成功' : '未达成目标') : title}
+            </h2>
+            {challenge ? (
+              <div
+                className={
+                  challenge.success
+                    ? 'msc-challengeResult msc-challengeResult--success'
+                    : 'msc-challengeResult msc-challengeResult--fail'
+                }
+                role="status"
+              >
+                <span className="msc-challengeResult__badge">
+                  {challenge.success ? '成功' : '未达成'}
+                </span>
+                <div className="msc-challengeResult__rows">
+                  <div className="msc-challengeResult__row">
+                    <span>目标分（P75）</span>
+                    <span className="msc-challengeResult__val">
+                      {challenge.targetScore.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="msc-challengeResult__row">
+                    <span>游戏分数</span>
+                    <span className="msc-challengeResult__val">
+                      {challenge.achievedScore.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : null}
-          <p className="ssc__body msc-scoreReportSub">
-            {report.gameLabel} · 以下为当局得分明细
-          </p>
-          <ul className="msc-scoreReportList" aria-label="得分明细">
-            {report.lines.map((line) => (
-              <li key={line.label} className="msc-scoreReportList__row">
-                <span>{line.label}</span>
-                <span className="msc-scoreReportList__val">
-                  {line.value >= 0 ? line.value.toLocaleString() : line.value.toLocaleString()}
-                </span>
+            ) : null}
+            <p className="ssc__body msc-scoreReportSub">
+              {report.gameLabel} · 以下为当局得分明细
+            </p>
+            <ul className="msc-scoreReportList" aria-label="得分明细">
+              {report.lines.map((line) => (
+                <li key={line.label} className="msc-scoreReportList__row">
+                  <span>{line.label}</span>
+                  <span className="msc-scoreReportList__val">
+                    {line.value >= 0 ? line.value.toLocaleString() : line.value.toLocaleString()}
+                  </span>
+                </li>
+              ))}
+              <li className="msc-scoreReportList__row msc-scoreReportList__row--total">
+                <span>总分</span>
+                <span className="msc-scoreReportList__val">{report.totalScore.toLocaleString()}</span>
               </li>
-            ))}
-            <li className="msc-scoreReportList__row msc-scoreReportList__row--total">
-              <span>总分</span>
-              <span className="msc-scoreReportList__val">{report.totalScore.toLocaleString()}</span>
-            </li>
-          </ul>
-          <div className="ssc__actions">
-            {secondaryLabel && onSecondary ? (
+            </ul>
+            {secondaryError ? (
+              <p className="ssc__body msc-scoreReportSub msc-scoreReportSub--error" role="alert">
+                {secondaryError}
+              </p>
+            ) : null}
+          </div>
+          <div
+            className={[
+              'ssc__actions',
+              'ssc__actions--pinned',
+              showSecondary ? 'ssc__actions--withReplay' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            {showSecondary ? (
               <button
                 type="button"
-                className="ssc__btn ssc__btn--secondary"
+                className="ssc__btn ssc__btn--secondary ssc__btn--replayCompact"
                 disabled={secondaryDisabled || secondaryBusy}
                 onClick={onSecondary}
+                title={secondaryLabel}
               >
                 {secondaryText ?? secondaryLabel}
               </button>
             ) : null}
-            <button type="button" className="ssc__btn ssc__btn--primary" onClick={onConfirm}>
+            <button
+              type="button"
+              className={`ssc__btn ssc__btn--primary${showSecondary ? ' ssc__btn--continueWide' : ''}`}
+              onClick={onConfirm}
+            >
               {confirmLabel}
             </button>
           </div>
-          {secondaryError ? (
-            <p className="msc-scoreReportSub msc-scoreReportSub--error" role="alert">
-              {secondaryError}
-            </p>
-          ) : null}
         </div>
       </div>
     </div>

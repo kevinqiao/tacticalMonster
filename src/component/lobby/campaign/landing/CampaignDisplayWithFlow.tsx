@@ -11,7 +11,7 @@ import { CampaignDetailsSheet } from "./CampaignDetailsSheet";
 
 type Props = {
   campaignPublic: CampaignPublicView;
-  merchantSlug: string;
+  partnerSlug: string;
   hideBackground?: boolean;
   onOverlayOpenChange?: (open: boolean) => void;
 };
@@ -37,7 +37,7 @@ function defaultCtaLabel(kind: DisplayCtaKind, t: (key: string) => string): stri
 
 export const CampaignDisplayWithFlow: React.FC<Props> = ({
   campaignPublic,
-  merchantSlug,
+  partnerSlug,
   hideBackground = false,
   onOverlayOpenChange,
 }) => {
@@ -145,7 +145,7 @@ export const CampaignDisplayWithFlow: React.FC<Props> = ({
         open={detailsOpen}
         onClose={() => setDetailsOpenSync(false)}
         campaignPublic={campaignPublic}
-        merchantSlug={merchantSlug}
+        partnerSlug={partnerSlug}
         variant="display"
         flow={{
           periodLabel,

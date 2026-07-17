@@ -2,37 +2,73 @@ import { internal } from "../../../_generated/api";
 import type { Doc } from "../../../_generated/dataModel";
 import type { MutationCtx } from "../../../_generated/server";
 import type { PortalTournamentDefinition } from "../../../data/portalTournamentConfigs";
+import { upsertCampaignLeagueHumanEntry } from "../../campaignLeague/campaignLeagueUpsert";
 
+/**
+ * On settle: pass_per_run → schedule campaign HTTP coupon issue;
+ * competitive_leaderboard → inline Portal league upsert (no campaign HTTP).
+ *
+ * Campaign attrs SSOT: `portal_run_tournaments` only.
+ * Missing campaignRewardMode with campaignId → skip (do not default to pass_per_run).
+ */
 export async function scheduleMerchantCampaignSettleNotify(
   ctx: MutationCtx,
   args: {
     runRow: Doc<"portal_run_tournaments"> | null;
+    /** Kept for call-site continuity; campaign attrs come from runRow only. */
     matchDoc: Doc<"portal_run_matches">;
     pm: Doc<"portal_run_player_matches">;
     def: PortalTournamentDefinition;
     uid: string;
     score: number;
     rank?: number;
-    p75Success?: boolean;
+    isPassed?: boolean;
   }
 ): Promise<void> {
-  const campaignId = args.runRow?.campaignId ?? args.matchDoc.campaignId;
-  const merchantId = args.runRow?.merchantId ?? args.matchDoc.merchantId;
-  if (!campaignId || !merchantId) return;
+  void args.matchDoc;
+  const campaignId = args.runRow?.campaignId;
+  const partnerId = args.runRow?.partnerId;
+  if (!campaignId || partnerId == null) return;
 
-  await ctx.scheduler.runAfter(
-    0,
-    internal.service.bridge.merchantCampaignBridgeActions.notifyOnRunSettled,
-    {
-      campaignId,
-      merchantId,
-      uid: args.uid,
-      matchId: args.pm.matchId,
-      gameType: args.def.gameType,
-      mode: args.def.maxPlayers <= 1 ? ("solo" as const) : ("multi" as const),
-      score: args.score,
-      rank: args.rank,
-      p75Success: args.p75Success,
-    }
-  );
+  const rewardMode = args.runRow?.campaignRewardMode;
+  if (rewardMode !== "pass_per_run" && rewardMode !== "competitive_leaderboard") {
+    return;
+  }
+
+  const mode = args.def.maxPlayers <= 1 ? ("solo" as const) : ("multi" as const);
+
+  if (rewardMode === "pass_per_run") {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.service.bridge.merchantCampaignBridgeActions.notifyOnRunSettled,
+      {
+        campaignId,
+        partnerId,
+        uid: args.uid,
+        runTournamentId: args.pm.tournamentId,
+        matchId: args.pm.matchId,
+        gameType: args.def.gameType,
+        mode,
+        score: args.score,
+        rank: args.rank,
+        isPassed: args.isPassed,
+      }
+    );
+    return;
+  }
+
+  const dueTime = args.runRow?.campaignDueTime ?? 0;
+  if (dueTime <= 0) return;
+
+  await upsertCampaignLeagueHumanEntry(ctx, {
+    campaignId,
+    partnerId,
+    uid: args.uid,
+    score: args.score,
+    rank: args.rank,
+    isPassed: args.isPassed,
+    mode,
+    dueTime,
+    startsAt: args.runRow?.createdAt,
+  });
 }

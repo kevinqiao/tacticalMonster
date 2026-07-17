@@ -1,7 +1,7 @@
 import {
-  PORTAL_GAME_TYPES,
-  type RegisteredPortalGameType,
-} from "@/convex/portal/convex/data/portalGameRegistry";
+  PARTNER_GAME_TYPES,
+  type RegisteredPartnerGameType,
+} from "@/convex/portal/convex/data/partnerGameRegistry";
 import i18n from "@/i18n";
 
 /** 全游戏共用 3D 大厅背景（canonical，待 art 就绪） */
@@ -20,7 +20,7 @@ export const PORTAL_3D_SHARED_BG_FALLBACK = {
  * 按 gameType 的 3D 大厅背景（当前均映射到已有 fallback，canonical 路径见 PORTAL_3D_SHARED_BG）。
  */
 export const PORTAL_3D_GAME_BG: Record<
-  RegisteredPortalGameType,
+  RegisteredPartnerGameType,
   { landscape: string; portrait: string }
 > = {
   solitaire: {
@@ -38,7 +38,7 @@ const DEFAULT_HERO_LOGO = "/assets/portal/solitaire/hero/hero-title.svg";
 const HERO_LOGO_FALLBACK = DEFAULT_HERO_LOGO;
 
 /** 仅 Hero Logo 按 gameType 区分（canonical: public/assets/portal/3d/logos/） */
-export const PORTAL_3D_HERO_LOGO: Record<RegisteredPortalGameType, string> = {
+export const PORTAL_3D_HERO_LOGO: Record<RegisteredPartnerGameType, string> = {
   solitaire: "/assets/portal/solitaire/hero/hero-title.svg",
   block_blast: "/assets/portal/3d/logos/block_blast-hero.svg",
   match_3: "/assets/portal/3d/logos/match_3-hero.svg",
@@ -47,7 +47,7 @@ export const PORTAL_3D_HERO_LOGO: Record<RegisteredPortalGameType, string> = {
 };
 
 export function resolvePortal3DHeroLogo(
-  gameType: RegisteredPortalGameType | null | undefined
+  gameType: RegisteredPartnerGameType | null | undefined
 ): string {
   if (!gameType) return DEFAULT_HERO_LOGO;
   return PORTAL_3D_HERO_LOGO[gameType] ?? HERO_LOGO_FALLBACK;
@@ -55,7 +55,7 @@ export function resolvePortal3DHeroLogo(
 
 export function resolvePortal3DSharedBg(
   orientation: "landscape" | "portrait",
-  gameType?: RegisteredPortalGameType | null
+  gameType?: RegisteredPartnerGameType | null
 ): string {
   if (gameType && PORTAL_3D_GAME_BG[gameType]) {
     return PORTAL_3D_GAME_BG[gameType][orientation];
@@ -103,7 +103,7 @@ export function portalTierDisplayLabel(tierId: PortalTierId): {
 
 /** 供开发期校验：已注册的 gameType 均有 logo 配置 */
 export function assertPortal3DLogoRegistry(): void {
-  for (const gt of PORTAL_GAME_TYPES) {
+  for (const gt of PARTNER_GAME_TYPES) {
     if (!PORTAL_3D_HERO_LOGO[gt]) {
       console.warn("[portal-3d] missing hero logo for", gt);
     }

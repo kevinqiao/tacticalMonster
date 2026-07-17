@@ -3,11 +3,11 @@
 import type { PortalTournamentDefinition } from "../../../../data/portalTournamentConfigs";
 import {
   CASUAL_GAME_REGISTRY,
-  getPortalGameRegistration,
+  getPartnerGameRegistration,
   usesGameIngestBotPolicy,
   usesPlatformIngestBotPolicy,
   virtualUidPrefixForGame,
-} from "../../../../data/portalGameRegistry";
+} from "../../../../data/partnerGameRegistry";
 import { effectiveGameSequence } from "../../../../data/portalTournamentConfigs";
 
 export type CasualSubmitMode = "daily" | "solo" | "mixed";
@@ -124,7 +124,7 @@ export function isSolitaireIngestBotsCommitted(
 export function assertRegisteredMatchGameType(
   gameType: string
 ): { ok: true; gameType: string } | { ok: false; error: "unregistered_game_type" } {
-  if (!getPortalGameRegistration(gameType)) {
+  if (!getPartnerGameRegistration(gameType)) {
     return { ok: false as const, error: "unregistered_game_type" as const };
   }
   return { ok: true as const, gameType };

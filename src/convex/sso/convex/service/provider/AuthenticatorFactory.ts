@@ -41,7 +41,7 @@ export function platformUidForSubject(
   return `${cid}_${partnerId}_${hashString(subject)}`;
 }
 
-/** Web login uid for accountId / email within a partner namespace. */
+/** Web login uid for accountId / email within a partner namespace (consumers / legacy). */
 export function webPlatformUidForAccount(loginId: string, partnerId: number): string {
   return platformUidForSubject(
     WEB_AUTH_CHANNEL_CID,
@@ -55,6 +55,7 @@ export function webPlatformUidForEmail(loginId: string, partnerId: number = PLAT
   return webPlatformUidForAccount(loginId, partnerId);
 }
 
+/** Staff Web uid — always platform namespace partnerId=0 (one person across all Partners). */
 export function platformStaffUidForAccount(loginId: string): string {
   return webPlatformUidForAccount(loginId, PLATFORM_NAMESPACE_PARTNER_ID);
 }
@@ -68,7 +69,7 @@ export interface Authenticator {
 
 /**
  * All SSO channels for `AuthManager.authenticate` / `authenticateWithChannel`.
- * Embed: `data = { credential, method?, merchantSlug? }`, `partner` = pid.
+ * Embed: `data = { credential, method?, partnerSlug? }`, `partner` = pid.
  */
 export class AuthenticatorFactory {
     static createAuthenticator(channel: { cid: number, provider: string }): Authenticator | undefined {

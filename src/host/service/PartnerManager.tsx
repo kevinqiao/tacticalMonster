@@ -1,5 +1,5 @@
 ﻿import {
-    parseCampaignMerchantSlugFromPathname,
+    parseCampaignPartnerSlugFromPathname,
     resolvePartnerPidFromSearch,
 } from "@/host/util/PageUtils";
 import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
@@ -7,7 +7,7 @@ import { useConvex } from "convex/react";
 import { api } from "convex/sso/convex/_generated/api";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-import { resolvePartnerIdByMerchantSlug } from "./resolveMerchantPartner";
+import { resolvePartnerIdByPartnerSlug } from "./resolveMerchantPartner";
 import { useHistoryLocationKey } from "./useHistoryLocationKey";
 
 export interface Partner {
@@ -15,6 +15,12 @@ export interface Partner {
     name?: string;
     host?: string;
     portal_key?: string;
+    /** Public /campaign/{slug} segment when campaignOps. */
+    slug?: string;
+    /** Product flags: Portal vs Campaign Ops (SoT for those contexts). */
+    capabilities?: { portalGames?: boolean; campaignOps?: boolean };
+    /** Enabled game types from partnerGameRegistry (portal + campaign scope). */
+    games?: string[];
     data?: Record<string, unknown>;
     /** Consumer channel ids (DB `auth_channels`), e.g. `[1]`. */
     auth_channels?: number[];
@@ -28,12 +34,12 @@ export interface Partner {
 
 interface IPartnerContext {
     partner: Partner | null;
-    /** Resolved SSO partner id (from merchant slug on campaign pages, else default 0). */
+    /** Resolved SSO partner id (from partner slug on campaign pages, else default 0). */
     partnerPid: number;
-    /** False while resolving merchant -> partner on campaign URLs. */
+    /** False while resolving partner slug -> partner on campaign URLs. */
     partnerResolveReady: boolean;
-    /** Merchant slug when on a player campaign shell route. */
-    campaignMerchantSlug: string | null;
+    /** Partner slug when on a player campaign shell route. */
+    campaignPartnerSlug: string | null;
     /** Portal URL partner key when on /portal/{key}/... */
     portalPartnerKey: string | null;
     /** True on first-party /portal/{gameType} routes (no partner key). */
@@ -43,7 +49,7 @@ const PartnerContext = createContext<IPartnerContext>({
     partner: null,
     partnerPid: 0,
     partnerResolveReady: false,
-    campaignMerchantSlug: null,
+    campaignPartnerSlug: null,
     portalPartnerKey: null,
     isFirstPartyPortal: false,
 });
@@ -52,7 +58,7 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     const [partner, setPartner] = useState<Partner | null>(null);
     const [partnerPid, setPartnerPid] = useState(0);
     const [partnerResolveReady, setPartnerResolveReady] = useState(false);
-    const [campaignMerchantSlug, setCampaignMerchantSlug] = useState<string | null>(null);
+    const [campaignPartnerSlug, setCampaignPartnerSlug] = useState<string | null>(null);
     const [portalPartnerKey, setPortalPartnerKey] = useState<string | null>(null);
     const [isFirstPartyPortal, setIsFirstPartyPortal] = useState(false);
     const convex = useConvex();
@@ -61,7 +67,7 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
         partner,
         partnerPid,
         partnerResolveReady,
-        campaignMerchantSlug,
+        campaignPartnerSlug,
         portalPartnerKey,
         isFirstPartyPortal,
     };
@@ -72,8 +78,8 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
             setPartnerResolveReady(false);
             const pathname = window.location.pathname;
             const search = window.location.search;
-            const merchantSlug = parseCampaignMerchantSlugFromPathname(pathname);
-            setCampaignMerchantSlug(merchantSlug);
+            const partnerSlug = parseCampaignPartnerSlugFromPathname(pathname);
+            setCampaignPartnerSlug(partnerSlug);
 
             const portalPath = parsePortalPathFromPathname(pathname);
             setPortalPartnerKey(portalPath.partnerKey);
@@ -82,8 +88,8 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
             let pid = 0;
             let partnerRow: Partner | null = null;
 
-            if (merchantSlug) {
-                const resolved = await resolvePartnerIdByMerchantSlug(merchantSlug);
+            if (partnerSlug) {
+                const resolved = await resolvePartnerIdByPartnerSlug(partnerSlug);
                 if (cancelled) return;
                 pid = resolved?.partnerId ?? 0;
                 const row = await convex.query(api.service.PartnerManager.find, { pid });

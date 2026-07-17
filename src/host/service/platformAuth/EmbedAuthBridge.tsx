@@ -2,20 +2,22 @@
 
 import { usePartnerManager } from "../PartnerManager";
 import { buildEmbedSourceContext } from "./embedAuthGate";
-import { listEmbedCredentialSources } from "./embedSources/registry";
+import {
+  listEmbedCredentialSources,
+  selectEmbedSourcesToListen,
+} from "./embedSources/registry";
 import { logEmbedSourcesListening } from "./embedSources/embedAuthLog";
 import { loadEmbedSdkSpecs, planEmbedSdkLoads } from "./embedSources/sdkLoader";
 import type { EmbedSourceContext } from "./embedSources/types";
 import { useEmbedBootstrap } from "./useEmbedBootstrap";
 
 function startEmbedSources(
-  sources: ReturnType<typeof listEmbedCredentialSources>,
   ctx: EmbedSourceContext,
   runBootstrap: ReturnType<typeof useEmbedBootstrap>["runBootstrap"]
 ) {
-  return sources
-    .filter((source) => source.shouldListen(ctx))
-    .map((source) => source.start(ctx, (payload) => void runBootstrap(payload)));
+  return selectEmbedSourcesToListen(ctx).map((source) =>
+    source.start(ctx, (payload) => void runBootstrap(payload))
+  );
 }
 
 /** Runs all active embed credential sources and exchanges credentials for platform JWT. */
@@ -24,7 +26,7 @@ export const EmbedAuthBridge: React.FC = () => {
     partner,
     partnerPid,
     partnerResolveReady,
-    campaignMerchantSlug,
+    campaignPartnerSlug,
     portalPartnerKey,
     isFirstPartyPortal,
   } = usePartnerManager();
@@ -37,12 +39,12 @@ export const EmbedAuthBridge: React.FC = () => {
         partnerPid,
         partner,
         partnerResolveReady,
-        campaignMerchantSlug,
+        campaignPartnerSlug,
         portalPartnerKey,
         isFirstPartyPortal,
       }),
     [
-      campaignMerchantSlug,
+      campaignPartnerSlug,
       isFirstPartyPortal,
       partner,
       partnerPid,
@@ -64,9 +66,12 @@ export const EmbedAuthBridge: React.FC = () => {
 
     const attachSources = () => {
       if (cancelled) return;
-      const listening = sources.filter((source) => source.shouldListen(ctx)).map((s) => s.id);
-      logEmbedSourcesListening(listening, ctx.partnerPid);
-      cleanupsRef.current = startEmbedSources(sources, ctx, runBootstrap);
+      const selected = selectEmbedSourcesToListen(ctx);
+      logEmbedSourcesListening(
+        selected.map((s) => s.id),
+        ctx.partnerPid
+      );
+      cleanupsRef.current = startEmbedSources(ctx, runBootstrap);
     };
 
     if (specs.length === 0) {

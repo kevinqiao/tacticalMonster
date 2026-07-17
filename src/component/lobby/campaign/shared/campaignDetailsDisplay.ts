@@ -1,6 +1,6 @@
 import i18n from "@/i18n";
 
-import { PORTAL_GAME_OPTIONS } from "../merchant/campaignFormHelpers";
+import { partnerGameLabel } from "../merchant/campaignFormHelpers";
 import type {
   CampaignPassRewardView,
   CampaignPublicView,
@@ -8,8 +8,7 @@ import type {
 } from "../service/useMerchantCampaignManager";
 
 export function campaignGameTypeLabel(gameType: string): string {
-  const hit = PORTAL_GAME_OPTIONS.find((g) => g.value === gameType);
-  return hit?.label ?? gameType;
+  return partnerGameLabel(gameType);
 }
 
 export function campaignStatusLabel(status: string): string {
@@ -78,6 +77,6 @@ export function campaignSettlementSummary(
   return i18n.t("details.settlement.pending", { ns: "campaign.player" });
 }
 
-export function campaignLandingPath(merchantSlug: string, campaignSlug: string): string {
-  return `/campaign/${merchantSlug}/${campaignSlug}`;
+export function campaignLandingPath(partnerSlug: string, campaignSlug: string): string {
+  return `/campaign/${partnerSlug}/${campaignSlug}`;
 }

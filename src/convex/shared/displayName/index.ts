@@ -8,3 +8,10 @@ export { resolvePlayerDisplayName } from "./resolvePlayerDisplayName";
 export type { ResolvePlayerDisplayNameArgs } from "./resolvePlayerDisplayName";
 export { ensureUniqueDisplayNames } from "./ensureUniqueDisplayNames";
 export type { DisplayNameSeedRow } from "./ensureUniqueDisplayNames";
+export {
+  DISPLAY_NAME_COOLDOWN_MS,
+  normalizeDisplayName,
+  normalizeDisplayNameKey,
+  validateDisplayName,
+} from "./validateDisplayName";
+export type { ValidateDisplayNameError } from "./validateDisplayName";

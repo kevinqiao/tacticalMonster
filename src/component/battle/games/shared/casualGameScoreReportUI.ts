@@ -118,9 +118,9 @@ export function formatCasualAdReplayButtonLabel(adReplayDailyRemaining?: number)
     Number.isFinite(adReplayDailyRemaining)
   ) {
     const n = Math.max(0, Math.floor(adReplayDailyRemaining));
-    return `🎬 看广告再战（今日剩 ${n} 次）`;
+    return `广告再战·${n}`;
   }
-  return '🎬 看广告再战';
+  return '广告再战';
 }
 
 /** 同桌结算层 / 多人竞技：与单人 P75 一致，不可战时不展示按钮。 */

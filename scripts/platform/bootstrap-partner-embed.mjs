@@ -25,6 +25,8 @@ function parseArgs(argv) {
   };
 
   const pidRaw = get("--pid");
+  const portalGamesRaw = get("--portal-games");
+  const campaignOpsRaw = get("--campaign-ops");
   return {
     apply,
     pid: pidRaw != null ? Number(pidRaw) : 0,
@@ -32,7 +34,8 @@ function parseArgs(argv) {
     host: get("--host") ?? "http://localhost:3000",
     jwtSecret: get("--secret"),
     embedMethod: get("--embed-method") ?? "jwt_local",
-    enabledContexts: (get("--contexts") ?? "portal").split(",").map((s) => s.trim()).filter(Boolean),
+    portalGames: portalGamesRaw === undefined ? true : portalGamesRaw !== "0" && portalGamesRaw !== "false",
+    campaignOps: campaignOpsRaw === "1" || campaignOpsRaw === "true",
     bootstrapSecret:
       get("--bootstrap-secret") ??
       process.env.PARTNER_EMBED_BOOTSTRAP_SECRET ??
@@ -48,7 +51,8 @@ console.log("  pid:", config.pid);
 console.log("  name:", config.name);
 console.log("  host:", config.host);
 console.log("  embedMethod:", config.embedMethod);
-console.log("  enabledContexts:", config.enabledContexts);
+console.log("  portalGames:", config.portalGames);
+console.log("  campaignOps:", config.campaignOps);
 console.log("  jwtSecret:", config.jwtSecret ?? `(default partner-dev-secret-${config.pid})`);
 console.log("  apply:", config.apply);
 
@@ -70,7 +74,8 @@ const out = runConvexSso(
     name: config.name,
     host: config.host,
     embedMethod: config.embedMethod,
-    enabledContexts: config.enabledContexts,
+    portalGames: config.portalGames,
+    campaignOps: config.campaignOps,
     ...(config.jwtSecret ? { jwtSecret: config.jwtSecret } : {}),
     allowedOrigins,
   },

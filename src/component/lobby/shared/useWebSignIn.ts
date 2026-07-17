@@ -17,6 +17,10 @@ type UseWebSignInOptions = {
   onSuccess?: (user: User) => void;
 };
 
+type SignInWebAccountResult =
+  | { ok: true; user: User }
+  | { ok: false; error: string };
+
 export function useWebSignIn(options: UseWebSignInOptions = {}) {
   const { staffGate = "none", partnerId, onSuccess } = options;
   const convex = useConvex();
@@ -34,12 +38,23 @@ export function useWebSignIn(options: UseWebSignInOptions = {}) {
           password,
           staffGate,
           ...(partnerId !== undefined ? { partnerId } : {}),
-        })) as User | null;
-        if (res?.uid && looksLikePlatformJwt(res.platformAccessToken)) {
+        })) as SignInWebAccountResult;
+        // Expected auth failures return `{ ok: false }` (no Convex Server Error log).
+        if (!res?.ok) {
+          setError(webSignInErrorMessage(res?.error ?? "unknown_error"));
+          return false;
+        }
+        const user = res.user;
+        if (user?.uid && looksLikePlatformJwt(user.platformAccessToken)) {
+          // Stamp which console issued the session (cross-tab staff gate checks).
+          const session: User = {
+            ...user,
+            ...(staffGate !== "none" ? { staffGate } : {}),
+          };
           if (onSuccess) {
-            onSuccess(res);
+            onSuccess(session);
           } else {
-            authComplete(res, 1);
+            authComplete(session, 1);
           }
           return true;
         }

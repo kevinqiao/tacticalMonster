@@ -4,7 +4,7 @@ import { PageProp } from "host/RenderApp";
 
 import "./playmint.css";
 
-const MERCHANT_URL = "/campaign/merchant";
+const MERCHANT_URL = "/partner/operation";
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });

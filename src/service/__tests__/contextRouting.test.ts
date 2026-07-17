@@ -40,6 +40,7 @@ describe("context routing", () => {
     expect(resolveActiveContext("/portal/solitaire")).toBe("/portal");
     expect(resolveActiveContext("/tactical/lobby")).toBe("/tactical");
     expect(resolveActiveContext("/partner/admin")).toBe("/partner");
+    expect(resolveActiveContext("/partner/operation")).toBe("/partner");
     expect(resolveActiveContext("/platform/admin")).toBe("/platform");
   });
 
@@ -59,6 +60,10 @@ describe("context routing", () => {
     const partner = resolveMountedRootShells(containers, "/partner/admin");
     expect(partner).toHaveLength(1);
     expect(partner[0]?.uri.startsWith("/partner")).toBe(true);
+
+    const partnerOps = resolveMountedRootShells(containers, "/partner/operation");
+    expect(partnerOps).toHaveLength(1);
+    expect(partnerOps[0]?.uri).toBe("/partner/operation");
 
     const platform = resolveMountedRootShells(containers, "/platform/admin");
     expect(platform).toHaveLength(1);

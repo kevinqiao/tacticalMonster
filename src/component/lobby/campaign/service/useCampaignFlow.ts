@@ -1,6 +1,4 @@
-import type { RegisteredPortalGameType } from "@/convex/portal/convex/data/portalGameRegistry";
-import { ConvexClient } from "convex/browser";
-import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
+import type { RegisteredPartnerGameType } from "@/convex/portal/convex/data/partnerGameRegistry";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import i18n from "@/i18n";
@@ -42,24 +40,12 @@ import {
 import type { CampaignCouponView, CampaignPlayHistoryEntry } from "../shared/campaignTypes";
 import { applyMerchantTheme } from "./applyMerchantTheme";
 import { campaignErrorMessage } from "../shared/campaignErrorMessage";
-import { merchantCampaignFns } from "./campaignConvexFunctionRefs";
 import type { CampaignPublicView } from "./useMerchantCampaignManager";
-import { MERCHANT_CONVEX_URL, useMerchantCampaign } from "./useMerchantCampaignManager";
+import { useMerchantCampaign } from "./useMerchantCampaignManager";
 
-/** 活动榜 Bot 分数按 `Date.now()` 现算；Convex 订阅仅在 DB 变更时触发，需定时 poll */
+/** 活动榜 Bot 分数按 `Date.now()` 现算；需定时 poll（Portal SSOT via merchant action proxy） */
 const CAMPAIGN_LEADERBOARD_POLL_MS = 45_000;
 const CAMPAIGN_ACTIVITY_TICK_MS = 1_000;
-
-let merchantLiveSingleton: ConvexClient | null = null;
-
-function getMerchantLive(): ConvexClient | null {
-  if (!MERCHANT_CONVEX_URL) return null;
-  if (!merchantLiveSingleton) {
-    merchantLiveSingleton = new ConvexClient(MERCHANT_CONVEX_URL);
-    registerConvexAuthClient(merchantLiveSingleton);
-  }
-  return merchantLiveSingleton;
-}
 
 function formatPeriod(startsAt: number, endsAt: number): string {
   const locale = i18n.language;
@@ -94,8 +80,76 @@ async function waitForCouponCountIncrease(
   return null;
 }
 
+type LeaderboardMineSnap = {
+  rankPoints: number | null;
+  plays: number | null;
+};
+
+function readLeaderboardMine(rows: unknown[], uid: string): LeaderboardMineSnap {
+  const mine = (rows as Array<{ uid?: string; isBot?: boolean; rankPoints?: number; plays?: number }>).find(
+    (r) => !r.isBot && r.uid === uid
+  );
+  return {
+    rankPoints: typeof mine?.rankPoints === "number" ? mine.rankPoints : null,
+    plays: typeof mine?.plays === "number" ? mine.plays : null,
+  };
+}
+
+/**
+ * 战绩可先于榜刷新显示「已结算」（同 mutation 内写入联赛积分，但客户端曾只拉一次榜）。
+ * 等到近期战绩 settled，且榜上 plays/积分相对对局前有变化（或新人入榜）。
+ */
+async function waitForCompetitiveLeaderboardCatchUp(args: {
+  uid: string;
+  playedAfterMs: number;
+  previous: LeaderboardMineSnap;
+  refreshPlayHistory: () => Promise<CampaignPlayHistoryEntry[]>;
+  refreshLeaderboard: () => Promise<unknown[]>;
+  attempts?: number;
+  delayMs?: number;
+}): Promise<unknown[]> {
+  const attempts = args.attempts ?? 24;
+  const delayMs = args.delayMs ?? 400;
+  let lastRows: unknown[] = [];
+
+  for (let i = 0; i < attempts; i += 1) {
+    const history = await args.refreshPlayHistory();
+    lastRows = await args.refreshLeaderboard();
+    const recentSettled = history.some(
+      (e) =>
+        (e.status === "settled" || e.status === "confirmed") &&
+        e.playedAt >= args.playedAfterMs - 15_000
+    );
+    if (!recentSettled) {
+      await new Promise((r) => window.setTimeout(r, delayMs));
+      continue;
+    }
+
+    const mine = readLeaderboardMine(lastRows, args.uid);
+    const firstAppearance =
+      args.previous.plays == null &&
+      args.previous.rankPoints == null &&
+      (mine.plays != null || mine.rankPoints != null);
+    const playsUp =
+      mine.plays != null &&
+      args.previous.plays != null &&
+      mine.plays > args.previous.plays;
+    const pointsChanged =
+      mine.rankPoints != null &&
+      args.previous.rankPoints != null &&
+      mine.rankPoints !== args.previous.rankPoints;
+
+    // plays 优先：0 分局积分可能不变，但局数应 +1
+    if (firstAppearance || playsUp || pointsChanged) {
+      return lastRows;
+    }
+    await new Promise((r) => window.setTimeout(r, delayMs));
+  }
+  return lastRows;
+}
+
 export function useCampaignFlow(args: {
-  merchantSlug: string;
+  partnerSlug: string;
   campaignSlug: string;
   campaignPublic: CampaignPublicView | null;
   loadingPublic: boolean;
@@ -109,7 +163,7 @@ export function useCampaignFlow(args: {
   const uid = user?.uid;
   const authed = Boolean(uid && isPlatformAuthed(user));
   const campaign = args.campaignPublic?.campaign ?? null;
-  const gameType = (campaign?.gameType ?? null) as RegisteredPortalGameType | null;
+  const gameType = (campaign?.gameType ?? null) as RegisteredPartnerGameType | null;
   const mode = campaign?.mode ?? "solo";
   const isPassMode = campaign?.rewardModel === "pass_per_run";
   const hasLeaderboard = campaign?.hasLeaderboard ?? false;
@@ -157,9 +211,15 @@ export function useCampaignFlow(args: {
   const [myCoupons, setMyCoupons] = useState<CampaignCouponView[]>([]);
   const [freshCoupon, setFreshCoupon] = useState<CampaignCouponView | null>(null);
   const [leaderboard, setLeaderboard] = useState<unknown[]>([]);
+  const leaderboardRef = useRef(leaderboard);
+  leaderboardRef.current = leaderboard;
   const [settlementStatus, setSettlementStatus] = useState(
     campaign?.settlement?.status ?? "pending"
   );
+  useEffect(() => {
+    const next = campaign?.settlement?.status;
+    if (next) setSettlementStatus(next);
+  }, [campaign?.settlement?.status]);
   const [awaitingMatch, setAwaitingMatch] = useState<CampaignAwaitOpenRunWatch | null>(null);
   const [leavingMatch, setLeavingMatch] = useState(false);
   const [playsToday, setPlaysToday] = useState(0);
@@ -181,6 +241,49 @@ export function useCampaignFlow(args: {
     () => isCampaignCouponLimitReached(claimedCount, maxCouponsPerPlayer),
     [claimedCount, maxCouponsPerPlayer]
   );
+  const unfinishedCampaignRun = useMemo(() => {
+    if (!campaign?.campaignId || !gameType) return null;
+    return (
+      pickPortalOpenAssignmentForCampaignMode(
+        portal.openRunAssignments,
+        gameType,
+        mode,
+        campaign.campaignId
+      ) ?? null
+    );
+  }, [campaign?.campaignId, gameType, mode, portal.openRunAssignments]);
+
+  const hasUnfinishedRun = unfinishedCampaignRun != null;
+
+  const viewerLeaderboardRank = useMemo(() => {
+    if (!hasLeaderboard || !uid) return null;
+    const rows = leaderboard as Array<{ uid?: string; rank?: number; isBot?: boolean }>;
+    const mine = rows.find((r) => !r.isBot && r.uid === uid && typeof r.rank === "number");
+    return mine?.rank ?? null;
+  }, [hasLeaderboard, leaderboard, uid]);
+
+  /** 结算后仅告知当前用户是否获奖；不暴露他人/Bot */
+  const viewerBoardReward = useMemo((): "won" | "not_won" | null => {
+    if (!hasLeaderboard || !uid || settlementStatus !== "done") return null;
+    const onBoard = (leaderboard as Array<{ uid?: string; isBot?: boolean }>).some(
+      (r) => !r.isBot && r.uid === uid
+    );
+    if (!onBoard) return null;
+    const won = myCoupons.some(
+      (c) =>
+        c.campaignId === campaign?.campaignId &&
+        (c.source === "campaign_settle" || Boolean(c.settlementId))
+    );
+    return won ? "won" : "not_won";
+  }, [
+    campaign?.campaignId,
+    hasLeaderboard,
+    leaderboard,
+    myCoupons,
+    settlementStatus,
+    uid,
+  ]);
+
   const dailyLimitReached = useMemo(
     () =>
       maxPlaysPerDay != null &&
@@ -191,8 +294,8 @@ export function useCampaignFlow(args: {
   );
   const canChallenge = Boolean(
     campaignPlayable &&
-      !dailyLimitReached &&
-      (!isPassMode || !couponLimitReached)
+      (hasUnfinishedRun ||
+        (!dailyLimitReached && (!isPassMode || !couponLimitReached)))
   );
   const sortedCoupons = useMemo(() => sortCampaignCouponsNewestFirst(myCoupons), [myCoupons]);
   const latestCoupon = useMemo(() => sortedCoupons[0] ?? null, [sortedCoupons]);
@@ -221,8 +324,19 @@ export function useCampaignFlow(args: {
       return [];
     }
     const rows = await portal.getCampaignPlayHistory({ campaignId: campaign.campaignId });
-    setPlayHistory(rows);
-    return rows;
+    const enriched: CampaignPlayHistoryEntry[] = rows.map((row) => ({
+      ...row,
+      mode: row.mode ?? "solo",
+      campaignRewardMode: row.campaignRewardMode ?? null,
+      challengeSuccess: row.challengeSuccess ?? null,
+      seedScoreThreshold: row.seedScoreThreshold ?? null,
+      pointsDelta: row.pointsDelta ?? null,
+      rewardLabel: row.rewardLabel ?? null,
+      rewardSyncStatus: row.rewardSyncStatus ?? null,
+      canOpenReport: row.canOpenReport === true,
+    }));
+    setPlayHistory(enriched);
+    return enriched;
   }, [campaign?.campaignId, portal, uid, portal.portalSessionReady]);
 
   useEffect(() => {
@@ -260,10 +374,11 @@ export function useCampaignFlow(args: {
   const refreshLeaderboard = useCallback(async () => {
     if (!campaign?.campaignId || !hasLeaderboard || campaignNotStarted) {
       setLeaderboard([]);
-      return;
+      return [] as unknown[];
     }
     const rows = await merchant.fetchLeaderboard(campaign.campaignId, true);
     setLeaderboard(rows);
+    return rows;
   }, [campaign?.campaignId, campaignNotStarted, hasLeaderboard, merchant]);
 
   const openCampaignAssignment = useCallback(
@@ -297,26 +412,14 @@ export function useCampaignFlow(args: {
     void refreshLeaderboard();
   }, [refreshLeaderboard]);
 
-  /** 真人入榜等 DB 变更：Convex 订阅即时刷新 */
+  /** Poll leaderboard (Portal SSOT via merchantCampaign action proxy; no live query). */
   useEffect(() => {
     if (!campaign?.campaignId || !hasLeaderboard || campaignNotStarted) return;
-    const live = getMerchantLive();
-    if (!live) return;
-
-    void live
-      .mutation(merchantCampaignFns.ensureCampaignBoardBotsForLeaderboard, {
-        campaignId: campaign.campaignId,
-      })
+    void merchant
+      .fetchLeaderboard(campaign.campaignId, true)
+      .then((rows) => setLeaderboard(rows))
       .catch((e) => console.warn("[Campaign] ensureCampaignBoardBots", e));
-
-    const handle = live.onUpdate(
-      merchantCampaignFns.getCampaignLeaderboard,
-      { campaignId: campaign.campaignId, limit: 20 },
-      (rows) => setLeaderboard((rows as unknown[]) ?? []),
-      (err) => console.error("[Campaign] leaderboard subscription", err)
-    );
-    return () => handle.unsubscribe();
-  }, [campaign?.campaignId, campaignNotStarted, hasLeaderboard]);
+  }, [campaign?.campaignId, campaignNotStarted, hasLeaderboard, merchant]);
 
   /** Bot 分数随时间缓升：定时 poll 触发服务端 `Date.now()` 重算 */
   useEffect(() => {
@@ -326,19 +429,36 @@ export function useCampaignFlow(args: {
     return () => window.clearInterval(id);
   }, [campaign?.campaignId, campaignEnded, campaignNotStarted, hasLeaderboard, refreshLeaderboard]);
 
+  /**
+   * 活动结束后触发发奖；幂等。结束瞬间 public settlement 可能仍 pending，
+   * 短轮询直到 done/failed，避免榜头长时间停在「结算中」。
+   */
   useEffect(() => {
     if (!campaign?.campaignId || !hasLeaderboard || !authed) return;
     if (!campaignEnded && campaign.status !== "ended") return;
-    void (async () => {
+    if (settlementStatus === "done" || settlementStatus === "failed") return;
+
+    let cancelled = false;
+    const startedAt = Date.now();
+    const run = async () => {
+      if (Date.now() - startedAt > 120_000) return;
       const result = (await merchant.triggerLeaderboardSettlement(
         campaign.campaignId
       )) as { ok?: boolean };
+      if (cancelled) return;
       if (result?.ok) {
         setSettlementStatus("done");
         await refreshCoupons();
         await refreshLeaderboard();
       }
-    })();
+    };
+
+    void run();
+    const id = window.setInterval(() => void run(), 3_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
   }, [
     campaign?.campaignId,
     campaign?.status,
@@ -348,6 +468,7 @@ export function useCampaignFlow(args: {
     merchant,
     refreshCoupons,
     refreshLeaderboard,
+    settlementStatus,
   ]);
 
   useEffect(() => {
@@ -447,12 +568,28 @@ export function useCampaignFlow(args: {
         return;
       }
 
-      await refreshLeaderboard();
+      // 竞技榜：勿只拉一次——战绩 settled 时常比榜面早可见
+      const previous = readLeaderboardMine(leaderboardRef.current, uid ?? "");
+      const playedAfterMs = playStartedAtRef.current ?? Date.now() - 120_000;
+      if (uid) {
+        await waitForCompetitiveLeaderboardCatchUp({
+          uid,
+          playedAfterMs,
+          previous,
+          refreshPlayHistory,
+          refreshLeaderboard,
+        });
+      } else {
+        await refreshLeaderboard();
+        await refreshPlayHistory();
+      }
       await refreshCoupons();
       setNote(null);
     } finally {
       await refreshDailyQuota();
-      await refreshPlayHistory();
+      if (isPassMode) {
+        await refreshPlayHistory();
+      }
       setSettlingAfterGame(false);
     }
   }, [
@@ -465,6 +602,7 @@ export function useCampaignFlow(args: {
     refreshDailyQuota,
     refreshLeaderboard,
     refreshPlayHistory,
+    uid,
   ]);
 
   useEffect(() => {
@@ -487,6 +625,18 @@ export function useCampaignFlow(args: {
       setNote(campaignEnded ? flowT("campaignEnded") : flowT("campaignNotOpen"));
       return;
     }
+
+    const campaignOpen = pickPortalOpenAssignmentForCampaignMode(
+      portal.openRunAssignments,
+      gameType,
+      mode,
+      campaign.campaignId
+    );
+    if (campaignOpen) {
+      openCampaignAssignment(campaignOpen);
+      return;
+    }
+
     if (isPassMode && couponLimitReached) {
       setNote(flowT("couponLimitWithMax", { max: maxCouponsPerPlayer }));
       return;
@@ -502,17 +652,6 @@ export function useCampaignFlow(args: {
 
     claimedBeforeGameRef.current = claimedCount;
 
-    const campaignOpen = pickPortalOpenAssignmentForCampaignMode(
-      portal.openRunAssignments,
-      gameType,
-      mode,
-      campaign.campaignId
-    );
-    if (campaignOpen) {
-      openCampaignAssignment(campaignOpen);
-      return;
-    }
-
     setJoining(true);
     setNote(null);
     try {
@@ -522,7 +661,7 @@ export function useCampaignFlow(args: {
         setNote(null);
       }
       const outcome = await portal.joinTournament(mode, {
-        merchantSlug: args.merchantSlug,
+        partnerSlug: args.partnerSlug,
         campaignSlug: args.campaignSlug,
       });
       if (outcome.kind === "ready") {
@@ -569,7 +708,7 @@ export function useCampaignFlow(args: {
   }, [
     askAuth,
     args.campaignSlug,
-    args.merchantSlug,
+    args.partnerSlug,
     campaign,
     campaignEnded,
     campaignPlayable,
@@ -609,7 +748,8 @@ export function useCampaignFlow(args: {
     hasLeaderboard,
     showLeaderboard,
     settlementStatus,
-    merchantInfo: args.campaignPublic?.merchant ?? null,
+    viewerBoardReward,
+    partnerInfo: args.campaignPublic?.partner ?? null,
     periodLabel,
     myCoupons: sortedCoupons,
     latestCoupon,
@@ -626,6 +766,8 @@ export function useCampaignFlow(args: {
     remainingPlaysToday,
     dailyLimitReached,
     canChallenge,
+    hasUnfinishedRun,
+    viewerLeaderboardRank,
     matchOverlayOpen,
     gameSessionActive,
     matchOverlayPhase: queueClaiming ? ("claiming" as const) : ("waiting" as const),
@@ -638,6 +780,7 @@ export function useCampaignFlow(args: {
     leaderboard,
     playHistory,
     refreshPlayHistory,
+    refreshLeaderboard,
     loadingPublic: args.loadingPublic,
     startPlay,
     dismissFreshCoupon: () => setFreshCoupon(null),

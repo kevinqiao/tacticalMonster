@@ -33,7 +33,7 @@ export default defineConfig({
       "src/convex/casualPlatform/convex/service/botFill/__tests__/**/*.test.ts",
       "src/convex/portal/convex/service/**/__tests__/**/*.test.ts",
       "src/convex/portal/convex/data/__tests__/**/*.test.ts",
-      "src/convex/merchantCampaign/convex/**/__tests__/**/*.test.ts",
+      "src/convex/campaign/convex/**/__tests__/**/*.test.ts",
     ],
   },
 });

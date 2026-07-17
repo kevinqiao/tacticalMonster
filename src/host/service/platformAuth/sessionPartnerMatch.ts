@@ -3,7 +3,7 @@ import {
   isStaffWebSignInContext,
   resolveWebSignInFromLocation,
 } from "@/component/lobby/shared/resolveWebSignInFromLocation";
-import { parseCampaignMerchantSlugFromPathname } from "@/host/util/PageUtils";
+import { parseCampaignPartnerSlugFromPathname } from "@/host/util/PageUtils";
 
 import type { User } from "../UserManager";
 
@@ -25,7 +25,7 @@ export function resolveSessionPartnerId(user: User | null | undefined): number {
   return parsePartnerIdFromPlatformUid(user.uid) ?? 0;
 }
 
-/** Consumer shells only — staff consoles (/partner/admin, etc.) skip URL partner alignment. */
+/** Consumer shells only — staff consoles (/partner/admin, /partner/operation, …) skip URL partner alignment. */
 export function shouldEnforceUrlPartnerSession(
   pathname = typeof window !== "undefined" ? window.location.pathname : "",
   search = typeof window !== "undefined" ? window.location.search : ""
@@ -34,5 +34,5 @@ export function shouldEnforceUrlPartnerSession(
     return false;
   }
   if (pathname.startsWith("/portal")) return true;
-  return parseCampaignMerchantSlugFromPathname(pathname) != null;
+  return parseCampaignPartnerSlugFromPathname(pathname) != null;
 }

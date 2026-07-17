@@ -102,6 +102,8 @@ const componentMap: Record<string, () => Promise<any>> = {
     import('component/lobby/campaign/marketing/PlayMintMarketingPage'),
   './lobby/campaign/landing/CampaignLandingPage': () =>
     import('component/lobby/campaign/landing/CampaignLandingPage'),
+  './lobby/campaign/merchant/CampaignMerchantLegacyRedirectPage': () =>
+    import('component/lobby/campaign/merchant/CampaignMerchantLegacyRedirectPage'),
   './lobby/campaign/merchant/MerchantHomePage': () =>
     import('component/lobby/campaign/merchant/MerchantHomePage'),
   './lobby/campaign/merchant/MerchantCampaignListPage': () =>

@@ -10,7 +10,6 @@ import { CampaignCenterModal } from "./CampaignCenterModal";
 type Props = {
   open: boolean;
   onClose: () => void;
-  merchantId: string;
   coupon: CampaignCouponView | null;
   locale: string;
 };
@@ -18,7 +17,6 @@ type Props = {
 export const CampaignCouponUseQrModal: React.FC<Props> = ({
   open,
   onClose,
-  merchantId,
   coupon,
   locale,
 }) => {
@@ -26,7 +24,7 @@ export const CampaignCouponUseQrModal: React.FC<Props> = ({
 
   if (!coupon) return null;
 
-  const redeemUrl = merchantCouponRedeemUrl(merchantId, coupon.code);
+  const redeemUrl = merchantCouponRedeemUrl(coupon.code);
 
   const fmt = (ms: number) =>
     new Date(ms).toLocaleString(locale, {

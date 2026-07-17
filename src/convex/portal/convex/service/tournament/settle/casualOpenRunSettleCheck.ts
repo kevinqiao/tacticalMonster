@@ -4,7 +4,7 @@ import { internal } from "../../../_generated/api";
 import type { Id } from "../../../_generated/dataModel";
 import type { MutationCtx } from "../../../_generated/server";
 import { internalQuery } from "../../../_generated/server";
-import { isRegisteredPortalGameType } from "../../../data/portalGameRegistry";
+import { isRegisteredPartnerGameType } from "../../../data/partnerGameRegistry";
 import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
 import { isCasualAsyncVirtualOpponentUid } from "./async/casualAsyncTypes";
 
@@ -26,7 +26,7 @@ export async function scheduleOpenRunSettleCheckForPlayerGame(
   }
 ): Promise<void> {
   if (isCasualAsyncVirtualOpponentUid(args.uid)) return;
-  if (!isRegisteredPortalGameType(args.gameType)) return;
+  if (!isRegisteredPartnerGameType(args.gameType)) return;
 
   const dueAt = args.createdAt + CASUAL_OPEN_RUN_SETTLE_CHECK_MS;
   const delayMs = Math.max(0, dueAt - Date.now());

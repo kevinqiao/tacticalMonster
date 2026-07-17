@@ -5,8 +5,12 @@ import { usePartnerManager } from "host/service/PartnerManager";
 
 import WebSignInForm from "../../shared/WebSignInForm";
 
-/** Merchant console: Web-only sign-in (staffGate=merchant → SSO + merchant_staff bridge). */
-const MerchantWebSignInForm: React.FC = () => {
+type MerchantWebSignInFormProps = {
+  description?: string;
+};
+
+/** Store console: Web-only sign-in (staffGate=merchant → SSO store_staff). */
+const MerchantWebSignInForm: React.FC<MerchantWebSignInFormProps> = ({ description }) => {
   const { t } = useTranslation("campaign.merchant");
   const { partnerPid } = usePartnerManager();
 
@@ -15,7 +19,7 @@ const MerchantWebSignInForm: React.FC = () => {
       staffGate="merchant"
       partnerId={partnerPid}
       title={t("auth.signIn")}
-      description={t("auth.webSignInHint")}
+      description={description ?? t("auth.webSignInHint")}
       accountIdLabel="accountId"
       submitLabel={t("auth.signIn")}
     />

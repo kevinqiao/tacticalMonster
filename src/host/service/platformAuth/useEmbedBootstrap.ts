@@ -30,7 +30,7 @@ export function useEmbedBootstrap() {
       try {
         const session = await bootstrapFromPartner(payload.pid, payload.credential, {
           method: payload.method,
-          ...(payload.merchantSlug ? { merchantSlug: payload.merchantSlug } : {}),
+          ...(payload.partnerSlug ? { partnerSlug: payload.partnerSlug } : {}),
         });
         if (session) {
           if (

@@ -7,7 +7,7 @@ import {
   resolvePortal3DTierBadge,
   type PortalTierId,
 } from "./portalGame3DTheme";
-import type { RegisteredPortalGameType } from "@/convex/portal/convex/data/portalGameRegistry";
+import type { RegisteredPartnerGameType } from "@/convex/portal/convex/data/partnerGameRegistry";
 import type { PortalWeeklyLeagueUnclaimedRewards } from "../service/usePortalManager";
 import { getBootFallbackBg } from "@/host/bootTheme";
 import { markPortalBootPainted } from "@/host/bootHandoff";
@@ -45,7 +45,7 @@ export interface Portal3DTierInfo {
 }
 
 export interface PortalGame3DInnerProps {
-  gameType?: RegisteredPortalGameType | null;
+  gameType?: RegisteredPartnerGameType | null;
   heroLogoUrl?: string;
   authed?: boolean;
   tier?: Portal3DTierInfo;

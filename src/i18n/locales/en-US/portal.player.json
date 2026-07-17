@@ -9,6 +9,13 @@
     "empty": "None yet",
     "dash": "—"
   },
+  "gate": {
+    "loading": "Loading…",
+    "unknownKey": "Unknown portal key: {{key}}",
+    "unknownGame": "Unknown game type",
+    "gameNotOpen": "This game is not available",
+    "portalDisabled": "Portal is not enabled for this partner"
+  },
   "lobby": {
     "shop": "Shop",
     "signIn": "Sign In",
@@ -193,11 +200,6 @@
     "watch": "Replay"
   },
   "rules": {
-    "tabs": {
-      "points": "Points",
-      "tiers": "Tiers & groups",
-      "rewards": "Rewards"
-    },
     "points": {
       "title": "Points",
       "intro": "Both modes feed the <strong>same weekly total</strong>. Your total determines your rank within this week's group.",
@@ -216,8 +218,8 @@
     "tiers": {
       "title": "Tiers & groups",
       "bullets": [
-        "Each week you join a <strong>30-player group</strong> (up to 15 humans + 15 bots) in the <strong>same tier</strong>;",
-        "15 bots are seeded at group creation (some visible immediately, the rest over <strong>5 hours</strong>); empty seats may fill after matching ends. Weekly ranks decide promotion:"
+        "Each week you join a <strong>30-player group</strong> in the <strong>same tier</strong> and only compete within that group;",
+        "Groups fill over about <strong>5 hours</strong> after the week starts. Weekly ranks decide promotion:"
       ],
       "zonePromote": "↑ Promote 1-8",
       "zoneKeep": "Safe 9-22",

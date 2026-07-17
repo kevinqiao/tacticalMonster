@@ -6,6 +6,7 @@ import {
   findWebIdentityBySubject,
   listIdentitiesByUid,
 } from "../../dao/authIdentityHelpers";
+import { PLATFORM_NAMESPACE_PARTNER_ID } from "../auth/platformUid";
 import {
   normalizeWebAccountId,
   optionalWebContactEmail,
@@ -13,15 +14,13 @@ import {
 
 const REFRESH_TOKEN_EXPIRE_MS = 600 * 1000;
 
-async function findWebIdentityForAccount(ctx: MutationCtx, accountId: string) {
-  return await findWebIdentityBySubject(ctx, accountId);
-}
+/** Staff Web identities are platform-wide: auth_identities.partnerId is always 0. */
+const STAFF_IDENTITY_PARTNER_ID = PLATFORM_NAMESPACE_PARTNER_ID;
 
 export async function resolveWebStaffLogin(
   ctx: MutationCtx,
   raw: string,
-  platformUid: string,
-  partnerId: number
+  platformUid: string
 ): Promise<{ accountId: string; contactEmail?: string; uid: string }> {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -46,9 +45,12 @@ export async function resolveWebStaffLogin(
   }
 
   const contactEmail = optionalWebContactEmail(accountId);
+  // One staff person per subject: reuse any existing web identity (legacy partner-scoped
+  // rows included) so partner_staff memberships keep resolving.
   const existingIdentity =
-    (await findWebIdentityByPartnerSubject(ctx, partnerId, accountId)) ??
-    (await findIdentityByUid(ctx, platformUid));
+    (await findWebIdentityByPartnerSubject(ctx, STAFF_IDENTITY_PARTNER_ID, accountId)) ??
+    (await findIdentityByUid(ctx, platformUid)) ??
+    (await findWebIdentityBySubject(ctx, accountId));
 
   const uid = existingIdentity?.uid ?? platformUid;
 
@@ -111,12 +113,12 @@ async function ensureWebAuthIdentity(
   uid: string,
   accountId: string,
   contactEmail: string | undefined,
-  partnerId: number,
   name?: string
 ) {
   const existing =
-    (await findWebIdentityByPartnerSubject(ctx, partnerId, accountId)) ??
-    (await findIdentityByUid(ctx, uid));
+    (await findWebIdentityByPartnerSubject(ctx, STAFF_IDENTITY_PARTNER_ID, accountId)) ??
+    (await findIdentityByUid(ctx, uid)) ??
+    (await findWebIdentityBySubject(ctx, accountId));
 
   const now = Date.now();
   const trimmedName = name?.trim();
@@ -125,7 +127,8 @@ async function ensureWebAuthIdentity(
     await ctx.db.patch(existing._id, {
       subject: accountId,
       provider: "web",
-      partnerId,
+      partnerId: STAFF_IDENTITY_PARTNER_ID,
+      cid: 0,
       ...(contactEmail ? { email: contactEmail } : {}),
       ...(trimmedName ? { name: trimmedName } : {}),
       updatedAt: now,
@@ -142,7 +145,7 @@ async function ensureWebAuthIdentity(
     uid,
     provider: "web",
     subject: accountId,
-    partnerId,
+    partnerId: STAFF_IDENTITY_PARTNER_ID,
     ...(contactEmail ? { email: contactEmail } : {}),
     ...(trimmedName ? { name: trimmedName } : {}),
     cid: 0,
@@ -154,13 +157,15 @@ async function ensureWebAuthIdentity(
   return uid;
 }
 
-/** Create/update `user` + `auth_identities` from accountId + passwordHash; returns platform uid. */
+/**
+ * Create/update `user` + staff `auth_identities` (partnerId always 0).
+ * Team membership (`partner_staff.partnerId`) is separate and uses the real Partner id.
+ */
 export async function provisionWebStaffAccount(
   ctx: MutationCtx,
   loginAccountIdRaw: string,
   passwordHash: string,
   platformUid: string,
-  partnerId: number,
   name?: string
 ): Promise<string> {
   if (!passwordHash) {
@@ -170,9 +175,8 @@ export async function provisionWebStaffAccount(
   const { accountId, contactEmail, uid } = await resolveWebStaffLogin(
     ctx,
     loginAccountIdRaw,
-    platformUid,
-    partnerId
+    platformUid
   );
   await upsertWebUser(ctx, accountId, contactEmail, passwordHash, name);
-  return await ensureWebAuthIdentity(ctx, uid, accountId, contactEmail, partnerId, name);
+  return await ensureWebAuthIdentity(ctx, uid, accountId, contactEmail, name);
 }

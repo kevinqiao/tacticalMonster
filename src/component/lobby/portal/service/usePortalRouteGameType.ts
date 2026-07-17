@@ -3,7 +3,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
 
 import { isValidPortalGameType } from "./portalGameTypeGuards";
-import type { RegisteredPortalGameType } from "@/convex/portal/convex/data/portalGameRegistry";
+import type { RegisteredPartnerGameType } from "@/convex/portal/convex/data/partnerGameRegistry";
 
 function subscribePathname(onStoreChange: () => void) {
   window.addEventListener("popstate", onStoreChange);
@@ -21,7 +21,7 @@ function readPathname() {
 export function resolvePortalRouteGameType(
   pathname: string,
   dataGameType?: unknown
-): RegisteredPortalGameType | null {
+): RegisteredPartnerGameType | null {
   if (typeof dataGameType === "string" && isValidPortalGameType(dataGameType)) {
     return dataGameType;
   }
@@ -40,7 +40,7 @@ export function isSolitairePortalPath(pathname: string): boolean {
   return pathname.toLowerCase().includes("/solitaire");
 }
 
-export function usePortalRouteGameType(dataGameType?: unknown): RegisteredPortalGameType | null {
+export function usePortalRouteGameType(dataGameType?: unknown): RegisteredPartnerGameType | null {
   const pathname = useSyncExternalStore(subscribePathname, readPathname, () => "");
   return useMemo(
     () => resolvePortalRouteGameType(pathname, dataGameType),

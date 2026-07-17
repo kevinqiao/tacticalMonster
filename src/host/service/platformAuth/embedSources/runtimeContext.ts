@@ -1,3 +1,8 @@
+import {
+  partnerHasCampaignOps,
+  partnerHasPortalGames,
+  readPartnerCapabilities,
+} from "@/convex/sso/convex/service/partner/partnerCapabilities";
 import { resolveEmbedMethod } from "@/convex/sso/convex/service/embed/partnerEmbedConfig";
 
 import type { Partner } from "../../PartnerManager";
@@ -12,22 +17,18 @@ export function resolveAppEmbedContext(pathname: string): AppEmbedContext | null
   return null;
 }
 
+/**
+ * portal/campaign → partner.capabilities only.
+ * casual/tactical are first-party shells — not Partner-gated.
+ */
 export function partnerAllowsContext(
   partner: Partner | null | undefined,
   ctx: AppEmbedContext
 ): boolean {
   if (!partner) return false;
-  const enabled = readPartnerEnabledContexts(partner);
-  if (!enabled || enabled.length === 0) return true;
-  return enabled.includes(ctx);
-}
-
-export function readPartnerEnabledContexts(partner: Partner): string[] | undefined {
-  const data = partner.data;
-  if (!data || typeof data !== "object") return undefined;
-  const contexts = (data as { enabledContexts?: unknown }).enabledContexts;
-  if (!Array.isArray(contexts)) return undefined;
-  return contexts.filter((c): c is string => typeof c === "string");
+  if (ctx === "portal") return partnerHasPortalGames(partner);
+  if (ctx === "campaign") return partnerHasCampaignOps(partner);
+  return true;
 }
 
 export function partnerEmbedMethod(partner: Partner | null | undefined) {
@@ -38,3 +39,5 @@ export function partnerEmbedMethod(partner: Partner | null | undefined) {
 export function isCrazyGamesDevFlag(search: string): boolean {
   return new URLSearchParams(search).get("crazygames") === "1";
 }
+
+export { readPartnerCapabilities };

@@ -9,7 +9,7 @@ import {
 import type { Id } from "../../../../_generated/dataModel";
 import type { MutationCtx } from "../../../../_generated/server";
 import { internalMutation } from "../../../../_generated/server";
-import { virtualBotUid } from "../../../../data/portalGameRegistry";
+import { virtualBotUid } from "../../../../data/partnerGameRegistry";
 import {
   ensureBotPersonasSeeded,
   pickBotPersonaId,

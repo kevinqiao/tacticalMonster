@@ -38,8 +38,8 @@ const SignInWeb: React.FC<{ cid: number; onComplete: (user: User) => void; porta
           : "Partner 后台登录；须为 partner_staff 成员。"
         : signInContext.staffGate === "merchant"
           ? signInContext.partnerId
-            ? `商户后台登录（Partner PID ${signInContext.partnerId}）；须为 merchant_staff 成员。`
-            : "商户后台登录；须为 merchant_staff 成员。"
+            ? `门店后台登录（Partner PID ${signInContext.partnerId}）；须为 store_staff 成员。`
+            : "门店后台登录；须为 store_staff 成员。"
           : "Web 登录（玩家账号）；无 staff 校验。";
 
   return (

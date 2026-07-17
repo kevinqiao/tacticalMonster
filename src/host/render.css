@@ -10,6 +10,16 @@
   height: 100%;
   visibility: hidden;
   opacity: 0;
+  overflow: hidden;
+}
+
+/* Open/close motion target; shell (`modal-container`) stays at rest layout. */
+.modal-surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .modal-mask {
@@ -51,17 +61,18 @@
     0 4px 10px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   pointer-events: auto;
-  visibility: hidden;
-  opacity: 0;
-  transition: transform 0.12s ease;
+  /* Visible on the shell; no separate fade — open motion targets `.modal-surface` only. */
+  visibility: visible;
+  opacity: 1;
+  transition: none;
 }
 
 .modal-close:hover {
-  transform: translateY(-1px);
+  filter: brightness(1.08);
 }
 
 .modal-close:active {
-  transform: translateY(1px);
+  filter: brightness(0.96);
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.45),
     inset 0 -3px 4px rgba(120, 30, 5, 0.35),

@@ -32,19 +32,19 @@ import "./merchant.css";
 
 
 
-function merchantIdFromLocation(): string {
-
-  return new URLSearchParams(window.location.search).get("merchantId") ?? "";
-
+function partnerIdFromLocation(): number {
+  const raw = new URLSearchParams(window.location.search).get("partnerId") ?? "";
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 
 
 export const MerchantBrandSettingsInner: React.FC<{
   visible: number;
-  merchantId: string;
+  partnerId: number;
   embedded?: boolean;
-}> = ({ visible, merchantId, embedded }) => {
+}> = ({ visible, partnerId, embedded }) => {
 
   const { t } = useTranslation("campaign.merchant");
 
@@ -62,7 +62,7 @@ export const MerchantBrandSettingsInner: React.FC<{
 
   const syncTheme = async () => {
 
-    if (!http || !authed || !merchantId) {
+    if (!http || !authed || !partnerId) {
 
       askAuth({});
 
@@ -74,7 +74,7 @@ export const MerchantBrandSettingsInner: React.FC<{
 
       const result = (await http.action(fns.syncThemeFromUrl, {
 
-        merchantId,
+        partnerId,
 
         sourceUrl: brandUrl,
 
@@ -106,10 +106,10 @@ export const MerchantBrandSettingsInner: React.FC<{
 
   const approve = async () => {
 
-    if (!http || !authed || !merchantId || !draftTheme) return;
+    if (!http || !authed || !partnerId || !draftTheme) return;
 
-    await http.mutation(fns.approveMerchantTheme, {
-      merchantId,
+    await http.action(fns.approveMerchantTheme, {
+      partnerId,
       themeJson: draftTheme,
     });
 
@@ -168,21 +168,20 @@ export const MerchantBrandSettingsInner: React.FC<{
 
 
 const MerchantBrandSettingsPage: React.FC<PageProp> = ({ visible, data }) => {
-
-  const merchantId =
-
-    (typeof data?.merchantId === "string" ? data.merchantId : "") || merchantIdFromLocation();
+  const fromData =
+    typeof data?.partnerId === "number"
+      ? data.partnerId
+      : typeof data?.partnerId === "string"
+        ? Number(data.partnerId)
+        : 0;
+  const partnerId =
+    Number.isFinite(fromData) && fromData > 0 ? fromData : partnerIdFromLocation();
 
   return (
-
     <MerchantCampaignProvider>
-
-      <MerchantBrandSettingsInner visible={visible} merchantId={merchantId} />
-
+      <MerchantBrandSettingsInner visible={visible} partnerId={partnerId} />
     </MerchantCampaignProvider>
-
   );
-
 };
 
 

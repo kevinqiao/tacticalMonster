@@ -1,5 +1,5 @@
 import type { PortalTournamentDefinition } from "./portalTournamentConfigs";
-import type { RegisteredPortalGameType } from "./portalGameRegistry";
+import type { RegisteredPartnerGameType } from "./partnerGameRegistry";
 
 /** 连续「无名次奖励」场数达到此值 → join solo 开桌 + bot 难度规则 110 */
 export const CASUAL_CONSECUTIVE_LOSS_THRESHOLD = 3;
@@ -20,7 +20,7 @@ export function isCasualDevAutoReplayTokensEnabled(): boolean {
 
 export type CasualTableMode = "solo_bot" | "mixed_human";
 
-export type CasualGameIdForBot = RegisteredPortalGameType;
+export type CasualGameIdForBot = RegisteredPartnerGameType;
 
 export type BotRankDistribution = {
   weights: Record<number, number>;

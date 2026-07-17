@@ -164,6 +164,11 @@
   color: #0f172a;
 }
 
+.merchant-coupon-status-mark {
+  color: #b45309;
+  font-weight: 600;
+}
+
 .merchant-field {
   display: flex;
   flex-direction: column;

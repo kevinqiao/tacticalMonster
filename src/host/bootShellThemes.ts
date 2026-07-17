@@ -5,7 +5,7 @@ export type BootShellId =
   | "tactical"
   | "casual"
   | "campaign"
-  | "campaignMerchant"
+  | "partnerOperation"
   | "platform"
   | "partner";
 
@@ -59,13 +59,13 @@ export const BOOT_SHELL_THEMES: Record<BootShellId, BootShellTheme> = {
     gradientPortrait: "linear-gradient(165deg, #735040 0%, #3d2818 45%, #241610 100%)",
     messageKey: "enteringCampaign",
   },
-  campaignMerchant: {
-    id: "campaignMerchant",
+  partnerOperation: {
+    id: "partnerOperation",
     fallbackLandscape: "#2f3440",
     fallbackPortrait: "#252932",
     gradientLandscape: "linear-gradient(165deg, #525a6a 0%, #2f3440 42%, #1a1e26 100%)",
     gradientPortrait: "linear-gradient(165deg, #454c5a 0%, #252932 48%, #14171d 100%)",
-    messageKey: "enteringCampaignMerchant",
+    messageKey: "enteringPartnerOperation",
   },
   platform: {
     id: "platform",
@@ -87,8 +87,10 @@ export const BOOT_SHELL_THEMES: Record<BootShellId, BootShellTheme> = {
 
 export function resolveBootShellIdFromPathname(pathname: string): BootShellId {
   if (pathname.startsWith("/platform")) return "platform";
+  if (pathname.startsWith("/partner/operation") || pathname.startsWith("/campaign/merchant")) {
+    return "partnerOperation";
+  }
   if (pathname.startsWith("/partner")) return "partner";
-  if (pathname.startsWith("/campaign/merchant")) return "campaignMerchant";
   if (pathname.startsWith("/campaign")) return "campaign";
   if (pathname.startsWith("/portal")) return "portal";
   if (pathname.startsWith("/tactical")) return "tactical";

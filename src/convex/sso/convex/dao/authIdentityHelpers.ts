@@ -9,12 +9,19 @@ function subjectScore(subject: string | undefined): number {
   return 1;
 }
 
+function staffPartnerScore(partnerId: number | undefined): number {
+  // Prefer platform-wide staff identity (partnerId=0).
+  return partnerId === 0 || partnerId === undefined ? 2 : 0;
+}
+
 /** Pick one row when legacy migrations left duplicate uid rows. */
 export function pickCanonicalIdentity(rows: IdentityRow[]): IdentityRow | null {
   if (rows.length === 0) return null;
   if (rows.length === 1) return rows[0];
 
   return [...rows].sort((a, b) => {
+    const partnerDiff = staffPartnerScore(b.partnerId) - staffPartnerScore(a.partnerId);
+    if (partnerDiff !== 0) return partnerDiff;
     const subjectDiff = subjectScore(b.subject) - subjectScore(a.subject);
     if (subjectDiff !== 0) return subjectDiff;
     const providerDiff = (b.provider === "web" ? 1 : 0) - (a.provider === "web" ? 1 : 0);

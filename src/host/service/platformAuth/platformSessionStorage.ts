@@ -1,7 +1,10 @@
 import type { User } from "../UserManager";
 import { looksLikePlatformJwt } from "./platformAccessToken";
 
-const STORAGE_KEY = "user";
+/** Shared with cross-tab `storage` listeners in UserManager. */
+export const PLATFORM_USER_STORAGE_KEY = "user";
+
+const STORAGE_KEY = PLATFORM_USER_STORAGE_KEY;
 
 export type StoredUser = User & {
   platformAccessToken?: string;
@@ -41,6 +44,17 @@ export function readStoredUser(): StoredUser | null {
     return parsed.uid || parsed.platformAccessToken ? parsed : null;
   } catch {
     localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
+
+/** Parse `storage` event payload without touching localStorage. */
+export function parseStoredUserJson(raw: string | null): StoredUser | null {
+  if (!raw) return null;
+  try {
+    const parsed = sanitizeStoredUser(JSON.parse(raw) as StoredUserRaw);
+    return parsed.uid || parsed.platformAccessToken ? parsed : null;
+  } catch {
     return null;
   }
 }

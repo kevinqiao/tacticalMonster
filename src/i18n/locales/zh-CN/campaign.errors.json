@@ -33,6 +33,8 @@
     "slug_taken": "Slug 已被占用",
     "campaign_slug_taken": "活动 Slug 已被占用",
     "campaign_ended": "活动已结束",
+    "campaign_settled_cannot_relive": "榜奖励已结算，不可再次上线",
+    "campaign_settled_locked": "榜奖励已结算，活动已锁定不可编辑",
     "live_campaign_locked": "活动已上线，结构字段已锁定",
     "forbidden": "无权操作",
     "unsupported_game_type": "不支持的游戏类型",
@@ -50,6 +52,11 @@
     "invalid_fields": "字段无效",
     "coupon_def_not_found": "券定义不存在",
     "coupon_def_not_active": "券定义未启用",
+    "invalid_coupon_validity_hours": "有效时长须为 1～8760 小时",
+    "invalid_coupon_activation_at": "请填写有效的生效时间",
+    "invalid_coupon_activation_delay": "延迟生效时长须为 0～8760 小时",
+    "invalid_coupon_activation": "生效方式无效",
+    "not_yet_active": "尚未到生效时间",
     "reward_must_be_free_item": "奖励必须为免费兑换项",
     "reward_label_required": "请填写兑换文案",
     "pass_per_run_requires_solo": "过关模式须为单人",
@@ -82,7 +89,8 @@
     "cannot_add_owner": "不能通过此接口添加 owner",
     "uid_required": "需要 uid",
     "merchant_id_required": "需要 merchantId",
-    "not_merchant_staff": "该账号未加入 merchant_staff，无法登录商户后台"
+    "not_merchant_staff": "该账号未加入 store_staff，无法登录门店后台",
+    "not_store_staff": "该账号未加入 store_staff，无法登录门店后台"
   },
   "success": {
     "merchantCreated": "商家已创建",
@@ -90,6 +98,7 @@
     "saved": "已保存",
     "live": "活动已上线",
     "drafted": "已下线为 draft，可编辑全部字段",
+    "hiddenFromLanding": "已从落地页隐藏（仍可在后台查看）",
     "couponDefCreated": "券定义已创建",
     "archived": "已归档",
     "voided": "已作废",

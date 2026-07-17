@@ -11,7 +11,8 @@ describe("bootShellThemes", () => {
   it("maps admin routes to distinct shells", () => {
     expect(resolveBootShellIdFromPathname("/platform/admin")).toBe("platform");
     expect(resolveBootShellIdFromPathname("/partner/admin")).toBe("partner");
-    expect(resolveBootShellIdFromPathname("/campaign/merchant")).toBe("campaignMerchant");
+    expect(resolveBootShellIdFromPathname("/partner/operation")).toBe("partnerOperation");
+    expect(resolveBootShellIdFromPathname("/campaign/merchant")).toBe("partnerOperation");
   });
 
   it("uses portal visuals for portal routes", () => {

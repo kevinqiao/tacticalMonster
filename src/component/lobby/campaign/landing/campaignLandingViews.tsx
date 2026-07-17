@@ -14,11 +14,12 @@ import { useCampaignFlow } from "../service/useCampaignFlow";
 
 import type { CampaignPublicView } from "../service/useMerchantCampaignManager";
 
+import { CampaignAccountSheet } from "./CampaignAccountSheet";
 import { CampaignDetailsSheet } from "./CampaignDetailsSheet";
 import { CampaignHistorySheet } from "./CampaignHistorySheet";
 import { CampaignLeaderboardSheet } from "./CampaignLeaderboardSheet";
 import { CampaignMyCouponsSheet } from "./CampaignMyCouponsSheet";
-import { useMerchantPlayerCouponsLive } from "../service/useMerchantCampaignManager";
+import { usePartnerPlayerCouponsLive } from "../service/useMerchantCampaignManager";
 
 
 
@@ -62,75 +63,105 @@ export const CampaignLandingBackground: React.FC<{
 
 
 export const CampaignLandingSharedTopbar: React.FC<{
-
-  merchant: CampaignPublicView["merchant"];
-
+  partner: CampaignPublicView["partner"];
   authed: boolean;
-
   onSignIn: () => void;
-
   onSignOut: () => void;
-
+  onMyAccount?: () => void;
   onMyCoupons?: () => void;
-
-}> = ({ merchant, authed, onSignIn, onSignOut, onMyCoupons }) => {
-
+}> = ({ partner, authed, onSignIn, onSignOut, onMyAccount, onMyCoupons }) => {
   const { t } = useTranslation("campaign.player");
+  const authRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDocPointer = (e: PointerEvent) => {
+      const root = authRef.current;
+      if (!root) return;
+      const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+      if (path.includes(root)) return;
+      if (e.target instanceof Node && root.contains(e.target)) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onDocPointer, true);
+    return () => document.removeEventListener("pointerdown", onDocPointer, true);
+  }, [menuOpen]);
 
+  useEffect(() => {
+    if (!authed) setMenuOpen(false);
+  }, [authed]);
 
   return (
-
     <header className="campaign-topbar campaign-topbar--overlay campaign-carousel__topbar">
-
       <div className="campaign-brand">
-
-        {merchant.logoUrl ? (
-
-          <img className="campaign-brand__logo" src={merchant.logoUrl} alt="" />
-
+        {partner.logoUrl ? (
+          <img className="campaign-brand__logo" src={partner.logoUrl} alt="" />
         ) : null}
-
-        <p className="campaign-brand__name">{merchant.name}</p>
-
+        <p className="campaign-brand__name">{partner.name}</p>
       </div>
 
-      <nav className="campaign-topbar__actions" aria-label={t("auth.navLabel")}>
+      <div ref={authRef} className="campaign-auth-cluster">
+        <button
+          type="button"
+          className="campaign-auth-btn"
+          aria-label={authed ? t("auth.accountMenuAria") : t("auth.signIn")}
+          aria-haspopup={authed ? "menu" : undefined}
+          aria-expanded={authed ? menuOpen : undefined}
+          onClick={() => {
+            if (!authed) {
+              onSignIn();
+              return;
+            }
+            setMenuOpen((v) => !v);
+          }}
+        >
+          <span className="campaign-auth-btn__bg" aria-hidden>
+            <span className="campaign-auth-btn__icon" />
+          </span>
+        </button>
 
-        {authed && onMyCoupons ? (
-
-          <button type="button" className="pfc-auth-btn" onClick={onMyCoupons}>
-
-            {t("auth.myCoupons")}
-
-          </button>
-
+        {authed && menuOpen ? (
+          <div className="campaign-auth-menu" role="menu">
+            <button
+              type="button"
+              className="campaign-auth-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                onMyAccount?.();
+              }}
+            >
+              {t("auth.myAccount")}
+            </button>
+            <button
+              type="button"
+              className="campaign-auth-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                onMyCoupons?.();
+              }}
+            >
+              {t("auth.myCoupons")}
+            </button>
+            <div className="campaign-auth-menu__sep" role="separator" />
+            <button
+              type="button"
+              className="campaign-auth-menu__item campaign-auth-menu__item--danger"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                onSignOut();
+              }}
+            >
+              {t("auth.signOut")}
+            </button>
+          </div>
         ) : null}
-
-        {authed ? (
-
-          <button type="button" className="pfc-auth-btn" onClick={onSignOut}>
-
-            {t("auth.signOut")}
-
-          </button>
-
-        ) : (
-
-          <button type="button" className="pfc-auth-btn pfc-auth-btn--filled" onClick={onSignIn}>
-
-            {t("auth.signIn")}
-
-          </button>
-
-        )}
-
-      </nav>
-
+      </div>
     </header>
-
   );
-
 };
 
 
@@ -139,7 +170,7 @@ export const CampaignLandingWithFlow: React.FC<{
 
   campaignPublic: CampaignPublicView;
 
-  merchantSlug: string;
+  partnerSlug: string;
 
   campaignSlug: string;
 
@@ -159,7 +190,7 @@ export const CampaignLandingWithFlow: React.FC<{
 
   const flow = useCampaignFlow({
 
-    merchantSlug: props.merchantSlug,
+    partnerSlug: props.partnerSlug,
 
     campaignSlug: props.campaignSlug,
 
@@ -259,12 +290,21 @@ export const CampaignLandingBody: React.FC<{
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const [myCouponsOpen, setMyCouponsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
-  const overlayBitsRef = useRef({ details: false, history: false, leaderboard: false, myCoupons: false });
+  const overlayBitsRef = useRef({
+    details: false,
+    history: false,
+    leaderboard: false,
+    myCoupons: false,
+    account: false,
+  });
 
   const syncOverlayLock = useCallback(() => {
     const bits = overlayBitsRef.current;
-    onOverlayOpenChange?.(bits.details || bits.history || bits.leaderboard || bits.myCoupons);
+    onOverlayOpenChange?.(
+      bits.details || bits.history || bits.leaderboard || bits.myCoupons || bits.account
+    );
   }, [onOverlayOpenChange]);
 
   const setDetailsOpenSync = useCallback(
@@ -294,6 +334,15 @@ export const CampaignLandingBody: React.FC<{
     [syncOverlayLock]
   );
 
+  const setAccountOpenSync = useCallback(
+    (open: boolean) => {
+      overlayBitsRef.current.account = open;
+      setAccountOpen(open);
+      syncOverlayLock();
+    },
+    [syncOverlayLock]
+  );
+
   const setMyCouponsOpenSync = useCallback(
     (open: boolean) => {
       overlayBitsRef.current.myCoupons = open;
@@ -303,8 +352,8 @@ export const CampaignLandingBody: React.FC<{
     [syncOverlayLock]
   );
 
-  const { coupons: merchantCoupons, isLoading: merchantCouponsLoading } =
-    useMerchantPlayerCouponsLive(campaignPublic.merchant.merchantId);
+  const { coupons: partnerCoupons, isLoading: partnerCouponsLoading } =
+    usePartnerPlayerCouponsLive(campaignPublic.partner.partnerId);
 
 
 
@@ -324,7 +373,10 @@ export const CampaignLandingBody: React.FC<{
 
   }, [leaderboardOpen]);
 
-
+  useEffect(() => {
+    if (!leaderboardOpen || !flow.showLeaderboard) return;
+    void flow.refreshLeaderboard();
+  }, [leaderboardOpen, flow.showLeaderboard, flow.refreshLeaderboard]);
 
   useEffect(() => {
     if (!historyOpen) return;
@@ -346,55 +398,36 @@ export const CampaignLandingBody: React.FC<{
 
 
   const playButtonLabel = (() => {
-
+    // 4) 活动未开放 / 已结束
     if (flow.campaignEnded) return t("playButton.ended");
-
     if (flow.campaignNotStarted || !flow.campaignPlayable) return t("playButton.notOpen");
 
+    // 过程态（短暂）
     if (flow.joining) return t("playButton.joining");
-
     if (flow.matchOverlayOpen) return t("playButton.matching");
-
     if (flow.settlingAfterGame) return t("playButton.settling");
 
+    // 3) 继续完成（有一场未结束的游戏）
+    if (flow.hasUnfinishedRun) return t("playButton.continueUnfinished");
+
+    // 2) 今日挑战次数用完
     if (flow.dailyLimitReached) return t("playButton.dailyLimitReached");
 
+    // 单局领券上限（仍需拦截开桌）
     if (passMode && flow.couponLimitReached) return t("playButton.couponLimitReached");
 
-    const hasDailyRemaining =
-      flow.maxPlaysPerDay != null &&
-      flow.remainingPlaysToday != null &&
-      flow.remainingPlaysToday > 0;
-
-    const isContinueSession = passMode ? flow.claimedCount > 0 : flow.hasClaimed;
-
-    if (hasDailyRemaining) {
-      return t(
-        isContinueSession ? "playButton.continueWithRemaining" : "playButton.startWithRemaining",
-        { remaining: flow.remainingPlaysToday }
-      );
+    // 1) 开始挑战；积分榜带当前排名
+    if (!passMode && flow.viewerLeaderboardRank != null) {
+      return t("playButton.startWithRank", { rank: flow.viewerLeaderboardRank });
     }
-
-    if (passMode && flow.claimedCount > 0) return t("playButton.continueChallenge");
-
-    if (!passMode && flow.hasClaimed) return t("playButton.continueGrind");
-
-    return passMode ? t("playButton.challengeForCoupon") : t("playButton.joinCompetitive");
-
+    return t("playButton.startChallenge");
   })();
 
-
-
   const playDisabled =
-
     flow.joining ||
-
     flow.matchOverlayOpen ||
-
     flow.settlingAfterGame ||
-
     !flow.campaignPlayable ||
-
     !flow.canChallenge;
 
 
@@ -535,7 +568,7 @@ export const CampaignLandingBody: React.FC<{
 
                     </button>
 
-                    {flow.authed ? (
+                    {passMode && flow.authed ? (
 
                       <button
 
@@ -548,6 +581,24 @@ export const CampaignLandingBody: React.FC<{
                       >
 
                         {t("dock.historyBtn")}
+
+                      </button>
+
+                    ) : null}
+
+                    {!passMode && flow.showLeaderboard ? (
+
+                      <button
+
+                        type="button"
+
+                        className="campaign-btn campaign-btn-secondary campaign-dock__info-btn"
+
+                        onClick={() => setLeaderboardOpenSync(true)}
+
+                      >
+
+                        {t("dock.campaignLeaderboardBtn")}
 
                       </button>
 
@@ -601,24 +652,6 @@ export const CampaignLandingBody: React.FC<{
 
               </button>
 
-              {flow.showLeaderboard ? (
-
-                <button
-
-                  type="button"
-
-                  className="campaign-btn campaign-btn-secondary"
-
-                  onClick={() => setLeaderboardOpenSync(true)}
-
-                >
-
-                  {t("dock.leaderboardBtn")}
-
-                </button>
-
-              ) : null}
-
             </div>
 
           </div>
@@ -630,19 +663,25 @@ export const CampaignLandingBody: React.FC<{
 
 
       <CampaignLeaderboardSheet
-
         open={leaderboardOpen && flow.showLeaderboard}
-
         title={leaderboardTitle}
-
         mode={campaignPublic.campaign.mode}
-
         rows={leaderboardRows}
-
         viewerUid={user?.uid}
-
-        onClose={() => setLeaderboardOpenSync(false)}
-
+        settlementStatus={
+          flow.campaignEnded || campaignPublic.campaign.status === "ended"
+            ? flow.settlementStatus
+            : null
+        }
+        viewerReward={flow.viewerBoardReward}
+        escapeDisabled={historyOpen}
+        onOpenChallengeHistory={
+          flow.authed ? () => setHistoryOpenSync(true) : undefined
+        }
+        onClose={() => {
+          setHistoryOpenSync(false);
+          setLeaderboardOpenSync(false);
+        }}
       />
 
 
@@ -651,7 +690,7 @@ export const CampaignLandingBody: React.FC<{
         open={detailsOpen}
         onClose={() => setDetailsOpenSync(false)}
         campaignPublic={campaignPublic}
-        merchantSlug={campaignPublic.merchant.slug}
+        partnerSlug={campaignPublic.partner.slug}
         flow={{
           periodLabel: flow.periodLabel,
           timeRemaining: flow.timeRemaining,
@@ -674,17 +713,31 @@ export const CampaignLandingBody: React.FC<{
         authed={flow.authed}
         entries={flow.playHistory}
         locale={i18n.language}
+        title={
+          !passMode && leaderboardOpen
+            ? t("leaderboard.challengeHistoryBtn")
+            : undefined
+        }
+        rewardModel={flow.isPassMode ? "pass_per_run" : "competitive_leaderboard"}
+        mode={campaignPublic.campaign.mode}
       />
 
       <CampaignMyCouponsSheet
         open={myCouponsOpen}
         onClose={() => setMyCouponsOpenSync(false)}
-        merchantId={campaignPublic.merchant.merchantId}
+        partnerId={campaignPublic.partner.partnerId}
         authed={flow.authed}
-        coupons={merchantCoupons}
-        loading={merchantCouponsLoading}
+        coupons={partnerCoupons}
+        loading={partnerCouponsLoading}
         locale={i18n.language}
       />
+
+      {!hideTopbar ? (
+        <CampaignAccountSheet
+          open={accountOpen}
+          onClose={() => setAccountOpenSync(false)}
+        />
+      ) : null}
 
 
 
@@ -712,7 +765,11 @@ export const CampaignLandingBody: React.FC<{
 
         leaving={flow.leavingMatch}
 
-        onLeave={() => void flow.leaveMatchQueue()}
+        onLeave={
+          flow.matchWaitingForPeer
+            ? () => void flow.leaveMatchQueue()
+            : undefined
+        }
 
       />
 
@@ -747,17 +804,12 @@ export const CampaignLandingBody: React.FC<{
       {!hideTopbar ? (
 
         <CampaignLandingSharedTopbar
-
-          merchant={campaignPublic.merchant}
-
+          partner={campaignPublic.partner}
           authed={flow.authed}
-
           onSignIn={flow.signIn}
-
           onSignOut={signOut}
-
+          onMyAccount={() => setAccountOpenSync(true)}
           onMyCoupons={() => setMyCouponsOpenSync(true)}
-
         />
 
       ) : null}

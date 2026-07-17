@@ -13,6 +13,9 @@ function killModalTweens(container: AuthContainer) {
   gsap.killTweensOf([container.ele, container.mask, container.closeEle].filter(Boolean));
 }
 
+/** Bumped on every playOpen; stale playClose onComplete must not hide a newer open. */
+let ssoOpenGeneration = 0;
+
 function toCssSize(value: unknown, fallback: string) {
   if (typeof value === "number") return `${value}px`;
   if (typeof value === "string" && value.trim().length > 0) return value;
@@ -145,14 +148,54 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
   );
 
   const playOpen = useCallback(
-    ({ closeAble, onComplete }: { closeAble?: boolean, onComplete?: () => void | Promise<void> }) => {
+    ({
+      closeAble,
+      onComplete,
+      layout,
+    }: {
+      closeAble?: boolean;
+      onComplete?: () => void | Promise<void>;
+      /** Staff consoles: skip swipe (can leave panel off-screen if interrupted). */
+      layout?: "default" | "staffFull";
+    }) => {
       if (!container.ele) return;
+
+      if (layout === "staffFull") {
+        killModalTweens(container);
+        ssoOpenGeneration += 1;
+        openedEffectRef.current = { name: "popCenter", orientation: "both" };
+        gsap.set(container.ele, {
+          clearProps: "transform,transformOrigin",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: "100%",
+          height: "100%",
+          x: 0,
+          y: 0,
+          xPercent: 0,
+          yPercent: 0,
+          scale: 1,
+          autoAlpha: 1,
+        });
+        if (container.mask) {
+          gsap.set(container.mask, { autoAlpha: closeAble ? 0.5 : 1 });
+        }
+        if (container.closeEle) {
+          gsap.set(container.closeEle, { autoAlpha: closeAble ? 1 : 0 });
+        }
+        onComplete?.();
+        return;
+      }
+
       const effect = resolveEffect();
 
       if (!OPEN_EFFECTS.has(effect.name)) {
         onComplete?.();
         return;
       }
+      ssoOpenGeneration += 1;
       openedEffectRef.current = effect;
       killModalTweens(container);
       const tl = gsap.timeline({
@@ -248,7 +291,10 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
       }
 
       if (container.closeEle && closeAble) {
-        tl.to(container.closeEle, { autoAlpha: 1, duration: 0.8, ease: "power2.inOut" }, ">=+1.0");
+        gsap.set(container.closeEle, { autoAlpha: 0 });
+        tl.to(container.closeEle, { autoAlpha: 1, duration: 0.28, ease: "power2.out" });
+      } else if (container.closeEle) {
+        gsap.set(container.closeEle, { autoAlpha: 0 });
       }
       tl.play();
     },
@@ -258,6 +304,7 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
   const playClose = useCallback(
     ({ onComplete }: { onComplete?: () => void | Promise<void> }) => {
       const effect = openedEffectRef.current ?? resolveEffect();
+      const closeGen = ssoOpenGeneration;
       if (!container.ele) {
         openedEffectRef.current = null;
         onComplete?.();
@@ -270,40 +317,46 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
         return;
       }
       killModalTweens(container);
-      const tl = gsap.timeline({
-        onComplete: () => {
-          // 关闭后复位位移，避免 swipeRight/Left 把容器长期留在屏外导致横向 overflow 与 fixed 元素错位。
-          if (container.ele) gsap.set(container.ele, { x: 0, y: 0, autoAlpha: 0 });
-          if (container.mask) gsap.set(container.mask, { autoAlpha: 0 });
-          if (container.closeEle) gsap.set(container.closeEle, { autoAlpha: 0 });
-          openedEffectRef.current = null;
-          onComplete?.();
-        },
-      });
-      switch (effect.name) {
-        case "popCenter":
-          tl.to(container.ele, { scale: 0.5, autoAlpha: 0, duration: 0.5, ease: "power2.inOut" });
-          break;
-        case "swipeTop":
-          tl.to(container.ele, { y: "-100%", duration: 0.5, ease: "power2.inOut" });
-          break;
-        case "swipeBottom":
-          tl.to(container.ele, { y: 0, duration: 0.5, ease: "power2.inOut" });
-          break;
-        case "swipeRight":
-          tl.to(container.ele, { x: "100%", duration: 0.5, ease: "power2.inOut" });
-          break;
-        case "swipeLeft":
-          tl.to(container.ele, { x: "-100%", duration: 0.5, ease: "power2.inOut" });
-          break;
-      }
-      if (container.mask) {
-        tl.to(container.mask, { autoAlpha: 0, duration: 0.5, ease: "power2.inOut" }, "<");
-      }
-      if (container.closeEle) {
-        tl.to(container.closeEle, { autoAlpha: 0, duration: 0.8, ease: "power2.inOut" }, "<");
-      }
-      tl.play();
+
+      const runLayerExit = () => {
+        const tl = gsap.timeline({
+          onComplete: () => {
+            // A newer playOpen won the race (e.g. restore playClose vs staff forceReauth).
+            if (closeGen !== ssoOpenGeneration) {
+              onComplete?.();
+              return;
+            }
+            if (container.ele) gsap.set(container.ele, { x: 0, y: 0, autoAlpha: 0 });
+            if (container.mask) gsap.set(container.mask, { autoAlpha: 0 });
+            if (container.closeEle) gsap.set(container.closeEle, { autoAlpha: 0 });
+            openedEffectRef.current = null;
+            onComplete?.();
+          },
+        });
+        switch (effect.name) {
+          case "popCenter":
+            tl.to(container.ele, { scale: 0.5, autoAlpha: 0, duration: 0.5, ease: "power2.inOut" });
+            break;
+          case "swipeTop":
+            tl.to(container.ele, { y: "-100%", duration: 0.5, ease: "power2.inOut" });
+            break;
+          case "swipeBottom":
+            tl.to(container.ele, { y: 0, duration: 0.5, ease: "power2.inOut" });
+            break;
+          case "swipeRight":
+            tl.to(container.ele, { x: "100%", duration: 0.5, ease: "power2.inOut" });
+            break;
+          case "swipeLeft":
+            tl.to(container.ele, { x: "-100%", duration: 0.5, ease: "power2.inOut" });
+            break;
+        }
+        if (container.mask) {
+          tl.to(container.mask, { autoAlpha: 0, duration: 0.5, ease: "power2.inOut" }, "<");
+        }
+        tl.play();
+      };
+
+      runLayerExit();
     },
     [resolveEffect, container]
   );

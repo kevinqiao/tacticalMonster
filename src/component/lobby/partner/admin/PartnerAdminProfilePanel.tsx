@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from "react";
 
 import {
-  ENABLED_CONTEXT_OPTIONS,
   partnerAdminErrorMessage,
   partnerAdminSuccessMessage,
-  type EnabledContext,
 } from "./partnerAdminHelpers";
 import { usePartnerAdminMutations, usePartnerDetail } from "./usePartnerAdmin";
 
@@ -22,7 +20,6 @@ const PartnerAdminProfilePanel: React.FC<PartnerAdminProfilePanelProps> = ({ par
   const [defaultLandingPath, setDefaultLandingPath] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("");
-  const [enabledContexts, setEnabledContexts] = useState<EnabledContext[]>([]);
   const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,14 +30,7 @@ const PartnerAdminProfilePanel: React.FC<PartnerAdminProfilePanelProps> = ({ par
     setDefaultLandingPath(detail.data?.defaultLandingPath ?? "");
     setLogoUrl(detail.data?.branding?.logoUrl ?? "");
     setPrimaryColor(detail.data?.branding?.primaryColor ?? "");
-    setEnabledContexts((detail.data?.enabledContexts ?? []) as EnabledContext[]);
   }, [detail]);
-
-  const toggleContext = (ctx: EnabledContext) => {
-    setEnabledContexts((prev) =>
-      prev.includes(ctx) ? prev.filter((c) => c !== ctx) : [...prev, ctx]
-    );
-  };
 
   const onSave = async () => {
     try {
@@ -52,7 +42,6 @@ const PartnerAdminProfilePanel: React.FC<PartnerAdminProfilePanelProps> = ({ par
           .split(/[\n,]+/)
           .map((s) => s.trim())
           .filter(Boolean),
-        enabledContexts,
         defaultLandingPath: defaultLandingPath.trim() || undefined,
         logoUrl: logoUrl.trim() || undefined,
         primaryColor: primaryColor.trim() || undefined,
@@ -69,6 +58,8 @@ const PartnerAdminProfilePanel: React.FC<PartnerAdminProfilePanelProps> = ({ par
   if (detail === null) {
     return <p className="merchant-note">Partner not found or access denied.</p>;
   }
+
+  const caps = detail.capabilities;
 
   return (
     <>
@@ -97,17 +88,16 @@ const PartnerAdminProfilePanel: React.FC<PartnerAdminProfilePanelProps> = ({ par
         />
       </label>
       <fieldset className="merchant-field">
-        <legend>Enabled contexts</legend>
-        {ENABLED_CONTEXT_OPTIONS.map((ctx) => (
-          <label key={ctx} style={{ display: "block", marginBottom: 6 }}>
-            <input
-              type="checkbox"
-              checked={enabledContexts.includes(ctx)}
-              onChange={() => toggleContext(ctx)}
-            />{" "}
-            {ctx}
-          </label>
-        ))}
+        <legend>Product capabilities (platform-managed)</legend>
+        <p className="merchant-note" style={{ marginTop: 0 }}>
+          Portal / Campaign Ops are set in /platform/admin — not editable here.
+        </p>
+        <label style={{ display: "block", marginBottom: 6 }}>
+          <input type="checkbox" checked={caps.portalGames === true} disabled readOnly /> portal
+        </label>
+        <label style={{ display: "block", marginBottom: 6 }}>
+          <input type="checkbox" checked={caps.campaignOps === true} disabled readOnly /> campaign
+        </label>
       </fieldset>
       <label className="merchant-field">
         Logo URL

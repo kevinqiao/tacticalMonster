@@ -9,6 +9,10 @@ body,
 #root {
   min-height: 100%;
   height: 100%;
+  /* Prefer pan/tap only; pinch zoom is also blocked in lockMobileViewportZoom. */
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+  overscroll-behavior: none;
 }
 
 body {

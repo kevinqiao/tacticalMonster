@@ -1,138 +1,82 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React from "react";
+import { ConvexProvider, useQuery } from "convex/react";
 import { useTranslation } from "react-i18next";
 
-import {
-  campaignAdminErrorMessage,
-  campaignSuccessMessage,
-} from "../shared/campaignErrorMessage";
-import { useMerchantCampaignClient } from "../service/useMerchantCampaignManager";
+import { api } from "@/convex/sso/convex/_generated/api";
+import { ssoConvexClient } from "host/service/AppProviders";
+
+import { useLogoutUnauthorizedSession } from "../../shared/useLogoutUnauthorizedSession";
 import { MerchantNavLink } from "./MerchantEmbeddedNavContext";
-import MerchantWebSignInForm from "./MerchantWebSignInForm";
 import { useMerchantAdminAuth } from "./useMerchantAdminAuth";
-const MerchantHomePanel: React.FC = () => {
+
+/**
+ * Store console home (`/partner/operation`): redeem + store team only.
+ * Campaign ops (campaigns / coupon-defs / brand) live under Partner Admin when campaignOps.
+ */
+const MerchantHomePanelBody: React.FC = () => {
   const { t } = useTranslation("campaign.merchant");
   const { authed } = useMerchantAdminAuth();
-  const { http, fns } = useMerchantCampaignClient();
-  const [merchants, setMerchants] = useState<
-    Array<{ merchantId: string; slug: string; name: string; role: string }>
-  >([]);
-  const [slug, setSlug] = useState("");
-  const [name, setName] = useState("");
-  const [note, setNote] = useState<string | null>(null);
+  const stores = useQuery(
+    api.service.partner.storeAdmin.listMyStores,
+    authed ? {} : "skip"
+  );
 
-  const refresh = useCallback(async () => {
-    if (!http || !authed) {
-      setMerchants([]);
-      return;
-    }
-    const rows = (await http.query(fns.listMyMerchants, {})) as typeof merchants;
-    setMerchants(rows ?? []);
-  }, [http, authed, fns.listMyMerchants]);
+  const unauthorized = Boolean(authed && stores !== undefined && stores.length === 0);
+  useLogoutUnauthorizedSession(unauthorized);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  const createMerchant = async () => {
-    if (!http || !authed) return;
-    try {
-      await http.mutation(fns.createMerchant, { slug, name });
-      setSlug("");
-      setName("");
-      setNote(campaignSuccessMessage("merchantCreated"));
-      await refresh();
-    } catch (e) {
-      setNote(campaignAdminErrorMessage(e));
-    }
-  };
-
-  if (!authed) {
-    return <MerchantWebSignInForm />;
+  if (!authed || unauthorized || stores === undefined) {
+    return (
+      <p className="merchant-note">
+        {unauthorized
+          ? "当前账号无门店权限，正在退出并打开登录…"
+          : !authed
+            ? "请通过登录窗口使用门店账号登录。"
+            : "加载中…"}
+      </p>
+    );
   }
 
   return (
     <>
-      {merchants.length > 0 ? (
-        <section className="merchant-onboarding">
-          <h2>{t("home.gettingStarted")}</h2>
-          <p className="merchant-note">{t("home.gettingStartedSteps")}</p>
-        </section>
-      ) : null}
-      <h2>{t("home.myMerchants")}</h2>
+      <p className="merchant-note">
+        门店作业台：仅核销与门店团队。活动 / 券定义 / 品牌请使用{" "}
+        <a href="/partner/admin">Partner 管理</a>（需 campaignOps）。
+      </p>
+      <nav className="merchant-nav" style={{ marginBottom: "1rem" }}>
+        <MerchantNavLink route={{ view: "redeem" }}>{t("nav.redeem")}</MerchantNavLink>
+      </nav>
+      <h2>{t("home.myStores", { defaultValue: t("home.myMerchants") })}</h2>
       <section>
-            {merchants.map((m) => (
-              <article key={m.merchantId} className="merchant-card">
-                <strong>{m.name}</strong>
-                <p className="merchant-note">
-                  /{m.slug} · {m.role}
-                </p>
-                <p className="merchant-note">
-                  {t("home.homepageLink")}:{" "}
-                  <a href={`/campaign/${m.slug}`} target="_blank" rel="noopener noreferrer">
-                    /campaign/{m.slug}
-                  </a>
-                </p>
-                <nav className="merchant-nav">
-                  <MerchantNavLink
-                    route={{ view: "campaigns", merchantId: m.merchantId, merchantName: m.name }}
-                  >
-                    {t("nav.campaigns")}
-                  </MerchantNavLink>
-                  <MerchantNavLink
-                    route={{ view: "coupon-defs", merchantId: m.merchantId, merchantName: m.name }}
-                  >
-                    {t("nav.couponDefs")}
-                  </MerchantNavLink>
-                  <MerchantNavLink
-                    route={{ view: "coupons", merchantId: m.merchantId, merchantName: m.name }}
-                  >
-                    {t("nav.coupons")}
-                  </MerchantNavLink>
-                  <MerchantNavLink
-                    route={{ view: "redeem", merchantId: m.merchantId, merchantName: m.name }}
-                  >
-                    {t("nav.redeem")}
-                  </MerchantNavLink>
-                  <MerchantNavLink
-                    route={{ view: "brand", merchantId: m.merchantId, merchantName: m.name }}
-                  >
-                    {t("nav.brand")}
-                  </MerchantNavLink>
-                  <MerchantNavLink
-                    route={{ view: "team", merchantId: m.merchantId, merchantName: m.name }}
-                  >
-                    {t("nav.team")}
-                  </MerchantNavLink>
-                </nav>
-              </article>
-            ))}
-          </section>
-
-          <section>
-            <h2>{t("home.createMerchant")}</h2>
-            <label className="merchant-field">
-              {t("home.slug")}
-              <input
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder={t("home.slugPlaceholder")}
-              />
-            </label>
-            <label className="merchant-field">
-              {t("home.name")}
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("home.namePlaceholder")}
-              />
-            </label>
-            <button type="button" className="merchant-btn" onClick={() => void createMerchant()}>
-              {t("home.create")}
-            </button>
-            {note ? <p className="merchant-note">{note}</p> : null}
+        {stores.map((m) => (
+          <article key={m.storeId} className="merchant-card">
+            <strong>{m.name}</strong>
+            <p className="merchant-note">
+              /{m.slug} · {m.role}
+            </p>
+            <nav className="merchant-nav">
+              <MerchantNavLink
+                route={{ view: "redeem", storeId: m.storeId, storeName: m.name }}
+              >
+                {t("nav.redeem")}
+              </MerchantNavLink>
+              <MerchantNavLink
+                route={{ view: "team", storeId: m.storeId, storeName: m.name }}
+              >
+                {t("nav.team")}
+              </MerchantNavLink>
+            </nav>
+          </article>
+        ))}
       </section>
     </>
   );
 };
+
+/** SSO listMyStores — must not use campaign ConvexProvider from MerchantCampaignProvider. */
+const MerchantHomePanel: React.FC = () => (
+  <ConvexProvider client={ssoConvexClient}>
+    <MerchantHomePanelBody />
+  </ConvexProvider>
+);
 
 export default MerchantHomePanel;

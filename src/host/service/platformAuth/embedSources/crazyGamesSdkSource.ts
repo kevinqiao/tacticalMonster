@@ -59,8 +59,13 @@ export const crazyGamesSdkSource: EmbedCredentialSource = {
     return crazyGamesPortalEligible(ctx);
   },
 
+  /** Owns portal (or ?crazygames=1) so Bridge skips generic postMessage. */
+  claimsHost(ctx) {
+    return this.shouldPreload?.(ctx) === true || this.isActive(ctx);
+  },
+
   shouldListen(ctx) {
-    return this.isActive(ctx) || this.shouldPreload?.(ctx) === true;
+    return this.claimsHost?.(ctx) === true;
   },
 
   isActive(ctx) {

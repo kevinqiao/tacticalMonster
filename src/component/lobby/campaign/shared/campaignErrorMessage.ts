@@ -52,6 +52,7 @@ const successKeys = {
   campaignCreated: true,
   saved: true,
   drafted: true,
+  hiddenFromLanding: true,
   couponDefCreated: true,
   archived: true,
   voided: true,

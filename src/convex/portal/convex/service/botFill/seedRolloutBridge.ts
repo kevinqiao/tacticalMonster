@@ -1,6 +1,6 @@
 import { internal } from "../../_generated/api";
 import type { ActionCtx, MutationCtx } from "../../_generated/server";
-import { getPortalGameRegistration } from "../../data/portalGameRegistry";
+import { getPartnerGameRegistration } from "../../data/partnerGameRegistry";
 import type { PortalSeedTier } from "../../data/portalSeedTierPolicy";
 import type { ScoreQuantiles } from "../../shared/scoreQuantiles";
 import {
@@ -31,7 +31,7 @@ export type RolloutBandResult = {
 };
 
 function assertCatalogGameType(gameType: string): CatalogGameType | null {
-  const reg = getPortalGameRegistration(gameType);
+  const reg = getPartnerGameRegistration(gameType);
   if (!reg || reg.seedStrategy !== "catalog_internal") {
     return null;
   }

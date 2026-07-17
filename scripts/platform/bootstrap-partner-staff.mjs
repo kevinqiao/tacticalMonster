@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Seed partner_staff web account for /partner/admin:
- *   user + auth_identities (partner-scoped uid) + partner_staff
+ *   user + auth_identities (platform-wide staff uid, partnerId=0) + partner_staff (real partnerId)
  *
  * Usage:
  *   node scripts/platform/bootstrap-partner-staff.mjs --partner-id 1
@@ -9,7 +9,7 @@
  */
 import { runConvexSso } from "./run-convex-sso.mjs";
 import { hashWebPassword } from "./web-password.mjs";
-import { webPlatformUidForAccount } from "./platform-uid.mjs";
+import { platformStaffUidForAccount } from "./platform-uid.mjs";
 
 const DEV_BOOTSTRAP_SECRET = "dev-local-platform-bootstrap";
 
@@ -54,7 +54,7 @@ if (!config.apply) {
 }
 
 const passwordHash = hashWebPassword(config.password);
-const platformUid = webPlatformUidForAccount(config.accountId, config.partnerId);
+const platformUid = platformStaffUidForAccount(config.accountId);
 const out = runConvexSso(
   "service/partner/platformAdminBootstrap:bootstrapPartnerStaffAccount",
   {

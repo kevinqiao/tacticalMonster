@@ -24,7 +24,7 @@ import {
   buildCasualAsyncTableSummary,
   buildCasualTriathlonHistoryTableSummary,
 } from "../settle/async/casualAsyncTableSummary";
-import { isRegisteredPortalGameType } from "../../../data/portalGameRegistry";
+import { isRegisteredPartnerGameType } from "../../../data/partnerGameRegistry";
 import { getPoolMetaByVersion } from "../../../service/seedPool/seedPoolStore";
 import { prunePendingWalletRewards } from "../settle/casualRunScoreEffects";
 import {
@@ -33,7 +33,7 @@ import {
   loadSeedScoreQuantilesForSeat,
 } from "../shared/casualPlayerGameTypes";
 
-async function attachCasualHistoryTableSummary(
+export async function attachCasualHistoryTableSummary(
   ctx: QueryCtx,
   opts: {
     uid: string;
@@ -60,7 +60,7 @@ async function attachCasualHistoryTableSummary(
         .withIndex("by_run_uid", (q) =>
           q.eq("tournamentId", String(opts.runTournamentId)).eq("uid", opts.uid)
         )
-        .unique()) ?? null;
+        .first()) ?? null;
   }
   if (!pm) return undefined;
 
@@ -71,7 +71,8 @@ async function attachCasualHistoryTableSummary(
       maxPlayers: Math.max(1, def.maxPlayers),
       matchId: pm.matchId,
     });
-    if (!summary?.triathlonLegs?.some((leg) => leg.rows.some((r) => r.watchContext))) {
+    // 战报可先展示名次；回放按钮仅在有 watchContext 时出现
+    if (!summary?.rows?.length && !summary?.triathlonLegs?.length) {
       return undefined;
     }
     return {
@@ -82,11 +83,12 @@ async function attachCasualHistoryTableSummary(
     };
   }
 
+  const gameType = def.gameType || opts.gameType;
   if (
-    opts.gameType !== "match_3" &&
-    opts.gameType !== "solitaire" &&
-    opts.gameType !== "block_blast" &&
-    opts.gameType !== "yatz"
+    gameType !== "match_3" &&
+    gameType !== "solitaire" &&
+    gameType !== "block_blast" &&
+    gameType !== "yatz"
   ) {
     return undefined;
   }
@@ -98,7 +100,8 @@ async function attachCasualHistoryTableSummary(
     matchId: pm.matchId,
     historical: true,
   });
-  if (!summary?.rows.some((r) => r.watchContext)) return undefined;
+  // 与 canOpenPortalHistoryReport 对齐：有名次行即可开战报，不强制回放数据
+  if (!summary?.rows?.length) return undefined;
   return {
     maxPlayers: summary.maxPlayers,
     rows: summary.rows,
@@ -123,7 +126,7 @@ async function resolveRunHistoryRank(
     return null;
   }
 
-  if (isRegisteredPortalGameType(opts.gameType)) {
+  if (isRegisteredPartnerGameType(opts.gameType)) {
     const def = getPortalTournamentDefinition(opts.templateId);
     if (def && def.maxPlayers > 1) {
       return computeCasualAsyncSessionRank(ctx, pm.matchId, opts.uid);
@@ -415,21 +418,25 @@ export const gameHistory = authedQuery({
         let pointDelta: number | null = pt.pointDelta ?? null;
 
         if (def?.matchType === "solo_p75" && selfPm) {
-          const quantiles = await loadSeedScoreQuantilesForSeat(ctx, selfPm._id);
-          const p75 = quantiles?.p75;
-          if (typeof p75 === "number" && Number.isFinite(p75)) {
-            seedScoreThreshold = Math.floor(p75);
-          } else if (
-            typeof pt.seedScoreThreshold === "number" &&
-            Number.isFinite(pt.seedScoreThreshold)
+          if (
+            typeof selfPm.seedScoreThreshold === "number" &&
+            Number.isFinite(selfPm.seedScoreThreshold)
           ) {
-            seedScoreThreshold = Math.floor(pt.seedScoreThreshold);
+            seedScoreThreshold = Math.floor(selfPm.seedScoreThreshold);
+          } else {
+            const quantiles = await loadSeedScoreQuantilesForSeat(ctx, selfPm._id);
+            const p75 = quantiles?.p75;
+            if (typeof p75 === "number" && Number.isFinite(p75)) {
+              seedScoreThreshold = Math.floor(p75);
+            }
+          }
+          if (typeof selfPm.challengeSuccess === "boolean") {
+            challengeSuccess = selfPm.challengeSuccess;
+          } else if (displayScore != null && seedScoreThreshold != null) {
+            challengeSuccess = isPortalP75Success(def, displayScore, seedScoreThreshold);
           }
           if (displayScore != null && seedScoreThreshold != null) {
-            challengeSuccess = isPortalP75Success(def, displayScore, seedScoreThreshold);
             pointDelta = portalSoloPointDelta(def, displayScore, seedScoreThreshold);
-          } else if (typeof pt.challengeSuccess === "boolean") {
-            challengeSuccess = pt.challengeSuccess;
           }
         }
 
@@ -499,11 +506,12 @@ export const listOpenCasualRunAssignments = authedQuery({
       if (pg.status !== "open" && pg.status !== "replaying") continue;
       const pm = await ctx.db.get(pg.playerMatchId);
       if (!pm || (pm.status !== "open" && pm.status !== "replaying")) continue;
-      const poolMeta = isRegisteredPortalGameType(pg.gameType)
+      const poolMeta = isRegisteredPartnerGameType(pg.gameType)
         ? await getPoolMetaByVersion(ctx.db, pg.gameType, pg.seedBinding.poolVersion)
         : null;
       const matchTimeLimitSec = poolMeta?.matchTimeLimitSec ?? 300;
       const dueAt = pg.createdAt + matchTimeLimitSec * 1000;
+      const run = await ctx.db.get(pm.tournamentId as Id<"portal_run_tournaments">);
       assignments.push({
         templateId: pg.templateId,
         gameId: pg.gameId,
@@ -514,7 +522,7 @@ export const listOpenCasualRunAssignments = authedQuery({
         runTournamentId: pm.tournamentId,
         createdAt: pg.createdAt,
         dueAt,
-        ...(pm.campaignId ? { campaignId: pm.campaignId } : {}),
+        ...(run?.campaignId ? { campaignId: run.campaignId } : {}),
       });
     }
     return assignments.sort((a, b) => b.createdAt - a.createdAt);

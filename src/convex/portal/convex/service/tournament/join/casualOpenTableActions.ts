@@ -20,7 +20,9 @@ type ClaimOk = {
   instanceId?: Id<"portal_tournament_instances">;
   activityIds?: string[];
   campaignId?: string;
-  merchantId?: string;
+  partnerId?: number;
+  campaignRewardMode?: "pass_per_run" | "competitive_leaderboard";
+  campaignDueTime?: number;
   maxPlaysPerDay?: number;
   dayTimezone?: string;
 };
@@ -101,7 +103,9 @@ async function openCasualTableFromClaimHandler(
       joinChargeByUid: claim.joinChargeByUid,
       ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
       ...(claim.campaignId ? { campaignId: claim.campaignId } : {}),
-      ...(claim.merchantId ? { merchantId: claim.merchantId } : {}),
+      ...(claim.partnerId != null ? { partnerId: claim.partnerId } : {}),
+      ...(claim.campaignRewardMode ? { campaignRewardMode: claim.campaignRewardMode } : {}),
+      ...(claim.campaignDueTime != null ? { campaignDueTime: claim.campaignDueTime } : {}),
       ...(claim.maxPlaysPerDay != null ? { maxPlaysPerDay: claim.maxPlaysPerDay } : {}),
       ...(claim.dayTimezone ? { dayTimezone: claim.dayTimezone } : {}),
     });
@@ -221,11 +225,27 @@ export const openCasualSoloTable = internalAction({
     uid: v.string(),
     templateId: v.string(),
     campaignId: v.optional(v.string()),
-    merchantId: v.optional(v.string()),
+    partnerId: v.optional(v.number()),
+    campaignRewardMode: v.optional(
+      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
+    ),
+    campaignDueTime: v.optional(v.number()),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { uid, templateId, campaignId, merchantId, maxPlaysPerDay, dayTimezone }) => {
+  handler: async (
+    ctx,
+    {
+      uid,
+      templateId,
+      campaignId,
+      partnerId,
+      campaignRewardMode,
+      campaignDueTime,
+      maxPlaysPerDay,
+      dayTimezone,
+    }
+  ) => {
     const existingOpen = await ctx.runQuery(
       internal.service.tournament.join.casualOpenTableGuard.getAnyGlobalOpenCasualMatch,
       { uid }
@@ -274,7 +294,9 @@ export const openCasualSoloTable = internalAction({
       instanceId: charge.instanceId,
       activityIds: charge.activityIds,
       ...(campaignId ? { campaignId } : {}),
-      ...(merchantId ? { merchantId } : {}),
+      ...(partnerId != null ? { partnerId } : {}),
+      ...(campaignRewardMode ? { campaignRewardMode } : {}),
+      ...(campaignDueTime != null ? { campaignDueTime } : {}),
       ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
       ...(dayTimezone ? { dayTimezone } : {}),
     };

@@ -35,7 +35,7 @@ type PlatformAuthContextValue = {
   bootstrapFromPartner: (
     pid: number,
     partnerToken: string,
-    opts?: { merchantSlug?: string; method?: EmbedAuthMethod }
+    opts?: { partnerSlug?: string; method?: EmbedAuthMethod }
   ) => Promise<User | null>;
   applyPlatformSession: (user: User) => void;
   clearPlatformSession: () => void;
@@ -81,14 +81,14 @@ export const PlatformAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const bootstrapFromPartner = useCallback(
-    async (pid: number, partnerToken: string, opts?: { merchantSlug?: string; method?: EmbedAuthMethod }) => {
+    async (pid: number, partnerToken: string, opts?: { partnerSlug?: string; method?: EmbedAuthMethod }) => {
       const session = (await convex.action(api.service.AuthManager.authenticate, {
         cid: EMBED_AUTH_CHANNEL_CID,
         partner: pid,
         data: {
           credential: partnerToken,
           method: opts?.method ?? "jwt_local",
-          ...(opts?.merchantSlug ? { merchantSlug: opts.merchantSlug } : {}),
+          ...(opts?.partnerSlug ? { partnerSlug: opts.partnerSlug } : {}),
         },
       })) as User | null;
       if (!session?.uid || !session.platformAccessToken) return null;

@@ -3,12 +3,16 @@ import { httpRouter } from "convex/server";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { portalGameBridgeSecret } from "./service/bridge/casualGameBridgeSecret";
+import {
+  MERCHANT_BRIDGE_HEADER,
+  merchantCampaignBridgeSecret,
+} from "./service/bridge/merchantCampaignBridgeEnv";
 import { bridgeRecordSeed } from "./service/botFill/seedRolloutBridge";
 import { resolvePlatformSeedScoreThreshold } from "./service/botFill/computeBotFillsCore";
 import { resolveIngestPlatformBotFillPlan } from "./service/tournament/submit/casualIngestPlatformBotFill";
 import { createIngestTiming } from "./service/tournament/submit/casualIngestTiming";
 import { bridgeOkBody } from "./service/bridge/casualGameBridgeContract";
-import { getPortalGameRegistration } from "./data/portalGameRegistry";
+import { getPartnerGameRegistration } from "./data/partnerGameRegistry";
 import { getPortalTournamentDefinition } from "./data/portalTournamentConfigs";
 
 const http = httpRouter();
@@ -239,7 +243,7 @@ http.route({
       { matchGameId }
     );
     timing.mark("runQuery.getCasualRunMatchGameType", { gameType: gameType ?? null });
-    if (!gameType || !getPortalGameRegistration(gameType)) {
+    if (!gameType || !getPartnerGameRegistration(gameType)) {
       timing.finish("abort.unregistered_game_type");
       return new Response(JSON.stringify({ ok: false, error: "unregistered_game_type" }), {
         status: 400,
@@ -561,6 +565,159 @@ http.route({
       ),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
+  }),
+});
+
+/**
+ * merchantCampaign → Portal: campaign competitive leaderboard (inbound).
+ * Header `X-Merchant-Bridge-Secret` must match merchantCampaignBridgeSecret().
+ */
+function merchantBridgeUnauthorized() {
+  return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+    status: 401,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function assertMerchantBridgeSecret(request: Request): boolean {
+  const expected = merchantCampaignBridgeSecret();
+  const headerSecret = request.headers.get(MERCHANT_BRIDGE_HEADER);
+  return headerSecret === expected;
+}
+
+async function readJsonBody(
+  request: Request
+): Promise<{ ok: true; body: Record<string, unknown> } | { ok: false; response: Response }> {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return {
+      ok: false,
+      response: new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }),
+    };
+  }
+  if (!body || typeof body !== "object") {
+    return {
+      ok: false,
+      response: new Response(JSON.stringify({ ok: false, error: "bad_body" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }),
+    };
+  }
+  return { ok: true, body: body as Record<string, unknown> };
+}
+
+http.route({
+  path: "/internal/campaign-league/leaderboard",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const b = parsed.body;
+    const campaignId = typeof b.campaignId === "string" ? b.campaignId : "";
+    if (!campaignId) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const limit =
+      typeof b.limit === "number" && Number.isFinite(b.limit)
+        ? Math.floor(b.limit)
+        : 20;
+    const mode =
+      b.mode === "solo" || b.mode === "multi" ? (b.mode as "solo" | "multi") : undefined;
+    const result = await ctx.runQuery(
+      internal.service.campaignLeague.campaignLeagueQueries.getCampaignLeagueLeaderboardInternal,
+      {
+        campaignId,
+        limit,
+        ...(mode ? { mode } : {}),
+      }
+    );
+    return new Response(JSON.stringify({ ok: true, ...result }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+http.route({
+  path: "/internal/campaign-league/humans-ranked",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const b = parsed.body;
+    const campaignId = typeof b.campaignId === "string" ? b.campaignId : "";
+    if (!campaignId) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const limit =
+      typeof b.limit === "number" && Number.isFinite(b.limit)
+        ? Math.floor(b.limit)
+        : 100;
+    const mode =
+      b.mode === "solo" || b.mode === "multi" ? (b.mode as "solo" | "multi") : undefined;
+    const result = await ctx.runQuery(
+      internal.service.campaignLeague.campaignLeagueQueries
+        .listCampaignLeagueHumansRankedInternal,
+      {
+        campaignId,
+        limit,
+        ...(mode ? { mode } : {}),
+      }
+    );
+    return new Response(JSON.stringify({ ok: true, ...result }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+http.route({
+  path: "/internal/campaign-league/ensure-bots",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const b = parsed.body;
+    const campaignId = typeof b.campaignId === "string" ? b.campaignId : "";
+    const partnerId = typeof b.partnerId === "number" ? b.partnerId : NaN;
+    const mode = b.mode === "solo" || b.mode === "multi" ? b.mode : null;
+    const dueTime = typeof b.dueTime === "number" ? b.dueTime : NaN;
+    if (!campaignId || !Number.isFinite(partnerId) || !mode || !Number.isFinite(dueTime)) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const startsAt = typeof b.startsAt === "number" ? b.startsAt : undefined;
+    const result = await ctx.runMutation(
+      internal.service.campaignLeague.campaignLeagueQueries.ensureCampaignLeagueBotsInternal,
+      {
+        campaignId,
+        partnerId,
+        mode,
+        dueTime,
+        ...(startsAt != null ? { startsAt } : {}),
+      }
+    );
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }),
 });
 

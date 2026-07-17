@@ -3,17 +3,17 @@
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 
-const DEV_MERCHANT_CONVEX_URL = "https://curious-goldfish-112.convex.cloud";
+const DEV_CAMPAIGN_CONVEX_URL = "https://curious-goldfish-112.convex.cloud";
 
-const resolvePartnerByMerchantSlugRef = makeFunctionReference<"query">(
-  "service/merchant/merchantCampaigns:resolvePartnerByMerchantSlug"
+const resolvePartnerByPartnerSlugRef = makeFunctionReference<"query">(
+  "service/merchant/merchantCampaigns:resolvePartnerByPartnerSlug"
 );
 
-function merchantConvexUrl(): string {
+function campaignConvexUrl(): string {
   const raw =
-    process.env.MERCHANT_CAMPAIGN_CONVEX_URL ??
-    process.env.VITE_CONVEX_URL_MERCHANT ??
-    process.env.MERCHANT_CAMPAIGN_SITE_URL;
+    process.env.CAMPAIGN_CONVEX_URL ??
+    process.env.VITE_CONVEX_URL_CAMPAIGN ??
+    process.env.CAMPAIGN_SITE_URL;
   if (typeof raw === "string" && raw.trim().length > 0) {
     const t = raw.trim();
     if (t.includes(".convex.site")) {
@@ -21,30 +21,44 @@ function merchantConvexUrl(): string {
     }
     return t.replace(/\/+$/, "");
   }
-  return DEV_MERCHANT_CONVEX_URL;
+  return DEV_CAMPAIGN_CONVEX_URL;
 }
 
 let client: ConvexHttpClient | null = null;
 
 function getClient(): ConvexHttpClient {
   if (!client) {
-    client = new ConvexHttpClient(merchantConvexUrl());
+    client = new ConvexHttpClient(campaignConvexUrl());
   }
   return client;
 }
 
-/** SSO → merchantCampaign: partner pid for a merchant slug (embed / join validation). */
-export async function resolveMerchantPartnerId(
-  merchantSlug: string
+/** SSO → campaign: partner pid for a public partner brand slug. */
+export async function resolvePartnerIdByPartnerSlug(
+  partnerSlug: string
 ): Promise<number | null> {
-  const slug = merchantSlug.trim().toLowerCase();
+  const slug = partnerSlug.trim().toLowerCase();
   if (!slug) return null;
   try {
-    const row = (await getClient().query(resolvePartnerByMerchantSlugRef, {
-      merchantSlug: slug,
+    const row = (await getClient().query(resolvePartnerByPartnerSlugRef, {
+      partnerSlug: slug,
     })) as { partnerId: number } | null;
     return row?.partnerId ?? null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Resolve partnerId from partner brand slug, else local SSO store slug.
+ * Store slugs live in SSO `store` table after hard-cut.
+ */
+export async function resolveMerchantPartnerId(
+  slug: string,
+  resolveStoreSlugLocal?: (storeSlug: string) => Promise<number | null>
+): Promise<number | null> {
+  return (
+    (await resolvePartnerIdByPartnerSlug(slug)) ??
+    (resolveStoreSlugLocal ? await resolveStoreSlugLocal(slug) : null)
+  );
 }

@@ -28,13 +28,13 @@ export const exchangeEmbedCredential = action({
     pid: v.number(),
     credential: v.string(),
     method: embedMethodValidator,
-    merchantSlug: v.optional(v.string()),
+    partnerSlug: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<User | null> => {
     return authenticateWithChannel(ctx, EMBED_AUTH_CHANNEL_CID, args.pid, {
       credential: args.credential,
       method: args.method,
-      merchantSlug: args.merchantSlug,
+      partnerSlug: args.partnerSlug,
     });
   },
 });

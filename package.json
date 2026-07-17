@@ -93,6 +93,8 @@
     "casual:bootstrap:verify": "node scripts/casual/verify-bootstrap.mjs",
     "campaign:bootstrap:dry": "node scripts/campaign/bootstrap-dev-fixture.mjs",
     "campaign:bootstrap:dev": "node scripts/campaign/bootstrap-dev-fixture.mjs --apply",
+    "campaign:setup:dry": "node scripts/campaign/setup-dev-env.mjs",
+    "campaign:setup:dev": "node scripts/campaign/setup-dev-env.mjs --apply",
     "casual:season:dry": "node scripts/casual/season-upsert.mjs --dry-run",
     "casual:season:upsert": "node scripts/casual/season-upsert.mjs",
     "casual:town:assets": "node scripts/casual/slice-town-assets.mjs",

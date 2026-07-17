@@ -1,19 +1,20 @@
 #!/usr/bin/env node
 /**
- * Bootstrap a dev Merchant Campaign fixture (merchant + live campaign).
+ * Bootstrap a dev Campaign fixture (partner_brands + live campaign).
+ * Stores / staff live in SSO — use setup-dev-env.mjs for the full stack.
  *
  * Usage:
  *   node scripts/campaign/bootstrap-dev-fixture.mjs
  *   node scripts/campaign/bootstrap-dev-fixture.mjs --apply --owner-uid <YOUR_UID>
  *   node scripts/campaign/bootstrap-dev-fixture.mjs --apply --owner-uid u1 \
- *     --mode multi --game-type match_3 --campaign-slug multi-test
+ *     --partner-slug demo-partner --campaign-slug play-test
  *
  * Env (optional):
- *   MERCHANT_CAMPAIGN_BOOTSTRAP_OWNER_UID
- *   MERCHANT_CAMPAIGN_BRIDGE_SECRET  (default dev-local-merchant-campaign-bridge)
+ *   CAMPAIGN_BOOTSTRAP_OWNER_UID
+ *   CAMPAIGN_BRIDGE_SECRET  (default dev-local-merchant-campaign-bridge)
  */
-import { MERCHANT_CONVEX_PROJECT_DIR } from "./convex-merchant-target.mjs";
-import { runConvexMerchant } from "./run-convex-merchant.mjs";
+import { CAMPAIGN_CONVEX_PROJECT_DIR } from "./convex-campaign-target.mjs";
+import { runConvexCampaign } from "./run-convex-campaign.mjs";
 
 const DEV_BOOTSTRAP_SECRET = "dev-local-merchant-campaign-bridge";
 
@@ -30,13 +31,17 @@ function parseArgs(argv) {
 
   const ownerUid =
     get("--owner-uid") ??
-    process.env.MERCHANT_CAMPAIGN_BOOTSTRAP_OWNER_UID ??
+    process.env.CAMPAIGN_BOOTSTRAP_OWNER_UID ??
     undefined;
 
   const bootstrapSecret =
     get("--bootstrap-secret") ??
-    process.env.MERCHANT_CAMPAIGN_BRIDGE_SECRET ??
+    process.env.CAMPAIGN_BRIDGE_SECRET ??
     DEV_BOOTSTRAP_SECRET;
+
+  // Legacy --merchant-slug maps to partner public slug.
+  const partnerSlug =
+    get("--partner-slug") ?? get("--merchant-slug") ?? "demo-partner";
 
   return {
     apply,
@@ -44,8 +49,9 @@ function parseArgs(argv) {
     convexArgs,
     ownerUid,
     bootstrapSecret,
-    merchantSlug: get("--merchant-slug") ?? "demo-cafe",
-    merchantName: get("--merchant-name") ?? "Demo Cafe",
+    partnerSlug,
+    storeSlug: get("--store-slug") ?? "demo-cafe",
+    storeName: get("--store-name") ?? "Demo Cafe",
     campaignSlug: get("--campaign-slug") ?? "play-test",
     campaignTitle: get("--campaign-title") ?? "Play Test",
     gameType: get("--game-type") ?? "block_blast",
@@ -53,7 +59,7 @@ function parseArgs(argv) {
     rewardKind: get("--reward-kind") ?? "solo_p75_success",
     rewardModel: get("--reward-model") ?? "pass_per_run",
     minScore: Number.parseInt(get("--min-score") ?? "5000", 10),
-    topN: Number.parseInt(get("--top-n") ?? "1", 10),
+    topN: Number.parseInt(get("--top-n") ?? "3", 10),
     maxCouponsPerPlayer: Number.parseInt(get("--max-coupons") ?? "3", 10),
     periodDays: Number.parseInt(get("--period-days") ?? "30", 10),
     partnerId: Number.parseInt(get("--partner-id") ?? "0", 10),
@@ -64,8 +70,9 @@ function buildFixtureArgs(config) {
   return {
     bootstrapSecret: config.bootstrapSecret,
     ownerUid: config.ownerUid,
-    merchantSlug: config.merchantSlug,
-    merchantName: config.merchantName,
+    partnerSlug: config.partnerSlug,
+    storeSlug: config.storeSlug,
+    storeName: config.storeName,
     campaignSlug: config.campaignSlug,
     campaignTitle: config.campaignTitle,
     gameType: config.gameType,
@@ -83,12 +90,13 @@ function buildFixtureArgs(config) {
 
 function printConfig(config) {
   console.log("--- fixture config ---");
-  console.log(`  merchant: ${config.merchantSlug} (${config.merchantName})`);
+  console.log(`  partnerSlug: ${config.partnerSlug}`);
   console.log(`  partnerId: ${config.partnerId}`);
+  console.log(`  store (SSO): ${config.storeSlug} (${config.storeName})`);
   console.log(`  campaign: ${config.campaignSlug} (${config.campaignTitle})`);
   console.log(`  game: ${config.gameType} | mode: ${config.mode}`);
   console.log(`  rewardModel: ${config.rewardModel}`);
-  console.log(`  reward: ${config.mode === "multi" ? "multi_rank_top_n" : config.rewardKind}`);
+  console.log(`  reward: ${config.mode === "multi" ? "leaderboard_top_n" : config.rewardKind}`);
   console.log(`  maxCouponsPerPlayer: ${config.maxCouponsPerPlayer}`);
   console.log(`  periodDays: ${config.periodDays}`);
   console.log(`  forceConfig: ${config.forceConfig}`);
@@ -104,7 +112,8 @@ function printPublicSnapshot(label, pub) {
     return;
   }
   const c = pub.campaign ?? {};
-  console.log(`  merchant: ${pub.merchant?.slug} (${pub.merchant?.name})`);
+  const partner = pub.partner ?? {};
+  console.log(`  partner: ${partner.slug ?? "(unknown)"}`);
   console.log(`  campaign: ${c.slug} | status=${c.status} | live=${c.live}`);
   console.log(`  game: ${c.gameType} | mode: ${c.mode}`);
   console.log(`  period: ${c.startsAt} .. ${c.endsAt}`);
@@ -112,7 +121,7 @@ function printPublicSnapshot(label, pub) {
 
 function printEnvChecklist(config, result) {
   const landingPath =
-    result?.landingPath ?? `/campaign/${config.merchantSlug}/${config.campaignSlug}`;
+    result?.landingPath ?? `/campaign/${config.partnerSlug}/${config.campaignSlug}`;
   const portalTemplateId =
     result?.portalTemplateId ??
     (config.mode === "solo"
@@ -124,9 +133,10 @@ function printEnvChecklist(config, result) {
   console.log(`  Local dev URL:  http://localhost:3000${landingPath}`);
   console.log(`  Portal template: ${portalTemplateId}`);
   console.log("\n--- env checklist (manual) ---");
-  console.log("  Frontend: VITE_CONVEX_URL_MERCHANT → merchantCampaign deployment");
-  console.log("  Portal:   MERCHANT_CAMPAIGN_SITE_URL + MERCHANT_CAMPAIGN_BRIDGE_SECRET");
+  console.log("  Frontend: VITE_CONVEX_URL_CAMPAIGN → campaign deployment");
+  console.log("  Portal:   CAMPAIGN_SITE_URL + CAMPAIGN_BRIDGE_SECRET");
   console.log("  Arena:    PORTAL_HTTP_ORIGIN + PORTAL_GAME_BRIDGE_SECRET");
+  console.log("  Full env:  npm run campaign:setup:dev");
   if (config.mode === "solo") {
     console.log("  Solo P75: npm run portal:seed-pool:bootstrap (once per game pool)");
   }
@@ -136,16 +146,16 @@ function main() {
   const config = parseArgs(process.argv.slice(2));
   console.log("== Campaign Bootstrap ==");
   console.log(`mode: ${config.apply ? "apply" : "dry-run"}`);
-  console.log(`convex cwd: ${MERCHANT_CONVEX_PROJECT_DIR}`);
+  console.log(`convex cwd: ${CAMPAIGN_CONVEX_PROJECT_DIR}`);
   console.log(
     `convex args: ${config.convexArgs.length > 0 ? config.convexArgs.join(" ") : "(dev default, no --prod)"}`
   );
 
   printConfig(config);
 
-  const before = runConvexMerchant(
+  const before = runConvexCampaign(
     "service/merchant/merchantCampaigns:getCampaignPublic",
-    { merchantSlug: config.merchantSlug, campaignSlug: config.campaignSlug },
+    { partnerSlug: config.partnerSlug, campaignSlug: config.campaignSlug },
     config.convexArgs
   );
   printPublicSnapshot("before", before);
@@ -153,26 +163,28 @@ function main() {
   if (!config.apply) {
     console.log("\ndry-run completed. no data was written.");
     console.log("Run with --apply --owner-uid <YOUR_UID> to create/update fixture.");
-    printEnvChecklist(config, before ? { landingPath: `/campaign/${config.merchantSlug}/${config.campaignSlug}` } : null);
+    printEnvChecklist(config, before
+      ? { landingPath: `/campaign/${config.partnerSlug}/${config.campaignSlug}` }
+      : null);
     return;
   }
 
   if (!config.ownerUid) {
     throw new Error(
-      "apply requires --owner-uid <YOUR_UID> or MERCHANT_CAMPAIGN_BOOTSTRAP_OWNER_UID"
+      "apply requires --owner-uid <YOUR_UID> or CAMPAIGN_BOOTSTRAP_OWNER_UID"
     );
   }
 
-  const result = runConvexMerchant(
+  const result = runConvexCampaign(
     "service/merchant/merchantCampaignDevBootstrap:bootstrapDevCampaignFixture",
     buildFixtureArgs(config),
     config.convexArgs
   );
   console.log("\n[apply] bootstrap result:", result);
 
-  const after = runConvexMerchant(
+  const after = runConvexCampaign(
     "service/merchant/merchantCampaigns:getCampaignPublic",
-    { merchantSlug: config.merchantSlug, campaignSlug: config.campaignSlug },
+    { partnerSlug: config.partnerSlug, campaignSlug: config.campaignSlug },
     config.convexArgs
   );
   printPublicSnapshot("after", after);

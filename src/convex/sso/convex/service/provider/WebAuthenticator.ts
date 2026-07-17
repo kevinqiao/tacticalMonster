@@ -47,7 +47,8 @@ export class WebAuthenticator implements Authenticator {
       return null;
     }
 
-    const partnerId = partner ?? PLATFORM_NAMESPACE_PARTNER_ID;
+    // Web is staff-only; identity namespace is always partnerId=0.
+    const partnerId = PLATFORM_NAMESPACE_PARTNER_ID;
     const canonicalAccountId = webAccountIdForEmail(email);
     const uid = webPlatformUidForAccount(email, partnerId);
     const contactEmail = canonicalAccountId.includes("@")
@@ -101,7 +102,7 @@ export class WebAuthenticator implements Authenticator {
 
     const session = await ctx.runMutation(internal.dao.authIdentityDao.refreshWebSession, {
       uid: identity.uid,
-      partnerId,
+      partnerId: partner ?? partnerId,
     });
     if (!session?.uid) return null;
     return session as User;
@@ -113,7 +114,7 @@ export class WebAuthenticator implements Authenticator {
       return null;
     }
 
-    const partnerId = partner ?? PLATFORM_NAMESPACE_PARTNER_ID;
+    const partnerId = PLATFORM_NAMESPACE_PARTNER_ID;
     const accountId = webAccountIdForEmail(email);
     const uid = webPlatformUidForAccount(email, partnerId);
     const contactEmail = accountId.includes("@") ? normalizeWebEmail(accountId) : undefined;
@@ -139,7 +140,7 @@ export class WebAuthenticator implements Authenticator {
 
     const session = await ctx.runMutation(internal.dao.authIdentityDao.refreshWebSession, {
       uid: identity.uid,
-      partnerId,
+      partnerId: partner ?? partnerId,
     });
     if (!session?.uid) return null;
     return session as User;

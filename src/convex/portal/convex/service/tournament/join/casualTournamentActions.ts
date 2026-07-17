@@ -9,7 +9,7 @@ import {
   isJoinableCasualTournament,
   portalTournamentIdForMode,
 } from "../../../data/portalTournamentConfigs";
-import { isCasualGameLobbyVisible } from "../../../data/portalGameRegistry";
+import { isCasualGameLobbyVisible } from "../../../data/partnerGameRegistry";
 import { authorizeCampaignJoinViaHttp } from "../../bridge/merchantCampaignBridge";
 import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
 
@@ -19,24 +19,26 @@ import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
 export const joinTournament = authedAction({
   args: {
     tournamentId: v.optional(v.string()),
-    merchantSlug: v.optional(v.string()),
+    partnerSlug: v.optional(v.string()),
     campaignSlug: v.optional(v.string()),
   },
   handler: async (
     ctx,
-    { tournamentId, merchantSlug, campaignSlug }
+    { tournamentId, partnerSlug, campaignSlug }
   ): Promise<JoinCasualRunResult> => {
     const uid = ctx.uid;
     let resolvedTemplateId = tournamentId;
     let campaignId: string | undefined;
-    let merchantId: string | undefined;
+    let partnerId: number | undefined;
+    let campaignRewardMode: "pass_per_run" | "competitive_leaderboard" | undefined;
+    let campaignDueTime: number | undefined;
     let maxPlaysPerDay: number | undefined;
     let dayTimezone: string | undefined;
 
-    if (merchantSlug && campaignSlug) {
+    if (partnerSlug && campaignSlug) {
       const authorized = await authorizeCampaignJoinViaHttp({
         uid,
-        merchantSlug,
+        partnerSlug,
         campaignSlug,
       });
       if (!authorized.ok) {
@@ -48,7 +50,9 @@ export const joinTournament = authedAction({
       }
       resolvedTemplateId = mapped;
       campaignId = authorized.campaignId;
-      merchantId = authorized.merchantId;
+      partnerId = authorized.partnerId;
+      campaignRewardMode = authorized.rewardMode;
+      campaignDueTime = authorized.dueTime;
       maxPlaysPerDay = authorized.playLimits.maxPlaysPerDay;
       dayTimezone = authorized.playLimits.dayTimezone;
     }
@@ -78,7 +82,9 @@ export const joinTournament = authedAction({
           uid,
           templateId: resolvedTemplateId,
           ...(campaignId ? { campaignId } : {}),
-          ...(merchantId ? { merchantId } : {}),
+          ...(partnerId != null ? { partnerId } : {}),
+          ...(campaignRewardMode ? { campaignRewardMode } : {}),
+          ...(campaignDueTime != null ? { campaignDueTime } : {}),
           ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
           ...(dayTimezone ? { dayTimezone } : {}),
         }
@@ -91,7 +97,9 @@ export const joinTournament = authedAction({
         uid,
         tournamentId: resolvedTemplateId,
         ...(campaignId ? { campaignId } : {}),
-        ...(merchantId ? { merchantId } : {}),
+        ...(partnerId != null ? { partnerId } : {}),
+        ...(campaignRewardMode ? { campaignRewardMode } : {}),
+        ...(campaignDueTime != null ? { campaignDueTime } : {}),
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
       }
