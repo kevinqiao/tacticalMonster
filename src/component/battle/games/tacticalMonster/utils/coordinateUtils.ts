@@ -2,7 +2,7 @@
  * 坐标转换工具函数
  */
 
-import { MapDimension } from "../service/TeamDeployManager";
+import type { MapDimension } from "../../shared/mapDimension";
 import { HexPoint } from "../types/GridTypes";
 import { calculateHexPoints, isPointInHex } from "./gridUtils";
 

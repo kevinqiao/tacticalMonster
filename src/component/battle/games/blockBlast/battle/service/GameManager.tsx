@@ -753,6 +753,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         if (!gs || !casualPlatformAuthed || casualReplayBusy) return;
         if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
         setCasualReplayBusy(true);
+        // 点「看广告再战」后立刻收起结算层；失败再恢复。
+        const restoreScoreReport = postCasualScoreReportOpen;
+        const restoreSummary = postCasualSummaryOpen;
+        setPostCasualScoreReportOpen(false);
+        setPostCasualSummaryOpen(false);
         try {
             const rr = await executeCasualRunReplay({
                 convex,
@@ -762,6 +767,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     convex.action(api.proxy.controller.replayCasualRun, actionArgs),
             });
             if (!rr.ok) {
+                if (restoreScoreReport) setPostCasualScoreReportOpen(true);
+                if (restoreSummary) setPostCasualSummaryOpen(true);
                 console.warn('[BlockBlast] replayCasualRun', rr.error);
                 return;
             }
@@ -778,11 +785,21 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             setPostCasualScoreReport(null);
             await reloadCasualRun();
         } catch (e) {
+            if (restoreScoreReport) setPostCasualScoreReportOpen(true);
+            if (restoreSummary) setPostCasualSummaryOpen(true);
             console.error('[BlockBlast] replayCasualRun', e);
         } finally {
             setCasualReplayBusy(false);
         }
-    }, [convex, casualPlatformAuthed, casualReplayBusy, reloadCasualRun, casualPlatformBridge]);
+    }, [
+        convex,
+        casualPlatformAuthed,
+        casualReplayBusy,
+        postCasualScoreReportOpen,
+        postCasualSummaryOpen,
+        reloadCasualRun,
+        casualPlatformBridge,
+    ]);
 
     const exitCasualRunAfterSettle = useCallback(
         async (opts: { hadReplayOffer: boolean }) => {

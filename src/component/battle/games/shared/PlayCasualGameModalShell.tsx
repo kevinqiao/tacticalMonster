@@ -1,8 +1,16 @@
 import type { ModalProp } from 'host/service/ModalManager';
-import React from 'react';
+import {
+  beginPortalGameSessionLoad,
+  endPortalGameSession,
+  markPortalGameplayReady,
+} from 'host/service/ads/display/portalAdPhase';
+import React, { useEffect } from 'react';
 
 import { CasualTriathlonGameStage } from './CasualTriathlonGameStage';
 import './casualTriathlonGameStage.css';
+
+/** Games without `onGameLoadComplete` still need a gameplayStart for CrazyGames QA. */
+const GAMEPLAY_READY_FALLBACK_MS = 2500;
 
 type Props = ModalProp & {
   children: React.ReactNode;
@@ -15,12 +23,24 @@ export const PlayCasualGameModalShell: React.FC<Props> = ({
   close,
   children,
 }) => {
-  if (!visible) return null;
-
   const casualTournamentId =
     typeof data?.casualTournamentId === 'string' ? data.casualTournamentId : undefined;
   const casualMatchGameId =
     typeof data?.casualMatchGameId === 'string' ? data.casualMatchGameId : undefined;
+
+  useEffect(() => {
+    if (!visible || !casualMatchGameId) return;
+    beginPortalGameSessionLoad();
+    const timer = window.setTimeout(() => {
+      markPortalGameplayReady();
+    }, GAMEPLAY_READY_FALLBACK_MS);
+    return () => {
+      window.clearTimeout(timer);
+      endPortalGameSession();
+    };
+  }, [visible, casualMatchGameId]);
+
+  if (!visible) return null;
 
   if (casualTournamentId && !casualMatchGameId) {
     return (

@@ -98,6 +98,7 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
           rows={leaderboardRows}
           myPoints={tierView.points ?? 0}
           myRank={tierView.rank ?? null}
+          viewerUid={ctrl.user?.uid}
         />
       </PortalCenterModal>
 

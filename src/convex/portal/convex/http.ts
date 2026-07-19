@@ -721,4 +721,58 @@ http.route({
   }),
 });
 
+/**
+ * SSO → Portal: upsert per-partner ad-replay daily cap cache.
+ * Header `X-Portal-Bridge-Secret` must match `portalGameBridgeSecret()`.
+ */
+http.route({
+  path: "/internal/upsert-partner-ad-replay-cap",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expected = portalGameBridgeSecret();
+    const headerSecret = request.headers.get("X-Portal-Bridge-Secret");
+    if (headerSecret !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const partnerIdRaw = (body as { partnerId?: unknown }).partnerId;
+    const capRaw = (body as { adReplayDailyCap?: unknown }).adReplayDailyCap;
+    const partnerId =
+      typeof partnerIdRaw === "number" && Number.isFinite(partnerIdRaw)
+        ? Math.floor(partnerIdRaw)
+        : typeof partnerIdRaw === "string"
+          ? Number(partnerIdRaw)
+          : NaN;
+    const adReplayDailyCap =
+      typeof capRaw === "number" && Number.isFinite(capRaw)
+        ? Math.floor(capRaw)
+        : NaN;
+    if (!Number.isFinite(partnerId) || partnerId < 0 || !Number.isFinite(adReplayDailyCap)) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const result = await ctx.runMutation(
+      internal.service.ads.partnerAdReplayConfig.upsertPartnerAdReplayCapInternal,
+      { partnerId, adReplayDailyCap }
+    );
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
 export default http;

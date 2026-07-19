@@ -11,7 +11,9 @@
   "dependencies": {
     "convex": "^1.24.8",
     "convex-helpers": "^0.1.10-alpha.0",
-    "jsonwebtoken": "^9.0.2"
+    "jose": "^6.2.3",
+    "jsonwebtoken": "^9.0.2",
+    "passkit-generator": "^3.5.7"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.6"

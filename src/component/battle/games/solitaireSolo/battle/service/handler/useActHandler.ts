@@ -1279,6 +1279,12 @@ const useActHandler = () => {
         if (typeof gs.gameId !== "string" || !gs.gameId.startsWith("game_")) return;
         setCasualReplayError(null);
         setCasualReplayBusy(true);
+        // 点「看广告再战」后立刻收起结算层；失败再恢复。
+        const restoreScoreReport = postCasualScoreReportOpen;
+        const restoreSummary = postCasualSummaryOpen;
+        setPostCasualScoreReportOpen(false);
+        setPostCasualSummaryOpen(false);
+        postSettleLayoutFreezeRef.current = false;
         try {
             const rr = await executeCasualRunReplay({
                 convex,
@@ -1288,6 +1294,8 @@ const useActHandler = () => {
                     convex.action(api.proxy.controller.replayCasualRun, actionArgs),
             });
             if (!rr.ok) {
+                if (restoreScoreReport) setPostCasualScoreReportOpen(true);
+                if (restoreSummary) setPostCasualSummaryOpen(true);
                 setCasualReplayError(portalErrorMessage(rr.error));
                 console.warn("[Solitaire] replayCasualRun", rr.error);
                 return;
@@ -1299,6 +1307,8 @@ const useActHandler = () => {
             const reloaded = await reloadCasualRun();
             if (!reloaded) {
                 acceptReloadedGameStateRef.current = false;
+                if (restoreScoreReport) setPostCasualScoreReportOpen(true);
+                if (restoreSummary) setPostCasualSummaryOpen(true);
                 setCasualReplayError(portalErrorMessage("match_not_open"));
                 console.warn("[Solitaire] replayCasualRun reloadCasualRun failed");
                 return;
@@ -1325,6 +1335,8 @@ const useActHandler = () => {
             setCasualReplayError(null);
             postSettleLayoutFreezeRef.current = false;
         } catch (e) {
+            if (restoreScoreReport) setPostCasualScoreReportOpen(true);
+            if (restoreSummary) setPostCasualSummaryOpen(true);
             setCasualReplayError(portalErrorMessage("complete_failed"));
             console.error("[Solitaire] replayCasualRun", e);
         } finally {
@@ -1334,6 +1346,8 @@ const useActHandler = () => {
         convex,
         casualPlatformAuthed,
         casualReplayBusy,
+        postCasualScoreReportOpen,
+        postCasualSummaryOpen,
         reloadCasualRun,
         casualPlatformBridge,
         setInteractionPhase,

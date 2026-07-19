@@ -14,6 +14,8 @@ export type CasualGameScoreReportOverlayProps = {
   onSecondary?: () => void;
   secondaryDisabled?: boolean;
   secondaryBusy?: boolean;
+  /** 广告再战：今日剩余次数（单独展示，避免加载态盖掉） */
+  adReplayDailyRemaining?: number;
   /** epoch ms；再战窗口倒计时展示在副按钮上 */
   replayWindowEndsAt?: number;
   /** 再战失败时在按钮下方展示 */
@@ -31,6 +33,7 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   onSecondary,
   secondaryDisabled = false,
   secondaryBusy = false,
+  adReplayDailyRemaining,
   replayWindowEndsAt,
   secondaryError,
 }) => {
@@ -39,9 +42,16 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   if (!open || !report) return null;
 
   const challenge = report.challenge;
+  const remaining =
+    typeof adReplayDailyRemaining === 'number' && Number.isFinite(adReplayDailyRemaining)
+      ? Math.max(0, Math.floor(adReplayDailyRemaining))
+      : undefined;
   let secondaryText = secondaryLabel;
   if (secondaryText && secondaryBusy) {
-    secondaryText = secondaryText.includes('广告') ? '广告加载中…' : '匹配中…';
+    secondaryText =
+      remaining != null || (secondaryLabel?.includes('广告') ?? false)
+        ? '广告加载中…'
+        : '匹配中…';
   } else if (secondaryText && secondaryDisabled) {
     secondaryText = `${secondaryText}（不可用）`;
   }
@@ -137,9 +147,16 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
                 className="ssc__btn ssc__btn--secondary ssc__btn--replayCompact"
                 disabled={secondaryDisabled || secondaryBusy}
                 onClick={onSecondary}
-                title={secondaryLabel}
+                title={
+                  remaining != null
+                    ? `${secondaryLabel ?? '再战'}（今日剩${remaining}次）`
+                    : secondaryLabel
+                }
               >
-                {secondaryText ?? secondaryLabel}
+                <span className="ssc__replayMain">{secondaryText ?? secondaryLabel}</span>
+                {remaining != null ? (
+                  <span className="ssc__replayRemaining">剩{remaining}次</span>
+                ) : null}
               </button>
             ) : null}
             <button

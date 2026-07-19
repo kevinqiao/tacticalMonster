@@ -511,6 +511,7 @@ const Match3Player: React.FC = () => {
         onDismiss={dismissPostCasualSummary}
         replayAvailable={postSettleReplay.showReplay}
         replayMode={postCasualReplayMode}
+        adReplayDailyRemaining={postSettleReplay.adReplayDailyRemaining}
         replayWindowEndsAt={postCasualReplayWindowEndsAt}
         replayBusy={casualReplayBusy}
         onReplay={postSettleReplay.showReplay ? () => void replayCasualRun() : undefined}

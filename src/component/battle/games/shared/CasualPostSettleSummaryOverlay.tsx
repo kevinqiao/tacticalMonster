@@ -1,4 +1,6 @@
-import React, { useId } from 'react';
+import { setPortalAdPhase } from 'host/service/ads/display/portalAdPhase';
+import { useCrazyGamesMidgameBreak } from 'host/service/ads/midgame/useCrazyGamesMidgameBreak';
+import React, { useEffect, useId } from 'react';
 
 
 
@@ -47,6 +49,9 @@ export type CasualPostSettleSummaryOverlayProps = {
   /** Portal 广告再战 vs 再战令 */
 
   replayMode?: "ad" | "token";
+
+  /** 广告再战：今日剩余次数（单独展示，避免加载态盖掉） */
+  adReplayDailyRemaining?: number;
 
   onReplay?: () => void;
 
@@ -106,6 +111,8 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
 
   replayMode = "token",
 
+  adReplayDailyRemaining,
+
   onReplay,
 
   replayBusy = false,
@@ -129,6 +136,12 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
   const titleId = useId();
 
   const countdown = useReplayWindowCountdown(replayWindowEndsAt);
+  const midgameReady = useCrazyGamesMidgameBreak(open);
+
+  useEffect(() => {
+    if (!open) return;
+    setPortalAdPhase('settle');
+  }, [open]);
 
   const showTable = Boolean(summary?.rows?.length);
 
@@ -166,18 +179,19 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
 
   const showReplayBtn = replayAvailable && Boolean(onReplay);
 
+  const remaining =
+    typeof adReplayDailyRemaining === "number" && Number.isFinite(adReplayDailyRemaining)
+      ? Math.max(0, Math.floor(adReplayDailyRemaining))
+      : undefined;
+
   let replayBtnText = replayLabel;
 
-  if (replayBusy) {
-
-    replayBtnText = replayMode === "ad" ? "广告加载中…" : "匹配中…";
-
+  if (!midgameReady || replayBusy) {
+    replayBtnText = replayMode === "ad" || !midgameReady ? "广告加载中…" : "匹配中…";
   }
 
   if (countdown) {
-
     replayBtnText = `${replayBtnText} ${countdown}`;
-
   }
 
 
@@ -287,18 +301,25 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
               <button
                 type="button"
                 className="ssc__btn ssc__btn--secondary ssc__btn--replayCompact"
-                disabled={replayBusy}
+                disabled={!midgameReady || replayBusy}
                 onClick={() => onReplay?.()}
+                title={
+                  remaining != null ? `${replayLabel}（今日剩${remaining}次）` : replayLabel
+                }
               >
-                {replayBtnText}
+                <span className="ssc__replayMain">{replayBtnText}</span>
+                {remaining != null ? (
+                  <span className="ssc__replayRemaining">剩{remaining}次</span>
+                ) : null}
               </button>
             ) : null}
             <button
               type="button"
               className={`ssc__btn ssc__btn--primary${showReplayBtn ? ' ssc__btn--continueWide' : ''}`}
+              disabled={!midgameReady}
               onClick={onDismiss}
             >
-              {dismissLabel}
+              {midgameReady ? dismissLabel : '广告加载中…'}
             </button>
           </div>
 

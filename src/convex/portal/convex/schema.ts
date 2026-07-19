@@ -144,6 +144,9 @@ export default defineSchema({
     updatedAt: v.number(),
     pointDelta: v.optional(v.number()),
     weeklyPointsAfter: v.optional(v.number()),
+    /** Legacy fields (prod rows); SSOT is portal_run_player_matches. */
+    seedScoreThreshold: v.optional(v.number()),
+    challengeSuccess: v.optional(v.boolean()),
   })
     .index("by_tournament_uid", ["tournamentId", "uid"])
     .index("by_uid_template", ["uid", "templateId"])
@@ -524,7 +527,7 @@ export default defineSchema({
     .index("by_uid", ["uid"])
     .index("by_uid_matchGameId", ["uid", "matchGameId"]),
 
-  /** 广告再战审计（每日上限见 PORTAL_AD_REPLAY_DAILY_CAP；同一 gameId 每 replayEpoch 一次） */
+  /** 广告再战审计（每日上限见 portal_partner_ad_settings / 默认 5；同一 gameId 每 replayEpoch 一次） */
   portal_ad_replay_claims: defineTable({
     uid: v.string(),
     matchGameId: v.string(),
@@ -540,6 +543,22 @@ export default defineSchema({
     .index("by_uid_matchGameId", ["uid", "matchGameId"])
     .index("by_uid_matchGameId_replayEpoch", ["uid", "matchGameId", "replayEpoch"])
     .index("by_uid_dayKey", ["uid", "dayKey"]),
+
+  /** 广告再战每日用量（原子计数；cap 以本表为准，claims 作审计） */
+  portal_ad_replay_daily_usage: defineTable({
+    uid: v.string(),
+    dayKey: v.string(),
+    usedCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_uid_dayKey", ["uid", "dayKey"]),
+
+  /** Per-partner ad-replay daily cap cache (SoT on SSO partner.data). */
+  portal_partner_ad_settings: defineTable({
+    partnerId: v.number(),
+    adReplayDailyCap: v.number(),
+    updatedAt: v.number(),
+  }).index("by_partnerId", ["partnerId"]),
 
   /** 再战令（casualPlatform 路径；Portal 改用广告再战） */
   casual_replay_tokens: defineTable({

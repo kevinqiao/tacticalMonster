@@ -112,7 +112,9 @@ export const PortalWeeklyLeaderboardPanel: React.FC<{
   }[];
   myPoints?: number;
   myRank?: number | null;
-}> = ({ rows, myPoints, myRank }) => {
+  /** Logged-in viewer — their row shows localized "You" instead of real name. */
+  viewerUid?: string | null;
+}> = ({ rows, myPoints, myRank, viewerUid }) => {
   const { t } = useTranslation("portal.player");
 
   return (
@@ -140,13 +142,24 @@ export const PortalWeeklyLeaderboardPanel: React.FC<{
               </td>
             </tr>
           ) : (
-            rows.map((r) => (
-              <tr key={`${r.rank}-${r.uid}`}>
-                <td>{r.rank}</td>
-                <td>{r.displayName ?? resolvePlayerDisplayName({ uid: r.uid })}</td>
-                <td>{r.points}</td>
-              </tr>
-            ))
+            rows.map((r) => {
+              const isYou =
+                Boolean(viewerUid) && !r.isBot && r.uid === viewerUid;
+              return (
+                <tr
+                  key={`${r.rank}-${r.uid}`}
+                  className={isYou ? "portal-lb-row--you" : undefined}
+                >
+                  <td>{r.rank}</td>
+                  <td>
+                    {isYou
+                      ? t("leaderboard.you")
+                      : (r.displayName ?? resolvePlayerDisplayName({ uid: r.uid }))}
+                  </td>
+                  <td>{r.points}</td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>

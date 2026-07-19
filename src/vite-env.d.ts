@@ -22,7 +22,15 @@ interface ImportMetaEnv {
   /** Campaign SaaS (`src/convex/campaign`); must match that folder’s CONVEX_URL */
   readonly VITE_CONVEX_URL_CAMPAIGN?: string;
   readonly VITE_CONVEX_URL_PORTAL?: string;
-  // 可以添加更多环境变量类型
+  /** CrazyGames partner pid fallback when URL partner is unresolved (default 100). */
+  readonly VITE_CRAZYGAMES_PARTNER_PID?: string;
+  /** Portal path rewritten on CrazyGames CDN hosts (default /portal/crazygames/solitaire). */
+  readonly VITE_CRAZYGAMES_ENTRY_PATH?: string;
+  /** Dev: mock rewarded ad replay (`1` / `0`). */
+  readonly VITE_AD_REPLAY_MOCK?: string;
+  readonly VITE_AD_REPLAY_MOCK_DURATION_MS?: string;
+  /** Dev: mock side banners. */
+  readonly VITE_AD_DISPLAY_MOCK?: string;
 }
 
 interface ImportMeta {

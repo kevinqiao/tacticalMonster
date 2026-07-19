@@ -4,7 +4,7 @@
  */
 
 import * as THREE from "three";
-import { MapDimension } from "../../service/TeamDeployManager";
+import type { MapDimension } from "../../../shared/mapDimension";
 import { hexToPixel } from "../../utils/coordinateUtils";
 
 /**

@@ -146,6 +146,82 @@ describe("portalAdReplayService helpers", () => {
     expect(await countAdReplayClaimsForDay(ctx, "u1", "d:2026-07-07")).toBe(2);
   });
 
+  it("consumeAdReplayDailySlot enforces the daily cap", async () => {
+    const { consumeAdReplayDailySlot, readAdReplayUsedToday } = await import(
+      "../portalAdReplayService"
+    );
+    const dayKey = "d:2026-07-09";
+    const usage: { uid: string; dayKey: string; usedCount: number }[] = [];
+    const ctx = {
+      db: {
+        query: (table: string) => ({
+          withIndex: (
+            _name: string,
+            fn: (q: { eq: (k: string, v: string) => { eq?: (k: string, v: string) => unknown } }) => unknown
+          ) => {
+            const filters: Record<string, string> = {};
+            const builder = {
+              eq: (key: string, value: string) => {
+                filters[key] = value;
+                if (key === "uid") {
+                  return {
+                    eq: (k2: string, v2: string) => {
+                      filters[k2] = v2;
+                      return builder;
+                    },
+                  };
+                }
+                return builder;
+              },
+              unique: async () => {
+                if (table !== "portal_ad_replay_daily_usage") return null;
+                return (
+                  usage.find((u) => u.uid === filters.uid && u.dayKey === filters.dayKey) ?? null
+                );
+              },
+              collect: async () => {
+                if (table !== "portal_ad_replay_claims") return [];
+                return [];
+              },
+            };
+            fn({ eq: builder.eq.bind(builder) });
+            return builder;
+          },
+        }),
+        insert: async (table: string, doc: { uid: string; dayKey: string; usedCount: number }) => {
+          if (table === "portal_ad_replay_daily_usage") usage.push({ ...doc });
+          return "id1";
+        },
+        patch: async (
+          _id: string,
+          patch: { usedCount: number }
+        ) => {
+          const row = usage.find((u) => u.uid === "u1" && u.dayKey === dayKey);
+          if (row) row.usedCount = patch.usedCount;
+        },
+      },
+    } as never;
+
+    const cap = PORTAL_AD_REPLAY_DAILY_CAP;
+    for (let i = 0; i < cap; i++) {
+      const r = await consumeAdReplayDailySlot(ctx, {
+        uid: "u1",
+        dayKey,
+        now: Date.now(),
+        cap,
+      });
+      expect(r.ok).toBe(true);
+    }
+    expect(await readAdReplayUsedToday(ctx, "u1", dayKey)).toBe(cap);
+    const blocked = await consumeAdReplayDailySlot(ctx, {
+      uid: "u1",
+      dayKey,
+      now: Date.now(),
+      cap,
+    });
+    expect(blocked).toEqual({ ok: false, error: "daily_cap_reached" });
+  });
+
   it("dedupes duplicate replayEpoch on the same matchGameId for daily cap", async () => {
     const dayKey = "d:2026-07-08";
     const ctx = mockAdReplayCtx({
@@ -248,6 +324,8 @@ describe("portalAdReplayService helpers", () => {
                 }
                 return builder;
               },
+              first: async () => null,
+              unique: async () => null,
               collect: async () => {
                 if (table !== "portal_ad_replay_claims") return [];
                 const claims = [
@@ -329,6 +407,8 @@ describe("portalAdReplayService helpers", () => {
                 }
                 return builder;
               },
+              first: async () => null,
+              unique: async () => null,
               collect: async () => {
                 if (table !== "portal_ad_replay_claims") return [];
                 const claims = [

@@ -1,3 +1,4 @@
+import { useCrazyGamesMidgameBreak } from 'host/service/ads/midgame/useCrazyGamesMidgameBreak';
 import React, { useEffect, useId, useRef, useState } from 'react';
 
 import type { CasualGameScoreReportUI } from './casualGameScoreReportUI';
@@ -31,10 +32,12 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
   const titleId = useId();
   const onContinueRef = useRef(onContinue);
   const [progressPct, setProgressPct] = useState(0);
+  const midgameReady = useCrazyGamesMidgameBreak(open);
   onContinueRef.current = onContinue;
 
   useEffect(() => {
-    if (!open || autoAdvanceMs <= 0) return;
+    // Wait for midgame break (CrazyGames) before starting the between-leg countdown.
+    if (!open || !midgameReady || autoAdvanceMs <= 0) return;
 
     setProgressPct(0);
     const startedAt = performance.now();
@@ -53,7 +56,14 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [open, autoAdvanceMs, completedLeg.gameType, completedLeg.score, nextGame.gameId]);
+  }, [
+    open,
+    midgameReady,
+    autoAdvanceMs,
+    completedLeg.gameType,
+    completedLeg.score,
+    nextGame.gameId,
+  ]);
 
   if (!open) return null;
 

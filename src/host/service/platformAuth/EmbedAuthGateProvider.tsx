@@ -20,12 +20,13 @@ import {
 import { loadSdksForSources } from "./embedSources/sdkLoader";
 import {
   deferClerkForEmbedGate,
-  EMBED_AUTH_GRACE_MS,
+  embedAuthGraceMs,
   buildEmbedSourceContext,
   partnerEmbedChannelEnabled,
   shouldAttemptEmbedGate,
   type EmbedAuthGatePhase,
 } from "./embedAuthGate";
+import { isCrazyGamesFileHost } from "./embedSources/crazyGamesHost";
 
 type EmbedAuthGateContextValue = {
   phase: EmbedAuthGatePhase;
@@ -97,7 +98,8 @@ export const EmbedAuthGateProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
-    if (!partnerEmbedChannelEnabled(partner)) {
+    // On CG CDN, keep waiting even if partner row is briefly missing — Bridge uses pid fallback.
+    if (!partnerEmbedChannelEnabled(partner) && !isCrazyGamesFileHost()) {
       setPhase("skipped");
       return;
     }
@@ -149,7 +151,7 @@ export const EmbedAuthGateProvider: React.FC<{ children: React.ReactNode }> = ({
       setPhase("waiting");
       graceTimerRef.current = window.setTimeout(() => {
         setPhase((prev) => (prev === "waiting" ? "timed_out" : prev));
-      }, EMBED_AUTH_GRACE_MS);
+      }, embedAuthGraceMs());
     })();
 
     return () => {

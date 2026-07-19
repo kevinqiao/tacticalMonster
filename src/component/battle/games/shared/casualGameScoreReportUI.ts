@@ -112,15 +112,22 @@ export function isCasualReplayWindowOpen(replayWindowEndsAt?: number): boolean {
   return replayWindowEndsAt > Date.now();
 }
 
-export function formatCasualAdReplayButtonLabel(adReplayDailyRemaining?: number): string {
+export function normalizeAdReplayDailyRemaining(
+  adReplayDailyRemaining?: number
+): number | undefined {
   if (
-    typeof adReplayDailyRemaining === 'number' &&
-    Number.isFinite(adReplayDailyRemaining)
+    typeof adReplayDailyRemaining !== 'number' ||
+    !Number.isFinite(adReplayDailyRemaining)
   ) {
-    const n = Math.max(0, Math.floor(adReplayDailyRemaining));
-    return `广告再战·${n}`;
+    return undefined;
   }
-  return '广告再战';
+  return Math.max(0, Math.floor(adReplayDailyRemaining));
+}
+
+/** 按钮主文案（剩余次数由 overlay 单独展示，避免加载态/截断丢掉）。 */
+export function formatCasualAdReplayButtonLabel(adReplayDailyRemaining?: number): string {
+  const n = normalizeAdReplayDailyRemaining(adReplayDailyRemaining);
+  return n != null ? `再战·剩${n}次` : '再战';
 }
 
 /** 同桌结算层 / 多人竞技：与单人 P75 一致，不可战时不展示按钮。 */
@@ -131,7 +138,11 @@ export function resolveCasualPostSettleReplayPresentation(opts: {
   adReplayDailyRemaining?: number;
   replayWindowEndsAt?: number;
   customLabel?: string;
-}): { showReplay: boolean; replayLabel: string } {
+}): {
+  showReplay: boolean;
+  replayLabel: string;
+  adReplayDailyRemaining?: number;
+} {
   const showReplay =
     opts.replayOffered &&
     opts.canReplay &&
@@ -139,13 +150,22 @@ export function resolveCasualPostSettleReplayPresentation(opts: {
   if (!showReplay) {
     return { showReplay: false, replayLabel: '' };
   }
+  const remaining =
+    opts.replayMode === 'ad'
+      ? normalizeAdReplayDailyRemaining(opts.adReplayDailyRemaining)
+      : undefined;
   if (opts.customLabel) {
-    return { showReplay: true, replayLabel: opts.customLabel };
+    return {
+      showReplay: true,
+      replayLabel: opts.customLabel,
+      ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
+    };
   }
   if (opts.replayMode === 'ad') {
     return {
       showReplay: true,
-      replayLabel: formatCasualAdReplayButtonLabel(opts.adReplayDailyRemaining),
+      replayLabel: '再战',
+      ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
     };
   }
   return { showReplay: true, replayLabel: '再战' };
@@ -166,20 +186,23 @@ export function resolveCasualScoreReportSecondaryAction(opts: {
   /** 展示再战副按钮（非「复盘本局」） */
   showReplaySecondary: boolean;
   secondaryLabel?: string;
+  adReplayDailyRemaining?: number;
 } {
   const solo = isCasualSoloP75ChallengeTemplate(opts.templateId);
   if (solo) {
     const showReplay =
       opts.replayOffered && opts.challengeSuccess === false && opts.canReplay;
+    const remaining =
+      opts.replayMode === 'ad'
+        ? normalizeAdReplayDailyRemaining(opts.adReplayDailyRemaining)
+        : undefined;
     return {
       soloChallengeFinalStep: true,
       showReplaySecondary: showReplay,
       ...(showReplay
         ? {
-            secondaryLabel:
-              opts.replayMode === 'ad'
-                ? formatCasualAdReplayButtonLabel(opts.adReplayDailyRemaining)
-                : '再战',
+            secondaryLabel: '再战',
+            ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
           }
         : {}),
     };

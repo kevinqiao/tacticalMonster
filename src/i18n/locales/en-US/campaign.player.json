@@ -222,6 +222,11 @@
     "activatesAt": "Active from {{at}}",
     "expiresAt": "Expires {{at}}",
     "notYetActive": "Not active yet",
+    "addToAppleWallet": "Add to Apple Wallet",
+    "walletAdding": "Preparing pass…",
+    "walletUnavailable": "Apple Wallet is not configured (PassKit certificates missing).",
+    "walletPassFailed": "Could not create the pass. Try again later.",
+    "googleWalletSoon": "Google Wallet coming soon.",
     "status": {
       "issued": "Ready to use",
       "redeemed": "Redeemed",

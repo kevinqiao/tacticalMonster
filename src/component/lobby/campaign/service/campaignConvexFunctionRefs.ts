@@ -139,4 +139,12 @@ export const merchantCampaignFns = {
   upsertPartnerBrand: makeFunctionReference<"action">(
     "service/merchant/campaignPartnerGameActions:upsertPartnerBrand"
   ),
+
+  passkitAvailability: makeFunctionReference<"query">(
+    "service/wallet/passkitAvailability:passkitAvailability"
+  ),
+
+  createAppleWalletPass: makeFunctionReference<"action">(
+    "service/wallet/applePassActions:createAppleWalletPass"
+  ),
 } as const;

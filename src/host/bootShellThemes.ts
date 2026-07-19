@@ -21,8 +21,8 @@ export type BootShellTheme = {
   messageKey: string;
 };
 
-const PORTAL_BG_L = "/assets/portal/solitaire/backgrounds/bg-16x9.png";
-const PORTAL_BG_P = "/assets/portal/portal_bg_9x16.png";
+const PORTAL_BG_L = `${import.meta.env.BASE_URL}assets/portal/solitaire/backgrounds/bg-16x9.webp`;
+const PORTAL_BG_P = `${import.meta.env.BASE_URL}assets/portal/solitaire/backgrounds/bg-9x16.webp`;
 
 export const BOOT_SHELL_THEMES: Record<BootShellId, BootShellTheme> = {
   portal: {

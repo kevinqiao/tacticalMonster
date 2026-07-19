@@ -781,6 +781,11 @@ export const Match3GameProvider: React.FC<Props> = ({
     if (!gs || !casualPlatformAuthed || casualReplayBusy) return;
     if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
     setCasualReplayBusy(true);
+    // 点「看广告再战」后立刻收起结算层；失败再恢复。
+    const restoreScoreReport = postCasualScoreReportOpen;
+    const restoreSummary = postCasualSummaryOpen;
+    setPostCasualScoreReportOpen(false);
+    setPostCasualSummaryOpen(false);
     try {
       const rr = await executeCasualRunReplay({
         convex,
@@ -790,6 +795,8 @@ export const Match3GameProvider: React.FC<Props> = ({
           convex.action(api.proxy.controller.replayCasualRun, actionArgs),
       });
       if (!rr.ok) {
+        if (restoreScoreReport) setPostCasualScoreReportOpen(true);
+        if (restoreSummary) setPostCasualSummaryOpen(true);
         console.warn('[match3] replayCasualRun', rr.error);
         return;
       }
@@ -806,6 +813,8 @@ export const Match3GameProvider: React.FC<Props> = ({
 
       await reloadCasualRun();
     } catch (e) {
+      if (restoreScoreReport) setPostCasualScoreReportOpen(true);
+      if (restoreSummary) setPostCasualSummaryOpen(true);
       console.error('[match3] replayCasualRun', e);
     } finally {
       setCasualReplayBusy(false);
@@ -814,6 +823,8 @@ export const Match3GameProvider: React.FC<Props> = ({
     convex,
     casualPlatformAuthed,
     casualReplayBusy,
+    postCasualScoreReportOpen,
+    postCasualSummaryOpen,
     clearPostCasualOverlays,
     reloadCasualRun,
     triathlonSessionActive,

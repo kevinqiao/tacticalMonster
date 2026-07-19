@@ -45,18 +45,18 @@
   --sol-section-gap: 12px; /* 极度压缩各板块垂直间距，确保 100vh 单屏展示 */
 
   /* Figma-exported PNG/SVG paths (public/assets/portal/solitaire/) */
-  --sol-bg-16x9: url("/assets/portal/solitaire/backgrounds/bg-16x9.png");
-  --sol-bg-9x16: url("/assets/portal/solitaire/backgrounds/bg-9x16.png");
-  --sol-hero-title: url("/assets/portal/solitaire/hero/hero-title.svg");
-  --sol-hero-cards: url("/assets/portal/solitaire/hero/hero-cards.svg");
-  --sol-icon-target: url("/assets/portal/solitaire/icons/icon-target.svg");
-  --sol-icon-swords: url("/assets/portal/solitaire/icons/icon-swords.svg");
-  --sol-btn-shop: url("/assets/portal/solitaire/buttons/btn-shop-default.svg");
-  --sol-btn-challenge: url("/assets/portal/solitaire/buttons/btn-challenge-default.svg");
-  --sol-btn-compete: url("/assets/portal/solitaire/buttons/btn-compete-default.svg");
-  --sol-panel-history: url("/assets/portal/solitaire/panels/panel-history.svg");
-  --sol-card-bg-solo: url("/assets/portal/solitaire/backgrounds/mode_solo_bg.png");
-  --sol-card-bg-multi: url("/assets/portal/solitaire/backgrounds/mode_arena_bg.png");
+  --sol-bg-16x9: url("/assets/portal/solitaire/backgrounds/bg-16x9.webp");
+  --sol-bg-9x16: url("/assets/portal/solitaire/backgrounds/bg-9x16.webp");
+  --sol-hero-title: url("/assets/portal/solitaire/hero/hero-title.webp");
+  --sol-hero-cards: url("/assets/portal/solitaire/hero/hero-cards.webp");
+  --sol-icon-target: url("/assets/portal/solitaire/icons/icon-target.webp");
+  --sol-icon-swords: url("/assets/portal/solitaire/icons/icon-swords.webp");
+  --sol-btn-shop: url("/assets/portal/solitaire/buttons/btn-shop-default.webp");
+  --sol-btn-challenge: url("/assets/portal/solitaire/buttons/btn-challenge-default.webp");
+  --sol-btn-compete: url("/assets/portal/solitaire/buttons/btn-compete-default.webp");
+  --sol-panel-history: url("/assets/portal/solitaire/panels/panel-history.webp");
+  --sol-card-bg-solo: url("/assets/portal/solitaire/backgrounds/mode_solo_bg.webp");
+  --sol-card-bg-multi: url("/assets/portal/solitaire/backgrounds/mode_arena_bg.webp");
 
   background-color: var(--theme-bg-color);
   background-image: var(--sol-bg-16x9);
@@ -273,11 +273,11 @@
 }
 
 .portal-page[data-portal-game="solitaire"] .portal-mode-card-image-only--solo {
-  background-image: url("/assets/portal/solitaire/backgrounds/mode_solo_bg.png");
+  background-image: url("/assets/portal/solitaire/backgrounds/mode_solo_bg.webp");
 }
 
 .portal-page[data-portal-game="solitaire"] .portal-mode-card-image-only--multi {
-  background-image: url("/assets/portal/solitaire/backgrounds/mode_arena_bg.png");
+  background-image: url("/assets/portal/solitaire/backgrounds/mode_arena_bg.webp");
 }
 
 .portal-page[data-portal-game="solitaire"] .portal-mode-card {

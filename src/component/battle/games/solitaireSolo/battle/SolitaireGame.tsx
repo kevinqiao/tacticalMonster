@@ -9,6 +9,7 @@
 
 
 import { ConvexReactClient } from 'convex/react';
+import { markPortalGameplayReady } from 'host/service/ads/display/portalAdPhase';
 import PlatformConvexProvider from 'host/service/platformAuth/PlatformConvexProvider';
 
 import gsap from 'gsap';
@@ -77,6 +78,7 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
                 ease: 'power2.inOut',
             });
         }
+        markPortalGameplayReady();
     }, []);
     return (
         <>

@@ -4,7 +4,11 @@ import {
   PortalSideBannerSlot,
   usePortalSideBannerSlots,
 } from "host/service/ads/display/usePortalSideBannerSlots";
-import { setPortalAdPhase } from "host/service/ads/display/portalAdPhase";
+import {
+  getPortalAdPhase,
+  isPortalPlayFlowPhase,
+  setPortalAdPhase,
+} from "host/service/ads/display/portalAdPhase";
 import { PortalViewportShell } from "host/service/ads/display/PortalViewportShell";
 
 type PortalGame3DViewportProps = {
@@ -23,11 +27,16 @@ export function PortalGame3DViewport({
 
   useEffect(() => {
     if (!pageActive) {
-      setPortalAdPhase("hidden");
+      if (!isPortalPlayFlowPhase(getPortalAdPhase())) {
+        setPortalAdPhase("hidden");
+      }
+      return;
+    }
+    // Play modal / matchmaking / settle own their phases — don't stomp with lobby chrome.
+    if (isPortalPlayFlowPhase(getPortalAdPhase())) {
       return;
     }
     setPortalAdPhase(modalOpen ? "modal" : "lobby");
-    return () => setPortalAdPhase("hidden");
   }, [pageActive, modalOpen]);
 
   const leftBanner =

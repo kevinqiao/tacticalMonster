@@ -3,9 +3,19 @@ import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
 import { anyEmbedCredentialSourceEligible } from "./embedSources/registry";
 import type { EmbedSourceContext } from "./embedSources/types";
 import { EMBED_AUTH_CHANNEL_CID } from "@/convex/sso/convex/service/auth/authChannelCatalog";
+import { isCrazyGamesFileHost } from "./embedSources/crazyGamesHost";
 
 /** Grace period while waiting for Partner WebView JWT before Clerk SSO. */
 export const EMBED_AUTH_GRACE_MS = 2500;
+/** CrazyGames auth prompt + token exchange needs a longer window. */
+export const EMBED_AUTH_GRACE_MS_CRAZYGAMES = 12_000;
+
+export function embedAuthGraceMs(): number {
+  if (typeof window !== "undefined" && isCrazyGamesFileHost()) {
+    return EMBED_AUTH_GRACE_MS_CRAZYGAMES;
+  }
+  return EMBED_AUTH_GRACE_MS;
+}
 
 export type EmbedAuthGatePhase =
   | "pending"
@@ -85,7 +95,8 @@ export function shouldAttemptEmbedGate(args: {
   if (args.staffConsole || !args.authReady || !args.partnerResolveReady) return false;
   if (args.alreadyAuthed) return false;
   if (args.isFirstPartyPortal) return false;
-  if (!partnerEmbedChannelEnabled(args.partner)) return false;
+  const onCrazyGames = typeof window !== "undefined" && isCrazyGamesFileHost();
+  if (!partnerEmbedChannelEnabled(args.partner) && !onCrazyGames) return false;
   return anyEmbedCredentialSourceEligible(
     buildEmbedSourceContext({
       partnerPid: args.partner?.pid ?? 0,

@@ -50,7 +50,7 @@ function setPopCenterRestLayout(ele: HTMLElement, width: string, height: string)
   });
 }
 
-/** Shell stays at the open resting pose so `.modal-close` anchors to the modal corner. */
+/** Shell stays at the open resting pose; motion (incl. close btn) runs on `.modal-surface`. */
 function setShellRestLayout(shell: HTMLElement, effect: ModalEffect) {
   gsap.set(shell, { clearProps: "transform,transformOrigin" });
   switch (effect.name) {
@@ -158,19 +158,20 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
       const surface = motionTarget(container);
       if (!shell || !surface) return;
       const effect = resolveModalEffect(container, modal, orientation ?? "portrait");
-      if (!effect) return;
-      if (!OPEN_EFFECTS.has(effect.name)) {
+      if (!effect || !OPEN_EFFECTS.has(effect.name)) {
+        killModalTweens(container);
+        gsap.set(shell, { autoAlpha: 1 });
+        if (container.mask) gsap.set(container.mask, { autoAlpha: 1 });
+        resetSurfaceIdentity(surface);
         onComplete?.();
         return;
       }
       killModalTweens(container);
       console.log("playOpen", container.name, effect);
 
-      // Shell sits at final modal rect immediately.
+      // Shell sits at final modal rect; close lives inside surface and zooms/slides with it.
       setShellRestLayout(shell, effect);
       gsap.set(shell, { autoAlpha: 1 });
-      // Close is inline on the surface — stay visible, no separate fade.
-      if (container.closeEle) gsap.set(container.closeEle, { autoAlpha: 1 });
 
       const tl = gsap.timeline({
         onComplete: () => {
@@ -184,6 +185,8 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
         },
       });
 
+      let openDur = 0.5;
+      let openEase: string = "power2.inOut";
       switch (effect.name) {
         case "popCenter":
         case "popCenterIn":
@@ -206,6 +209,8 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
           });
           break;
         case "swipeRight":
+          openDur = SWIPE_OPEN_DUR;
+          openEase = SWIPE_OPEN_EASE;
           gsap.set(surface, { x: "100%", y: 0, autoAlpha: 1 });
           tl.to(surface, { x: 0, duration: SWIPE_OPEN_DUR, ease: SWIPE_OPEN_EASE });
           break;
@@ -225,7 +230,7 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
 
       if (container.mask) {
         gsap.set(container.mask, { willChange: "opacity" });
-        tl.to(container.mask, { autoAlpha: 1, duration: SWIPE_OPEN_DUR, ease: SWIPE_OPEN_EASE }, "<");
+        tl.to(container.mask, { autoAlpha: 1, duration: openDur, ease: openEase }, "<");
       }
       tl.play();
     },
@@ -260,6 +265,8 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
         },
       });
 
+      let closeDur = 0.5;
+      let closeEase: string = "power2.inOut";
       switch (effect.name) {
         case "popCenter":
         case "popCenterIn":
@@ -272,6 +279,8 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
           tl.to(surface, { y: "100%", duration: 0.5, ease: "power2.inOut" });
           break;
         case "swipeRight":
+          closeDur = SWIPE_CLOSE_DUR;
+          closeEase = SWIPE_CLOSE_EASE;
           tl.to(surface, { x: "100%", duration: SWIPE_CLOSE_DUR, ease: SWIPE_CLOSE_EASE });
           break;
         case "swipeLeft":
@@ -280,8 +289,7 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
       }
 
       if (container.mask) {
-        console.log("mask", container.mask);
-        tl.to(container.mask, { autoAlpha: 0, duration: SWIPE_CLOSE_DUR, ease: SWIPE_CLOSE_EASE }, "<");
+        tl.to(container.mask, { autoAlpha: 0, duration: closeDur, ease: closeEase }, "<");
       }
       tl.play();
     },

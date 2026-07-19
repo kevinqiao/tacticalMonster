@@ -222,6 +222,11 @@
     "activatesAt": "生效 {{at}}",
     "expiresAt": "有效期至 {{at}}",
     "notYetActive": "尚未生效",
+    "addToAppleWallet": "添加到 Apple Wallet",
+    "walletAdding": "正在生成通行卡…",
+    "walletUnavailable": "Apple Wallet 尚未配置（缺少 PassKit 证书）。",
+    "walletPassFailed": "无法生成通行卡，请稍后重试。",
+    "googleWalletSoon": "Google Wallet 即将支持。",
     "status": {
       "issued": "待使用",
       "redeemed": "已核销",

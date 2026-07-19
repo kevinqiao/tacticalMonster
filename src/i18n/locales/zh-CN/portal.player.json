@@ -29,6 +29,7 @@
     },
     "play": "开始",
     "continue": "继续",
+    "continueInProgress": "进行中的游戏",
     "joining": "加入中…",
     "matching": "匹配中…",
     "weekRemaining": "本周剩余 {{days}} 天 {{hours}} 小时",
@@ -106,6 +107,7 @@
     "cohortTitle": "本组排行",
     "myWeek": "我的本周 {{points}} 分",
     "myWeekWithRank": "我的本周 {{points}} 分 · 第 {{rank}} 名",
+    "you": "你",
     "empty": "暂无排行数据",
     "columns": {
       "rank": "#",

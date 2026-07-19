@@ -1,7 +1,9 @@
 import { isCrazyGamesDevFlag } from "../../../platformAuth/embedSources/runtimeContext";
 import {
   isCrazyGamesEmbedEnvironment,
+  isCrazyGamesSdkUsable,
   requestCrazyGamesRewardedAd,
+  safeCrazyGamesHasModule,
 } from "../../../platformAuth/embedSources/crazyGamesSdk";
 import type { RewardedAdProvider, RewardedAdShowResult } from "./types";
 
@@ -13,7 +15,8 @@ export const crazyGamesRewardedProvider: RewardedAdProvider = {
   isSupported() {
     if (typeof window === "undefined") return false;
     if (isCrazyGamesDevFlag(window.location.search)) return true;
-    return Boolean(window.CrazyGames?.SDK?.ad?.requestAd);
+    // Do not touch SDK.ad before init — getters throw "not initialized yet".
+    return isCrazyGamesSdkUsable() && safeCrazyGamesHasModule("ad", "requestAd");
   },
 
   async showRewardedAd(): Promise<RewardedAdShowResult> {

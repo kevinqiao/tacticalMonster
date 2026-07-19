@@ -683,56 +683,49 @@ const YatzGameProvider: React.FC<Props> = ({
 
 
   const replayCasualRun = useCallback(async () => {
-
     const gs = gameStateRef.current;
-
     if (!gs || !casualPlatformAuthed || casualReplayBusy) return;
-
     if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
-
     setCasualReplayBusy(true);
-
+    // 点「看广告再战」后立刻收起结算层；失败再恢复。
+    const restoreScoreReport = postCasualScoreReportOpen;
+    const restoreSummary = postCasualSummaryOpen;
+    setPostCasualScoreReportOpen(false);
+    setPostCasualSummaryOpen(false);
     try {
-
       const rr = await executeCasualRunReplay({
-
         convex,
-
         gameId: gs.gameId,
-
         platformBridge: casualPlatformBridge,
-
         replayAction: (actionArgs) =>
-
           convex.action(api.proxy.controller.replayCasualRun, actionArgs),
-
       });
-
       if (!rr.ok) {
-
+        if (restoreScoreReport) setPostCasualScoreReportOpen(true);
+        if (restoreSummary) setPostCasualSummaryOpen(true);
         console.warn('[yatz] replayCasualRun', rr.error);
-
         return;
-
       }
-
       casualRunSubmittedRef.current = false;
-
       clearPostCasualOverlays();
-
       await reloadCasualRun();
-
     } catch (e) {
-
+      if (restoreScoreReport) setPostCasualScoreReportOpen(true);
+      if (restoreSummary) setPostCasualSummaryOpen(true);
       console.error('[yatz] replayCasualRun', e);
-
     } finally {
-
       setCasualReplayBusy(false);
-
     }
-
-  }, [convex, casualPlatformAuthed, casualReplayBusy, clearPostCasualOverlays, reloadCasualRun, casualPlatformBridge]);
+  }, [
+    convex,
+    casualPlatformAuthed,
+    casualReplayBusy,
+    postCasualScoreReportOpen,
+    postCasualSummaryOpen,
+    clearPostCasualOverlays,
+    reloadCasualRun,
+    casualPlatformBridge,
+  ]);
 
 
 

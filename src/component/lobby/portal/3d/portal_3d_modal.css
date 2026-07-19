@@ -314,6 +314,21 @@
   color: #77451a !important;
 }
 
+/* 当前用户行：整圈绿色边框特显（覆盖前三名配色边框） */
+.portal-lb-table tbody tr.portal-lb-row--you td:not([colspan]) {
+  border-top: 3px solid #1f8a4c !important;
+  border-bottom: 3px solid #1f8a4c !important;
+  font-weight: 800 !important;
+}
+
+.portal-lb-table tbody tr.portal-lb-row--you td:first-child:not([colspan]) {
+  border-left: 3px solid #1f8a4c !important;
+}
+
+.portal-lb-table tbody tr.portal-lb-row--you td:last-child:not([colspan]) {
+  border-right: 3px solid #1f8a4c !important;
+}
+
 /* ==========================================================================
    历史记录
    ========================================================================== */

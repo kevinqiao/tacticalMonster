@@ -15,7 +15,6 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
 
   useEffect(() => {
     if (visible === 0) return;
-    document.title = "PlayMint — Merchant activity hub + Wallet reminders for local shops.";
     const onScroll = () => setHeaderScrolled(window.scrollY > 12);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -69,8 +68,9 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
             <p className="playmint-hero__lead">
               Share one branded link on menus, receipts, and social. Update in-store posters and
               promos anytime — no app download. When you run a skill challenge, coupons land in
-              Apple or Google Wallet with expiry reminders so more get redeemed, not forgotten in
-              camera roll. Keep Square Loyalty for points — PlayMint handles your activity channel.
+              Apple Wallet with expiry reminders so more get redeemed, not forgotten in camera
+              roll (Google Wallet on the roadmap). Keep Square Loyalty for points — PlayMint
+              handles your activity channel.
             </p>
             <div className="playmint-hero__cta">
               <a className="playmint-btn playmint-btn--mint" href={MERCHANT_URL}>
@@ -117,7 +117,7 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
                 <span className="playmint-partner__badge">Live</span> Display posters + skill campaigns · QR redeem
               </span>
               <span className="playmint-partner is-soon">
-                <span className="playmint-partner__badge">Pilot</span> Apple / Google Wallet passes
+                <span className="playmint-partner__badge">Live</span> Apple Wallet passes (Google soon)
               </span>
               <span className="playmint-partner is-soon">
                 <span className="playmint-partner__badge">Soon</span> Square POS auto-discount
@@ -172,8 +172,8 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
               <article className="playmint-feature">
                 <h3>Wallet reminders (pilot)</h3>
                 <p>
-                  Coupons install to Apple or Google Wallet — lock-screen visibility and expiry nudges
-                  so guests show up before the offer dies in their camera roll.
+                  Coupons install to Apple Wallet — lock-screen visibility and expiry nudges so
+                  guests show up before the offer dies in their camera roll. Google Wallet next.
                 </p>
               </article>
               <article className="playmint-feature">
@@ -292,7 +292,7 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
                 <span className="playmint-step__num">4</span>
                 <div>
                   <h3>Add to Wallet · get reminded</h3>
-                  <p>Pilot: PassKit pass on lock screen. Expiry nudge before the offer dies — higher redemption than screenshots.</p>
+                  <p>Apple Wallet pass on lock screen with expiry nudges — higher redemption than screenshots. Google Wallet next.</p>
                 </div>
               </article>
               <article className="playmint-step">
@@ -447,7 +447,7 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
               <span className="playmint-roadmap__tag">Pilot &amp; roadmap</span>
               <h3>What pilots unlock next</h3>
               <ul>
-                <li>Apple / Google Wallet passes via PassKit</li>
+                <li>Apple Wallet (PassKit) live; Google Wallet on the roadmap</li>
                 <li>Expiry push reminders → higher redemption</li>
                 <li>Square OAuth discount at register</li>
                 <li>Issue → redeem funnel report</li>
@@ -495,9 +495,9 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
               <details>
                 <summary>Is Wallet live for every merchant?</summary>
                 <p>
-                  Staff QR redeem is live today. Apple and Google Wallet pass delivery and expiry
-                  reminders are in pilot — join the pilot from the merchant dashboard. Merchants
-                  don&apos;t need their own Apple or Google developer accounts.
+                  Staff QR redeem is live today. Apple Wallet pass delivery and expiry reminders
+                  are in pilot (Google Wallet on the roadmap) — join from the merchant dashboard.
+                  Merchants don&apos;t need their own Apple developer account.
                 </p>
               </details>
               <details>

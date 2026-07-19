@@ -18,22 +18,12 @@ import type { PlayerMonster } from "../types/monsterTypes";
 import { Boss, Stage } from "../types/StageTypes";
 import { pixelToHex } from "../utils/coordinateUtils";
 import { useMapDimension } from "./useMapDimension";
-// ============ 类型定义 ============
+import type { MapDimension } from "../../shared/mapDimension";
 
-export interface MapDimension {
-    containerWidth: number;
-    containerHeight: number;
-    width: number;
-    height: number;
-    hexHeight: number;
-    hexWidth: number;
-    isPortrait: boolean;  // 是否竖屏
-    cols: number;         // 列数（横屏8，竖屏7）
-    rows: number;         // 行数（横屏7，竖屏8）
-    topOffset?: number;
-    leftOffset?: number;
-    zoom?: number;
-}
+// Re-export for existing tactical imports; definition lives outside this chunk.
+export type { MapDimension } from "../../shared/mapDimension";
+
+// ============ 类型定义 ============
 
 export interface TeamContextValue {
     // 状态

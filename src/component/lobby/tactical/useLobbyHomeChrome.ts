@@ -1,4 +1,4 @@
-import type { MapDimension } from "@/component/battle/games/tacticalMonster/service/TeamDeployManager";
+import type { MapDimension } from "@/component/battle/games/shared/mapDimension";
 import { calculateMapDimension } from "@/component/battle/games/tacticalMonster/utils/coordinateUtils";
 import type { SharedPageDataSchema } from "host/service/SharedPageDataManager";
 import { useLayoutEffect, useRef, type RefObject } from "react";

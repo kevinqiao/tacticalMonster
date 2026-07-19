@@ -1,6 +1,15 @@
 import { modalMatchesActiveContext } from "@/host/util/PageUtils";
 import { ModalContainer, ModalItem, ModalProp, useModalManager } from "host/service/ModalManager";
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { requestCasualGameModalExit } from "component/battle/games/shared/casualGameModalExitBridge";
@@ -9,6 +18,14 @@ import { usePageManager } from "./service/PageManager";
 import { useModalAnimate } from "./useModalAnimate";
 /** 须高于 `LobbyHome` 顶/底栏 portal（z-index 5200），否则 chrome 会压住 Modal（同为 body 子节点时按数值比较） */
 const MODAL_Z_BASE = 5500;
+
+/** Fires once Suspense has resolved the lazy game/modal surface (not the fallback). */
+const ModalContentReady: React.FC<{ onReady: () => void }> = ({ onReady }) => {
+  useLayoutEffect(() => {
+    onReady();
+  }, [onReady]);
+  return null;
+};
 
 const isStaleChunkError = (error: unknown): boolean => {
   const msg = String((error as Error)?.message ?? error ?? "");
@@ -139,6 +156,8 @@ const getCachedComponent = (path: string): React.ComponentType<ModalProp> => {
 const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) => {
   const openRef = useRef<boolean>(false);
   const [modal, setModal] = useState<ModalItem | undefined>(undefined);
+  /** Lazy game chunk mounted — open motion (and close btn) wait for this. */
+  const [contentReady, setContentReady] = useState(false);
   const { modals, closeModal } = useModalManager();
   const { playOpen, playClose } = useModalAnimate({ container, modal });
   const zIndex = useMemo(() => {
@@ -157,6 +176,7 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
         console.log("close modal complete", container.name);
         closeModal(container.name);
         openRef.current = false;
+        setContentReady(false);
       }
     });
 
@@ -172,20 +192,31 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
     return getCachedComponent(container.path);
   }, [modal, container.path]);
 
+  const markContentReady = useCallback(() => {
+    setContentReady(true);
+  }, []);
+
   useEffect(() => {
     const m = modals.find((modal) => modal.name === container.name);
     setModal(() => (m ?? undefined));
   }, [modals, container]);
 
   useEffect(() => {
-    if (!openRef.current && modal) {
+    if (!modal) {
+      openRef.current = false;
+      setContentReady(false);
+    }
+  }, [modal]);
+
+  useEffect(() => {
+    if (!openRef.current && modal && contentReady) {
       playOpen({
         onComplete: () => {
           openRef.current = true;
         }
       });
     }
-  }, [modal, openRef, playOpen]);
+  }, [modal, contentReady, playOpen]);
 
   const modalLayer = (
     <div style={{ position: "fixed", inset: 0, zIndex, backgroundColor: "transparent", pointerEvents: modal ? "auto" : "none", overflow: "hidden" }}>
@@ -206,16 +237,17 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
           {SelectedComponent ? (
             <Suspense fallback={<div />}>
               <SelectedComponent visible={modal ? true : false} data={modal?.data} close={dismissModal} />
+              <ModalContentReady onReady={markContentReady} />
             </Suspense>
           ) : null}
-        </div>
-        {/* On the shell (not surface) so popCenter/swipe motion does not slide the close control. */}
-        <div
-          ref={(ele) => (container.closeEle = ele ?? undefined)}
-          className="modal-close"
-          onClick={requestClose}
-        >
-          X
+          {/* Inside surface so close zooms/slides with the game UI as one unit. */}
+          <div
+            ref={(ele) => (container.closeEle = ele ?? undefined)}
+            className="modal-close"
+            onClick={requestClose}
+          >
+            X
+          </div>
         </div>
       </div>
     </div>

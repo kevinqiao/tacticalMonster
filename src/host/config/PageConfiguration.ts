@@ -11,7 +11,10 @@ export const TacticalPlace =
             path: "./lobby/tactical/LobbyHome",
             uri: "lobby",
             /** 冷启动真实请求：`useColdBootPreload` + BootLoadingOverlay；可改成大厅首屏大图 CDN。手动看清加载阶段可在 DevTools → Network 选 Slow 3G。 */
-            bootCriticalAssetUrls: ["/logo192.png", "/icons/001-clock.svg"],
+            bootCriticalAssetUrls: [
+              `${import.meta.env.BASE_URL}logo192.png`,
+              `${import.meta.env.BASE_URL}icons/001-clock.svg`,
+            ],
             child: "child2",
             class: "page_container",
             enter: "fadeIn",
@@ -43,7 +46,10 @@ export const CasualPlace =
             auth: 1,
             path: "./lobby/casual/CasualHome",
             uri: "lobby",
-            bootCriticalAssetUrls: ["/logo192.png", "/icons/001-clock.svg"],
+            bootCriticalAssetUrls: [
+              `${import.meta.env.BASE_URL}logo192.png`,
+              `${import.meta.env.BASE_URL}icons/001-clock.svg`,
+            ],
             child: "child3",
             class: "page_container",
             enter: "fadeIn",
@@ -74,8 +80,8 @@ export const PortalPlace =
             path: "./lobby/portal/PortalGamePage",
             uri: "",
             bootCriticalAssetUrls: [
-                "/assets/portal/solitaire/backgrounds/bg-16x9.png",
-                "/assets/portal/portal_bg_9x16.png"
+                `${import.meta.env.BASE_URL}assets/portal/solitaire/backgrounds/bg-16x9.webp`,
+                `${import.meta.env.BASE_URL}assets/portal/solitaire/backgrounds/bg-9x16.webp`,
             ],
             class: "page_container",
             enter: "fadeIn",

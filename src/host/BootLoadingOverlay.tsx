@@ -11,6 +11,10 @@ import {
   isPortalBootRoute,
   PORTAL_BOOT_PAINTED,
 } from "./bootHandoff";
+import {
+  crazyGamesLoadingStart,
+  crazyGamesLoadingStop,
+} from "./service/platformAuth/embedSources/crazyGamesSdk";
 import { useHistoryLocationKey } from "./service/useHistoryLocationKey";
 import { usePageManager } from "./service/PageManager";
 import { useUserManager } from "host/service/UserManager";
@@ -69,6 +73,14 @@ const BootLoadingOverlay: React.FC = () => {
     if (!fadeOut) return;
     document.getElementById(STATIC_BOOT_COVER_ID)?.remove();
   }, [fadeOut]);
+
+  useEffect(() => {
+    if (phase === "ready" || fadeOut || unmounted) {
+      crazyGamesLoadingStop();
+      return;
+    }
+    crazyGamesLoadingStart();
+  }, [phase, fadeOut, unmounted]);
 
   useLayoutEffect(() => {
     if (!handoffReady || unmounted || fadeOut) return;

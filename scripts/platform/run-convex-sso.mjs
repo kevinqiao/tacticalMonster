@@ -39,6 +39,15 @@ export function runConvexSso(functionRef, args, convexArgs = []) {
     } catch (e) {
       const stderr = typeof e.stderr === "string" ? e.stderr : e.stderr?.toString?.() ?? "";
       const stdout = typeof e.stdout === "string" ? e.stdout : e.stdout?.toString?.() ?? "";
+      // Windows: convex CLI sometimes crashes after success (UV_HANDLE_CLOSING).
+      // Prefer a parseable ok payload from stdout over the process exit code.
+      const recovered = parseConvexStdout(stdout);
+      if (recovered && typeof recovered === "object" && recovered.ok === true) {
+        if (stderr.trim()) {
+          console.warn("[run-convex-sso] convex exited non-zero after ok result; ignoring Windows CLI crash");
+        }
+        return recovered;
+      }
       const msg = [stderr, stdout, e.message].filter(Boolean).join("\n").trim();
       throw new Error(msg || `convex run failed: ${functionRef}`);
     }

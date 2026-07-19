@@ -61,7 +61,7 @@
     0 4px 10px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   pointer-events: auto;
-  /* Visible on the shell; no separate fade — open motion targets `.modal-surface` only. */
+  /* Lives inside `.modal-surface` — zooms/slides with the game UI as one unit. */
   visibility: visible;
   opacity: 1;
   transition: none;

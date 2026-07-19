@@ -51,7 +51,18 @@ export function loadEmbedSdk(spec: EmbedSdkSpec): Promise<void> {
     try {
       const finishReady = async () => {
         if (spec.afterLoad) {
-          await spec.afterLoad();
+          // afterLoad (SDK.init) must not hang the whole embed pipeline
+          await Promise.race([
+            spec.afterLoad(),
+            new Promise<void>((resolve) => {
+              window.setTimeout(() => {
+                console.warn("[EmbedAuth]", "sdk afterLoad timed out; continuing", {
+                  sdkId: spec.id,
+                });
+                resolve();
+              }, 15_000);
+            }),
+          ]);
         }
         logEmbedSdkLoad(spec.id, "ready", spec.scriptUrl);
       };
@@ -69,8 +80,14 @@ export function loadEmbedSdk(spec: EmbedSdkSpec): Promise<void> {
         await finishReady();
         return;
       }
-      if (!existing) {
+      // Prefer an already-injected CG script (no data-embed-sdk attr) over a second copy.
+      const anyCgScript = document.querySelector(
+        'script[src*="crazygames-sdk"], script[data-embed-sdk="crazygames_v3"]'
+      );
+      if (!existing && !anyCgScript) {
         await injectEmbedSdkScript(spec);
+        logEmbedSdkLoad(spec.id, "script_injected", spec.scriptUrl);
+      } else if (!spec.globalProbe()) {
         logEmbedSdkLoad(spec.id, "script_injected", spec.scriptUrl);
       }
       await waitUntilEmbedSdkProbe(spec.globalProbe);

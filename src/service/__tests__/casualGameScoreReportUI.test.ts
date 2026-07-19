@@ -33,7 +33,8 @@ describe("resolveCasualScoreReportSecondaryAction", () => {
 
     expect(result.showReplaySecondary).toBe(true);
 
-    expect(result.secondaryLabel).toBe("广告再战·3");
+    expect(result.secondaryLabel).toBe("再战");
+    expect(result.adReplayDailyRemaining).toBe(3);
 
   });
 
@@ -127,7 +128,8 @@ describe("resolveCasualPostSettleReplayPresentation", () => {
 
     expect(result.showReplay).toBe(true);
 
-    expect(result.replayLabel).toBe("广告再战·4");
+    expect(result.replayLabel).toBe("再战");
+    expect(result.adReplayDailyRemaining).toBe(4);
 
   });
 

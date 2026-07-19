@@ -307,5 +307,54 @@ http.route({
   }),
 });
 
+/**
+ * Portal → SSO: resolve per-partner ad-replay daily cap.
+ * Header `X-Sso-Bridge-Secret` must match `SSO_BRIDGE_SECRET`.
+ */
+http.route({
+  path: "/internal/partner-ad-replay-config",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expected = ssoBridgeSecret();
+    const headerSecret = request.headers.get(SSO_BRIDGE_HEADER);
+    if (headerSecret !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const partnerIdRaw = (body as { partnerId?: unknown }).partnerId;
+    const partnerId =
+      typeof partnerIdRaw === "number" && Number.isFinite(partnerIdRaw)
+        ? Math.floor(partnerIdRaw)
+        : typeof partnerIdRaw === "string"
+          ? Number(partnerIdRaw)
+          : NaN;
+    if (!Number.isFinite(partnerId) || partnerId < 0) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const result = await ctx.runQuery(
+      internal.service.partner.partnerAdReplayConfigInternal.getPartnerAdReplayConfigInternal,
+      { partnerId }
+    );
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
 // Convex expects the router to be the default export of `convex/http.js`.
 export default http;

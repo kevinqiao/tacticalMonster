@@ -1,33 +1,27 @@
-import { ensureCrazyGamesSdkInitialized } from "../../../platformAuth/embedSources/crazyGamesSdk";
-
-declare global {
-  interface Window {
-    CrazyGames?: {
-      SDK?: {
-        banner?: {
-          requestResponsiveBanner?: (containerId: string) => void | Promise<void>;
-          clearAllBanners?: () => void;
-        };
-      };
-    };
-  }
-}
+import {
+  ensureCrazyGamesSdkInitialized,
+  isCrazyGamesSdkUsable,
+  safeCrazyGamesHasModule,
+} from "../../../platformAuth/embedSources/crazyGamesSdk";
 
 export const crazyGamesBannerProvider = {
   id: "crazygames_banner",
 
   isSupported() {
     if (typeof window === "undefined") return false;
-    return Boolean(window.CrazyGames?.SDK?.banner?.requestResponsiveBanner);
+    // Do not touch SDK.banner before init — getters throw "not initialized yet".
+    return isCrazyGamesSdkUsable() && safeCrazyGamesHasModule("banner", "requestResponsiveBanner");
   },
 
   async mountResponsiveBanner(containerId: string) {
-    const ready = await ensureCrazyGamesSdkInitialized();
-    if (!ready) return { ok: false };
-    const request = window.CrazyGames?.SDK?.banner?.requestResponsiveBanner;
-    if (!request) return { ok: false };
+    await ensureCrazyGamesSdkInitialized();
+    if (!isCrazyGamesSdkUsable()) return { ok: false };
     try {
-      await request(containerId);
+      const banner = window.CrazyGames?.SDK?.banner;
+      const request = banner?.requestResponsiveBanner;
+      if (!banner || typeof request !== "function") return { ok: false };
+      // Keep `this` bound — unbound calls crash inside the SDK (same class as getUserToken).
+      await request.call(banner, containerId);
       return { ok: true };
     } catch (error) {
       console.warn("[CrazyGames] requestResponsiveBanner failed", error);
@@ -36,10 +30,12 @@ export const crazyGamesBannerProvider = {
   },
 
   clearAll() {
+    if (!isCrazyGamesSdkUsable()) return;
     try {
-      window.CrazyGames?.SDK?.banner?.clearAllBanners?.();
+      const banner = window.CrazyGames?.SDK?.banner;
+      banner?.clearAllBanners?.call(banner);
     } catch {
-      /* ignore pre-init clear */
+      /* ignore */
     }
   },
 };

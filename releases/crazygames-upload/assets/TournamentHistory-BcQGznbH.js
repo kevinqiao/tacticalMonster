@@ -1,0 +1,2 @@
+import{j as t}from"./react-vendor-B5wPZgYn.js";/* empty css                       */const n=({visible:e,data:i,close:r})=>t.jsx("div",{style:{width:"100%",height:"100%"},children:t.jsx("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",width:"100%",height:"100%",backgroundColor:"red",color:"white"},children:"Tournament History"})});export{n as default};
+//# sourceMappingURL=TournamentHistory-BcQGznbH.js.map

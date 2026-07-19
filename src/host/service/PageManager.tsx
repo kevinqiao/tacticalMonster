@@ -8,6 +8,7 @@ import { findContainer, isSameTree, normalizePageUri, parseLocation, resolveMoun
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppsConfiguration, PageConfig } from "../config/PageConfiguration";
 import { PageStatus } from "../config/PageProps";
+import { applyDocumentTitle } from "../documentTitles";
 import { usePageAnimate } from "../usePageAnimate";
 import { useSharedPageData } from "./SharedPageDataManager";
 import { useUserManager } from "./UserManager";
@@ -214,6 +215,13 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         if (!prespace) return;
         clearNamespace(prespace);
     }, [pageEvent, pageContainers, clearNamespace]);
+
+    useEffect(() => {
+        applyDocumentTitle(
+            currentPage?.uri ??
+                (typeof window !== "undefined" ? window.location.pathname : undefined)
+        );
+    }, [currentPage?.uri]);
 
     useEffect(() => {
         const handlePopState = () => {

@@ -328,6 +328,7 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
                         waitingForPeers={postCasualWaitingForPeers}
                         replayAvailable={postSettleReplay.showReplay}
                         replayMode={postCasualReplayMode}
+                        adReplayDailyRemaining={postSettleReplay.adReplayDailyRemaining}
                         replayBusy={casualReplayBusy}
                         replayWindowEndsAt={postCasualReplayWindowEndsAt}
                         onReplay={postSettleReplay.showReplay ? () => void replayCasualRun() : undefined}

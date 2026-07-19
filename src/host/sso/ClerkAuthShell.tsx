@@ -6,6 +6,7 @@ import ClerkSsoCallbackHost from "../service/clerk/ClerkSsoCallbackHost";
 import { clerkReturnUrl } from "../service/clerk/clerkReturnUrl";
 import { getClerkPublishableKey, isClerkConfigured } from "../service/clerk/clerkEnv";
 import { clerkSpaNavigateAsync } from "../service/clerk/clerkSpaNavigate";
+import { shouldSkipClerkOnCrazyGamesHost } from "../service/platformAuth/embedSources/crazyGamesHost";
 import { useHistoryLocationKey } from "../service/useHistoryLocationKey";
 
 type ClerkAuthShellProps = {
@@ -16,6 +17,7 @@ type ClerkAuthShellProps = {
  * When `VITE_CLERK_PUBLISHABLE_KEY` is set, wraps the tree with `ClerkProvider`
  * and mounts Clerk session → platform JWT bridge.
  * Clerk UI lives in the SSO panel (SignInClerk), not global nav.
+ * Skipped on CrazyGames CDN hosts — production Clerk keys reject those origins.
  */
 const ClerkAuthShell: React.FC<ClerkAuthShellProps> = ({ children }) => {
   const locationKey = useHistoryLocationKey();
@@ -31,7 +33,7 @@ const ClerkAuthShell: React.FC<ClerkAuthShellProps> = ({ children }) => {
     setReturnUrl(clerkReturnUrl());
   }, [locationKey]);
 
-  if (!isClerkConfigured()) {
+  if (!isClerkConfigured() || shouldSkipClerkOnCrazyGamesHost()) {
     return <>{children}</>;
   }
 

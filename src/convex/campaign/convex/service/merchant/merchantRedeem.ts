@@ -1,4 +1,6 @@
 import { v } from "convex/values";
+
+import { internal } from "../../_generated/api";
 import { internalMutation, internalQuery } from "../../_generated/server";
 
 function couponActivatesAt(row: { activatesAt?: number; issuedAt: number }): number {
@@ -65,7 +67,10 @@ export const redeemCouponCore = internalMutation({
       return { ok: false as const, error: "not_yet_active" as const };
     }
     if (now > row.expiresAt) {
-      await ctx.db.patch(row._id, { status: "expired" });
+      await ctx.db.patch(row._id, { status: "expired", passUpdatedAt: now });
+      await ctx.scheduler.runAfter(0, internal.service.wallet.applePassPush.notifyPassUpdate, {
+        couponId: row.couponId,
+      });
       return { ok: false as const, error: "expired" as const };
     }
     await ctx.db.patch(row._id, {
@@ -74,6 +79,10 @@ export const redeemCouponCore = internalMutation({
       redeemedAtStoreId: args.storeId,
       redeemedByStaffUid: args.uid,
       staffNote: args.staffNote,
+      passUpdatedAt: now,
+    });
+    await ctx.scheduler.runAfter(0, internal.service.wallet.applePassPush.notifyPassUpdate, {
+      couponId: row.couponId,
     });
     return { ok: true as const, couponId: row.couponId };
   },
@@ -92,7 +101,11 @@ export const voidCouponCore = internalMutation({
     if (!row || row.partnerId !== args.partnerId) {
       return { ok: false as const, error: "not_found" };
     }
-    await ctx.db.patch(row._id, { status: "void" });
-    return { ok: true as const };
+    const now = Date.now();
+    await ctx.db.patch(row._id, { status: "void", passUpdatedAt: now });
+    await ctx.scheduler.runAfter(0, internal.service.wallet.applePassPush.notifyPassUpdate, {
+      couponId: row.couponId,
+    });
+    return { ok: true as const, couponId: row.couponId };
   },
 });

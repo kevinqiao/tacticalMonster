@@ -5,7 +5,6 @@ import {
   isPortalAdReplayChannel,
   isPortalAdReplayMockEnabled,
   isPortalAdReplayTemplate,
-  PORTAL_AD_REPLAY_DAILY_CAP,
   PORTAL_AD_REPLAY_ENABLED,
   PORTAL_AD_REPLAY_SESSION_TTL_MS,
   type PortalAdReplayChannel,
@@ -28,6 +27,7 @@ import {
 } from "./portalAdReplayEligibility";
 import { buildCasualAsyncTableSummary } from "../tournament/settle/casualRunSettlementFill";
 import { casualTableSummarySolo } from "../tournament/settle/async/casualAsyncTableSummary";
+import { resolveAdReplayDailyCap } from "./partnerAdReplayConfig";
 
 function randomHexSessionId(byteLength = 16): string {
   const bytes = new Uint8Array(byteLength);
@@ -64,6 +64,71 @@ export async function countAdReplayClaimsForDay(
     seen.add(adReplayClaimDedupeKey(row.matchGameId, row.replayEpoch));
   }
   return seen.size;
+}
+
+async function findAdReplayDailyUsageRow(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  dayKey: string
+) {
+  return await ctx.db
+    .query("portal_ad_replay_daily_usage")
+    .withIndex("by_uid_dayKey", (q) => q.eq("uid", uid).eq("dayKey", dayKey))
+    .unique();
+}
+
+/** 今日已用次数：优先原子计数表，缺失时用 claims 回填。 */
+export async function readAdReplayUsedToday(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  dayKey: string
+): Promise<number> {
+  const row = await findAdReplayDailyUsageRow(ctx, uid, dayKey);
+  if (row && typeof row.usedCount === "number" && Number.isFinite(row.usedCount)) {
+    return Math.max(0, Math.floor(row.usedCount));
+  }
+  return countAdReplayClaimsForDay(ctx, uid, dayKey);
+}
+
+/**
+ * 消耗 1 次每日配额（complete 写入新 claim 时调用）。
+ * 失败不写入；成功后若 authorize 失败须调用 releaseAdReplayDailySlot。
+ */
+export async function consumeAdReplayDailySlot(
+  ctx: MutationCtx,
+  args: { uid: string; dayKey: string; now: number; cap: number }
+): Promise<{ ok: true; usedAfter: number } | { ok: false; error: "daily_cap_reached" }> {
+  const cap = Math.max(0, Math.floor(args.cap));
+  const row = await findAdReplayDailyUsageRow(ctx, args.uid, args.dayKey);
+  const used = row
+    ? Math.max(0, Math.floor(row.usedCount))
+    : await countAdReplayClaimsForDay(ctx, args.uid, args.dayKey);
+  if (used >= cap) {
+    return { ok: false, error: "daily_cap_reached" };
+  }
+  const usedAfter = used + 1;
+  if (row) {
+    await ctx.db.patch(row._id, { usedCount: usedAfter, updatedAt: args.now });
+  } else {
+    await ctx.db.insert("portal_ad_replay_daily_usage", {
+      uid: args.uid,
+      dayKey: args.dayKey,
+      usedCount: usedAfter,
+      createdAt: args.now,
+      updatedAt: args.now,
+    });
+  }
+  return { ok: true, usedAfter };
+}
+
+export async function releaseAdReplayDailySlot(
+  ctx: MutationCtx,
+  args: { uid: string; dayKey: string; now: number }
+): Promise<void> {
+  const row = await findAdReplayDailyUsageRow(ctx, args.uid, args.dayKey);
+  if (!row) return;
+  const next = Math.max(0, Math.floor(row.usedCount) - 1);
+  await ctx.db.patch(row._id, { usedCount: next, updatedAt: args.now });
 }
 
 export function normalizeReplayEpoch(value: unknown): number {
@@ -270,8 +335,9 @@ export async function buildPortalAdReplayOffer(
   const sourceReplayEpoch = resolveSourceReplayEpoch(pg, freshPm);
 
   const dayKey = dailyPeriodKey(now);
-  const usedToday = await countAdReplayClaimsForDay(ctx, uid, dayKey);
-  const adReplayDailyRemaining = Math.max(0, PORTAL_AD_REPLAY_DAILY_CAP - usedToday);
+  const cap = await resolveAdReplayDailyCap(ctx, uid);
+  const usedToday = await readAdReplayUsedToday(ctx, uid, dayKey);
+  const adReplayDailyRemaining = Math.max(0, cap - usedToday);
   const alreadyClaimed = replayOffered
     ? await hasAdReplayClaimForReplayAttempt(ctx, uid, matchGameId, sourceReplayEpoch)
     : false;
@@ -334,8 +400,9 @@ export async function beginPortalAdReplaySessionCore(
   }
 
   const dayKey = dailyPeriodKey(now);
-  const usedToday = await countAdReplayClaimsForDay(ctx, args.uid, dayKey);
-  if (usedToday >= PORTAL_AD_REPLAY_DAILY_CAP) {
+  const cap = await resolveAdReplayDailyCap(ctx, args.uid);
+  const usedToday = await readAdReplayUsedToday(ctx, args.uid, dayKey);
+  if (usedToday >= cap) {
     return { ok: false as const, error: "daily_cap_reached" as const };
   }
 
@@ -359,7 +426,7 @@ export async function beginPortalAdReplaySessionCore(
     ok: true as const,
     sessionId,
     expiresAt,
-    adReplayDailyRemaining: PORTAL_AD_REPLAY_DAILY_CAP - usedToday,
+    adReplayDailyRemaining: cap - usedToday,
   };
 }
 
@@ -436,10 +503,7 @@ export async function completePortalAdReplaySessionCore(
   }
 
   const dayKey = dailyPeriodKey(now);
-  const usedToday = await countAdReplayClaimsForDay(ctx, args.uid, dayKey);
-  if (usedToday >= PORTAL_AD_REPLAY_DAILY_CAP) {
-    return { ok: false as const, error: "daily_cap_reached" as const };
-  }
+  const cap = await resolveAdReplayDailyCap(ctx, args.uid);
 
   if (!isPortalAdReplayMockEnabled() && session.channel === "dev") {
     return { ok: false as const, error: "invalid_channel" as const };
@@ -448,6 +512,7 @@ export async function completePortalAdReplaySessionCore(
   const weekKey = weeklyPeriodKey(now);
   let claimId = sessionClaim?._id;
   let insertedClaim = false;
+  let consumedDailySlot = false;
   if (!claimId) {
     if (
       await hasAdReplayClaimForReplayAttempt(
@@ -460,6 +525,17 @@ export async function completePortalAdReplaySessionCore(
       await ctx.db.patch(session._id, { status: "cancelled", updatedAt: now });
       return { ok: false as const, error: "already_claimed" as const };
     }
+    const slot = await consumeAdReplayDailySlot(ctx, {
+      uid: args.uid,
+      dayKey,
+      now,
+      cap,
+    });
+    if (!slot.ok) {
+      await ctx.db.patch(session._id, { status: "cancelled", updatedAt: now });
+      return { ok: false as const, error: "daily_cap_reached" as const };
+    }
+    consumedDailySlot = true;
     claimId = await ctx.db.insert("portal_ad_replay_claims", {
       uid: args.uid,
       matchGameId: session.matchGameId,
@@ -472,6 +548,12 @@ export async function completePortalAdReplaySessionCore(
       createdAt: now,
     });
     insertedClaim = true;
+  } else {
+    // Idempotent complete: still block if the day is already over cap.
+    const usedToday = await readAdReplayUsedToday(ctx, args.uid, dayKey);
+    if (usedToday >= cap) {
+      return { ok: false as const, error: "daily_cap_reached" as const };
+    }
   }
 
   const authorized = await authorizeCasualRunReplayCore(ctx, {
@@ -483,6 +565,9 @@ export async function completePortalAdReplaySessionCore(
   if (!authorized.ok) {
     if (insertedClaim) {
       await ctx.db.delete(claimId);
+    }
+    if (consumedDailySlot) {
+      await releaseAdReplayDailySlot(ctx, { uid: args.uid, dayKey, now });
     }
     await ctx.db.patch(session._id, { status: "cancelled", updatedAt: now });
     return { ok: false as const, error: authorized.error };

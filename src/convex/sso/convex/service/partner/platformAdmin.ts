@@ -28,6 +28,13 @@ import {
   validatePartnerSlug,
   type PartnerCapabilities,
 } from "./partnerCapabilities";
+import {
+  applyAdReplayDailyCapToPartnerData,
+  DEFAULT_AD_REPLAY_DAILY_CAP,
+  effectiveAdReplayDailyCap,
+  readAdReplayDailyCapFromPartnerData,
+  sanitizeAdReplayDailyCapInput,
+} from "./partnerAdReplayConfig";
 
 function dataWithoutEnabledContexts(data: Record<string, unknown>): Record<string, unknown> {
   const { enabledContexts: _drop, ...rest } = data;
@@ -362,6 +369,11 @@ export const getPartnerPortalConfig = authedQuery({
     if (!partner && !isFirstParty) return null;
     const games = readPartnerGames(partner ?? { games: undefined });
     const key = partner?.portal_key ?? "";
+    const data =
+      partner?.data && typeof partner.data === "object"
+        ? (partner.data as Record<string, unknown>)
+        : null;
+    const adReplayOverride = readAdReplayDailyCapFromPartnerData(data);
     return {
       partnerId,
       portalKey: key,
@@ -371,6 +383,9 @@ export const getPartnerPortalConfig = authedQuery({
         isFirstParty || !key ? "/portal/" + gameType : "/portal/" + key + "/" + gameType
       ),
       registryGames: [...PARTNER_GAME_TYPES],
+      adReplayDailyCap: adReplayOverride,
+      adReplayDailyCapEffective: effectiveAdReplayDailyCap(data),
+      adReplayDailyCapDefault: DEFAULT_AD_REPLAY_DAILY_CAP,
     };
   },
 });
@@ -379,6 +394,8 @@ export const getPartnerPortalConfig = authedQuery({
  * Platform-only: activate portal_key + games for a partner.
  * Partner staff cannot self-activate games.
  * PID 0 (first-party) does not require portal_key — URLs are /portal/{gameType}.
+ *
+ * Optional `adReplayDailyCap`: omit = leave unchanged; null = clear override (default 5).
  */
 export const updatePartnerPortalConfig = authedMutation({
   args: {
@@ -386,6 +403,7 @@ export const updatePartnerPortalConfig = authedMutation({
     /** Omit / empty for first-party (PID 0). Required for other partners. */
     portalKey: v.optional(v.string()),
     games: v.array(v.string()),
+    adReplayDailyCap: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     await requirePlatformStaff(ctx, "admin");
@@ -416,7 +434,11 @@ export const updatePartnerPortalConfig = authedMutation({
     }
 
     const games = sanitizePartnerGames(args.games);
-    const prevData = (partner.data ?? {}) as Record<string, unknown>;
+    const prevData = dataWithoutEnabledContexts(
+      (partner.data ?? {}) as Record<string, unknown>
+    );
+    const capInput = sanitizeAdReplayDailyCapInput(args.adReplayDailyCap);
+    const nextData = applyAdReplayDailyCapToPartnerData(prevData, capInput);
     // Activating portal config implies portalGames capability.
     const capabilities: PartnerCapabilities = {
       ...readPartnerCapabilities(partner),
@@ -435,13 +457,23 @@ export const updatePartnerPortalConfig = authedMutation({
       ...(isFirstParty ? {} : { portal_key: portalKey }),
       games,
       capabilities,
-      data: dataWithoutEnabledContexts(prevData),
+      data: nextData,
     });
+
+    const effectiveCap = effectiveAdReplayDailyCap(nextData);
+    await ctx.scheduler.runAfter(
+      0,
+      internal.service.bridge.portalAdReplayCapPush.pushPartnerAdReplayCapToPortal,
+      { partnerId: args.partnerId, adReplayDailyCap: effectiveCap }
+    );
+
     return {
       ok: true as const,
       portalKey: isFirstParty ? "" : (portalKey as string),
       games,
       capabilities,
+      adReplayDailyCap: readAdReplayDailyCapFromPartnerData(nextData),
+      adReplayDailyCapEffective: effectiveCap,
     };
   },
 });

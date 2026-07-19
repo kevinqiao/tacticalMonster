@@ -591,6 +591,11 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                             scoreReportActions.showReplaySecondary && !postCasualCanReplay
                         }
                         secondaryBusy={casualReplayBusy}
+                        adReplayDailyRemaining={
+                            scoreReportActions.showReplaySecondary
+                                ? scoreReportActions.adReplayDailyRemaining
+                                : undefined
+                        }
                         secondaryError={casualReplayError ?? undefined}
                         replayWindowEndsAt={
                             scoreReportActions.showReplaySecondary
@@ -605,6 +610,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                         waitingForPeers={postCasualWaitingForPeers}
                         replayAvailable={postSettleReplay.showReplay}
                         replayMode={postCasualReplayMode}
+                        adReplayDailyRemaining={postSettleReplay.adReplayDailyRemaining}
                         replayBusy={casualReplayBusy}
                         replayWindowEndsAt={postCasualReplayWindowEndsAt}
                         onReplay={postSettleReplay.showReplay ? () => void replayCasualRun() : undefined}

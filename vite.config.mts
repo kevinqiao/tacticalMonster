@@ -7,6 +7,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function manualChunks(id: string): string | undefined {
   if (!id.includes('node_modules')) {
+    // Keep the app shell out of game chunks. Otherwise Rollup absorbs host modules
+    // (UserManager / SharedPageData / …) into `modal-app` because TeamDeployManager
+    // imports them — and the entry then modulepreloads ~1.1MB of tournament/Three.js.
+    if (/[/\\]src[/\\]host[/\\]/.test(id)) return 'app-shell';
     // Keep tournament modal + tactical monster game in the same async chunk.
     // This avoids stale nested dynamic imports like PlayTacticalMonster-*.js during preview/deploy swaps.
     if (/[/\\]src[/\\]component[/\\]battle[/\\]PlayTournament\.tsx$/.test(id)) return 'modal-app';
@@ -16,7 +20,13 @@ function manualChunks(id: string): string | undefined {
   // Keep scheduler with React to avoid react-vendor <-> vendor circular runtime init issues.
   if (/[/\\]node_modules[/\\]scheduler[/\\]/.test(id)) return 'react-vendor';
   if (/[/\\]node_modules[/\\]use-sync-external-store[/\\]/.test(id)) return 'react-vendor';
-  if (id.includes('three') || id.includes('@react-three') || id.includes('drei')) {
+  // Match real Three.js packages only — bare `includes('three')` can park Vite's
+  // preload helper in this chunk and force every entry to download ~0.8MB.
+  if (
+    /[/\\]node_modules[/\\]three(?:[/\\]|$)/.test(id) ||
+    /[/\\]node_modules[/\\]three-stdlib[/\\]/.test(id) ||
+    /[/\\]node_modules[/\\]@react-three[/\\]/.test(id)
+  ) {
     return 'three-vendor';
   }
   if (id.includes('pixi')) return 'pixi-vendor';
@@ -27,7 +37,11 @@ function manualChunks(id: string): string | undefined {
   return 'vendor';
 }
 
+/** CrazyGames CDN requires relative asset URLs (`./assets/...`), not root-absolute `/assets/...`. */
+const viteBase = process.env.VITE_BASE?.trim() || '/';
+
 export default defineConfig({
+  base: viteBase,
   // 不使用 @vitejs/plugin-react：仅用 esbuild 转 TS/JSX，source map 与控制台行号在 Chrome 里最稳定。
   // 需要 React Fast Refresh 时再装回插件并改用 npm run dev:hmr（仍可能错行）。
   plugins: [

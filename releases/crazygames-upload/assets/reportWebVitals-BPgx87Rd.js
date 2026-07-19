@@ -1,0 +1,3 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./vendor-Ljs0VMQ3.js","./react-vendor-B5wPZgYn.js"])))=>i.map(i=>d[i]);
+import{_}from"./app-shell-D4J_GV72.js";import"./react-vendor-B5wPZgYn.js";import"./vendor-Ljs0VMQ3.js";import"./convex-vendor-BSROppqe.js";import"./gsap-vendor-B-PTTLB2.js";const r=t=>{t&&t instanceof Function&&_(async()=>{const{getCLS:i,getFID:e,getFCP:a,getLCP:o,getTTFB:m}=await import("./vendor-Ljs0VMQ3.js").then(p=>p.w);return{getCLS:i,getFID:e,getFCP:a,getLCP:o,getTTFB:m}},__vite__mapDeps([0,1]),import.meta.url).then(({getCLS:i,getFID:e,getFCP:a,getLCP:o,getTTFB:m})=>{i(t),e(t),a(t),o(t),m(t)})};export{r as default};
+//# sourceMappingURL=reportWebVitals-BPgx87Rd.js.map

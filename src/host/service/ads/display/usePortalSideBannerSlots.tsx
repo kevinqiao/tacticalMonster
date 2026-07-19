@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { ensureCrazyGamesSdkInitialized } from "../../platformAuth/embedSources/crazyGamesSdk";
 import { crazyGamesBannerProvider } from "./providers/crazyGamesBannerProvider";
 import { devMockBannerProvider } from "./providers/devMockBannerProvider";
 import {
@@ -28,12 +29,36 @@ export function usePortalSideBannerSlots(active: boolean) {
   const leftId = useRef(`portal-gutter-left-${Math.random().toString(36).slice(2)}`).current;
   const rightId = useRef(`portal-gutter-right-${Math.random().toString(36).slice(2)}`).current;
   const [phase, setPhase] = useState<PortalAdPhase>(() => getPortalAdPhase());
+  const [sdkReady, setSdkReady] = useState(false);
   const mountedRef = useRef(false);
 
   useEffect(() => subscribePortalAdPhase(setPhase), []);
 
   useEffect(() => {
     if (!active) return;
+    let cancelled = false;
+    let attempts = 0;
+    const tryReady = () => {
+      if (cancelled) return;
+      void ensureCrazyGamesSdkInitialized().then((ok) => {
+        if (cancelled) return;
+        if (ok || attempts >= 40) {
+          setSdkReady(true);
+          return;
+        }
+        // Script may still be injecting via EmbedAuthBridge — retry briefly.
+        attempts += 1;
+        window.setTimeout(tryReady, 100);
+      });
+    };
+    tryReady();
+    return () => {
+      cancelled = true;
+    };
+  }, [active]);
+
+  useEffect(() => {
+    if (!active || !sdkReady) return;
     const provider = resolveDisplayProvider();
     if (!provider) return;
 
@@ -46,15 +71,21 @@ export function usePortalSideBannerSlots(active: boolean) {
 
     const timer = window.setTimeout(() => {
       if (mountedRef.current) return;
+      const leftEl = document.getElementById(leftId);
+      const rightEl = document.getElementById(rightId);
+      // CrazyGames requires non-zero container size; skip hidden mobile gutters.
+      const canMount = (el: HTMLElement | null) =>
+        Boolean(el && el.clientWidth >= 120 && el.clientHeight >= 100);
+      if (!canMount(leftEl) && !canMount(rightEl)) return;
       mountedRef.current = true;
-      void provider.mountResponsiveBanner(leftId);
-      void provider.mountResponsiveBanner(rightId);
+      if (canMount(leftEl)) void provider.mountResponsiveBanner(leftId);
+      if (canMount(rightEl)) void provider.mountResponsiveBanner(rightId);
     }, PORTAL_BANNER_MIN_VIEW_MS);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [active, phase, leftId, rightId]);
+  }, [active, sdkReady, phase, leftId, rightId]);
 
   useEffect(() => {
     return () => {
@@ -62,7 +93,12 @@ export function usePortalSideBannerSlots(active: boolean) {
     };
   }, []);
 
-  return { leftId, rightId, phase, hasProvider: resolveDisplayProvider() != null };
+  return {
+    leftId,
+    rightId,
+    phase,
+    hasProvider: sdkReady && resolveDisplayProvider() != null,
+  };
 }
 
 export function PortalSideBannerSlot({ containerId, label }: { containerId: string; label: string }) {

@@ -35,6 +35,8 @@ import type * as data_portalTournamentRewardTypes from "../data/portalTournament
 import type * as data_portalWeeklyLeagueConfig from "../data/portalWeeklyLeagueConfig.js";
 import type * as http from "../http.js";
 import type * as service_activity_casualActivityService from "../service/activity/casualActivityService.js";
+import type * as service_ads_partnerAdReplayConfig from "../service/ads/partnerAdReplayConfig.js";
+import type * as service_ads_partnerAdReplayConfigSync from "../service/ads/partnerAdReplayConfigSync.js";
 import type * as service_ads_portalAdReplayEligibility from "../service/ads/portalAdReplayEligibility.js";
 import type * as service_ads_portalAdReplayMutations from "../service/ads/portalAdReplayMutations.js";
 import type * as service_ads_portalAdReplayQueries from "../service/ads/portalAdReplayQueries.js";
@@ -213,6 +215,8 @@ declare const fullApi: ApiFromModules<{
   "data/portalWeeklyLeagueConfig": typeof data_portalWeeklyLeagueConfig;
   http: typeof http;
   "service/activity/casualActivityService": typeof service_activity_casualActivityService;
+  "service/ads/partnerAdReplayConfig": typeof service_ads_partnerAdReplayConfig;
+  "service/ads/partnerAdReplayConfigSync": typeof service_ads_partnerAdReplayConfigSync;
   "service/ads/portalAdReplayEligibility": typeof service_ads_portalAdReplayEligibility;
   "service/ads/portalAdReplayMutations": typeof service_ads_portalAdReplayMutations;
   "service/ads/portalAdReplayQueries": typeof service_ads_portalAdReplayQueries;

@@ -1,3 +1,8 @@
+import {
+  crazyGamesGameplayStart,
+  crazyGamesGameplayStop,
+  isCrazyGamesGameplayActive,
+} from "../../platformAuth/embedSources/crazyGamesSdk";
 import { resolveRewardedAdProvider } from "./registry";
 import type { RewardedAdShowResult } from "./types";
 
@@ -14,6 +19,9 @@ export async function showRewardedAdForReplay(
   if (!provider) {
     return { ok: false, reason: "unsupported" };
   }
+  const resumeGameplay = isCrazyGamesGameplayActive();
+  // Pause immediately — ad auction is not instantaneous; UI must stay blocked.
+  crazyGamesGameplayStop();
   hooks?.onAdStarted?.();
   try {
     const result = await provider.showRewardedAd();
@@ -23,5 +31,9 @@ export async function showRewardedAdForReplay(
     return result;
   } catch {
     return { ok: false, reason: "sdk_error" };
+  } finally {
+    if (resumeGameplay) {
+      crazyGamesGameplayStart();
+    }
   }
 }

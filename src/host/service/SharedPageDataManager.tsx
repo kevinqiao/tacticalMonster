@@ -1,4 +1,4 @@
-import { MapDimension } from "@/component/battle/games/tacticalMonster/service/TeamDeployManager";
+import type { MapDimension } from "@/component/battle/games/shared/mapDimension";
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 /**

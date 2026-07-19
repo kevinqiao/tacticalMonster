@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { AddToAppleWalletButton } from "../shared/AddToAppleWalletButton";
 import { formatCampaignRewardLabel } from "../shared/campaignRewardDisplay";
 import type { CampaignCouponView } from "../shared/campaignTypes";
 import { CampaignCenterModal } from "./CampaignCenterModal";
@@ -128,6 +129,9 @@ export const CampaignMyCouponsSheet: React.FC<Props> = ({
                           </span>
                         )}
                         <CouponCopyButton code={coupon.code} />
+                        {canUse ? (
+                          <AddToAppleWalletButton couponId={coupon.couponId} />
+                        ) : null}
                       </div>
                     ) : null}
                   </div>

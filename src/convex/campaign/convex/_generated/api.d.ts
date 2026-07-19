@@ -40,6 +40,13 @@ import type * as service_merchant_merchantThemeSyncMutations from "../service/me
 import type * as service_merchant_partnerGamesFromSso from "../service/merchant/partnerGamesFromSso.js";
 import type * as service_merchant_validators from "../service/merchant/validators.js";
 import type * as service_player_campaignPlayerProfile from "../service/player/campaignPlayerProfile.js";
+import type * as service_wallet_applePassActions from "../service/wallet/applePassActions.js";
+import type * as service_wallet_applePassBuilder from "../service/wallet/applePassBuilder.js";
+import type * as service_wallet_applePassMutations from "../service/wallet/applePassMutations.js";
+import type * as service_wallet_applePassPush from "../service/wallet/applePassPush.js";
+import type * as service_wallet_passkitAvailability from "../service/wallet/passkitAvailability.js";
+import type * as service_wallet_passkitEnv from "../service/wallet/passkitEnv.js";
+import type * as service_wallet_walletProvider from "../service/wallet/walletProvider.js";
 import type * as shared_platformAuth_parsePlatformUid from "../shared/platformAuth/parsePlatformUid.js";
 import type * as shared_platformAuth_platformJwtConstants from "../shared/platformAuth/platformJwtConstants.js";
 import type * as shared_platformAuth_requireIdentity from "../shared/platformAuth/requireIdentity.js";
@@ -84,6 +91,13 @@ declare const fullApi: ApiFromModules<{
   "service/merchant/partnerGamesFromSso": typeof service_merchant_partnerGamesFromSso;
   "service/merchant/validators": typeof service_merchant_validators;
   "service/player/campaignPlayerProfile": typeof service_player_campaignPlayerProfile;
+  "service/wallet/applePassActions": typeof service_wallet_applePassActions;
+  "service/wallet/applePassBuilder": typeof service_wallet_applePassBuilder;
+  "service/wallet/applePassMutations": typeof service_wallet_applePassMutations;
+  "service/wallet/applePassPush": typeof service_wallet_applePassPush;
+  "service/wallet/passkitAvailability": typeof service_wallet_passkitAvailability;
+  "service/wallet/passkitEnv": typeof service_wallet_passkitEnv;
+  "service/wallet/walletProvider": typeof service_wallet_walletProvider;
   "shared/platformAuth/parsePlatformUid": typeof shared_platformAuth_parsePlatformUid;
   "shared/platformAuth/platformJwtConstants": typeof shared_platformAuth_platformJwtConstants;
   "shared/platformAuth/requireIdentity": typeof shared_platformAuth_requireIdentity;

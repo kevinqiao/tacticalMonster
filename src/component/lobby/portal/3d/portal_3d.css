@@ -65,7 +65,7 @@
   width: 228px;
   height: 87px;
   margin: 9px 0 0 5px;
-  background: url(/assets/portal/3d/ui/btn-shop-bg.png)
+  background: url(/assets/portal/3d/ui/btn-shop-bg.webp)
     no-repeat center;
   background-size: cover;
   z-index: 63;
@@ -76,7 +76,7 @@
   height: 52px;
   right: 142px;
   bottom: 20px;
-  background: url(/assets/portal/3d/ui/btn-shop-gem.png)
+  background: url(/assets/portal/3d/ui/btn-shop-gem.webp)
     no-repeat center;
   background-size: cover;
   z-index: 64;
@@ -112,7 +112,7 @@
   width: 215px;
   height: 84px;
   margin: 5px 0 0 6px;
-  background: url(/assets/portal/3d/ui/btn-auth-bg.png)
+  background: url(/assets/portal/3d/ui/btn-auth-bg.webp)
     no-repeat center;
   background-size: cover;
   z-index: 58;
@@ -123,7 +123,7 @@
   height: 38px;
   right: 149px;
   bottom: 23px;
-  background: url(/assets/portal/3d/ui/btn-auth-icon.png)
+  background: url(/assets/portal/3d/ui/btn-auth-icon.webp)
     no-repeat center;
   background-size: cover;
   z-index: 59;
@@ -179,7 +179,7 @@
   width: 541px;
   height: 328px;
   margin: 4px 0 0 9px;
-  background: url(/assets/portal/3d/ui/panel-solo-challenge.png)
+  background: url(/assets/portal/3d/ui/panel-solo-challenge.webp)
     no-repeat center;
   background-size: cover;
   z-index: 40;
@@ -198,7 +198,7 @@
   height: 166px;
   right: 309px;
   bottom: 68px;
-  background: url(/assets/portal/3d/ui/icon-target.png)
+  background: url(/assets/portal/3d/ui/icon-target.webp)
     no-repeat center;
   background-size: cover;
   z-index: 49;
@@ -282,7 +282,7 @@
   width: 305px;
   height: 80px;
   margin: 6px 0 0 3px;
-  background: url(/assets/portal/3d/ui/btn-challenge.png)
+  background: url(/assets/portal/3d/ui/btn-challenge.webp)
     no-repeat center;
   background-size: cover;
   z-index: 51;
@@ -352,7 +352,7 @@
   height: 33px;
   right: 133px;
   bottom: 5px;
-  background: url(/assets/portal/3d/ui/icon-rules.png)
+  background: url(/assets/portal/3d/ui/icon-rules.webp)
     no-repeat center;
   background-size: cover;
   z-index: 47;
@@ -398,7 +398,7 @@
   height: 31px;
   right: 181px;
   bottom: 6px;
-  background: url(/assets/portal/3d/ui/icon-leaderboard.png)
+  background: url(/assets/portal/3d/ui/icon-leaderboard.webp)
     no-repeat center;
   background-size: cover;
   z-index: 43;
@@ -433,7 +433,7 @@
   width: 547px;
   height: 327px;
   margin: 6px 0 0 8px;
-  background: url(/assets/portal/3d/ui/panel-arena.png)
+  background: url(/assets/portal/3d/ui/panel-arena.webp)
     no-repeat center;
   background-size: cover;
   z-index: 23;
@@ -452,7 +452,7 @@
   height: 156px;
   right: 305px;
   bottom: 78px;
-  background: url(/assets/portal/3d/ui/icon-swords.png)
+  background: url(/assets/portal/3d/ui/icon-swords.webp)
     no-repeat center;
   background-size: cover;
   z-index: 35;
@@ -536,7 +536,7 @@
   width: 305px;
   height: 82px;
   margin: 6px 0 0 3px;
-  background: url(/assets/portal/3d/ui/btn-compete.png)
+  background: url(/assets/portal/3d/ui/btn-compete.webp)
     no-repeat center;
   background-size: cover;
   z-index: 33;
@@ -606,7 +606,7 @@
   height: 32px;
   right: 134px;
   bottom: 5px;
-  background: url(/assets/portal/3d/ui/icon-rules-arena.png)
+  background: url(/assets/portal/3d/ui/icon-rules-arena.webp)
     no-repeat center;
   background-size: cover;
   z-index: 30;
@@ -652,7 +652,7 @@
   height: 31px;
   right: 184px;
   bottom: 5px;
-  background: url(/assets/portal/3d/ui/icon-leaderboard-arena.png)
+  background: url(/assets/portal/3d/ui/icon-leaderboard-arena.webp)
     no-repeat center;
   background-size: cover;
   z-index: 26;
@@ -707,7 +707,7 @@
   width: 572px;
   height: 63px;
   margin: 2px 0 0 8px;
-  background: url(/assets/portal/3d/ui/history-row-bg.png)
+  background: url(/assets/portal/3d/ui/history-row-bg.webp)
     no-repeat center;
   background-size: cover;
   z-index: 16;
@@ -726,7 +726,7 @@
   width: 97px;
   height: 52px;
   margin: 3px 0 0 5px;
-  background: url(/assets/portal/3d/ui/points-badge.png)
+  background: url(/assets/portal/3d/ui/points-badge.webp)
     no-repeat center;
   background-size: cover;
   z-index: 18;
@@ -754,7 +754,7 @@
   height: 57px;
   right: 501px;
   bottom: 3px;
-  background: url(/assets/portal/3d/ui/history-icon.png)
+  background: url(/assets/portal/3d/ui/history-icon.webp)
     no-repeat center;
   background-size: cover;
   z-index: 20;
@@ -826,7 +826,7 @@
   height: 55px;
   right: 163px;
   bottom: -2px;
-  background: url(/assets/portal/3d/ui/history-points-pill.png)
+  background: url(/assets/portal/3d/ui/history-points-pill.webp)
     no-repeat center;
   background-size: cover;
   z-index: 8;
@@ -864,7 +864,7 @@
   height: 52px;
   right: 651px;
   bottom: 4px;
-  background: url(/assets/portal/3d/ui/history-trophy.png)
+  background: url(/assets/portal/3d/ui/history-trophy.webp)
     no-repeat center;
   background-size: cover;
   z-index: 10;
@@ -914,7 +914,7 @@
   position: relative;
   width: 13px;
   height: 19px;
-  background: url(/assets/portal/3d/ui/clock-arrow.png)
+  background: url(/assets/portal/3d/ui/clock-arrow.webp)
     no-repeat center;
   background-size: cover;
   z-index: 3;
@@ -967,7 +967,7 @@
   position: relative;
   width: 228px;
   height: 87px;
-  background-image: url(/assets/portal/solitaire/buttons/btn-shop-default.svg);
+  background-image: url(/assets/portal/solitaire/buttons/btn-shop-default.webp);
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
@@ -993,7 +993,7 @@
   width: 35px;
   height: 35px;
   flex-shrink: 0;
-  background: url(/assets/portal/3d/ui/icon-coin.png) no-repeat center;
+  background: url(/assets/portal/3d/ui/icon-coin.webp) no-repeat center;
   background-size: contain;
 }
 
@@ -1111,7 +1111,7 @@
   display: block;
   width: 40px;
   height: 44px;
-  background: url(/assets/portal/3d/ui/btn-auth-icon.png) no-repeat center;
+  background: url(/assets/portal/3d/ui/btn-auth-icon.webp) no-repeat center;
   background-size: contain;
 }
 
@@ -1186,7 +1186,7 @@
   height: 100%;
   /* 左右 74px：面板贴图木框内沿约占 66px，确保徽章与按钮不压内框线 */
   padding: 28px 74px;
-  background: url(/assets/portal/3d/ui/panel-tier-strip.png) no-repeat center;
+  background: url(/assets/portal/3d/ui/panel-tier-strip.webp) no-repeat center;
   background-size: 100% 100%;
   filter: drop-shadow(0 10px 8px rgba(60, 30, 5, 0.35));
 }
@@ -1198,7 +1198,7 @@
   width: 36px;
   height: 38px;
   margin-left: 12px;
-  background: url(/assets/portal/3d/ui/btn-help.png) no-repeat center;
+  background: url(/assets/portal/3d/ui/btn-help.webp) no-repeat center;
   background-size: contain;
   cursor: pointer;
   filter: drop-shadow(0 2px 2px rgba(60, 30, 5, 0.35));
@@ -1371,7 +1371,7 @@
 .tierRewardCoin {
   width: 28px;
   height: 28px;
-  background: url(/assets/portal/3d/ui/icon-coin.png) no-repeat center;
+  background: url(/assets/portal/3d/ui/icon-coin.webp) no-repeat center;
   background-size: contain;
 }
 
@@ -1416,7 +1416,7 @@
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  background: url(/assets/portal/3d/ui/icon-coin.png) no-repeat center;
+  background: url(/assets/portal/3d/ui/icon-coin.webp) no-repeat center;
   background-size: contain;
 }
 
@@ -1473,7 +1473,7 @@
   transform: translateY(-50%);
   width: 28px;
   height: 30px;
-  background: url(/assets/portal/3d/ui/icon-history-scroll.png) no-repeat center;
+  background: url(/assets/portal/3d/ui/icon-history-scroll.webp) no-repeat center;
   background-size: contain;
 }
 
@@ -1498,7 +1498,7 @@
   transform: translateY(-50%);
   width: 30px;
   height: 26px;
-  background: url(/assets/portal/3d/ui/icon-trophy-gold.png) no-repeat center;
+  background: url(/assets/portal/3d/ui/icon-trophy-gold.webp) no-repeat center;
   background-size: contain;
 }
 
@@ -1530,11 +1530,11 @@
 }
 
 .modeCardSolo {
-  background-image: url(/assets/portal/3d/ui/panel-solo-compact.png);
+  background-image: url(/assets/portal/3d/ui/panel-solo-compact.webp);
 }
 
 .modeCardArena {
-  background-image: url(/assets/portal/3d/ui/panel-arena-compact.png);
+  background-image: url(/assets/portal/3d/ui/panel-arena-compact.webp);
 }
 
 .modeCardTopRow {
@@ -1554,7 +1554,7 @@
   flex-shrink: 0;
   width: 88px;
   height: 94px;
-  background: url(/assets/portal/3d/ui/icon-target.png) no-repeat center;
+  background: url(/assets/portal/3d/ui/icon-target.webp) no-repeat center;
   background-size: contain;
 }
 
@@ -1562,7 +1562,7 @@
   flex-shrink: 0;
   width: 90px;
   height: 92px;
-  background: url(/assets/portal/3d/ui/icon-swords.png) no-repeat center;
+  background: url(/assets/portal/3d/ui/icon-swords.webp) no-repeat center;
   background-size: contain;
 }
 
@@ -1623,12 +1623,21 @@
   background-size: 100% 100%;
 }
 
+.modePlayStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1;
+}
+
 .modePlayBtnSolo {
-  background-image: url(/assets/portal/3d/ui/btn-challenge.png);
+  background-image: url(/assets/portal/3d/ui/btn-challenge.webp);
 }
 
 .modePlayBtnArena {
-  background-image: url(/assets/portal/3d/ui/btn-compete.png);
+  background-image: url(/assets/portal/3d/ui/btn-compete.webp);
 }
 
 .modePlayBtnDisabled {
@@ -1637,7 +1646,8 @@
   pointer-events: auto;
 }
 
-.modePlayBtnDisabled .modePlayText {
+.modePlayBtnDisabled .modePlayText,
+.modePlayBtnDisabled .modePlaySubtext {
   color: rgba(255, 255, 255, 0.75);
   text-shadow: none;
 }
@@ -1661,6 +1671,24 @@
      0px  2px 0 #5c3b1e,
      0px  4px 0 #5c3b1e,
      2px  4px 0px rgba(0, 0, 0, 0.4);
+}
+
+.modePlaySubtext {
+  color: rgba(255, 255, 255, 0.92);
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", Inter, var(--default-font-family);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  line-height: 1.1;
+  white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-shadow:
+    -1px -1px 0 #5c3b1e,
+     1px -1px 0 #5c3b1e,
+    -1px  1px 0 #5c3b1e,
+     1px  1px 0 #5c3b1e,
+     0px  1px 0 rgba(0, 0, 0, 0.3);
 }
 
 /* Portrait Mode Responsive Overrides */

@@ -3,8 +3,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import type { MapDimension } from "../../shared/mapDimension";
 import { calculateMapDimension } from "../utils/coordinateUtils";
-import { MapDimension } from "./TeamDeployManager";
 
 /**
  * 计算地图尺寸和六边形尺寸（cols/rows 由屏幕方向推导，direction 由业务层决定）

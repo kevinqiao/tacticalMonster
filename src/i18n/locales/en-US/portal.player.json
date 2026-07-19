@@ -29,6 +29,7 @@
     },
     "play": "Play",
     "continue": "Continue",
+    "continueInProgress": "In progress",
     "joining": "Joining…",
     "matching": "Matching…",
     "weekRemaining": "{{days}}d {{hours}}h left this week",
@@ -106,6 +107,7 @@
     "cohortTitle": "Standings",
     "myWeek": "My week: {{points}} pts",
     "myWeekWithRank": "My week: {{points}} pts · Rank {{rank}}",
+    "you": "You",
     "empty": "No leaderboard data yet",
     "columns": {
       "rank": "#",

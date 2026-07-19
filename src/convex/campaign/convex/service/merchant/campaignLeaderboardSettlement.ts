@@ -134,6 +134,7 @@ export async function issueCouponsForRules(
       couponDefActivation(def),
       couponDefValidity(def)
     );
+    const usageRulesSnapshot = def?.usageRules?.trim() || undefined;
 
     const couponId = newId("cpn");
     const code = generateCouponCode();
@@ -152,6 +153,7 @@ export async function issueCouponsForRules(
       ruleId: rule.ruleId,
       couponDefId: rule.couponDefId,
       rewardSnapshot: rule.reward,
+      ...(usageRulesSnapshot ? { usageRulesSnapshot } : {}),
       status: "issued",
       issuedAt,
       activatesAt,

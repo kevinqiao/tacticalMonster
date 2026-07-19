@@ -1,10 +1,12 @@
 ﻿import {
   crazyGamesPartnerPid,
   ensureCrazyGamesSdkInitialized,
+  ensureCrazyGamesUserToken,
   fetchCrazyGamesUserToken,
   isCrazyGamesEmbedEnvironment,
   isCrazyGamesUserAccountAvailable,
 } from "./crazyGamesSdk";
+import { isCrazyGamesFileHost } from "./crazyGamesHost";
 import {
   isCrazyGamesDevFlag,
   partnerAllowsContext,
@@ -32,7 +34,11 @@ export const CRAZYGAMES_SDK_SPEC: EmbedSdkSpec = {
 
 function crazyGamesEnvProbe(): boolean {
   if (typeof window === "undefined") return false;
-  return Boolean(window.CrazyGames?.SDK);
+  try {
+    return Boolean(window.CrazyGames?.SDK);
+  } catch {
+    return false;
+  }
 }
 
 function resolveCrazyGamesPid(ctx: EmbedSourceContext): number {
@@ -44,6 +50,8 @@ function crazyGamesPortalEligible(ctx: EmbedSourceContext): boolean {
   if (typeof window === "undefined") return false;
   const appCtx = resolveAppEmbedContext(window.location.pathname);
   if (appCtx !== "portal") return false;
+  // CDN host: always attempt CG JWT once on a portal route (partner may still be resolving).
+  if (isCrazyGamesFileHost() || isCrazyGamesDevFlag(ctx.search)) return true;
   if (!ctx.partner || !partnerAllowsContext(ctx.partner, "portal")) return false;
   return partnerEmbedMethod(ctx.partner) === "crazygames_jwt";
 }
@@ -72,6 +80,8 @@ export const crazyGamesSdkSource: EmbedCredentialSource = {
     if (typeof window === "undefined") return false;
     if (isCrazyGamesDevFlag(ctx.search)) return true;
     if (!crazyGamesPortalEligible(ctx)) return false;
+    // Keep gate in "waiting" on CG CDN even before SDK probe finishes.
+    if (isCrazyGamesFileHost()) return true;
     return crazyGamesEnvProbe();
   },
 
@@ -86,14 +96,13 @@ export const crazyGamesSdkSource: EmbedCredentialSource = {
         logEmbedCredentialMissing(SOURCE_ID, "crazygames_jwt", pid, "not_crazygames_environment");
         return;
       }
-      if (!isCrazyGamesUserAccountAvailable()) {
-        logEmbedCredentialMissing(SOURCE_ID, "crazygames_jwt", pid, "user_account_unavailable");
-        return;
-      }
-      const token = await fetchCrazyGamesUserToken();
+      const token = await ensureCrazyGamesUserToken();
       if (cancelled) return;
       if (!token) {
-        logEmbedCredentialMissing(SOURCE_ID, "crazygames_jwt", pid, "getUserToken_empty");
+        const reason = isCrazyGamesUserAccountAvailable()
+          ? "getUserToken_empty"
+          : "user_account_unavailable_or_cancelled";
+        logEmbedCredentialMissing(SOURCE_ID, "crazygames_jwt", pid, reason);
         return;
       }
       logEmbedCredentialReceived(SOURCE_ID, "crazygames_jwt", pid, token.length);
@@ -109,8 +118,7 @@ export const crazyGamesSdkSource: EmbedCredentialSource = {
   async refresh(ctx): Promise<EmbedCredentialPayload | null> {
     const pid = resolveCrazyGamesPid(ctx);
     if (!(await isCrazyGamesEmbedEnvironment())) return null;
-    if (!isCrazyGamesUserAccountAvailable()) return null;
-    const token = await fetchCrazyGamesUserToken();
+    const token = await ensureCrazyGamesUserToken();
     if (!token) return null;
     return {
       credential: token,

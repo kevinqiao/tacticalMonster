@@ -580,17 +580,29 @@ export function PortalGame3DInner({
                 onClick={handleSoloClick}
                 role="button"
                 aria-disabled={soloStartGrayed || undefined}
+                aria-label={
+                  joining === "solo"
+                    ? t("lobby.joining")
+                    : soloOpenAssignment
+                      ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
+                      : t("lobby.play")
+                }
                 style={{
                   cursor: !authed || !soloJoinDisabled ? "pointer" : "not-allowed",
                 }}
               >
-                <span className={styles.modePlayText}>
-                  {joining === "solo"
-                    ? t("lobby.joining")
-                    : soloOpenAssignment
-                      ? t("lobby.continue")
-                      : t("lobby.play")}
-                </span>
+                {joining === "solo" ? (
+                  <span className={styles.modePlayText}>{t("lobby.joining")}</span>
+                ) : soloOpenAssignment ? (
+                  <span className={styles.modePlayStack}>
+                    <span className={styles.modePlayText}>{t("lobby.continue")}</span>
+                    <span className={styles.modePlaySubtext}>
+                      {t("lobby.continueInProgress")}
+                    </span>
+                  </span>
+                ) : (
+                  <span className={styles.modePlayText}>{t("lobby.play")}</span>
+                )}
               </div>
             </div>
           </div>
@@ -613,19 +625,29 @@ export function PortalGame3DInner({
                 onClick={handleMultiClick}
                 role="button"
                 aria-disabled={multiStartGrayed || undefined}
+                aria-label={
+                  joining === "multi" || queueWaiting
+                    ? t("lobby.matching")
+                    : multiOpenAssignment
+                      ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
+                      : t("lobby.play")
+                }
                 style={{
                   cursor: !authed || !multiJoinDisabled ? "pointer" : "not-allowed",
                 }}
               >
-                <span className={styles.modePlayText}>
-                  {joining === "multi"
-                    ? t("lobby.matching")
-                    : queueWaiting
-                      ? t("lobby.matching")
-                      : multiOpenAssignment
-                        ? t("lobby.continue")
-                        : t("lobby.play")}
-                </span>
+                {joining === "multi" || queueWaiting ? (
+                  <span className={styles.modePlayText}>{t("lobby.matching")}</span>
+                ) : multiOpenAssignment ? (
+                  <span className={styles.modePlayStack}>
+                    <span className={styles.modePlayText}>{t("lobby.continue")}</span>
+                    <span className={styles.modePlaySubtext}>
+                      {t("lobby.continueInProgress")}
+                    </span>
+                  </span>
+                ) : (
+                  <span className={styles.modePlayText}>{t("lobby.play")}</span>
+                )}
               </div>
             </div>
           </div>

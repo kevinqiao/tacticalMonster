@@ -377,6 +377,7 @@ const GamePlayer: React.FC = () => {
         onDismiss={yatz.dismissPostCasualSummary}
         replayAvailable={postSettleReplay.showReplay}
         replayMode={yatz.postCasualReplayMode}
+        adReplayDailyRemaining={postSettleReplay.adReplayDailyRemaining}
         replayWindowEndsAt={yatz.postCasualReplayWindowEndsAt}
         replayBusy={yatz.casualReplayBusy}
         onReplay={postSettleReplay.showReplay ? () => void yatz.replayCasualRun() : undefined}

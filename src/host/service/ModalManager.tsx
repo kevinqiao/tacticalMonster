@@ -19,7 +19,7 @@ export interface ModalEvent {
 
 export interface ModalContainer extends ModalConfig {
   ele?: HTMLDivElement | null;
-  /** Inner surface that plays open/close motion; shell (`ele`) stays at rest for close-btn anchoring. */
+  /** Inner surface that plays open/close motion (includes close btn). Shell (`ele`) stays at rest layout. */
   surfaceEle?: HTMLDivElement | null;
   closeEle?: HTMLDivElement | null;
   mask?: HTMLDivElement | null;

@@ -143,6 +143,8 @@ export default defineSchema({
     ruleId: v.string(),
     couponDefId: v.optional(v.string()),
     rewardSnapshot: couponRewardDefValidator,
+    /** Frozen from coupon_defs.usageRules at issue time (Apple Wallet back field). */
+    usageRulesSnapshot: v.optional(v.string()),
     status: couponStatusValidator,
     issuedAt: v.number(),
     /** 可核销起始；缺省等同 issuedAt（legacy） */
@@ -152,6 +154,10 @@ export default defineSchema({
     redeemedAtStoreId: v.optional(v.string()),
     redeemedByStaffUid: v.optional(v.string()),
     staffNote: v.optional(v.string()),
+    /** Apple Wallet pass authenticationToken (shared secret with device). */
+    passAuthToken: v.optional(v.string()),
+    /** Bumped when pass content changes (redeem / void / expire) for web service. */
+    passUpdatedAt: v.optional(v.number()),
   })
     .index("by_couponId", ["couponId"])
     .index("by_code", ["code"])
@@ -159,6 +165,22 @@ export default defineSchema({
     .index("by_campaign_uid", ["campaignId", "uid"])
     .index("by_partner_status", ["partnerId", "status"])
     .index("by_campaignId", ["campaignId"]),
+
+  /**
+   * Apple Wallet device registrations for pass updates (PassKit web service).
+   * serialNumber === coupons.couponId
+   */
+  wallet_pass_devices: defineTable({
+    deviceLibraryIdentifier: v.string(),
+    pushToken: v.string(),
+    passTypeIdentifier: v.string(),
+    serialNumber: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_serial", ["serialNumber"])
+    .index("by_device_passType", ["deviceLibraryIdentifier", "passTypeIdentifier"])
+    .index("by_serial_device", ["serialNumber", "deviceLibraryIdentifier"]),
 
   campaign_leaderboard_settlements: defineTable({
     campaignId: v.string(),

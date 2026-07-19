@@ -27,6 +27,15 @@
  *   PLATFORM_BOOTSTRAP_SECRET
  *   PARTNER_EMBED_BOOTSTRAP_SECRET
  *   CAMPAIGN_BRIDGE_SECRET
+ *
+ * Apple Wallet / PassKit (Campaign Convex dashboard → Settings → Environment Variables):
+ *   PASSKIT_PASS_TYPE_ID, PASSKIT_TEAM_ID
+ *   PASSKIT_SIGNER_CERT_PEM, PASSKIT_SIGNER_KEY_PEM, PASSKIT_WWDR_CERT_PEM
+ *   PASSKIT_SIGNER_KEY_PASSPHRASE (optional)
+ *   PASSKIT_WEB_SERVICE_URL (optional; default CONVEX_SITE_URL + "/passkit")
+ *   PUBLIC_APP_ORIGIN (QR deep-link origin, e.g. http://localhost:3000)
+ *   PASSKIT_APNS_KEY_PEM, PASSKIT_APNS_KEY_ID, PASSKIT_APNS_TEAM_ID (optional push updates)
+ * Without certs, "Add to Apple Wallet" stays hidden; redeem flow is unchanged.
  */
 import { runConvexSso, SSO_CONVEX_PROJECT_DIR } from "../platform/run-convex-sso.mjs";
 import { hashWebPassword } from "../platform/web-password.mjs";
@@ -138,6 +147,11 @@ function printReady(result) {
   console.log("");
   console.log("Solo P75 seeds (once):");
   console.log("  npm run portal:seed-pool:bootstrap");
+  console.log("");
+  console.log("Apple Wallet (optional — Campaign Convex env):");
+  console.log("  PASSKIT_PASS_TYPE_ID / PASSKIT_TEAM_ID / PASSKIT_*_PEM");
+  console.log("  PUBLIC_APP_ORIGIN=http://localhost:3000");
+  console.log("  webServiceURL → https://<campaign>.convex.site/passkit");
   console.log("=======================================");
 }
 

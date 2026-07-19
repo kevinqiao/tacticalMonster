@@ -12,8 +12,8 @@ export const PORTAL_3D_SHARED_BG = {
 
 /** 资源未就绪时回退（与现 solitaire 资产兼容） */
 export const PORTAL_3D_SHARED_BG_FALLBACK = {
-  landscape: "/assets/portal/solitaire/backgrounds/bg-16x9.png",
-  portrait: "/assets/portal/portal_bg_9x16.png",
+  landscape: "/assets/portal/solitaire/backgrounds/bg-16x9.webp",
+  portrait: "/assets/portal/solitaire/backgrounds/bg-9x16.webp",
 } as const;
 
 /**
@@ -24,8 +24,8 @@ export const PORTAL_3D_GAME_BG: Record<
   { landscape: string; portrait: string }
 > = {
   solitaire: {
-    landscape: "/assets/portal/solitaire/backgrounds/bg-16x9.png",
-    portrait: "/assets/portal/portal_bg_9x16.png",
+    landscape: "/assets/portal/solitaire/backgrounds/bg-16x9.webp",
+    portrait: "/assets/portal/solitaire/backgrounds/bg-9x16.webp",
   },
   block_blast: { ...PORTAL_3D_SHARED_BG_FALLBACK },
   match_3: { ...PORTAL_3D_SHARED_BG_FALLBACK },
@@ -33,13 +33,13 @@ export const PORTAL_3D_GAME_BG: Record<
   yatz: { ...PORTAL_3D_SHARED_BG_FALLBACK },
 };
 
-const DEFAULT_HERO_LOGO = "/assets/portal/solitaire/hero/hero-title.svg";
+const DEFAULT_HERO_LOGO = "/assets/portal/solitaire/hero/hero-title.webp";
 
 const HERO_LOGO_FALLBACK = DEFAULT_HERO_LOGO;
 
 /** 仅 Hero Logo 按 gameType 区分（canonical: public/assets/portal/3d/logos/） */
 export const PORTAL_3D_HERO_LOGO: Record<RegisteredPartnerGameType, string> = {
-  solitaire: "/assets/portal/solitaire/hero/hero-title.svg",
+  solitaire: "/assets/portal/solitaire/hero/hero-title.webp",
   block_blast: "/assets/portal/3d/logos/block_blast-hero.svg",
   match_3: "/assets/portal/3d/logos/match_3-hero.svg",
   tower_arena: "/assets/portal/3d/logos/tower_arena-hero.svg",
@@ -67,11 +67,11 @@ export function resolvePortal3DSharedBg(
 export type PortalTierId = "bronze" | "silver" | "gold" | "platinum" | "diamond";
 
 export const PORTAL_3D_TIER_BADGES: Record<PortalTierId, string> = {
-  bronze: "/assets/portal/3d/ui/badge-tier-bronze.png",
-  silver: "/assets/portal/3d/ui/badge-tier-silver-plain.png",
-  gold: "/assets/portal/3d/ui/badge-tier-gold.png",
-  platinum: "/assets/portal/3d/ui/badge-tier-platinum.png",
-  diamond: "/assets/portal/3d/ui/badge-tier-diamond.png",
+  bronze: "/assets/portal/3d/ui/badge-tier-bronze.webp",
+  silver: "/assets/portal/3d/ui/badge-tier-silver-plain.webp",
+  gold: "/assets/portal/3d/ui/badge-tier-gold.webp",
+  platinum: "/assets/portal/3d/ui/badge-tier-platinum.webp",
+  diamond: "/assets/portal/3d/ui/badge-tier-diamond.webp",
 };
 
 export function resolvePortal3DTierBadge(tierId: PortalTierId | null | undefined): string {

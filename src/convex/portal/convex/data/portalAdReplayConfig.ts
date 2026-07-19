@@ -2,7 +2,7 @@
 
 export const PORTAL_AD_REPLAY_ENABLED = true;
 
-/** 每日广告再战上限（Asia/Shanghai dayKey） */
+/** 每日广告再战默认上限（partner 未配置 / cache miss；Asia/Shanghai dayKey） */
 export const PORTAL_AD_REPLAY_DAILY_CAP = 5;
 
 /** begin → complete 会话有效期 */

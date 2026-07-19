@@ -61,8 +61,8 @@
       );
     })();
   </script>
-  <link rel="preload" as="image" href="/assets/portal/solitaire/backgrounds/bg-16x9.png" media="(min-aspect-ratio: 1/1)" />
-  <link rel="preload" as="image" href="/assets/portal/portal_bg_9x16.png" media="(max-aspect-ratio: 1/1)" />
+  <link rel="preload" as="image" href="/assets/portal/solitaire/backgrounds/bg-16x9.webp" media="(min-aspect-ratio: 1/1)" />
+  <link rel="preload" as="image" href="/assets/portal/solitaire/backgrounds/bg-9x16.webp" media="(max-aspect-ratio: 1/1)" />
   <style>
     html,
     body {
@@ -152,6 +152,30 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
+  <!-- CrazyGames CDN: rewrite /game/version/index.html → portal entry before SPA boots -->
+  <script>
+    (function () {
+      try {
+        var h = (location.hostname || "").toLowerCase();
+        var onCg =
+          h === "crazygames.com" ||
+          h.indexOf(".crazygames.com") !== -1 ||
+          h.indexOf("game-files.crazygames.com") !== -1;
+        if (!onCg) return;
+        var p = location.pathname || "";
+        if (
+          p.indexOf("/portal/") === 0 ||
+          p.indexOf("/casual/") === 0 ||
+          p.indexOf("/tactical/") === 0 ||
+          p.indexOf("/campaign/") === 0
+        ) {
+          return;
+        }
+        var entry = "/portal/crazygames/solitaire";
+        history.replaceState(history.state, "", entry + location.search + location.hash);
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
   <style>
     html {
       color-scheme: dark;
@@ -172,8 +196,8 @@
           fallbackL: "#3a6f63", fallbackP: "#345c4a",
           gradL: "linear-gradient(165deg, #5a8f9a 0%, #3a6f63 38%, #2a5248 100%)",
           gradP: "linear-gradient(165deg, #4f7d6a 0%, #345c4a 40%, #264a3a 100%)",
-          bgL: "/assets/portal/solitaire/backgrounds/bg-16x9.png",
-          bgP: "/assets/portal/portal_bg_9x16.png",
+          bgL: "/assets/portal/solitaire/backgrounds/bg-16x9.webp",
+          bgP: "/assets/portal/solitaire/backgrounds/bg-9x16.webp",
         },
         tactical: {
           fallbackL: "#1a2433", fallbackP: "#141c28",

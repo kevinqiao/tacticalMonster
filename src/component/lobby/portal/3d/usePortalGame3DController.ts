@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getPortalTournamentDefinition } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { getPortalDailyPlayLimits } from "@/convex/portal/convex/data/portalDailyPlayLimits";
+import { getPortalAdPhase, setPortalAdPhase } from "host/service/ads/display/portalAdPhase";
 import { useModalManager } from "host/service/ModalManager";
 import { useUserManager } from "host/service/UserManager";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
@@ -133,6 +134,17 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   const hasOpenRun = openAssignments.length > 0;
   const matchOverlayOpen =
     awaitingMatch != null || queueWaiting || queueClaiming;
+
+  useEffect(() => {
+    if (visible === 0) return;
+    if (matchOverlayOpen) {
+      setPortalAdPhase("matchmaking");
+      return;
+    }
+    if (getPortalAdPhase() === "matchmaking") {
+      setPortalAdPhase("lobby");
+    }
+  }, [visible, matchOverlayOpen]);
 
   const dailyPlayLimits = getPortalDailyPlayLimits();
   const soloMaxPlaysPerDay =

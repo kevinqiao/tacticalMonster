@@ -135,6 +135,10 @@
 }
 
 .ssc__actions--withReplay .ssc__btn--replayCompact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   flex: 1 1 0;
   min-width: 0;
   max-width: 62%;
@@ -144,7 +148,18 @@
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
+}
+
+.ssc__replayMain {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.ssc__replayRemaining {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.92;
 }
 
 .ssc__actions--withReplay .ssc__btn--continueWide {

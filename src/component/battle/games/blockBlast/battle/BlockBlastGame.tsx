@@ -2,6 +2,7 @@
  * Block Blast 入口（对齐 solitaireSolo SolitaireGame：ConvexProvider、满高容器、loading 层）
  */
 import { ConvexReactClient, useMutation } from 'convex/react';
+import { markPortalGameplayReady } from 'host/service/ads/display/portalAdPhase';
 import PlatformConvexProvider from 'host/service/platformAuth/PlatformConvexProvider';
 import gsap from 'gsap';
 import React, { useCallback, useRef } from 'react';
@@ -63,6 +64,7 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
                 ease: 'power2.inOut',
             });
         }
+        markPortalGameplayReady();
         onGameLoadComplete?.();
     }, [onGameLoadComplete]);
 

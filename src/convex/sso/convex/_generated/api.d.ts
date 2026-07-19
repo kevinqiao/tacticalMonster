@@ -37,6 +37,7 @@ import type * as service_auth_webPassword from "../service/auth/webPassword.js";
 import type * as service_AuthManager from "../service/AuthManager.js";
 import type * as service_bridge_merchantCampaignResolve from "../service/bridge/merchantCampaignResolve.js";
 import type * as service_bridge_merchantCampaignStaffBridge from "../service/bridge/merchantCampaignStaffBridge.js";
+import type * as service_bridge_portalAdReplayCapPush from "../service/bridge/portalAdReplayCapPush.js";
 import type * as service_bridge_ssoBridgeSecret from "../service/bridge/ssoBridgeSecret.js";
 import type * as service_clerk_completeClerkSession from "../service/clerk/completeClerkSession.js";
 import type * as service_embed_completeEmbedSession from "../service/embed/completeEmbedSession.js";
@@ -49,6 +50,8 @@ import type * as service_embed_providers_CrazyGamesEmbedAuthProvider from "../se
 import type * as service_embed_providers_JwtLocalEmbedAuthProvider from "../service/embed/providers/JwtLocalEmbedAuthProvider.js";
 import type * as service_partner_ensureStaffIdentity from "../service/partner/ensureStaffIdentity.js";
 import type * as service_partner_partnerAdmin from "../service/partner/partnerAdmin.js";
+import type * as service_partner_partnerAdReplayConfig from "../service/partner/partnerAdReplayConfig.js";
+import type * as service_partner_partnerAdReplayConfigInternal from "../service/partner/partnerAdReplayConfigInternal.js";
 import type * as service_partner_partnerCapabilities from "../service/partner/partnerCapabilities.js";
 import type * as service_partner_partnerEmbedBootstrap from "../service/partner/partnerEmbedBootstrap.js";
 import type * as service_partner_partnerStaff from "../service/partner/partnerStaff.js";
@@ -106,6 +109,7 @@ declare const fullApi: ApiFromModules<{
   "service/AuthManager": typeof service_AuthManager;
   "service/bridge/merchantCampaignResolve": typeof service_bridge_merchantCampaignResolve;
   "service/bridge/merchantCampaignStaffBridge": typeof service_bridge_merchantCampaignStaffBridge;
+  "service/bridge/portalAdReplayCapPush": typeof service_bridge_portalAdReplayCapPush;
   "service/bridge/ssoBridgeSecret": typeof service_bridge_ssoBridgeSecret;
   "service/clerk/completeClerkSession": typeof service_clerk_completeClerkSession;
   "service/embed/completeEmbedSession": typeof service_embed_completeEmbedSession;
@@ -118,6 +122,8 @@ declare const fullApi: ApiFromModules<{
   "service/embed/providers/JwtLocalEmbedAuthProvider": typeof service_embed_providers_JwtLocalEmbedAuthProvider;
   "service/partner/ensureStaffIdentity": typeof service_partner_ensureStaffIdentity;
   "service/partner/partnerAdmin": typeof service_partner_partnerAdmin;
+  "service/partner/partnerAdReplayConfig": typeof service_partner_partnerAdReplayConfig;
+  "service/partner/partnerAdReplayConfigInternal": typeof service_partner_partnerAdReplayConfigInternal;
   "service/partner/partnerCapabilities": typeof service_partner_partnerCapabilities;
   "service/partner/partnerEmbedBootstrap": typeof service_partner_partnerEmbedBootstrap;
   "service/partner/partnerStaff": typeof service_partner_partnerStaff;

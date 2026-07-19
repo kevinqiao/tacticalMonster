@@ -21,6 +21,7 @@ const PORTAL_ERROR_MAP: Record<string, string> = {
   portal_key_taken: "该 Portal key 已被占用。",
   portal_games_required: "请至少选择一款游戏。",
   portal_game_invalid: "存在未注册的游戏类型。",
+  ad_replay_daily_cap_invalid: "每日广告再战次数须为 0–100 的整数（空=默认）。",
   forbidden: "需要 platform_staff admin（或 owner）权限。",
   unauthenticated: "请重新登录后再试。",
   not_found: "找不到该 Partner。",
@@ -41,6 +42,8 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   const { updatePartnerPortalConfig } = usePlatformAdminMutations();
   const [portalKey, setPortalKey] = useState("");
   const [selectedGames, setSelectedGames] = useState<string[]>([]);
+  /** Empty string = use platform default (5). */
+  const [adReplayDailyCapInput, setAdReplayDailyCapInput] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const hydratedForPartner = useRef<number | null>(null);
@@ -63,6 +66,11 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         ? config.games
         : [...(config.registryGames ?? [])];
     setSelectedGames(initialGames);
+    setAdReplayDailyCapInput(
+      typeof config.adReplayDailyCap === "number"
+        ? String(config.adReplayDailyCap)
+        : ""
+    );
   }, [config, partnerId]);
 
   const toggleGame = (gameType: string) => {
@@ -89,12 +97,26 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
       setNote(portalConfigErrorMessage(new Error("portal_games_required")));
       return;
     }
+    const capTrimmed = adReplayDailyCapInput.trim();
+    let adReplayDailyCap: number | null;
+    if (capTrimmed === "") {
+      adReplayDailyCap = null;
+    } else {
+      const n = Number(capTrimmed);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > 100) {
+        setNote(portalConfigErrorMessage(new Error("ad_replay_daily_cap_invalid")));
+        return;
+      }
+      adReplayDailyCap = n;
+    }
+
     setSaving(true);
     setNote(null);
     try {
       await updatePartnerPortalConfig({
         partnerId,
         games: selectedGames,
+        adReplayDailyCap,
         ...(saveAsFirstParty ? {} : { portalKey: trimmedKey }),
       });
       hydratedForPartner.current = null;
@@ -161,6 +183,24 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
           ))
         )}
       </fieldset>
+      <label className="merchant-field">
+        每日广告再战次数
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step={1}
+          value={adReplayDailyCapInput}
+          onChange={(e) => setAdReplayDailyCapInput(e.target.value)}
+          placeholder={`默认 ${config.adReplayDailyCapDefault ?? 5}`}
+          autoComplete="off"
+          disabled={!canEdit}
+        />
+      </label>
+      <p className="merchant-note">
+        留空使用默认 {config.adReplayDailyCapDefault ?? 5}；填 0 关闭广告再战。当前生效：
+        {config.adReplayDailyCapEffective ?? config.adReplayDailyCapDefault ?? 5}。
+      </p>
       {selectedGames.length > 0 ? (
         <ul className="merchant-note">
           {selectedGames.map((gameType) => (
