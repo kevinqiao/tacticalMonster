@@ -8,7 +8,7 @@ import {
   PORTAL_GIFTCARD_DEFAULT_MIN_ACCOUNT_AGE_DAYS,
 } from "./portalGiftCardEconomy";
 
-export type PortalShopSkuKind = "virtual" | "giftcard";
+export type PortalShopSkuKind = "virtual" | "giftcard" | "voucher";
 
 export type PortalShopSkuSeed = {
   skuId: string;
@@ -33,6 +33,9 @@ export type PortalShopSkuSeed = {
   scarcityMultiplier?: number;
   minAccountAgeDays?: number;
   requiresVerifiedContact?: boolean;
+  voucherRewardText?: string;
+  voucherValidityDays?: number;
+  listInShop?: boolean;
 };
 
 export const PORTAL_SHOP_SKU_CATALOG: PortalShopSkuSeed[] = [
@@ -101,5 +104,7 @@ export function mapPortalShopSkuRow(r: PortalShopSkuSeed) {
     scarcityMultiplier: r.scarcityMultiplier,
     minAccountAgeDays: r.minAccountAgeDays,
     requiresVerifiedContact: r.requiresVerifiedContact ?? skuKind === "giftcard",
+    voucherRewardText: r.voucherRewardText,
+    voucherValidityDays: r.voucherValidityDays,
   };
 }

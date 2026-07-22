@@ -125,12 +125,14 @@ export function portalTemplateIdForCampaign(
   return mode === "solo" ? `portal_solo_p75_${gameType}` : `portal_multi_${gameType}`;
 }
 
-/** Staff-created campaigns must reference an active coupon def (legacy rows may omit). */
+/** Staff-created campaigns must reference a Portal voucher SKU and/or coupon def. */
 export function assertStaffCouponDefRefs(
   rewardRules: Doc<"campaigns">["rewardRules"]
 ): void {
   for (const rule of rewardRules) {
-    if (!rule.couponDefId?.trim()) {
+    const hasPortal = Boolean(rule.portalSkuId?.trim());
+    const hasDef = Boolean(rule.couponDefId?.trim());
+    if (!hasPortal && !hasDef) {
       throw new Error("coupon_def_required");
     }
   }

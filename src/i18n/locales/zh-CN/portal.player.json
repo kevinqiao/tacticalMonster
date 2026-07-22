@@ -70,9 +70,18 @@
         "saveFailed": "保存失败，请重试。"
       },
       "replayTokens": "门票",
+      "ticketsBalanceAria": "门票余额：{{count}}",
       "adReplayRemaining": "今日广告再战剩余",
-      "coupons": "优惠券",
-      "tickets": "入场券",
+      "vouchers": "兑换券",
+      "useVoucher": "使用",
+      "cancelVoucher": "取消",
+      "voucherStatus": {
+        "owned": "可使用",
+        "pending_use": "申请中",
+        "redeemed": "已使用",
+        "expired": "已过期",
+        "void": "已作废"
+      },
       "emptyItem": "暂无",
       "viewGiftCards": "礼品卡订单（{{count}}）"
     },
@@ -141,6 +150,7 @@
     "ordersToggle": "我的礼品卡订单",
     "ordersModalTitle": "我的礼品卡订单",
     "badgeGiftCard": "礼品卡",
+    "badgeVoucher": "兑换券",
     "sections": {
       "virtual": "道具",
       "giftcard": "礼品卡",
@@ -151,6 +161,7 @@
     "empty": "暂无商品",
     "faceValue": "面值 {{value}}",
     "grantReplay": "获得门票 ×{{count}}",
+    "voucherReward": "兑换内容：{{reward}}",
     "weeklyRemaining": "本周剩余 {{remaining}} / {{limit}}",
     "buying": "兑换中…",
     "soldOut": "已售罄",

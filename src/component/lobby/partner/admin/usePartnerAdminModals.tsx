@@ -3,7 +3,10 @@ import { useCallback, useState } from "react";
 import PartnerAdminAuthChannelsModal from "./PartnerAdminAuthChannelsModal";
 import PartnerAdminCampaignOpsModal from "./PartnerAdminCampaignOpsModal";
 import PartnerAdminProfileModal from "./PartnerAdminProfileModal";
+import PartnerAdminRedeemPanel from "./PartnerAdminRedeemPanel";
+import PartnerAdminShopPanel from "./PartnerAdminShopPanel";
 import PartnerAdminTeamModal from "./PartnerAdminTeamModal";
+import PartnerAdminFormModal from "./PartnerAdminFormModal";
 import type { PartnerCampaignOpsView } from "./partnerCampaignOpsNav";
 import type { PartnerAdminSection } from "./PartnerAdminPartnerNav";
 
@@ -15,7 +18,7 @@ export type PartnerAdminModalTarget = {
   partnerName: string;
 };
 
-const BASE_SECTIONS: PartnerAdminModalSection[] = ["profile", "auth", "team"];
+const BASE_SECTIONS: PartnerAdminModalSection[] = ["profile", "auth", "team", "shop", "redeem"];
 const CAMPAIGN_OPS_SECTIONS: PartnerCampaignOpsView[] = [
   "campaigns",
   "coupon-defs",
@@ -70,6 +73,24 @@ export function usePartnerAdminModals() {
           partnerName={target.partnerName}
           onClose={closePartnerModal}
         />
+      ) : null}
+      {target.section === "redeem" ? (
+        <PartnerAdminFormModal
+          title={`${target.partnerName} · 核销`}
+          ariaLabel="兑换券核销"
+          onClose={closePartnerModal}
+        >
+          <PartnerAdminRedeemPanel partnerId={target.partnerId} />
+        </PartnerAdminFormModal>
+      ) : null}
+      {target.section === "shop" ? (
+        <PartnerAdminFormModal
+          title={`${target.partnerName} · 商店`}
+          ariaLabel="商店 SKU 配置"
+          onClose={closePartnerModal}
+        >
+          <PartnerAdminShopPanel partnerId={target.partnerId} />
+        </PartnerAdminFormModal>
       ) : null}
       {isCampaignOpsSection(target.section) ? (
         <PartnerAdminCampaignOpsModal

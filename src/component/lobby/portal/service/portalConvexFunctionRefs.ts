@@ -46,6 +46,15 @@ export const portalTournamentFns = {
   purchasePortalShopSku: makeFunctionReference<"mutation">(
     "service/shop/portalShopService:purchasePortalShopSku"
   ),
+  listMyBackpackItems: makeFunctionReference<"query">(
+    "service/backpack/portalBackpackService:listMyBackpackItems"
+  ),
+  requestUseBackpackVoucher: makeFunctionReference<"mutation">(
+    "service/backpack/portalBackpackService:requestUseBackpackVoucher"
+  ),
+  cancelUseBackpackVoucher: makeFunctionReference<"mutation">(
+    "service/backpack/portalBackpackService:cancelUseBackpackVoucher"
+  ),
   syncRedemptionProfile: makeFunctionReference<"mutation">(
     "service/giftcard/giftCardQueries:syncRedemptionProfile"
   ),

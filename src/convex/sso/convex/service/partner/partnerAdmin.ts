@@ -459,3 +459,25 @@ export const assertPartnerStaffInternal = internalQuery({
   },
 });
 
+/** Authorization predicate for Portal voucher fulfillment (not campaignOps-gated). */
+export const assertPartnerVoucherAdminInternal = internalQuery({
+  args: {
+    partnerId: v.number(),
+    uid: v.string(),
+    minRole: v.optional(partnerRoleValidator),
+  },
+  handler: async (ctx, { partnerId, uid, minRole }) => {
+    const partner = await getPartnerByPid(ctx, partnerId);
+    if (!partner) return { ok: false as const, error: "not_found" as const };
+    if (await isPlatformOperator(ctx, uid)) {
+      return { ok: true as const, partnerId, role: "owner" as const };
+    }
+    const row = await getPartnerStaffRow(ctx, partnerId, uid.trim());
+    const required = minRole ?? "viewer";
+    if (!row || ROLE_RANK[row.role as PartnerRole] < ROLE_RANK[required]) {
+      return { ok: false as const, error: "forbidden" as const };
+    }
+    return { ok: true as const, partnerId, role: row.role as PartnerRole };
+  },
+});
+

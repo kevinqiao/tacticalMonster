@@ -4,6 +4,8 @@ export type PartnerAdminSection =
   | "profile"
   | "auth"
   | "team"
+  | "shop"
+  | "redeem"
   | "campaigns"
   | "coupon-defs"
   | "coupons"
@@ -14,6 +16,8 @@ type PartnerAdminPartnerNavProps = {
   partnerId: number;
   /** When false, campaign ops sections are hidden (CrazyGames-clean). */
   campaignOps?: boolean;
+  /** Enables Portal shop/redeem operations. */
+  portalGames?: boolean;
   onSectionClick: (section: PartnerAdminSection, partnerId: number) => void;
 };
 
@@ -21,6 +25,7 @@ type PartnerAdminPartnerNavProps = {
 const PartnerAdminPartnerNav: React.FC<PartnerAdminPartnerNavProps> = ({
   partnerId,
   campaignOps = false,
+  portalGames = false,
   onSectionClick,
 }) => (
   <nav className="merchant-nav">
@@ -45,6 +50,24 @@ const PartnerAdminPartnerNav: React.FC<PartnerAdminPartnerNavProps> = ({
     >
       团队
     </button>
+    {portalGames ? (
+      <button
+        type="button"
+        className="merchant-link-btn"
+        onClick={() => onSectionClick("shop", partnerId)}
+      >
+        商店
+      </button>
+    ) : null}
+    {portalGames ? (
+      <button
+        type="button"
+        className="merchant-link-btn"
+        onClick={() => onSectionClick("redeem", partnerId)}
+      >
+        核销
+      </button>
+    ) : null}
     {campaignOps ? (
       <>
         <button

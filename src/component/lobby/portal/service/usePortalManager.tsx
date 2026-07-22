@@ -158,13 +158,15 @@ export type PortalShopSkuView = {
   remainingThisWeek: number | null;
   sortOrder?: number;
   shopSection?: string;
-  skuKind?: "virtual" | "giftcard";
+  skuKind?: "virtual" | "giftcard" | "voucher";
   region?: string;
   faceValueDisplay?: string;
   brandName?: string;
   brandLogoUrl?: string;
   locked?: boolean;
   lockReason?: string | null;
+  voucherRewardText?: string;
+  voucherValidityDays?: number;
 };
 
 export type PortalShopSkuRow = PortalShopSkuView;
@@ -189,6 +191,19 @@ export type PortalGiftCardOrderRow = {
   canRedeem: boolean;
   canResendEmail: boolean;
   hasCachedLink: boolean;
+};
+
+export type PortalBackpackItem = {
+  itemId: string;
+  skuId: string;
+  title: string;
+  rewardText: string;
+  code: string;
+  status: "owned" | "pending_use" | "redeemed" | "expired" | "void";
+  expiresAt: number | null;
+  useRequestedAt: number | null;
+  redeemedAt: number | null;
+  createdAt: number;
 };
 
 export type PortalModeDailyPlayQuota = {
@@ -219,6 +234,7 @@ type PortalDataSnapshot = {
   playerWallet: PortalPlayerWallet | null;
   shopCatalog: PortalShopCatalogView | null;
   giftCardOrders: PortalGiftCardOrderRow[];
+  backpackItems: PortalBackpackItem[];
   replayTokenCount: number;
   adReplayDailyRemaining: number | null;
   playerProfile: PortalPlayerProfileView | null;
@@ -236,6 +252,7 @@ const emptyData = (): PortalDataSnapshot => ({
   playerWallet: null,
   shopCatalog: null,
   giftCardOrders: [],
+  backpackItems: [],
   replayTokenCount: 0,
   adReplayDailyRemaining: null,
   playerProfile: null,
@@ -274,6 +291,7 @@ type PortalContextValue = {
   playerWallet: PortalPlayerWallet | null;
   shopCatalog: PortalShopCatalogView | null;
   giftCardOrders: PortalGiftCardOrderRow[];
+  backpackItems: PortalBackpackItem[];
   replayTokenCount: number;
   adReplayDailyRemaining: number | null;
   playerProfile: PortalPlayerProfileView | null;
@@ -314,6 +332,8 @@ type PortalContextValue = {
     orderId: string
   ) => Promise<{ ok: boolean; error?: string; rewardLink?: string }>;
   resendGiftCardEmail: (orderId: string) => Promise<{ ok: boolean; error?: string }>;
+  requestUseBackpackVoucher: (itemId: string) => Promise<{ ok: boolean; error?: string }>;
+  cancelUseBackpackVoucher: (itemId: string) => Promise<{ ok: boolean; error?: string }>;
   refresh: () => Promise<void>;
   portalSessionReady: boolean;
   /** 本组排行弹层打开时开启排行轮询；关闭则只轮询段位栏 */
@@ -517,6 +537,7 @@ export const PortalProvider: React.FC<{
         playerWallet: null,
         shopCatalog: null,
         giftCardOrders: [],
+        backpackItems: [],
         replayTokenCount: 0,
         adReplayDailyRemaining: null,
         playerProfile: null,
@@ -582,6 +603,16 @@ export const PortalProvider: React.FC<{
         patchData({ giftCardOrders: r.orders ?? [] });
       },
       "giftCardOrders"
+    );
+    sub(
+      portalTournamentFns.listMyBackpackItems,
+      {},
+      (rows) => {
+        patchData({
+          backpackItems: Array.isArray(rows) ? (rows as PortalBackpackItem[]) : [],
+        });
+      },
+      "backpackItems"
     );
     sub(
       portalTournamentFns.countUnusedReplayTokensForUid,
@@ -970,6 +1001,40 @@ export const PortalProvider: React.FC<{
     [uid]
   );
 
+  const requestUseBackpackVoucher = useCallback(
+    async (itemId: string) => {
+      const http = getHttp();
+      if (!http || !uid) return { ok: false, error: "no_auth" };
+      try {
+        const result = (await http.mutation(portalTournamentFns.requestUseBackpackVoucher, {
+          itemId: itemId as never,
+        })) as { ok?: boolean; error?: string };
+        return { ok: Boolean(result?.ok), error: result?.error };
+      } catch (e) {
+        console.error("[Portal] requestUseBackpackVoucher", e);
+        return { ok: false, error: "request_failed" };
+      }
+    },
+    [uid]
+  );
+
+  const cancelUseBackpackVoucher = useCallback(
+    async (itemId: string) => {
+      const http = getHttp();
+      if (!http || !uid) return { ok: false, error: "no_auth" };
+      try {
+        const result = (await http.mutation(portalTournamentFns.cancelUseBackpackVoucher, {
+          itemId: itemId as never,
+        })) as { ok?: boolean; error?: string };
+        return { ok: Boolean(result?.ok), error: result?.error };
+      } catch (e) {
+        console.error("[Portal] cancelUseBackpackVoucher", e);
+        return { ok: false, error: "cancel_failed" };
+      }
+    },
+    [uid]
+  );
+
   const reconcilePendingHistorySettlements = useCallback(async () => {
     const http = getHttp();
     if (!http || !uid || !gameType) return;
@@ -1135,6 +1200,7 @@ export const PortalProvider: React.FC<{
       playerWallet: snapshot.playerWallet,
       shopCatalog: snapshot.shopCatalog,
       giftCardOrders: snapshot.giftCardOrders,
+      backpackItems: snapshot.backpackItems,
       replayTokenCount: snapshot.replayTokenCount,
       adReplayDailyRemaining: snapshot.adReplayDailyRemaining,
       playerProfile: snapshot.playerProfile,
@@ -1154,6 +1220,8 @@ export const PortalProvider: React.FC<{
       updatePortalDisplayName,
       redeemGiftCard,
       resendGiftCardEmail,
+      requestUseBackpackVoucher,
+      cancelUseBackpackVoucher,
       refresh,
       portalSessionReady,
       setCohortLeaderboardPolling,
@@ -1174,6 +1242,8 @@ export const PortalProvider: React.FC<{
       updatePortalDisplayName,
       redeemGiftCard,
       resendGiftCardEmail,
+      requestUseBackpackVoucher,
+      cancelUseBackpackVoucher,
       refresh,
       portalSessionReady,
       setCohortLeaderboardPolling,

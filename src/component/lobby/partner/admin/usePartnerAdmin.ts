@@ -13,6 +13,15 @@ export const partnerAdminFns = {
   addPartnerStaff: api.service.partner.staffAccountActions.addPartnerStaff,
   updatePartnerStaffProfile: api.service.partner.staffAccountActions.updatePartnerStaffProfile,
   removePartnerStaff: api.service.partner.partnerAdmin.removePartnerStaff,
+  listPartnerVouchers: api.service.partner.partnerPartnerVoucherAdmin.listPartnerVouchers,
+  confirmPartnerVoucherUse: api.service.partner.partnerPartnerVoucherAdmin.confirmPartnerVoucherUse,
+  rejectPartnerVoucherUse: api.service.partner.partnerPartnerVoucherAdmin.rejectPartnerVoucherUse,
+  redeemPartnerVoucher: api.service.partner.partnerPartnerVoucherAdmin.redeemPartnerVoucher,
+  voidPartnerVoucher: api.service.partner.partnerPartnerVoucherAdmin.voidPartnerVoucher,
+  listPartnerShopSkus: api.service.partner.partnerPartnerShopSkuAdmin.listPartnerShopSkus,
+  upsertPartnerShopSku: api.service.partner.partnerPartnerShopSkuAdmin.upsertPartnerShopSku,
+  setPartnerShopSkuActive: api.service.partner.partnerPartnerShopSkuAdmin.setPartnerShopSkuActive,
+  deletePartnerShopSku: api.service.partner.partnerPartnerShopSkuAdmin.deletePartnerShopSku,
 };
 
 export function usePartnerAdminAuth() {
@@ -52,6 +61,15 @@ export function usePartnerAdminMutations() {
     addPartnerStaff: useAction(partnerAdminFns.addPartnerStaff),
     updatePartnerStaffProfile: useAction(partnerAdminFns.updatePartnerStaffProfile),
     removePartnerStaff: useMutation(partnerAdminFns.removePartnerStaff),
+    listPartnerVouchers: useAction(partnerAdminFns.listPartnerVouchers),
+    confirmPartnerVoucherUse: useAction(partnerAdminFns.confirmPartnerVoucherUse),
+    rejectPartnerVoucherUse: useAction(partnerAdminFns.rejectPartnerVoucherUse),
+    redeemPartnerVoucher: useAction(partnerAdminFns.redeemPartnerVoucher),
+    voidPartnerVoucher: useAction(partnerAdminFns.voidPartnerVoucher),
+    listPartnerShopSkus: useAction(partnerAdminFns.listPartnerShopSkus),
+    upsertPartnerShopSku: useAction(partnerAdminFns.upsertPartnerShopSku),
+    setPartnerShopSkuActive: useAction(partnerAdminFns.setPartnerShopSkuActive),
+    deletePartnerShopSku: useAction(partnerAdminFns.deletePartnerShopSku),
   };
 }
 

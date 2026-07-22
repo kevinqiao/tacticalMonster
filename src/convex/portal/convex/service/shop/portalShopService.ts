@@ -44,6 +44,9 @@ function shopSkuDbPayload(s: PortalShopSkuSeed) {
     requiresVerifiedContact: s.requiresVerifiedContact,
     shopSection: s.shopSection,
     partnerIds: s.partnerIds,
+    voucherRewardText: s.voucherRewardText,
+    voucherValidityDays: s.voucherValidityDays,
+    listInShop: s.listInShop,
   };
 }
 
@@ -87,6 +90,9 @@ function shopSkuFromDbRow(r: Doc<"portal_shop_skus">) {
     requiresVerifiedContact: r.requiresVerifiedContact ?? cat?.requiresVerifiedContact,
     shopSection: r.shopSection ?? cat?.shopSection,
     partnerIds: r.partnerIds ?? cat?.partnerIds,
+    voucherRewardText: r.voucherRewardText ?? cat?.voucherRewardText,
+    voucherValidityDays: r.voucherValidityDays ?? cat?.voucherValidityDays,
+    listInShop: r.listInShop ?? cat?.listInShop,
   };
   return mapPortalShopSkuRow(seed);
 }
@@ -117,7 +123,7 @@ export const listPortalShopSkus = authedQuery({
   handler: async (ctx) => {
     const rows = await ctx.db.query("portal_shop_skus").collect();
     const active = rows
-      .filter((r) => r.active)
+      .filter((r) => r.active && (r.skuKind !== "voucher" || r.listInShop !== false))
       .sort((a, b) => a.sortOrder - b.sortOrder || a.skuId.localeCompare(b.skuId));
     const weekKey = weeklyPeriodKey(Date.now());
     const counters = await ctx.db
@@ -194,7 +200,7 @@ export const purchasePortalShopSku = authedMutation({
       .query("portal_shop_skus")
       .withIndex("by_skuId", (q) => q.eq("skuId", skuId))
       .unique();
-    if (!row?.active) {
+    if (!row?.active || (row.skuKind === "voucher" && row.listInShop === false)) {
       return { ok: false as const, error: "sku_not_found" as const };
     }
     if (!shopSkuVisibleForUid(row, ctx.uid)) {
@@ -266,6 +272,37 @@ export const purchasePortalShopSku = authedMutation({
         status: "processing" as const,
         spentCoins: sku.priceCoins,
         faceValueDisplay: formatFaceValueDisplay(row.faceValueLocal, row.faceValueCurrency),
+      };
+    }
+
+    if (skuKind === "voucher") {
+      const spend = await ctx.runMutation(internal.service.reward.casualRewardRegistry.spendPortalCoins, {
+        uid: ctx.uid,
+        amount: sku.priceCoins,
+        reason: `voucher:${skuId}`,
+      });
+      if (!spend.ok) return spend;
+      const expiresAt =
+        sku.voucherValidityDays != null && sku.voucherValidityDays > 0
+          ? now + sku.voucherValidityDays * 24 * 60 * 60 * 1000
+          : undefined;
+      await ctx.runMutation(internal.service.backpack.portalBackpackService.grantBackpackVoucher, {
+        uid: ctx.uid,
+        skuId,
+        title: sku.title,
+        ...(sku.voucherRewardText ? { rewardText: sku.voucherRewardText } : {}),
+        ...(expiresAt ? { expiresAt } : {}),
+        ...(resolvePortalShopSessionPartnerId(ctx.uid) != null
+          ? { partnerId: resolvePortalShopSessionPartnerId(ctx.uid)! }
+          : {}),
+        source: `shop:${ctx.uid}:${now}:${skuId}`,
+      });
+      await recordWeeklyPurchase(ctx, ctx.uid, skuId, now);
+      return {
+        ok: true as const,
+        skuKind: "voucher" as const,
+        skuId,
+        spentCoins: sku.priceCoins,
       };
     }
 

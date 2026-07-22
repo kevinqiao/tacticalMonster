@@ -39,6 +39,7 @@ import type * as service_AuthManager from "../service/AuthManager.js";
 import type * as service_bridge_merchantCampaignResolve from "../service/bridge/merchantCampaignResolve.js";
 import type * as service_bridge_merchantCampaignStaffBridge from "../service/bridge/merchantCampaignStaffBridge.js";
 import type * as service_bridge_portalAdReplayCapPush from "../service/bridge/portalAdReplayCapPush.js";
+import type * as service_bridge_portalPartnerVoucherSkuBridge from "../service/bridge/portalPartnerVoucherSkuBridge.js";
 import type * as service_bridge_ssoBridgeSecret from "../service/bridge/ssoBridgeSecret.js";
 import type * as service_clerk_completeClerkSession from "../service/clerk/completeClerkSession.js";
 import type * as service_embed_completeEmbedSession from "../service/embed/completeEmbedSession.js";
@@ -55,6 +56,8 @@ import type * as service_partner_partnerAdReplayConfig from "../service/partner/
 import type * as service_partner_partnerAdReplayConfigInternal from "../service/partner/partnerAdReplayConfigInternal.js";
 import type * as service_partner_partnerCapabilities from "../service/partner/partnerCapabilities.js";
 import type * as service_partner_partnerEmbedBootstrap from "../service/partner/partnerEmbedBootstrap.js";
+import type * as service_partner_partnerPartnerShopSkuAdmin from "../service/partner/partnerPartnerShopSkuAdmin.js";
+import type * as service_partner_partnerPartnerVoucherAdmin from "../service/partner/partnerPartnerVoucherAdmin.js";
 import type * as service_partner_partnerStaff from "../service/partner/partnerStaff.js";
 import type * as service_partner_platformAdmin from "../service/partner/platformAdmin.js";
 import type * as service_partner_platformAdminAccount from "../service/partner/platformAdminAccount.js";
@@ -112,6 +115,7 @@ declare const fullApi: ApiFromModules<{
   "service/bridge/merchantCampaignResolve": typeof service_bridge_merchantCampaignResolve;
   "service/bridge/merchantCampaignStaffBridge": typeof service_bridge_merchantCampaignStaffBridge;
   "service/bridge/portalAdReplayCapPush": typeof service_bridge_portalAdReplayCapPush;
+  "service/bridge/portalPartnerVoucherSkuBridge": typeof service_bridge_portalPartnerVoucherSkuBridge;
   "service/bridge/ssoBridgeSecret": typeof service_bridge_ssoBridgeSecret;
   "service/clerk/completeClerkSession": typeof service_clerk_completeClerkSession;
   "service/embed/completeEmbedSession": typeof service_embed_completeEmbedSession;
@@ -128,6 +132,8 @@ declare const fullApi: ApiFromModules<{
   "service/partner/partnerAdReplayConfigInternal": typeof service_partner_partnerAdReplayConfigInternal;
   "service/partner/partnerCapabilities": typeof service_partner_partnerCapabilities;
   "service/partner/partnerEmbedBootstrap": typeof service_partner_partnerEmbedBootstrap;
+  "service/partner/partnerPartnerShopSkuAdmin": typeof service_partner_partnerPartnerShopSkuAdmin;
+  "service/partner/partnerPartnerVoucherAdmin": typeof service_partner_partnerPartnerVoucherAdmin;
   "service/partner/partnerStaff": typeof service_partner_partnerStaff;
   "service/partner/platformAdmin": typeof service_partner_platformAdmin;
   "service/partner/platformAdminAccount": typeof service_partner_platformAdminAccount;

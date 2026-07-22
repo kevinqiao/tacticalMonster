@@ -70,9 +70,18 @@
         "saveFailed": "Could not save. Try again."
       },
       "replayTokens": "Tickets",
+      "ticketsBalanceAria": "Tickets balance: {{count}}",
       "adReplayRemaining": "Ad replays left today",
-      "coupons": "Coupons",
-      "tickets": "Tickets",
+      "vouchers": "Vouchers",
+      "useVoucher": "Use",
+      "cancelVoucher": "Cancel",
+      "voucherStatus": {
+        "owned": "Ready",
+        "pending_use": "Pending",
+        "redeemed": "Used",
+        "expired": "Expired",
+        "void": "Void"
+      },
       "emptyItem": "None yet",
       "viewGiftCards": "Gift card orders ({{count}})"
     },
@@ -141,6 +150,7 @@
     "ordersToggle": "My gift card orders",
     "ordersModalTitle": "My gift card orders",
     "badgeGiftCard": "Gift card",
+    "badgeVoucher": "Voucher",
     "sections": {
       "virtual": "Items",
       "giftcard": "Gift cards",
@@ -151,6 +161,7 @@
     "empty": "No items available",
     "faceValue": "Face value {{value}}",
     "grantReplay": "Tickets ×{{count}}",
+    "voucherReward": "Reward: {{reward}}",
     "weeklyRemaining": "{{remaining}} / {{limit}} left this week",
     "buying": "Redeeming…",
     "soldOut": "Sold out",

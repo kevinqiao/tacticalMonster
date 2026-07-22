@@ -33,10 +33,12 @@ const PartnerAdminHomePage: React.FC<PageProp> = ({ visible }) => {
 
     const partner = partners.find((p) => p.pid === partnerId);
     const campaignOps = partner?.capabilities?.campaignOps === true;
+    const needsCampaignOps = ["campaigns", "coupon-defs", "coupons", "brand", "stores"].includes(
+      section ?? ""
+    );
     if (
-      section &&
-      ["campaigns", "coupon-defs", "coupons", "brand", "stores"].includes(section) &&
-      !campaignOps
+      (needsCampaignOps && !campaignOps) ||
+      ((section === "shop" || section === "redeem") && !partner?.capabilities?.portalGames)
     ) {
       return;
     }
@@ -99,6 +101,7 @@ const PartnerAdminHomePage: React.FC<PageProp> = ({ visible }) => {
               <PartnerAdminPartnerNav
                 partnerId={p.pid}
                 campaignOps={caps.campaignOps}
+                portalGames={caps.portalGames}
                 onSectionClick={(section, partnerId) =>
                   openPartnerModal(section, partnerId, p.name)
                 }

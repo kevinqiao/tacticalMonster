@@ -105,6 +105,8 @@ export const rewardRuleValidator = v.object({
   rankTo: v.optional(v.number()),
   topN: v.optional(v.number()),
   couponDefId: v.optional(v.string()),
+  /** Portal shop voucher SKU id (pc_…); preferred over couponDefId for new campaigns. */
+  portalSkuId: v.optional(v.string()),
   reward: couponRewardDefValidator,
 });
 

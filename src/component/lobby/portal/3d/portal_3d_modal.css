@@ -911,6 +911,20 @@
   color: #b45309;
 }
 
+.portal-shop-panel__balance img,
+.portal-shop-panel__buy img,
+.portal-shop-panel__grant img {
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 4px;
+  vertical-align: -0.2em;
+  object-fit: contain;
+}
+
+.portal-shop-panel__buy img {
+  margin-right: 5px;
+}
+
 .portal-shop-panel__note {
   margin: 0 0 12px;
   font-size: 15px;
@@ -1562,4 +1576,89 @@
 
 .portal-backpack-panel__link:hover {
   filter: brightness(1.03);
+}
+
+.portal-backpack-panel__vouchers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.portal-backpack-panel__empty {
+  margin: 0;
+  padding: 12px 14px;
+  color: #a07a45;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.portal-backpack-panel__voucher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid rgba(111, 67, 24, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 248, 230, 0.82);
+}
+
+.portal-backpack-panel__voucher-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.portal-backpack-panel__voucher-main strong {
+  font-size: 15px;
+}
+
+.portal-backpack-panel__voucher-main span,
+.portal-backpack-panel__voucher-main code {
+  overflow: hidden;
+  color: #8a5c28;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-backpack-panel__voucher-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.portal-backpack-panel__voucher-actions button {
+  border: 2px solid #c9a227;
+  border-radius: 10px;
+  padding: 5px 10px;
+  background: linear-gradient(180deg, #ffe9a8 0%, #f5c842 100%);
+  color: #5b3a12;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portal-backpack-panel__status {
+  color: #8a5c28;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.portal-backpack-panel__status--pending_use {
+  color: #b45309;
+}
+
+.portal-backpack-panel__status--redeemed {
+  color: #4c8a15;
+}
+
+.portal-backpack-panel__status--expired,
+.portal-backpack-panel__status--void {
+  color: #a07a45;
 }

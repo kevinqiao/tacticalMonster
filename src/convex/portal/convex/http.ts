@@ -607,6 +607,75 @@ async function readJsonBody(
   return { ok: true, body: body as Record<string, unknown> };
 }
 
+function partnerIdFromBody(body: Record<string, unknown>): number | null {
+  const raw = body.partnerId;
+  const partnerId =
+    typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  return Number.isFinite(partnerId) && partnerId >= 0 ? Math.floor(partnerId) : null;
+}
+
+function partnerVoucherItemId(body: Record<string, unknown>) {
+  return typeof body.itemId === "string" && body.itemId.length > 0
+    ? body.itemId as import("./_generated/dataModel").Id<"portal_backpack_items">
+    : null;
+}
+
+/** SSO → Portal: Partner redemption inbox and fulfillment operations. */
+http.route({
+  path: "/internal/partner-vouchers",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (request.headers.get("X-Portal-Bridge-Secret") !== portalGameBridgeSecret()) {
+      return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+    }
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const partnerId = partnerIdFromBody(parsed.body);
+    const operation = parsed.body.operation;
+    if (partnerId === null || typeof operation !== "string") {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+
+    if (operation === "list") {
+      const result = await ctx.runMutation(
+        internal.service.backpack.portalBackpackService.listPartnerVouchers,
+        { partnerId }
+      );
+      return jsonResponse({ ok: true, items: result });
+    }
+
+    const itemId = partnerVoucherItemId(parsed.body);
+    let result:
+      | { ok: boolean; error?: string }
+      | { ok: boolean; error?: string; itemId?: string; title?: string };
+    if (operation === "confirm" && itemId) {
+      result = await ctx.runMutation(
+        internal.service.backpack.portalBackpackService.confirmPartnerVoucherUse,
+        { partnerId, itemId }
+      );
+    } else if (operation === "reject" && itemId) {
+      result = await ctx.runMutation(
+        internal.service.backpack.portalBackpackService.rejectPartnerVoucherUse,
+        { partnerId, itemId }
+      );
+    } else if (operation === "void" && itemId) {
+      result = await ctx.runMutation(
+        internal.service.backpack.portalBackpackService.voidPartnerVoucher,
+        { partnerId, itemId }
+      );
+    } else if (operation === "redeem") {
+      const code = typeof parsed.body.code === "string" ? parsed.body.code : "";
+      result = await ctx.runMutation(
+        internal.service.backpack.portalBackpackService.redeemPartnerVoucherByCode,
+        { partnerId, code }
+      );
+    } else {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    return jsonResponse(result, result.ok ? 200 : 400);
+  }),
+});
+
 http.route({
   path: "/internal/campaign-league/leaderboard",
   method: "POST",
@@ -778,7 +847,7 @@ http.route({
     if (request.headers.get("X-Portal-Bridge-Secret") !== portalGameBridgeSecret()) {
       return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), { status: 401 });
     }
-    const body = await readJsonBody(request);
+    const body = await readMcpJsonBody(request);
     const partnerId = typeof body?.partnerId === "number" ? Math.floor(body.partnerId) : NaN;
     const keys = [
       "freePlaySoloDailyCap", "freePlayMultiDailyCap",
@@ -797,6 +866,87 @@ http.route({
   }),
 });
 
+/**
+ * SSO → Portal: Partner-owned virtual and voucher SKU configuration.
+ * SKU IDs are partner scoped and are never allowed to overwrite shared catalog rows.
+ */
+http.route({
+  path: "/internal/partner-shop-skus",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (request.headers.get("X-Portal-Bridge-Secret") !== portalGameBridgeSecret()) {
+      return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+    }
+    const body = await readMcpJsonBody(request);
+    const partnerId = typeof body?.partnerId === "number" ? Math.floor(body.partnerId) : NaN;
+    const operation = body?.operation;
+    if (!Number.isFinite(partnerId) || partnerId < 0 || typeof operation !== "string") {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    try {
+      if (operation === "list") {
+        const kind = body?.kind === "virtual" || body?.kind === "voucher" ? body.kind : undefined;
+        const skus = await ctx.runQuery(
+          internal.service.shop.partnerShopSkuAdmin.listPartnerShopSkusInternal,
+          { partnerId, ...(kind ? { kind } : {}) }
+        );
+        return jsonResponse({ ok: true, skus });
+      }
+      const skuId = typeof body?.skuId === "string" ? body.skuId : "";
+      if (operation === "setActive") {
+        if (typeof body?.active !== "boolean") return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+        return jsonResponse(await ctx.runMutation(
+          internal.service.shop.partnerShopSkuAdmin.setPartnerShopSkuActiveInternal,
+          { partnerId, skuId, active: body.active }
+        ));
+      }
+      if (operation === "delete") {
+        return jsonResponse(await ctx.runMutation(
+          internal.service.shop.partnerShopSkuAdmin.deletePartnerShopSkuInternal,
+          { partnerId, skuId }
+        ));
+      }
+      if (operation === "upsert" && (body?.kind === "virtual" || body?.kind === "voucher")) {
+        const numberOrUndefined = (value: unknown) =>
+          typeof value === "number" && Number.isFinite(value) ? Math.floor(value) : undefined;
+        const nullableNumber = (value: unknown) =>
+          value === null ? null : numberOrUndefined(value);
+        const result = await ctx.runMutation(
+          internal.service.shop.partnerShopSkuAdmin.upsertPartnerShopSkuInternal,
+          {
+            partnerId,
+            kind: body.kind,
+            skuId,
+            title: typeof body.title === "string" ? body.title : "",
+            ...(typeof body.description === "string" ? { description: body.description } : {}),
+            priceCoins: numberOrUndefined(body.priceCoins) ?? -1,
+            ...(numberOrUndefined(body.grantReplayTokenCount) != null
+              ? { grantReplayTokenCount: numberOrUndefined(body.grantReplayTokenCount) }
+              : {}),
+            ...(nullableNumber(body.weeklyPurchaseLimit) !== undefined
+              ? { weeklyPurchaseLimit: nullableNumber(body.weeklyPurchaseLimit) }
+              : {}),
+            ...(numberOrUndefined(body.sortOrder) != null ? { sortOrder: numberOrUndefined(body.sortOrder) } : {}),
+            ...(typeof body.active === "boolean" ? { active: body.active } : {}),
+            ...(typeof body.voucherRewardText === "string" ? { voucherRewardText: body.voucherRewardText } : {}),
+            ...(nullableNumber(body.voucherValidityDays) !== undefined
+              ? { voucherValidityDays: nullableNumber(body.voucherValidityDays) }
+              : {}),
+            ...(typeof body.listInShop === "boolean" ? { listInShop: body.listInShop } : {}),
+          }
+        );
+        return jsonResponse(result);
+      }
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    } catch (error) {
+      return jsonResponse(
+        { ok: false, error: error instanceof Error ? error.message : "operation_failed" },
+        400
+      );
+    }
+  }),
+});
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -804,7 +954,7 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-async function readJsonBody(request: Request): Promise<Record<string, unknown> | null> {
+async function readMcpJsonBody(request: Request): Promise<Record<string, unknown> | null> {
   try {
     const body = await request.json();
     if (!body || typeof body !== "object") return null;
@@ -826,7 +976,7 @@ http.route({
   path: "/mcp/list-games",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const body = await readJsonBody(request);
+    const body = await readMcpJsonBody(request);
     if (!body) return jsonResponse({ ok: false, error: "bad_json" }, 400);
     try {
       const result = await ctx.runMutation(
@@ -853,7 +1003,7 @@ http.route({
   path: "/mcp/launch-game",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const body = await readJsonBody(request);
+    const body = await readMcpJsonBody(request);
     if (!body) return jsonResponse({ ok: false, error: "bad_json" }, 400);
     const uid = typeof body.uid === "string" ? body.uid : "";
     const templateId = typeof body.templateId === "string" ? body.templateId : "";
@@ -889,7 +1039,7 @@ http.route({
   path: "/mcp/get-play-result",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const body = await readJsonBody(request);
+    const body = await readMcpJsonBody(request);
     if (!body) return jsonResponse({ ok: false, error: "bad_json" }, 400);
     const token = typeof body.token === "string" ? body.token : "";
     if (!token) return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
@@ -917,7 +1067,7 @@ http.route({
   path: "/mcp/report-play-result",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const body = await readJsonBody(request);
+    const body = await readMcpJsonBody(request);
     if (!body) return jsonResponse({ ok: false, error: "bad_json" }, 400);
     const token = typeof body.token === "string" ? body.token : "";
     if (!token) return jsonResponse({ ok: false, error: "invalid_fields" }, 400);

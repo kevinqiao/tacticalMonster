@@ -56,7 +56,9 @@ export default defineSchema({
     weeklyPurchaseLimit: v.optional(v.number()),
     active: v.boolean(),
     sortOrder: v.number(),
-    skuKind: v.optional(v.union(v.literal("virtual"), v.literal("giftcard"))),
+    skuKind: v.optional(
+      v.union(v.literal("virtual"), v.literal("giftcard"), v.literal("voucher"))
+    ),
     region: v.optional(v.string()),
     faceValueUsd: v.optional(v.number()),
     faceValueLocal: v.optional(v.number()),
@@ -69,7 +71,47 @@ export default defineSchema({
     requiresVerifiedContact: v.optional(v.boolean()),
     shopSection: v.optional(v.string()),
     partnerIds: v.optional(v.array(v.number())),
+    /** Voucher fulfillment copy; voucher SKUs without this are still valid. */
+    voucherRewardText: v.optional(v.string()),
+    voucherValidityDays: v.optional(v.number()),
+    /** Voucher listings can be hidden while remaining valid campaign rewards. */
+    listInShop: v.optional(v.boolean()),
   }).index("by_skuId", ["skuId"]),
+
+  /** Player-owned vouchers fulfilled by Portal shop and campaign rewards. */
+  portal_backpack_items: defineTable({
+    uid: v.string(),
+    skuId: v.string(),
+    title: v.string(),
+    rewardText: v.optional(v.string()),
+    code: v.string(),
+    status: v.union(
+      v.literal("owned"),
+      v.literal("pending_use"),
+      v.literal("redeemed"),
+      v.literal("expired"),
+      v.literal("void")
+    ),
+    partnerId: v.optional(v.number()),
+    campaignId: v.optional(v.string()),
+    source: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    useRequestedAt: v.optional(v.number()),
+    redeemedAt: v.optional(v.number()),
+    redeemChannel: v.optional(
+      v.union(
+        v.literal("partner_admin"),
+        v.literal("player_request"),
+        v.literal("store_staff")
+      )
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_uid_createdAt", ["uid", "createdAt"])
+    .index("by_code", ["code"])
+    .index("by_partner_status", ["partnerId", "status"])
+    .index("by_campaignId_uid", ["campaignId", "uid"]),
 
   /** Tango 礼品卡兑换订单（金币扣减后异步履约） */
   portal_giftcard_orders: defineTable({

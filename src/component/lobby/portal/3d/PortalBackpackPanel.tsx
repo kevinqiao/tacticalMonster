@@ -1,18 +1,26 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 
+import type { PortalBackpackItem } from "../service/usePortalManager";
+
 export type PortalBackpackPanelProps = {
   replayTokenCount?: number | null;
+  backpackItems?: PortalBackpackItem[];
   adReplayDailyRemaining?: number | null;
   giftCardOrderCount?: number;
   onOpenGiftCards?: () => void;
+  onRequestUse?: (itemId: string) => Promise<{ ok: boolean; error?: string }>;
+  onCancelUse?: (itemId: string) => Promise<{ ok: boolean; error?: string }>;
 };
 
 export function PortalBackpackPanel({
   replayTokenCount = 0,
+  backpackItems = [],
   adReplayDailyRemaining = null,
   giftCardOrderCount = 0,
   onOpenGiftCards,
+  onRequestUse,
+  onCancelUse,
 }: PortalBackpackPanelProps) {
   const { t } = useTranslation("portal.player");
   const tokens =
@@ -45,21 +53,41 @@ export function PortalBackpackPanel({
         ) : null}
         <li className="portal-backpack-panel__row">
           <span className="portal-backpack-panel__label">
-            {t("lobby.accountMenu.coupons")}
+            {t("lobby.accountMenu.vouchers")}
           </span>
-          <span className="portal-backpack-panel__value portal-backpack-panel__value--empty">
-            {t("lobby.accountMenu.emptyItem")}
-          </span>
-        </li>
-        <li className="portal-backpack-panel__row">
-          <span className="portal-backpack-panel__label">
-            {t("lobby.accountMenu.tickets")}
-          </span>
-          <span className="portal-backpack-panel__value portal-backpack-panel__value--empty">
-            {t("lobby.accountMenu.emptyItem")}
-          </span>
+          <span className="portal-backpack-panel__value">{backpackItems.length}</span>
         </li>
       </ul>
+      <div className="portal-backpack-panel__vouchers">
+        {backpackItems.length === 0 ? (
+          <p className="portal-backpack-panel__empty">{t("lobby.accountMenu.emptyItem")}</p>
+        ) : (
+          backpackItems.map((item) => (
+            <article key={item.itemId} className="portal-backpack-panel__voucher">
+              <div className="portal-backpack-panel__voucher-main">
+                <strong>{item.title}</strong>
+                {item.rewardText ? <span>{item.rewardText}</span> : null}
+                <code>{item.code}</code>
+              </div>
+              <div className="portal-backpack-panel__voucher-actions">
+                <span className={`portal-backpack-panel__status portal-backpack-panel__status--${item.status}`}>
+                  {t(`lobby.accountMenu.voucherStatus.${item.status}`)}
+                </span>
+                {item.status === "owned" && onRequestUse ? (
+                  <button type="button" onClick={() => void onRequestUse(item.itemId)}>
+                    {t("lobby.accountMenu.useVoucher")}
+                  </button>
+                ) : null}
+                {item.status === "pending_use" && onCancelUse ? (
+                  <button type="button" onClick={() => void onCancelUse(item.itemId)}>
+                    {t("lobby.accountMenu.cancelVoucher")}
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))
+        )}
+      </div>
       {onOpenGiftCards ? (
         <button
           type="button"

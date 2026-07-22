@@ -8,6 +8,7 @@ import type {
 import { portalPurchaseErrorMessage } from "../shared/portalErrorMessage";
 import { PortalRegionSelectModal } from "./PortalRegionSelectModal";
 import { groupPortalShopSkus } from "./portalShopLayout";
+import { CASUAL_LOBBY_CURRENCY_ICONS } from "../../casual/assets/casualLobbyIcons";
 
 type PortalShopPanelProps = {
   coins: number;
@@ -51,6 +52,8 @@ export function PortalShopPanel({
   onFeedback,
 }: PortalShopPanelProps) {
   const { t } = useTranslation("portal.player");
+  const coinIcon = CASUAL_LOBBY_CURRENCY_ICONS.coin;
+  const ticketIcon = CASUAL_LOBBY_CURRENCY_ICONS.voucher;
   const [buying, setBuying] = useState<string | null>(null);
   const [inlineNote, setInlineNote] = useState<string | null>(null);
   const [regionModalOpen, setRegionModalOpen] = useState(false);
@@ -162,6 +165,9 @@ export function PortalShopPanel({
             {sku.skuKind === "giftcard" ? (
               <span className="portal-shop-panel__badge">{t("shop.badgeGiftCard")}</span>
             ) : null}
+            {sku.skuKind === "voucher" ? (
+              <span className="portal-shop-panel__badge">{t("shop.badgeVoucher")}</span>
+            ) : null}
           </div>
           {sku.description ? <p className="portal-shop-panel__desc">{sku.description}</p> : null}
           {sku.faceValueDisplay ? (
@@ -171,7 +177,13 @@ export function PortalShopPanel({
           ) : null}
           {sku.grantReplayTokenCount > 0 ? (
             <p className="portal-shop-panel__grant">
+              <img src={ticketIcon} alt="" />
               {t("shop.grantReplay", { count: sku.grantReplayTokenCount })}
+            </p>
+          ) : null}
+          {sku.skuKind === "voucher" && sku.voucherRewardText ? (
+            <p className="portal-shop-panel__grant">
+              {t("shop.voucherReward", { reward: sku.voucherRewardText })}
             </p>
           ) : null}
           {sku.weeklyPurchaseLimit != null ? (
@@ -197,7 +209,7 @@ export function PortalShopPanel({
             ? t("shop.buying")
             : soldOut
               ? t("shop.soldOut")
-              : `🪙 ${sku.priceCoins}`}
+              : <><img src={coinIcon} alt="" />{sku.priceCoins}</>}
         </button>
       </li>
     );
@@ -208,7 +220,7 @@ export function PortalShopPanel({
       <div className="portal-shop-panel__topbar">
         <p className="portal-shop-panel__balance">
           {t("shop.balance")}
-          <span>🪙 {coins.toLocaleString()}</span>
+          <span><img src={coinIcon} alt="" /> {coins.toLocaleString()}</span>
         </p>
         {showOrdersLink ? (
           <button

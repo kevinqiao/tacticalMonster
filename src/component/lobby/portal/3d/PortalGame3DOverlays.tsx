@@ -180,8 +180,11 @@ export function PortalGame3DOverlays({
             </h3>
             <PortalBackpackPanel
               replayTokenCount={portal.replayTokenCount}
+              backpackItems={portal.backpackItems}
               adReplayDailyRemaining={portal.adReplayDailyRemaining}
               giftCardOrderCount={portal.giftCardOrders?.length ?? 0}
+              onRequestUse={portal.requestUseBackpackVoucher}
+              onCancelUse={portal.cancelUseBackpackVoucher}
               onOpenGiftCards={() => {
                 setAccountModalOpen(false);
                 setGiftCardOrdersModalOpen(true);
