@@ -46,7 +46,7 @@ export type CasualPostSettleSummaryOverlayProps = {
 
   replayLabel?: string;
 
-  /** Portal 广告再战 vs 再战令 */
+  /** Portal 广告再战 vs 门票 */
 
   replayMode?: "ad" | "token";
 
@@ -161,7 +161,7 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
 
       ? triathlonSessionReplay
 
-        ? '三局累计总分如下。再战将消耗 1 枚再战令，三局从头重打（同 seed），bot 与同桌不变。'
+        ? '三局累计总分如下。再战将消耗 1 张门票，三局从头重打（同 seed），bot 与同桌不变。'
 
         : '你已提交成绩，以下为本桌全部玩家得分与名次。'
 
@@ -186,8 +186,10 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
 
   let replayBtnText = replayLabel;
 
-  if (!midgameReady || replayBusy) {
-    replayBtnText = replayMode === "ad" || !midgameReady ? "广告加载中…" : "匹配中…";
+  if (replayMode === "ad" && !midgameReady) {
+    replayBtnText = "广告加载中…";
+  } else if (replayBusy) {
+    replayBtnText = "匹配中…";
   }
 
   if (countdown) {
@@ -301,7 +303,7 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
               <button
                 type="button"
                 className="ssc__btn ssc__btn--secondary ssc__btn--replayCompact"
-                disabled={!midgameReady || replayBusy}
+                disabled={(replayMode === "ad" && !midgameReady) || replayBusy}
                 onClick={() => onReplay?.()}
                 title={
                   remaining != null ? `${replayLabel}（今日剩${remaining}次）` : replayLabel

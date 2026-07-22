@@ -12,8 +12,8 @@ import SignInWeb from "../signin/SignInWeb";
 type AuthTab = "web" | "clerk";
 
 /**
- * SSO modal channels:
- * - `auth_channels` → consumer (Clerk / Embed)
+ * SSO modal:
+ * - `playerAuth` → consumer (Clerk when mode allows)
  * - Staff consoles (`/platform`, `/partner/…`) → always Web password UI.
  */
 const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: boolean }> = ({
@@ -24,13 +24,14 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: bool
   const staffCtx = resolveWebSignInFromLocation();
   const staffConsole = isStaffWebSignInContext(staffCtx);
 
-  const consumerChannelIds = partner?.authChannelIds ?? partner?.auth_channels ?? [];
-  const staffChannelIds = partner?.staffAuthChannelIds ?? partner?.staff_auth_channels ?? [];
+  const playerMode = partner?.playerAuth?.mode ?? "clerk";
+  const clerkAllowed = playerMode === "clerk" || playerMode === "embed_then_clerk";
+  const staffWebEnabled = partner?.staffAuth?.mode === "web" || !partner?.staffAuth;
 
   const clerkKeyConfigured = isClerkConfigured();
-  /** Staff consoles always offer Web sign-in (never gate on partner.staff_auth_channels). */
+  /** Staff consoles always offer Web sign-in UI. */
   const hasWeb = staffConsole;
-  const hasClerk = !staffConsole && consumerChannelIds.includes(1) && clerkKeyConfigured;
+  const hasClerk = !staffConsole && clerkAllowed && clerkKeyConfigured;
   const defaultTab: AuthTab = hasWeb ? "web" : "clerk";
   const [tab, setTab] = useState<AuthTab>(defaultTab);
 
@@ -51,7 +52,7 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: bool
     staffConsole &&
     staffCtx.staffGate !== "platform" &&
     partnerResolveReady &&
-    !staffChannelIds.includes(0);
+    !staffWebEnabled;
 
   // Staff: always mount Web form — avoid empty panel with only the floating ×.
   if (staffConsole) {
@@ -67,8 +68,8 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: bool
               textAlign: "center",
             }}
           >
-            当前 Partner PID {partnerPid} 未在 <code>staff_auth_channels</code> 中启用 Web（cid=0）。登录可能被后端拒绝；请配置{" "}
-            <code>[0]</code>。
+            当前 Partner PID {partnerPid} 未启用 <code>staffAuth.mode=web</code>
+            。登录可能被后端拒绝。
           </div>
         ) : null}
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -80,7 +81,7 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: bool
 
   return (
     <div className={portalTheme ? "sso-auth-panel sso-auth-panel--portal" : "sso-auth-panel"}>
-      {clerkKeyConfigured && !consumerChannelIds.includes(1) && partnerResolveReady ? (
+      {clerkKeyConfigured && !clerkAllowed && partnerResolveReady ? (
         <div
           style={{
             padding: "8px 16px",
@@ -90,11 +91,12 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: bool
             textAlign: "center",
           }}
         >
-          当前 Partner PID {partnerPid} 未在 <code>auth_channels</code> 中启用 Clerk（cid=1）。
+          当前 Partner PID {partnerPid} 的 <code>playerAuth.mode</code> 未启用 Clerk（需{" "}
+          <code>clerk</code> 或 <code>embed_then_clerk</code>）。
         </div>
       ) : null}
 
-      {consumerChannelIds.includes(1) && !clerkKeyConfigured ? (
+      {clerkAllowed && !clerkKeyConfigured ? (
         <div
           style={{
             padding: "8px 16px",
@@ -168,7 +170,7 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: bool
               textAlign: "center",
             }}
           >
-            未配置可用的 consumer 登录渠道（auth_channels）。玩家登录请启用 Clerk（cid=1）。
+            未配置可用的玩家登录（playerAuth）。请将 mode 设为 clerk 或 embed_then_clerk。
           </div>
         ) : null}
       </div>

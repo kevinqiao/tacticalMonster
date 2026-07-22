@@ -32,6 +32,15 @@ export function partnerAllowsContext(
 }
 
 export function partnerEmbedMethod(partner: Partner | null | undefined) {
+  const fromPlayer = partner?.playerAuth?.embed?.method;
+  if (
+    fromPlayer === "jwt_local" ||
+    fromPlayer === "crazygames_jwt" ||
+    fromPlayer === "code_exchange" ||
+    fromPlayer === "session_introspect"
+  ) {
+    return fromPlayer;
+  }
   if (!partner?.data) return resolveEmbedMethod(undefined);
   return resolveEmbedMethod(partner.data);
 }

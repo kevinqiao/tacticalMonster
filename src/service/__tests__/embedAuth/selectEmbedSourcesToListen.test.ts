@@ -15,7 +15,7 @@ function portalPartnerCtx(search = "") {
     partnerPid: 100,
     partner: {
       pid: 100,
-      authChannelIds: [2],
+      playerAuth: { mode: "embed" },
       data: { embed: { method: "crazygames_jwt" } },
       capabilities: { portalGames: true, campaignOps: false },
     },
@@ -52,7 +52,7 @@ describe("selectEmbedSourcesToListen (extensible host claim)", () => {
       partnerPid: 1,
       partner: {
         pid: 1,
-        authChannelIds: [2],
+        playerAuth: { mode: "embed" },
         data: { embed: { method: "jwt_local" } },
       },
       partnerResolveReady: true,

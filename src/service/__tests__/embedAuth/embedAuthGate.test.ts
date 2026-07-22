@@ -35,7 +35,7 @@ describe("embedAuthGate", () => {
       staffConsole: false,
       partnerResolveReady: true,
       authReady: true,
-      partner: { pid: 1, authChannelIds: [2] },
+      partner: { pid: 1, playerAuth: { mode: "embed" as const } },
       alreadyAuthed: false,
     };
 
@@ -52,7 +52,7 @@ describe("embedAuthGate", () => {
         staffConsole: true,
         partnerResolveReady: true,
         authReady: true,
-        partner: { pid: 1, authChannelIds: [2] },
+        partner: { pid: 1, playerAuth: { mode: "embed" as const } },
         alreadyAuthed: false,
       })
     ).toBe(false);
@@ -65,9 +65,13 @@ describe("embedAuthGate", () => {
     expect(deferClerkForEmbedGate("skipped")).toBe(false);
   });
 
-  it("reads auth_channels for embed cid", () => {
-    expect(partnerEmbedChannelEnabled({ pid: 1, auth_channels: [1, 2] })).toBe(true);
-    expect(partnerEmbedChannelEnabled({ pid: 1, auth_channels: [1] })).toBe(false);
+  it("reads playerAuth.mode for embed cid", () => {
+    expect(
+      partnerEmbedChannelEnabled({ pid: 1, playerAuth: { mode: "embed_then_clerk" } })
+    ).toBe(true);
+    expect(
+      partnerEmbedChannelEnabled({ pid: 1, playerAuth: { mode: "clerk" } })
+    ).toBe(false);
   });
 });
 

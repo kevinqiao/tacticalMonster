@@ -28,9 +28,14 @@ type Controller = ReturnType<typeof usePortalGame3DController>;
 
 type PortalGame3DOverlaysProps = {
   ctrl: Controller;
+  /** Show Sign Out inside the account modal (first-party only). */
+  showAuthMenuActions?: boolean;
 };
 
-export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
+export function PortalGame3DOverlays({
+  ctrl,
+  showAuthMenuActions = false,
+}: PortalGame3DOverlaysProps) {
   const { t } = useTranslation("portal.player");
   const { partnerPid } = usePartnerManager();
   const { openModal } = useModalManager();
@@ -47,12 +52,11 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
     setGiftCardOrdersModalOpen,
     accountModalOpen,
     setAccountModalOpen,
-    backpackModalOpen,
-    setBackpackModalOpen,
     weeklyCloseModalOpen,
     setWeeklyCloseModalOpen,
     weeklyCloseDisplay,
     showNote,
+    signOut,
     openAssignments,
     openAssignment,
     leaderboardRows,
@@ -149,42 +153,54 @@ export function PortalGame3DOverlays({ ctrl }: PortalGame3DOverlaysProps) {
         title={t("lobby.accountMenu.myAccount")}
         onClose={() => setAccountModalOpen(false)}
       >
-        <PortalAccountPanel
-          uid={ctrl.user?.uid}
-          ssoName={ctrl.user?.name}
-          email={ctrl.userEmail}
-          phone={ctrl.userPhone}
-          verifiedEmail={
-            portal.playerProfile?.verifiedEmail ??
-            portal.shopCatalog?.redemptionProfile?.verifiedEmail
-          }
-          verifiedPhone={
-            portal.playerProfile?.verifiedPhone ??
-            portal.shopCatalog?.redemptionProfile?.verifiedPhone
-          }
-          customDisplayName={portal.playerProfile?.displayName}
-          resolvedDisplayName={portal.playerProfile?.resolvedDisplayName}
-          onSaveDisplayName={portal.updatePortalDisplayName}
-          onSaveContact={portal.syncRedemptionProfile}
-          onFeedback={ctrl.showNote}
-          onSaved={() => setAccountModalOpen(false)}
-        />
-      </PortalCenterModal>
-
-      <PortalCenterModal
-        open={backpackModalOpen}
-        title={t("lobby.accountMenu.backpack")}
-        onClose={() => setBackpackModalOpen(false)}
-      >
-        <PortalBackpackPanel
-          replayTokenCount={portal.replayTokenCount}
-          adReplayDailyRemaining={portal.adReplayDailyRemaining}
-          giftCardOrderCount={portal.giftCardOrders?.length ?? 0}
-          onOpenGiftCards={() => {
-            setBackpackModalOpen(false);
-            setGiftCardOrdersModalOpen(true);
-          }}
-        />
+        <div className="portal-account-shell">
+          <PortalAccountPanel
+            uid={ctrl.user?.uid}
+            ssoName={ctrl.user?.name}
+            email={ctrl.userEmail}
+            phone={ctrl.userPhone}
+            verifiedEmail={
+              portal.playerProfile?.verifiedEmail ??
+              portal.shopCatalog?.redemptionProfile?.verifiedEmail
+            }
+            verifiedPhone={
+              portal.playerProfile?.verifiedPhone ??
+              portal.shopCatalog?.redemptionProfile?.verifiedPhone
+            }
+            customDisplayName={portal.playerProfile?.displayName}
+            resolvedDisplayName={portal.playerProfile?.resolvedDisplayName}
+            onSaveDisplayName={portal.updatePortalDisplayName}
+            onSaveContact={portal.syncRedemptionProfile}
+            onFeedback={ctrl.showNote}
+            onSaved={() => setAccountModalOpen(false)}
+          />
+          <section className="portal-account-shell__section">
+            <h3 className="portal-account-shell__section-title">
+              {t("lobby.accountMenu.backpack")}
+            </h3>
+            <PortalBackpackPanel
+              replayTokenCount={portal.replayTokenCount}
+              adReplayDailyRemaining={portal.adReplayDailyRemaining}
+              giftCardOrderCount={portal.giftCardOrders?.length ?? 0}
+              onOpenGiftCards={() => {
+                setAccountModalOpen(false);
+                setGiftCardOrdersModalOpen(true);
+              }}
+            />
+          </section>
+          {showAuthMenuActions ? (
+            <button
+              type="button"
+              className="portal-account-shell__signout"
+              onClick={() => {
+                setAccountModalOpen(false);
+                signOut();
+              }}
+            >
+              {t("lobby.signOut")}
+            </button>
+          ) : null}
+        </div>
       </PortalCenterModal>
 
       <PortalCenterModal

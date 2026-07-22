@@ -11,11 +11,15 @@ import { dedupeAuthIdentitiesByUid } from "../../dao/authIdentityHelpers";
 import { normalizeWebAccountId } from "../../utils/webIdentity";
 import { provisionWebStaffAccount } from "./ensureStaffIdentity";
 import {
-  sanitizeConsumerAuthChannelIds,
-  sanitizeStaffAuthChannelIds,
-  legacyPartnerChannelPatch,
-} from "../auth/partnerChannelPolicy";
-import { CLERK_AUTH_CHANNEL_CID, WEB_AUTH_CHANNEL_CID } from "../auth/authChannelCatalog";
+  DEFAULT_PLAYER_AUTH,
+  DEFAULT_STAFF_AUTH,
+  playerAuthModeFromConsumerCids,
+  playerAuthValidator,
+  sanitizePlayerAuth,
+  staffAuthValidator,
+  type PartnerAuthRow,
+} from "../auth/partnerAuth";
+import { legacyPartnerChannelPatch } from "../auth/partnerChannelPolicy";
 import {
   validatePartnerSlug,
   type PartnerCapabilities,
@@ -271,21 +275,26 @@ export const bootstrapPartnerStaffAccount = mutation({
   },
 });
 
-/** Ensure default partner row (pid=0) consumer + staff auth channels. */
+/** Ensure default partner row (pid=0) playerAuth / staffAuth. */
 export const bootstrapDefaultPartnerChannels = mutation({
   args: {
     bootstrapSecret: v.string(),
-    authChannelIds: v.array(v.number()),
-    staffAuthChannelIds: v.optional(v.array(v.number())),
+    playerAuth: v.optional(playerAuthValidator),
+    staffAuth: v.optional(staffAuthValidator),
+    /** @deprecated prefer playerAuth */
+    authChannelIds: v.optional(v.array(v.number())),
   },
-  handler: async (ctx, { bootstrapSecret, authChannelIds, staffAuthChannelIds }) => {
-    assertBootstrapSecret(bootstrapSecret);
+  handler: async (ctx, args) => {
+    assertBootstrapSecret(args.bootstrapSecret);
 
-    const consumerIds = sanitizeConsumerAuthChannelIds(authChannelIds);
-    if (consumerIds.length === 0) {
-      throw new Error("auth_channels_required");
-    }
-    const staffIds = sanitizeStaffAuthChannelIds(staffAuthChannelIds ?? [0]);
+    const playerAuth = args.playerAuth
+      ? sanitizePlayerAuth(args.playerAuth)
+      : args.authChannelIds?.length
+        ? sanitizePlayerAuth({
+            mode: playerAuthModeFromConsumerCids(args.authChannelIds),
+          })
+        : DEFAULT_PLAYER_AUTH;
+    const staffAuth = args.staffAuth ?? DEFAULT_STAFF_AUTH;
 
     const existing = await ctx.db
       .query("partner")
@@ -293,16 +302,13 @@ export const bootstrapDefaultPartnerChannels = mutation({
       .unique();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        auth_channels: consumerIds,
-        staff_auth_channels: staffIds,
-      });
+      await ctx.db.patch(existing._id, { playerAuth, staffAuth });
       return {
         ok: true as const,
         pid: 0,
         created: false as const,
-        authChannelIds: consumerIds,
-        staffAuthChannelIds: staffIds,
+        playerAuth,
+        staffAuth,
       };
     }
 
@@ -311,34 +317,31 @@ export const bootstrapDefaultPartnerChannels = mutation({
       pid: 0,
       name: "Default Partner",
       host: "https://default.com",
-      auth_channels: consumerIds,
-      staff_auth_channels: staffIds,
+      playerAuth,
+      staffAuth,
       capabilities: defaultCaps,
     });
     return {
       ok: true as const,
       pid: 0,
       created: true as const,
-      authChannelIds: consumerIds,
-      staffAuthChannelIds: staffIds,
+      playerAuth,
+      staffAuth,
     };
   },
 });
 
-/** Split legacy `auth_channels: [0,1]` into consumer + staff columns for all partners. */
+/** Populate `playerAuth` / `staffAuth` on all partners from legacy `auth_channels`. */
 export const migrateLegacyPartnerAuthChannels = mutation({
   args: { bootstrapSecret: v.string() },
   handler: async (ctx, { bootstrapSecret }) => {
     assertBootstrapSecret(bootstrapSecret);
     const rows = await ctx.db.query("partner").collect();
-    const migrated: Array<{ pid: number; auth_channels: number[]; staff_auth_channels: number[] }> =
-      [];
+    const migrated: Array<{ pid: number; playerAuth: unknown; staffAuth: unknown }> = [];
 
     for (const row of rows) {
-      const patch = legacyPartnerChannelPatch({
-        auth_channels: row.auth_channels,
-        staff_auth_channels: row.staff_auth_channels,
-      });
+      const legacy = row as typeof row & PartnerAuthRow;
+      const patch = legacyPartnerChannelPatch(legacy);
       if (!patch) continue;
       await ctx.db.patch(row._id, patch);
       migrated.push({ pid: row.pid, ...patch });
@@ -404,8 +407,8 @@ export const ensureCampaignOpsDevPartner = mutation({
       await ctx.db.insert("partner", {
         pid,
         name: partnerName,
-        auth_channels: [CLERK_AUTH_CHANNEL_CID],
-        staff_auth_channels: [WEB_AUTH_CHANNEL_CID],
+        playerAuth: DEFAULT_PLAYER_AUTH,
+        staffAuth: DEFAULT_STAFF_AUTH,
         capabilities,
         slug: partnerSlug,
         portal_key: portalKey,

@@ -6,7 +6,7 @@ import { authedMutation, authedQuery } from "../../custom/session";
 import { getPartnerByPid, nextPartnerId } from "./partnerStaff";
 import { isPlatformOperator } from "./platformOperator";
 import { provisionWebStaffAccount } from "./ensureStaffIdentity";
-import { CLERK_AUTH_CHANNEL_CID, WEB_AUTH_CHANNEL_CID } from "../auth/authChannelCatalog";
+import { DEFAULT_PLAYER_AUTH, DEFAULT_STAFF_AUTH } from "../auth/partnerAuth";
 import {
   isFirstPartyPartnerId,
   PLATFORM_NAMESPACE_PARTNER_ID,
@@ -120,8 +120,8 @@ export const createPartner = authedMutation({
       pid,
       name: args.name.trim(),
       host: args.host?.trim() || undefined,
-      auth_channels: [CLERK_AUTH_CHANNEL_CID],
-      staff_auth_channels: [WEB_AUTH_CHANNEL_CID],
+      playerAuth: DEFAULT_PLAYER_AUTH,
+      staffAuth: DEFAULT_STAFF_AUTH,
       capabilities,
       ...(slug ? { slug } : {}),
     });
@@ -386,6 +386,12 @@ export const getPartnerPortalConfig = authedQuery({
       adReplayDailyCap: adReplayOverride,
       adReplayDailyCapEffective: effectiveAdReplayDailyCap(data),
       adReplayDailyCapDefault: DEFAULT_AD_REPLAY_DAILY_CAP,
+      freePlaySoloDailyCap: data?.freePlaySoloDailyCap ?? null,
+      freePlayMultiDailyCap: data?.freePlayMultiDailyCap ?? null,
+      ticketEntrySoloPriceTickets: data?.ticketEntrySoloPriceTickets ?? null,
+      ticketEntrySoloDailyCap: data?.ticketEntrySoloDailyCap ?? null,
+      ticketEntryMultiPriceTickets: data?.ticketEntryMultiPriceTickets ?? null,
+      ticketEntryMultiDailyCap: data?.ticketEntryMultiDailyCap ?? null,
     };
   },
 });
@@ -404,6 +410,12 @@ export const updatePartnerPortalConfig = authedMutation({
     portalKey: v.optional(v.string()),
     games: v.array(v.string()),
     adReplayDailyCap: v.optional(v.union(v.number(), v.null())),
+    freePlaySoloDailyCap: v.optional(v.union(v.number(), v.null())),
+    freePlayMultiDailyCap: v.optional(v.union(v.number(), v.null())),
+    ticketEntrySoloPriceTickets: v.optional(v.union(v.number(), v.null())),
+    ticketEntrySoloDailyCap: v.optional(v.union(v.number(), v.null())),
+    ticketEntryMultiPriceTickets: v.optional(v.union(v.number(), v.null())),
+    ticketEntryMultiDailyCap: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     await requirePlatformStaff(ctx, "admin");
@@ -417,8 +429,8 @@ export const updatePartnerPortalConfig = authedMutation({
       await ctx.db.insert("partner", {
         pid: PLATFORM_NAMESPACE_PARTNER_ID,
         name: "Default Partner",
-        auth_channels: [CLERK_AUTH_CHANNEL_CID],
-        staff_auth_channels: [WEB_AUTH_CHANNEL_CID],
+        playerAuth: DEFAULT_PLAYER_AUTH,
+        staffAuth: DEFAULT_STAFF_AUTH,
         capabilities: bootstrapCaps,
       });
       partner = await getPartnerByPid(ctx, args.partnerId);
@@ -439,6 +451,19 @@ export const updatePartnerPortalConfig = authedMutation({
     );
     const capInput = sanitizeAdReplayDailyCapInput(args.adReplayDailyCap);
     const nextData = applyAdReplayDailyCapToPartnerData(prevData, capInput);
+    for (const key of [
+      "freePlaySoloDailyCap", "freePlayMultiDailyCap",
+      "ticketEntrySoloPriceTickets", "ticketEntrySoloDailyCap",
+      "ticketEntryMultiPriceTickets", "ticketEntryMultiDailyCap",
+    ] as const) {
+      const value = args[key];
+      if (value === undefined) continue;
+      const max = key.includes("Price") ? 100 : 100;
+      if (value !== null && (!Number.isInteger(value) || value < 0 || value > max ||
+        (key.includes("Price") && value < 1))) throw new Error("play_entry_setting_invalid");
+      if (value === null) delete nextData[key];
+      else nextData[key] = value;
+    }
     // Activating portal config implies portalGames capability.
     const capabilities: PartnerCapabilities = {
       ...readPartnerCapabilities(partner),
@@ -465,6 +490,19 @@ export const updatePartnerPortalConfig = authedMutation({
       0,
       internal.service.bridge.portalAdReplayCapPush.pushPartnerAdReplayCapToPortal,
       { partnerId: args.partnerId, adReplayDailyCap: effectiveCap }
+    );
+    await ctx.scheduler.runAfter(
+      0,
+      internal.service.bridge.portalAdReplayCapPush.pushPartnerPlayEntrySettingsToPortal,
+      {
+        partnerId: args.partnerId,
+        ...(typeof nextData.freePlaySoloDailyCap === "number" ? { freePlaySoloDailyCap: nextData.freePlaySoloDailyCap } : {}),
+        ...(typeof nextData.freePlayMultiDailyCap === "number" ? { freePlayMultiDailyCap: nextData.freePlayMultiDailyCap } : {}),
+        ...(typeof nextData.ticketEntrySoloPriceTickets === "number" ? { ticketEntrySoloPriceTickets: nextData.ticketEntrySoloPriceTickets } : {}),
+        ...(typeof nextData.ticketEntrySoloDailyCap === "number" ? { ticketEntrySoloDailyCap: nextData.ticketEntrySoloDailyCap } : {}),
+        ...(typeof nextData.ticketEntryMultiPriceTickets === "number" ? { ticketEntryMultiPriceTickets: nextData.ticketEntryMultiPriceTickets } : {}),
+        ...(typeof nextData.ticketEntryMultiDailyCap === "number" ? { ticketEntryMultiDailyCap: nextData.ticketEntryMultiDailyCap } : {}),
+      }
     );
 
     return {

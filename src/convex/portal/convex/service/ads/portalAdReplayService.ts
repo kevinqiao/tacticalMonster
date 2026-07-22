@@ -16,7 +16,10 @@ import {
   getReplayWindowEndsAt,
   isReplayableFinished,
 } from "../tournament/shared/casualPlayerMatchStatus";
-import { isNearMissTableSummary } from "../tournament/replay/casualReplayTokens";
+import {
+  isNearMissTableSummary,
+  readPortalTicketBalance,
+} from "../tournament/replay/casualReplayTokens";
 import type { CasualAsyncTableSummary } from "../tournament/settle/casualRunSettlementFill";
 import { authorizeCasualRunReplayCore } from "../tournament/replay/casualRunReplay";
 import type { PortalTournamentDefinition } from "../../data/portalTournamentConfigs";
@@ -309,7 +312,7 @@ export async function buildPortalAdReplayOffer(
     adReplayDailyRemaining: 0,
   };
 
-  if (!PORTAL_AD_REPLAY_ENABLED || !isPortalAdReplayTemplate(pm.templateId)) {
+  if (!isPortalAdReplayTemplate(pm.templateId)) {
     return empty;
   }
   if (!canUseReplayForTemplate(pm.templateId)) {
@@ -335,8 +338,8 @@ export async function buildPortalAdReplayOffer(
   const sourceReplayEpoch = resolveSourceReplayEpoch(pg, freshPm);
 
   const dayKey = dailyPeriodKey(now);
-  const cap = await resolveAdReplayDailyCap(ctx, uid);
-  const usedToday = await readAdReplayUsedToday(ctx, uid, dayKey);
+  const cap = PORTAL_AD_REPLAY_ENABLED ? await resolveAdReplayDailyCap(ctx, uid) : 0;
+  const usedToday = PORTAL_AD_REPLAY_ENABLED ? await readAdReplayUsedToday(ctx, uid, dayKey) : 0;
   const adReplayDailyRemaining = Math.max(0, cap - usedToday);
   const alreadyClaimed = replayOffered
     ? await hasAdReplayClaimForReplayAttempt(ctx, uid, matchGameId, sourceReplayEpoch)
@@ -346,17 +349,17 @@ export async function buildPortalAdReplayOffer(
     !CASUAL_REPLAY_REQUIRE_NEAR_MISS ||
     (tableSummary ? isNearMissTableSummary(tableSummary) : false);
 
-  const canReplay =
-    replayOffered &&
-    adReplayDailyRemaining > 0 &&
-    !alreadyClaimed &&
-    nearMissOk;
+  const baseEligible = replayOffered && nearMissOk;
+  const adAvailable =
+    baseEligible && adReplayDailyRemaining > 0 && !alreadyClaimed;
+  const replayTokenCount = await readPortalTicketBalance(ctx, uid);
+  const ticketAvailable = baseEligible && replayTokenCount > 0;
 
   return {
     replayOffered,
-    replayMode: "ad",
-    replayTokenCount: 0,
-    canReplay,
+    replayMode: adAvailable ? "ad" : "token",
+    replayTokenCount,
+    canReplay: adAvailable || ticketAvailable,
     adReplayDailyRemaining,
     ...(replayWindowEndsAt != null ? { replayWindowEndsAt } : {}),
   };

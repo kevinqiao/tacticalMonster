@@ -7,13 +7,14 @@ type GrantPortalRewardResult =
   | { ok: true }
   | { ok: false; error: "no_player" | "invalid_amount" };
 
-/** Portal 金币/钻发放（写入 `portal_players` + `portal_coin_ledger`）。 */
+/** Portal 金币/钻/门票发放（写入 `portal_players` + `portal_coin_ledger`）。 */
 export const grantCasualReward = internalMutation({
   args: {
     uid: v.string(),
     kind: v.union(
       v.literal("coins"),
       v.literal("gems"),
+      v.literal("tickets"),
       v.literal("seasonVoucher")
     ),
     amount: v.number(),
@@ -35,13 +36,18 @@ export const grantCasualReward = internalMutation({
 
     const now = Date.now();
     let balanceAfter = 0;
-    const patch: { coins?: number; gems?: number; updatedAt: number } = { updatedAt: now };
+    const patch: { coins?: number; gems?: number; tickets?: number; updatedAt: number } = {
+      updatedAt: now,
+    };
     if (kind === "coins") {
       balanceAfter = (row.coins ?? 0) + delta;
       patch.coins = balanceAfter;
-    } else {
+    } else if (kind === "gems") {
       balanceAfter = (row.gems ?? 0) + delta;
       patch.gems = balanceAfter;
+    } else {
+      balanceAfter = (row.tickets ?? 0) + delta;
+      patch.tickets = balanceAfter;
     }
     await ctx.db.patch(row._id, patch);
     await ctx.db.insert("portal_coin_ledger", {
@@ -52,6 +58,36 @@ export const grantCasualReward = internalMutation({
       reason: reason ?? kind,
       gameType,
       sourceWeekKey,
+      createdAt: now,
+    });
+    return { ok: true as const };
+  },
+});
+
+/** Named ticket grant entry point for Portal shop and operational tooling. */
+export const grantPortalTickets = internalMutation({
+  args: {
+    uid: v.string(),
+    amount: v.number(),
+    reason: v.optional(v.string()),
+    gameType: v.optional(v.string()),
+  },
+  handler: async (ctx, { uid, amount, reason, gameType }): Promise<GrantPortalRewardResult> => {
+    const row = await ctx.runQuery(internal.dao.portalPlayerDao.findByUid, { uid });
+    if (!row) return { ok: false as const, error: "no_player" };
+    const delta = Math.max(0, Math.floor(amount));
+    if (delta === 0) return { ok: true as const };
+
+    const now = Date.now();
+    const balanceAfter = Math.max(0, Math.floor(row.tickets ?? 0)) + delta;
+    await ctx.db.patch(row._id, { tickets: balanceAfter, updatedAt: now });
+    await ctx.db.insert("portal_coin_ledger", {
+      uid,
+      kind: "tickets",
+      delta,
+      balanceAfter,
+      reason: reason ?? "tickets",
+      gameType,
       createdAt: now,
     });
     return { ok: true as const };
@@ -119,6 +155,42 @@ export const refundPortalCoins = internalMutation({
       delta: refund,
       balanceAfter,
       reason: reason ?? "refund",
+      gameType,
+      createdAt: now,
+    });
+    return { ok: true as const, balanceAfter };
+  },
+});
+
+type SpendPortalTicketsResult =
+  | { ok: true; balanceAfter: number }
+  | { ok: false; error: "no_player" | "insufficient_tickets" };
+
+/** Deduct replay tickets atomically and record the currency ledger entry. */
+export const spendPortalTickets = internalMutation({
+  args: {
+    uid: v.string(),
+    amount: v.number(),
+    reason: v.optional(v.string()),
+    gameType: v.optional(v.string()),
+  },
+  handler: async (ctx, { uid, amount, reason, gameType }): Promise<SpendPortalTicketsResult> => {
+    const row = await ctx.runQuery(internal.dao.portalPlayerDao.findByUid, { uid });
+    if (!row) return { ok: false as const, error: "no_player" };
+    const cost = Math.max(0, Math.floor(amount));
+    const balance = Math.max(0, Math.floor(row.tickets ?? 0));
+    if (cost > balance) return { ok: false as const, error: "insufficient_tickets" };
+    if (cost === 0) return { ok: true as const, balanceAfter: balance };
+
+    const now = Date.now();
+    const balanceAfter = balance - cost;
+    await ctx.db.patch(row._id, { tickets: balanceAfter, updatedAt: now });
+    await ctx.db.insert("portal_coin_ledger", {
+      uid,
+      kind: "tickets",
+      delta: -cost,
+      balanceAfter,
+      reason: reason ?? "ticket_replay",
       gameType,
       createdAt: now,
     });

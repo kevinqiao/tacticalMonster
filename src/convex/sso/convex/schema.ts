@@ -14,13 +14,49 @@ export default defineSchema({
 
         host: v.optional(v.string()),
 
-        auth_channels: v.array(v.number()),
+        /**
+         * Player login SoT (replaces auth_channels).
+         * mode: clerk | embed | embed_then_clerk; embed.method when mode uses embed.
+         */
+        playerAuth: v.optional(
+          v.object({
+            mode: v.union(
+              v.literal("clerk"),
+              v.literal("embed"),
+              v.literal("embed_then_clerk")
+            ),
+            embed: v.optional(
+              v.object({
+                method: v.union(
+                  v.literal("jwt_local"),
+                  v.literal("crazygames_jwt"),
+                  v.literal("code_exchange"),
+                  v.literal("session_introspect")
+                ),
+              })
+            ),
+          })
+        ),
 
-        /** Platform / Partner admin Web password (cid=0). Consumer uses `auth_channels`. */
+        /** Staff console login SoT (replaces staff_auth_channels). */
+        staffAuth: v.optional(
+          v.object({
+            mode: v.literal("web"),
+          })
+        ),
+
+        /**
+         * @deprecated Legacy consumer SSO channels (Clerk / Embed). Superseded by `playerAuth`.
+         * Kept optional so already-migrated deployments and in-flight migrations don't break.
+         */
+        auth_channels: v.optional(v.array(v.number())),
+
+        /** @deprecated Legacy staff Web channel (cid=0). Superseded by `staffAuth`. */
         staff_auth_channels: v.optional(v.array(v.number())),
 
         /**
-         * Bag for runtime config: embed/JWT, branding, allowedOrigins, defaultLandingPath.
+         * Bag for runtime config: embed JWT secret, branding, allowedOrigins, defaultLandingPath.
+         * Player login mode lives on `playerAuth` (not here).
          * Product gates (portal/campaign) live only on `capabilities`.
          */
         data: v.optional(v.any()),

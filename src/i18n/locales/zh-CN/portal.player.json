@@ -28,6 +28,8 @@
       "playsToday": "今日已挑战 {{playsToday}}/{{maxPlaysPerDay}}"
     },
     "play": "开始",
+    "playWithTickets": "门票×{{price}}",
+    "playWithTicketsSub": "今日剩余 {{remaining}}",
     "continue": "继续",
     "continueInProgress": "进行中的游戏",
     "joining": "加入中…",
@@ -49,7 +51,7 @@
     "accountMenu": {
       "myAccount": "我的账户",
       "backpack": "我的背包",
-      "openAria": "账户菜单",
+      "openAria": "我的账户",
       "nickname": "昵称",
       "email": "邮箱",
       "phone": "手机",
@@ -67,7 +69,7 @@
         "noAuth": "请先登录后再编辑账户。",
         "saveFailed": "保存失败，请重试。"
       },
-      "replayTokens": "再战令",
+      "replayTokens": "门票",
       "adReplayRemaining": "今日广告再战剩余",
       "coupons": "优惠券",
       "tickets": "入场券",
@@ -148,7 +150,7 @@
     },
     "empty": "暂无商品",
     "faceValue": "面值 {{value}}",
-    "grantReplay": "获得再战令 ×{{count}}",
+    "grantReplay": "获得门票 ×{{count}}",
     "weeklyRemaining": "本周剩余 {{remaining}} / {{limit}}",
     "buying": "兑换中…",
     "soldOut": "已售罄",
@@ -157,11 +159,11 @@
   },
   "shopSkus": {
     "portal_shop_replay_3": {
-      "title": "再战令 ×3",
+      "title": "门票 ×3",
       "description": "单局结算后可再战一次，适用于支持的挑战模式。"
     },
     "portal_shop_replay_10": {
-      "title": "再战令 ×10",
+      "title": "门票 ×10",
       "description": "超值再战包，适合高频竞技玩家。"
     },
     "gc_amazon_5_us": {

@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { portalGameBridgeSecret } from "./service/bridge/casualGameBridgeSecret";
 import {
@@ -530,13 +530,8 @@ http.route({
     const mutationArgs: {
       uid: string;
       matchGameId: string;
-      replayTokenId?: import("./_generated/dataModel").Id<"casual_replay_tokens">;
       adReplayClaimId?: import("./_generated/dataModel").Id<"portal_ad_replay_claims">;
     } = { uid, matchGameId };
-    if (typeof b.replayTokenId === "string" && b.replayTokenId.length > 0) {
-      mutationArgs.replayTokenId =
-        b.replayTokenId as import("./_generated/dataModel").Id<"casual_replay_tokens">;
-    }
     if (typeof b.adReplayClaimId === "string" && b.adReplayClaimId.length > 0) {
       mutationArgs.adReplayClaimId =
         b.adReplayClaimId as import("./_generated/dataModel").Id<"portal_ad_replay_claims">;
@@ -772,6 +767,182 @@ http.route({
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
+  }),
+});
+
+/** SSO → Portal: partner free-play and ticket-entry ladder overrides. */
+http.route({
+  path: "/internal/upsert-partner-play-entry-settings",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (request.headers.get("X-Portal-Bridge-Secret") !== portalGameBridgeSecret()) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), { status: 401 });
+    }
+    const body = await readJsonBody(request);
+    const partnerId = typeof body?.partnerId === "number" ? Math.floor(body.partnerId) : NaN;
+    const keys = [
+      "freePlaySoloDailyCap", "freePlayMultiDailyCap",
+      "ticketEntrySoloPriceTickets", "ticketEntrySoloDailyCap",
+      "ticketEntryMultiPriceTickets", "ticketEntryMultiDailyCap",
+    ] as const;
+    if (!Number.isFinite(partnerId) || partnerId < 0 ||
+      keys.some((key) => body?.[key] != null && (typeof body[key] !== "number" || !Number.isFinite(body[key] as number)))) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    const result = await ctx.runMutation(
+      internal.service.ads.portalTicketEntryService.upsertPartnerPlayEntrySettingsInternal,
+      { partnerId, ...Object.fromEntries(keys.filter((key) => body?.[key] != null).map((key) => [key, Math.floor(body![key] as number)])) }
+    );
+    return jsonResponse(result);
+  }),
+});
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+async function readJsonBody(request: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== "object") return null;
+    return body as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function bridgeSecretFrom(request: Request, body: Record<string, unknown>): string {
+  return (
+    request.headers.get("X-Portal-Bridge-Secret") ??
+    (typeof body.bridgeSecret === "string" ? body.bridgeSecret : "")
+  );
+}
+
+/** Agent/MCP: list joinable portal casual templates. */
+http.route({
+  path: "/mcp/list-games",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await readJsonBody(request);
+    if (!body) return jsonResponse({ ok: false, error: "bad_json" }, 400);
+    try {
+      const result = await ctx.runMutation(
+        api.service.launch.portalLaunchMutations.listLaunchGames,
+        {
+          bridgeSecret: bridgeSecretFrom(request, body),
+          ...(typeof body.gameType === "string" ? { gameType: body.gameType } : {}),
+          ...(typeof body.maxPlayers === "number" ? { maxPlayers: body.maxPlayers } : {}),
+        }
+      );
+      return jsonResponse(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "list_games_failed";
+      return jsonResponse(
+        { ok: false, error: message },
+        message === "unauthorized" ? 401 : 400
+      );
+    }
+  }),
+});
+
+/** Agent/MCP: create launch token (+ optional solo auto-join). */
+http.route({
+  path: "/mcp/launch-game",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await readJsonBody(request);
+    if (!body) return jsonResponse({ ok: false, error: "bad_json" }, 400);
+    const uid = typeof body.uid === "string" ? body.uid : "";
+    const templateId = typeof body.templateId === "string" ? body.templateId : "";
+    if (!uid || !templateId) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    try {
+      const result = await ctx.runAction(
+        internal.service.launch.portalLaunchActions.launchGameForAgent,
+        {
+          bridgeSecret: bridgeSecretFrom(request, body),
+          uid,
+          templateId,
+          ...(typeof body.surface === "string" ? { surface: body.surface } : {}),
+          ...(typeof body.partnerId === "number" ? { partnerId: body.partnerId } : {}),
+          ...(typeof body.webOrigin === "string" ? { webOrigin: body.webOrigin } : {}),
+          ...(typeof body.autoJoin === "boolean" ? { autoJoin: body.autoJoin } : {}),
+        }
+      );
+      return jsonResponse(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "launch_failed";
+      return jsonResponse(
+        { ok: false, error: message },
+        message === "unauthorized" ? 401 : 400
+      );
+    }
+  }),
+});
+
+/** Agent/MCP: read play result for a launch token. */
+http.route({
+  path: "/mcp/get-play-result",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await readJsonBody(request);
+    if (!body) return jsonResponse({ ok: false, error: "bad_json" }, 400);
+    const token = typeof body.token === "string" ? body.token : "";
+    if (!token) return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    try {
+      const result = await ctx.runMutation(
+        api.service.launch.portalLaunchMutations.getPlayResult,
+        {
+          bridgeSecret: bridgeSecretFrom(request, body),
+          token,
+        }
+      );
+      return jsonResponse(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "get_play_result_failed";
+      return jsonResponse(
+        { ok: false, error: message },
+        message === "unauthorized" ? 401 : 400
+      );
+    }
+  }),
+});
+
+/** Agent/MCP: report play result. */
+http.route({
+  path: "/mcp/report-play-result",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await readJsonBody(request);
+    if (!body) return jsonResponse({ ok: false, error: "bad_json" }, 400);
+    const token = typeof body.token === "string" ? body.token : "";
+    if (!token) return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    try {
+      const result = await ctx.runMutation(
+        api.service.launch.portalLaunchMutations.reportPlayResult,
+        {
+          bridgeSecret: bridgeSecretFrom(request, body),
+          token,
+          ...(typeof body.score === "number" ? { score: body.score } : {}),
+          ...(typeof body.result === "string" ? { result: body.result } : {}),
+          ...(typeof body.durationSec === "number"
+            ? { durationSec: body.durationSec }
+            : {}),
+          ...(body.payload !== undefined ? { payload: body.payload } : {}),
+        }
+      );
+      return jsonResponse(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "report_play_result_failed";
+      return jsonResponse(
+        { ok: false, error: message },
+        message === "unauthorized" ? 401 : 400
+      );
+    }
   }),
 });
 

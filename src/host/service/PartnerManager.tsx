@@ -22,14 +22,19 @@ export interface Partner {
     /** Enabled game types from partnerGameRegistry (portal + campaign scope). */
     games?: string[];
     data?: Record<string, unknown>;
-    /** Consumer channel ids (DB `auth_channels`), e.g. `[1]`. */
-    auth_channels?: number[];
-    /** Staff channel ids (DB `staff_auth_channels`), e.g. `[0]`. */
-    staff_auth_channels?: number[];
-    authChannelIds?: number[];
-    staffAuthChannelIds?: number[];
-    authChannelDefs?: { cid: number; provider: string }[];
-    staffAuthChannelDefs?: { cid: number; provider: string }[];
+    /** Player login SoT. */
+    playerAuth?: {
+      mode: "clerk" | "embed" | "embed_then_clerk";
+      embed?: {
+        method:
+          | "jwt_local"
+          | "crazygames_jwt"
+          | "code_exchange"
+          | "session_introspect";
+      };
+    };
+    /** Staff console login SoT. */
+    staffAuth?: { mode: "web" };
 }
 
 interface IPartnerContext {

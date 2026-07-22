@@ -36,7 +36,7 @@ const PartnerAdminPartnerNav: React.FC<PartnerAdminPartnerNavProps> = ({
       className="merchant-link-btn"
       onClick={() => onSectionClick("auth", partnerId)}
     >
-      登录渠道
+      登录配置
     </button>
     <button
       type="button"

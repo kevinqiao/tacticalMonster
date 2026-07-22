@@ -42,7 +42,7 @@ export function resolveWebSignInFromLocation(
   return { staffGate: "none" };
 }
 
-/** Staff consoles: Platform / Partner / Merchant admin (`staff_auth_channels` Web, no Clerk). */
+/** Staff consoles: Platform / Partner / Merchant admin (`staffAuth.mode=web`, no Clerk). */
 export function isStaffWebSignInContext(
   ctx: WebSignInLocationContext = resolveWebSignInFromLocation()
 ): boolean {

@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 
 import { mutation } from "../../_generated/server";
-import { EMBED_AUTH_CHANNEL_CID } from "../embed/embedAuthConstants";
 import type { PartnerCapabilities } from "./partnerCapabilities";
 import {
   PARTNER_GAME_TYPES,
@@ -92,8 +91,11 @@ export const bootstrapDevPartnerEmbed = mutation({
       .withIndex("by_pid", (q) => q.eq("pid", pid))
       .unique();
 
-    const authChannelIds = [EMBED_AUTH_CHANNEL_CID];
-    const staffAuthChannelIds = [0];
+    const playerAuth = {
+      mode: "embed" as const,
+      embed: { method: embedMethod },
+    };
+    const staffAuth = { mode: "web" as const };
     const name = args.name ?? "Dev Partner Embed";
     const host = args.host ?? "http://localhost:3000";
 
@@ -115,8 +117,8 @@ export const bootstrapDevPartnerEmbed = mutation({
       await ctx.db.patch(existing._id, {
         name: args.name ?? existing.name ?? name,
         host: args.host ?? existing.host ?? host,
-        auth_channels: authChannelIds,
-        staff_auth_channels: staffAuthChannelIds,
+        playerAuth,
+        staffAuth,
         capabilities,
         data: merged,
         ...portalFields,
@@ -147,8 +149,8 @@ export const bootstrapDevPartnerEmbed = mutation({
       pid,
       name,
       host,
-      auth_channels: authChannelIds,
-      staff_auth_channels: staffAuthChannelIds,
+      playerAuth,
+      staffAuth,
       capabilities,
       data: insertData,
       ...portalFields,

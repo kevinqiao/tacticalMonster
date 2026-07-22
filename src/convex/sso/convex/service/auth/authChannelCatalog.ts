@@ -6,7 +6,10 @@ export type AuthChannelDef = {
 export const WEB_AUTH_CHANNEL_CID = 0;
 export const CLERK_AUTH_CHANNEL_CID = 1;
 export const EMBED_AUTH_CHANNEL_CID = 2;
-/** Code-defined auth channel catalog. Partner enables consumer channels via `auth_channels`, staff Web via `staff_auth_channels`. */
+/**
+ * Code-defined auth channel catalog (identity cids for UID routing).
+ * Partner enablement SoT is `playerAuth` / `staffAuth`, not this list.
+ */
 export const AUTH_CHANNEL_CATALOG: AuthChannelDef[] = [
   { cid: WEB_AUTH_CHANNEL_CID, provider: "web", label: "Web (accountId / email)" },
   { cid: EMBED_AUTH_CHANNEL_CID, provider: "embed", label: "Partner WebView embed" },

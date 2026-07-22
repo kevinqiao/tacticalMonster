@@ -31,7 +31,7 @@ export function partnerAdminSuccessMessage(key: string): string {
   const map: Record<string, string> = {
     partnerCreated: "Partner created.",
     profileSaved: "Profile saved.",
-    authChannelsSaved: "Auth channels updated.",
+    authChannelsSaved: "登录配置已保存。",
     memberAdded: "Team member added.",
     memberUpdated: "Team member updated.",
     memberRemoved: "Team member removed.",

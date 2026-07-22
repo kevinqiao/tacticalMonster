@@ -31,6 +31,7 @@ export default function PortalGame3DPreviewPage({
           projectedCoins: 80,
         }}
         coinBalance={1240}
+        ticketBalance={3}
         weekEndsAt={Date.now() + 3 * 86400000}
         pageActive={visible > 0}
         onJoin={() => {}}
@@ -39,9 +40,7 @@ export default function PortalGame3DPreviewPage({
         onOpenFullHistory={() => {}}
         onOpenShop={() => {}}
         onSignIn={() => {}}
-        onSignOut={() => {}}
         onOpenAccount={() => {}}
-        onOpenBackpack={() => {}}
         showAuthButton
       />
     </PortalGame3DShadowHost>

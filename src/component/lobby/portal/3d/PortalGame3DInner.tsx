@@ -51,6 +51,8 @@ export interface PortalGame3DInnerProps {
   tier?: Portal3DTierInfo;
   /** 金币余额；null/undefined 时隐藏顶栏金币（未登录不传） */
   coinBalance?: number | null;
+  /** 门票余额；null/undefined 时隐藏顶栏门票（未登录不传） */
+  ticketBalance?: number | null;
   joining?: "solo" | "multi" | null;
   soloJoinBlocked?: boolean;
   multiJoinBlocked?: boolean;
@@ -68,6 +70,12 @@ export interface PortalGame3DInnerProps {
   soloDailyExhausted?: boolean;
   /** 多人今日次数已用尽 */
   multiDailyExhausted?: boolean;
+  soloTicketEntryAvailable?: boolean;
+  multiTicketEntryAvailable?: boolean;
+  soloTicketEntryPrice?: number;
+  multiTicketEntryPrice?: number;
+  soloTicketEntryRemaining?: number;
+  multiTicketEntryRemaining?: number;
   queueWaiting?: boolean;
   weekEndsAt?: number | null;
   bgUrl?: string;
@@ -82,16 +90,13 @@ export interface PortalGame3DInnerProps {
   onOpenShop?: () => void;
   /** Hide shop entry when catalog has no visible SKUs for this partner. Default true. */
   showShop?: boolean;
-  onSignOut?: () => void;
   onSignIn?: () => void;
   /** Override account chrome visibility (preview). */
   showAuthButton?: boolean;
-  /** Override Sign In / Sign Out menu items (embed/partner should be false). */
+  /** Override Sign In (embed/partner should be false). */
   showAuthMenuActions?: boolean;
-  /** Open My Account panel */
+  /** Open My Account panel (authed avatar click). */
   onOpenAccount?: () => void;
-  /** Open backpack panel */
-  onOpenBackpack?: () => void;
   /** 未领取的周联赛金币；有值时在段位条显示「待领」胶囊 */
   unclaimedRewards?: PortalWeeklyLeagueUnclaimedRewards | null;
   onOpenUnclaimedRewards?: () => void;
@@ -103,6 +108,7 @@ export function PortalGame3DInner({
   authed = false,
   tier,
   coinBalance,
+  ticketBalance,
   joining = null,
   soloJoinBlocked = false,
   multiJoinBlocked = false,
@@ -114,6 +120,12 @@ export function PortalGame3DInner({
   multiMaxPlaysPerDay = 10,
   soloDailyExhausted = false,
   multiDailyExhausted = false,
+  soloTicketEntryAvailable = false,
+  multiTicketEntryAvailable = false,
+  soloTicketEntryPrice,
+  multiTicketEntryPrice,
+  soloTicketEntryRemaining,
+  multiTicketEntryRemaining,
   queueWaiting = false,
   weekEndsAt,
   bgUrl,
@@ -123,12 +135,10 @@ export function PortalGame3DInner({
   onOpenFullHistory,
   onOpenShop,
   showShop = true,
-  onSignOut,
   onSignIn,
   showAuthButton,
   showAuthMenuActions: showAuthMenuActionsProp,
   onOpenAccount,
-  onOpenBackpack,
   unclaimedRewards,
   onOpenUnclaimedRewards,
   pageActive = true,
@@ -138,31 +148,11 @@ export function PortalGame3DInner({
     showAuthMenuActionsProp ?? shouldShowPortalAuthMenuActions();
   const accountChromeVisible =
     showAuthButton ?? shouldShowPortalAccountChrome(authed);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleWrapperRef = useRef<HTMLDivElement>(null);
   const shopRef = useRef<HTMLDivElement>(null);
   const authRef = useRef<HTMLDivElement>(null);
   const [isPortrait, setIsPortrait] = useState(false);
-
-  useEffect(() => {
-    if (!accountMenuOpen) return;
-    const onDocPointer = (e: PointerEvent) => {
-      const root = authRef.current;
-      if (!root) return;
-      // Shadow DOM retargets e.target to the host; use composedPath.
-      const path = typeof e.composedPath === "function" ? e.composedPath() : [];
-      if (path.includes(root)) return;
-      if (e.target instanceof Node && root.contains(e.target)) return;
-      setAccountMenuOpen(false);
-    };
-    document.addEventListener("pointerdown", onDocPointer, true);
-    return () => document.removeEventListener("pointerdown", onDocPointer, true);
-  }, [accountMenuOpen]);
-
-  useEffect(() => {
-    if (!authed) setAccountMenuOpen(false);
-  }, [authed]);
 
   useEffect(() => {
     const wrapper = scaleWrapperRef.current;
@@ -225,12 +215,12 @@ export function PortalGame3DInner({
   const multiJoinDisabled = !authed || joining != null || multiJoinBlocked;
   /** 次数用尽（或其它原因不可新开）且无「继续」时，开始按钮灰掉 */
   const soloStartGrayed =
-    authed && !soloOpenAssignment && (soloDailyExhausted || soloJoinDisabled);
+    authed && !soloOpenAssignment && (soloDailyExhausted && !soloTicketEntryAvailable || soloJoinDisabled);
   const multiStartGrayed =
     authed &&
     !multiOpenAssignment &&
     !queueWaiting &&
-    (multiDailyExhausted || multiJoinDisabled);
+    (multiDailyExhausted && !multiTicketEntryAvailable || multiJoinDisabled);
 
   const handleSoloClick = () => {
     if (!authed) {
@@ -317,12 +307,20 @@ export function PortalGame3DInner({
             </div>
           </div>
         ) : null}
-        {coinBalance != null ? (
-          <div className={styles.coinChip} aria-hidden>
-            <span className={styles.coinChipIcon} />
-            <span className={styles.coinChipText}>
-              {coinBalance.toLocaleString()}
-            </span>
+        {coinBalance != null || ticketBalance != null ? (
+          <div className={styles.balanceChipRow} aria-hidden>
+            {coinBalance != null ? (
+              <div className={styles.coinChip}>
+                <span className={styles.coinChipIcon} />
+                <span className={styles.coinChipText}>{coinBalance.toLocaleString()}</span>
+              </div>
+            ) : null}
+            {ticketBalance != null ? (
+              <div className={styles.coinChip}>
+                <span className={styles.ticketChipIcon}>🎟</span>
+                <span className={styles.coinChipText}>{ticketBalance.toLocaleString()}</span>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -333,18 +331,14 @@ export function PortalGame3DInner({
             role="button"
             tabIndex={0}
             aria-label={
-              authed
-                ? t("lobby.accountMenu.openAria")
-                : t("lobby.signIn")
+              authed ? t("lobby.accountMenu.openAria") : t("lobby.signIn")
             }
-            aria-haspopup={authed ? "menu" : undefined}
-            aria-expanded={authed ? accountMenuOpen : undefined}
             onClick={() => {
               if (!authed) {
                 if (showAuthActions) onSignIn?.();
                 return;
               }
-              setAccountMenuOpen((v) => !v);
+              onOpenAccount?.();
             }}
             onKeyDown={(e) => {
               if (e.key !== "Enter" && e.key !== " ") return;
@@ -353,7 +347,7 @@ export function PortalGame3DInner({
                 if (showAuthActions) onSignIn?.();
                 return;
               }
-              setAccountMenuOpen((v) => !v);
+              onOpenAccount?.();
             }}
             style={{ cursor: "pointer" }}
           >
@@ -361,48 +355,6 @@ export function PortalGame3DInner({
               <span className={styles.fixedAuthIcon} aria-hidden />
             </div>
           </div>
-          {authed && accountMenuOpen ? (
-            <div className={styles.fixedAuthMenu} role="menu">
-              <button
-                type="button"
-                className={styles.fixedAuthMenuItem}
-                role="menuitem"
-                onClick={() => {
-                  setAccountMenuOpen(false);
-                  onOpenAccount?.();
-                }}
-              >
-                {t("lobby.accountMenu.myAccount")}
-              </button>
-              <button
-                type="button"
-                className={styles.fixedAuthMenuItem}
-                role="menuitem"
-                onClick={() => {
-                  setAccountMenuOpen(false);
-                  onOpenBackpack?.();
-                }}
-              >
-                {t("lobby.accountMenu.backpack")}
-              </button>
-              {showAuthActions ? (
-                <>
-                  <div className={styles.fixedAuthMenuSep} role="separator" />
-                  <button
-                    type="button"
-                    className={`${styles.fixedAuthMenuItem} ${styles.fixedAuthMenuItemDanger}`}
-                    role="menuitem"
-                    onClick={() => {
-                      setAccountMenuOpen(false);
-                      onSignOut?.();
-                    }}
-                  >
-                    {t("lobby.signOut")}
-                  </button>
-                </>
-              ) : null}
-            </div>
-          ) : null}
         </div>
       ) : null}
       <div
@@ -600,6 +552,19 @@ export function PortalGame3DInner({
                       {t("lobby.continueInProgress")}
                     </span>
                   </span>
+                ) : soloDailyExhausted && soloTicketEntryAvailable ? (
+                  <span className={styles.modePlayStack}>
+                    <span className={styles.modePlayText}>
+                      {t("lobby.playWithTickets", {
+                        price: soloTicketEntryPrice ?? 1,
+                      })}
+                    </span>
+                    <span className={styles.modePlaySubtext}>
+                      {t("lobby.playWithTicketsSub", {
+                        remaining: soloTicketEntryRemaining ?? 0,
+                      })}
+                    </span>
+                  </span>
                 ) : (
                   <span className={styles.modePlayText}>{t("lobby.play")}</span>
                 )}
@@ -643,6 +608,19 @@ export function PortalGame3DInner({
                     <span className={styles.modePlayText}>{t("lobby.continue")}</span>
                     <span className={styles.modePlaySubtext}>
                       {t("lobby.continueInProgress")}
+                    </span>
+                  </span>
+                ) : multiDailyExhausted && multiTicketEntryAvailable ? (
+                  <span className={styles.modePlayStack}>
+                    <span className={styles.modePlayText}>
+                      {t("lobby.playWithTickets", {
+                        price: multiTicketEntryPrice ?? 2,
+                      })}
+                    </span>
+                    <span className={styles.modePlaySubtext}>
+                      {t("lobby.playWithTicketsSub", {
+                        remaining: multiTicketEntryRemaining ?? 0,
+                      })}
                     </span>
                   </span>
                 ) : (

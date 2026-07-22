@@ -13,6 +13,8 @@ export default defineSchema({
     uid: v.string(),
     coins: v.optional(v.number()),
     gems: v.optional(v.number()),
+    /** Replay-ticket currency. */
+    tickets: v.optional(v.number()),
     createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
     /** In-game nickname (authoritative for boards); optional until user renames. */
@@ -32,10 +34,10 @@ export default defineSchema({
     .index("by_uid", ["uid"])
     .index("by_displayNameNormalized", ["displayNameNormalized"]),
 
-  /** 金币/钻流水（周联赛领奖、商店等） */
+  /** 金币/钻/门票流水（周联赛领奖、商店、再战等） */
   portal_coin_ledger: defineTable({
     uid: v.string(),
-    kind: v.union(v.literal("coins"), v.literal("gems")),
+    kind: v.union(v.literal("coins"), v.literal("gems"), v.literal("tickets")),
     delta: v.number(),
     balanceAfter: v.number(),
     reason: v.string(),
@@ -338,6 +340,8 @@ export default defineSchema({
     queueExpireAction: v.optional(v.union(v.literal("solo"), v.literal("exit"))),
     expiresAt: v.optional(v.number()),
     skipEntryCharge: v.optional(v.boolean()),
+    /** Entry method is validated before enqueue and consumed at open. */
+    ticketEntry: v.optional(v.boolean()),
     status: v.union(v.literal("waiting"), v.literal("claiming"), v.literal("matched")),
     matchedRunTournamentId: v.optional(v.id("portal_run_tournaments")),
     campaignId: v.optional(v.string()),
@@ -355,6 +359,28 @@ export default defineSchema({
     .index("by_template_status_effective", ["templateId", "status", "effectiveHumans"])
     .index("by_uid", ["uid"])
     .index("by_uid_template_status", ["uid", "templateId", "status"]),
+
+  /** Partner overrides for the free → ticket → ad → coin entry ladder. */
+  portal_partner_play_entry_settings: defineTable({
+    partnerId: v.number(),
+    freePlaySoloDailyCap: v.optional(v.number()),
+    freePlayMultiDailyCap: v.optional(v.number()),
+    ticketEntrySoloPriceTickets: v.optional(v.number()),
+    ticketEntrySoloDailyCap: v.optional(v.number()),
+    ticketEntryMultiPriceTickets: v.optional(v.number()),
+    ticketEntryMultiDailyCap: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_partnerId", ["partnerId"]),
+
+  /** One ticket-entry count per player/mode/operations day. */
+  portal_ticket_entry_daily_usage: defineTable({
+    uid: v.string(),
+    dayKey: v.string(),
+    mode: v.union(v.literal("solo"), v.literal("multi")),
+    usedCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_uid_dayKey_mode", ["uid", "dayKey", "mode"]),
 
   portal_bot_personas: defineTable({
     botPersonaId: v.string(),
@@ -677,4 +703,49 @@ export default defineSchema({
     .index("by_campaign_score", ["campaignId", "bestScore"])
     .index("by_campaign_rankPoints", ["campaignId", "rankPoints"])
     .index("by_campaign_bots", ["campaignId", "isBot"]),
+
+  /**
+   * Agent / MCP short-lived play credentials.
+   * Issued for an SSO `uid`; redeemed once by web/Mini App `/embed/play?launch=…`.
+   */
+  portal_launch_tokens: defineTable({
+    token: v.string(),
+    uid: v.string(),
+    partnerId: v.optional(v.number()),
+    templateId: v.string(),
+    surface: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("used"),
+      v.literal("expired"),
+      v.literal("cancelled")
+    ),
+    gameId: v.optional(v.string()),
+    matchId: v.optional(v.string()),
+    runTournamentId: v.optional(v.string()),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_token", ["token"])
+    .index("by_uid", ["uid"])
+    .index("by_uid_status", ["uid", "status"]),
+
+  /** Play outcome reported back to Agent/MCP after a launched run. */
+  portal_agent_play_results: defineTable({
+    token: v.string(),
+    uid: v.string(),
+    templateId: v.string(),
+    gameId: v.optional(v.string()),
+    matchId: v.optional(v.string()),
+    score: v.optional(v.number()),
+    result: v.optional(v.string()),
+    durationSec: v.optional(v.number()),
+    payload: v.optional(v.any()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_uid", ["uid"]),
 });

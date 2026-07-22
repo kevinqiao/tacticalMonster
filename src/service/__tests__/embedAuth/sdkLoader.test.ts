@@ -26,7 +26,7 @@ describe("sdkLoader", () => {
         partnerPid: 100,
         partner: {
           pid: 100,
-          authChannelIds: [2],
+          playerAuth: { mode: "embed" },
           data: { embed: { method: "crazygames_jwt" } },
           capabilities: { portalGames: true, campaignOps: false },
         },

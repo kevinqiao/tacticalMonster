@@ -82,7 +82,6 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   const [shopModalOpen, setShopModalOpen] = useState(false);
   const [giftCardOrdersModalOpen, setGiftCardOrdersModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [backpackModalOpen, setBackpackModalOpen] = useState(false);
   const [weeklyCloseModalOpen, setWeeklyCloseModalOpen] = useState(false);
   const weeklyCloseShownRef = useRef<string | null>(null);
 
@@ -181,6 +180,12 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   );
   const soloDailyExhausted = authed && soloPlaysTodayRaw >= soloMaxPlaysPerDay;
   const multiDailyExhausted = authed && multiPlaysTodayRaw >= multiMaxPlaysPerDay;
+  const soloTicketEntryAvailable =
+    portal.ticketEntryOffer?.solo.enabled === true &&
+    (portal.ticketEntryOffer.solo.remaining ?? 0) > 0;
+  const multiTicketEntryAvailable =
+    portal.ticketEntryOffer?.multi.enabled === true &&
+    (portal.ticketEntryOffer.multi.remaining ?? 0) > 0;
   /** 展示不超过上限，避免限次上线前超额场次显示成 6/3 */
   const soloPlaysToday = Math.min(soloPlaysTodayRaw, soloMaxPlaysPerDay);
   const multiPlaysToday = Math.min(multiPlaysTodayRaw, multiMaxPlaysPerDay);
@@ -188,11 +193,11 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   const soloJoinBlocked =
     matchOverlayOpen ||
     (hasGlobalOpenRun && soloOpenAssignment == null) ||
-    (soloDailyExhausted && soloOpenAssignment == null);
+    (soloDailyExhausted && !soloTicketEntryAvailable && soloOpenAssignment == null);
   const multiJoinBlocked =
     matchOverlayOpen ||
     (hasGlobalOpenRun && multiOpenAssignment == null) ||
-    (multiDailyExhausted && multiOpenAssignment == null);
+    (multiDailyExhausted && !multiTicketEntryAvailable && multiOpenAssignment == null);
 
   const openAssignment = useCallback(
     (hit: OpenCasualRunAssignment) => {
@@ -363,7 +368,11 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       setJoining(mode);
       setNote(null);
       try {
-        const outcome = await portal.joinTournament(mode);
+        const outcome = await portal.joinTournament(mode, {
+          ticketEntry:
+            mode === "solo" ? soloDailyExhausted && soloTicketEntryAvailable :
+              multiDailyExhausted && multiTicketEntryAvailable,
+        });
         if (outcome.kind === "ready") {
           openModal({
             name: portalPlayModalForGameType(portal.gameType!),
@@ -437,8 +446,6 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     setGiftCardOrdersModalOpen,
     accountModalOpen,
     setAccountModalOpen,
-    backpackModalOpen,
-    setBackpackModalOpen,
     weeklyCloseModalOpen,
     setWeeklyCloseModalOpen,
     openAssignments,
@@ -452,6 +459,12 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     multiMaxPlaysPerDay,
     soloDailyExhausted,
     multiDailyExhausted,
+    soloTicketEntryAvailable,
+    multiTicketEntryAvailable,
+    soloTicketEntryPrice: portal.ticketEntryOffer?.solo.priceTickets,
+    multiTicketEntryPrice: portal.ticketEntryOffer?.multi.priceTickets,
+    soloTicketEntryRemaining: portal.ticketEntryOffer?.solo.remaining,
+    multiTicketEntryRemaining: portal.ticketEntryOffer?.multi.remaining,
     queueWaiting,
     queueClaiming,
     hasOpenRun,

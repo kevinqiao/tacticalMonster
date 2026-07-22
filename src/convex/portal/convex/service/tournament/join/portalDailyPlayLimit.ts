@@ -14,8 +14,13 @@ import {
 } from "../../../data/portalTournamentConfigs";
 import {
   CASUAL_TASK_OPS_TIME_ZONE,
+  dailyPeriodKey,
   dailyWindowMsForOpsZone,
 } from "../../../utils/casualTaskPeriod";
+import {
+  readTicketEntryUsedToday,
+  resolveFreePlayDailyCap,
+} from "../../ads/portalTicketEntryService";
 
 export type PortalDailyPlayMode = "solo" | "multi";
 
@@ -88,10 +93,17 @@ export async function assertPortalDailyPlayLimit(
   if (!mode) return { ok: true };
 
   const limits = args.limits ?? getPortalDailyPlayLimits();
-  const maxPlaysPerDay = mode === "solo" ? limits.solo : limits.multi;
-  if (!Number.isFinite(maxPlaysPerDay) || maxPlaysPerDay < 1) {
-    return { ok: true };
-  }
+  const freeCap = args.limits
+    ? (mode === "solo" ? limits.solo : limits.multi)
+    : await resolveFreePlayDailyCap(ctx, args.uid, mode);
+  // Ticket consumption occurs before the join action. Each consumed slot extends
+  // this user's admission ceiling by one, preserving free → ticket ordering.
+  const maxPlaysPerDay = freeCap + await readTicketEntryUsedToday(
+    ctx,
+    args.uid,
+    dailyPeriodKey(args.nowMs ?? Date.now()),
+    mode
+  );
 
   const playsToday = await countPortalPlaysInOpsDay(ctx, {
     uid: args.uid,
@@ -154,14 +166,12 @@ export const getPortalDailyPlayQuota = authedQuery({
     const nowMs = Date.now();
     const dayTimezone = CASUAL_TASK_OPS_TIME_ZONE;
     const window = dailyWindowMsForOpsZone(nowMs, dayTimezone);
-    const limits = getPortalDailyPlayLimits();
-
     const [solo, multi] = await Promise.all([
       quotaForMode(ctx, {
         uid,
         gameType,
         mode: "solo",
-        maxPlaysPerDay: limits.solo,
+        maxPlaysPerDay: await resolveFreePlayDailyCap(ctx, uid, "solo"),
         nowMs,
         dayTimezone,
       }),
@@ -169,7 +179,7 @@ export const getPortalDailyPlayQuota = authedQuery({
         uid,
         gameType,
         mode: "multi",
-        maxPlaysPerDay: limits.multi,
+        maxPlaysPerDay: await resolveFreePlayDailyCap(ctx, uid, "multi"),
         nowMs,
         dayTimezone,
       }),

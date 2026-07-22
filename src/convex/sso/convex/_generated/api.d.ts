@@ -25,6 +25,7 @@ import type * as dataTypes from "../dataTypes.js";
 import type * as http from "../http.js";
 import type * as service_auth_authChannelCatalog from "../service/auth/authChannelCatalog.js";
 import type * as service_auth_authenticateWithChannel from "../service/auth/authenticateWithChannel.js";
+import type * as service_auth_partnerAuth from "../service/auth/partnerAuth.js";
 import type * as service_auth_partnerChannelPolicy from "../service/auth/partnerChannelPolicy.js";
 import type * as service_auth_platformAuth from "../service/auth/platformAuth.js";
 import type * as service_auth_platformClientUser from "../service/auth/platformClientUser.js";
@@ -97,6 +98,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "service/auth/authChannelCatalog": typeof service_auth_authChannelCatalog;
   "service/auth/authenticateWithChannel": typeof service_auth_authenticateWithChannel;
+  "service/auth/partnerAuth": typeof service_auth_partnerAuth;
   "service/auth/partnerChannelPolicy": typeof service_auth_partnerChannelPolicy;
   "service/auth/platformAuth": typeof service_auth_platformAuth;
   "service/auth/platformClientUser": typeof service_auth_platformClientUser;

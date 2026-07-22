@@ -7,9 +7,8 @@ export const partnerAdminFns = {
   listMyPartners: api.service.partner.partnerAdmin.listMyPartners,
   getPartnerAdminDetail: api.service.partner.partnerAdmin.getPartnerAdminDetail,
   updatePartnerProfile: api.service.partner.partnerAdmin.updatePartnerProfile,
-  updatePartnerAuthChannels: api.service.partner.partnerAdmin.updatePartnerAuthChannels,
-  updatePartnerStaffAuthChannels: api.service.partner.partnerAdmin.updatePartnerStaffAuthChannels,
-  listAuthChannelCatalog: api.service.partner.partnerAdmin.listAuthChannelCatalog,
+  updatePartnerPlayerAuth: api.service.partner.partnerAdmin.updatePartnerPlayerAuth,
+  updatePartnerStaffAuth: api.service.partner.partnerAdmin.updatePartnerStaffAuth,
   listPartnerTeam: api.service.partner.partnerAdmin.listPartnerTeam,
   addPartnerStaff: api.service.partner.staffAccountActions.addPartnerStaff,
   updatePartnerStaffProfile: api.service.partner.staffAccountActions.updatePartnerStaffProfile,
@@ -37,11 +36,6 @@ export function usePartnerDetail(partnerId: number | null) {
   );
 }
 
-export function useAuthChannelCatalog() {
-  const { authed } = usePartnerAdminAuth();
-  return useQuery(partnerAdminFns.listAuthChannelCatalog, authed ? {} : "skip");
-}
-
 export function usePartnerTeam(partnerId: number | null) {
   const { authed } = usePartnerAdminAuth();
   return useQuery(
@@ -53,8 +47,8 @@ export function usePartnerTeam(partnerId: number | null) {
 export function usePartnerAdminMutations() {
   return {
     updatePartnerProfile: useMutation(partnerAdminFns.updatePartnerProfile),
-    updatePartnerAuthChannels: useMutation(partnerAdminFns.updatePartnerAuthChannels),
-    updatePartnerStaffAuthChannels: useMutation(partnerAdminFns.updatePartnerStaffAuthChannels),
+    updatePartnerPlayerAuth: useMutation(partnerAdminFns.updatePartnerPlayerAuth),
+    updatePartnerStaffAuth: useMutation(partnerAdminFns.updatePartnerStaffAuth),
     addPartnerStaff: useAction(partnerAdminFns.addPartnerStaff),
     updatePartnerStaffProfile: useAction(partnerAdminFns.updatePartnerStaffProfile),
     removePartnerStaff: useMutation(partnerAdminFns.removePartnerStaff),

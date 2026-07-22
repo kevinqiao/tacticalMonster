@@ -85,6 +85,9 @@ export const portalTournamentFns = {
   getPortalDailyPlayQuota: makeFunctionReference<"query">(
     "service/tournament/join/portalDailyPlayLimit:getPortalDailyPlayQuota"
   ),
+  getTicketEntryOffer: makeFunctionReference<"query">(
+    "service/ads/portalTicketEntryQueries:getTicketEntryOffer"
+  ),
   listCampaignPlayHistory: makeFunctionReference<"query">(
     "service/tournament/join/campaignPlayHistory:listCampaignPlayHistory"
   ),

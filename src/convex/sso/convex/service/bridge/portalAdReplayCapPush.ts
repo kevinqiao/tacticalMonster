@@ -67,3 +67,28 @@ export const pushPartnerAdReplayCapToPortal = internalAction({
     }
   },
 });
+
+export const pushPartnerPlayEntrySettingsToPortal = internalAction({
+  args: {
+    partnerId: v.number(),
+    freePlaySoloDailyCap: v.optional(v.number()),
+    freePlayMultiDailyCap: v.optional(v.number()),
+    ticketEntrySoloPriceTickets: v.optional(v.number()),
+    ticketEntrySoloDailyCap: v.optional(v.number()),
+    ticketEntryMultiPriceTickets: v.optional(v.number()),
+    ticketEntryMultiDailyCap: v.optional(v.number()),
+  },
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(`${portalSiteUrl()}/internal/upsert-partner-play-entry-settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Portal-Bridge-Secret": portalBridgeSecret() },
+        body: JSON.stringify(args),
+        signal: AbortSignal.timeout(15_000),
+      });
+      return res.ok ? { ok: true as const } : { ok: false as const, error: `portal_${res.status}` };
+    } catch {
+      return { ok: false as const, error: "portal_unreachable" };
+    }
+  },
+});

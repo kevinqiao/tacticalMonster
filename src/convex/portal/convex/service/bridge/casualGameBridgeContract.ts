@@ -73,7 +73,6 @@ export type CasualSubmitMode = "daily" | "solo" | "mixed";
 export type CasualReplayAuthorizeRequest = {
   uid: string;
   matchGameId: string;
-  replayTokenId?: string;
   bridgeVersion?: PortalGameBridgeVersion;
 };
 

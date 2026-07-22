@@ -16,10 +16,10 @@ import {
 import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
 import { isPortalAdReplayTemplate, PORTAL_AD_REPLAY_ENABLED } from "../../../data/portalAdReplayConfig";
 import {
-  countUnusedReplayTokens,
-  grantReplayTokens,
   isNearMissTableSummary,
+  readPortalTicketBalance,
 } from "../replay/casualReplayTokens";
+import { internal } from "../../../_generated/api";
 import {
   buildCasualAsyncTableSummary,
   type CasualAsyncTableSummary,
@@ -131,7 +131,7 @@ export async function buildCasualReplayOfferForPlayer(
     eligibilityOk &&
     canUseReplayForTemplate(pm.templateId) &&
     isReplayableFinished(freshPm, pm.templateId, now);
-  const replayTokenCount = await countUnusedReplayTokens(ctx, uid);
+  const replayTokenCount = await readPortalTicketBalance(ctx, uid);
   const canReplay =
     replayOffered &&
     replayTokenCount > 0 &&
@@ -278,7 +278,11 @@ export async function maybeGrantDevReplayTokensOnSubmit(
   if (!canUseReplayForTemplate(args.pm.templateId)) return;
   if (!isReplayableFinished(args.pm, args.pm.templateId, args.now)) return;
   if (!isCasualDevAutoReplayTokensEnabled()) return;
-  const tokens = await countUnusedReplayTokens(ctx, args.uid);
+  const tokens = await readPortalTicketBalance(ctx, args.uid);
   if (tokens > 0) return;
-  await grantReplayTokens(ctx, args.uid, 3);
+  await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantPortalTickets, {
+    uid: args.uid,
+    amount: 3,
+    reason: "dev_replay_tickets",
+  });
 }

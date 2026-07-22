@@ -11,8 +11,8 @@ type Props = {
 
 const PartnerAdminAuthChannelsModal: React.FC<Props> = ({ partnerId, partnerName, onClose }) => (
   <PartnerAdminFormModal
-    title={`${partnerName} · 登录渠道（PID ${partnerId}）`}
-    ariaLabel="Partner 登录渠道"
+    title={`${partnerName} · 登录配置（PID ${partnerId}）`}
+    ariaLabel="Partner 登录配置"
     onClose={onClose}
     footer={
       <div className="merchant-form-modal__actions">

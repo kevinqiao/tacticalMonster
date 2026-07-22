@@ -3,7 +3,10 @@ import React from "react";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import { usePartnerManager } from "host/service/PartnerManager";
 
-import { shouldShowPortalAuthMenuActions } from "../portalAuthButtonVisible";
+import {
+  shouldShowPortalAccountChrome,
+  shouldShowPortalAuthMenuActions,
+} from "../portalAuthButtonVisible";
 import { usePortal } from "../service/usePortalManager";
 
 import { PortalGame3DViewport } from "./PortalGame3DViewport";
@@ -21,10 +24,19 @@ type PortalGame3DPageProps = {
 
 const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
   const portal = usePortal();
-  const { partnerPid, isFirstPartyPortal } = usePartnerManager();
+  const { partner, partnerPid } = usePartnerManager();
   const ctrl = usePortalGame3DController({ visible });
-  const showAuthMenuActions =
-    isFirstPartyPortal && shouldShowPortalAuthMenuActions();
+  const showAuthMenuActions = shouldShowPortalAuthMenuActions(
+    undefined,
+    undefined,
+    partner?.playerAuth
+  );
+  const showAuthButton = shouldShowPortalAccountChrome(
+    ctrl.authed,
+    undefined,
+    undefined,
+    partner?.playerAuth
+  );
 
   if (!portal.gameType) {
     return (
@@ -66,6 +78,7 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
                   0)
               : null
           }
+          ticketBalance={isPlatformAuthed(ctrl.user) ? (portal.replayTokenCount ?? 0) : null}
           joining={ctrl.joining}
           soloJoinBlocked={ctrl.soloJoinBlocked}
           multiJoinBlocked={ctrl.multiJoinBlocked}
@@ -77,6 +90,12 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           multiMaxPlaysPerDay={ctrl.multiMaxPlaysPerDay}
           soloDailyExhausted={ctrl.soloDailyExhausted}
           multiDailyExhausted={ctrl.multiDailyExhausted}
+          soloTicketEntryAvailable={ctrl.soloTicketEntryAvailable}
+          multiTicketEntryAvailable={ctrl.multiTicketEntryAvailable}
+          soloTicketEntryPrice={ctrl.soloTicketEntryPrice}
+          multiTicketEntryPrice={ctrl.multiTicketEntryPrice}
+          soloTicketEntryRemaining={ctrl.soloTicketEntryRemaining}
+          multiTicketEntryRemaining={ctrl.multiTicketEntryRemaining}
           queueWaiting={ctrl.queueWaiting}
           weekEndsAt={portal.weekEndsAt}
           onJoin={(mode) => void ctrl.handleJoin(mode)}
@@ -89,18 +108,20 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           }
           onOpenShop={showShop ? () => ctrl.setShopModalOpen(true) : undefined}
           showShop={showShop}
-          onSignOut={ctrl.signOut}
           onSignIn={ctrl.signIn}
+          showAuthButton={showAuthButton}
           showAuthMenuActions={showAuthMenuActions}
           onOpenAccount={() => ctrl.setAccountModalOpen(true)}
-          onOpenBackpack={() => ctrl.setBackpackModalOpen(true)}
           unclaimedRewards={ctrl.unclaimedRewards}
           onOpenUnclaimedRewards={ctrl.openWeeklyCloseModal}
           pageActive={visible > 0}
         />
         </PortalGame3DShadowHost>
       </PortalGame3DViewport>
-      <PortalGame3DOverlays ctrl={ctrl} />
+      <PortalGame3DOverlays
+        ctrl={ctrl}
+        showAuthMenuActions={showAuthMenuActions}
+      />
       <PortalGame3DToast note={ctrl.note} />
     </>
   );

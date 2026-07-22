@@ -1,109 +1,129 @@
 import React, { useEffect, useState } from "react";
 
-import { partnerAdminErrorMessage, partnerAdminSuccessMessage } from "./partnerAdminHelpers";
-import {
-  useAuthChannelCatalog,
-  usePartnerAdminMutations,
-  usePartnerDetail,
-} from "./usePartnerAdmin";
+import type {
+  PlayerAuthMode,
+  StaffAuthMode,
+} from "@/convex/sso/convex/service/auth/partnerAuth";
+import { EMBED_AUTH_METHODS } from "@/convex/sso/convex/service/embed/embedAuthConstants";
 
-const CONSUMER_CIDS = new Set([1, 2]);
-const STAFF_CIDS = new Set([0]);
+import { partnerAdminErrorMessage, partnerAdminSuccessMessage } from "./partnerAdminHelpers";
+import { usePartnerAdminMutations, usePartnerDetail } from "./usePartnerAdmin";
 
 type PartnerAdminAuthChannelsPanelProps = {
   partnerId: number;
 };
 
+const PLAYER_MODE_OPTIONS: Array<{ value: PlayerAuthMode; label: string }> = [
+  { value: "clerk", label: "平台账号（Clerk）— Partner 无用户系统时用这个" },
+  { value: "embed", label: "宿主 / Embed — 仅 Partner 发身份" },
+  {
+    value: "embed_then_clerk",
+    label: "Embed 优先，失败后可用平台账号",
+  },
+];
+
 const PartnerAdminAuthChannelsPanel: React.FC<PartnerAdminAuthChannelsPanelProps> = ({
   partnerId,
 }) => {
   const detail = usePartnerDetail(partnerId);
-  const catalog = useAuthChannelCatalog();
-  const { updatePartnerAuthChannels, updatePartnerStaffAuthChannels } = usePartnerAdminMutations();
-  const [consumerSelected, setConsumerSelected] = useState<number[]>([1]);
-  const [staffSelected, setStaffSelected] = useState<number[]>([0]);
+  const { updatePartnerPlayerAuth, updatePartnerStaffAuth } = usePartnerAdminMutations();
+  const [playerMode, setPlayerMode] = useState<PlayerAuthMode>("clerk");
+  const [embedMethod, setEmbedMethod] =
+    useState<(typeof EMBED_AUTH_METHODS)[number]>("jwt_local");
+  const [staffMode, setStaffMode] = useState<StaffAuthMode | "off">("web");
   const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (!detail) return;
-    setConsumerSelected(detail.authChannelIds?.length ? detail.authChannelIds : [1]);
-    setStaffSelected(detail.staffAuthChannelIds ?? []);
+    const pa = detail.playerAuth;
+    setPlayerMode(pa?.mode ?? "clerk");
+    setEmbedMethod(pa?.embed?.method ?? "jwt_local");
+    setStaffMode(detail.staffAuth?.mode === "web" ? "web" : "web");
   }, [detail]);
-
-  const toggleConsumer = (cid: number) => {
-    setConsumerSelected((prev) => {
-      if (prev.includes(cid)) {
-        const next = prev.filter((c) => c !== cid);
-        return next.length === 0 ? prev : next;
-      }
-      return [...prev, cid].sort((a, b) => a - b);
-    });
-  };
-
-  const toggleStaff = (cid: number) => {
-    setStaffSelected((prev) => {
-      if (prev.includes(cid)) return prev.filter((c) => c !== cid);
-      return [...prev, cid].sort((a, b) => a - b);
-    });
-  };
 
   const onSave = async () => {
     try {
-      await updatePartnerAuthChannels({ partnerId, authChannelIds: consumerSelected });
-      await updatePartnerStaffAuthChannels({ partnerId, staffAuthChannelIds: staffSelected });
+      const playerAuth =
+        playerMode === "clerk"
+          ? { mode: "clerk" as const }
+          : {
+              mode: playerMode,
+              embed: { method: embedMethod },
+            };
+      await updatePartnerPlayerAuth({ partnerId, playerAuth });
+      if (staffMode === "web") {
+        await updatePartnerStaffAuth({ partnerId, staffAuth: { mode: "web" } });
+      }
       setNote(partnerAdminSuccessMessage("authChannelsSaved"));
     } catch (e) {
       setNote(partnerAdminErrorMessage(e));
     }
   };
 
-  if (catalog === undefined || detail === undefined) {
+  if (detail === undefined) {
     return <p className="merchant-note">加载中…</p>;
   }
   if (detail === null) {
     return <p className="merchant-note">Partner not found or access denied.</p>;
   }
 
-  const consumerCatalog = catalog.filter((row) => CONSUMER_CIDS.has(row.cid));
-  const staffCatalog = catalog.filter((row) => STAFF_CIDS.has(row.cid));
+  const needsEmbed = playerMode === "embed" || playerMode === "embed_then_clerk";
 
   return (
     <>
       <p className="merchant-note">
-        <code>auth_channels</code>：玩家 / SSO 弹层（Clerk、Embed）。
-        <code>staff_auth_channels</code>：Platform / Partner 管理后台 Web 账号密码（cid=0）。
+        <code>playerAuth</code>：玩家登录 SoT。
+        <code>staffAuth</code>：管理后台登录。
       </p>
 
       <fieldset className="merchant-field">
-        <legend>Consumer — auth_channels</legend>
-        {consumerCatalog.map((row) => (
-          <label key={row.cid} style={{ display: "block", marginBottom: 6 }}>
+        <legend>玩家登录（playerAuth）</legend>
+        {PLAYER_MODE_OPTIONS.map((opt) => (
+          <label key={opt.value} style={{ display: "block", marginBottom: 6 }}>
             <input
-              type="checkbox"
-              checked={consumerSelected.includes(row.cid)}
-              onChange={() => toggleConsumer(row.cid)}
+              type="radio"
+              name="playerAuthMode"
+              checked={playerMode === opt.value}
+              onChange={() => setPlayerMode(opt.value)}
             />{" "}
-            cid {row.cid} · {row.provider}
+            {opt.label}
           </label>
         ))}
       </fieldset>
 
+      {needsEmbed ? (
+        <label className="merchant-field">
+          Embed 验法（playerAuth.embed.method）
+          <select
+            value={embedMethod}
+            onChange={(e) =>
+              setEmbedMethod(e.target.value as (typeof EMBED_AUTH_METHODS)[number])
+            }
+          >
+            {EMBED_AUTH_METHODS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
       <fieldset className="merchant-field">
-        <legend>Staff — staff_auth_channels</legend>
-        {staffCatalog.map((row) => (
-          <label key={row.cid} style={{ display: "block", marginBottom: 6 }}>
-            <input
-              type="checkbox"
-              checked={staffSelected.includes(row.cid)}
-              onChange={() => toggleStaff(row.cid)}
-            />{" "}
-            cid {row.cid} · {row.provider}
-          </label>
-        ))}
+        <legend>管理后台（staffAuth）</legend>
+        <label style={{ display: "block", marginBottom: 6 }}>
+          <input
+            type="radio"
+            name="staffAuthMode"
+            checked={staffMode === "web"}
+            onChange={() => setStaffMode("web")}
+          />{" "}
+          Web 账号密码
+        </label>
       </fieldset>
 
       <button type="button" className="merchant-btn" onClick={() => void onSave()}>
-        Save channels
+        保存登录配置
       </button>
       {note ? <p className="merchant-note">{note}</p> : null}
     </>

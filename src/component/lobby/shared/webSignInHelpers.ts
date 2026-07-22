@@ -34,12 +34,13 @@ const WEB_SIGN_IN_ERROR_MAP: Record<string, string> = {
   uid_required: "请填写 UID 或邮箱。",
   email_already_used: "该邮箱已被其他账号使用。",
   identity_subject_conflict: "该 subject 已被其他 uid 占用。",
-  auth_channels_required: "至少需要一个登录渠道。",
-  staff_auth_channel_unavailable: "该 Partner 未启用 staff Web 登录渠道（staff_auth_channels）。",
+  staff_auth_channel_unavailable: "该 Partner 未启用 staffAuth.mode=web 登录。",
   consumer_web_disabled: "玩家登录请使用 Clerk；Web 账号密码用于 Platform/Partner/门店 管理后台。",
   merchant_unreachable: "门店服务暂不可用，请确认 SSO Convex 已启动。",
-  invalid_consumer_auth_channel: "consumer 渠道仅支持 Clerk 与 Embed。",
-  invalid_staff_auth_channel: "staff 渠道仅支持 Web 账号密码（cid=0）。",
+  player_auth_invalid: "playerAuth 配置无效。",
+  player_auth_mode_invalid: "playerAuth.mode 无效（需 clerk / embed / embed_then_clerk）。",
+  staff_auth_invalid: "staffAuth 配置无效。",
+  staff_auth_mode_invalid: "staffAuth.mode 无效（当前仅支持 web）。",
   default_partner_protected: "Default Partner（PID 0）是平台默认命名空间，不可删除。",
 };
 

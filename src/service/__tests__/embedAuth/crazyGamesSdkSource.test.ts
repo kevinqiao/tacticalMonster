@@ -34,7 +34,7 @@ describe("crazyGamesSdkSource eligibility", () => {
       partnerPid: 200,
       partner: {
         pid: 200,
-        authChannelIds: [2],
+        playerAuth: { mode: "embed" },
         capabilities: { portalGames: true, campaignOps: false },
         data: { embed: { method: "crazygames_jwt" } },
       },
@@ -52,7 +52,7 @@ describe("crazyGamesSdkSource eligibility", () => {
       partnerPid: 100,
       partner: {
         pid: 100,
-        authChannelIds: [2],
+        playerAuth: { mode: "embed" },
         capabilities: { portalGames: true, campaignOps: false },
         data: { embed: { method: "jwt_local" } },
       },
@@ -86,7 +86,7 @@ describe("crazyGamesSdkSource eligibility", () => {
     });
     const ctx = portalCtx({
       partnerPid: 100,
-      partner: { pid: 100, authChannelIds: [2], data: { embed: { method: "jwt_local" } } },
+      partner: { pid: 100, playerAuth: { mode: "embed" }, data: { embed: { method: "jwt_local" } } },
       search: "?crazygames=1",
     });
     expect(crazyGamesSdkSource.shouldPreload?.(ctx)).toBe(true);

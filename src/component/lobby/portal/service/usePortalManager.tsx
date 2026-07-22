@@ -205,6 +205,14 @@ export type PortalDailyPlayQuota = {
   dayTimezone: string;
 };
 
+export type PortalTicketEntryOffer = {
+  enabled: boolean;
+  remaining: number;
+  cap: number;
+  usedToday: number;
+  priceTickets: number;
+};
+
 type PortalDataSnapshot = {
   cohortLeaderboard: PortalWeeklyLeaderboardRow[];
   weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
@@ -218,6 +226,7 @@ type PortalDataSnapshot = {
   openRunAssignments: OpenCasualRunAssignment[];
   matchQueueEntries: PortalMatchQueueEntry[];
   dailyPlayQuota: PortalDailyPlayQuota | null;
+  ticketEntryOffer: { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null;
   weekEndsAt: number | null;
 };
 
@@ -234,6 +243,7 @@ const emptyData = (): PortalDataSnapshot => ({
   openRunAssignments: [],
   matchQueueEntries: [],
   dailyPlayQuota: null,
+  ticketEntryOffer: null,
   weekEndsAt: null,
 });
 
@@ -271,10 +281,11 @@ type PortalContextValue = {
   openRunAssignments: OpenCasualRunAssignment[];
   matchQueueEntries: PortalMatchQueueEntry[];
   dailyPlayQuota: PortalDailyPlayQuota | null;
+  ticketEntryOffer: { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null;
   weekEndsAt: number | null;
   joinTournament: (
     mode: "solo" | "multi",
-    opts?: { partnerSlug?: string; campaignSlug?: string }
+    opts?: { partnerSlug?: string; campaignSlug?: string; ticketEntry?: boolean }
   ) => Promise<ResolvedJoinTournamentOutcome>;
   leaveCasualMatchQueue: (
     templateId?: string
@@ -514,6 +525,7 @@ export const PortalProvider: React.FC<{
         openRunAssignments: [],
         matchQueueEntries: [],
         dailyPlayQuota: null,
+        ticketEntryOffer: null,
         weekEndsAt: null,
       });
       return;
@@ -669,6 +681,14 @@ export const PortalProvider: React.FC<{
         });
       },
       "getPortalDailyPlayQuota"
+    );
+    sub(
+      portalTournamentFns.getTicketEntryOffer,
+      {},
+      (rows) => patchData({
+        ticketEntryOffer: (rows as { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null) ?? null,
+      }),
+      "getTicketEntryOffer"
     );
 
     return () => {
@@ -998,7 +1018,7 @@ export const PortalProvider: React.FC<{
   const joinTournament = useCallback(
     async (
       mode: "solo" | "multi",
-      opts?: { partnerSlug?: string; campaignSlug?: string }
+      opts?: { partnerSlug?: string; campaignSlug?: string; ticketEntry?: boolean }
     ): Promise<ResolvedJoinTournamentOutcome> => {
       const http = getHttp();
       if (!http || !uid || !isPlatformAuthed(user)) {
@@ -1022,6 +1042,7 @@ export const PortalProvider: React.FC<{
                 campaignSlug: opts!.campaignSlug,
               }
             : {}),
+          ...(opts?.ticketEntry ? { ticketEntry: true } : {}),
         });
         return resolveJoinTournamentOutcome(result);
       } catch (e) {
@@ -1121,6 +1142,7 @@ export const PortalProvider: React.FC<{
       openRunAssignments: snapshot.openRunAssignments,
       matchQueueEntries: snapshot.matchQueueEntries,
       dailyPlayQuota: snapshot.dailyPlayQuota,
+      ticketEntryOffer: snapshot.ticketEntryOffer,
       weekEndsAt: snapshot.weekEndsAt,
       joinTournament,
       leaveCasualMatchQueue,

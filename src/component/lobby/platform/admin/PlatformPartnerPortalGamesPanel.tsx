@@ -22,6 +22,7 @@ const PORTAL_ERROR_MAP: Record<string, string> = {
   portal_games_required: "请至少选择一款游戏。",
   portal_game_invalid: "存在未注册的游戏类型。",
   ad_replay_daily_cap_invalid: "每日广告再战次数须为 0–100 的整数（空=默认）。",
+  play_entry_setting_invalid: "免费场次须为 0–100；门票价格须为 1–100，次数须为 0–100。",
   forbidden: "需要 platform_staff admin（或 owner）权限。",
   unauthenticated: "请重新登录后再试。",
   not_found: "找不到该 Partner。",
@@ -44,6 +45,12 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   const [selectedGames, setSelectedGames] = useState<string[]>([]);
   /** Empty string = use platform default (5). */
   const [adReplayDailyCapInput, setAdReplayDailyCapInput] = useState("");
+  const [freeSolo, setFreeSolo] = useState("");
+  const [freeMulti, setFreeMulti] = useState("");
+  const [ticketSoloPrice, setTicketSoloPrice] = useState("");
+  const [ticketSoloCap, setTicketSoloCap] = useState("");
+  const [ticketMultiPrice, setTicketMultiPrice] = useState("");
+  const [ticketMultiCap, setTicketMultiCap] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const hydratedForPartner = useRef<number | null>(null);
@@ -71,6 +78,12 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         ? String(config.adReplayDailyCap)
         : ""
     );
+    setFreeSolo(config.freePlaySoloDailyCap == null ? "" : String(config.freePlaySoloDailyCap));
+    setFreeMulti(config.freePlayMultiDailyCap == null ? "" : String(config.freePlayMultiDailyCap));
+    setTicketSoloPrice(config.ticketEntrySoloPriceTickets == null ? "" : String(config.ticketEntrySoloPriceTickets));
+    setTicketSoloCap(config.ticketEntrySoloDailyCap == null ? "" : String(config.ticketEntrySoloDailyCap));
+    setTicketMultiPrice(config.ticketEntryMultiPriceTickets == null ? "" : String(config.ticketEntryMultiPriceTickets));
+    setTicketMultiCap(config.ticketEntryMultiDailyCap == null ? "" : String(config.ticketEntryMultiDailyCap));
   }, [config, partnerId]);
 
   const toggleGame = (gameType: string) => {
@@ -117,6 +130,12 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         partnerId,
         games: selectedGames,
         adReplayDailyCap,
+        freePlaySoloDailyCap: freeSolo === "" ? null : Number(freeSolo),
+        freePlayMultiDailyCap: freeMulti === "" ? null : Number(freeMulti),
+        ticketEntrySoloPriceTickets: ticketSoloPrice === "" ? null : Number(ticketSoloPrice),
+        ticketEntrySoloDailyCap: ticketSoloCap === "" ? null : Number(ticketSoloCap),
+        ticketEntryMultiPriceTickets: ticketMultiPrice === "" ? null : Number(ticketMultiPrice),
+        ticketEntryMultiDailyCap: ticketMultiCap === "" ? null : Number(ticketMultiCap),
         ...(saveAsFirstParty ? {} : { portalKey: trimmedKey }),
       });
       hydratedForPartner.current = null;
@@ -201,6 +220,15 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         留空使用默认 {config.adReplayDailyCapDefault ?? 5}；填 0 关闭广告再战。当前生效：
         {config.adReplayDailyCapEffective ?? config.adReplayDailyCapDefault ?? 5}。
       </p>
+      <fieldset className="merchant-field">
+        <legend>免费 → 门票入场</legend>
+        <label>单人免费/日 <input type="number" min={0} max={100} value={freeSolo} onChange={(e) => setFreeSolo(e.target.value)} placeholder="默认 3" disabled={!canEdit} /></label>
+        <label>多人免费/日 <input type="number" min={0} max={100} value={freeMulti} onChange={(e) => setFreeMulti(e.target.value)} placeholder="默认 10" disabled={!canEdit} /></label>
+        <label>单人门票价格 <input type="number" min={1} max={100} value={ticketSoloPrice} onChange={(e) => setTicketSoloPrice(e.target.value)} placeholder="默认 1" disabled={!canEdit} /></label>
+        <label>单人门票次数/日 <input type="number" min={0} max={100} value={ticketSoloCap} onChange={(e) => setTicketSoloCap(e.target.value)} placeholder="默认 3" disabled={!canEdit} /></label>
+        <label>多人门票价格 <input type="number" min={1} max={100} value={ticketMultiPrice} onChange={(e) => setTicketMultiPrice(e.target.value)} placeholder="默认 2" disabled={!canEdit} /></label>
+        <label>多人门票次数/日 <input type="number" min={0} max={100} value={ticketMultiCap} onChange={(e) => setTicketMultiCap(e.target.value)} placeholder="默认 5" disabled={!canEdit} /></label>
+      </fieldset>
       {selectedGames.length > 0 ? (
         <ul className="merchant-note">
           {selectedGames.map((gameType) => (

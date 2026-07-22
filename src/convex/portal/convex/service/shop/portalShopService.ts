@@ -16,7 +16,6 @@ import {
 } from "../../data/portalShopPartner";
 import { buildRedemptionProfileView } from "../giftcard/giftCardEligibility";
 import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
-import { grantReplayTokens } from "../tournament/replay/casualReplayTokens";
 
 function catalogSeedForSkuId(skuId: string): PortalShopSkuSeed | undefined {
   return PORTAL_SHOP_SKU_CATALOG.find((c) => c.skuId === skuId);
@@ -280,7 +279,17 @@ export const purchasePortalShopSku = authedMutation({
     }
 
     if ((sku.grantReplayTokenCount ?? 0) > 0) {
-      await grantReplayTokens(ctx, ctx.uid, sku.grantReplayTokenCount!);
+      const grant = await ctx.runMutation(
+        internal.service.reward.casualRewardRegistry.grantPortalTickets,
+        {
+          uid: ctx.uid,
+          amount: sku.grantReplayTokenCount!,
+          reason: `shop:${skuId}`,
+        }
+      );
+      if (!grant.ok) {
+        return grant;
+      }
     }
     await recordWeeklyPurchase(ctx, ctx.uid, skuId, now);
 

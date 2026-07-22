@@ -168,7 +168,7 @@ export function resolveCasualPostSettleReplayPresentation(opts: {
       ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
     };
   }
-  return { showReplay: true, replayLabel: '再战' };
+  return { showReplay: true, replayLabel: '门票再战' };
 }
 
 export function resolveCasualScoreReportSecondaryAction(opts: {
@@ -201,7 +201,7 @@ export function resolveCasualScoreReportSecondaryAction(opts: {
       showReplaySecondary: showReplay,
       ...(showReplay
         ? {
-            secondaryLabel: '再战',
+            secondaryLabel: opts.replayMode === 'token' ? '门票再战' : '再战',
             ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
           }
         : {}),

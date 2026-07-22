@@ -10,12 +10,14 @@ import {
   requirePartnerStaff,
   type PartnerRole,
 } from "./partnerStaff";
-import { listAuthChannelCatalog as catalogRows } from "../auth/authChannelCatalog";
 import {
-  resolvePartnerChannels,
-  sanitizeConsumerAuthChannelIds,
-  sanitizeStaffAuthChannelIds,
-} from "../auth/partnerChannelPolicy";
+  playerAuthValidator,
+  resolvePlayerAuth,
+  resolveStaffAuth,
+  sanitizePlayerAuth,
+  sanitizeStaffAuth,
+  staffAuthValidator,
+} from "../auth/partnerAuth";
 import { isPlatformOperator } from "./platformOperator";
 import { provisionWebStaffAccount } from "./ensureStaffIdentity";
 import {
@@ -54,8 +56,9 @@ async function loadPartnerView(ctx: QueryCtx, partnerId: number) {
   const partner = await getPartnerByPid(ctx, partnerId);
   if (!partner) return null;
 
-  const resolved = resolvePartnerChannels(partner);
   const capabilities = readPartnerCapabilities(partner);
+  const playerAuth = resolvePlayerAuth(partner);
+  const staffAuth = resolveStaffAuth(partner);
 
   return {
     pid: partner.pid,
@@ -63,12 +66,8 @@ async function loadPartnerView(ctx: QueryCtx, partnerId: number) {
     host: partner.host ?? "",
     slug: partner.slug ?? "",
     capabilities,
-    auth_channels: resolved.consumerChannelIds,
-    staff_auth_channels: resolved.staffChannelIds,
-    authChannelDefs: resolved.authChannelDefs,
-    staffAuthChannelDefs: resolved.staffAuthChannelDefs,
-    authChannelIds: resolved.consumerChannelIds,
-    staffAuthChannelIds: resolved.staffChannelIds,
+    playerAuth,
+    staffAuth,
     data: (partner.data ?? {}) as {
       allowedOrigins?: string[];
       defaultLandingPath?: string;
@@ -142,11 +141,6 @@ export const listMyPartners = authedQuery({
   },
 });
 
-export const listAuthChannelCatalog = authedQuery({
-  args: {},
-  handler: async () => catalogRows(),
-});
-
 export const getPartnerAdminDetail = authedQuery({
   args: { partnerId: v.number() },
   handler: async (ctx, { partnerId }) => {
@@ -202,39 +196,35 @@ export const updatePartnerProfile = authedMutation({
   },
 });
 
-export const updatePartnerAuthChannels = authedMutation({
+export const updatePartnerPlayerAuth = authedMutation({
   args: {
     partnerId: v.number(),
-    authChannelIds: v.array(v.number()),
+    playerAuth: playerAuthValidator,
   },
-  handler: async (ctx, { partnerId, authChannelIds }) => {
+  handler: async (ctx, { partnerId, playerAuth }) => {
     await requirePartnerAdmin(ctx, partnerId, "admin");
     const partner = await getPartnerByPid(ctx, partnerId);
     if (!partner) throw new Error("not_found");
 
-    const unique = sanitizeConsumerAuthChannelIds(authChannelIds);
-    if (unique.length === 0) {
-      throw new Error("auth_channels_required");
-    }
-
-    await ctx.db.patch(partner._id, { auth_channels: unique });
-    return { ok: true as const, authChannelIds: unique };
+    const next = sanitizePlayerAuth(playerAuth, partner.data);
+    await ctx.db.patch(partner._id, { playerAuth: next });
+    return { ok: true as const, playerAuth: next };
   },
 });
 
-export const updatePartnerStaffAuthChannels = authedMutation({
+export const updatePartnerStaffAuth = authedMutation({
   args: {
     partnerId: v.number(),
-    staffAuthChannelIds: v.array(v.number()),
+    staffAuth: staffAuthValidator,
   },
-  handler: async (ctx, { partnerId, staffAuthChannelIds }) => {
+  handler: async (ctx, { partnerId, staffAuth }) => {
     await requirePartnerAdmin(ctx, partnerId, "admin");
     const partner = await getPartnerByPid(ctx, partnerId);
     if (!partner) throw new Error("not_found");
 
-    const unique = sanitizeStaffAuthChannelIds(staffAuthChannelIds);
-    await ctx.db.patch(partner._id, { staff_auth_channels: unique });
-    return { ok: true as const, staffAuthChannelIds: unique };
+    const next = sanitizeStaffAuth(staffAuth);
+    await ctx.db.patch(partner._id, { staffAuth: next });
+    return { ok: true as const, staffAuth: next };
   },
 });
 

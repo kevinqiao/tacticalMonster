@@ -13,7 +13,7 @@ describe("embed credential sources", () => {
     const active = anyEmbedCredentialSourceActive(
       buildEmbedSourceContext({
         partnerPid: 1,
-        partner: { pid: 1, authChannelIds: [2] },
+        partner: { pid: 1, playerAuth: { mode: "embed" } },
         partnerResolveReady: true,
         campaignPartnerSlug: null,
         portalPartnerKey: null,
@@ -30,7 +30,7 @@ describe("embed credential sources", () => {
     const active = anyEmbedCredentialSourceActive(
       buildEmbedSourceContext({
         partnerPid: 100,
-        partner: { pid: 100, authChannelIds: [2] },
+        partner: { pid: 100, playerAuth: { mode: "embed" } },
         partnerResolveReady: true,
         campaignPartnerSlug: null,
         portalPartnerKey: null,

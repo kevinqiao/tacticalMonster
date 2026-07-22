@@ -28,6 +28,8 @@
       "playsToday": "Today {{playsToday}}/{{maxPlaysPerDay}}"
     },
     "play": "Play",
+    "playWithTickets": "Ticket ×{{price}}",
+    "playWithTicketsSub": "{{remaining}} left today",
     "continue": "Continue",
     "continueInProgress": "In progress",
     "joining": "Joining…",
@@ -49,7 +51,7 @@
     "accountMenu": {
       "myAccount": "My Account",
       "backpack": "My Backpack",
-      "openAria": "Account menu",
+      "openAria": "My account",
       "nickname": "Nickname",
       "email": "Email",
       "phone": "Phone",
@@ -67,7 +69,7 @@
         "noAuth": "Sign in to edit your account.",
         "saveFailed": "Could not save. Try again."
       },
-      "replayTokens": "Replay tokens",
+      "replayTokens": "Tickets",
       "adReplayRemaining": "Ad replays left today",
       "coupons": "Coupons",
       "tickets": "Tickets",
@@ -148,7 +150,7 @@
     },
     "empty": "No items available",
     "faceValue": "Face value {{value}}",
-    "grantReplay": "Replay tokens ×{{count}}",
+    "grantReplay": "Tickets ×{{count}}",
     "weeklyRemaining": "{{remaining}} / {{limit}} left this week",
     "buying": "Redeeming…",
     "soldOut": "Sold out",
@@ -157,11 +159,11 @@
   },
   "shopSkus": {
     "portal_shop_replay_3": {
-      "title": "Replay tokens ×3",
+      "title": "Tickets ×3",
       "description": "Replay once after a run ends. Supported challenge modes only."
     },
     "portal_shop_replay_10": {
-      "title": "Replay tokens ×10",
+      "title": "Tickets ×10",
       "description": "Best value for frequent competitors."
     },
     "gc_amazon_5_us": {

@@ -148,41 +148,47 @@ export function PortalAccountPanel({
   return (
     <div className="portal-account-panel">
       <div className="portal-account-panel__list">
-        <label className="portal-account-panel__row portal-account-panel__row--edit">
-          <span>{t("lobby.accountMenu.nickname")}</span>
-          <input
-            type="text"
-            value={nickname}
-            maxLength={16}
-            autoComplete="nickname"
-            disabled={saving || !onSaveDisplayName}
-            onChange={(e) => setNickname(e.target.value)}
-          />
-        </label>
-        <label className="portal-account-panel__row portal-account-panel__row--edit">
-          <span>{t("lobby.accountMenu.email")}</span>
-          <input
-            type="email"
-            value={emailValue}
-            autoComplete="email"
-            disabled={saving || !onSaveContact}
-            onChange={(e) => setEmailValue(e.target.value)}
-            placeholder={t("lobby.accountMenu.emailPlaceholder")}
-          />
-        </label>
-        <label className="portal-account-panel__row portal-account-panel__row--edit">
-          <span>{t("lobby.accountMenu.phone")}</span>
-          <input
-            type="tel"
-            value={phoneValue}
-            autoComplete="tel"
-            disabled={saving || !onSaveContact}
-            onChange={(e) => setPhoneValue(e.target.value)}
-            placeholder={t("lobby.accountMenu.phonePlaceholder")}
-          />
-        </label>
+        <div className="portal-account-panel__nickname-block">
+          <label className="portal-account-panel__row portal-account-panel__row--edit">
+            <span>{t("lobby.accountMenu.nickname")}</span>
+            <input
+              type="text"
+              value={nickname}
+              maxLength={16}
+              autoComplete="nickname"
+              disabled={saving || !onSaveDisplayName}
+              onChange={(e) => setNickname(e.target.value)}
+            />
+          </label>
+          <p className="portal-account-panel__hint">
+            {t("lobby.accountMenu.editHint")}
+          </p>
+        </div>
+        <div className="portal-account-panel__contact-row">
+          <label className="portal-account-panel__row portal-account-panel__row--edit">
+            <span>{t("lobby.accountMenu.email")}</span>
+            <input
+              type="email"
+              value={emailValue}
+              autoComplete="email"
+              disabled={saving || !onSaveContact}
+              onChange={(e) => setEmailValue(e.target.value)}
+              placeholder={t("lobby.accountMenu.emailPlaceholder")}
+            />
+          </label>
+          <label className="portal-account-panel__row portal-account-panel__row--edit">
+            <span>{t("lobby.accountMenu.phone")}</span>
+            <input
+              type="tel"
+              value={phoneValue}
+              autoComplete="tel"
+              disabled={saving || !onSaveContact}
+              onChange={(e) => setPhoneValue(e.target.value)}
+              placeholder={t("lobby.accountMenu.phonePlaceholder")}
+            />
+          </label>
+        </div>
       </div>
-      <p className="portal-account-panel__hint">{t("lobby.accountMenu.editHint")}</p>
       {error ? <p className="portal-account-panel__error">{error}</p> : null}
       <button
         type="button"

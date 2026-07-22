@@ -763,6 +763,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 convex,
                 gameId: gs.gameId,
                 platformBridge: casualPlatformBridge,
+                replayMode: postCasualReplayMode,
                 replayAction: (actionArgs) =>
                     convex.action(api.proxy.controller.replayCasualRun, actionArgs),
             });

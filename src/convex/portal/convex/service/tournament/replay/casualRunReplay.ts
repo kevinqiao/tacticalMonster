@@ -4,11 +4,9 @@
 import { v } from "convex/values";
 import type { Id } from "../../../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../../../_generated/server";
+import { internal } from "../../../_generated/api";
 import { getPortalTournamentDefinition, isPeriodScopedTournament } from "../../../data/portalTournamentConfigs";
 import { effectiveScoreAggregation } from "../../../data/portalTournamentConfigs";
-import {
-  isPortalAdReplayTemplate,
-} from "../../../data/portalAdReplayConfig";
 import {
   assertPortalAdReplayOfferEligible,
   normalizeReplayEpoch,
@@ -18,13 +16,11 @@ import {
   RUN_PLAYER_TOURNAMENT_OPEN,
   RUN_TOURNAMENT_OPEN,
 } from "../join/casualTournamentJoinCore";
-import { consumeReplayToken } from "./casualReplayTokens";
 import {
   canUseReplayForTemplate,
   isReplayableFinished,
   promoteFinishedToConfirmedIfExpired,
 } from "../shared/casualPlayerMatchStatus";
-import { findOldestUnusedReplayTokenId } from "./casualReplayPassService";
 import {
   findPlayerGameByGameId,
   listPlayerGamesForSeat,
@@ -107,7 +103,6 @@ export async function authorizeCasualRunReplayCore(
   args: {
     uid: string;
     matchGameId: string;
-    replayTokenId?: Id<"casual_replay_tokens">;
     adReplayClaimId?: Id<"portal_ad_replay_claims">;
   }
 ): Promise<AuthorizeCasualRunReplayResult> {
@@ -155,18 +150,15 @@ export async function authorizeCasualRunReplayCore(
     return { ok: false, error: "bots_not_seeded" };
   }
 
-  if (isPortalAdReplayTemplate(pm.templateId)) {
-    const eligible = await assertPortalAdReplayOfferEligible(ctx, {
-      uid: args.uid,
-      pm: freshPm,
-      matchGameId: args.matchGameId,
-    });
-    if (!eligible.ok) {
-      return { ok: false, error: "replay_not_allowed" };
-    }
-    if (!args.adReplayClaimId) {
-      return { ok: false, error: "ad_replay_required" };
-    }
+  const eligible = await assertPortalAdReplayOfferEligible(ctx, {
+    uid: args.uid,
+    pm: freshPm,
+    matchGameId: args.matchGameId,
+  });
+  if (!eligible.ok) {
+    return { ok: false, error: "replay_not_allowed" };
+  }
+  if (args.adReplayClaimId) {
     const claim = await ctx.db.get(args.adReplayClaimId);
     if (!claim || claim.uid !== args.uid || claim.matchGameId !== args.matchGameId) {
       return { ok: false, error: "ad_replay_invalid" };
@@ -177,22 +169,17 @@ export async function authorizeCasualRunReplayCore(
       return { ok: false, error: "ad_replay_epoch_mismatch" };
     }
   } else {
-    let tokenId = args.replayTokenId;
-    if (!tokenId) {
-      const picked = await findOldestUnusedReplayTokenId(ctx, args.uid);
-      if (!picked) {
-        return { ok: false, error: "no_replay_token" };
-      }
-      tokenId = picked;
-    }
-
-    const consumed = await consumeReplayToken(ctx, {
+    const spent = await ctx.runMutation(
+      internal.service.reward.casualRewardRegistry.spendPortalTickets,
+      {
       uid: args.uid,
-      tokenId,
-      tournamentId: pm.templateId,
-    });
-    if (!consumed.ok) {
-      return { ok: false, error: consumed.error };
+        amount: 1,
+        reason: "replay",
+        gameType: pm.gameType,
+      }
+    );
+    if (!spent.ok) {
+      return { ok: false, error: spent.error };
     }
   }
 
@@ -322,18 +309,13 @@ export async function revertCasualRunForReplayCore(
   };
 }
 
-export async function startCasualRunReplayWithToken(
+export async function startCasualRunReplayWithTicket(
   ctx: MutationCtx,
-  args: {
-    uid: string;
-    matchGameId: string;
-    replayTokenId: Id<"casual_replay_tokens">;
-  }
+  args: { uid: string; matchGameId: string }
 ): Promise<StartCasualRunReplayResult> {
   const r = await authorizeCasualRunReplayCore(ctx, {
     uid: args.uid,
     matchGameId: args.matchGameId,
-    replayTokenId: args.replayTokenId,
   });
   if (!r.ok) return r;
   return {
@@ -350,7 +332,6 @@ export const authorizeCasualRunReplay = internalMutation({
   args: {
     uid: v.string(),
     matchGameId: v.string(),
-    replayTokenId: v.optional(v.id("casual_replay_tokens")),
     adReplayClaimId: v.optional(v.id("portal_ad_replay_claims")),
   },
   handler: async (ctx, args) => authorizeCasualRunReplayCore(ctx, args),

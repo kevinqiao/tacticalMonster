@@ -2,7 +2,7 @@ import type { Partner } from "../PartnerManager";
 import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
 import { anyEmbedCredentialSourceEligible } from "./embedSources/registry";
 import type { EmbedSourceContext } from "./embedSources/types";
-import { EMBED_AUTH_CHANNEL_CID } from "@/convex/sso/convex/service/auth/authChannelCatalog";
+import { playerAuthAllowsEmbed } from "@/convex/sso/convex/service/auth/partnerAuth";
 import { isCrazyGamesFileHost } from "./embedSources/crazyGamesHost";
 
 /** Grace period while waiting for Partner WebView JWT before Clerk SSO. */
@@ -27,8 +27,15 @@ export type EmbedAuthGatePhase =
   | "skipped";
 
 export function partnerEmbedChannelEnabled(partner: Partner | null | undefined): boolean {
-  const ids = partner?.authChannelIds ?? partner?.auth_channels ?? [];
-  return ids.includes(EMBED_AUTH_CHANNEL_CID);
+  const mode = partner?.playerAuth?.mode;
+  if (mode) {
+    return playerAuthAllowsEmbed({
+      mode,
+      embed: partner?.playerAuth?.embed,
+    });
+  }
+  // Unresolved partner: allow embed listen (server still gates).
+  return true;
 }
 
 export function isFirstPartyPortalPath(
