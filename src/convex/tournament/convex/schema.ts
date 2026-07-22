@@ -1,6 +1,7 @@
 import { defineSchema } from "convex/server";
 import { activitySchema } from "./schemas/activitySchema";
 import { battlePassSchema } from "./schemas/battlePassSchema";
+import { mcpSchema } from "./schemas/mcpSchema";
 import { rankingSchema } from "./schemas/rankingSchema";
 import { rewardSchema } from "./schemas/rewardSchema";
 import { tournamentRulesSchema } from "./schemas/tournamentRulesSchema";
@@ -36,4 +37,6 @@ export default defineSchema({
   // 活动系统
   ...activitySchema,
 
+  // MCP API keys（远程 Agent 平台接入）
+  ...mcpSchema,
 });
