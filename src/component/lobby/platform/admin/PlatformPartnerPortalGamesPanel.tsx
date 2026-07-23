@@ -184,19 +184,19 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
           />
         </label>
       ) : null}
-      <fieldset className="merchant-field">
+      <fieldset className="merchant-field merchant-field--radio">
         <legend>激活游戏</legend>
         {registryGames.length === 0 ? (
           <p className="merchant-note">无注册游戏。</p>
         ) : (
           registryGames.map((gameType) => (
-            <label key={gameType} style={{ display: "block", marginBottom: 6 }}>
+            <label key={gameType} className="merchant-radio">
               <input
                 type="checkbox"
                 checked={selectedGames.includes(gameType)}
                 onChange={() => toggleGame(gameType)}
                 disabled={!canEdit}
-              />{" "}
+              />
               {gameType}
             </label>
           ))
@@ -220,14 +220,86 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         留空使用默认 {config.adReplayDailyCapDefault ?? 5}；填 0 关闭广告再战。当前生效：
         {config.adReplayDailyCapEffective ?? config.adReplayDailyCapDefault ?? 5}。
       </p>
-      <fieldset className="merchant-field">
+      <fieldset className="merchant-field merchant-field--radio">
         <legend>免费 → 门票入场</legend>
-        <label>单人免费/日 <input type="number" min={0} max={100} value={freeSolo} onChange={(e) => setFreeSolo(e.target.value)} placeholder="默认 3" disabled={!canEdit} /></label>
-        <label>多人免费/日 <input type="number" min={0} max={100} value={freeMulti} onChange={(e) => setFreeMulti(e.target.value)} placeholder="默认 10" disabled={!canEdit} /></label>
-        <label>单人门票价格 <input type="number" min={1} max={100} value={ticketSoloPrice} onChange={(e) => setTicketSoloPrice(e.target.value)} placeholder="默认 1" disabled={!canEdit} /></label>
-        <label>单人门票次数/日 <input type="number" min={0} max={100} value={ticketSoloCap} onChange={(e) => setTicketSoloCap(e.target.value)} placeholder="默认 3" disabled={!canEdit} /></label>
-        <label>多人门票价格 <input type="number" min={1} max={100} value={ticketMultiPrice} onChange={(e) => setTicketMultiPrice(e.target.value)} placeholder="默认 2" disabled={!canEdit} /></label>
-        <label>多人门票次数/日 <input type="number" min={0} max={100} value={ticketMultiCap} onChange={(e) => setTicketMultiCap(e.target.value)} placeholder="默认 5" disabled={!canEdit} /></label>
+        <div className="merchant-field-row">
+          <label className="merchant-field">
+            单人免费/日
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={freeSolo}
+              onChange={(e) => setFreeSolo(e.target.value)}
+              placeholder="默认 3"
+              disabled={!canEdit}
+            />
+          </label>
+          <label className="merchant-field">
+            多人免费/日
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={freeMulti}
+              onChange={(e) => setFreeMulti(e.target.value)}
+              placeholder="默认 10"
+              disabled={!canEdit}
+            />
+          </label>
+        </div>
+        <div className="merchant-field-row">
+          <label className="merchant-field">
+            单人门票价格
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={ticketSoloPrice}
+              onChange={(e) => setTicketSoloPrice(e.target.value)}
+              placeholder="默认 1"
+              disabled={!canEdit}
+            />
+          </label>
+          <label className="merchant-field">
+            单人门票次数/日
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={ticketSoloCap}
+              onChange={(e) => setTicketSoloCap(e.target.value)}
+              placeholder="默认 3"
+              disabled={!canEdit}
+            />
+          </label>
+        </div>
+        <div className="merchant-field-row">
+          <label className="merchant-field">
+            多人门票价格
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={ticketMultiPrice}
+              onChange={(e) => setTicketMultiPrice(e.target.value)}
+              placeholder="默认 2"
+              disabled={!canEdit}
+            />
+          </label>
+          <label className="merchant-field">
+            多人门票次数/日
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={ticketMultiCap}
+              onChange={(e) => setTicketMultiCap(e.target.value)}
+              placeholder="默认 5"
+              disabled={!canEdit}
+            />
+          </label>
+        </div>
       </fieldset>
       {selectedGames.length > 0 ? (
         <ul className="merchant-note">

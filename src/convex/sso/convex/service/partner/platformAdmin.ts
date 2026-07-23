@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import { internal } from "../../_generated/api";
-import { internalMutation } from "../../_generated/server";
+import { internalMutation, internalQuery } from "../../_generated/server";
 import { authedMutation, authedQuery } from "../../custom/session";
 import { getPartnerByPid, nextPartnerId } from "./partnerStaff";
 import { isPlatformOperator } from "./platformOperator";
@@ -55,6 +55,17 @@ export const getPlatformOperatorAccess = authedQuery({
       isOperator: await isPlatformOperator(ctx, ctx.user.uid),
       role: row?.role as PlatformStaffRole | undefined,
     };
+  },
+});
+
+/** For actions that need platform-operator checks (no db on ActionCtx). */
+export const assertPlatformOperatorInternal = internalQuery({
+  args: { uid: v.string() },
+  handler: async (ctx, { uid }) => {
+    if (!(await isPlatformOperator(ctx, uid.trim()))) {
+      return { ok: false as const, error: "forbidden" as const };
+    }
+    return { ok: true as const };
   },
 });
 

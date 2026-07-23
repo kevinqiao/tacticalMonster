@@ -70,7 +70,7 @@ const PartnerAdminHomePage: React.FC<PageProp> = ({ visible }) => {
       <PartnerAdminToolbar />
       <h1>Partner 管理</h1>
       <p className="merchant-note">
-        管理您被授权的平台合作方（Partner）：资料、登录渠道、团队；若开通 campaignOps，还可管理活动 / 券 / 品牌 /
+        管理您被授权的平台合作方（Partner）：资料、登录配置、团队；若开通 campaignOps，还可管理活动 / 券 / 品牌 /
         门店。Partner 由平台运营创建，不能在此自助注册。
       </p>
 

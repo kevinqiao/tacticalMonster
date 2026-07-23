@@ -26,6 +26,7 @@ import type * as data_portalDailyPlayLimits from "../data/portalDailyPlayLimits.
 import type * as data_portalGiftCardEconomy from "../data/portalGiftCardEconomy.js";
 import type * as data_portalInstanceWindow from "../data/portalInstanceWindow.js";
 import type * as data_portalMatchmakingConfig from "../data/portalMatchmakingConfig.js";
+import type * as data_portalPartnerShopSettings from "../data/portalPartnerShopSettings.js";
 import type * as data_portalPlayerStrategyTypes from "../data/portalPlayerStrategyTypes.js";
 import type * as data_portalSeedTierPolicy from "../data/portalSeedTierPolicy.js";
 import type * as data_portalShopCatalog from "../data/portalShopCatalog.js";
@@ -105,8 +106,10 @@ import type * as service_seedPool_seedPoolDevQueries from "../service/seedPool/s
 import type * as service_seedPool_seedPoolQueries from "../service/seedPool/seedPoolQueries.js";
 import type * as service_seedPool_seedPoolStore from "../service/seedPool/seedPoolStore.js";
 import type * as service_seedPool_seedPoolValidators from "../service/seedPool/seedPoolValidators.js";
+import type * as service_shop_partnerShopSettings from "../service/shop/partnerShopSettings.js";
 import type * as service_shop_partnerShopSkuAdmin from "../service/shop/partnerShopSkuAdmin.js";
 import type * as service_shop_portalShopService from "../service/shop/portalShopService.js";
+import type * as service_shop_shopCatalogResolve from "../service/shop/shopCatalogResolve.js";
 import type * as service_task_casualTaskService from "../service/task/casualTaskService.js";
 import type * as service_tournament_casualTournamentService from "../service/tournament/casualTournamentService.js";
 import type * as service_tournament_join_campaignDailyPlayLimit from "../service/tournament/join/campaignDailyPlayLimit.js";
@@ -216,6 +219,7 @@ declare const fullApi: ApiFromModules<{
   "data/portalGiftCardEconomy": typeof data_portalGiftCardEconomy;
   "data/portalInstanceWindow": typeof data_portalInstanceWindow;
   "data/portalMatchmakingConfig": typeof data_portalMatchmakingConfig;
+  "data/portalPartnerShopSettings": typeof data_portalPartnerShopSettings;
   "data/portalPlayerStrategyTypes": typeof data_portalPlayerStrategyTypes;
   "data/portalSeedTierPolicy": typeof data_portalSeedTierPolicy;
   "data/portalShopCatalog": typeof data_portalShopCatalog;
@@ -295,8 +299,10 @@ declare const fullApi: ApiFromModules<{
   "service/seedPool/seedPoolQueries": typeof service_seedPool_seedPoolQueries;
   "service/seedPool/seedPoolStore": typeof service_seedPool_seedPoolStore;
   "service/seedPool/seedPoolValidators": typeof service_seedPool_seedPoolValidators;
+  "service/shop/partnerShopSettings": typeof service_shop_partnerShopSettings;
   "service/shop/partnerShopSkuAdmin": typeof service_shop_partnerShopSkuAdmin;
   "service/shop/portalShopService": typeof service_shop_portalShopService;
+  "service/shop/shopCatalogResolve": typeof service_shop_shopCatalogResolve;
   "service/task/casualTaskService": typeof service_task_casualTaskService;
   "service/tournament/casualTournamentService": typeof service_tournament_casualTournamentService;
   "service/tournament/join/campaignDailyPlayLimit": typeof service_tournament_join_campaignDailyPlayLimit;

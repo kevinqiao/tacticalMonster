@@ -61,7 +61,9 @@ const PartnerAdminRedeemPanel: React.FC<Props> = ({ partnerId }) => {
   return (
     <>
       <section>
-        <h3>输码核销</h3>
+        <h3 className="merchant-section-title" style={{ marginTop: 0 }}>
+          输码核销
+        </h3>
         <p className="merchant-note">输入玩家兑换券码，可直接核销已申请或未申请使用的兑换券。</p>
         <div className="merchant-inline-actions">
           <input
@@ -84,7 +86,7 @@ const PartnerAdminRedeemPanel: React.FC<Props> = ({ partnerId }) => {
       </section>
 
       <section>
-        <h3>使用申请</h3>
+        <h3 className="merchant-section-title">使用申请</h3>
         {items === null ? <p className="merchant-note">加载中…</p> : null}
         {items?.length === 0 ? <p className="merchant-note">暂无待确认的使用申请。</p> : null}
         {items?.map((item) => (

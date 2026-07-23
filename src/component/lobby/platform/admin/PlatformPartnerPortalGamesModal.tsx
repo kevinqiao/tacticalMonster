@@ -44,8 +44,6 @@ const PlatformPartnerPortalGamesModal: React.FC<Props> = ({
         </header>
         <div className="merchant-form-modal__body">
           <PlatformPartnerPortalGamesPanel partnerId={partnerId} canEdit={canEdit} />
-          <hr />
-          <h3>Partner 专属商店 SKU</h3>
           <PlatformPartnerShopPanel partnerId={partnerId} canEdit={canEdit} />
         </div>
         <footer className="merchant-form-modal__footer">

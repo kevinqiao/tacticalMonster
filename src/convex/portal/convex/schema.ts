@@ -78,6 +78,35 @@ export default defineSchema({
     listInShop: v.optional(v.boolean()),
   }).index("by_skuId", ["skuId"]),
 
+  /** Portal-owned Partner shop assortment and effective catalog overrides. */
+  portal_partner_shop_settings: defineTable({
+    partnerId: v.number(),
+    enabled: v.boolean(),
+    giftCardsEnabled: v.boolean(),
+    virtualEnabled: v.boolean(),
+    /** Optional for legacy rows written before voucher switch existed. */
+    vouchersEnabled: v.optional(v.boolean()),
+    /** Optional for legacy rows written before ad-coin switch existed. */
+    adCoinEnabled: v.optional(v.boolean()),
+    assortmentMode: v.union(v.literal("all_shared"), v.literal("allowlist")),
+    skuIds: v.optional(v.array(v.string())),
+    excludeSkuIds: v.optional(v.array(v.string())),
+    overrides: v.optional(
+      v.record(
+        v.string(),
+        v.object({
+          priceCoins: v.optional(v.number()),
+          title: v.optional(v.string()),
+          weeklyPurchaseLimit: v.optional(v.union(v.number(), v.null())),
+          sortOrder: v.optional(v.number()),
+          active: v.optional(v.boolean()),
+          tangoUtid: v.optional(v.string()),
+        })
+      )
+    ),
+    updatedAt: v.number(),
+  }).index("by_partnerId", ["partnerId"]),
+
   /** Player-owned vouchers fulfilled by Portal shop and campaign rewards. */
   portal_backpack_items: defineTable({
     uid: v.string(),

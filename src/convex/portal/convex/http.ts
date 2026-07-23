@@ -620,6 +620,70 @@ function partnerVoucherItemId(body: Record<string, unknown>) {
     : null;
 }
 
+/** Platform Admin → Portal: Partner-global shop switches and assortment. */
+http.route({
+  path: "/internal/partner-shop-settings",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (request.headers.get("X-Portal-Bridge-Secret") !== portalGameBridgeSecret()) {
+      return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+    }
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const partnerId = partnerIdFromBody(parsed.body);
+    const operation = parsed.body.operation;
+    if (partnerId === null || (operation !== "get" && operation !== "upsert")) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    if (operation === "get") {
+      const settings = await ctx.runQuery(
+        internal.service.shop.partnerShopSettings.getPartnerShopSettingsInternal,
+        { partnerId }
+      );
+      return jsonResponse({ ok: true, settings });
+    }
+    const b = parsed.body;
+    if (
+      typeof b.enabled !== "boolean" ||
+      typeof b.giftCardsEnabled !== "boolean" ||
+      typeof b.virtualEnabled !== "boolean" ||
+      typeof b.vouchersEnabled !== "boolean" ||
+      typeof b.adCoinEnabled !== "boolean" ||
+      (b.assortmentMode !== "all_shared" && b.assortmentMode !== "allowlist") ||
+      !Array.isArray(b.skuIds) ||
+      !Array.isArray(b.excludeSkuIds) ||
+      !b.overrides ||
+      typeof b.overrides !== "object"
+    ) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    try {
+      return jsonResponse(
+        await ctx.runMutation(
+          internal.service.shop.partnerShopSettings.upsertPartnerShopSettingsInternal,
+          {
+            partnerId,
+            enabled: b.enabled,
+            giftCardsEnabled: b.giftCardsEnabled,
+            virtualEnabled: b.virtualEnabled,
+            vouchersEnabled: b.vouchersEnabled,
+            adCoinEnabled: b.adCoinEnabled,
+            assortmentMode: b.assortmentMode,
+            skuIds: b.skuIds.filter((id): id is string => typeof id === "string"),
+            excludeSkuIds: b.excludeSkuIds.filter((id): id is string => typeof id === "string"),
+            overrides: b.overrides as Record<string, any>,
+          }
+        )
+      );
+    } catch (error) {
+      return jsonResponse(
+        { ok: false, error: error instanceof Error ? error.message : "operation_failed" },
+        400
+      );
+    }
+  }),
+});
+
 /** SSO → Portal: Partner redemption inbox and fulfillment operations. */
 http.route({
   path: "/internal/partner-vouchers",

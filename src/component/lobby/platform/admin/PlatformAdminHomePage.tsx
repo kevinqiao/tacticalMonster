@@ -206,7 +206,7 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
       <h1>平台运营</h1>
       <p className="merchant-note">
         使用 <strong>admin / admin</strong> 登录（Web 账号 + <code>platform_staff</code> 权限）。
-        Partner 日常配置（资料、登录渠道等）请使用 <a href="/partner/admin">/partner/admin</a>。
+        Partner 日常配置（资料、登录配置等）请使用 <a href="/partner/admin">/partner/admin</a>。
         Portal 游戏激活权由平台在此管理。
       </p>
 
@@ -285,7 +285,7 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                   </p>
                   <nav className="merchant-nav">
                     <a href={`/partner/admin?partnerId=${p.pid}&section=profile`}>资料</a>
-                    <a href={`/partner/admin?partnerId=${p.pid}&section=auth`}>登录渠道</a>
+                    <a href={`/partner/admin?partnerId=${p.pid}&section=auth`}>登录配置</a>
                     <button
                       type="button"
                       className="merchant-link-btn"

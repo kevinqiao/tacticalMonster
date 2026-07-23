@@ -16,6 +16,8 @@ import {
 } from "../../data/portalShopPartner";
 import { buildRedemptionProfileView } from "../giftcard/giftCardEligibility";
 import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
+import { defaultPortalPartnerShopSettings } from "../../data/portalPartnerShopSettings";
+import { findResolvedShopSku, resolvePortalShopCatalog } from "./shopCatalogResolve";
 
 function catalogSeedForSkuId(skuId: string): PortalShopSkuSeed | undefined {
   return PORTAL_SHOP_SKU_CATALOG.find((c) => c.skuId === skuId);
@@ -71,7 +73,8 @@ function shopSkuFromDbRow(r: Doc<"portal_shop_skus">) {
   const cat = catalogSeedForSkuId(r.skuId);
   const seed: PortalShopSkuSeed = {
     skuId: r.skuId,
-    title: r.title,
+    // Shared catalog copy can be stale; the checked-in catalog owns its title.
+    title: cat?.title ?? r.title,
     description: r.description ?? cat?.description,
     priceCoins: r.priceCoins,
     grantReplayTokenCount: r.grantReplayTokenCount ?? cat?.grantReplayTokenCount,
@@ -95,6 +98,45 @@ function shopSkuFromDbRow(r: Doc<"portal_shop_skus">) {
     listInShop: r.listInShop ?? cat?.listInShop,
   };
   return mapPortalShopSkuRow(seed);
+}
+
+function masterSkus(rows: Doc<"portal_shop_skus">[]) {
+  const byId = new Map(rows.map((row) => [row.skuId, row]));
+  const shared = PORTAL_SHOP_SKU_CATALOG.map((seed) => ({
+    ...seed,
+    active: true,
+    ...(byId.has(seed.skuId) ? { ...shopSkuFromDbRow(byId.get(seed.skuId)!), title: seed.title } : {}),
+  }));
+  const sharedIds = new Set(PORTAL_SHOP_SKU_CATALOG.map((seed) => seed.skuId));
+  const exclusive = rows
+    .filter((row) => !sharedIds.has(row.skuId))
+    .map((row) => ({ ...shopSkuFromDbRow(row), active: row.active }));
+  return [...shared, ...exclusive];
+}
+
+async function resolveForPartner(
+  ctx: { db: { query: (table: "portal_partner_shop_settings") => any } },
+  partnerId: number | null,
+  rows: Doc<"portal_shop_skus">[]
+) {
+  const settingRow =
+    partnerId == null
+      ? null
+      : await ctx.db
+          .query("portal_partner_shop_settings")
+          .withIndex("by_partnerId", (q: any) => q.eq("partnerId", partnerId))
+          .unique();
+  const settings =
+    partnerId == null
+      ? defaultPortalPartnerShopSettings(-1)
+      : {
+          ...defaultPortalPartnerShopSettings(partnerId),
+          ...(settingRow ?? {}),
+          skuIds: settingRow?.skuIds ?? [],
+          excludeSkuIds: settingRow?.excludeSkuIds ?? [],
+          overrides: settingRow?.overrides ?? {},
+        };
+  return resolvePortalShopCatalog({ partnerId, masterSkus: masterSkus(rows), settings });
 }
 
 export const syncPortalShopCatalog = internalMutation({
@@ -122,9 +164,6 @@ export const listPortalShopSkus = authedQuery({
   args: {},
   handler: async (ctx) => {
     const rows = await ctx.db.query("portal_shop_skus").collect();
-    const active = rows
-      .filter((r) => r.active && (r.skuKind !== "voucher" || r.listInShop !== false))
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.skuId.localeCompare(b.skuId));
     const weekKey = weeklyPeriodKey(Date.now());
     const counters = await ctx.db
       .query("portal_shop_weekly_purchase_counters")
@@ -137,16 +176,11 @@ export const listPortalShopSkus = authedQuery({
       .withIndex("by_uid", (q) => q.eq("uid", ctx.uid))
       .unique();
 
-    const sessionPartnerId = resolvePortalShopSessionPartnerId(ctx.uid);
-
-    const catalogRows =
-      active.length > 0
-        ? active
-            .filter((r) => shopSkuVisibleForUid(r, ctx.uid))
-            .map((r) => shopSkuFromDbRow(r))
-        : PORTAL_SHOP_SKU_CATALOG.filter((s) =>
-            isPortalShopSkuVisibleForPartner(s.partnerIds, sessionPartnerId)
-          ).map((s) => mapPortalShopSkuRow(s));
+    const catalogRows = await resolveForPartner(
+      ctx,
+      resolvePortalShopSessionPartnerId(ctx.uid),
+      rows
+    ).then((skus) => skus.map((sku) => mapPortalShopSkuRow(sku)));
 
     return {
       coins: player?.coins ?? 0,
@@ -195,18 +229,17 @@ async function recordWeeklyPurchase(
 export const purchasePortalShopSku = authedMutation({
   args: { skuId: v.string() },
   handler: async (ctx, { skuId }) => {
-    await ctx.runMutation(internal.service.shop.portalShopService.syncPortalShopCatalog, {});
-    const row = await ctx.db
-      .query("portal_shop_skus")
-      .withIndex("by_skuId", (q) => q.eq("skuId", skuId))
-      .unique();
-    if (!row?.active || (row.skuKind === "voucher" && row.listInShop === false)) {
+    const rows = await ctx.db.query("portal_shop_skus").collect();
+    const effective = await resolveForPartner(
+      ctx,
+      resolvePortalShopSessionPartnerId(ctx.uid),
+      rows
+    );
+    const sku = findResolvedShopSku(effective, skuId);
+    if (!sku) {
       return { ok: false as const, error: "sku_not_found" as const };
     }
-    if (!shopSkuVisibleForUid(row, ctx.uid)) {
-      return { ok: false as const, error: "sku_not_found" as const };
-    }
-    const sku = shopSkuFromDbRow(row);
+    const row = sku;
     const skuKind = sku.skuKind ?? "virtual";
     const now = Date.now();
     const weekKey = weeklyPeriodKey(now);

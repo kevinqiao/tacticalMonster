@@ -40,6 +40,26 @@ export type PortalShopSkuSeed = {
 
 export const PORTAL_SHOP_SKU_CATALOG: PortalShopSkuSeed[] = [
   {
+    skuId: "portal_shop_ticket_3",
+    skuKind: "virtual",
+    title: "门票 ×3",
+    description: "获得 3 张门票，可用于继续游戏。",
+    priceCoins: 180,
+    grantReplayTokenCount: 3,
+    weeklyPurchaseLimit: 5,
+    sortOrder: 10,
+  },
+  {
+    skuId: "portal_shop_ticket_10",
+    skuKind: "virtual",
+    title: "门票 ×10",
+    description: "获得 10 张门票，可用于继续游戏。",
+    priceCoins: 500,
+    grantReplayTokenCount: 10,
+    weeklyPurchaseLimit: 3,
+    sortOrder: 20,
+  },
+  {
     skuId: "gc_amazon_5_us",
     skuKind: "giftcard",
     title: "Amazon 礼品卡 $5",

@@ -219,6 +219,47 @@
   gap: 12px;
 }
 
+.merchant-field-row > .merchant-field {
+  margin-bottom: 0;
+}
+
+.merchant-field--radio .merchant-field-row {
+  margin-bottom: 12px;
+}
+
+.merchant-field--radio .merchant-field-row:last-child {
+  margin-bottom: 0;
+}
+
+.merchant-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.merchant-inline-actions > input {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+}
+
+.merchant-admin-section {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.merchant-admin-section > .merchant-section-title {
+  margin-top: 0;
+}
+
 @media (max-width: 640px) {
   .merchant-field-row {
     grid-template-columns: 1fr;
