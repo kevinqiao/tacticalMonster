@@ -47,6 +47,7 @@ import type * as service_ads_portalTicketEntryService from "../service/ads/porta
 import type * as service_auth_jwtAccessSecret from "../service/auth/jwtAccessSecret.js";
 import type * as service_auth_platformJwtVerify from "../service/auth/platformJwtVerify.js";
 import type * as service_auth_portalAuth from "../service/auth/portalAuth.js";
+import type * as service_backpack_grantCampaignVoucher from "../service/backpack/grantCampaignVoucher.js";
 import type * as service_backpack_portalBackpackService from "../service/backpack/portalBackpackService.js";
 import type * as service_botFill_botDifficultyConfig from "../service/botFill/botDifficultyConfig.js";
 import type * as service_botFill_botRevealSchedule from "../service/botFill/botRevealSchedule.js";
@@ -236,6 +237,7 @@ declare const fullApi: ApiFromModules<{
   "service/auth/jwtAccessSecret": typeof service_auth_jwtAccessSecret;
   "service/auth/platformJwtVerify": typeof service_auth_platformJwtVerify;
   "service/auth/portalAuth": typeof service_auth_portalAuth;
+  "service/backpack/grantCampaignVoucher": typeof service_backpack_grantCampaignVoucher;
   "service/backpack/portalBackpackService": typeof service_backpack_portalBackpackService;
   "service/botFill/botDifficultyConfig": typeof service_botFill_botDifficultyConfig;
   "service/botFill/botRevealSchedule": typeof service_botFill_botRevealSchedule;

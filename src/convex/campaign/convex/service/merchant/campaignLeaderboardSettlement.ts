@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { internalMutation } from "../../_generated/server";
+import { internal } from "../../_generated/api";
 import {
   maxLeaderboardRankFromRules,
   rankMatchesLeaderboardRule,
@@ -159,6 +160,22 @@ export async function issueCouponsForRules(
       activatesAt,
       expiresAt,
     });
+    // Transitional dual-write: preserve Campaign coupons for existing wallet/redeem flows,
+    // while Portal owns the player-facing voucher backpack for new SKU-backed rules.
+    if (rule.portalSkuId?.trim()) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.service.merchant.campaignVoucherGrantActions.grantIssuedCouponToPortalBackpack,
+        {
+          uid: args.uid,
+          partnerId: args.campaign.partnerId,
+          campaignId: args.campaign.campaignId,
+          portalSkuId: rule.portalSkuId.trim(),
+          issueKey,
+          preferredCode: code,
+        }
+      );
+    }
     issued.push({ couponId, code, ruleId: rule.ruleId, rewardLabel });
   }
 

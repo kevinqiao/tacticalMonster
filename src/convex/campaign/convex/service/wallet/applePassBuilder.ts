@@ -74,9 +74,9 @@ export async function buildAppleWalletPassBuffer(args: BuildApplePassArgs): Prom
 
   const buffers: Record<string, Buffer> = {
     "icon.png": icon,
-    "paula.r@example.org": icon,
+    "icon@2x.png": icon,
     "logo.png": logo,
-    "paula.r@example.org": logo,
+    "logo@2x.png": logo,
   };
 
   const pass = new PKPass(

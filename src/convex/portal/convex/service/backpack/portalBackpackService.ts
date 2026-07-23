@@ -221,6 +221,53 @@ export const redeemPartnerVoucherByCode = internalMutation({
   },
 });
 
+/** Campaign bridge: mirror a Campaign coupon's terminal status onto its same-code backpack item. */
+export const syncCampaignVoucherStatusByCode = internalMutation({
+  args: {
+    partnerId: v.number(),
+    campaignId: v.string(),
+    code: v.string(),
+    status: v.union(v.literal("redeemed"), v.literal("void")),
+    actorUid: v.optional(v.string()),
+    storeId: v.optional(v.string()),
+    staffNote: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const code = args.code.trim().toUpperCase();
+    if (!code) return { ok: false as const, error: "invalid_code" as const };
+    const item = await ctx.db
+      .query("portal_backpack_items")
+      .withIndex("by_code", (q) => q.eq("code", code))
+      .unique();
+    if (
+      !item ||
+      item.partnerId !== args.partnerId ||
+      item.campaignId !== args.campaignId
+    ) {
+      return { ok: false as const, error: "not_found" as const };
+    }
+    if (item.status === args.status) {
+      return { ok: true as const, itemId: String(item._id), deduped: true as const };
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(item._id, {
+      status: args.status,
+      ...(args.status === "redeemed"
+        ? {
+            redeemedAt: now,
+            redeemChannel: "store_staff" as const,
+            ...(args.storeId ? { redeemedAtStoreId: args.storeId } : {}),
+            ...(args.actorUid ? { redeemedByStaffUid: args.actorUid } : {}),
+            ...(args.staffNote ? { staffNote: args.staffNote } : {}),
+          }
+        : {}),
+      updatedAt: now,
+    });
+    return { ok: true as const, itemId: String(item._id), deduped: false as const };
+  },
+});
+
 export const voidPartnerVoucher = internalMutation({
   args: { partnerId: v.number(), itemId: v.id("portal_backpack_items") },
   handler: async (ctx, { partnerId, itemId }) => {

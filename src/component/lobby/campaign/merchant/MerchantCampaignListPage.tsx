@@ -47,6 +47,7 @@ import {
   campaignTimezoneLabel,
 
   couponDefLabel,
+  portalVoucherSkuLabel,
 
   datetimeLocalToMs,
 
@@ -56,6 +57,7 @@ import {
   defaultRankRewardTiers,
 
   pickDefaultCouponDefId,
+  pickDefaultRewardProductId,
 
   PORTAL_GAME_OPTIONS,
 
@@ -77,6 +79,7 @@ import {
   type CampaignFormState,
 
   type MerchantCouponDefOption,
+  type PortalVoucherSkuOption,
 
 } from "./campaignFormHelpers";
 import { usePartnerGameOptions } from "./usePartnerGameOptions";
@@ -220,6 +223,7 @@ const CampaignFormFields: React.FC<{
   form: CampaignFormState;
 
   couponDefs: MerchantCouponDefOption[];
+  portalVoucherSkus?: PortalVoucherSkuOption[];
 
   onChange: (patch: Partial<CampaignFormState>) => void;
 
@@ -244,6 +248,7 @@ const CampaignFormFields: React.FC<{
 }> = ({
   form,
   couponDefs,
+  portalVoucherSkus = [],
   onChange,
   disabled,
   structuralLocked,
@@ -263,6 +268,7 @@ const CampaignFormFields: React.FC<{
   const activeDefs = couponDefs.filter((d) => d.status === "active");
 
   const selectedDef = activeDefs.find((d) => d.couponDefId === form.couponDefId);
+  const selectedPortalSku = portalVoucherSkus.find((sku) => sku.skuId === form.couponDefId);
 
   const partnerIdHint =
 
@@ -701,7 +707,8 @@ const CampaignFormFields: React.FC<{
 
                     ? defaultRankRewardTiers(
 
-                        form.couponDefId || pickDefaultCouponDefId(activeDefs)
+                        form.couponDefId ||
+                          pickDefaultRewardProductId(portalVoucherSkus, activeDefs)
 
                       )
 
@@ -783,7 +790,9 @@ const CampaignFormFields: React.FC<{
                 onChange({
                   rankRewardTiers: [
                     ...form.rankRewardTiers,
-                    defaultRankRewardTier(pickDefaultCouponDefId(activeDefs)),
+                    defaultRankRewardTier(
+                      pickDefaultRewardProductId(portalVoucherSkus, activeDefs)
+                    ),
                   ],
                 })
               }
@@ -849,6 +858,11 @@ const CampaignFormFields: React.FC<{
                   {activeDefs.map((def) => (
                     <option key={def.couponDefId} value={def.couponDefId}>
                       {couponDefLabel(def)}
+                    </option>
+                  ))}
+                  {portalVoucherSkus.map((sku) => (
+                    <option key={sku.skuId} value={sku.skuId}>
+                      {portalVoucherSkuLabel(sku)}
                     </option>
                   ))}
                 </select>
@@ -922,13 +936,22 @@ const CampaignFormFields: React.FC<{
             </option>
 
           ))}
+          {portalVoucherSkus.map((sku) => (
+
+            <option key={sku.skuId} value={sku.skuId}>
+
+              {portalVoucherSkuLabel(sku)}
+
+            </option>
+
+          ))}
 
         </select>
 
       </label>
       ) : null}
 
-      {activeDefs.length === 0 ? (
+      {activeDefs.length === 0 && portalVoucherSkus.length === 0 ? (
 
         <p className="merchant-note">
 
@@ -942,11 +965,17 @@ const CampaignFormFields: React.FC<{
 
       ) : null}
 
-      {form.rewardModel === "pass_per_run" && form.mode === "solo" && selectedDef ? (
+      {form.rewardModel === "pass_per_run" &&
+      form.mode === "solo" &&
+      (selectedDef || selectedPortalSku) ? (
 
         <p className="merchant-note">
 
-          {t("form.rewardPreview", { label: couponDefLabel(selectedDef) })}
+          {t("form.rewardPreview", {
+            label: selectedPortalSku
+              ? portalVoucherSkuLabel(selectedPortalSku)
+              : couponDefLabel(selectedDef),
+          })}
 
         </p>
 
@@ -954,7 +983,7 @@ const CampaignFormFields: React.FC<{
 
       {formUsesRankRewardTiers(form) && form.rankRewardTiers.length > 0 ? (
         <div className="merchant-rank-tier-preview">
-          {rankRewardTierPreviewLines(form, activeDefs).map((line) => (
+          {rankRewardTierPreviewLines(form, activeDefs, portalVoucherSkus).map((line) => (
             <p key={line} className="merchant-note">
               {line}
             </p>
@@ -1068,9 +1097,19 @@ export const MerchantCampaignListInner: React.FC<{
 
   const { askAuth } = useUserManager();
 
-  const { campaigns, couponDefs, loading, refresh, http, authed, fns } = useMerchantCampaignAdmin(partnerId || null);
+  const {
+    campaigns,
+    couponDefs,
+    portalVoucherSkus,
+    loading,
+    refresh,
+    http,
+    authed,
+    fns,
+  } = useMerchantCampaignAdmin(partnerId || null);
 
   const typedCouponDefs = couponDefs as MerchantCouponDefOption[];
+  const typedPortalVoucherSkus = portalVoucherSkus as PortalVoucherSkuOption[];
 
   const [form, setForm] = useState<CampaignFormState>(() => defaultCampaignForm());
 
@@ -1228,7 +1267,10 @@ export const MerchantCampaignListInner: React.FC<{
 
   const openCreateModal = () => {
 
-    const couponDefId = pickDefaultCouponDefId(typedCouponDefs);
+    const couponDefId = pickDefaultRewardProductId(
+      typedPortalVoucherSkus,
+      typedCouponDefs
+    );
 
     setForm({
 
@@ -1410,7 +1452,11 @@ export const MerchantCampaignListInner: React.FC<{
 
           playLimits: playLimitsFromForm(normalized),
 
-          rewardRules: buildRewardRulesFromForm(normalized, typedCouponDefs),
+          rewardRules: buildRewardRulesFromForm(
+            normalized,
+            typedCouponDefs,
+            typedPortalVoucherSkus
+          ),
 
           ...(posterPortraitStorageId
             ? { posterPortraitStorageId: posterPortraitStorageId as never }
@@ -1789,7 +1835,11 @@ export const MerchantCampaignListInner: React.FC<{
 
             playLimits: playLimitsFromForm(normalized),
 
-            rewardRules: buildRewardRulesFromForm(normalized, typedCouponDefs),
+            rewardRules: buildRewardRulesFromForm(
+              normalized,
+              typedCouponDefs,
+              typedPortalVoucherSkus
+            ),
 
             ...(posterPortraitStorageId
               ? { posterPortraitStorageId: posterPortraitStorageId as never }
@@ -2050,7 +2100,11 @@ export const MerchantCampaignListInner: React.FC<{
               <p className="merchant-note">{t("campaigns.displayTypeHint")}</p>
 
             ) : formUsesRankRewardTiers(formPreview) ? (
-              rankRewardTierPreviewLines(formPreview, typedCouponDefs).map((line) => (
+              rankRewardTierPreviewLines(
+                formPreview,
+                typedCouponDefs,
+                typedPortalVoucherSkus
+              ).map((line) => (
                 <p key={line} className="merchant-note">
                   {line}
                 </p>
@@ -2182,6 +2236,7 @@ export const MerchantCampaignListInner: React.FC<{
         <CampaignFormFields
           form={form}
           couponDefs={typedCouponDefs}
+          portalVoucherSkus={typedPortalVoucherSkus}
           gameOptions={gameOptions}
           gamesLoading={partnerGamesLoading}
           onChange={patchForm}
@@ -2235,6 +2290,7 @@ export const MerchantCampaignListInner: React.FC<{
           <CampaignFormFields
             form={editForm}
             couponDefs={typedCouponDefs}
+            portalVoucherSkus={typedPortalVoucherSkus}
             gameOptions={gameOptions}
             gamesLoading={partnerGamesLoading}
             structuralLocked={editingStatus === "live"}

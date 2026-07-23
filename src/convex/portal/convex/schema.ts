@@ -98,6 +98,10 @@ export default defineSchema({
     expiresAt: v.optional(v.number()),
     useRequestedAt: v.optional(v.number()),
     redeemedAt: v.optional(v.number()),
+    /** Campaign store-staff audit fields for mirrored campaign vouchers. */
+    redeemedAtStoreId: v.optional(v.string()),
+    redeemedByStaffUid: v.optional(v.string()),
+    staffNote: v.optional(v.string()),
     redeemChannel: v.optional(
       v.union(
         v.literal("partner_admin"),

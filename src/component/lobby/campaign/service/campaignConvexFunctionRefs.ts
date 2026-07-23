@@ -126,6 +126,9 @@ export const merchantCampaignFns = {
   listCouponDefsForStaff: makeFunctionReference<"action">(
     "service/merchant/campaignPartnerGameActions:listCouponDefsForStaff"
   ),
+  listPartnerVoucherSkusForStaff: makeFunctionReference<"action">(
+    "service/merchant/campaignPartnerGameActions:listPartnerVoucherSkusForStaff"
+  ),
   createCouponDef: makeFunctionReference<"action">(
     "service/merchant/campaignPartnerGameActions:createCouponDef"
   ),

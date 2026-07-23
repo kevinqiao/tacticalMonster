@@ -30,6 +30,14 @@ export type MerchantCouponDefOption = {
     | { kind: "fixed_at"; atMs: number };
 };
 
+export type PortalVoucherSkuOption = {
+  skuId: string;
+  title: string;
+  rewardText: string;
+  active: boolean;
+  validityDays: number | null;
+};
+
 export type CampaignExperienceType = "game" | "display";
 
 export type DisplayCtaKind = "none" | "external_url" | "tel" | "maps";
@@ -237,10 +245,10 @@ export function campaignFormFromDoc(campaign: Doc<"campaigns">): CampaignFormSta
           return {
             rankFrom: String(bounds.from),
             rankTo: String(bounds.to),
-            couponDefId: rule.couponDefId ?? "",
+            couponDefId: rule.portalSkuId ?? rule.couponDefId ?? "",
           };
         })
-      : defaultRankRewardTiers(passRule?.couponDefId ?? "");
+      : defaultRankRewardTiers(passRule?.portalSkuId ?? passRule?.couponDefId ?? "");
 
   const firstLeaderboard = leaderboardRules[0];
   const legacyTopN = firstLeaderboard ? rankRuleBoundsFromDoc(firstLeaderboard).to : 3;
@@ -262,7 +270,8 @@ export function campaignFormFromDoc(campaign: Doc<"campaigns">): CampaignFormSta
     rewardKind,
     minScore: String(passRule?.minScore ?? 5000),
     topN: String(legacyTopN),
-    couponDefId: passRule?.couponDefId ?? rankRewardTiers[0]?.couponDefId ?? "",
+    couponDefId:
+      passRule?.portalSkuId ?? passRule?.couponDefId ?? rankRewardTiers[0]?.couponDefId ?? "",
     rankRewardTiers,
     maxCouponsPerPlayer: String(campaign.playLimits.maxCouponsPerPlayer),
     maxPlaysPerDay:
@@ -277,6 +286,12 @@ export function couponDefLabel(def: MerchantCouponDefOption | undefined): string
   const fallback = i18n.t("rewardLabel.default", { ns: "campaign.merchant" });
   if (!def) return fallback;
   return `${def.name} · ${formatCampaignRewardLabel(def.reward)}`;
+}
+
+export function portalVoucherSkuLabel(sku: PortalVoucherSkuOption | undefined): string {
+  const fallback = i18n.t("rewardLabel.default", { ns: "campaign.merchant" });
+  if (!sku) return fallback;
+  return sku.rewardText.trim() ? `${sku.title} · ${sku.rewardText}` : sku.title;
 }
 
 function resolveCouponDefReward(
@@ -357,8 +372,22 @@ export function experienceTypeLabel(experienceType: CampaignExperienceType): str
 
 export function buildRewardRulesFromForm(
   form: CampaignFormState,
-  couponDefs: MerchantCouponDefOption[]
+  couponDefs: MerchantCouponDefOption[],
+  portalVoucherSkus: PortalVoucherSkuOption[] = []
 ): Doc<"campaigns">["rewardRules"] {
+  const buildProduct = (productId: string) => {
+    const portalSku = portalVoucherSkus.find((sku) => sku.skuId === productId);
+    return portalSku
+      ? {
+          portalSkuId: portalSku.skuId,
+          reward: {
+            type: "free_item" as const,
+            itemLabel: portalSku.rewardText || portalSku.title,
+            displayText: portalSku.rewardText || portalSku.title,
+          },
+        }
+      : { couponDefId: productId, reward: resolveCouponDefReward(productId, couponDefs) };
+  };
   if (form.rewardModel === "competitive_leaderboard") {
     if (form.rankRewardTiers.length === 0) {
       throw new Error("reward_rules_required");
@@ -376,8 +405,7 @@ export function buildRewardRulesFromForm(
         rankFrom,
         rankTo,
         topN: rankTo,
-        couponDefId,
-        reward: resolveCouponDefReward(couponDefId, couponDefs),
+        ...buildProduct(couponDefId),
       };
     });
   }
@@ -400,8 +428,7 @@ export function buildRewardRulesFromForm(
         rankFrom,
         rankTo,
         topN: rankTo,
-        couponDefId,
-        reward: resolveCouponDefReward(couponDefId, couponDefs),
+        ...buildProduct(couponDefId),
       };
     });
   }
@@ -411,7 +438,7 @@ export function buildRewardRulesFromForm(
   }
 
   const couponDefId = form.couponDefId.trim();
-  const reward = resolveCouponDefReward(couponDefId, couponDefs);
+  const product = buildProduct(couponDefId);
 
   if (form.rewardKind === "score_threshold") {
     return [
@@ -419,8 +446,7 @@ export function buildRewardRulesFromForm(
         ruleId: "score_reward",
         kind: "score_threshold" as const,
         minScore: Number.parseInt(form.minScore, 10) || 0,
-        couponDefId,
-        reward,
+        ...product,
       },
     ];
   }
@@ -429,8 +455,7 @@ export function buildRewardRulesFromForm(
     {
       ruleId: "p75_reward",
       kind: "solo_p75_success" as const,
-      couponDefId,
-      reward,
+      ...product,
     },
   ];
 }
@@ -473,13 +498,17 @@ export function rewardKindLabel(form: CampaignFormState): string {
 
 export function rankRewardTierPreviewLines(
   form: CampaignFormState,
-  couponDefs: MerchantCouponDefOption[]
+  couponDefs: MerchantCouponDefOption[],
+  portalVoucherSkus: PortalVoucherSkuOption[] = []
 ): string[] {
   return form.rankRewardTiers.map((tier) => {
     const from = Math.max(1, Number.parseInt(tier.rankFrom, 10) || 1);
     const to = Math.max(from, Number.parseInt(tier.rankTo, 10) || from);
     const def = couponDefs.find((d) => d.couponDefId === tier.couponDefId);
-    return `${formatRankTierRangeLabel(from, to)} → ${couponDefLabel(def)}`;
+    const sku = portalVoucherSkus.find((row) => row.skuId === tier.couponDefId);
+    return `${formatRankTierRangeLabel(from, to)} → ${
+      sku ? portalVoucherSkuLabel(sku) : couponDefLabel(def)
+    }`;
   });
 }
 
@@ -514,6 +543,14 @@ export function normalizeFormForRewardModel(form: CampaignFormState): CampaignFo
 export function pickDefaultCouponDefId(defs: MerchantCouponDefOption[]): string {
   const active = defs.filter((d) => d.status === "active");
   return active[0]?.couponDefId ?? "";
+}
+
+/** Prefer Portal-backed rewards for new campaigns; retain legacy definitions as a fallback. */
+export function pickDefaultRewardProductId(
+  portalVoucherSkus: PortalVoucherSkuOption[],
+  couponDefs: MerchantCouponDefOption[]
+): string {
+  return portalVoucherSkus.find((sku) => sku.active)?.skuId ?? pickDefaultCouponDefId(couponDefs);
 }
 
 /** Fill missing coupon def ids so legacy campaigns can be saved after admin adds defs. */

@@ -84,6 +84,20 @@ export const redeemCouponCore = internalMutation({
     await ctx.scheduler.runAfter(0, internal.service.wallet.applePassPush.notifyPassUpdate, {
       couponId: row.couponId,
     });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.service.merchant.campaignVoucherGrantActions
+        .syncCampaignVoucherStatusToPortalBackpack,
+      {
+        partnerId: args.partnerId,
+        campaignId: row.campaignId,
+        code: row.code,
+        status: "redeemed",
+        actorUid: args.uid,
+        storeId: args.storeId,
+        ...(args.staffNote ? { staffNote: args.staffNote } : {}),
+      }
+    );
     return { ok: true as const, couponId: row.couponId };
   },
 });
@@ -106,6 +120,17 @@ export const voidCouponCore = internalMutation({
     await ctx.scheduler.runAfter(0, internal.service.wallet.applePassPush.notifyPassUpdate, {
       couponId: row.couponId,
     });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.service.merchant.campaignVoucherGrantActions
+        .syncCampaignVoucherStatusToPortalBackpack,
+      {
+        partnerId: args.partnerId,
+        campaignId: row.campaignId,
+        code: row.code,
+        status: "void",
+      }
+    );
     return { ok: true as const, couponId: row.couponId };
   },
 });

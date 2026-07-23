@@ -1,0 +1,77 @@
+import { v } from "convex/values";
+
+import { internalMutation } from "../../_generated/server";
+
+function campaignVoucherGrantSource(grantKey: string): string {
+  return `campaign:${grantKey}`;
+}
+
+function campaignVoucherCode(preferredCode?: string): string | undefined {
+  const normalized = preferredCode?.trim().toUpperCase();
+  return normalized || undefined;
+}
+
+/**
+ * Grants a partner-owned voucher SKU for a Campaign reward.
+ * Display fields and expiry are always derived from the Portal SKU, not HTTP input.
+ */
+export const grantCampaignVoucher = internalMutation({
+  args: {
+    uid: v.string(),
+    partnerId: v.number(),
+    campaignId: v.string(),
+    portalSkuId: v.string(),
+    grantKey: v.string(),
+    preferredCode: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const source = campaignVoucherGrantSource(args.grantKey);
+    const existing = await ctx.db
+      .query("portal_backpack_items")
+      .filter((q) => q.eq(q.field("source"), source))
+      .first();
+    if (existing) {
+      return { ok: true as const, itemId: String(existing._id), deduped: true as const };
+    }
+
+    const sku = await ctx.db
+      .query("portal_shop_skus")
+      .withIndex("by_skuId", (q) => q.eq("skuId", args.portalSkuId))
+      .unique();
+    if (!sku || sku.skuKind !== "voucher" || !sku.partnerIds?.includes(args.partnerId)) {
+      return { ok: false as const, error: "voucher_sku_not_found" as const };
+    }
+
+    const preferredCode = campaignVoucherCode(args.preferredCode);
+    if (preferredCode) {
+      const codeTaken = await ctx.db
+        .query("portal_backpack_items")
+        .withIndex("by_code", (q) => q.eq("code", preferredCode))
+        .unique();
+      if (codeTaken) {
+        return { ok: false as const, error: "voucher_code_taken" as const };
+      }
+    }
+
+    const now = Date.now();
+    const expiresAt =
+      sku.voucherValidityDays != null
+        ? now + sku.voucherValidityDays * 24 * 60 * 60 * 1000
+        : undefined;
+    const itemId = await ctx.db.insert("portal_backpack_items", {
+      uid: args.uid,
+      skuId: sku.skuId,
+      title: sku.title,
+      rewardText: sku.voucherRewardText,
+      code: preferredCode ?? `PV-${now.toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      status: "owned",
+      partnerId: args.partnerId,
+      campaignId: args.campaignId,
+      source,
+      expiresAt,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { ok: true as const, itemId: String(itemId), deduped: false as const };
+  },
+});

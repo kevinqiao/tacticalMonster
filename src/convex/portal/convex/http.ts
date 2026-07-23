@@ -676,6 +676,93 @@ http.route({
   }),
 });
 
+/** Campaign → Portal: idempotently grant a configured voucher SKU to a backpack. */
+http.route({
+  path: "/internal/grant-partner-voucher-from-campaign",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const b = parsed.body;
+    const uid = typeof b.uid === "string" ? b.uid : "";
+    const partnerId = partnerIdFromBody(b);
+    const campaignId = typeof b.campaignId === "string" ? b.campaignId : "";
+    const portalSkuId = typeof b.portalSkuId === "string" ? b.portalSkuId : "";
+    const grantKey = typeof b.grantKey === "string" ? b.grantKey : "";
+    const preferredCode = typeof b.preferredCode === "string" ? b.preferredCode : undefined;
+    if (!uid || partnerId === null || !campaignId || !portalSkuId || !grantKey) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    const result = await ctx.runMutation(
+      internal.service.backpack.grantCampaignVoucher.grantCampaignVoucher,
+      { uid, partnerId, campaignId, portalSkuId, grantKey, ...(preferredCode ? { preferredCode } : {}) }
+    );
+    return jsonResponse(result, result.ok ? 200 : 400);
+  }),
+});
+
+/** Campaign store operations: mirror a Campaign coupon's redeemed/void status by code. */
+http.route({
+  path: "/internal/sync-campaign-voucher-status",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const b = parsed.body;
+    const partnerId = partnerIdFromBody(b);
+    const campaignId = typeof b.campaignId === "string" ? b.campaignId : "";
+    const code = typeof b.code === "string" ? b.code : "";
+    const status = b.status === "redeemed" || b.status === "void" ? b.status : null;
+    if (partnerId === null || !campaignId || !code || !status) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    const result = await ctx.runMutation(
+      internal.service.backpack.portalBackpackService.syncCampaignVoucherStatusByCode,
+      {
+        partnerId,
+        campaignId,
+        code,
+        status,
+        ...(typeof b.actorUid === "string" ? { actorUid: b.actorUid } : {}),
+        ...(typeof b.storeId === "string" ? { storeId: b.storeId } : {}),
+        ...(typeof b.staffNote === "string" ? { staffNote: b.staffNote } : {}),
+      }
+    );
+    return jsonResponse(result, result.ok ? 200 : 400);
+  }),
+});
+
+/** Campaign admin dropdown: only active partner-owned Portal voucher SKUs. */
+http.route({
+  path: "/internal/campaign-voucher-skus",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const partnerId = partnerIdFromBody(parsed.body);
+    if (partnerId === null) return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    const rows = await ctx.runQuery(
+      internal.service.shop.partnerShopSkuAdmin.listPartnerShopSkusInternal,
+      { partnerId, kind: "voucher" }
+    );
+    return jsonResponse({
+      ok: true,
+      skus: rows
+        .filter((sku) => sku.active)
+        .map((sku) => ({
+          skuId: sku.skuId,
+          title: sku.title,
+          rewardText: sku.voucherRewardText,
+          active: sku.active,
+          validityDays: sku.voucherValidityDays,
+        })),
+    });
+  }),
+});
+
 http.route({
   path: "/internal/campaign-league/leaderboard",
   method: "POST",

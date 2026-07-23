@@ -14,6 +14,7 @@ import {
   couponDefStatusValidator,
 } from "./validators";
 import { assertGameTypeEnabledForPartner } from "./partnerGamesFromSso";
+import { listPartnerVoucherSkusViaHttp } from "../bridge/portalPartnerVoucherGrantBridge";
 
 const playLimitsValidator = v.object({
   maxCouponsPerPlayer: v.number(),
@@ -211,6 +212,17 @@ export const listCouponDefsForStaff = authedAction({
       internal.service.merchant.merchantCouponDefs.listCouponDefsInternal,
       args
     );
+  },
+});
+
+/** Portal voucher SKUs are the preferred reward products for new campaigns. */
+export const listPartnerVoucherSkusForStaff = authedAction({
+  args: { partnerId: v.number() },
+  handler: async (ctx, args) => {
+    await assertOps(args.partnerId, ctx.uid);
+    const result = await listPartnerVoucherSkusViaHttp(args.partnerId);
+    if (!result.ok) throw new Error(result.error);
+    return result.skus;
   },
 });
 

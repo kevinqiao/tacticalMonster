@@ -405,21 +405,28 @@ export function useMerchantCampaignAdmin(partnerId: number | null) {
   const { http, authed, fns } = useMerchantCampaignClient();
   const [campaigns, setCampaigns] = useState<unknown[]>([]);
   const [couponDefs, setCouponDefs] = useState<unknown[]>([]);
+  const [portalVoucherSkus, setPortalVoucherSkus] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refreshCouponDefs = useCallback(async () => {
     if (!http || !authed || partnerId == null) {
       setCouponDefs([]);
+      setPortalVoucherSkus([]);
       return;
     }
-    const rows = await http.action(fns.listCouponDefsForStaff, { partnerId });
-    setCouponDefs(rows ?? []);
-  }, [http, authed, partnerId, fns.listCouponDefsForStaff]);
+    const [defs, skus] = await Promise.all([
+      http.action(fns.listCouponDefsForStaff, { partnerId }),
+      http.action(fns.listPartnerVoucherSkusForStaff, { partnerId }),
+    ]);
+    setCouponDefs(defs ?? []);
+    setPortalVoucherSkus(skus ?? []);
+  }, [http, authed, partnerId, fns.listCouponDefsForStaff, fns.listPartnerVoucherSkusForStaff]);
 
   const refresh = useCallback(async () => {
     if (!http || !authed || partnerId == null) {
       setCampaigns([]);
       setCouponDefs([]);
+      setPortalVoucherSkus([]);
       return;
     }
     setLoading(true);
@@ -436,5 +443,16 @@ export function useMerchantCampaignAdmin(partnerId: number | null) {
     void refresh();
   }, [refresh]);
 
-  return { campaigns, couponDefs, loading, refresh, refreshCouponDefs, http, authed, fns, partnerId };
+  return {
+    campaigns,
+    couponDefs,
+    portalVoucherSkus,
+    loading,
+    refresh,
+    refreshCouponDefs,
+    http,
+    authed,
+    fns,
+    partnerId,
+  };
 }

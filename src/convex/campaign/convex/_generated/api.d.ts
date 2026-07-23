@@ -14,6 +14,7 @@ import type * as service_auth_jwtAccessSecret from "../service/auth/jwtAccessSec
 import type * as service_bridge_merchantBridgeSecret from "../service/bridge/merchantBridgeSecret.js";
 import type * as service_bridge_partnerStaffBridge from "../service/bridge/partnerStaffBridge.js";
 import type * as service_bridge_portalCampaignLeagueBridge from "../service/bridge/portalCampaignLeagueBridge.js";
+import type * as service_bridge_portalPartnerVoucherGrantBridge from "../service/bridge/portalPartnerVoucherGrantBridge.js";
 import type * as service_bridge_storeStaffBridge from "../service/bridge/storeStaffBridge.js";
 import type * as service_merchant_campaignExperienceType from "../service/merchant/campaignExperienceType.js";
 import type * as service_merchant_campaignJoinAuthorize from "../service/merchant/campaignJoinAuthorize.js";
@@ -27,6 +28,7 @@ import type * as service_merchant_campaignRuleValidation from "../service/mercha
 import type * as service_merchant_campaignSettleHook from "../service/merchant/campaignSettleHook.js";
 import type * as service_merchant_campaignSettleHookActions from "../service/merchant/campaignSettleHookActions.js";
 import type * as service_merchant_campaignTimeZone from "../service/merchant/campaignTimeZone.js";
+import type * as service_merchant_campaignVoucherGrantActions from "../service/merchant/campaignVoucherGrantActions.js";
 import type * as service_merchant_couponValidity from "../service/merchant/couponValidity.js";
 import type * as service_merchant_displayCampaignValidation from "../service/merchant/displayCampaignValidation.js";
 import type * as service_merchant_merchantCampaignDevBootstrap from "../service/merchant/merchantCampaignDevBootstrap.js";
@@ -65,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   "service/bridge/merchantBridgeSecret": typeof service_bridge_merchantBridgeSecret;
   "service/bridge/partnerStaffBridge": typeof service_bridge_partnerStaffBridge;
   "service/bridge/portalCampaignLeagueBridge": typeof service_bridge_portalCampaignLeagueBridge;
+  "service/bridge/portalPartnerVoucherGrantBridge": typeof service_bridge_portalPartnerVoucherGrantBridge;
   "service/bridge/storeStaffBridge": typeof service_bridge_storeStaffBridge;
   "service/merchant/campaignExperienceType": typeof service_merchant_campaignExperienceType;
   "service/merchant/campaignJoinAuthorize": typeof service_merchant_campaignJoinAuthorize;
@@ -78,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   "service/merchant/campaignSettleHook": typeof service_merchant_campaignSettleHook;
   "service/merchant/campaignSettleHookActions": typeof service_merchant_campaignSettleHookActions;
   "service/merchant/campaignTimeZone": typeof service_merchant_campaignTimeZone;
+  "service/merchant/campaignVoucherGrantActions": typeof service_merchant_campaignVoucherGrantActions;
   "service/merchant/couponValidity": typeof service_merchant_couponValidity;
   "service/merchant/displayCampaignValidation": typeof service_merchant_displayCampaignValidation;
   "service/merchant/merchantCampaignDevBootstrap": typeof service_merchant_merchantCampaignDevBootstrap;
