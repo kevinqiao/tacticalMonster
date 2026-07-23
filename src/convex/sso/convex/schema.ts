@@ -15,7 +15,7 @@ export default defineSchema({
         host: v.optional(v.string()),
 
         /**
-         * Player login SoT (replaces auth_channels).
+         * Player login SoT.
          * mode: clerk | embed | embed_then_clerk; embed.method when mode uses embed.
          */
         playerAuth: v.optional(
@@ -38,21 +38,12 @@ export default defineSchema({
           })
         ),
 
-        /** Staff console login SoT (replaces staff_auth_channels). */
+        /** Staff console login SoT. */
         staffAuth: v.optional(
           v.object({
             mode: v.literal("web"),
           })
         ),
-
-        /**
-         * @deprecated Legacy consumer SSO channels (Clerk / Embed). Superseded by `playerAuth`.
-         * Kept optional so already-migrated deployments and in-flight migrations don't break.
-         */
-        auth_channels: v.optional(v.array(v.number())),
-
-        /** @deprecated Legacy staff Web channel (cid=0). Superseded by `staffAuth`. */
-        staff_auth_channels: v.optional(v.array(v.number())),
 
         /**
          * Bag for runtime config: embed JWT secret, branding, allowedOrigins, defaultLandingPath.

@@ -3,16 +3,15 @@ import { v } from "convex/values";
 import {
   CLERK_AUTH_CHANNEL_CID,
   EMBED_AUTH_CHANNEL_CID,
-  WEB_AUTH_CHANNEL_CID,
 } from "./authChannelCatalog";
 import type { EmbedAuthMethod } from "../embed/embedAuthConstants";
 import { EMBED_AUTH_METHODS } from "../embed/embedAuthConstants";
 
-/** Player login SoT (replaces consumer `auth_channels`). */
+/** Player login SoT. */
 export const PLAYER_AUTH_MODES = ["clerk", "embed", "embed_then_clerk"] as const;
 export type PlayerAuthMode = (typeof PLAYER_AUTH_MODES)[number];
 
-/** Staff console login SoT (replaces `staff_auth_channels`). */
+/** Staff console login SoT. */
 export const STAFF_AUTH_MODES = ["web"] as const;
 export type StaffAuthMode = (typeof STAFF_AUTH_MODES)[number];
 
@@ -59,16 +58,10 @@ export const DEFAULT_EMBED_PLAYER_AUTH: PlayerAuth = {
   embed: { method: "jwt_local" },
 };
 
-/** Row shape for resolve (new fields + optional legacy during migration). */
+/** Partner row shape used by auth resolve helpers. */
 export type PartnerAuthRow = {
   playerAuth?: PlayerAuth | null;
   staffAuth?: StaffAuth | null;
-  /** @deprecated legacy consumer cids, kept optional in schema for migration. */
-  auth_channels?: number[] | Array<{ cid: number }>;
-  /** @deprecated legacy staff cids, kept optional in schema for migration. */
-  staff_auth_channels?: number[] | Array<{ cid: number }>;
-  authChannelIds?: number[];
-  staffAuthChannelIds?: number[];
   /** Runtime config bag (embed JWT secret, branding, allowedOrigins, ...). */
   data?: unknown;
 };
@@ -87,30 +80,6 @@ function isEmbedMethod(raw: unknown): raw is EmbedAuthMethod {
   );
 }
 
-function legacyConsumerCids(partner: PartnerAuthRow): number[] {
-  if (Array.isArray(partner.authChannelIds)) {
-    return partner.authChannelIds.filter((n) => typeof n === "number");
-  }
-  const raw = partner.auth_channels;
-  if (!raw?.length) return [];
-  if (typeof raw[0] === "number") return raw as number[];
-  return (raw as Array<{ cid: number }>).map((r) => r.cid);
-}
-
-function legacyStaffCids(partner: PartnerAuthRow): number[] {
-  if (Array.isArray(partner.staffAuthChannelIds)) {
-    return partner.staffAuthChannelIds.filter((n) => typeof n === "number");
-  }
-  const raw = partner.staff_auth_channels;
-  if (raw === undefined) {
-    // Pre-split legacy: cid 0 lived inside auth_channels.
-    return legacyConsumerCids(partner).filter((c) => c === WEB_AUTH_CHANNEL_CID);
-  }
-  if (!raw.length) return [];
-  if (typeof raw[0] === "number") return raw as number[];
-  return (raw as Array<{ cid: number }>).map((r) => r.cid);
-}
-
 function embedMethodFromData(data: unknown): EmbedAuthMethod {
   if (!data || typeof data !== "object") return "jwt_local";
   const embed = (data as { embed?: { method?: unknown } }).embed;
@@ -118,7 +87,10 @@ function embedMethodFromData(data: unknown): EmbedAuthMethod {
   return isEmbedMethod(method) ? method : "jwt_local";
 }
 
-/** Map legacy consumer cid list → playerAuth.mode. */
+/**
+ * Map a legacy consumer cid list (bootstrap / admin input only) → playerAuth.mode.
+ * Not persisted; callers convert to `playerAuth` before write.
+ */
 export function playerAuthModeFromConsumerCids(cids: number[]): PlayerAuthMode {
   const set = new Set(
     cids.filter((c) => c === CLERK_AUTH_CHANNEL_CID || c === EMBED_AUTH_CHANNEL_CID)
@@ -166,35 +138,16 @@ export function resolvePlayerAuth(partner: PartnerAuthRow | null | undefined): P
     try {
       return sanitizePlayerAuth(partner.playerAuth, partner.data);
     } catch {
-      // fall through to legacy
+      return { ...DEFAULT_PLAYER_AUTH };
     }
   }
-  const cids = legacyConsumerCids(partner).filter((c) => c !== WEB_AUTH_CHANNEL_CID);
-  const mode = playerAuthModeFromConsumerCids(cids);
-  if (mode === "clerk") return { mode: "clerk" };
-  return {
-    mode,
-    embed: { method: embedMethodFromData(partner.data) },
-  };
+  return { ...DEFAULT_PLAYER_AUTH };
 }
 
 export function resolveStaffAuth(partner: PartnerAuthRow | null | undefined): StaffAuth {
   if (!partner) return { ...DEFAULT_STAFF_AUTH };
   if (partner.staffAuth?.mode === "web") return { mode: "web" };
-  const staff = legacyStaffCids(partner);
-  // Missing staffAuth + empty legacy → still default web (admin consoles expect it).
-  if (
-    staff.length === 0 &&
-    partner.staffAuth === undefined &&
-    partner.staff_auth_channels === undefined &&
-    partner.staffAuthChannelIds === undefined
-  ) {
-    return { ...DEFAULT_STAFF_AUTH };
-  }
-  if (staff.includes(WEB_AUTH_CHANNEL_CID) || partner.staffAuth === undefined) {
-    return { mode: "web" };
-  }
-  return { mode: "web" };
+  return { ...DEFAULT_STAFF_AUTH };
 }
 
 export function playerAuthAllowsClerk(auth: PlayerAuth): boolean {
@@ -235,7 +188,7 @@ export function assertStaffAuthAllowsWeb(
   }
 }
 
-/** Fields to persist on partner insert/patch (no legacy arrays). */
+/** Fields to persist on partner insert/patch. */
 export function partnerAuthPersistFields(args: {
   playerAuth: PlayerAuth;
   staffAuth?: StaffAuth;

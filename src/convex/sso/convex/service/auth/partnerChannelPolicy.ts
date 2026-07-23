@@ -1,6 +1,6 @@
 /**
- * @deprecated Prefer `partnerAuth.ts` (`playerAuth` / `staffAuth`).
- * Thin adapters kept for residual call sites during migration.
+ * Thin adapters that derive catalog cids from `playerAuth` / `staffAuth`
+ * for residual call sites (authenticator routing, admin UI).
  */
 import {
   assertPlayerAuthAllowsCid,
@@ -25,7 +25,7 @@ export type ResolvedPartnerChannels = {
   staffAuthChannelDefs: Array<{ cid: number; provider: string }>;
 };
 
-/** @deprecated Derived from playerAuth for legacy UI. */
+/** Derived from playerAuth for cid-based routing / legacy UI. */
 export function resolvePartnerChannelIds(partner: PartnerAuthRow | null | undefined): {
   consumerChannelIds: number[];
   staffChannelIds: number[];
@@ -98,36 +98,6 @@ export function assertStaffAuthChannel(
     throw new Error("staff_auth_channel_unavailable");
   }
   assertStaffAuthAllowsWeb(partner);
-}
-
-/** @deprecated No longer used for writes. */
-export function sanitizeConsumerAuthChannelIds(ids: number[]): number[] {
-  return ids.filter(
-    (cid) => cid === CLERK_AUTH_CHANNEL_CID || cid === EMBED_AUTH_CHANNEL_CID
-  );
-}
-
-/** @deprecated No longer used for writes. */
-export function sanitizeStaffAuthChannelIds(ids: number[]): number[] {
-  return ids.filter((cid) => cid === WEB_AUTH_CHANNEL_CID);
-}
-
-/**
- * @deprecated Migration helper: derive `playerAuth` / `staffAuth` from a legacy
- * `auth_channels` / `staff_auth_channels` row. Returns null when the row already
- * has explicit `playerAuth`/`staffAuth` (nothing to migrate).
- */
-export function legacyPartnerChannelPatch(partner: PartnerAuthRow): {
-  playerAuth: ReturnType<typeof resolvePlayerAuth>;
-  staffAuth: ReturnType<typeof resolveStaffAuth>;
-} | null {
-  if (partner.playerAuth !== undefined && partner.staffAuth !== undefined) {
-    return null;
-  }
-  return {
-    playerAuth: resolvePlayerAuth(partner),
-    staffAuth: resolveStaffAuth(partner),
-  };
 }
 
 export const CONSUMER_AUTH_CHANNEL_CIDS = [CLERK_AUTH_CHANNEL_CID, EMBED_AUTH_CHANNEL_CID] as const;

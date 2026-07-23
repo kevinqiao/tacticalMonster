@@ -14,12 +14,13 @@ import { useCampaignFlow } from "../service/useCampaignFlow";
 
 import type { CampaignPublicView } from "../service/useMerchantCampaignManager";
 
+import { portalLaunchPath } from "@/host/util/portalPathParse";
+import { isValidPortalGameType } from "../../portal/service/portalGameTypeGuards";
+
 import { CampaignAccountSheet } from "./CampaignAccountSheet";
 import { CampaignDetailsSheet } from "./CampaignDetailsSheet";
 import { CampaignHistorySheet } from "./CampaignHistorySheet";
 import { CampaignLeaderboardSheet } from "./CampaignLeaderboardSheet";
-import { CampaignMyCouponsSheet } from "./CampaignMyCouponsSheet";
-import { usePartnerPlayerCouponsLive } from "../service/useMerchantCampaignManager";
 
 
 
@@ -66,31 +67,11 @@ export const CampaignLandingSharedTopbar: React.FC<{
   partner: CampaignPublicView["partner"];
   authed: boolean;
   onSignIn: () => void;
-  onSignOut: () => void;
   onMyAccount?: () => void;
-  onMyCoupons?: () => void;
-}> = ({ partner, authed, onSignIn, onSignOut, onMyAccount, onMyCoupons }) => {
+  /** Optional link to Portal game hub (e.g. solitaire). */
+  gameCenterHref?: string | null;
+}> = ({ partner, authed, onSignIn, onMyAccount, gameCenterHref }) => {
   const { t } = useTranslation("campaign.player");
-  const authRef = useRef<HTMLDivElement>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onDocPointer = (e: PointerEvent) => {
-      const root = authRef.current;
-      if (!root) return;
-      const path = typeof e.composedPath === "function" ? e.composedPath() : [];
-      if (path.includes(root)) return;
-      if (e.target instanceof Node && root.contains(e.target)) return;
-      setMenuOpen(false);
-    };
-    document.addEventListener("pointerdown", onDocPointer, true);
-    return () => document.removeEventListener("pointerdown", onDocPointer, true);
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (!authed) setMenuOpen(false);
-  }, [authed]);
 
   return (
     <header className="campaign-topbar campaign-topbar--overlay campaign-carousel__topbar">
@@ -101,64 +82,30 @@ export const CampaignLandingSharedTopbar: React.FC<{
         <p className="campaign-brand__name">{partner.name}</p>
       </div>
 
-      <div ref={authRef} className="campaign-auth-cluster">
-        <button
-          type="button"
-          className="campaign-auth-btn"
-          aria-label={authed ? t("auth.accountMenuAria") : t("auth.signIn")}
-          aria-haspopup={authed ? "menu" : undefined}
-          aria-expanded={authed ? menuOpen : undefined}
-          onClick={() => {
-            if (!authed) {
-              onSignIn();
-              return;
-            }
-            setMenuOpen((v) => !v);
-          }}
-        >
-          <span className="campaign-auth-btn__bg" aria-hidden>
-            <span className="campaign-auth-btn__icon" />
-          </span>
-        </button>
-
-        {authed && menuOpen ? (
-          <div className="campaign-auth-menu" role="menu">
-            <button
-              type="button"
-              className="campaign-auth-menu__item"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                onMyAccount?.();
-              }}
-            >
-              {t("auth.myAccount")}
-            </button>
-            <button
-              type="button"
-              className="campaign-auth-menu__item"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                onMyCoupons?.();
-              }}
-            >
-              {t("auth.myCoupons")}
-            </button>
-            <div className="campaign-auth-menu__sep" role="separator" />
-            <button
-              type="button"
-              className="campaign-auth-menu__item campaign-auth-menu__item--danger"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                onSignOut();
-              }}
-            >
-              {t("auth.signOut")}
-            </button>
-          </div>
+      <div className="campaign-topbar__actions">
+        {gameCenterHref ? (
+          <a className="campaign-topbar__gameCenter" href={gameCenterHref}>
+            {t("auth.gameCenter")}
+          </a>
         ) : null}
+        <div className="campaign-auth-cluster">
+          <button
+            type="button"
+            className="campaign-auth-btn"
+            aria-label={authed ? t("auth.myAccount") : t("auth.signIn")}
+            onClick={() => {
+              if (!authed) {
+                onSignIn();
+                return;
+              }
+              onMyAccount?.();
+            }}
+          >
+            <span className="campaign-auth-btn__bg" aria-hidden>
+              <span className="campaign-auth-btn__icon" />
+            </span>
+          </button>
+        </div>
       </div>
     </header>
   );
@@ -289,21 +236,19 @@ export const CampaignLandingBody: React.FC<{
 
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const [myCouponsOpen, setMyCouponsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 
   const overlayBitsRef = useRef({
     details: false,
     history: false,
     leaderboard: false,
-    myCoupons: false,
     account: false,
   });
 
   const syncOverlayLock = useCallback(() => {
     const bits = overlayBitsRef.current;
     onOverlayOpenChange?.(
-      bits.details || bits.history || bits.leaderboard || bits.myCoupons || bits.account
+      bits.details || bits.history || bits.leaderboard || bits.account
     );
   }, [onOverlayOpenChange]);
 
@@ -343,19 +288,11 @@ export const CampaignLandingBody: React.FC<{
     [syncOverlayLock]
   );
 
-  const setMyCouponsOpenSync = useCallback(
-    (open: boolean) => {
-      overlayBitsRef.current.myCoupons = open;
-      setMyCouponsOpen(open);
-      syncOverlayLock();
-    },
-    [syncOverlayLock]
-  );
-
-  const { coupons: partnerCoupons, isLoading: partnerCouponsLoading } =
-    usePartnerPlayerCouponsLive(campaignPublic.partner.partnerId);
-
-
+  const gameCenterHref = useMemo(() => {
+    const gt = campaignPublic.campaign.gameType;
+    if (!isValidPortalGameType(gt ?? "")) return null;
+    return portalLaunchPath(campaignPublic.partner.slug, gt!);
+  }, [campaignPublic.campaign.gameType, campaignPublic.partner.slug]);
 
   useEffect(() => {
 
@@ -722,20 +659,11 @@ export const CampaignLandingBody: React.FC<{
         mode={campaignPublic.campaign.mode}
       />
 
-      <CampaignMyCouponsSheet
-        open={myCouponsOpen}
-        onClose={() => setMyCouponsOpenSync(false)}
-        partnerId={campaignPublic.partner.partnerId}
-        authed={flow.authed}
-        coupons={partnerCoupons}
-        loading={partnerCouponsLoading}
-        locale={i18n.language}
-      />
-
       {!hideTopbar ? (
         <CampaignAccountSheet
           open={accountOpen}
           onClose={() => setAccountOpenSync(false)}
+          onSignOut={signOut}
         />
       ) : null}
 
@@ -807,9 +735,8 @@ export const CampaignLandingBody: React.FC<{
           partner={campaignPublic.partner}
           authed={flow.authed}
           onSignIn={flow.signIn}
-          onSignOut={signOut}
           onMyAccount={() => setAccountOpenSync(true)}
-          onMyCoupons={() => setMyCouponsOpenSync(true)}
+          gameCenterHref={gameCenterHref}
         />
 
       ) : null}

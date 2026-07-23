@@ -112,6 +112,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_uid", ["uid"])
     .index("by_uid_createdAt", ["uid", "createdAt"])
     .index("by_code", ["code"])
     .index("by_partner_status", ["partnerId", "status"])
@@ -631,14 +632,6 @@ export default defineSchema({
     adReplayDailyCap: v.number(),
     updatedAt: v.number(),
   }).index("by_partnerId", ["partnerId"]),
-
-  /** 再战令（casualPlatform 路径；Portal 改用广告再战） */
-  casual_replay_tokens: defineTable({
-    uid: v.string(),
-    createdAt: v.number(),
-    usedAt: v.optional(v.number()),
-    usedForTournamentId: v.optional(v.string()),
-  }).index("by_uid", ["uid"]),
 
   seed_pool_meta: defineTable({
     gameType: catalogGameType,

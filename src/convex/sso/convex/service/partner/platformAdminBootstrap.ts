@@ -15,11 +15,12 @@ import {
   DEFAULT_STAFF_AUTH,
   playerAuthModeFromConsumerCids,
   playerAuthValidator,
+  resolvePlayerAuth,
+  resolveStaffAuth,
   sanitizePlayerAuth,
   staffAuthValidator,
   type PartnerAuthRow,
 } from "../auth/partnerAuth";
-import { legacyPartnerChannelPatch } from "../auth/partnerChannelPolicy";
 import {
   validatePartnerSlug,
   type PartnerCapabilities,
@@ -331,7 +332,11 @@ export const bootstrapDefaultPartnerChannels = mutation({
   },
 });
 
-/** Populate `playerAuth` / `staffAuth` on all partners from legacy `auth_channels`. */
+/**
+ * Ensure every partner has `playerAuth` / `staffAuth` (idempotent backfill).
+ *
+ * `npx convex run service/partner/platformAdminBootstrap:migrateLegacyPartnerAuthChannels '{"bootstrapSecret":"dev-local-platform-bootstrap"}'`
+ */
 export const migrateLegacyPartnerAuthChannels = mutation({
   args: { bootstrapSecret: v.string() },
   handler: async (ctx, { bootstrapSecret }) => {
@@ -341,13 +346,14 @@ export const migrateLegacyPartnerAuthChannels = mutation({
 
     for (const row of rows) {
       const legacy = row as typeof row & PartnerAuthRow;
-      const patch = legacyPartnerChannelPatch(legacy);
-      if (!patch) continue;
-      await ctx.db.patch(row._id, patch);
-      migrated.push({ pid: row.pid, ...patch });
+      if (row.playerAuth !== undefined && row.staffAuth !== undefined) continue;
+      const playerAuth = resolvePlayerAuth(legacy);
+      const staffAuth = resolveStaffAuth(legacy);
+      await ctx.db.patch(row._id, { playerAuth, staffAuth });
+      migrated.push({ pid: row.pid, playerAuth, staffAuth });
     }
 
-    return { ok: true as const, migrated };
+    return { ok: true as const, migrated, scanned: rows.length };
   },
 });
 

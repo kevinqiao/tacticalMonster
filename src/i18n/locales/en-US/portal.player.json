@@ -74,6 +74,9 @@
       "adReplayRemaining": "Ad replays left today",
       "vouchers": "Vouchers",
       "useVoucher": "Use",
+      "useTitle": "Show QR code",
+      "qrHint": "Ask staff to scan this code, sign in, pick their store if needed, then confirm.",
+      "expiresAt": "Expires {{at}}",
       "cancelVoucher": "Cancel",
       "voucherStatus": {
         "owned": "Ready",

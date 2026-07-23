@@ -74,6 +74,9 @@
       "adReplayRemaining": "今日广告再战剩余",
       "vouchers": "兑换券",
       "useVoucher": "使用",
+      "useTitle": "出示二维码",
+      "qrHint": "请让店员扫描二维码；登录后选择门店并确认核销。",
+      "expiresAt": "有效期至 {{at}}",
       "cancelVoucher": "取消",
       "voucherStatus": {
         "owned": "可使用",

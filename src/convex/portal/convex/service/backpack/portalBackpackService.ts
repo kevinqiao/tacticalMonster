@@ -144,7 +144,7 @@ export const listPartnerPendingVouchers = internalMutation({
   },
 });
 
-/** Alias kept for the partner/S SO bridge contract. */
+/** Alias kept for the partner/SSO bridge contract. */
 export const listPartnerVouchers = listPartnerPendingVouchers;
 
 export const confirmPartnerVoucherUse = internalMutation({

@@ -1,9 +1,6 @@
-/** Portal replay-ticket balance and legacy-token migration helpers. */
-import { v } from "convex/values";
-import { CASUAL_NEAR_MISS_GAP_RATIO } from "../../../data/portalPlayerStrategyTypes";
+/** Portal replay-ticket balance helpers (legacy token table removed). */
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
-import { internalMutation } from "../../../_generated/server";
-import { internal } from "../../../_generated/api";
+import { CASUAL_NEAR_MISS_GAP_RATIO } from "../../../data/portalPlayerStrategyTypes";
 
 export async function readPortalTicketBalance(
   ctx: QueryCtx | MutationCtx,
@@ -23,33 +20,6 @@ export async function countUnusedReplayTokens(
 ): Promise<number> {
   return readPortalTicketBalance(ctx, uid);
 }
-
-/**
- * One-user, idempotent migration. Run this for every legacy-token holder
- * before deleting `casual_replay_tokens` from the Portal schema.
- */
-export const migrateLegacyReplayTokensToTickets = internalMutation({
-  args: { uid: v.string() },
-  handler: async (ctx, { uid }) => {
-    const rows = await ctx.db
-      .query("casual_replay_tokens")
-      .withIndex("by_uid", (q) => q.eq("uid", uid))
-      .collect();
-    const unused = rows.filter((row) => row.usedAt == null);
-    if (unused.length === 0) return { ok: true as const, migrated: 0 };
-
-    const granted = await ctx.runMutation(
-      internal.service.reward.casualRewardRegistry.grantPortalTickets,
-      { uid, amount: unused.length, reason: "legacy_replay_token_migration" }
-    );
-    if (!granted.ok) return { ok: false as const, error: granted.error, migrated: 0 };
-
-    for (const row of rows) {
-      await ctx.db.delete(row._id);
-    }
-    return { ok: true as const, migrated: unused.length };
-  }
-});
 
 export function isNearMissTableSummary(
   summary: { rows: Array<{ rank: number; score: number; isYou: boolean }> } | null | undefined

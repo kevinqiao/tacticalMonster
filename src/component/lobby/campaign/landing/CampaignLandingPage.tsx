@@ -45,26 +45,24 @@ const CampaignLandingSingle: React.FC<{
   user: { uid?: string } | null | undefined;
   signOut: () => void;
 }> = ({ partnerSlug, campaignSlug, campaignPublic, loadingPublic, user, signOut }) => {
-  if (isDisplayCampaign(campaignPublic.campaign)) {
-    return (
-      <CampaignDisplayWithFlow campaignPublic={campaignPublic} partnerSlug={partnerSlug} />
-    );
-  }
-
   const gameType = isValidPortalGameType(campaignPublic.campaign.gameType ?? "")
     ? campaignPublic.campaign.gameType!
     : null;
 
   return (
     <LazyPortalProvider gameType={gameType}>
-      <CampaignLandingWithFlow
-        campaignPublic={campaignPublic}
-        partnerSlug={partnerSlug}
-        campaignSlug={campaignSlug}
-        loadingPublic={loadingPublic}
-        user={user}
-        signOut={signOut}
-      />
+      {isDisplayCampaign(campaignPublic.campaign) ? (
+        <CampaignDisplayWithFlow campaignPublic={campaignPublic} partnerSlug={partnerSlug} />
+      ) : (
+        <CampaignLandingWithFlow
+          campaignPublic={campaignPublic}
+          partnerSlug={partnerSlug}
+          campaignSlug={campaignSlug}
+          loadingPublic={loadingPublic}
+          user={user}
+          signOut={signOut}
+        />
+      )}
     </LazyPortalProvider>
   );
 };

@@ -14,8 +14,7 @@ import { PortalHistoryReportOverlays } from "../PortalHistoryReportOverlays";
 import { PortalRulesContent } from "./PortalRulesContent";
 import { PortalGiftCardPanel } from "./PortalGiftCardPanel";
 import { PortalShopPanel } from "./PortalShopPanel";
-import { PortalAccountPanel } from "./PortalAccountPanel";
-import { PortalBackpackPanel } from "./PortalBackpackPanel";
+import { PortalAccountSheet } from "./PortalAccountSheet";
 import {
   resolvePortalShopSkus,
 } from "./portalShopCatalogFallback";
@@ -148,59 +147,13 @@ export function PortalGame3DOverlays({
         />
       </PortalCenterModal>
 
-      <PortalCenterModal
+      <PortalAccountSheet
         open={accountModalOpen}
-        title={t("lobby.accountMenu.myAccount")}
         onClose={() => setAccountModalOpen(false)}
-        headerStart={
-          showAuthMenuActions ? (
-            <button
-              type="button"
-              className="portal-modal-signOut"
-              onClick={() => {
-                setAccountModalOpen(false);
-                signOut();
-              }}
-              aria-label={t("lobby.signOut")}
-            >
-              {t("lobby.signOut")}
-            </button>
-          ) : undefined
-        }
-      >
-        <div className="portal-account-shell">
-          <PortalAccountPanel
-            uid={ctrl.user?.uid}
-            ssoName={ctrl.user?.name}
-            email={ctrl.userEmail}
-            phone={ctrl.userPhone}
-            verifiedEmail={
-              portal.playerProfile?.verifiedEmail ??
-              portal.shopCatalog?.redemptionProfile?.verifiedEmail
-            }
-            verifiedPhone={
-              portal.playerProfile?.verifiedPhone ??
-              portal.shopCatalog?.redemptionProfile?.verifiedPhone
-            }
-            customDisplayName={portal.playerProfile?.displayName}
-            resolvedDisplayName={portal.playerProfile?.resolvedDisplayName}
-            onSaveDisplayName={portal.updatePortalDisplayName}
-            onSaveContact={portal.syncRedemptionProfile}
-            onFeedback={ctrl.showNote}
-            onSaved={() => setAccountModalOpen(false)}
-          />
-          <section className="portal-account-shell__section">
-            <h3 className="portal-account-shell__section-title">
-              {t("lobby.accountMenu.vouchers")}
-            </h3>
-            <PortalBackpackPanel
-              backpackItems={portal.backpackItems}
-              onRequestUse={portal.requestUseBackpackVoucher}
-              onCancelUse={portal.cancelUseBackpackVoucher}
-            />
-          </section>
-        </div>
-      </PortalCenterModal>
+        onFeedback={ctrl.showNote}
+        onSignOut={signOut}
+        showSignOut={showAuthMenuActions}
+      />
 
       <PortalCenterModal
         open={shopModalOpen}

@@ -515,9 +515,9 @@ export const PortalProvider: React.FC<{
   }, [user, gameType, ensureWeeklyLeagueMember]);
 
   const refresh = useCallback(async () => {
-    if (!uid || !gameType) return;
+    if (!uid) return;
     await authenticatePortal();
-  }, [uid, gameType, authenticatePortal]);
+  }, [uid, authenticatePortal]);
 
   useEffect(() => {
     void refresh();
@@ -529,11 +529,11 @@ export const PortalProvider: React.FC<{
     void ensureWeeklyLeagueMember(gameType);
   }, [gameType, portalSessionReady, uid, ensureWeeklyLeagueMember]);
 
+  // Account / shop / backpack: only need uid (Campaign landing has no gameType).
   useEffect(() => {
     const live = getLive();
-    if (!live || !uid || !gameType) {
+    if (!live || !uid) {
       patchData({
-        weeklyLeagueTierView: null,
         playerWallet: null,
         shopCatalog: null,
         giftCardOrders: [],
@@ -541,13 +541,7 @@ export const PortalProvider: React.FC<{
         replayTokenCount: 0,
         adReplayDailyRemaining: null,
         playerProfile: null,
-        cohortLeaderboard: [],
-        gameHistory: [],
-        openRunAssignments: [],
-        matchQueueEntries: [],
-        dailyPlayQuota: null,
         ticketEntryOffer: null,
-        weekEndsAt: null,
       });
       return;
     }
@@ -567,18 +561,6 @@ export const PortalProvider: React.FC<{
       unsubs.push(h);
     };
 
-    sub(
-      portalTournamentFns.getPortalWeeklyLeagueTierView,
-      { gameType },
-      (rows) => {
-        const view = rows as PortalWeeklyLeagueTierView | null;
-        patchData({
-          weeklyLeagueTierView: view,
-          weekEndsAt: view?.weekEndsAt ?? null,
-        });
-      },
-      "weeklyLeagueTierView"
-    );
     sub(
       portalTournamentFns.getPortalPlayerWallet,
       {},
@@ -659,6 +641,66 @@ export const PortalProvider: React.FC<{
       "playerProfile"
     );
     sub(
+      portalTournamentFns.getTicketEntryOffer,
+      {},
+      (rows) =>
+        patchData({
+          ticketEntryOffer:
+            (rows as { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null) ??
+            null,
+        }),
+      "getTicketEntryOffer"
+    );
+
+    return () => {
+      for (const u of unsubs) u.unsubscribe();
+    };
+  }, [uid]);
+
+  // Game / league surface: requires gameType (Portal lobby / playable campaign slides).
+  useEffect(() => {
+    const live = getLive();
+    if (!live || !uid || !gameType) {
+      patchData({
+        weeklyLeagueTierView: null,
+        cohortLeaderboard: [],
+        gameHistory: [],
+        openRunAssignments: [],
+        matchQueueEntries: [],
+        dailyPlayQuota: null,
+        weekEndsAt: null,
+      });
+      return;
+    }
+    const unsubs: Array<{ unsubscribe: () => void }> = [];
+    const sub = (
+      ref: Parameters<ConvexClient["onUpdate"]>[0],
+      args: Record<string, unknown>,
+      onVal: (v: unknown) => void,
+      label: string
+    ) => {
+      const h = live.onUpdate(
+        ref,
+        args as Parameters<ConvexClient["onUpdate"]>[1],
+        (rows) => onVal(rows),
+        (err) => console.error(`[Portal] ${label}`, err)
+      );
+      unsubs.push(h);
+    };
+
+    sub(
+      portalTournamentFns.getPortalWeeklyLeagueTierView,
+      { gameType },
+      (rows) => {
+        const view = rows as PortalWeeklyLeagueTierView | null;
+        patchData({
+          weeklyLeagueTierView: view,
+          weekEndsAt: view?.weekEndsAt ?? null,
+        });
+      },
+      "weeklyLeagueTierView"
+    );
+    sub(
       portalTournamentFns.getPortalWeeklyLeagueCohortLeaderboard,
       { gameType, limit: 30 },
       (rows) => {
@@ -712,14 +754,6 @@ export const PortalProvider: React.FC<{
         });
       },
       "getPortalDailyPlayQuota"
-    );
-    sub(
-      portalTournamentFns.getTicketEntryOffer,
-      {},
-      (rows) => patchData({
-        ticketEntryOffer: (rows as { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null) ?? null,
-      }),
-      "getTicketEntryOffer"
     );
 
     return () => {

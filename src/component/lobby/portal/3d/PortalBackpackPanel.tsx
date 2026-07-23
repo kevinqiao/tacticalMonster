@@ -1,21 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { PortalBackpackItem } from "../service/usePortalManager";
+import {
+  PortalVoucherRedeemQrModal,
+  type PortalVoucherRedeemQrTarget,
+} from "./PortalVoucherRedeemQrModal";
 
 export type PortalBackpackPanelProps = {
   backpackItems?: PortalBackpackItem[];
-  onRequestUse?: (itemId: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Cancel leftover pending_use rows from the old request flow. */
   onCancelUse?: (itemId: string) => Promise<{ ok: boolean; error?: string }>;
 };
 
-/** Account sheet backpack: vouchers only (tickets live on the lobby chip). */
+/** Account sheet backpack: vouchers only. Use → store redeem QR (not pending_use). */
 export function PortalBackpackPanel({
   backpackItems = [],
-  onRequestUse,
   onCancelUse,
 }: PortalBackpackPanelProps) {
   const { t } = useTranslation("portal.player");
+  const [qrTarget, setQrTarget] = useState<PortalVoucherRedeemQrTarget | null>(null);
+
+  const usable = (item: PortalBackpackItem) =>
+    item.status === "owned" || item.status === "pending_use";
 
   return (
     <div className="portal-backpack-panel">
@@ -34,8 +41,18 @@ export function PortalBackpackPanel({
                 <span className={`portal-backpack-panel__status portal-backpack-panel__status--${item.status}`}>
                   {t(`lobby.accountMenu.voucherStatus.${item.status}`)}
                 </span>
-                {item.status === "owned" && onRequestUse ? (
-                  <button type="button" onClick={() => void onRequestUse(item.itemId)}>
+                {usable(item) ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQrTarget({
+                        code: item.code,
+                        title: item.title,
+                        rewardText: item.rewardText,
+                        expiresAt: item.expiresAt,
+                      })
+                    }
+                  >
                     {t("lobby.accountMenu.useVoucher")}
                   </button>
                 ) : null}
@@ -49,6 +66,12 @@ export function PortalBackpackPanel({
           ))
         )}
       </div>
+
+      <PortalVoucherRedeemQrModal
+        open={qrTarget !== null}
+        onClose={() => setQrTarget(null)}
+        voucher={qrTarget}
+      />
     </div>
   );
 }
