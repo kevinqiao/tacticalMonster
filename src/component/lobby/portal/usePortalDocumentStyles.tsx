@@ -34,6 +34,9 @@ function appendThemeLink(href: string, id: string): HTMLLinkElement {
   return link;
 }
 
+/** Ref-count injects so React Strict Mode remount does not yank CSS mid-frame (modal flash). */
+let portalThemeInjectCount = 0;
+
 /** 仅在 Portal 路由挂载时注入主题 CSS；卸载时从 document.head 移除，避免污染其它页面。 */
 export function usePortalDocumentStyles(active = true): boolean {
   const [ready, setReady] = useState(() => {
@@ -57,6 +60,7 @@ export function usePortalDocumentStyles(active = true): boolean {
     }
 
     let cancelled = false;
+    portalThemeInjectCount += 1;
     const links = [
       appendThemeLink(PORTAL_FONT_HREF, "portal-route-font-css"),
       appendThemeLink(portalCssUrl, "portal-route-portal-css"),
@@ -73,8 +77,17 @@ export function usePortalDocumentStyles(active = true): boolean {
 
     return () => {
       cancelled = true;
-      links.forEach((link) => link.remove());
-      setReady(false);
+      portalThemeInjectCount = Math.max(0, portalThemeInjectCount - 1);
+      // Strict Mode remounts immediately; keep sheets until the last consumer leaves.
+      if (portalThemeInjectCount === 0) {
+        links.forEach((link) => {
+          // Only remove if we still own the same node (another mount may have reused ids).
+          if (link.isConnected && document.getElementById(link.id) === link) {
+            link.remove();
+          }
+        });
+        setReady(false);
+      }
     };
   }, [active]);
 

@@ -8,7 +8,8 @@ import type {
 import { portalPurchaseErrorMessage } from "../shared/portalErrorMessage";
 import { PortalRegionSelectModal } from "./PortalRegionSelectModal";
 import { groupPortalShopSkus } from "./portalShopLayout";
-import { CASUAL_LOBBY_CURRENCY_ICONS } from "../../casual/assets/casualLobbyIcons";
+const PORTAL_SHOP_COIN_ICON = "/assets/portal/3d/ui/icon-coin.webp";
+const PORTAL_SHOP_TICKET_ICON = "/assets/portal/3d/ui/icon-ticket.webp";
 
 type PortalShopPanelProps = {
   coins: number;
@@ -52,8 +53,8 @@ export function PortalShopPanel({
   onFeedback,
 }: PortalShopPanelProps) {
   const { t } = useTranslation("portal.player");
-  const coinIcon = CASUAL_LOBBY_CURRENCY_ICONS.coin;
-  const ticketIcon = CASUAL_LOBBY_CURRENCY_ICONS.voucher;
+  const coinIcon = PORTAL_SHOP_COIN_ICON;
+  const ticketIcon = PORTAL_SHOP_TICKET_ICON;
   const [buying, setBuying] = useState<string | null>(null);
   const [inlineNote, setInlineNote] = useState<string | null>(null);
   const [regionModalOpen, setRegionModalOpen] = useState(false);

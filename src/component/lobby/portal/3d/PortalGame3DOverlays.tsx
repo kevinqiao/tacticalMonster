@@ -152,6 +152,21 @@ export function PortalGame3DOverlays({
         open={accountModalOpen}
         title={t("lobby.accountMenu.myAccount")}
         onClose={() => setAccountModalOpen(false)}
+        headerStart={
+          showAuthMenuActions ? (
+            <button
+              type="button"
+              className="portal-modal-signOut"
+              onClick={() => {
+                setAccountModalOpen(false);
+                signOut();
+              }}
+              aria-label={t("lobby.signOut")}
+            >
+              {t("lobby.signOut")}
+            </button>
+          ) : undefined
+        }
       >
         <div className="portal-account-shell">
           <PortalAccountPanel
@@ -176,33 +191,14 @@ export function PortalGame3DOverlays({
           />
           <section className="portal-account-shell__section">
             <h3 className="portal-account-shell__section-title">
-              {t("lobby.accountMenu.backpack")}
+              {t("lobby.accountMenu.vouchers")}
             </h3>
             <PortalBackpackPanel
-              replayTokenCount={portal.replayTokenCount}
               backpackItems={portal.backpackItems}
-              adReplayDailyRemaining={portal.adReplayDailyRemaining}
-              giftCardOrderCount={portal.giftCardOrders?.length ?? 0}
               onRequestUse={portal.requestUseBackpackVoucher}
               onCancelUse={portal.cancelUseBackpackVoucher}
-              onOpenGiftCards={() => {
-                setAccountModalOpen(false);
-                setGiftCardOrdersModalOpen(true);
-              }}
             />
           </section>
-          {showAuthMenuActions ? (
-            <button
-              type="button"
-              className="portal-account-shell__signout"
-              onClick={() => {
-                setAccountModalOpen(false);
-                signOut();
-              }}
-            >
-              {t("lobby.signOut")}
-            </button>
-          ) : null}
         </div>
       </PortalCenterModal>
 

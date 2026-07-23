@@ -967,10 +967,20 @@
   position: relative;
   width: 228px;
   height: 87px;
-  background-image: url(/assets/portal/solitaire/buttons/btn-shop-default.webp);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
+  background: url(/assets/portal/3d/ui/btn-shop-bg.webp) no-repeat center;
+  background-size: cover;
+}
+
+.fixedShopGem {
+  position: absolute;
+  width: 57px;
+  height: 52px;
+  left: 29px;
+  bottom: 20px;
+  background: url(/assets/portal/3d/ui/btn-shop-gem.webp) no-repeat center;
+  background-size: cover;
+  pointer-events: none;
+  z-index: 100;
 }
 
 /* SHOP 下方左对齐；背景同 clockChip（本周剩余） */
@@ -1006,11 +1016,8 @@
   width: 35px;
   height: 35px;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 25px;
-  line-height: 1;
+  background: url(/assets/portal/3d/ui/icon-ticket.webp) no-repeat center;
+  background-size: contain;
   transform: rotate(-18deg);
 }
 

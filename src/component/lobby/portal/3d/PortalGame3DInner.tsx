@@ -303,6 +303,7 @@ export function PortalGame3DInner({
             }
           >
             <div className={styles.fixedShopBackground}>
+              <span className={styles.fixedShopGem} aria-hidden />
               <span className={styles.fixedShopText}>{t("lobby.shop")}</span>
             </div>
           </div>
@@ -317,7 +318,7 @@ export function PortalGame3DInner({
             ) : null}
             {ticketBalance != null ? (
               <div className={styles.coinChip}>
-                <span className={styles.ticketChipIcon}>🎟</span>
+                <span className={styles.ticketChipIcon} aria-hidden />
                 <span className={styles.coinChipText}>{ticketBalance.toLocaleString()}</span>
               </div>
             ) : null}
