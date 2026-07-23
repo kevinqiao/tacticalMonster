@@ -1290,6 +1290,7 @@ const useActHandler = () => {
                 convex,
                 gameId: gs.gameId,
                 platformBridge: casualPlatformBridge,
+                replayMode: postCasualReplayMode,
                 replayAction: (actionArgs) =>
                     convex.action(api.proxy.controller.replayCasualRun, actionArgs),
             });
@@ -1348,6 +1349,7 @@ const useActHandler = () => {
         casualReplayBusy,
         postCasualScoreReportOpen,
         postCasualSummaryOpen,
+        postCasualReplayMode,
         reloadCasualRun,
         casualPlatformBridge,
         setInteractionPhase,

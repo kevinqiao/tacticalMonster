@@ -113,8 +113,10 @@
 }
 
 .sso-auth-mask--portal {
+  /* Solid dim only — opacity + backdrop-filter flickers over WebGL / 3D. */
   background: rgba(30, 18, 5, 0.62);
-  backdrop-filter: blur(3px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .sso-auth-layer {

@@ -42,6 +42,9 @@ export type CampaignExperienceType = "game" | "display";
 
 export type DisplayCtaKind = "none" | "external_url" | "tel" | "maps";
 
+/** Tri-state override: inherit partner baseline, or force on/off. */
+export type CampaignReplayBoolOverride = "inherit" | "true" | "false";
+
 export type CampaignFormState = {
   experienceType: CampaignExperienceType;
   title: string;
@@ -64,6 +67,12 @@ export type CampaignFormState = {
   maxCouponsPerPlayer: string;
   maxPlaysPerDay: string;
   dayTimezone: string;
+  /** Sparse replay overrides (blank / inherit = use Partner). */
+  maxReplaysPerMatch: string;
+  adReplayEnabled: CampaignReplayBoolOverride;
+  adReplayDailyCap: string;
+  ticketReplayEnabled: CampaignReplayBoolOverride;
+  ticketReplayPriceTickets: string;
 };
 
 export const CAMPAIGN_DAY_TIMEZONE_OPTIONS = [
@@ -164,6 +173,11 @@ export function defaultCampaignForm(now = Date.now()): CampaignFormState {
     maxCouponsPerPlayer: "1",
     maxPlaysPerDay: "",
     dayTimezone: DEFAULT_CAMPAIGN_DAY_TIMEZONE,
+    maxReplaysPerMatch: "",
+    adReplayEnabled: "inherit",
+    adReplayDailyCap: "",
+    ticketReplayEnabled: "inherit",
+    ticketReplayPriceTickets: "",
   };
 }
 
@@ -222,6 +236,11 @@ export function campaignFormFromDoc(campaign: Doc<"campaigns">): CampaignFormSta
       maxCouponsPerPlayer: "0",
       maxPlaysPerDay: "",
       dayTimezone: DEFAULT_CAMPAIGN_DAY_TIMEZONE,
+      maxReplaysPerMatch: "",
+      adReplayEnabled: "inherit",
+      adReplayDailyCap: "",
+      ticketReplayEnabled: "inherit",
+      ticketReplayPriceTickets: "",
     };
   }
 
@@ -279,6 +298,30 @@ export function campaignFormFromDoc(campaign: Doc<"campaigns">): CampaignFormSta
         ? String(campaign.playLimits.maxPlaysPerDay)
         : "",
     dayTimezone: campaign.playLimits.dayTimezone ?? DEFAULT_CAMPAIGN_DAY_TIMEZONE,
+    maxReplaysPerMatch:
+      typeof campaign.replaySettings?.maxReplaysPerMatch === "number"
+        ? String(campaign.replaySettings.maxReplaysPerMatch)
+        : "",
+    adReplayEnabled:
+      campaign.replaySettings?.adReplayEnabled === true
+        ? "true"
+        : campaign.replaySettings?.adReplayEnabled === false
+          ? "false"
+          : "inherit",
+    adReplayDailyCap:
+      typeof campaign.replaySettings?.adReplayDailyCap === "number"
+        ? String(campaign.replaySettings.adReplayDailyCap)
+        : "",
+    ticketReplayEnabled:
+      campaign.replaySettings?.ticketReplayEnabled === true
+        ? "true"
+        : campaign.replaySettings?.ticketReplayEnabled === false
+          ? "false"
+          : "inherit",
+    ticketReplayPriceTickets:
+      typeof campaign.replaySettings?.ticketReplayPriceTickets === "number"
+        ? String(campaign.replaySettings.ticketReplayPriceTickets)
+        : "",
   };
 }
 
@@ -593,4 +636,42 @@ export function playLimitsFromForm(form: CampaignFormState): {
   }
   const maxPlaysPerDay = Math.max(1, Number.parseInt(dailyRaw, 10) || 1);
   return { maxCouponsPerPlayer, maxPlaysPerDay, dayTimezone };
+}
+
+export type CampaignReplaySettingsFormValue = {
+  maxReplaysPerMatch?: number;
+  adReplayEnabled?: boolean;
+  adReplayDailyCap?: number;
+  ticketReplayEnabled?: boolean;
+  ticketReplayPriceTickets?: number;
+};
+
+/**
+ * Sparse replay overrides for create/update.
+ * Returns null when nothing is overridden (update should clear stamp).
+ */
+export function replaySettingsFromForm(
+  form: CampaignFormState
+): CampaignReplaySettingsFormValue | null {
+  const out: CampaignReplaySettingsFormValue = {};
+  const maxRaw = form.maxReplaysPerMatch.trim();
+  if (maxRaw) {
+    const n = Number.parseInt(maxRaw, 10);
+    if (Number.isFinite(n) && n >= 0 && n <= 20) out.maxReplaysPerMatch = n;
+  }
+  if (form.adReplayEnabled === "true") out.adReplayEnabled = true;
+  else if (form.adReplayEnabled === "false") out.adReplayEnabled = false;
+  const adCapRaw = form.adReplayDailyCap.trim();
+  if (adCapRaw) {
+    const n = Number.parseInt(adCapRaw, 10);
+    if (Number.isFinite(n) && n >= 0 && n <= 100) out.adReplayDailyCap = n;
+  }
+  if (form.ticketReplayEnabled === "true") out.ticketReplayEnabled = true;
+  else if (form.ticketReplayEnabled === "false") out.ticketReplayEnabled = false;
+  const priceRaw = form.ticketReplayPriceTickets.trim();
+  if (priceRaw) {
+    const n = Number.parseInt(priceRaw, 10);
+    if (Number.isFinite(n) && n >= 1 && n <= 100) out.ticketReplayPriceTickets = n;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }

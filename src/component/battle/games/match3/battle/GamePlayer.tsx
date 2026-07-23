@@ -19,7 +19,11 @@ import { useMatch3GameManager } from './service/GameManager';
 import { useActHandler } from './service/handler/useActHandler';
 import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
 import { CasualPostSettleSummaryOverlay } from '../../shared/CasualPostSettleSummaryOverlay';
-import { resolveCasualPostSettleReplayPresentation } from '../../shared/casualGameScoreReportUI';
+import {
+  isCasualSoloChallengeFinalScoreReport,
+  resolveCasualPostSettleReplayPresentation,
+  resolveCasualScoreReportSecondaryAction,
+} from '../../shared/casualGameScoreReportUI';
 import Match3WatchOverlay from './replay/Match3WatchOverlay';
 import { ManualSettleConfirmOverlay, MANUAL_SETTLE_DEFAULT_MESSAGE_MATCH3 } from '../../shared/ManualSettleConfirmOverlay';
 
@@ -144,6 +148,27 @@ const Match3Player: React.FC = () => {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  const scoreReportActions = useMemo(
+    () =>
+      resolveCasualScoreReportSecondaryAction({
+        templateId: casualTournamentId,
+        replayOffered: postCasualReplayOffered,
+        canReplay: postCasualCanReplay,
+        replayMode: postCasualReplayMode,
+        challengeSuccess: postCasualScoreReport?.challenge?.success,
+        adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+      }),
+    [
+      casualTournamentId,
+      postCasualReplayOffered,
+      postCasualCanReplay,
+      postCasualReplayMode,
+      postCasualScoreReport?.challenge?.success,
+      postCasualAdReplayDailyRemaining,
+    ]
+  );
+  const showPostSettleSummary =
+    postCasualSummaryOpen && !isCasualSoloChallengeFinalScoreReport(casualTournamentId);
   const postSettleReplay = useMemo(
     () =>
       resolveCasualPostSettleReplayPresentation({
@@ -502,9 +527,33 @@ const Match3Player: React.FC = () => {
         open={postCasualScoreReportOpen && watchTarget == null}
         report={postCasualScoreReport}
         onConfirm={dismissPostCasualScoreReport}
+        secondaryLabel={
+          scoreReportActions.showReplaySecondary
+            ? scoreReportActions.secondaryLabel
+            : undefined
+        }
+        onSecondary={
+          scoreReportActions.showReplaySecondary
+            ? () => void replayCasualRun()
+            : undefined
+        }
+        secondaryDisabled={
+          scoreReportActions.showReplaySecondary && !postCasualCanReplay
+        }
+        secondaryBusy={casualReplayBusy}
+        adReplayDailyRemaining={
+          scoreReportActions.showReplaySecondary
+            ? scoreReportActions.adReplayDailyRemaining
+            : undefined
+        }
+        replayWindowEndsAt={
+          scoreReportActions.showReplaySecondary
+            ? postCasualReplayWindowEndsAt
+            : undefined
+        }
       />
       <CasualPostSettleSummaryOverlay
-        open={postCasualSummaryOpen && watchTarget == null}
+        open={showPostSettleSummary && watchTarget == null}
         title="同桌成绩"
         summary={postCasualTableSummary}
         waitingForPeers={postCasualWaitingForPeers}

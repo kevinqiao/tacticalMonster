@@ -215,12 +215,23 @@ export function PortalGame3DInner({
   const multiJoinDisabled = !authed || joining != null || multiJoinBlocked;
   /** 次数用尽（或其它原因不可新开）且无「继续」时，开始按钮灰掉 */
   const soloStartGrayed =
-    authed && !soloOpenAssignment && (soloDailyExhausted && !soloTicketEntryAvailable || soloJoinDisabled);
+    authed &&
+    !soloOpenAssignment &&
+    ((soloDailyExhausted && !soloTicketEntryAvailable) || soloJoinDisabled);
   const multiStartGrayed =
     authed &&
     !multiOpenAssignment &&
     !queueWaiting &&
-    (multiDailyExhausted && !multiTicketEntryAvailable || multiJoinDisabled);
+    ((multiDailyExhausted && !multiTicketEntryAvailable) || multiJoinDisabled);
+
+  const soloFreePlayLabel = t("lobby.playFree", {
+    used: soloPlaysToday,
+    cap: soloMaxPlaysPerDay,
+  });
+  const multiFreePlayLabel = t("lobby.playFree", {
+    used: multiPlaysToday,
+    cap: multiMaxPlaysPerDay,
+  });
 
   const handleSoloClick = () => {
     if (!authed) {
@@ -520,12 +531,13 @@ export function PortalGame3DInner({
                 <div className={styles.modeIconSolo} />
                 <span className={styles.modeTitle}>{t("lobby.modes.challenge")}</span>
               </div>
-              <div className={styles.modeQuota}>
-                {t("lobby.modes.playsToday", {
-                  playsToday: soloPlaysToday,
-                  maxPlaysPerDay: soloMaxPlaysPerDay,
-                })}
-              </div>
+              {authed && soloPlaysToday > 0 ? (
+                <div className={styles.modeQuota}>
+                  {t("lobby.modes.playsToday", {
+                    playsToday: soloPlaysToday,
+                  })}
+                </div>
+              ) : null}
               <div
                 className={`${styles.modePlayBtn} ${styles.modePlayBtnSolo}${
                   soloStartGrayed ? ` ${styles.modePlayBtnDisabled}` : ""
@@ -538,7 +550,11 @@ export function PortalGame3DInner({
                     ? t("lobby.joining")
                     : soloOpenAssignment
                       ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
-                      : t("lobby.play")
+                      : soloDailyExhausted && soloTicketEntryAvailable
+                        ? t("lobby.playWithTickets", {
+                            price: soloTicketEntryPrice ?? 1,
+                          })
+                        : soloFreePlayLabel
                 }
                 style={{
                   cursor: !authed || !soloJoinDisabled ? "pointer" : "not-allowed",
@@ -567,7 +583,9 @@ export function PortalGame3DInner({
                     </span>
                   </span>
                 ) : (
-                  <span className={styles.modePlayText}>{t("lobby.play")}</span>
+                  <span className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}>
+                    {soloFreePlayLabel}
+                  </span>
                 )}
               </div>
             </div>
@@ -578,12 +596,13 @@ export function PortalGame3DInner({
                 <div className={styles.modeIconArena} />
                 <span className={styles.modeTitle}>{t("lobby.modes.arena")}</span>
               </div>
-              <div className={styles.modeQuota}>
-                {t("lobby.modes.playsToday", {
-                  playsToday: multiPlaysToday,
-                  maxPlaysPerDay: multiMaxPlaysPerDay,
-                })}
-              </div>
+              {authed && multiPlaysToday > 0 ? (
+                <div className={styles.modeQuota}>
+                  {t("lobby.modes.playsToday", {
+                    playsToday: multiPlaysToday,
+                  })}
+                </div>
+              ) : null}
               <div
                 className={`${styles.modePlayBtn} ${styles.modePlayBtnArena}${
                   multiStartGrayed ? ` ${styles.modePlayBtnDisabled}` : ""
@@ -596,7 +615,11 @@ export function PortalGame3DInner({
                     ? t("lobby.matching")
                     : multiOpenAssignment
                       ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
-                      : t("lobby.play")
+                      : multiDailyExhausted && multiTicketEntryAvailable
+                        ? t("lobby.playWithTickets", {
+                            price: multiTicketEntryPrice ?? 2,
+                          })
+                        : multiFreePlayLabel
                 }
                 style={{
                   cursor: !authed || !multiJoinDisabled ? "pointer" : "not-allowed",
@@ -625,7 +648,9 @@ export function PortalGame3DInner({
                     </span>
                   </span>
                 ) : (
-                  <span className={styles.modePlayText}>{t("lobby.play")}</span>
+                  <span className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}>
+                    {multiFreePlayLabel}
+                  </span>
                 )}
               </div>
             </div>

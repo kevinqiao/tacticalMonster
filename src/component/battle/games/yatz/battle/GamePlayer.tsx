@@ -12,7 +12,11 @@ import {
 } from '../../shared/ManualSettleConfirmOverlay';
 import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
 import { CasualPostSettleSummaryOverlay } from '../../shared/CasualPostSettleSummaryOverlay';
-import { resolveCasualPostSettleReplayPresentation } from '../../shared/casualGameScoreReportUI';
+import {
+  isCasualSoloChallengeFinalScoreReport,
+  resolveCasualPostSettleReplayPresentation,
+  resolveCasualScoreReportSecondaryAction,
+} from '../../shared/casualGameScoreReportUI';
 import YatzWatchOverlay from './replay/YatzWatchOverlay';
 
 const UPPER_CATEGORIES = YATZ_CATEGORIES.slice(0, 6);
@@ -170,6 +174,28 @@ const GamePlayer: React.FC = () => {
     return new Set(YATZ_CATEGORIES.filter((c) => gs.categoryScores[c] != null));
   }, [gs]);
 
+  const scoreReportActions = useMemo(
+    () =>
+      resolveCasualScoreReportSecondaryAction({
+        templateId: yatz.casualTournamentId,
+        replayOffered: yatz.postCasualReplayOffered,
+        canReplay: yatz.postCasualCanReplay,
+        replayMode: yatz.postCasualReplayMode,
+        challengeSuccess: yatz.postCasualScoreReport?.challenge?.success,
+        adReplayDailyRemaining: yatz.postCasualAdReplayDailyRemaining,
+      }),
+    [
+      yatz.casualTournamentId,
+      yatz.postCasualReplayOffered,
+      yatz.postCasualCanReplay,
+      yatz.postCasualReplayMode,
+      yatz.postCasualScoreReport?.challenge?.success,
+      yatz.postCasualAdReplayDailyRemaining,
+    ]
+  );
+  const showPostSettleSummary =
+    yatz.postCasualSummaryOpen &&
+    !isCasualSoloChallengeFinalScoreReport(yatz.casualTournamentId);
   const postSettleReplay = useMemo(
     () =>
       resolveCasualPostSettleReplayPresentation({
@@ -368,9 +394,33 @@ const GamePlayer: React.FC = () => {
         open={yatz.postCasualScoreReportOpen && yatz.watchTarget == null}
         report={yatz.postCasualScoreReport}
         onConfirm={yatz.dismissPostCasualScoreReport}
+        secondaryLabel={
+          scoreReportActions.showReplaySecondary
+            ? scoreReportActions.secondaryLabel
+            : undefined
+        }
+        onSecondary={
+          scoreReportActions.showReplaySecondary
+            ? () => void yatz.replayCasualRun()
+            : undefined
+        }
+        secondaryDisabled={
+          scoreReportActions.showReplaySecondary && !yatz.postCasualCanReplay
+        }
+        secondaryBusy={yatz.casualReplayBusy}
+        adReplayDailyRemaining={
+          scoreReportActions.showReplaySecondary
+            ? scoreReportActions.adReplayDailyRemaining
+            : undefined
+        }
+        replayWindowEndsAt={
+          scoreReportActions.showReplaySecondary
+            ? yatz.postCasualReplayWindowEndsAt
+            : undefined
+        }
       />
       <CasualPostSettleSummaryOverlay
-        open={yatz.postCasualSummaryOpen && yatz.watchTarget == null}
+        open={showPostSettleSummary && yatz.watchTarget == null}
         title="同桌成绩"
         summary={yatz.postCasualTableSummary}
         waitingForPeers={yatz.postCasualWaitingForPeers}

@@ -961,8 +961,19 @@ http.route({
         headers: { "Content-Type": "application/json" },
       });
     }
-    const partnerIdRaw = (body as { partnerId?: unknown }).partnerId;
-    const capRaw = (body as { adReplayDailyCap?: unknown }).adReplayDailyCap;
+    const b = body as {
+      partnerId?: unknown;
+      adReplayDailyCap?: unknown;
+      maxReplaysPerMatch?: unknown;
+      adReplayEnabled?: unknown;
+      ticketReplayEnabled?: unknown;
+      ticketReplayPriceTickets?: unknown;
+      coinReplayEnabled?: unknown;
+      coinReplayPriceCoins?: unknown;
+      coinReplayDailyCap?: unknown;
+    };
+    const partnerIdRaw = b.partnerId;
+    const capRaw = b.adReplayDailyCap;
     const partnerId =
       typeof partnerIdRaw === "number" && Number.isFinite(partnerIdRaw)
         ? Math.floor(partnerIdRaw)
@@ -981,7 +992,31 @@ http.route({
     }
     const result = await ctx.runMutation(
       internal.service.ads.partnerAdReplayConfig.upsertPartnerAdReplayCapInternal,
-      { partnerId, adReplayDailyCap }
+      {
+        partnerId,
+        adReplayDailyCap,
+        ...(typeof b.maxReplaysPerMatch === "number"
+          ? { maxReplaysPerMatch: Math.floor(b.maxReplaysPerMatch) }
+          : {}),
+        ...(typeof b.adReplayEnabled === "boolean"
+          ? { adReplayEnabled: b.adReplayEnabled }
+          : {}),
+        ...(typeof b.ticketReplayEnabled === "boolean"
+          ? { ticketReplayEnabled: b.ticketReplayEnabled }
+          : {}),
+        ...(typeof b.ticketReplayPriceTickets === "number"
+          ? { ticketReplayPriceTickets: Math.floor(b.ticketReplayPriceTickets) }
+          : {}),
+        ...(typeof b.coinReplayEnabled === "boolean"
+          ? { coinReplayEnabled: b.coinReplayEnabled }
+          : {}),
+        ...(typeof b.coinReplayPriceCoins === "number"
+          ? { coinReplayPriceCoins: Math.floor(b.coinReplayPriceCoins) }
+          : {}),
+        ...(b.coinReplayDailyCap === null || typeof b.coinReplayDailyCap === "number"
+          ? { coinReplayDailyCap: b.coinReplayDailyCap as number | null }
+          : {}),
+      }
     );
     return new Response(JSON.stringify(result), {
       status: 200,

@@ -74,6 +74,19 @@ export default defineSchema({
       maxPlaysPerDay: v.optional(v.number()),
       dayTimezone: v.optional(v.string()),
     }),
+    /** Sparse overlay on Portal partner replay settings (join stamp). */
+    replaySettings: v.optional(
+      v.object({
+        maxReplaysPerMatch: v.optional(v.number()),
+        adReplayEnabled: v.optional(v.boolean()),
+        adReplayDailyCap: v.optional(v.number()),
+        ticketReplayEnabled: v.optional(v.boolean()),
+        ticketReplayPriceTickets: v.optional(v.number()),
+        coinReplayEnabled: v.optional(v.boolean()),
+        coinReplayPriceCoins: v.optional(v.number()),
+        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
+      })
+    ),
     rewardRules: v.array(rewardRuleValidator),
     themeOverride: v.optional(themeJsonValidator),
     createdAt: v.number(),

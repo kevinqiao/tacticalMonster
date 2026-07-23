@@ -23,6 +23,16 @@ type ClaimOk = {
   partnerId?: number;
   campaignRewardMode?: "pass_per_run" | "competitive_leaderboard";
   campaignDueTime?: number;
+  campaignReplaySettings?: {
+    maxReplaysPerMatch?: number;
+    adReplayEnabled?: boolean;
+    adReplayDailyCap?: number;
+    ticketReplayEnabled?: boolean;
+    ticketReplayPriceTickets?: number;
+    coinReplayEnabled?: boolean;
+    coinReplayPriceCoins?: number;
+    coinReplayDailyCap?: number | null;
+  };
   maxPlaysPerDay?: number;
   dayTimezone?: string;
 };
@@ -106,6 +116,9 @@ async function openCasualTableFromClaimHandler(
       ...(claim.partnerId != null ? { partnerId: claim.partnerId } : {}),
       ...(claim.campaignRewardMode ? { campaignRewardMode: claim.campaignRewardMode } : {}),
       ...(claim.campaignDueTime != null ? { campaignDueTime: claim.campaignDueTime } : {}),
+      ...(claim.campaignReplaySettings
+        ? { campaignReplaySettings: claim.campaignReplaySettings }
+        : {}),
       ...(claim.maxPlaysPerDay != null ? { maxPlaysPerDay: claim.maxPlaysPerDay } : {}),
       ...(claim.dayTimezone ? { dayTimezone: claim.dayTimezone } : {}),
     });
@@ -230,6 +243,18 @@ export const openCasualSoloTable = internalAction({
       v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
     ),
     campaignDueTime: v.optional(v.number()),
+    campaignReplaySettings: v.optional(
+      v.object({
+        maxReplaysPerMatch: v.optional(v.number()),
+        adReplayEnabled: v.optional(v.boolean()),
+        adReplayDailyCap: v.optional(v.number()),
+        ticketReplayEnabled: v.optional(v.boolean()),
+        ticketReplayPriceTickets: v.optional(v.number()),
+        coinReplayEnabled: v.optional(v.boolean()),
+        coinReplayPriceCoins: v.optional(v.number()),
+        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
+      })
+    ),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
   },
@@ -242,6 +267,7 @@ export const openCasualSoloTable = internalAction({
       partnerId,
       campaignRewardMode,
       campaignDueTime,
+      campaignReplaySettings,
       maxPlaysPerDay,
       dayTimezone,
     }
@@ -297,6 +323,7 @@ export const openCasualSoloTable = internalAction({
       ...(partnerId != null ? { partnerId } : {}),
       ...(campaignRewardMode ? { campaignRewardMode } : {}),
       ...(campaignDueTime != null ? { campaignDueTime } : {}),
+      ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
       ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
       ...(dayTimezone ? { dayTimezone } : {}),
     };

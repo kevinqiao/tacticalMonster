@@ -38,6 +38,17 @@ const playLimitsValidator = v.object({
   dayTimezone: v.optional(v.string()),
 });
 
+const replaySettingsValidator = v.object({
+  maxReplaysPerMatch: v.optional(v.number()),
+  adReplayEnabled: v.optional(v.boolean()),
+  adReplayDailyCap: v.optional(v.number()),
+  ticketReplayEnabled: v.optional(v.boolean()),
+  ticketReplayPriceTickets: v.optional(v.number()),
+  coinReplayEnabled: v.optional(v.boolean()),
+  coinReplayPriceCoins: v.optional(v.number()),
+  coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
+});
+
 function normalizePlayLimits(playLimits: {
   maxCouponsPerPlayer: number;
   maxPlaysPerDay?: number;
@@ -48,6 +59,53 @@ function normalizePlayLimits(playLimits: {
     ...(playLimits.maxPlaysPerDay != null ? { maxPlaysPerDay: playLimits.maxPlaysPerDay } : {}),
     dayTimezone: normalizeCampaignDayTimezone(playLimits.dayTimezone),
   };
+}
+
+function normalizeReplaySettings(
+  raw:
+    | {
+        maxReplaysPerMatch?: number;
+        adReplayEnabled?: boolean;
+        adReplayDailyCap?: number;
+        ticketReplayEnabled?: boolean;
+        ticketReplayPriceTickets?: number;
+        coinReplayEnabled?: boolean;
+        coinReplayPriceCoins?: number;
+        coinReplayDailyCap?: number | null;
+      }
+    | null
+    | undefined
+) {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, unknown> = {};
+  if (typeof raw.maxReplaysPerMatch === "number" && Number.isFinite(raw.maxReplaysPerMatch)) {
+    const n = Math.floor(raw.maxReplaysPerMatch);
+    if (n >= 0 && n <= 20) out.maxReplaysPerMatch = n;
+  }
+  if (typeof raw.adReplayEnabled === "boolean") out.adReplayEnabled = raw.adReplayEnabled;
+  if (typeof raw.adReplayDailyCap === "number" && Number.isFinite(raw.adReplayDailyCap)) {
+    const n = Math.floor(raw.adReplayDailyCap);
+    if (n >= 0 && n <= 100) out.adReplayDailyCap = n;
+  }
+  if (typeof raw.ticketReplayEnabled === "boolean") {
+    out.ticketReplayEnabled = raw.ticketReplayEnabled;
+  }
+  if (
+    typeof raw.ticketReplayPriceTickets === "number" &&
+    Number.isFinite(raw.ticketReplayPriceTickets)
+  ) {
+    const n = Math.floor(raw.ticketReplayPriceTickets);
+    if (n >= 1 && n <= 100) out.ticketReplayPriceTickets = n;
+  }
+  if (typeof raw.coinReplayEnabled === "boolean") out.coinReplayEnabled = raw.coinReplayEnabled;
+  if (typeof raw.coinReplayPriceCoins === "number" && Number.isFinite(raw.coinReplayPriceCoins)) {
+    out.coinReplayPriceCoins = Math.max(0, Math.floor(raw.coinReplayPriceCoins));
+  }
+  if (raw.coinReplayDailyCap === null) out.coinReplayDailyCap = null;
+  else if (typeof raw.coinReplayDailyCap === "number" && Number.isFinite(raw.coinReplayDailyCap)) {
+    out.coinReplayDailyCap = Math.max(0, Math.floor(raw.coinReplayDailyCap));
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
@@ -114,6 +172,7 @@ export const createCampaignCore = internalMutation({
     mode: v.optional(v.union(v.literal("solo"), v.literal("multi"))),
     rewardModel: v.optional(campaignRewardModelValidator),
     playLimits: v.optional(playLimitsValidator),
+    replaySettings: v.optional(replaySettingsValidator),
     rewardRules: v.optional(v.array(rewardRuleValidator)),
   },
   handler: async (ctx, args) => {
@@ -143,6 +202,16 @@ async function createCampaignHandler(
       maxCouponsPerPlayer: number;
       maxPlaysPerDay?: number;
       dayTimezone?: string;
+    };
+    replaySettings?: {
+      maxReplaysPerMatch?: number;
+      adReplayEnabled?: boolean;
+      adReplayDailyCap?: number;
+      ticketReplayEnabled?: boolean;
+      ticketReplayPriceTickets?: number;
+      coinReplayEnabled?: boolean;
+      coinReplayPriceCoins?: number;
+      coinReplayDailyCap?: number | null;
     };
     rewardRules?: Doc<"campaigns">["rewardRules"];
   }
@@ -242,7 +311,13 @@ async function createCampaignHandler(
     gameType: args.gameType,
     mode: args.mode,
     rewardModel: args.rewardModel,
-    playLimits: normalizePlayLimits(args.playLimits),
+    playLimits: normalizePlayLimits(
+      args.playLimits ?? { maxCouponsPerPlayer: 1 }
+    ),
+    ...(() => {
+      const replaySettings = normalizeReplaySettings(args.replaySettings);
+      return replaySettings ? { replaySettings } : {};
+    })(),
     rewardRules,
     createdAt: now,
     updatedAt: now,
@@ -267,6 +342,7 @@ export const updateCampaignCore = internalMutation({
     mode: v.optional(v.union(v.literal("solo"), v.literal("multi"))),
     rewardModel: v.optional(campaignRewardModelValidator),
     playLimits: v.optional(playLimitsValidator),
+    replaySettings: v.optional(v.union(replaySettingsValidator, v.null())),
     rewardRules: v.optional(v.array(rewardRuleValidator)),
   },
   handler: async (ctx, args) => {
@@ -282,6 +358,14 @@ export const updateCampaignCore = internalMutation({
     }
 
     const experienceType = args.experienceType ?? resolveExperienceType(row);
+
+    // null / empty partial clears the field (Convex patch treats undefined as unset).
+    const nextReplay =
+      args.replaySettings === null
+        ? undefined
+        : args.replaySettings !== undefined
+          ? normalizeReplaySettings(args.replaySettings)
+          : row.replaySettings;
 
     const next = {
       title: args.title?.trim() ?? row.title,
@@ -306,6 +390,7 @@ export const updateCampaignCore = internalMutation({
       rewardModel: args.rewardModel ?? row.rewardModel,
       playLimits:
         args.playLimits != null ? normalizePlayLimits(args.playLimits) : row.playLimits,
+      replaySettings: nextReplay,
       rewardRules: args.rewardRules ?? row.rewardRules,
     };
 

@@ -5,6 +5,7 @@ import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { PORTAL_AD_REPLAY_DAILY_CAP } from "../../data/portalAdReplayConfig";
+import { PORTAL_MAX_REPLAYS_PER_MATCH_DEFAULT } from "../../data/portalPartnerReplaySettings";
 
 const DEV_SSO_SITE_URL = "https://cool-salamander-393.convex.site";
 const DEV_SSO_BRIDGE_SECRET = "dev-local-sso-bridge";
@@ -34,7 +35,7 @@ function ssoBridgeSecret(): string {
   return DEV_SSO_BRIDGE_SECRET;
 }
 
-/** Portal cache miss → pull cap from SSO internal HTTP. */
+/** Portal cache miss → pull replay settings from SSO internal HTTP. */
 export const syncPartnerAdReplayCapFromSso = internalAction({
   args: { partnerId: v.number() },
   handler: async (ctx, { partnerId }) => {
@@ -61,6 +62,13 @@ export const syncPartnerAdReplayCapFromSso = internalAction({
       const body = (await res.json()) as {
         ok?: boolean;
         adReplayDailyCap?: number;
+        maxReplaysPerMatch?: number;
+        adReplayEnabled?: boolean;
+        ticketReplayEnabled?: boolean;
+        ticketReplayPriceTickets?: number;
+        coinReplayEnabled?: boolean;
+        coinReplayPriceCoins?: number;
+        coinReplayDailyCap?: number | null;
       };
       const cap =
         typeof body.adReplayDailyCap === "number" && Number.isFinite(body.adReplayDailyCap)
@@ -68,7 +76,32 @@ export const syncPartnerAdReplayCapFromSso = internalAction({
           : PORTAL_AD_REPLAY_DAILY_CAP;
       await ctx.runMutation(
         internal.service.ads.partnerAdReplayConfig.upsertPartnerAdReplayCapInternal,
-        { partnerId, adReplayDailyCap: cap }
+        {
+          partnerId,
+          adReplayDailyCap: cap,
+          maxReplaysPerMatch:
+            typeof body.maxReplaysPerMatch === "number"
+              ? body.maxReplaysPerMatch
+              : PORTAL_MAX_REPLAYS_PER_MATCH_DEFAULT,
+          ...(typeof body.adReplayEnabled === "boolean"
+            ? { adReplayEnabled: body.adReplayEnabled }
+            : {}),
+          ...(typeof body.ticketReplayEnabled === "boolean"
+            ? { ticketReplayEnabled: body.ticketReplayEnabled }
+            : {}),
+          ...(typeof body.ticketReplayPriceTickets === "number"
+            ? { ticketReplayPriceTickets: body.ticketReplayPriceTickets }
+            : {}),
+          ...(typeof body.coinReplayEnabled === "boolean"
+            ? { coinReplayEnabled: body.coinReplayEnabled }
+            : {}),
+          ...(typeof body.coinReplayPriceCoins === "number"
+            ? { coinReplayPriceCoins: body.coinReplayPriceCoins }
+            : {}),
+          ...(body.coinReplayDailyCap !== undefined
+            ? { coinReplayDailyCap: body.coinReplayDailyCap }
+            : {}),
+        }
       );
       return { ok: true as const, partnerId, adReplayDailyCap: cap };
     } catch (e) {

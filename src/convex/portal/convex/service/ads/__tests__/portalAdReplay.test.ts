@@ -4,8 +4,13 @@ import {
   isPortalAdReplayChannel,
   isPortalAdReplayMockEnabled,
   isPortalAdReplayTemplate,
+  isUnlimitedAdReplayDailyCap,
   PORTAL_AD_REPLAY_DAILY_CAP,
 } from "../../../data/portalAdReplayConfig";
+import {
+  defaultPortalReplaySettings,
+  PORTAL_MAX_REPLAYS_PER_MATCH_DEFAULT,
+} from "../../../data/portalPartnerReplaySettings";
 import { dailyPeriodKey } from "../../../utils/casualTaskPeriod";
 import { shouldDeferSoloSettleForPortalAdReplay } from "../../tournament/submit/casualRunIngestHelpers";
 import {
@@ -16,6 +21,7 @@ import {
   resolveSourceReplayEpoch,
   adReplayClaimDedupeKey,
 } from "../portalAdReplayService";
+import { resolveReplayConfig } from "../partnerAdReplayConfig";
 
 vi.mock("../../tournament/shared/casualPlayerGameTypes", () => ({
   findPlayerGameByGameId: vi.fn(async () => ({
@@ -24,6 +30,19 @@ vi.mock("../../tournament/shared/casualPlayerGameTypes", () => ({
     replayEpoch: 2,
   })),
 }));
+
+vi.mock("../partnerAdReplayConfig", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../partnerAdReplayConfig")>();
+  return {
+    ...actual,
+    resolveReplayConfig: vi.fn(async () => ({
+      ...defaultPortalReplaySettings(PORTAL_AD_REPLAY_DAILY_CAP),
+      // Allow multi-epoch offer tests to focus on claim/window logic.
+      maxReplaysPerMatch: 10,
+    })),
+    loadCampaignReplaySettingsForMatchGame: vi.fn(async () => null),
+  };
+});
 describe("portalAdReplayConfig", () => {
   it("detects portal tournament templates", () => {
     expect(isPortalAdReplayTemplate("portal_solo_p75_solitaire")).toBe(true);
@@ -53,8 +72,8 @@ describe("portalAdReplayConfig", () => {
     process.env.CONVEX_DEPLOYMENT = prevDeployment;
   });
 
-  it("exports a positive daily cap", () => {
-    expect(PORTAL_AD_REPLAY_DAILY_CAP).toBeGreaterThan(0);
+  it("defaults daily ad-replay cap to unlimited", () => {
+    expect(isUnlimitedAdReplayDailyCap(PORTAL_AD_REPLAY_DAILY_CAP)).toBe(true);
   });
 
   it("marks portal solo templates as eligible for deferred settle", () => {
@@ -202,7 +221,7 @@ describe("portalAdReplayService helpers", () => {
       },
     } as never;
 
-    const cap = PORTAL_AD_REPLAY_DAILY_CAP;
+    const cap = 5;
     for (let i = 0; i < cap; i++) {
       const r = await consumeAdReplayDailySlot(ctx, {
         uid: "u1",
@@ -448,6 +467,81 @@ describe("portalAdReplayService helpers", () => {
     expect(offer.replayOffered).toBe(true);
     expect(offer.canReplay).toBe(true);
     expect(offer.adReplayDailyRemaining).toBeGreaterThan(0);
+  });
+
+  it("blocks offer when replayEpoch reaches maxReplaysPerMatch (default 1)", async () => {
+    expect(PORTAL_MAX_REPLAYS_PER_MATCH_DEFAULT).toBe(1);
+    vi.mocked(resolveReplayConfig).mockResolvedValueOnce({
+      ...defaultPortalReplaySettings(PORTAL_AD_REPLAY_DAILY_CAP),
+      maxReplaysPerMatch: 1,
+    });
+
+    const now = Date.now();
+    const pm = {
+      _id: "pm1",
+      templateId: "portal_solo_p75_solitaire",
+      status: "finished",
+      finishedAt: now - 30_000,
+      score: 800,
+      replayEpoch: 1,
+    };
+    const soloDef = {
+      tournamentId: "portal_solo_p75_solitaire",
+      title: "S",
+      gameType: "solitaire",
+      matchType: "solo_p75" as const,
+      status: "open",
+      maxPlayers: 1,
+      entry: { kind: "none" as const },
+      seedQuantileSuccess: { quantile: "p75" as const },
+    };
+    const ctx = {
+      db: {
+        get: async (id: string) => (id === "pm1" ? pm : null),
+        query: () => ({
+          withIndex: () => ({
+            eq: () => ({
+              eq: () => ({
+                first: async () => null,
+                unique: async () => null,
+                collect: async () => [],
+              }),
+              first: async () => null,
+              unique: async () => null,
+              collect: async () => [],
+            }),
+            first: async () => null,
+            unique: async () => null,
+            collect: async () => [],
+          }),
+        }),
+      },
+    } as never;
+
+    const { findPlayerGameByGameId } = await import(
+      "../../tournament/shared/casualPlayerGameTypes"
+    );
+    vi.mocked(findPlayerGameByGameId).mockResolvedValueOnce({
+      gameId: "game_a",
+      uid: "u1",
+      replayEpoch: 1,
+    } as never);
+
+    const offer = await buildPortalAdReplayOffer(ctx, {
+      uid: "u1",
+      pm: pm as never,
+      now,
+      matchGameId: "game_a",
+      tableSummary: {
+        maxPlayers: 1,
+        rows: [{ rank: 1, score: 800, displayLabel: "你", isYou: true }],
+      },
+      def: soloDef,
+      challengeSuccess: false,
+    });
+
+    expect(offer.replayOffered).toBe(true);
+    expect(offer.canReplay).toBe(false);
   });
 });
 

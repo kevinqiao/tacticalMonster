@@ -207,6 +207,19 @@ export default defineSchema({
     ),
     /** 0 for pass_per_run; campaign.endsAt for competitive_leaderboard */
     campaignDueTime: v.optional(v.number()),
+    /** Join authorize sparse snapshot; overlays partner replay settings at settle. */
+    campaignReplaySettings: v.optional(
+      v.object({
+        maxReplaysPerMatch: v.optional(v.number()),
+        adReplayEnabled: v.optional(v.boolean()),
+        adReplayDailyCap: v.optional(v.number()),
+        ticketReplayEnabled: v.optional(v.boolean()),
+        ticketReplayPriceTickets: v.optional(v.number()),
+        coinReplayEnabled: v.optional(v.boolean()),
+        coinReplayPriceCoins: v.optional(v.number()),
+        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
+      })
+    ),
   })
     .index("by_templateId", ["templateId"])
     .index("by_instanceId", ["instanceId"])
@@ -426,6 +439,18 @@ export default defineSchema({
       v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
     ),
     campaignDueTime: v.optional(v.number()),
+    campaignReplaySettings: v.optional(
+      v.object({
+        maxReplaysPerMatch: v.optional(v.number()),
+        adReplayEnabled: v.optional(v.boolean()),
+        adReplayDailyCap: v.optional(v.number()),
+        ticketReplayEnabled: v.optional(v.boolean()),
+        ticketReplayPriceTickets: v.optional(v.number()),
+        coinReplayEnabled: v.optional(v.boolean()),
+        coinReplayPriceCoins: v.optional(v.number()),
+        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
+      })
+    ),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
     createdAt: v.number(),
@@ -445,6 +470,15 @@ export default defineSchema({
     ticketEntrySoloDailyCap: v.optional(v.number()),
     ticketEntryMultiPriceTickets: v.optional(v.number()),
     ticketEntryMultiDailyCap: v.optional(v.number()),
+    /** Reserved: ad/coin entry ladder (not wired yet). */
+    adEntryEnabled: v.optional(v.boolean()),
+    adEntrySoloDailyCap: v.optional(v.number()),
+    adEntryMultiDailyCap: v.optional(v.number()),
+    coinEntryEnabled: v.optional(v.boolean()),
+    coinEntrySoloPriceCoins: v.optional(v.number()),
+    coinEntrySoloDailyCap: v.optional(v.number()),
+    coinEntryMultiPriceCoins: v.optional(v.number()),
+    coinEntryMultiDailyCap: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_partnerId", ["partnerId"]),
 
@@ -629,7 +663,7 @@ export default defineSchema({
     .index("by_uid", ["uid"])
     .index("by_uid_matchGameId", ["uid", "matchGameId"]),
 
-  /** 广告再战审计（每日上限见 portal_partner_ad_settings / 默认 5；同一 gameId 每 replayEpoch 一次） */
+  /** 广告再战审计（每日上限见 portal_partner_replay_settings / 默认无限；同一 gameId 每 replayEpoch 一次） */
   portal_ad_replay_claims: defineTable({
     uid: v.string(),
     matchGameId: v.string(),
@@ -655,10 +689,20 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_uid_dayKey", ["uid", "dayKey"]),
 
-  /** Per-partner ad-replay daily cap cache (SoT on SSO partner.data). */
-  portal_partner_ad_settings: defineTable({
+  /**
+   * Per-partner replay ladder cache (SoT on SSO partner.data.replay / legacy flat keys).
+   * Replaces portal_partner_ad_settings (adReplayDailyCap-only).
+   */
+  portal_partner_replay_settings: defineTable({
     partnerId: v.number(),
+    maxReplaysPerMatch: v.optional(v.number()),
+    adReplayEnabled: v.optional(v.boolean()),
     adReplayDailyCap: v.number(),
+    ticketReplayEnabled: v.optional(v.boolean()),
+    ticketReplayPriceTickets: v.optional(v.number()),
+    coinReplayEnabled: v.optional(v.boolean()),
+    coinReplayPriceCoins: v.optional(v.number()),
+    coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
     updatedAt: v.number(),
   }).index("by_partnerId", ["partnerId"]),
 

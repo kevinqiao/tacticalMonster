@@ -15,6 +15,8 @@ function killModalTweens(container: AuthContainer) {
 
 /** Bumped on every playOpen; stale playClose onComplete must not hide a newer open. */
 let ssoOpenGeneration = 0;
+/** True while SSO layer is open — blocks re-playOpen from effect dep churn (mask flicker). */
+let ssoLayerOpen = false;
 
 function toCssSize(value: unknown, fallback: string) {
   if (typeof value === "number") return `${value}px`;
@@ -163,6 +165,7 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
       if (layout === "staffFull") {
         killModalTweens(container);
         ssoOpenGeneration += 1;
+        ssoLayerOpen = true;
         openedEffectRef.current = { name: "popCenter", orientation: "both" };
         gsap.set(container.ele, {
           clearProps: "transform,transformOrigin",
@@ -179,8 +182,9 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
           scale: 1,
           autoAlpha: 1,
         });
+        // Full solid mask — never fade opacity (flickers with GPU compositing).
         if (container.mask) {
-          gsap.set(container.mask, { autoAlpha: closeAble ? 0.5 : 1 });
+          gsap.set(container.mask, { autoAlpha: 1 });
         }
         if (container.closeEle) {
           gsap.set(container.closeEle, { autoAlpha: closeAble ? 1 : 0 });
@@ -195,7 +199,16 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
         onComplete?.();
         return;
       }
+      // Already open: ignore re-entrant opens from orientation / callback identity churn.
+      if (ssoLayerOpen) {
+        if (container.closeEle) {
+          gsap.set(container.closeEle, { autoAlpha: closeAble ? 1 : 0 });
+        }
+        onComplete?.();
+        return;
+      }
       ssoOpenGeneration += 1;
+      ssoLayerOpen = true;
       openedEffectRef.current = effect;
       killModalTweens(container);
       const tl = gsap.timeline({
@@ -206,7 +219,7 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
       });
       gsap.set(container.ele, { clearProps: "transform,transformOrigin" });
       if (container.mask) {
-        gsap.set(container.mask, { autoAlpha: closeAble ? 0.5 : 1 });
+        gsap.set(container.mask, { autoAlpha: 1 });
       }
       switch (effect.name) {
         case "popCenter":
@@ -306,12 +319,15 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
       const effect = openedEffectRef.current ?? resolveEffect();
       const closeGen = ssoOpenGeneration;
       if (!container.ele) {
+        ssoLayerOpen = false;
         openedEffectRef.current = null;
         onComplete?.();
         return;
       }
 
       if (!CLOSE_EFFECTS.has(effect.name)) {
+        ssoLayerOpen = false;
+        if (container.mask) gsap.set(container.mask, { autoAlpha: 0 });
         openedEffectRef.current = null;
         onComplete?.();
         return;
@@ -327,8 +343,10 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
               return;
             }
             if (container.ele) gsap.set(container.ele, { x: 0, y: 0, autoAlpha: 0 });
+            // Hide mask only after panel is gone — no opacity fade (GPU flicker).
             if (container.mask) gsap.set(container.mask, { autoAlpha: 0 });
             if (container.closeEle) gsap.set(container.closeEle, { autoAlpha: 0 });
+            ssoLayerOpen = false;
             openedEffectRef.current = null;
             onComplete?.();
           },
@@ -349,9 +367,6 @@ export const useAuthAnimate = ({ container }: { container: AuthContainer }) => {
           case "swipeLeft":
             tl.to(container.ele, { x: "-100%", duration: 0.5, ease: "power2.inOut" });
             break;
-        }
-        if (container.mask) {
-          tl.to(container.mask, { autoAlpha: 0, duration: 0.5, ease: "power2.inOut" }, "<");
         }
         tl.play();
       };

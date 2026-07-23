@@ -34,11 +34,18 @@ function portalBridgeSecret(): string {
   return DEV_PORTAL_BRIDGE_SECRET;
 }
 
-/** Push partner ad-replay cap into Portal cache after SSO admin/bootstrap writes. */
+/** Push partner replay settings into Portal cache after SSO admin/bootstrap writes. */
 export const pushPartnerAdReplayCapToPortal = internalAction({
   args: {
     partnerId: v.number(),
     adReplayDailyCap: v.number(),
+    maxReplaysPerMatch: v.optional(v.number()),
+    adReplayEnabled: v.optional(v.boolean()),
+    ticketReplayEnabled: v.optional(v.boolean()),
+    ticketReplayPriceTickets: v.optional(v.number()),
+    coinReplayEnabled: v.optional(v.boolean()),
+    coinReplayPriceCoins: v.optional(v.number()),
+    coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (_ctx, args) => {
     const url = `${portalSiteUrl()}/internal/upsert-partner-ad-replay-cap`;
@@ -49,10 +56,7 @@ export const pushPartnerAdReplayCapToPortal = internalAction({
           "Content-Type": "application/json",
           "X-Portal-Bridge-Secret": portalBridgeSecret(),
         },
-        body: JSON.stringify({
-          partnerId: args.partnerId,
-          adReplayDailyCap: args.adReplayDailyCap,
-        }),
+        body: JSON.stringify(args),
         signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) {

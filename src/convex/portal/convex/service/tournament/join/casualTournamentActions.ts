@@ -34,6 +34,18 @@ export const joinTournament = authedAction({
     let partnerId: number | undefined;
     let campaignRewardMode: "pass_per_run" | "competitive_leaderboard" | undefined;
     let campaignDueTime: number | undefined;
+    let campaignReplaySettings:
+      | {
+          maxReplaysPerMatch?: number;
+          adReplayEnabled?: boolean;
+          adReplayDailyCap?: number;
+          ticketReplayEnabled?: boolean;
+          ticketReplayPriceTickets?: number;
+          coinReplayEnabled?: boolean;
+          coinReplayPriceCoins?: number;
+          coinReplayDailyCap?: number | null;
+        }
+      | undefined;
     let maxPlaysPerDay: number | undefined;
     let dayTimezone: string | undefined;
 
@@ -55,6 +67,7 @@ export const joinTournament = authedAction({
       partnerId = authorized.partnerId;
       campaignRewardMode = authorized.rewardMode;
       campaignDueTime = authorized.dueTime;
+      campaignReplaySettings = authorized.replaySettings;
       maxPlaysPerDay = authorized.playLimits.maxPlaysPerDay;
       dayTimezone = authorized.playLimits.dayTimezone;
     }
@@ -94,6 +107,7 @@ export const joinTournament = authedAction({
           ...(partnerId != null ? { partnerId } : {}),
           ...(campaignRewardMode ? { campaignRewardMode } : {}),
           ...(campaignDueTime != null ? { campaignDueTime } : {}),
+          ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
           ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
           ...(dayTimezone ? { dayTimezone } : {}),
         }
@@ -109,6 +123,7 @@ export const joinTournament = authedAction({
         ...(partnerId != null ? { partnerId } : {}),
         ...(campaignRewardMode ? { campaignRewardMode } : {}),
         ...(campaignDueTime != null ? { campaignDueTime } : {}),
+        ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
       }

@@ -52,6 +52,7 @@ export const authorizeCampaignJoinInternal = internalQuery({
     }
 
     const rewardMode = resolveRewardModel(campaign);
+    const replaySettings = campaign.replaySettings;
     return {
       ok: true as const,
       campaignId: campaign.campaignId,
@@ -67,6 +68,9 @@ export const authorizeCampaignJoinInternal = internalQuery({
           ? { maxPlaysPerDay: campaign.playLimits.maxPlaysPerDay }
           : {}),
       },
+      ...(replaySettings && typeof replaySettings === "object"
+        ? { replaySettings }
+        : {}),
     };
   },
 });

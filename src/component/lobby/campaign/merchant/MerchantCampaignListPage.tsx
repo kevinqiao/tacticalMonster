@@ -76,6 +76,8 @@ import {
 
   playLimitsFromForm,
 
+  replaySettingsFromForm,
+
   type CampaignFormState,
 
   type MerchantCouponDefOption,
@@ -1063,6 +1065,83 @@ const CampaignFormFields: React.FC<{
 
       <p className="merchant-note">{t("form.dailyQuotaHint")}</p>
 
+      <fieldset className="merchant-field merchant-field--radio">
+        <legend>{t("form.replaySection")}</legend>
+        <p className="merchant-note">{t("form.replaySectionHint")}</p>
+        <label className="merchant-field">
+          {t("form.maxReplaysPerMatch")}
+          <input
+            type="number"
+            min={0}
+            max={20}
+            step={1}
+            value={form.maxReplaysPerMatch}
+            disabled={lock}
+            placeholder={t("form.replayInherit")}
+            onChange={(e) => onChange({ maxReplaysPerMatch: e.target.value })}
+          />
+        </label>
+        <label className="merchant-field">
+          {t("form.adReplayEnabled")}
+          <select
+            value={form.adReplayEnabled}
+            disabled={lock}
+            onChange={(e) =>
+              onChange({
+                adReplayEnabled: e.target.value as CampaignFormState["adReplayEnabled"],
+              })
+            }
+          >
+            <option value="inherit">{t("form.replayInherit")}</option>
+            <option value="true">{t("form.replayOn")}</option>
+            <option value="false">{t("form.replayOff")}</option>
+          </select>
+        </label>
+        <label className="merchant-field">
+          {t("form.adReplayDailyCap")}
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={1}
+            value={form.adReplayDailyCap}
+            disabled={lock}
+            placeholder={t("form.replayInherit")}
+            onChange={(e) => onChange({ adReplayDailyCap: e.target.value })}
+          />
+        </label>
+        <label className="merchant-field">
+          {t("form.ticketReplayEnabled")}
+          <select
+            value={form.ticketReplayEnabled}
+            disabled={lock}
+            onChange={(e) =>
+              onChange({
+                ticketReplayEnabled: e.target
+                  .value as CampaignFormState["ticketReplayEnabled"],
+              })
+            }
+          >
+            <option value="inherit">{t("form.replayInherit")}</option>
+            <option value="true">{t("form.replayOn")}</option>
+            <option value="false">{t("form.replayOff")}</option>
+          </select>
+        </label>
+        <label className="merchant-field">
+          {t("form.ticketReplayPriceTickets")}
+          <input
+            type="number"
+            min={1}
+            max={100}
+            step={1}
+            value={form.ticketReplayPriceTickets}
+            disabled={lock}
+            placeholder={t("form.replayInherit")}
+            onChange={(e) => onChange({ ticketReplayPriceTickets: e.target.value })}
+          />
+        </label>
+      </fieldset>
+
       <p className="merchant-note">
 
         {t("form.rulePreview", {
@@ -1452,6 +1531,11 @@ export const MerchantCampaignListInner: React.FC<{
 
           playLimits: playLimitsFromForm(normalized),
 
+          ...(() => {
+            const replaySettings = replaySettingsFromForm(normalized);
+            return replaySettings ? { replaySettings } : {};
+          })(),
+
           rewardRules: buildRewardRulesFromForm(
             normalized,
             typedCouponDefs,
@@ -1834,6 +1918,8 @@ export const MerchantCampaignListInner: React.FC<{
             rewardModel: normalized.rewardModel,
 
             playLimits: playLimitsFromForm(normalized),
+
+            replaySettings: replaySettingsFromForm(normalized),
 
             rewardRules: buildRewardRulesFromForm(
               normalized,

@@ -1,4 +1,3 @@
-import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
 import { findContainer, getURLParams } from "@/host/util/PageUtils";
 import { isStaffWebSignInContext } from "@/component/lobby/shared/resolveWebSignInFromLocation";
 import { useModalManager } from "host/service/ModalManager";
@@ -96,7 +95,8 @@ const SSOController: React.FC = () => {
   const isPortalRoute = useMemo(() => {
     const pathname =
       currentPage?.uri ?? (typeof window !== "undefined" ? window.location.pathname : "");
-    return parsePortalPathFromPathname(pathname).isFirstPartyPortal;
+    // Partner portals (/portal/{key}/{game}) share the same Clerk/SSO chrome as first-party.
+    return pathname.split("/").filter(Boolean)[0] === "portal";
   }, [currentPage]);
 
   const { playOpen, playClose } = useAuthAnimate({ container: authContainer });

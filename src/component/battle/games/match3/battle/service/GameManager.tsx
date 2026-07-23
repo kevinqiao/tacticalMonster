@@ -371,11 +371,21 @@ export const Match3GameProvider: React.FC<Props> = ({
       } catch (e) {
         console.warn('[match3] findReport', e);
       }
-      if (typeof settle.seedScoreThreshold === 'number') {
+      const challengeThreshold =
+        typeof settle.seedScoreThreshold === 'number'
+          ? settle.seedScoreThreshold
+          : typeof targetScore === 'number'
+            ? targetScore
+            : undefined;
+      if (challengeThreshold != null) {
+        const achievedScore = report.totalScore;
         report.challenge = {
-          targetScore: settle.seedScoreThreshold,
-          achievedScore: report.totalScore,
-          success: Boolean(settle.success),
+          targetScore: challengeThreshold,
+          achievedScore,
+          success:
+            typeof settle.success === 'boolean'
+              ? settle.success
+              : achievedScore >= challengeThreshold,
         };
       }
       const deferTableSummary =
@@ -445,7 +455,14 @@ export const Match3GameProvider: React.FC<Props> = ({
         }
       }
     },
-    [convex, casualTournamentId, triathlonSessionActive, onTriathlonNextGame, casualPlatformBridge]
+    [
+      convex,
+      casualTournamentId,
+      triathlonSessionActive,
+      onTriathlonNextGame,
+      casualPlatformBridge,
+      targetScore,
+    ]
   );
 
   const completeCasualRun = useCallback(async () => {
@@ -826,6 +843,7 @@ export const Match3GameProvider: React.FC<Props> = ({
     casualReplayBusy,
     postCasualScoreReportOpen,
     postCasualSummaryOpen,
+    postCasualReplayMode,
     clearPostCasualOverlays,
     reloadCasualRun,
     triathlonSessionActive,

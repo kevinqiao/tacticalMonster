@@ -1697,6 +1697,11 @@
      2px  4px 0px rgba(0, 0, 0, 0.4);
 }
 
+.modePlayTextCompact {
+  font-size: 28px;
+  letter-spacing: 0.5px;
+}
+
 .modePlaySubtext {
   color: rgba(255, 255, 255, 0.92);
   font-family: "Fredoka", "Segoe UI Rounded", "Nunito", Inter, var(--default-font-family);

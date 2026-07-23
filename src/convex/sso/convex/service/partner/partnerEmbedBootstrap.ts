@@ -9,7 +9,7 @@ import {
 } from "./portalPartnerConfig";
 import {
   applyAdReplayDailyCapToPartnerData,
-  effectiveAdReplayDailyCap,
+  effectivePartnerReplaySettings,
   sanitizeAdReplayDailyCapInput,
 } from "./partnerAdReplayConfig";
 import { internal } from "../../_generated/api";
@@ -123,11 +123,18 @@ export const bootstrapDevPartnerEmbed = mutation({
         data: merged,
         ...portalFields,
       });
-      const effectiveCap = effectiveAdReplayDailyCap(merged);
+      const effectiveReplay = effectivePartnerReplaySettings(merged);
       await ctx.scheduler.runAfter(
         0,
         internal.service.bridge.portalAdReplayCapPush.pushPartnerAdReplayCapToPortal,
-        { partnerId: pid, adReplayDailyCap: effectiveCap }
+        {
+          partnerId: pid,
+          adReplayDailyCap: effectiveReplay.adReplayDailyCap,
+          maxReplaysPerMatch: effectiveReplay.maxReplaysPerMatch,
+          adReplayEnabled: effectiveReplay.adReplayEnabled,
+          ticketReplayEnabled: effectiveReplay.ticketReplayEnabled,
+          ticketReplayPriceTickets: effectiveReplay.ticketReplayPriceTickets,
+        }
       );
       return {
         ok: true as const,
@@ -137,7 +144,7 @@ export const bootstrapDevPartnerEmbed = mutation({
         embedMethod,
         portalKey: portalKey ?? existing.portal_key,
         games: games ?? existing.games,
-        adReplayDailyCap: effectiveCap,
+        adReplayDailyCap: effectiveReplay.adReplayDailyCap,
       };
     }
 
@@ -156,11 +163,18 @@ export const bootstrapDevPartnerEmbed = mutation({
       ...portalFields,
     });
 
-    const effectiveCap = effectiveAdReplayDailyCap(insertData);
+    const effectiveReplay = effectivePartnerReplaySettings(insertData);
     await ctx.scheduler.runAfter(
       0,
       internal.service.bridge.portalAdReplayCapPush.pushPartnerAdReplayCapToPortal,
-      { partnerId: pid, adReplayDailyCap: effectiveCap }
+      {
+        partnerId: pid,
+        adReplayDailyCap: effectiveReplay.adReplayDailyCap,
+        maxReplaysPerMatch: effectiveReplay.maxReplaysPerMatch,
+        adReplayEnabled: effectiveReplay.adReplayEnabled,
+        ticketReplayEnabled: effectiveReplay.ticketReplayEnabled,
+        ticketReplayPriceTickets: effectiveReplay.ticketReplayPriceTickets,
+      }
     );
 
     return {
@@ -171,7 +185,7 @@ export const bootstrapDevPartnerEmbed = mutation({
       embedMethod,
       portalKey,
       games,
-      adReplayDailyCap: effectiveCap,
+      adReplayDailyCap: effectiveReplay.adReplayDailyCap,
     };
   },
 });

@@ -30,7 +30,10 @@ import {
 } from "./portalAdReplayEligibility";
 import { buildCasualAsyncTableSummary } from "../tournament/settle/casualRunSettlementFill";
 import { casualTableSummarySolo } from "../tournament/settle/async/casualAsyncTableSummary";
-import { resolveAdReplayDailyCap } from "./partnerAdReplayConfig";
+import {
+  loadCampaignReplaySettingsForMatchGame,
+  resolveReplayConfig,
+} from "./partnerAdReplayConfig";
 
 function randomHexSessionId(byteLength = 16): string {
   const bytes = new Uint8Array(byteLength);
@@ -46,6 +49,7 @@ export type AdReplaySessionError =
   | "replay_not_allowed"
   | "replay_window_closed"
   | "daily_cap_reached"
+  | "match_replay_cap_reached"
   | "already_claimed"
   | "near_miss_required"
   | "session_not_found"
@@ -337,8 +341,16 @@ export async function buildPortalAdReplayOffer(
   const pg = await findPlayerGameByGameId(ctx, matchGameId);
   const sourceReplayEpoch = resolveSourceReplayEpoch(pg, freshPm);
 
+  const campaignOverlay = await loadCampaignReplaySettingsForMatchGame(ctx, matchGameId);
+  const replayCfg = await resolveReplayConfig(ctx, {
+    uid,
+    campaignReplaySettings: campaignOverlay,
+  });
+  const matchReplayOk = sourceReplayEpoch < replayCfg.maxReplaysPerMatch;
+
   const dayKey = dailyPeriodKey(now);
-  const cap = PORTAL_AD_REPLAY_ENABLED ? await resolveAdReplayDailyCap(ctx, uid) : 0;
+  const cap =
+    PORTAL_AD_REPLAY_ENABLED && replayCfg.adReplayEnabled ? replayCfg.adReplayDailyCap : 0;
   const usedToday = PORTAL_AD_REPLAY_ENABLED ? await readAdReplayUsedToday(ctx, uid, dayKey) : 0;
   const adReplayDailyRemaining = Math.max(0, cap - usedToday);
   const alreadyClaimed = replayOffered
@@ -349,14 +361,18 @@ export async function buildPortalAdReplayOffer(
     !CASUAL_REPLAY_REQUIRE_NEAR_MISS ||
     (tableSummary ? isNearMissTableSummary(tableSummary) : false);
 
-  const baseEligible = replayOffered && nearMissOk;
+  const baseEligible = replayOffered && nearMissOk && matchReplayOk;
   const adAvailable =
     baseEligible && adReplayDailyRemaining > 0 && !alreadyClaimed;
   const replayTokenCount = await readPortalTicketBalance(ctx, uid);
-  const ticketAvailable = baseEligible && replayTokenCount > 0;
+  const ticketPrice = Math.max(1, replayCfg.ticketReplayPriceTickets);
+  const ticketAvailable =
+    baseEligible &&
+    replayCfg.ticketReplayEnabled &&
+    replayTokenCount >= ticketPrice;
 
   return {
-    replayOffered,
+    replayOffered: replayOffered && replayCfg.maxReplaysPerMatch > 0,
     replayMode: adAvailable ? "ad" : "token",
     replayTokenCount,
     canReplay: adAvailable || ticketAvailable,
@@ -391,6 +407,20 @@ export async function beginPortalAdReplaySessionCore(
   if (!eligible.ok) return eligible;
 
   const sourceReplayEpoch = resolveSourceReplayEpoch(loaded.pg, loaded.pm);
+  const campaignOverlay = await loadCampaignReplaySettingsForMatchGame(
+    ctx,
+    args.matchGameId
+  );
+  const replayCfg = await resolveReplayConfig(ctx, {
+    uid: args.uid,
+    campaignReplaySettings: campaignOverlay,
+  });
+  if (!replayCfg.adReplayEnabled || replayCfg.maxReplaysPerMatch <= 0) {
+    return { ok: false as const, error: "disabled" as const };
+  }
+  if (sourceReplayEpoch >= replayCfg.maxReplaysPerMatch) {
+    return { ok: false as const, error: "match_replay_cap_reached" as const };
+  }
   if (
     await hasAdReplayClaimForReplayAttempt(
       ctx,
@@ -403,7 +433,7 @@ export async function beginPortalAdReplaySessionCore(
   }
 
   const dayKey = dailyPeriodKey(now);
-  const cap = await resolveAdReplayDailyCap(ctx, args.uid);
+  const cap = replayCfg.adReplayDailyCap;
   const usedToday = await readAdReplayUsedToday(ctx, args.uid, dayKey);
   if (usedToday >= cap) {
     return { ok: false as const, error: "daily_cap_reached" as const };
@@ -506,7 +536,23 @@ export async function completePortalAdReplaySessionCore(
   }
 
   const dayKey = dailyPeriodKey(now);
-  const cap = await resolveAdReplayDailyCap(ctx, args.uid);
+  const campaignOverlay = await loadCampaignReplaySettingsForMatchGame(
+    ctx,
+    session.matchGameId
+  );
+  const replayCfg = await resolveReplayConfig(ctx, {
+    uid: args.uid,
+    campaignReplaySettings: campaignOverlay,
+  });
+  if (!replayCfg.adReplayEnabled || replayCfg.maxReplaysPerMatch <= 0) {
+    await ctx.db.patch(session._id, { status: "cancelled", updatedAt: now });
+    return { ok: false as const, error: "disabled" as const };
+  }
+  if (sourceReplayEpoch >= replayCfg.maxReplaysPerMatch) {
+    await ctx.db.patch(session._id, { status: "cancelled", updatedAt: now });
+    return { ok: false as const, error: "match_replay_cap_reached" as const };
+  }
+  const cap = replayCfg.adReplayDailyCap;
 
   if (!isPortalAdReplayMockEnabled() && session.channel === "dev") {
     return { ok: false as const, error: "invalid_channel" as const };

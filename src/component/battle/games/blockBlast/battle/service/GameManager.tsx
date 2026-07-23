@@ -501,11 +501,21 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 );
             setTriathlonDeferTableSummary(deferTableSummary);
             const report = await resolveBlockBlastScoreReport(gameId, fallbackScore);
-            if (typeof settle.seedScoreThreshold === 'number') {
+            const challengeThreshold =
+                typeof settle.seedScoreThreshold === 'number'
+                    ? settle.seedScoreThreshold
+                    : typeof targetScore === 'number'
+                      ? targetScore
+                      : undefined;
+            if (challengeThreshold != null) {
+                const achievedScore = report.totalScore;
                 report.challenge = {
-                    targetScore: settle.seedScoreThreshold,
-                    achievedScore: report.totalScore,
-                    success: Boolean(settle.success),
+                    targetScore: challengeThreshold,
+                    achievedScore,
+                    success:
+                        typeof settle.success === 'boolean'
+                            ? settle.success
+                            : achievedScore >= challengeThreshold,
                 };
             }
 
@@ -571,7 +581,14 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 }
             }
         },
-        [resolveBlockBlastScoreReport, fetchTableSummaryForGame, casualTournamentId, triathlonSessionActive, onTriathlonNextGame]
+        [
+            resolveBlockBlastScoreReport,
+            fetchTableSummaryForGame,
+            casualTournamentId,
+            triathlonSessionActive,
+            onTriathlonNextGame,
+            targetScore,
+        ]
     );
 
     const mapCasualPlatformRunActionResult = useCallback(
@@ -798,6 +815,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         casualReplayBusy,
         postCasualScoreReportOpen,
         postCasualSummaryOpen,
+        postCasualReplayMode,
         reloadCasualRun,
         casualPlatformBridge,
     ]);

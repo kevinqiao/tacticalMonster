@@ -21,7 +21,9 @@ const PORTAL_ERROR_MAP: Record<string, string> = {
   portal_key_taken: "该 Portal key 已被占用。",
   portal_games_required: "请至少选择一款游戏。",
   portal_game_invalid: "存在未注册的游戏类型。",
-  ad_replay_daily_cap_invalid: "每日广告再战次数须为 0–100 的整数（空=默认）。",
+  ad_replay_daily_cap_invalid: "每日广告再战次数须为 0–100 的整数（空=默认无限）。",
+  max_replays_per_match_invalid: "同局最多再战次数须为 0–20 的整数（空=默认 1）。",
+  ticket_replay_price_invalid: "门票再战价格须为 1–100 的整数（空=默认 1）。",
   play_entry_setting_invalid: "免费场次须为 0–100；门票价格须为 1–100，次数须为 0–100。",
   forbidden: "需要 platform_staff admin（或 owner）权限。",
   unauthenticated: "请重新登录后再试。",
@@ -43,8 +45,13 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   const { updatePartnerPortalConfig } = usePlatformAdminMutations();
   const [portalKey, setPortalKey] = useState("");
   const [selectedGames, setSelectedGames] = useState<string[]>([]);
-  /** Empty string = use platform default (5). */
+  /** Empty string = use platform default (unlimited). */
   const [adReplayDailyCapInput, setAdReplayDailyCapInput] = useState("");
+  /** Empty string = use default 1. */
+  const [maxReplaysPerMatchInput, setMaxReplaysPerMatchInput] = useState("");
+  const [adReplayEnabled, setAdReplayEnabled] = useState(true);
+  const [ticketReplayEnabled, setTicketReplayEnabled] = useState(true);
+  const [ticketReplayPriceInput, setTicketReplayPriceInput] = useState("");
   const [freeSolo, setFreeSolo] = useState("");
   const [freeMulti, setFreeMulti] = useState("");
   const [ticketSoloPrice, setTicketSoloPrice] = useState("");
@@ -76,6 +83,18 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
     setAdReplayDailyCapInput(
       typeof config.adReplayDailyCap === "number"
         ? String(config.adReplayDailyCap)
+        : ""
+    );
+    setMaxReplaysPerMatchInput(
+      typeof config.maxReplaysPerMatch === "number"
+        ? String(config.maxReplaysPerMatch)
+        : ""
+    );
+    setAdReplayEnabled(config.adReplayEnabled !== false);
+    setTicketReplayEnabled(config.ticketReplayEnabled !== false);
+    setTicketReplayPriceInput(
+      typeof config.ticketReplayPriceTickets === "number"
+        ? String(config.ticketReplayPriceTickets)
         : ""
     );
     setFreeSolo(config.freePlaySoloDailyCap == null ? "" : String(config.freePlaySoloDailyCap));
@@ -122,6 +141,30 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
       }
       adReplayDailyCap = n;
     }
+    const maxTrimmed = maxReplaysPerMatchInput.trim();
+    let maxReplaysPerMatch: number | null;
+    if (maxTrimmed === "") {
+      maxReplaysPerMatch = null;
+    } else {
+      const n = Number(maxTrimmed);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > 20) {
+        setNote(portalConfigErrorMessage(new Error("max_replays_per_match_invalid")));
+        return;
+      }
+      maxReplaysPerMatch = n;
+    }
+    const ticketPriceTrimmed = ticketReplayPriceInput.trim();
+    let ticketReplayPriceTickets: number | null;
+    if (ticketPriceTrimmed === "") {
+      ticketReplayPriceTickets = null;
+    } else {
+      const n = Number(ticketPriceTrimmed);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 100) {
+        setNote(portalConfigErrorMessage(new Error("ticket_replay_price_invalid")));
+        return;
+      }
+      ticketReplayPriceTickets = n;
+    }
 
     setSaving(true);
     setNote(null);
@@ -130,6 +173,10 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         partnerId,
         games: selectedGames,
         adReplayDailyCap,
+        maxReplaysPerMatch,
+        adReplayEnabled,
+        ticketReplayEnabled,
+        ticketReplayPriceTickets,
         freePlaySoloDailyCap: freeSolo === "" ? null : Number(freeSolo),
         freePlayMultiDailyCap: freeMulti === "" ? null : Number(freeMulti),
         ticketEntrySoloPriceTickets: ticketSoloPrice === "" ? null : Number(ticketSoloPrice),
@@ -202,24 +249,81 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
           ))
         )}
       </fieldset>
-      <label className="merchant-field">
-        每日广告再战次数
-        <input
-          type="number"
-          min={0}
-          max={100}
-          step={1}
-          value={adReplayDailyCapInput}
-          onChange={(e) => setAdReplayDailyCapInput(e.target.value)}
-          placeholder={`默认 ${config.adReplayDailyCapDefault ?? 5}`}
-          autoComplete="off"
-          disabled={!canEdit}
-        />
-      </label>
-      <p className="merchant-note">
-        留空使用默认 {config.adReplayDailyCapDefault ?? 5}；填 0 关闭广告再战。当前生效：
-        {config.adReplayDailyCapEffective ?? config.adReplayDailyCapDefault ?? 5}。
-      </p>
+      <fieldset className="merchant-field merchant-field--radio">
+        <legend>再战设置</legend>
+        <label className="merchant-field">
+          同局最多再战次数
+          <input
+            type="number"
+            min={0}
+            max={20}
+            step={1}
+            value={maxReplaysPerMatchInput}
+            onChange={(e) => setMaxReplaysPerMatchInput(e.target.value)}
+            placeholder={`默认 ${config.maxReplaysPerMatchDefault ?? 1}`}
+            autoComplete="off"
+            disabled={!canEdit}
+          />
+        </label>
+        <p className="merchant-note">
+          留空默认 {config.maxReplaysPerMatchDefault ?? 1}；填 0 关闭再战。当前生效：
+          {config.maxReplaysPerMatchEffective ?? config.maxReplaysPerMatchDefault ?? 1}。
+        </p>
+        <label className="merchant-radio">
+          <input
+            type="checkbox"
+            checked={adReplayEnabled}
+            onChange={(e) => setAdReplayEnabled(e.target.checked)}
+            disabled={!canEdit}
+          />
+          广告再战
+        </label>
+        <label className="merchant-field">
+          每日广告再战次数
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={1}
+            value={adReplayDailyCapInput}
+            onChange={(e) => setAdReplayDailyCapInput(e.target.value)}
+            placeholder="默认无限"
+            autoComplete="off"
+            disabled={!canEdit || !adReplayEnabled}
+          />
+        </label>
+        <p className="merchant-note">
+          留空使用默认无限；填 0 关闭广告日限档；填 1–100 设有限日限。当前生效：
+          {typeof config.adReplayDailyCapEffective === "number" &&
+          config.adReplayDailyCapEffective > 100
+            ? "无限"
+            : (config.adReplayDailyCapEffective ?? "无限")}
+          。
+        </p>
+        <label className="merchant-radio">
+          <input
+            type="checkbox"
+            checked={ticketReplayEnabled}
+            onChange={(e) => setTicketReplayEnabled(e.target.checked)}
+            disabled={!canEdit}
+          />
+          门票再战
+        </label>
+        <label className="merchant-field">
+          门票再战价格
+          <input
+            type="number"
+            min={1}
+            max={100}
+            step={1}
+            value={ticketReplayPriceInput}
+            onChange={(e) => setTicketReplayPriceInput(e.target.value)}
+            placeholder="默认 1"
+            autoComplete="off"
+            disabled={!canEdit || !ticketReplayEnabled}
+          />
+        </label>
+      </fieldset>
       <fieldset className="merchant-field merchant-field--radio">
         <legend>免费 → 门票入场</legend>
         <div className="merchant-field-row">

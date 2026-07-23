@@ -2,8 +2,18 @@
 
 export const PORTAL_AD_REPLAY_ENABLED = true;
 
-/** 每日广告再战默认上限（partner 未配置 / cache miss；Asia/Shanghai dayKey） */
-export const PORTAL_AD_REPLAY_DAILY_CAP = 5;
+/**
+ * Sentinel: no daily ad-replay cap (partner 未配置 / cache miss).
+ * Partner overrides stay in 0–100; 0 disables the ad ladder.
+ */
+export const PORTAL_AD_REPLAY_DAILY_CAP_UNLIMITED = 1_000_000_000;
+
+/** 每日广告再战默认上限：无限（Asia/Shanghai dayKey） */
+export const PORTAL_AD_REPLAY_DAILY_CAP = PORTAL_AD_REPLAY_DAILY_CAP_UNLIMITED;
+
+export function isUnlimitedAdReplayDailyCap(cap: number): boolean {
+  return cap >= PORTAL_AD_REPLAY_DAILY_CAP_UNLIMITED;
+}
 
 /** begin → complete 会话有效期 */
 export const PORTAL_AD_REPLAY_SESSION_TTL_MS = 120_000;

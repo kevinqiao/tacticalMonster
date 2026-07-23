@@ -22,6 +22,17 @@ const playLimitsValidator = v.object({
   dayTimezone: v.optional(v.string()),
 });
 
+const replaySettingsValidator = v.object({
+  maxReplaysPerMatch: v.optional(v.number()),
+  adReplayEnabled: v.optional(v.boolean()),
+  adReplayDailyCap: v.optional(v.number()),
+  ticketReplayEnabled: v.optional(v.boolean()),
+  ticketReplayPriceTickets: v.optional(v.number()),
+  coinReplayEnabled: v.optional(v.boolean()),
+  coinReplayPriceCoins: v.optional(v.number()),
+  coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
+});
+
 async function assertOps(partnerId: number, uid: string, minRole?: "viewer" | "admin") {
   await requirePartnerCampaignOpsViaHttp({
     partnerId,
@@ -61,6 +72,7 @@ export const createCampaign = authedAction({
     mode: v.optional(v.union(v.literal("solo"), v.literal("multi"))),
     rewardModel: v.optional(campaignRewardModelValidator),
     playLimits: v.optional(playLimitsValidator),
+    replaySettings: v.optional(replaySettingsValidator),
     rewardRules: v.optional(v.array(rewardRuleValidator)),
   },
   handler: async (ctx, args) => {
@@ -96,6 +108,7 @@ export const updateCampaign = authedAction({
     mode: v.optional(v.union(v.literal("solo"), v.literal("multi"))),
     rewardModel: v.optional(campaignRewardModelValidator),
     playLimits: v.optional(playLimitsValidator),
+    replaySettings: v.optional(v.union(replaySettingsValidator, v.null())),
     rewardRules: v.optional(v.array(rewardRuleValidator)),
   },
   handler: async (ctx, args) => {

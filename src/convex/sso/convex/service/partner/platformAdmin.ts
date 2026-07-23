@@ -29,11 +29,14 @@ import {
   type PartnerCapabilities,
 } from "./partnerCapabilities";
 import {
-  applyAdReplayDailyCapToPartnerData,
-  DEFAULT_AD_REPLAY_DAILY_CAP,
+  applyPartnerReplayPartialToPartnerData,
+  DEFAULT_MAX_REPLAYS_PER_MATCH,
   effectiveAdReplayDailyCap,
+  effectivePartnerReplaySettings,
   readAdReplayDailyCapFromPartnerData,
   sanitizeAdReplayDailyCapInput,
+  sanitizeMaxReplaysPerMatchInput,
+  sanitizeTicketReplayPriceInput,
 } from "./partnerAdReplayConfig";
 
 function dataWithoutEnabledContexts(data: Record<string, unknown>): Record<string, unknown> {
@@ -385,6 +388,11 @@ export const getPartnerPortalConfig = authedQuery({
         ? (partner.data as Record<string, unknown>)
         : null;
     const adReplayOverride = readAdReplayDailyCapFromPartnerData(data);
+    const replay = effectivePartnerReplaySettings(data);
+    const replayBag =
+      data?.replay && typeof data.replay === "object"
+        ? (data.replay as Record<string, unknown>)
+        : null;
     return {
       partnerId,
       portalKey: key,
@@ -396,7 +404,21 @@ export const getPartnerPortalConfig = authedQuery({
       registryGames: [...PARTNER_GAME_TYPES],
       adReplayDailyCap: adReplayOverride,
       adReplayDailyCapEffective: effectiveAdReplayDailyCap(data),
-      adReplayDailyCapDefault: DEFAULT_AD_REPLAY_DAILY_CAP,
+      /** null = unlimited (UI); numeric only for finite platform default docs. */
+      adReplayDailyCapDefault: null as number | null,
+      maxReplaysPerMatch:
+        typeof replayBag?.maxReplaysPerMatch === "number"
+          ? replayBag.maxReplaysPerMatch
+          : null,
+      maxReplaysPerMatchEffective: replay.maxReplaysPerMatch,
+      maxReplaysPerMatchDefault: DEFAULT_MAX_REPLAYS_PER_MATCH,
+      adReplayEnabled: replay.adReplayEnabled,
+      ticketReplayEnabled: replay.ticketReplayEnabled,
+      ticketReplayPriceTickets:
+        typeof replayBag?.ticketReplayPriceTickets === "number"
+          ? replayBag.ticketReplayPriceTickets
+          : null,
+      ticketReplayPriceTicketsEffective: replay.ticketReplayPriceTickets,
       freePlaySoloDailyCap: data?.freePlaySoloDailyCap ?? null,
       freePlayMultiDailyCap: data?.freePlayMultiDailyCap ?? null,
       ticketEntrySoloPriceTickets: data?.ticketEntrySoloPriceTickets ?? null,
@@ -412,7 +434,7 @@ export const getPartnerPortalConfig = authedQuery({
  * Partner staff cannot self-activate games.
  * PID 0 (first-party) does not require portal_key — URLs are /portal/{gameType}.
  *
- * Optional `adReplayDailyCap`: omit = leave unchanged; null = clear override (default 5).
+ * Optional `adReplayDailyCap`: omit = leave unchanged; null = clear override (default unlimited).
  */
 export const updatePartnerPortalConfig = authedMutation({
   args: {
@@ -421,6 +443,10 @@ export const updatePartnerPortalConfig = authedMutation({
     portalKey: v.optional(v.string()),
     games: v.array(v.string()),
     adReplayDailyCap: v.optional(v.union(v.number(), v.null())),
+    maxReplaysPerMatch: v.optional(v.union(v.number(), v.null())),
+    adReplayEnabled: v.optional(v.boolean()),
+    ticketReplayEnabled: v.optional(v.boolean()),
+    ticketReplayPriceTickets: v.optional(v.union(v.number(), v.null())),
     freePlaySoloDailyCap: v.optional(v.union(v.number(), v.null())),
     freePlayMultiDailyCap: v.optional(v.union(v.number(), v.null())),
     ticketEntrySoloPriceTickets: v.optional(v.union(v.number(), v.null())),
@@ -461,7 +487,19 @@ export const updatePartnerPortalConfig = authedMutation({
       (partner.data ?? {}) as Record<string, unknown>
     );
     const capInput = sanitizeAdReplayDailyCapInput(args.adReplayDailyCap);
-    const nextData = applyAdReplayDailyCapToPartnerData(prevData, capInput);
+    const maxReplaysInput = sanitizeMaxReplaysPerMatchInput(args.maxReplaysPerMatch);
+    const ticketPriceInput = sanitizeTicketReplayPriceInput(args.ticketReplayPriceTickets);
+    let nextData = applyPartnerReplayPartialToPartnerData(prevData, {
+      adReplayDailyCap: capInput,
+      maxReplaysPerMatch: maxReplaysInput,
+      ...(args.adReplayEnabled !== undefined
+        ? { adReplayEnabled: args.adReplayEnabled }
+        : {}),
+      ...(args.ticketReplayEnabled !== undefined
+        ? { ticketReplayEnabled: args.ticketReplayEnabled }
+        : {}),
+      ticketReplayPriceTickets: ticketPriceInput,
+    });
     for (const key of [
       "freePlaySoloDailyCap", "freePlayMultiDailyCap",
       "ticketEntrySoloPriceTickets", "ticketEntrySoloDailyCap",
@@ -496,11 +534,21 @@ export const updatePartnerPortalConfig = authedMutation({
       data: nextData,
     });
 
-    const effectiveCap = effectiveAdReplayDailyCap(nextData);
+    const effectiveReplay = effectivePartnerReplaySettings(nextData);
     await ctx.scheduler.runAfter(
       0,
       internal.service.bridge.portalAdReplayCapPush.pushPartnerAdReplayCapToPortal,
-      { partnerId: args.partnerId, adReplayDailyCap: effectiveCap }
+      {
+        partnerId: args.partnerId,
+        adReplayDailyCap: effectiveReplay.adReplayDailyCap,
+        maxReplaysPerMatch: effectiveReplay.maxReplaysPerMatch,
+        adReplayEnabled: effectiveReplay.adReplayEnabled,
+        ticketReplayEnabled: effectiveReplay.ticketReplayEnabled,
+        ticketReplayPriceTickets: effectiveReplay.ticketReplayPriceTickets,
+        coinReplayEnabled: effectiveReplay.coinReplayEnabled,
+        coinReplayPriceCoins: effectiveReplay.coinReplayPriceCoins,
+        coinReplayDailyCap: effectiveReplay.coinReplayDailyCap,
+      }
     );
     await ctx.scheduler.runAfter(
       0,
@@ -522,7 +570,8 @@ export const updatePartnerPortalConfig = authedMutation({
       games,
       capabilities,
       adReplayDailyCap: readAdReplayDailyCapFromPartnerData(nextData),
-      adReplayDailyCapEffective: effectiveCap,
+      adReplayDailyCapEffective: effectiveReplay.adReplayDailyCap,
+      maxReplaysPerMatchEffective: effectiveReplay.maxReplaysPerMatch,
     };
   },
 });

@@ -27,7 +27,7 @@ const PartnerStoresBody: React.FC<Props> = ({
   const { authed } = usePartnerAdminAuth();
   const stores = useQuery(
     api.service.partner.storeAdmin.listStoresForPartner,
-    authed && partnerId ? { partnerId } : "skip"
+    authed && partnerId != null ? { partnerId } : "skip"
   );
   const createStoreMut = useMutation(api.service.partner.storeAdmin.createStore);
   const [name, setName] = useState("");

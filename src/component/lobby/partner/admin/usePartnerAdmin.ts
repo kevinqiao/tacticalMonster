@@ -39,9 +39,10 @@ export function useMyPartners() {
 
 export function usePartnerDetail(partnerId: number | null) {
   const { authed } = usePartnerAdminAuth();
+  // PID 0 is valid (first-party); do not treat 0 as "missing".
   return useQuery(
     partnerAdminFns.getPartnerAdminDetail,
-    authed && partnerId ? { partnerId } : "skip"
+    authed && partnerId != null ? { partnerId } : "skip"
   );
 }
 
@@ -49,7 +50,7 @@ export function usePartnerTeam(partnerId: number | null) {
   const { authed } = usePartnerAdminAuth();
   return useQuery(
     partnerAdminFns.listPartnerTeam,
-    authed && partnerId ? { partnerId } : "skip"
+    authed && partnerId != null ? { partnerId } : "skip"
   );
 }
 

@@ -25,9 +25,10 @@
     "modes": {
       "challenge": "Challenge",
       "arena": "Arena",
-      "playsToday": "Today {{playsToday}}/{{maxPlaysPerDay}}"
+      "playsToday": "Played {{playsToday}} today"
     },
     "play": "Play",
+    "playFree": "Play ({{used}}/{{cap}})",
     "playWithTickets": "Ticket ×{{price}}",
     "playWithTicketsSub": "{{remaining}} left today",
     "continue": "Continue",

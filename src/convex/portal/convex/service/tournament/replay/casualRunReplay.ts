@@ -13,6 +13,10 @@ import {
   resolveSourceReplayEpoch,
 } from "../../ads/portalAdReplayService";
 import {
+  loadCampaignReplaySettingsForMatchGame,
+  resolveReplayConfig,
+} from "../../ads/partnerAdReplayConfig";
+import {
   RUN_PLAYER_TOURNAMENT_OPEN,
   RUN_TOURNAMENT_OPEN,
 } from "../join/casualTournamentJoinCore";
@@ -158,7 +162,31 @@ export async function authorizeCasualRunReplayCore(
   if (!eligible.ok) {
     return { ok: false, error: "replay_not_allowed" };
   }
+
+  const campaignOverlay = await loadCampaignReplaySettingsForMatchGame(
+    ctx,
+    args.matchGameId
+  );
+  const replayCfg = await resolveReplayConfig(ctx, {
+    uid: args.uid,
+    campaignReplaySettings: campaignOverlay,
+  });
+  const currentEpoch = Math.max(
+    typeof pg.replayEpoch === "number" && Number.isFinite(pg.replayEpoch)
+      ? Math.floor(pg.replayEpoch)
+      : 0,
+    typeof freshPm.replayEpoch === "number" && Number.isFinite(freshPm.replayEpoch)
+      ? Math.floor(freshPm.replayEpoch)
+      : 0
+  );
+  if (replayCfg.maxReplaysPerMatch <= 0 || currentEpoch >= replayCfg.maxReplaysPerMatch) {
+    return { ok: false, error: "match_replay_cap_reached" };
+  }
+
   if (args.adReplayClaimId) {
+    if (!replayCfg.adReplayEnabled) {
+      return { ok: false, error: "ad_replay_invalid" };
+    }
     const claim = await ctx.db.get(args.adReplayClaimId);
     if (!claim || claim.uid !== args.uid || claim.matchGameId !== args.matchGameId) {
       return { ok: false, error: "ad_replay_invalid" };
@@ -169,11 +197,15 @@ export async function authorizeCasualRunReplayCore(
       return { ok: false, error: "ad_replay_epoch_mismatch" };
     }
   } else {
+    if (!replayCfg.ticketReplayEnabled) {
+      return { ok: false, error: "insufficient_tickets" };
+    }
+    const ticketPrice = Math.max(1, replayCfg.ticketReplayPriceTickets);
     const spent = await ctx.runMutation(
       internal.service.reward.casualRewardRegistry.spendPortalTickets,
       {
-      uid: args.uid,
-        amount: 1,
+        uid: args.uid,
+        amount: ticketPrice,
         reason: "replay",
         gameType: pm.gameType,
       }
@@ -184,14 +216,6 @@ export async function authorizeCasualRunReplayCore(
   }
 
   const priorScore = freshPm.score ?? 0;
-  const currentEpoch = Math.max(
-    typeof pg.replayEpoch === "number" && Number.isFinite(pg.replayEpoch)
-      ? Math.floor(pg.replayEpoch)
-      : 0,
-    typeof freshPm.replayEpoch === "number" && Number.isFinite(freshPm.replayEpoch)
-      ? Math.floor(freshPm.replayEpoch)
-      : 0
-  );
   const nextEpoch = currentEpoch + 1;
 
   const seatGames = await listPlayerGamesForSeat(ctx, freshPm._id);

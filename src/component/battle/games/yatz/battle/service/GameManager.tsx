@@ -208,6 +208,8 @@ type YatzGameContextValue = {
 
   replayCasualRun: () => Promise<void>;
 
+  casualTournamentId?: string;
+
   watchTarget: Match3WatchContext | null;
 
   watchTargetLabel: string;
@@ -476,18 +478,20 @@ const YatzGameProvider: React.FC<Props> = ({
 
       };
 
-      if (typeof res.seedScoreThreshold === 'number') {
+      const challengeThreshold =
+        typeof res.seedScoreThreshold === 'number'
+          ? res.seedScoreThreshold
+          : typeof targetScore === 'number'
+            ? targetScore
+            : undefined;
 
+      if (challengeThreshold != null) {
         report.challenge = {
-
-          targetScore: res.seedScoreThreshold,
-
+          targetScore: challengeThreshold,
           achievedScore: score,
-
-          success: Boolean(res.success),
-
+          success:
+            typeof res.success === 'boolean' ? res.success : score >= challengeThreshold,
         };
-
       }
 
       setPostCasualScoreReport(report);
@@ -571,7 +575,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     },
 
-    [casualPlatformBridge]
+    [casualPlatformBridge, targetScore]
 
   );
 
@@ -723,6 +727,7 @@ const YatzGameProvider: React.FC<Props> = ({
     casualReplayBusy,
     postCasualScoreReportOpen,
     postCasualSummaryOpen,
+    postCasualReplayMode,
     clearPostCasualOverlays,
     reloadCasualRun,
     casualPlatformBridge,
@@ -1318,6 +1323,8 @@ const YatzGameProvider: React.FC<Props> = ({
         casualReplayBusy,
 
         replayCasualRun,
+
+        casualTournamentId,
 
         watchTarget,
 

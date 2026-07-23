@@ -25,9 +25,10 @@
     "modes": {
       "challenge": "关卡挑战",
       "arena": "竞技场",
-      "playsToday": "今日已挑战 {{playsToday}}/{{maxPlaysPerDay}}"
+      "playsToday": "今日已挑战 {{playsToday}} 次"
     },
     "play": "开始",
+    "playFree": "开始（{{used}}/{{cap}}）",
     "playWithTickets": "门票×{{price}}",
     "playWithTicketsSub": "今日剩余 {{remaining}}",
     "continue": "继续",

@@ -111,6 +111,18 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
     ),
     campaignDueTime: v.optional(v.number()),
+    campaignReplaySettings: v.optional(
+      v.object({
+        maxReplaysPerMatch: v.optional(v.number()),
+        adReplayEnabled: v.optional(v.boolean()),
+        adReplayDailyCap: v.optional(v.number()),
+        ticketReplayEnabled: v.optional(v.boolean()),
+        ticketReplayPriceTickets: v.optional(v.number()),
+        coinReplayEnabled: v.optional(v.boolean()),
+        coinReplayPriceCoins: v.optional(v.number()),
+        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
+      })
+    ),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
   },
@@ -123,6 +135,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       partnerId,
       campaignRewardMode,
       campaignDueTime,
+      campaignReplaySettings,
       maxPlaysPerDay,
       dayTimezone,
     }
@@ -212,6 +225,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         ...(partnerId != null ? { partnerId } : {}),
         ...(campaignRewardMode ? { campaignRewardMode } : {}),
         ...(campaignDueTime != null ? { campaignDueTime } : {}),
+        ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
         ...(reconciled.status === "claiming"
@@ -235,6 +249,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         ...(partnerId != null ? { partnerId } : {}),
         ...(campaignRewardMode ? { campaignRewardMode } : {}),
         ...(campaignDueTime != null ? { campaignDueTime } : {}),
+        ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
       });

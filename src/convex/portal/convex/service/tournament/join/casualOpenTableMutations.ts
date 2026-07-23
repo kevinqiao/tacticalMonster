@@ -179,6 +179,9 @@ export const claimQueueAndCharge = internalMutation({
       ...(rows[0]?.campaignDueTime != null
         ? { campaignDueTime: rows[0].campaignDueTime }
         : {}),
+      ...(rows[0]?.campaignReplaySettings
+        ? { campaignReplaySettings: rows[0].campaignReplaySettings }
+        : {}),
       ...(rows[0]?.maxPlaysPerDay != null ? { maxPlaysPerDay: rows[0].maxPlaysPerDay } : {}),
       ...(rows[0]?.dayTimezone ? { dayTimezone: rows[0].dayTimezone } : {}),
     };
@@ -245,6 +248,18 @@ export const insertMatchShell = internalMutation({
       v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
     ),
     campaignDueTime: v.optional(v.number()),
+    campaignReplaySettings: v.optional(
+      v.object({
+        maxReplaysPerMatch: v.optional(v.number()),
+        adReplayEnabled: v.optional(v.boolean()),
+        adReplayDailyCap: v.optional(v.number()),
+        ticketReplayEnabled: v.optional(v.boolean()),
+        ticketReplayPriceTickets: v.optional(v.number()),
+        coinReplayEnabled: v.optional(v.boolean()),
+        coinReplayPriceCoins: v.optional(v.number()),
+        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
+      })
+    ),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
   },
@@ -296,6 +311,9 @@ export const insertMatchShell = internalMutation({
       ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
       ...(args.campaignRewardMode ? { campaignRewardMode: args.campaignRewardMode } : {}),
       ...(args.campaignDueTime != null ? { campaignDueTime: args.campaignDueTime } : {}),
+      ...(args.campaignReplaySettings
+        ? { campaignReplaySettings: args.campaignReplaySettings }
+        : {}),
     });
 
     for (const uid of uids) {

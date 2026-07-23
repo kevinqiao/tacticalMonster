@@ -12,6 +12,17 @@ export type CampaignPlayLimitsFromAuthorize = {
   dayTimezone: string;
 };
 
+export type CampaignReplaySettingsFromAuthorize = {
+  maxReplaysPerMatch?: number;
+  adReplayEnabled?: boolean;
+  adReplayDailyCap?: number;
+  ticketReplayEnabled?: boolean;
+  ticketReplayPriceTickets?: number;
+  coinReplayEnabled?: boolean;
+  coinReplayPriceCoins?: number;
+  coinReplayDailyCap?: number | null;
+};
+
 export type AuthorizeCampaignJoinResult =
   | {
       ok: true;
@@ -22,6 +33,7 @@ export type AuthorizeCampaignJoinResult =
       rewardMode: "pass_per_run" | "competitive_leaderboard";
       dueTime: number;
       playLimits: CampaignPlayLimitsFromAuthorize;
+      replaySettings?: CampaignReplaySettingsFromAuthorize;
     }
   | { ok: false; error: string };
 
