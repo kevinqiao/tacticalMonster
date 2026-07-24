@@ -1,12 +1,14 @@
 /**
  * 单人纸牌游戏可拖拽卡牌组件（Pointer Events）
  */
-import React, { useCallback, useMemo } from 'react';
-import { useSoloDnDManager } from '../service/SoloDnDProvider';
-import { SoloCard } from '../types/SoloTypes';
-import './card.css';
+import React, { useCallback, useMemo } from "react";
+import { useSoloDnDManager } from "../service/SoloDnDProvider";
+import { useSoloGameManager } from "../service/GameManager";
+import { ActMode, SoloCard } from "../types/SoloTypes";
+import "./card.css";
 
-import CardSVG from './CardSVG';
+import CardSVG from "./CardSVG";
+
 interface SoloDnDCardProps {
     card: SoloCard;
     style?: React.CSSProperties;
@@ -18,23 +20,32 @@ interface SoloDnDCardProps {
 const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     card,
     style,
-    className = '',
+    className = "",
     onCardDomChange,
 }) => {
     const { onPointerDragStart } = useSoloDnDManager();
+    const { ruleManager } = useSoloGameManager();
+
+    const canDrag = useMemo(() => {
+        if (!ruleManager) return false;
+        return ruleManager.getActModes(card, { forAffordance: true }).includes(ActMode.DRAG);
+    }, [ruleManager, card, card.isRevealed, card.zone, card.zoneId, card.zoneIndex]);
 
     const cardStyle = useMemo(() => {
         const baseStyle: React.CSSProperties = {
-            ...style
+            ...style,
         };
         return baseStyle;
     }, [style]);
 
-    const handlePointerDown = useCallback((e: React.PointerEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onPointerDragStart(card, e);
-    }, [card, onPointerDragStart]);
+    const handlePointerDown = useCallback(
+        (e: React.PointerEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onPointerDragStart(card, e);
+        },
+        [card, onPointerDragStart]
+    );
 
     const handleClick = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
@@ -61,7 +72,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         <div
             ref={(ele) => load(ele)}
             data-card-id={card.id}
-            className={`card ${className}`.trim()}
+            className={`card ${canDrag ? "card--interactive" : ""} ${className}`.trim()}
             style={cardStyle}
             onPointerDown={handlePointerDown}
             onClick={handleClick}

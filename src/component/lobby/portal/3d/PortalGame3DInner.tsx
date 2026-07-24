@@ -234,15 +234,23 @@ export function PortalGame3DInner({
       !multiTicketEntryAvailable) ||
       multiJoinDisabled);
 
-  // 免费按钮只展示免费档进度；「今日已挑战」文案用合计场次（可大于免费 cap）
-  const soloFreePlayLabel = t("lobby.playFree", {
-    used: Math.min(soloPlaysToday, soloMaxPlaysPerDay),
-    cap: soloMaxPlaysPerDay,
-  });
-  const multiFreePlayLabel = t("lobby.playFree", {
-    used: Math.min(multiPlaysToday, multiMaxPlaysPerDay),
-    cap: multiMaxPlaysPerDay,
-  });
+  // 免费按钮展示（used/cap）；次数用尽且无广告/门票时灰掉，只显示「开始」
+  const soloFreeExhaustedNoAlt =
+    soloDailyExhausted && !soloAdEntryAvailable && !soloTicketEntryAvailable;
+  const multiFreeExhaustedNoAlt =
+    multiDailyExhausted && !multiAdEntryAvailable && !multiTicketEntryAvailable;
+  const soloFreePlayLabel = soloFreeExhaustedNoAlt
+    ? t("lobby.play")
+    : t("lobby.playFree", {
+        used: Math.min(soloPlaysToday, soloMaxPlaysPerDay),
+        cap: soloMaxPlaysPerDay,
+      });
+  const multiFreePlayLabel = multiFreeExhaustedNoAlt
+    ? t("lobby.play")
+    : t("lobby.playFree", {
+        used: Math.min(multiPlaysToday, multiMaxPlaysPerDay),
+        cap: multiMaxPlaysPerDay,
+      });
   const adEntryLabel = t("lobby.playWatchAd");
 
   const handleSoloClick = () => {

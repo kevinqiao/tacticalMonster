@@ -189,7 +189,7 @@ export enum ActionResultCode {
 // 游戏规则相关
 export interface SolitaireRule {
     canDraw: (cardId: string) => boolean;
-    getActModes: (card: Card) => ActMode[];
+    getActModes: (card: Card, opts?: { forAffordance?: boolean }) => ActMode[];
     findTarget: (card: Card) => { zoneId: string, zoneType: ZoneType } | null;
     findMoveableTargets: (card: Card) => { zoneId: string, zoneType: ZoneType }[];
     canMoveToZone: (card: Card, zoneId: string) => boolean;

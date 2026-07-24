@@ -114,10 +114,13 @@ function casualSettleErrorMessage(error?: string): string {
 }
 
 function applyServerProgress(
-    syncReplayScore: (source: SoloGameState) => void,
+    syncReplayScore: (
+        source: SoloGameState,
+        opts?: { anchorZoneId?: string }
+    ) => void,
     gs: SoloGameState,
     p: ServerProgress,
-    opts?: { allowCompleted?: boolean }
+    opts?: { allowCompleted?: boolean; anchorZoneId?: string }
 ): SoloGameState {
     let gameStatus = p.gameStatus;
     // 默认不信任服务端 COMPLETED（旧 isGameWon / 空 zones 会误标）；仅 allowCompleted 时接受
@@ -141,7 +144,7 @@ function applyServerProgress(
     ) {
         return gs;
     }
-    syncReplayScore(next);
+    syncReplayScore(next, { anchorZoneId: opts?.anchorZoneId });
     return next;
 }
 
@@ -231,6 +234,7 @@ const useActHandler = () => {
         saveUpdate,
         syncReplayScore,
         syncReplayState,
+        pushScoreFloat,
         replayMode,
         targetScore,
     } = useSoloGameManager();
@@ -1633,7 +1637,9 @@ const useActHandler = () => {
 
             saveUpdate(updateCards);
             const nextGs = mergeCardPatches(
-                applyServerProgress(syncReplayScore, baseGs, serverSnap),
+                applyServerProgress(syncReplayScore, baseGs, serverSnap, {
+                    anchorZoneId: "waste",
+                }),
                 updateCards
             );
             gameStateRef.current = nextGs;
@@ -1761,7 +1767,9 @@ const useActHandler = () => {
 
             saveUpdate(updateCards);
             let nextGs = mergeCardPatches(
-                applyServerProgress(syncReplayScore, baseGs, serverSnap),
+                applyServerProgress(syncReplayScore, baseGs, serverSnap, {
+                    anchorZoneId: dropTarget.zoneId,
+                }),
                 updateCards
             );
             // 服务端误标 COMPLETED 时保持可玩，避免 idle 后误触发 auto-complete
@@ -1911,7 +1919,9 @@ const useActHandler = () => {
                 data: { gameState, boardDimensionRef, cards },
                 onComplete: () => {
                     saveUpdate(cards);
-                    applyServerProgress(syncReplayScore, gameState, serverSnap);
+                    applyServerProgress(syncReplayScore, gameState, serverSnap, {
+                        anchorZoneId: "talon",
+                    });
                     setInteractionPhase(GameInteractionPhase.idle);
                     resolve();
                 },
@@ -2089,6 +2099,12 @@ const useActHandler = () => {
                                     ? SoloGameStatus.COMPLETED
                                     : SoloGameStatus.PLAYING,
                             };
+                            if (
+                                typeof result.score === "number" &&
+                                result.score !== (gs.score ?? 0)
+                            ) {
+                                pushScoreFloat(result.score - (gs.score ?? 0), targetZoneId);
+                            }
                             gameStateRef.current = nextGs;
                             const flip0 = result.data?.flip?.[0] as SoloCard | undefined;
                             if (flip0) playFlipAsync(nextGs, flip0);
@@ -2159,6 +2175,7 @@ const useActHandler = () => {
                         }
                     }
                     const clear = isAllCardsOnFoundation(cur);
+                    const prevScore = cur.score ?? 0;
                     // 清盘中不要 syncReplayScore：会把 React 打成 PLAYING+旧牌面，胜利动画背景刷回 tableau
                     cur = {
                         ...cur,
@@ -2166,6 +2183,12 @@ const useActHandler = () => {
                         ...(typeof result.moves === "number" ? { moves: result.moves } : {}),
                         status: clear ? SoloGameStatus.COMPLETED : SoloGameStatus.PLAYING,
                     };
+                    if (
+                        typeof result.score === "number" &&
+                        result.score !== prevScore
+                    ) {
+                        pushScoreFloat(result.score - prevScore, targetZoneId);
+                    }
                     gameStateRef.current = cur;
                 });
 
@@ -2228,6 +2251,7 @@ const useActHandler = () => {
         convex,
         boardDimensionRef,
         syncReplayState,
+        pushScoreFloat,
         setInteractionPhase,
         finishWinWithVictoryEffect,
     ]);

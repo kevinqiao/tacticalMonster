@@ -22,6 +22,13 @@ import { autoCompleteLayoutGate } from '../autoCompleteLayoutGate';
 import SoloRuleManager from './SoloRuleManager';
 import { createZones } from '@/convex/solitaireArena/convex/service/SoloGameEngine';
 
+export type SoloScoreFloat = {
+    id: number;
+    delta: number;
+    /** 落点 zoneId；缺省则居中偏上 */
+    anchorZoneId?: string;
+};
+
 const DIM_EPS = 0.75;
 
 function near(a: number, b: number, eps = DIM_EPS): boolean {
@@ -72,8 +79,14 @@ interface ISoloGameContext {
     saveUpdate: (cards: SoloCard[]) => void;
     /** 动画回放：将模拟状态完整同步到 live 棋盘（含 score/moves） */
     syncReplayState: (source: SoloGameState) => void;
-    /** 动画回放：仅同步 score/moves/status，不触发布局重排 */
-    syncReplayScore: (source: SoloGameState) => void;
+    /** 动画回放：仅同步 score/moves/status，不触发布局重排；可选在落点区飘分 */
+    syncReplayScore: (
+        source: SoloGameState,
+        opts?: { anchorZoneId?: string }
+    ) => void;
+    /** 在指定 zone 上显示加减分飘字（清盘等不走 syncReplayScore 的路径） */
+    pushScoreFloat: (delta: number, anchorZoneId?: string) => void;
+    scoreFloats: SoloScoreFloat[];
     replayMode: boolean;
     casualTournamentId?: string;
     /** P75 挑战等：本局 seed 分位目标分 */
@@ -96,6 +109,8 @@ const SoloGameContext = createContext<ISoloGameContext>({
     saveUpdate: () => { },
     syncReplayState: () => { },
     syncReplayScore: () => { },
+    pushScoreFloat: () => { },
+    scoreFloats: [],
     replayMode: false,
     casualTournamentId: undefined,
     targetScore: undefined,
@@ -141,6 +156,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const [interactionPhase, setInteractionPhase] = useState<GameInteractionPhase>(GameInteractionPhase.idle);
     const [targetScore, setTargetScore] = useState<number | undefined>(undefined);
+    const [scoreFloats, setScoreFloats] = useState<SoloScoreFloat[]>([]);
+    const scoreFloatIdRef = useRef(0);
     const boardDimensionRef = useRef<SoloBoardDimension | null>(null);
     const timelinesRef = useRef<{ [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }>({});
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
@@ -337,24 +354,45 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         });
     }, []);
 
-    const syncReplayScore = useCallback((source: SoloGameState) => {
-        setGameState((prev) => {
-            if (!prev) return prev;
-            if (
-                prev.score === source.score &&
-                (prev.moves ?? 0) === (source.moves ?? 0) &&
-                prev.status === source.status
-            ) {
-                return prev;
-            }
-            return {
-                ...prev,
-                score: source.score,
-                moves: source.moves ?? 0,
-                status: source.status,
-            };
-        });
+    const pushScoreFloat = useCallback((delta: number, anchorZoneId?: string) => {
+        if (!Number.isFinite(delta) || delta === 0) return;
+        const id = ++scoreFloatIdRef.current;
+        setScoreFloats((list) => [...list.slice(-6), { id, delta, anchorZoneId }]);
+        window.setTimeout(() => {
+            setScoreFloats((list) => list.filter((f) => f.id !== id));
+        }, 1100);
     }, []);
+
+    const syncReplayScore = useCallback(
+        (source: SoloGameState, opts?: { anchorZoneId?: string }) => {
+            setGameState((prev) => {
+                if (!prev) return prev;
+                if (
+                    prev.score === source.score &&
+                    (prev.moves ?? 0) === (source.moves ?? 0) &&
+                    prev.status === source.status
+                ) {
+                    return prev;
+                }
+                if (
+                    typeof source.score === "number" &&
+                    typeof prev.score === "number" &&
+                    source.score !== prev.score
+                ) {
+                    const delta = source.score - prev.score;
+                    const zoneId = opts?.anchorZoneId;
+                    queueMicrotask(() => pushScoreFloat(delta, zoneId));
+                }
+                return {
+                    ...prev,
+                    score: source.score,
+                    moves: source.moves ?? 0,
+                    status: source.status,
+                };
+            });
+        },
+        [pushScoreFloat]
+    );
 
     useEffect(() => {
         if (!replaySeedId || gameId) return;
@@ -443,6 +481,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         saveUpdate,
         syncReplayState,
         syncReplayScore,
+        pushScoreFloat,
+        scoreFloats,
         replayMode,
         casualTournamentId,
         targetScore,

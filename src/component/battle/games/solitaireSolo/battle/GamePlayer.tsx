@@ -38,6 +38,7 @@ import { wasteFanStepPx } from './Utils';
 import { useGameVisualTheme } from '../../shared/visualTheme/useGameVisualTheme';
 import SoloDnDCard from './view/SoloDnDCard';
 import SoloGameHeader from './view/SoloGameHeader';
+import { SoloScoreFloatLayer } from './view/SoloScoreFloatLayer';
 import SolitaireWatchOverlay from './replay/SolitaireWatchOverlay';
 
 const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadComplete }) => {
@@ -68,6 +69,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         replayMode,
         targetScore,
         casualTournamentId,
+        scoreFloats,
     } = useSoloGameManager();
     const { cards } = gameState || {};
     /** Solitaire Cash：局中 base 可因 recycle 暂为负，展示与结算一致不低于 0 */
@@ -624,6 +626,10 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 {renderTalon()}
                 {renderTableau()}
                 <div className="solo-board-cards-layer">{renderCards}</div>
+                <SoloScoreFloatLayer
+                    floats={scoreFloats}
+                    boardDimension={boardDimension}
+                />
             </div>
             {!replayMode && (
                 <>

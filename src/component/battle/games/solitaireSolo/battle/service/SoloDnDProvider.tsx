@@ -230,12 +230,21 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         };
         clearActionData(actionDataRef.current);
         Object.assign(actionDataRef.current, dragData);
+        card.ele.classList.add("card--dragging");
         gsap.set(card.ele, { zIndex: DRAG_FLIGHT_BASE_Z, willChange: 'transform' });
         cards.forEach((c: SoloCard, index: number) => {
-            if (c.ele) gsap.set(c.ele, { zIndex: DRAG_FLIGHT_BASE_Z + index + 1, willChange: 'transform' });
+            if (c.ele) {
+                c.ele.classList.add("card--dragging");
+                gsap.set(c.ele, { zIndex: DRAG_FLIGHT_BASE_Z + index + 1, willChange: 'transform' });
+            }
         });
         bump(n => n + 1);
     }, [gameState, getClientPoint, ruleManager, setInteractionPhase, cancelDragRaf, clearDropTargetHighlight]);
+
+    const clearDraggingClass = useCallback((session: SoloActionData) => {
+        session.card?.ele?.classList.remove("card--dragging");
+        session.cards?.forEach((c) => c.ele?.classList.remove("card--dragging"));
+    }, []);
 
     const onPointerMove = useCallback((event: PointerEvent) => {
         const session = actionDataRef.current;
@@ -255,6 +264,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         if (!boardDimension || !gameState) {
             if (session.card) {
                 clearDropTargetHighlight();
+                clearDraggingClass(session);
                 clearActionData(actionDataRef.current);
                 bump((n) => n + 1);
                 setInteractionPhase(GameInteractionPhase.idle);
@@ -317,6 +327,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         maxDragFromStartRef.current = 0;
         dropZoneCacheRef.current = [];
         clearDropTargetHighlight();
+        clearDraggingClass(session);
         if (session.card?.ele) gsap.set(session.card.ele, { clearProps: 'willChange' });
         session.cards?.forEach((c) => {
             if (c.ele) gsap.set(c.ele, { clearProps: 'willChange' });
@@ -334,6 +345,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         gameState,
         getClientPoint,
         clearDropTargetHighlight,
+        clearDraggingClass,
         onClickOrTouch,
         onDrop,
         setInteractionPhase,
@@ -355,6 +367,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         maxDragFromStartRef.current = 0;
         dropZoneCacheRef.current = [];
         clearDropTargetHighlight();
+        clearDraggingClass(session);
         if (session.card?.ele) gsap.set(session.card.ele, { clearProps: 'willChange' });
         session.cards?.forEach((c) => {
             if (c.ele) gsap.set(c.ele, { clearProps: 'willChange' });
@@ -362,7 +375,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         clearActionData(actionDataRef.current);
         bump(n => n + 1);
         cancelDrag(payload);
-    }, [clearDropTargetHighlight, cancelDrag, cancelDragRaf]);
+    }, [clearDropTargetHighlight, clearDraggingClass, cancelDrag, cancelDragRaf]);
 
     useEffect(() => {
         const handlePointerMove = (e: PointerEvent) => {
@@ -395,6 +408,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
                 dropZoneCacheRef.current = [];
                 clearDropTargetHighlight();
                 const session = actionDataRef.current;
+                clearDraggingClass(session);
                 if (session.card?.ele) gsap.set(session.card.ele, { clearProps: 'willChange' });
                 session.cards?.forEach((c) => {
                     if (c.ele) gsap.set(c.ele, { clearProps: 'willChange' });
@@ -417,7 +431,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             document.removeEventListener('pointercancel', handlePointerCancel);
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [onPointerMove, endPointerSession, onPointerCancel, cancelDrag, clearDropTargetHighlight, cancelDragRaf]);
+    }, [onPointerMove, endPointerSession, onPointerCancel, cancelDrag, clearDropTargetHighlight, clearDraggingClass, cancelDragRaf]);
 
     const value: ISoloDnDContext = {
         actionData: actionDataRef.current,

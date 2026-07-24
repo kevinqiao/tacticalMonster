@@ -13,12 +13,42 @@
     pointer-events: auto !important;
     /* 阴影用 box-shadow，避免 SVG filter:drop-shadow 每帧重绘 */
     box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.28);
-    /* 深色描边光标：系统 grab 在白牌面上几乎看不见 */
-    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath fill='%231a1a1a' stroke='%23fff' stroke-width='1.5' d='M14 3v14.5l-2.2-2.2-1.5 1.5 4.7 4.7h.1l.1.1h8.3c1 0 1.8-.8 1.8-1.8V12.5c0-.6-.4-1.1-1-1.1h-.2V9.8c0-.6-.4-1.1-1-1.1h-.3V7.5c0-.6-.4-1.1-1-1.1h-.2V3c0-.8-.7-1.5-1.5-1.5S16.3 2.2 16.3 3v3.4h-.3V3c0-.8-.7-1.5-1.5-1.5S13.0 2.2 13.0 3h1z'/%3E%3C/svg%3E") 6 2, grab;
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    /* 不用 transform 做 hover，避免和 GSAP x/y 抢 transform */
+    transition:
+        box-shadow 0.16s ease,
+        outline-color 0.16s ease;
+    cursor: default;
 }
 
-.card:active {
-    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath fill='%231a1a1a' stroke='%23fff' stroke-width='1.5' d='M8 14v8.5c0 2.5 2 4.5 4.5 4.5h7c2.5 0 4.5-2 4.5-4.5V16c0-.8-.7-1.5-1.5-1.5S21 15.2 21 16v-1.2c0-.8-.7-1.5-1.5-1.5S18 14 18 14.8V8.5c0-.8-.7-1.5-1.5-1.5S15 7.7 15 8.5V14h-1V4.5C14 3.7 13.3 3 12.5 3S11 3.7 11 4.5V14H8z'/%3E%3C/svg%3E") 10 6, grabbing;
+/*
+ * 可拖光标：圆润手型 + 奶杏色填充 / 深褐描边（白牌与绿呢上都清晰，贴木质顶栏）
+ * hotspot 落在指尖附近，切换比旧版「黑块手」自然
+ */
+.card.card--interactive {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath fill='%23FFF6E4' stroke='%233E2410' stroke-width='1.35' stroke-linejoin='round' stroke-linecap='round' d='M8.8 13.2V8.4a1.55 1.55 0 0 1 3.1 0v4.3'/%3E%3Cpath fill='%23FFF6E4' stroke='%233E2410' stroke-width='1.35' stroke-linejoin='round' stroke-linecap='round' d='M11.9 12.9V7a1.55 1.55 0 0 1 3.1 0v5.5'/%3E%3Cpath fill='%23FFF6E4' stroke='%233E2410' stroke-width='1.35' stroke-linejoin='round' stroke-linecap='round' d='M15 13.1V7.6a1.55 1.55 0 0 1 3.1 0v7.4'/%3E%3Cpath fill='%23FFF6E4' stroke='%233E2410' stroke-width='1.35' stroke-linejoin='round' stroke-linecap='round' d='M18.1 14.8v-2.4a1.45 1.45 0 0 1 2.9 0v6.4c0 3.4-2.5 5.8-6 5.8h-.85c-3.1 0-5.5-2-6.35-4.8l-1.5-4.4a1.6 1.6 0 0 1 3-1.25l1.25 2.45'/%3E%3C/svg%3E") 9 5, grab;
+}
+
+.card.card--interactive:active,
+.card.card--dragging {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath fill='%23FFF6E4' stroke='%233E2410' stroke-width='1.35' stroke-linejoin='round' stroke-linecap='round' d='M8.2 13.6c0-1.15.9-2.05 2.05-2.05h1.05c.15-1.05 1.05-1.85 2.15-1.85.45 0 .9.15 1.25.45.4-.65 1.1-1.05 1.95-1.05 1.25 0 2.25.95 2.25 2.2v.25c.3-.15.65-.25 1.05-.25 1.15 0 2.05.9 2.05 2.05v5.1c0 2.85-2.15 5.1-5 5.1h-2.15c-2.55 0-4.7-1.7-5.4-4.05l-.75-2.55c-.3-.95.3-2 1.3-2.3.2-.05.4-.1.6-.1h.6z'/%3E%3C/svg%3E") 11 9, grabbing;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .card.card--interactive:hover {
+        box-shadow:
+            3px 7px 14px rgba(0, 0, 0, 0.34),
+            0 0 0 1px rgba(255, 213, 97, 0.45);
+        outline-color: #b06e14;
+    }
+}
+
+.card.card--dragging {
+    box-shadow:
+        4px 10px 18px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 213, 97, 0.55);
+    outline-color: #b06e14;
 }
 
 .card-solo {

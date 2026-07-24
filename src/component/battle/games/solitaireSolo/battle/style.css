@@ -336,6 +336,10 @@
     gap: 2px;
 }
 
+.solo-game-header__stat--score {
+    position: relative;
+}
+
 .solo-game-header__stat-label {
     font-size: 10px;
     font-weight: 700;
@@ -357,6 +361,85 @@
         -1px  1px 0 #5a3311,
          1px  1px 0 #5a3311,
          0 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+.solo-game-header__stat-value--pulse {
+    animation: solo-score-pulse 0.28s ease-out;
+}
+
+@keyframes solo-score-pulse {
+    0% {
+        transform: scale(1);
+    }
+    40% {
+        transform: scale(1.12);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* 棋盘落点大号加减分 */
+.solo-score-float-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 40;
+    overflow: visible;
+}
+
+.solo-board-score-float {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-family: inherit;
+    font-size: clamp(28px, 7.5vw, 44px);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    animation: solo-board-score-float 1.05s ease-out forwards;
+    text-shadow:
+        0 2px 0 rgba(40, 20, 0, 0.45),
+        0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.solo-board-score-float--plus {
+    color: #ffe27a;
+}
+
+.solo-board-score-float--minus {
+    color: #ffb4a8;
+}
+
+@keyframes solo-board-score-float {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -40%) scale(0.72);
+    }
+    16% {
+        opacity: 1;
+        transform: translate(-50%, -55%) scale(1.12);
+    }
+    65% {
+        opacity: 1;
+        transform: translate(-50%, -95%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -130%) scale(0.94);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .solo-game-header__stat-value--pulse,
+    .solo-board-score-float {
+        animation: none;
+    }
+
+    .solo-board-score-float {
+        opacity: 0;
+    }
 }
 
 /* 保持上下布局：顶栏全宽在上、牌桌在下（不在横屏改为左侧竖条） */

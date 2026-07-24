@@ -29,11 +29,20 @@ export class SoloRuleManager implements SolitaireRule {
         this.interactionPhase = interactionPhase;
     }
 
-    getActModes(card: Card): ActMode[] {
+    /**
+     * @param forAffordance 为 true 时忽略 interactionPhase（拖拽中仍显示可拖样式），仍要求对局可操作。
+     */
+    getActModes(card: Card, opts?: { forAffordance?: boolean }): ActMode[] {
         const modes: ActMode[] = [];
 
         const status = this.gameState.status as SoloGameStatus | number | undefined;
-        if (this.interactionPhase !== GameInteractionPhase.idle || !isSolitairePlayableStatus(status)) {
+        if (!isSolitairePlayableStatus(status)) {
+            return modes;
+        }
+        if (
+            !opts?.forAffordance &&
+            this.interactionPhase !== GameInteractionPhase.idle
+        ) {
             return modes;
         }
         if (!card.isRevealed && card.zone !== ZoneType.TALON) {

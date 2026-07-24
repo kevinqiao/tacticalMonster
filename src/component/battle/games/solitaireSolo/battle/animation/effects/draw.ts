@@ -112,11 +112,14 @@ export const drawCard = ({ data, onComplete }: { data: any; onComplete?: () => v
                 t
             );
 
-            // 翻面嵌在飞行中段，比位移+翻面绑死同一条 tween 更顺
+            /*
+             * 翻面嵌在飞行中段。talon 在右、waste 在左：应绕 Y 负向翻（朝落点一侧掀开）。
+             * 结束态仍由 syncAllWasteZ 写成 180，与全局明牌约定一致（-180 与 180 同面）。
+             */
             tl.to(
                 drawn.ele,
                 {
-                    rotateY: 180,
+                    rotateY: -180,
                     duration: DRAW_FLIP_DURATION_SEC,
                     ease: drawFlipEase,
                 },
