@@ -1,4 +1,4 @@
 /**
- * @deprecated LocalStorage coupon flow removed. Use /campaign/{partnerSlug}/{campaignSlug}.
+ * @deprecated LocalStorage coupon flow removed. Use /cc/{partnerSlug}/{campaignSlug}.
  */
 export {};

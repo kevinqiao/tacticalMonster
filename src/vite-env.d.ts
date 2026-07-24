@@ -24,7 +24,7 @@ interface ImportMetaEnv {
   readonly VITE_CONVEX_URL_PORTAL?: string;
   /** CrazyGames partner pid fallback when URL partner is unresolved (default 100). */
   readonly VITE_CRAZYGAMES_PARTNER_PID?: string;
-  /** Portal path rewritten on CrazyGames CDN hosts (default /portal/crazygames/solitaire). */
+  /** Portal path rewritten on CrazyGames CDN hosts (default /gc/crazygames/solitaire). */
   readonly VITE_CRAZYGAMES_ENTRY_PATH?: string;
   /** Dev: mock rewarded ad replay (`1` / `0`). */
   readonly VITE_AD_REPLAY_MOCK?: string;

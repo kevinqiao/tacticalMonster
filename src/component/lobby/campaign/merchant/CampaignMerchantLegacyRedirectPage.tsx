@@ -7,7 +7,7 @@ import {
 } from "component/lobby/partner/partnerPaths";
 
 /**
- * Compat: `/campaign/merchant` → `/partner/operation` (query preserved).
+ * Compat: `/cc/merchant` → `/partner/operation` (query preserved).
  */
 const CampaignMerchantLegacyRedirectPage: React.FC<PageProp> = ({ visible }) => {
   useEffect(() => {

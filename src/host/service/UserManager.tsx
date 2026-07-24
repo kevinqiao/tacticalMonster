@@ -21,7 +21,11 @@ import {
   readStoredUser,
   writeStoredUser,
 } from "./platformAuth/platformSessionStorage";
-import { signOutClerkSession } from "./clerk/clerkSessionBridge";
+import {
+  blockClerkAutoExchangeAfterPartnerSwitch,
+  clearClerkAutoExchangeSuppress,
+  signOutClerkSession,
+} from "./clerk/clerkSessionBridge";
 
 export interface User {
   uid?: string;
@@ -67,6 +71,8 @@ interface IUserContext {
    */
   forceReauth: () => void;
   logout: () => Promise<void>;
+  /** URL partner mismatch: sync-drop platform session, block Clerk auto-exchange, then sign out Clerk. */
+  logoutForPartnerMismatch: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -78,6 +84,7 @@ const UserContext = createContext<IUserContext>({
   dropLocalSession: () => {},
   forceReauth: () => {},
   logout: async () => {},
+  logoutForPartnerMismatch: async () => {},
   authComplete: () => null,
   isAuthenticated: false,
 });
@@ -94,6 +101,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user]);
 
   const askAuth = useCallback(({ page, modal }: { page?: PageItem; modal?: ModalItem }) => {
+    // Intentional sign-in: allow Clerk → platform JWT exchange again.
+    clearClerkAutoExchangeSuppress();
     setUser((prev) => {
       const base = prev ?? {};
       if (base.authReq) return base;
@@ -137,6 +146,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   /** Staff consoles: exit locally and open SSO without clearing other tabs' storage. */
   const forceReauth = useCallback(() => {
     void signOutClerkSession();
+    clearClerkAutoExchangeSuppress();
     clearPlatformSession();
     setUser({ authReq: {} });
   }, [clearPlatformSession]);
@@ -156,6 +166,27 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     clearPlatformSession();
     setUser({});
   }, [user, convex, clearPlatformSession]);
+
+  const logoutForPartnerMismatch = useCallback(async () => {
+    const token = userRef.current?.platformAccessToken;
+    // Block + sync-clear first so ClerkPlatformBridge cannot mint a URL-partner
+    // JWT during the async Clerk signOut window (and so redirect-less signOut
+    // cannot leave a stale localStorage session).
+    blockClerkAutoExchangeAfterPartnerSwitch();
+    clearStoredUser();
+    clearPlatformSession();
+    setUser({});
+    await signOutClerkSession();
+    if (token) {
+      try {
+        await convex.action(api.service.AuthManager.signOut, {
+          platformAccessToken: token,
+        });
+      } catch (e) {
+        console.warn("[logoutForPartnerMismatch]", e);
+      }
+    }
+  }, [convex, clearPlatformSession]);
 
   useEffect(() => {
     const restore = async () => {
@@ -260,6 +291,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     dropLocalSession,
     forceReauth,
     logout,
+    logoutForPartnerMismatch,
     askAuth,
     cancelAuth,
     isAuthenticated,

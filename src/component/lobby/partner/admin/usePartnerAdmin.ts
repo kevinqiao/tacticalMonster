@@ -1,5 +1,6 @@
 import { api } from "@/convex/sso/convex/_generated/api";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { usePlatformAuth } from "host/service/platformAuth/PlatformAuthProvider";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import { useUserManager } from "host/service/UserManager";
 
@@ -26,9 +27,13 @@ export const partnerAdminFns = {
 
 export function usePartnerAdminAuth() {
   const { user } = useUserManager();
+  const { platformReady } = usePlatformAuth();
+  const authed = isPlatformAuthed(user);
   return {
     user,
-    authed: isPlatformAuthed(user),
+    authed,
+    /** JWT present and bound to Convex clients — safe for useAction calls. */
+    authReady: authed && platformReady,
   };
 }
 

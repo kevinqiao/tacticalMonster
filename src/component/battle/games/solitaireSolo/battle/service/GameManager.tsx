@@ -18,6 +18,7 @@ import {
     isSolitairePlayableStatus,
 } from '../types/SoloTypes';
 import { createRolloutReplayState } from '../replay/solitaireRolloutReplay';
+import { autoCompleteLayoutGate } from '../autoCompleteLayoutGate';
 import SoloRuleManager from './SoloRuleManager';
 import { createZones } from '@/convex/solitaireArena/convex/service/SoloGameEngine';
 
@@ -375,6 +376,15 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     useEffect(() => {
         if (interactionPhase !== GameInteractionPhase.animating) return;
         const id = window.setTimeout(() => {
+            // 清盘 / 胜利动画可能超过 4s；此时强行 idle 会让滞后 React model 把牌刷回 tableau
+            if (autoCompleteLayoutGate.blocked) return;
+            if (
+                document.querySelector(
+                    ".solo-player-container[data-solo-victory='1'], .solo-board-surface[data-solo-victory='1']"
+                )
+            ) {
+                return;
+            }
             console.warn('[SoloGameProvider] interaction animating watchdog -> idle');
             setDealEvent(null);
             setInteractionPhase(GameInteractionPhase.idle);

@@ -69,9 +69,10 @@ function shopSkuVisibleForUid(row: Doc<"portal_shop_skus">, uid: string): boolea
   );
 }
 
-function shopSkuFromDbRow(r: Doc<"portal_shop_skus">) {
+/** Keep partnerIds / listInShop for catalog resolve (mapPortalShopSkuRow drops them). */
+function shopSkuSeedFromDbRow(r: Doc<"portal_shop_skus">): PortalShopSkuSeed {
   const cat = catalogSeedForSkuId(r.skuId);
-  const seed: PortalShopSkuSeed = {
+  return {
     skuId: r.skuId,
     // Shared catalog copy can be stale; the checked-in catalog owns its title.
     title: cat?.title ?? r.title,
@@ -97,7 +98,6 @@ function shopSkuFromDbRow(r: Doc<"portal_shop_skus">) {
     voucherValidityDays: r.voucherValidityDays ?? cat?.voucherValidityDays,
     listInShop: r.listInShop ?? cat?.listInShop,
   };
-  return mapPortalShopSkuRow(seed);
 }
 
 function masterSkus(rows: Doc<"portal_shop_skus">[]) {
@@ -105,12 +105,14 @@ function masterSkus(rows: Doc<"portal_shop_skus">[]) {
   const shared = PORTAL_SHOP_SKU_CATALOG.map((seed) => ({
     ...seed,
     active: true,
-    ...(byId.has(seed.skuId) ? { ...shopSkuFromDbRow(byId.get(seed.skuId)!), title: seed.title } : {}),
+    ...(byId.has(seed.skuId)
+      ? { ...shopSkuSeedFromDbRow(byId.get(seed.skuId)!), title: seed.title }
+      : {}),
   }));
   const sharedIds = new Set(PORTAL_SHOP_SKU_CATALOG.map((seed) => seed.skuId));
   const exclusive = rows
     .filter((row) => !sharedIds.has(row.skuId))
-    .map((row) => ({ ...shopSkuFromDbRow(row), active: row.active }));
+    .map((row) => ({ ...shopSkuSeedFromDbRow(row), active: row.active }));
   return [...shared, ...exclusive];
 }
 

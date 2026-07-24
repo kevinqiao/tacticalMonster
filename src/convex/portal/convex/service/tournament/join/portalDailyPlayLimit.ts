@@ -17,6 +17,7 @@ import {
   dailyPeriodKey,
   dailyWindowMsForOpsZone,
 } from "../../../utils/casualTaskPeriod";
+import { readAdEntryUsedToday } from "../../ads/portalAdEntryService";
 import {
   readTicketEntryUsedToday,
   resolveFreePlayDailyCap,
@@ -25,7 +26,9 @@ import {
 export type PortalDailyPlayMode = "solo" | "multi";
 
 export type PortalModeDailyPlayQuota = {
+  /** 今日已开桌次数（免费 + 广告入场 + 门票入场，不含 campaign） */
   playsToday: number;
+  /** 免费档每日上限（入场阶梯用；广告/门票另计 remaining） */
   maxPlaysPerDay: number;
   remainingPlaysToday: number;
 };
@@ -96,14 +99,14 @@ export async function assertPortalDailyPlayLimit(
   const freeCap = args.limits
     ? (mode === "solo" ? limits.solo : limits.multi)
     : await resolveFreePlayDailyCap(ctx, args.uid, mode);
-  // Ticket consumption occurs before the join action. Each consumed slot extends
-  // this user's admission ceiling by one, preserving free → ticket ordering.
-  const maxPlaysPerDay = freeCap + await readTicketEntryUsedToday(
-    ctx,
-    args.uid,
-    dailyPeriodKey(args.nowMs ?? Date.now()),
-    mode
-  );
+  // Ad / ticket consumption occurs before the join action. Each consumed slot
+  // extends this user's admission ceiling by one (free → ad → ticket).
+  const dayKey = dailyPeriodKey(args.nowMs ?? Date.now());
+  const [adUsed, ticketUsed] = await Promise.all([
+    readAdEntryUsedToday(ctx, args.uid, dayKey, mode),
+    readTicketEntryUsedToday(ctx, args.uid, dayKey, mode),
+  ]);
+  const maxPlaysPerDay = freeCap + adUsed + ticketUsed;
 
   const playsToday = await countPortalPlaysInOpsDay(ctx, {
     uid: args.uid,
@@ -156,7 +159,10 @@ async function quotaForMode(
   };
 }
 
-/** 主页模式卡：单人 / 多人今日已挑战次数。 */
+/**
+ * 主页模式卡：单人 / 多人今日已挑战次数。
+ * `playsToday` = 全日开桌合计（免费/广告/门票）；`maxPlaysPerDay` = 免费档 cap。
+ */
 export const getPortalDailyPlayQuota = authedQuery({
   args: {
     gameType: v.string(),

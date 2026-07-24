@@ -36,3 +36,14 @@ export function defaultPortalPartnerShopSettings(partnerId: number): PortalPartn
     updatedAt: 0,
   };
 }
+
+/**
+ * Effective watch-ad-for-coins for a partner.
+ * Missing settings default to enabled; the shop must also be enabled.
+ */
+export function isPartnerShopAdCoinEnabled(
+  settings: PortalPartnerShopSettings | null | undefined
+): boolean {
+  if (!settings) return true;
+  return settings.enabled !== false && settings.adCoinEnabled !== false;
+}

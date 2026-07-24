@@ -1,15 +1,19 @@
+import { CAMPAIGN_URL_PREFIX, CAMPAIGN_URL_SEGMENT } from "@/host/util/appUrlSegments";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export const CAMPAIGN_CAROUSEL_AUTO_MS = 8000;
 export const CAMPAIGN_CAROUSEL_PAUSE_MS = 30_000;
 
 function campaignPath(partnerSlug: string, campaignSlug: string) {
-  return `/campaign/${partnerSlug}/${campaignSlug}`;
+  return `${CAMPAIGN_URL_PREFIX}/${partnerSlug}/${campaignSlug}`;
 }
 
 function slugFromLocation(partnerSlug: string): string | null {
   const parts = window.location.pathname.split("/").filter(Boolean);
-  if (parts[0] !== "campaign" || parts[1] !== partnerSlug || !parts[2]) return null;
+  if (parts[0] !== CAMPAIGN_URL_SEGMENT || parts[1] !== partnerSlug || !parts[2]) {
+    return null;
+  }
   return parts[2];
 }
 

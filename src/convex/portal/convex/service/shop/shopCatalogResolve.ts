@@ -45,10 +45,19 @@ export function resolvePortalShopCatalog(args: {
   return args.masterSkus
     .filter((sku) => {
       if (!sku.active) return false;
-      if (sku.partnerIds?.length && (partnerId == null || !sku.partnerIds.includes(partnerId))) {
+      const isPartnerExclusive = Boolean(sku.partnerIds?.length);
+      if (isPartnerExclusive && (partnerId == null || !sku.partnerIds!.includes(partnerId))) {
         return false;
       }
-      if (settings.assortmentMode === "allowlist" && !allowlisted.has(sku.skuId)) return false;
+      // Allowlist only gates shared catalog SKUs. Partner-exclusive SKUs are managed
+      // via Partner Admin CRUD + kind toggles (vouchersEnabled / listInShop / active).
+      if (
+        settings.assortmentMode === "allowlist" &&
+        !isPartnerExclusive &&
+        !allowlisted.has(sku.skuId)
+      ) {
+        return false;
+      }
       if (excluded.has(sku.skuId)) return false;
       const kind = sku.skuKind ?? "virtual";
       if (kind === "giftcard" && !settings.giftCardsEnabled) return false;

@@ -156,10 +156,15 @@
   text-overflow: ellipsis;
 }
 
-.ssc__replayRemaining {
+.ssc__replayVideoIcon {
   flex: 0 0 auto;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.92;
+  width: 16px;
+  height: 16px;
+  opacity: 0.95;
+}
+
+.ssc__replayRemaining {
+  display: none;
 }
 
 .ssc__actions--withReplay .ssc__btn--continueWide {

@@ -32,7 +32,7 @@ export const bootstrapDevPartnerEmbed = mutation({
     /** When true (default), enable portalGames capability for this partner. */
     portalGames: v.optional(v.boolean()),
     campaignOps: v.optional(v.boolean()),
-    /** URL segment for /portal/{portal_key}/{game} (e.g. crazygames). */
+    /** URL segment for /gc/{portal_key}/{game} (e.g. crazygames). */
     portalKey: v.optional(v.string()),
     /** Enabled game types; default = full partner registry when portalKey is set. */
     games: v.optional(v.array(v.string())),

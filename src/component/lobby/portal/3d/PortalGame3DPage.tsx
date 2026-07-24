@@ -41,7 +41,7 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
   if (!portal.gameType) {
     return (
       <div style={{ padding: 24, color: "#fff" }}>
-        无效的游戏类型。请访问 /portal/block_blast 等有效路径。
+        无效的游戏类型。请访问 /gc/block_blast 等有效路径。
       </div>
     );
   }
@@ -49,11 +49,19 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
   if (visible === 0) return null;
 
   const heroLogoUrl = resolvePortal3DHeroLogo(portal.gameType);
-  const showShop = portalShopHasVisibleSkus(
+  const showShopCatalog = portalShopHasVisibleSkus(
     portal.shopCatalog?.skus,
     partnerPid,
     portal.shopCatalog != null
   );
+  const showShop = showShopCatalog || ctrl.adCoinClientEnabled;
+  const authed = isPlatformAuthed(ctrl.user);
+  const coinBalanceRaw =
+    portal.playerWallet?.coins ?? portal.shopCatalog?.coins ?? 0;
+  const ticketBalanceRaw = portal.replayTokenCount ?? 0;
+  // Hide top-left chips when balance is zero.
+  const coinBalance = authed && coinBalanceRaw > 0 ? coinBalanceRaw : null;
+  const ticketBalance = authed && ticketBalanceRaw > 0 ? ticketBalanceRaw : null;
 
   const modalOpen =
     ctrl.shopModalOpen ||
@@ -71,14 +79,8 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           heroLogoUrl={heroLogoUrl}
           authed={ctrl.authed}
           tier={ctrl.tierView}
-          coinBalance={
-            isPlatformAuthed(ctrl.user)
-              ? (portal.playerWallet?.coins ??
-                  portal.shopCatalog?.coins ??
-                  0)
-              : null
-          }
-          ticketBalance={isPlatformAuthed(ctrl.user) ? (portal.replayTokenCount ?? 0) : null}
+          coinBalance={coinBalance}
+          ticketBalance={ticketBalance}
           joining={ctrl.joining}
           soloJoinBlocked={ctrl.soloJoinBlocked}
           multiJoinBlocked={ctrl.multiJoinBlocked}
@@ -90,6 +92,8 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           multiMaxPlaysPerDay={ctrl.multiMaxPlaysPerDay}
           soloDailyExhausted={ctrl.soloDailyExhausted}
           multiDailyExhausted={ctrl.multiDailyExhausted}
+          soloAdEntryAvailable={ctrl.soloAdEntryAvailable}
+          multiAdEntryAvailable={ctrl.multiAdEntryAvailable}
           soloTicketEntryAvailable={ctrl.soloTicketEntryAvailable}
           multiTicketEntryAvailable={ctrl.multiTicketEntryAvailable}
           soloTicketEntryPrice={ctrl.soloTicketEntryPrice}

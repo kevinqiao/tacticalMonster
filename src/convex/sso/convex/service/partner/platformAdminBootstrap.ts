@@ -333,24 +333,97 @@ export const bootstrapDefaultPartnerChannels = mutation({
 });
 
 /**
- * Ensure every partner has `playerAuth` / `staffAuth` (idempotent backfill).
+ * Backfill `playerAuth` / `staffAuth`, move legacy `config` → `data`,
+ * and clear deprecated auth_channels / staff_auth_channels / config.
  *
- * `npx convex run service/partner/platformAdminBootstrap:migrateLegacyPartnerAuthChannels '{"bootstrapSecret":"dev-local-platform-bootstrap"}'`
+ * `npx convex run service/partner/platformAdminBootstrap:migrateLegacyPartnerAuthChannels '{"bootstrapSecret":"dev-local-platform-bootstrap"}' --prod`
  */
 export const migrateLegacyPartnerAuthChannels = mutation({
   args: { bootstrapSecret: v.string() },
   handler: async (ctx, { bootstrapSecret }) => {
     assertBootstrapSecret(bootstrapSecret);
     const rows = await ctx.db.query("partner").collect();
-    const migrated: Array<{ pid: number; playerAuth: unknown; staffAuth: unknown }> = [];
+    const migrated: Array<{
+      pid: number;
+      playerAuth: unknown;
+      staffAuth: unknown;
+      movedConfigToData: boolean;
+      clearedLegacy: boolean;
+    }> = [];
 
     for (const row of rows) {
-      const legacy = row as typeof row & PartnerAuthRow;
-      if (row.playerAuth !== undefined && row.staffAuth !== undefined) continue;
-      const playerAuth = resolvePlayerAuth(legacy);
-      const staffAuth = resolveStaffAuth(legacy);
-      await ctx.db.patch(row._id, { playerAuth, staffAuth });
-      migrated.push({ pid: row.pid, playerAuth, staffAuth });
+      const legacy = row as typeof row &
+        PartnerAuthRow & {
+          auth_channels?: number[];
+          staff_auth_channels?: number[];
+          config?: unknown;
+        };
+
+      const runtimeBag =
+        legacy.data && typeof legacy.data === "object"
+          ? legacy.data
+          : legacy.config && typeof legacy.config === "object"
+            ? legacy.config
+            : undefined;
+
+      let playerAuth = resolvePlayerAuth({
+        playerAuth: legacy.playerAuth,
+        staffAuth: legacy.staffAuth,
+        data: runtimeBag,
+      });
+      if (
+        legacy.playerAuth === undefined &&
+        Array.isArray(legacy.auth_channels) &&
+        legacy.auth_channels.length > 0
+      ) {
+        playerAuth = sanitizePlayerAuth(
+          {
+            mode: playerAuthModeFromConsumerCids(legacy.auth_channels),
+          },
+          runtimeBag
+        );
+      }
+
+      const staffAuth =
+        legacy.staffAuth !== undefined
+          ? resolveStaffAuth(legacy)
+          : Array.isArray(legacy.staff_auth_channels) &&
+              legacy.staff_auth_channels.length > 0
+            ? DEFAULT_STAFF_AUTH
+            : resolveStaffAuth(legacy);
+
+      const movedConfigToData =
+        !(legacy.data && typeof legacy.data === "object") &&
+        !!(legacy.config && typeof legacy.config === "object");
+      const clearedLegacy =
+        legacy.auth_channels !== undefined ||
+        legacy.staff_auth_channels !== undefined ||
+        legacy.config !== undefined;
+
+      if (
+        legacy.playerAuth !== undefined &&
+        legacy.staffAuth !== undefined &&
+        !movedConfigToData &&
+        !clearedLegacy
+      ) {
+        continue;
+      }
+
+      await ctx.db.patch(row._id, {
+        playerAuth,
+        staffAuth,
+        ...(movedConfigToData ? { data: legacy.config } : {}),
+        auth_channels: undefined,
+        staff_auth_channels: undefined,
+        config: undefined,
+      });
+      migrated.push({
+        pid: row.pid,
+        playerAuth,
+        staffAuth,
+        movedConfigToData,
+        clearedLegacy,
+      });
     }
 
     return { ok: true as const, migrated, scanned: rows.length };

@@ -123,7 +123,7 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
     let nextSlug = p.slug?.trim() ?? "";
     if (enabling && !nextSlug) {
       const entered = window.prompt(
-        `为「${p.name}」开启 campaignOps，请输入 public slug（/campaign/{slug}）：`,
+        `为「${p.name}」开启 campaignOps，请输入 public slug（/cc/{slug}）：`,
         p.name
           .trim()
           .toLowerCase()
@@ -248,7 +248,7 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                 </fieldset>
                 {campaignOps ? (
                   <label className="merchant-field">
-                    Campaign slug（公开路径 /campaign/{"{slug}"}）
+                    Campaign slug（公开路径 /cc/{"{slug}"}）
                     <input
                       value={slug}
                       onChange={(e) => setSlug(e.target.value)}
@@ -279,7 +279,7 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                   <p className="merchant-note">
                     PID {p.pid}
                     {p.host ? ` · ${p.host}` : ""}
-                    {p.slug ? ` · /campaign/${p.slug}` : ""}
+                    {p.slug ? ` · /cc/${p.slug}` : ""}
                     {" · "}
                     {capabilityBadges(p.capabilities)}
                   </p>

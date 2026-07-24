@@ -35,9 +35,9 @@ describe("context routing", () => {
   const containers = buildPageContainers();
 
   it("resolveActiveContext maps pathname to app context", () => {
-    expect(resolveActiveContext("/campaign/demo-cafe")).toBe("/campaign");
+    expect(resolveActiveContext("/cc/demo-cafe")).toBe("/cc");
     expect(resolveActiveContext("/casual/lobby/c3")).toBe("/casual");
-    expect(resolveActiveContext("/portal/solitaire")).toBe("/portal");
+    expect(resolveActiveContext("/gc/solitaire")).toBe("/gc");
     expect(resolveActiveContext("/tactical/lobby")).toBe("/tactical");
     expect(resolveActiveContext("/partner/admin")).toBe("/partner");
     expect(resolveActiveContext("/partner/operation")).toBe("/partner");
@@ -45,9 +45,9 @@ describe("context routing", () => {
   });
 
   it("resolveMountedRootShells returns one root shell per context", () => {
-    const campaign = resolveMountedRootShells(containers, "/campaign/demo-cafe");
+    const campaign = resolveMountedRootShells(containers, "/cc/demo-cafe");
     expect(campaign).toHaveLength(1);
-    expect(campaign[0]?.uri.startsWith("/campaign")).toBe(true);
+    expect(campaign[0]?.uri.startsWith("/cc")).toBe(true);
 
     const casual = resolveMountedRootShells(containers, "/casual/lobby/c3");
     expect(casual).toHaveLength(1);
@@ -69,7 +69,7 @@ describe("context routing", () => {
     expect(platform).toHaveLength(1);
     expect(platform[0]?.uri.startsWith("/platform")).toBe(true);
 
-    const preview = resolveMountedRootShells(containers, "/portal/preview");
+    const preview = resolveMountedRootShells(containers, "/gc/preview");
     expect(preview).toHaveLength(0);
   });
 
@@ -77,13 +77,13 @@ describe("context routing", () => {
     expect(
       modalMatchesActiveContext(
         { path: "./lobby/casual/view/tasks/CasualTasksModal", contexts: ["casual"] },
-        "/campaign/demo"
+        "/cc/demo"
       )
     ).toBe(false);
     expect(
       modalMatchesActiveContext(
         { path: "./battle/games/blockBlast/battle/PlayBlockBlast", contexts: ["shared"] },
-        "/campaign/demo"
+        "/cc/demo"
       )
     ).toBe(true);
     expect(

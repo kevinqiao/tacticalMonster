@@ -37,7 +37,7 @@ export default defineSchema({
     .index("by_displayNameNormalized", ["displayNameNormalized"]),
 
   /**
-   * Partner brand + public campaign URL namespace (`/campaign/{slug}/...`).
+   * Partner brand + public campaign URL namespace (`/cc/{slug}/...`).
    * Created when campaignOps is enabled for a partner.
    */
   partner_brands: defineTable({

@@ -40,7 +40,7 @@ export function partnerHasCampaignOps(partner: {
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 
-/** Reserved under `/campaign/{slug}` — must not be partner public slugs. */
+/** Reserved under `/cc/{slug}` — must not be partner public slugs. */
 const RESERVED_CAMPAIGN_PARTNER_SLUGS = new Set(["home", "merchant"]);
 
 export function normalizePartnerSlug(raw: string): string {

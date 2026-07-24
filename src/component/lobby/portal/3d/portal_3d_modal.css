@@ -948,6 +948,15 @@
   color: #b45309;
 }
 
+.portal-shop-panel__adCoin {
+  margin: 0 0 14px;
+  flex-shrink: 0;
+}
+
+.portal-shop-panel__item--adCoin {
+  margin: 0;
+}
+
 .portal-shop-panel__balance img,
 .portal-shop-panel__buy img,
 .portal-shop-panel__grant img {

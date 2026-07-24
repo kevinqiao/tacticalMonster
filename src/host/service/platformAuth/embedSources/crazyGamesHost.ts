@@ -1,10 +1,12 @@
+import { CAMPAIGN_URL_PREFIX, PORTAL_URL_PREFIX } from "@/host/util/appUrlSegments";
+
 /**
  * CrazyGames CDN hosts builds under a nested path, e.g.
  *   https://solitaire-arena.game-files.crazygames.com/solitaire-arena/2/index.html
- * Our SPA expects /portal/{portal_key}/{game}. Normalize the location before React boots.
+ * Our SPA expects /gc/{portal_key}/{game}. Normalize the location before React boots.
  */
 
-const DEFAULT_ENTRY_PATH = "/portal/crazygames/solitaire";
+const DEFAULT_ENTRY_PATH = `${PORTAL_URL_PREFIX}/crazygames/solitaire`;
 
 export function isCrazyGamesFileHost(hostname = window.location.hostname): boolean {
   const h = hostname.toLowerCase();
@@ -21,7 +23,7 @@ export function isCrazyGamesCdnBundlePath(pathname: string): boolean {
   if (p === "/" || p === "/index.html") return true;
   // /solitaire-arena/2 or /solitaire-arena/2/index.html
   if (/^\/[^/]+\/\d+(\/index\.html)?$/i.test(p)) return true;
-  if (/\/index\.html$/i.test(p) && !p.startsWith("/portal")) return true;
+  if (/\/index\.html$/i.test(p) && !p.startsWith(PORTAL_URL_PREFIX)) return true;
   return false;
 }
 
@@ -48,10 +50,10 @@ export function normalizeCrazyGamesEntryLocation(): string | null {
 
   // Already on a real app route — leave alone.
   if (
-    pathname.startsWith("/portal/") ||
+    pathname.startsWith(`${PORTAL_URL_PREFIX}/`) ||
     pathname.startsWith("/casual/") ||
     pathname.startsWith("/tactical/") ||
-    pathname.startsWith("/campaign/")
+    pathname.startsWith(`${CAMPAIGN_URL_PREFIX}/`)
   ) {
     return null;
   }

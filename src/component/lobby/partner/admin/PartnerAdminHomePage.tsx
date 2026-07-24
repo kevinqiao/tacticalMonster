@@ -60,7 +60,6 @@ const PartnerAdminHomePage: React.FC<PageProp> = ({ visible }) => {
               ? "请通过登录窗口使用 partner_staff 账号登录。"
               : "加载中…"}
         </p>
-        {partnerModals}
       </div>
     );
   }
@@ -87,7 +86,7 @@ const PartnerAdminHomePage: React.FC<PageProp> = ({ visible }) => {
               <p className="merchant-note">
                 PID {p.pid}
                 {p.host ? ` · ${p.host}` : ""}
-                {p.slug ? ` · /campaign/${p.slug}` : ""} · 角色 {p.role}
+                {p.slug ? ` · /cc/${p.slug}` : ""} · 角色 {p.role}
                 {caps.portalGames ? " · Portal" : ""}
                 {caps.campaignOps ? " · CampaignOps" : ""}
               </p>

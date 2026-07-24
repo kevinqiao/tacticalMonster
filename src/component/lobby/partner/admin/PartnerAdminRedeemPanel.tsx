@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 
 import { partnerAdminErrorMessage } from "./partnerAdminHelpers";
-import { usePartnerAdminMutations } from "./usePartnerAdmin";
+import { usePartnerAdminAuth, usePartnerAdminMutations } from "./usePartnerAdmin";
 
 type Voucher = {
   itemId: string;
@@ -16,6 +16,7 @@ type Voucher = {
 type Props = { partnerId: number };
 
 const PartnerAdminRedeemPanel: React.FC<Props> = ({ partnerId }) => {
+  const { authReady } = usePartnerAdminAuth();
   const {
     listPartnerVouchers,
     confirmPartnerVoucherUse,
@@ -29,6 +30,7 @@ const PartnerAdminRedeemPanel: React.FC<Props> = ({ partnerId }) => {
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
+    if (!authReady) return;
     try {
       const result = await listPartnerVouchers({ partnerId });
       if (result.ok !== true) throw new Error(typeof result.error === "string" ? result.error : "load_failed");
@@ -37,7 +39,7 @@ const PartnerAdminRedeemPanel: React.FC<Props> = ({ partnerId }) => {
       setNote(partnerAdminErrorMessage(error));
       setItems([]);
     }
-  }, [listPartnerVouchers, partnerId]);
+  }, [authReady, listPartnerVouchers, partnerId]);
 
   useEffect(() => {
     void refresh();

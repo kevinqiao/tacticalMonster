@@ -1,4 +1,5 @@
 import i18n from "@/i18n";
+import { CAMPAIGN_URL_PREFIX } from "@/host/util/appUrlSegments";
 
 import { partnerGameLabel } from "../merchant/campaignFormHelpers";
 import type {
@@ -78,5 +79,5 @@ export function campaignSettlementSummary(
 }
 
 export function campaignLandingPath(partnerSlug: string, campaignSlug: string): string {
-  return `/campaign/${partnerSlug}/${campaignSlug}`;
+  return `${CAMPAIGN_URL_PREFIX}/${partnerSlug}/${campaignSlug}`;
 }

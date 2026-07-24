@@ -29,6 +29,7 @@ import type { CasualAsyncTableSummaryUI } from "@/component/battle/games/shared/
 import { portalErrorMessage } from "../shared/portalErrorMessage";
 
 import { portalTournamentFns } from "./portalConvexFunctionRefs";
+import { requestPortalAdCoin } from "./requestPortalAdCoin";
 import { portalAssignmentMatchesGameType } from "./portalOpenRunHelpers";
 import { isOpenCasualRunExpired } from "../../casual/service/casualOpenRunReconcile";
 import {
@@ -228,6 +229,22 @@ export type PortalTicketEntryOffer = {
   priceTickets: number;
 };
 
+export type PortalAdEntryOffer = {
+  enabled: boolean;
+  remaining: number;
+  cap: number;
+  usedToday: number;
+  hasReadyGrant: boolean;
+};
+
+export type PortalAdCoinOffer = {
+  enabled: boolean;
+  remaining: number;
+  cap: number;
+  rewardAmount: number;
+  watchedToday: number;
+};
+
 type PortalDataSnapshot = {
   cohortLeaderboard: PortalWeeklyLeaderboardRow[];
   weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
@@ -243,6 +260,8 @@ type PortalDataSnapshot = {
   matchQueueEntries: PortalMatchQueueEntry[];
   dailyPlayQuota: PortalDailyPlayQuota | null;
   ticketEntryOffer: { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null;
+  adEntryOffer: { solo: PortalAdEntryOffer; multi: PortalAdEntryOffer } | null;
+  adCoinOffer: PortalAdCoinOffer | null;
   weekEndsAt: number | null;
 };
 
@@ -261,6 +280,8 @@ const emptyData = (): PortalDataSnapshot => ({
   matchQueueEntries: [],
   dailyPlayQuota: null,
   ticketEntryOffer: null,
+  adEntryOffer: null,
+  adCoinOffer: null,
   weekEndsAt: null,
 });
 
@@ -300,10 +321,21 @@ type PortalContextValue = {
   matchQueueEntries: PortalMatchQueueEntry[];
   dailyPlayQuota: PortalDailyPlayQuota | null;
   ticketEntryOffer: { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null;
+  adEntryOffer: { solo: PortalAdEntryOffer; multi: PortalAdEntryOffer } | null;
+  adCoinOffer: PortalAdCoinOffer | null;
   weekEndsAt: number | null;
+  watchAdForCoins: () => Promise<
+    | { ok: true; coinsGranted: number; remaining: number; rewardAmount: number }
+    | { ok: false; error: string }
+  >;
   joinTournament: (
     mode: "solo" | "multi",
-    opts?: { partnerSlug?: string; campaignSlug?: string; ticketEntry?: boolean }
+    opts?: {
+      partnerSlug?: string;
+      campaignSlug?: string;
+      adEntry?: boolean;
+      ticketEntry?: boolean;
+    }
   ) => Promise<ResolvedJoinTournamentOutcome>;
   leaveCasualMatchQueue: (
     templateId?: string
@@ -542,6 +574,8 @@ export const PortalProvider: React.FC<{
         adReplayDailyRemaining: null,
         playerProfile: null,
         ticketEntryOffer: null,
+        adEntryOffer: null,
+        adCoinOffer: null,
       });
       return;
     }
@@ -650,6 +684,37 @@ export const PortalProvider: React.FC<{
             null,
         }),
       "getTicketEntryOffer"
+    );
+    sub(
+      portalTournamentFns.getAdEntryOffer,
+      {},
+      (rows) =>
+        patchData({
+          adEntryOffer:
+            (rows as { solo: PortalAdEntryOffer; multi: PortalAdEntryOffer } | null) ?? null,
+        }),
+      "getAdEntryOffer"
+    );
+    sub(
+      portalTournamentFns.getAdCoinOffer,
+      {},
+      (rows) => {
+        const r = rows as PortalAdCoinOffer | null;
+        if (!r || r.enabled === false) {
+          patchData({ adCoinOffer: null });
+          return;
+        }
+        patchData({
+          adCoinOffer: {
+            enabled: true,
+            remaining: Math.max(0, Math.floor(r.remaining ?? 0)),
+            cap: Math.max(0, Math.floor(r.cap ?? 0)),
+            rewardAmount: Math.max(0, Math.floor(r.rewardAmount ?? 0)),
+            watchedToday: Math.max(0, Math.floor(r.watchedToday ?? 0)),
+          },
+        });
+      },
+      "getAdCoinOffer"
     );
 
     return () => {
@@ -1117,7 +1182,12 @@ export const PortalProvider: React.FC<{
   const joinTournament = useCallback(
     async (
       mode: "solo" | "multi",
-      opts?: { partnerSlug?: string; campaignSlug?: string; ticketEntry?: boolean }
+      opts?: {
+        partnerSlug?: string;
+        campaignSlug?: string;
+        adEntry?: boolean;
+        ticketEntry?: boolean;
+      }
     ): Promise<ResolvedJoinTournamentOutcome> => {
       const http = getHttp();
       if (!http || !uid || !isPlatformAuthed(user)) {
@@ -1141,6 +1211,7 @@ export const PortalProvider: React.FC<{
                 campaignSlug: opts!.campaignSlug,
               }
             : {}),
+          ...(opts?.adEntry ? { adEntry: true } : {}),
           ...(opts?.ticketEntry ? { ticketEntry: true } : {}),
         });
         return resolveJoinTournamentOutcome(result);
@@ -1225,6 +1296,11 @@ export const PortalProvider: React.FC<{
     [uid]
   );
 
+  const watchAdForCoins = useCallback(async () => {
+    if (!uid) return { ok: false as const, error: "no_auth" };
+    return requestPortalAdCoin();
+  }, [uid]);
+
   const value = useMemo<PortalContextValue>(
     () => ({
       convexUrl: PORTAL_CONVEX_URL,
@@ -1243,7 +1319,10 @@ export const PortalProvider: React.FC<{
       matchQueueEntries: snapshot.matchQueueEntries,
       dailyPlayQuota: snapshot.dailyPlayQuota,
       ticketEntryOffer: snapshot.ticketEntryOffer,
+      adEntryOffer: snapshot.adEntryOffer,
+      adCoinOffer: snapshot.adCoinOffer,
       weekEndsAt: snapshot.weekEndsAt,
+      watchAdForCoins,
       joinTournament,
       leaveCasualMatchQueue,
       reconcilePendingHistorySettlements,
@@ -1266,6 +1345,7 @@ export const PortalProvider: React.FC<{
     [
       gameType,
       snapshot,
+      watchAdForCoins,
       joinTournament,
       leaveCasualMatchQueue,
       reconcilePendingHistorySettlements,

@@ -63,7 +63,7 @@ export function parseMerchantRouteFromLocation(
   let viewParam = params.get("view")?.trim() ?? null;
 
   const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] === "campaign" && parts[1] === "merchant" && parts[2]) {
+  if (parts[0] === "cc" && parts[1] === "merchant" && parts[2]) {
     viewParam = parts[2];
   }
   if (parts[0] === "partner" && parts[1] === "operation" && parts[2]) {

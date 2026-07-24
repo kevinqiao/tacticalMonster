@@ -33,7 +33,7 @@ describe("partnerCapabilities", () => {
 
 describe("runtimeContext", () => {
   it("resolves portal pathname", () => {
-    expect(resolveAppEmbedContext("/portal/solitaire")).toBe("portal");
+    expect(resolveAppEmbedContext("/gc/solitaire")).toBe("portal");
     expect(resolveAppEmbedContext("/tactical/lobby")).toBe("tactical");
   });
 

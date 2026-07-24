@@ -5,6 +5,9 @@ import { SOLO_ANIMATION_CONFIG } from "../animationConfig";
 
 const { moveFlightBase, moveFlightStackOffset } = SOLO_ANIMATION_CONFIG.zIndex;
 
+/** 清盘多牌同时飞行时递增，避免后起飞的牌被压在下面 */
+let autoFoundationFlightSeq = 0;
+
 export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
     const { moveCards, targetZoneId, gameState, boardDimensionRef, autoFoundationMove } = data;
     // 每次读取配置，避免 HMR 后仍用模块加载时的旧时长
@@ -14,6 +17,7 @@ export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => v
     const moveEase = autoFoundationMove
         ? SOLO_ANIMATION_CONFIG.ease.move.autoFoundation
         : SOLO_ANIMATION_CONFIG.ease.move.normal;
+    const flightSeqBase = autoFoundationMove ? ++autoFoundationFlightSeq * 10 : 0;
 
     const targetCards: SoloCard[] = gameState.cards.filter((c: SoloCard) => c.zoneId === targetZoneId);
     const zoneCards: SoloCard[] = [...targetCards, ...moveCards];
@@ -64,7 +68,9 @@ export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => v
 
     const applyFlightZ = () => {
         withEle.forEach((c: SoloCard, i: number) => {
-            gsap.set(c.ele!, { zIndex: moveFlightBase + moveFlightStackOffset + i });
+            gsap.set(c.ele!, {
+                zIndex: moveFlightBase + moveFlightStackOffset + flightSeqBase + i,
+            });
         });
     };
 
@@ -74,8 +80,16 @@ export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => v
             applyFlightZ();
         },
         onComplete: () => {
-            snapToLayout();
-            settleTargetStackZ();
+            // 胜利动画已开始时勿再按旧 planState 吸附，否则会把扇面牌拽回 tableau/foundation 槽
+            const victoryPlaying = Boolean(
+                document.querySelector(
+                    ".solo-player-container[data-solo-victory='1'], .solo-board-surface[data-solo-victory='1']"
+                )
+            );
+            if (!victoryPlaying) {
+                snapToLayout();
+                settleTargetStackZ();
+            }
             onComplete?.();
         },
     });

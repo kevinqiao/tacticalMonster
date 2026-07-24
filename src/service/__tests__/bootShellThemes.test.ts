@@ -12,11 +12,11 @@ describe("bootShellThemes", () => {
     expect(resolveBootShellIdFromPathname("/platform/admin")).toBe("platform");
     expect(resolveBootShellIdFromPathname("/partner/admin")).toBe("partner");
     expect(resolveBootShellIdFromPathname("/partner/operation")).toBe("partnerOperation");
-    expect(resolveBootShellIdFromPathname("/campaign/merchant")).toBe("partnerOperation");
+    expect(resolveBootShellIdFromPathname("/cc/merchant")).toBe("partnerOperation");
   });
 
   it("uses portal visuals for portal routes", () => {
-    const theme = resolveBootShellTheme("/portal/block_blast");
+    const theme = resolveBootShellTheme("/gc/block_blast");
     expect(theme.id).toBe("portal");
     expect(theme.bgLandscape).toContain("bg-16x9");
     expect(getBootBgImageLayers(theme)).toContain("url(");

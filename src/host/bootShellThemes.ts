@@ -1,3 +1,5 @@
+import { CAMPAIGN_URL_PREFIX, PORTAL_URL_PREFIX } from "./util/appUrlSegments";
+
 /** Per-app cold-boot visuals (background + copy). Keep index.html boot script in sync. */
 
 export type BootShellId =
@@ -87,12 +89,15 @@ export const BOOT_SHELL_THEMES: Record<BootShellId, BootShellTheme> = {
 
 export function resolveBootShellIdFromPathname(pathname: string): BootShellId {
   if (pathname.startsWith("/platform")) return "platform";
-  if (pathname.startsWith("/partner/operation") || pathname.startsWith("/campaign/merchant")) {
+  if (
+    pathname.startsWith("/partner/operation") ||
+    pathname.startsWith(`${CAMPAIGN_URL_PREFIX}/merchant`)
+  ) {
     return "partnerOperation";
   }
   if (pathname.startsWith("/partner")) return "partner";
-  if (pathname.startsWith("/campaign")) return "campaign";
-  if (pathname.startsWith("/portal")) return "portal";
+  if (pathname.startsWith(CAMPAIGN_URL_PREFIX)) return "campaign";
+  if (pathname.startsWith(PORTAL_URL_PREFIX)) return "portal";
   if (pathname.startsWith("/tactical")) return "tactical";
   if (pathname.startsWith("/casual")) return "casual";
   return "portal";

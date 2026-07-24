@@ -27,7 +27,7 @@
     }
   },
   "landing": {
-    "invalidUrl": "Open a campaign at /campaign/{merchant}/{campaign}.",
+    "invalidUrl": "Open a campaign at /cc/{merchant}/{campaign}.",
     "loading": "Loading campaign…",
     "noActiveCampaigns": "No campaigns available.",
     "campaignNotFound": "Campaign not found.",

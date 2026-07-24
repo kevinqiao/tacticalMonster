@@ -1,3 +1,5 @@
+import { resolveRewardedAdChannel } from "host/service/ads/rewarded/registry";
+
 /** 休闲异步桌观战/复盘入口（match_3 · solitaire 等同形） */
 export type Match3WatchContext =
   | {
@@ -113,12 +115,21 @@ export function applyCasualTableSummaryFromQuery(
     setAdReplayDailyRemaining?: (v: number | undefined) => void;
   }
 ) {
+  const ticketCount =
+    typeof summary.replayTokenCount === "number" ? summary.replayTokenCount : 0;
+  // Server may offer ad while this host has no provider (e.g. brainwar.games without mock).
+  const wantAd =
+    summary.replayMode === "ad" && resolveRewardedAdChannel() != null;
+  const canReplay = wantAd
+    ? Boolean(summary.canReplay)
+    : summary.replayMode === "ad"
+      ? Boolean(summary.replayOffered) && ticketCount >= 1
+      : Boolean(summary.canReplay);
+
   setters.setTableSummary(summary);
   setters.setReplayOffered(Boolean(summary.replayOffered));
-  setters.setReplayTokenCount(
-    typeof summary.replayTokenCount === 'number' ? summary.replayTokenCount : 0
-  );
-  setters.setCanReplay(Boolean(summary.canReplay));
+  setters.setReplayTokenCount(ticketCount);
+  setters.setCanReplay(canReplay);
   if (setters.setAdReplayDailyRemaining) {
     setters.setAdReplayDailyRemaining(
       typeof summary.adReplayDailyRemaining === 'number'
@@ -130,7 +141,7 @@ export function applyCasualTableSummaryFromQuery(
     typeof summary.replayWindowEndsAt === 'number' ? summary.replayWindowEndsAt : undefined
   );
   if (setters.setReplayMode) {
-    setters.setReplayMode(summary.replayMode === "ad" ? "ad" : "token");
+    setters.setReplayMode(wantAd ? "ad" : "token");
   }
 }
 

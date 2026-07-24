@@ -119,7 +119,7 @@ function printPlan(config) {
 }
 
 function printReady(result) {
-  const landing = `/campaign/${result.partnerSlug}/${result.campaignSlug}`;
+  const landing = `/cc/${result.partnerSlug}/${result.campaignSlug}`;
   console.log("\n================ READY ================");
   console.log(`Partner:  pid=${result.partnerId} slug=${result.partnerSlug}`);
   console.log(`Store:    ${result.storeSlug} (${result.storeId})`);

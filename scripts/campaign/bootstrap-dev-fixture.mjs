@@ -121,7 +121,7 @@ function printPublicSnapshot(label, pub) {
 
 function printEnvChecklist(config, result) {
   const landingPath =
-    result?.landingPath ?? `/campaign/${config.partnerSlug}/${config.campaignSlug}`;
+    result?.landingPath ?? `/cc/${config.partnerSlug}/${config.campaignSlug}`;
   const portalTemplateId =
     result?.portalTemplateId ??
     (config.mode === "solo"
@@ -164,7 +164,7 @@ function main() {
     console.log("\ndry-run completed. no data was written.");
     console.log("Run with --apply --owner-uid <YOUR_UID> to create/update fixture.");
     printEnvChecklist(config, before
-      ? { landingPath: `/campaign/${config.partnerSlug}/${config.campaignSlug}` }
+      ? { landingPath: `/cc/${config.partnerSlug}/${config.campaignSlug}` }
       : null);
     return;
   }

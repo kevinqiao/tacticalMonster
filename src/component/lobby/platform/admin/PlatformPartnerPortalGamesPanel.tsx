@@ -24,7 +24,7 @@ const PORTAL_ERROR_MAP: Record<string, string> = {
   ad_replay_daily_cap_invalid: "每日广告再战次数须为 0–100 的整数（空=默认无限）。",
   max_replays_per_match_invalid: "同局最多再战次数须为 0–20 的整数（空=默认 1）。",
   ticket_replay_price_invalid: "门票再战价格须为 1–100 的整数（空=默认 1）。",
-  play_entry_setting_invalid: "免费场次须为 0–100；门票价格须为 1–100，次数须为 0–100。",
+  play_entry_setting_invalid: "免费/广告次数须为 0–100；门票价格须为 1–100，次数须为 0–100。",
   forbidden: "需要 platform_staff admin（或 owner）权限。",
   unauthenticated: "请重新登录后再试。",
   not_found: "找不到该 Partner。",
@@ -54,6 +54,10 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   const [ticketReplayPriceInput, setTicketReplayPriceInput] = useState("");
   const [freeSolo, setFreeSolo] = useState("");
   const [freeMulti, setFreeMulti] = useState("");
+  const [adEntryEnabled, setAdEntryEnabled] = useState(true);
+  const [adEntrySoloCap, setAdEntrySoloCap] = useState("");
+  const [adEntryMultiCap, setAdEntryMultiCap] = useState("");
+  const [ticketEntryEnabled, setTicketEntryEnabled] = useState(true);
   const [ticketSoloPrice, setTicketSoloPrice] = useState("");
   const [ticketSoloCap, setTicketSoloCap] = useState("");
   const [ticketMultiPrice, setTicketMultiPrice] = useState("");
@@ -99,6 +103,14 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
     );
     setFreeSolo(config.freePlaySoloDailyCap == null ? "" : String(config.freePlaySoloDailyCap));
     setFreeMulti(config.freePlayMultiDailyCap == null ? "" : String(config.freePlayMultiDailyCap));
+    setAdEntryEnabled(config.adEntryEnabled !== false);
+    setAdEntrySoloCap(
+      config.adEntrySoloDailyCap == null ? "" : String(config.adEntrySoloDailyCap)
+    );
+    setAdEntryMultiCap(
+      config.adEntryMultiDailyCap == null ? "" : String(config.adEntryMultiDailyCap)
+    );
+    setTicketEntryEnabled(config.ticketEntryEnabled !== false);
     setTicketSoloPrice(config.ticketEntrySoloPriceTickets == null ? "" : String(config.ticketEntrySoloPriceTickets));
     setTicketSoloCap(config.ticketEntrySoloDailyCap == null ? "" : String(config.ticketEntrySoloDailyCap));
     setTicketMultiPrice(config.ticketEntryMultiPriceTickets == null ? "" : String(config.ticketEntryMultiPriceTickets));
@@ -179,6 +191,10 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         ticketReplayPriceTickets,
         freePlaySoloDailyCap: freeSolo === "" ? null : Number(freeSolo),
         freePlayMultiDailyCap: freeMulti === "" ? null : Number(freeMulti),
+        adEntryEnabled,
+        adEntrySoloDailyCap: adEntrySoloCap === "" ? null : Number(adEntrySoloCap),
+        adEntryMultiDailyCap: adEntryMultiCap === "" ? null : Number(adEntryMultiCap),
+        ticketEntryEnabled,
         ticketEntrySoloPriceTickets: ticketSoloPrice === "" ? null : Number(ticketSoloPrice),
         ticketEntrySoloDailyCap: ticketSoloCap === "" ? null : Number(ticketSoloCap),
         ticketEntryMultiPriceTickets: ticketMultiPrice === "" ? null : Number(ticketMultiPrice),
@@ -208,14 +224,14 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
       <p className="merchant-note">
         {isFirstParty ? (
           <>
-            第一方（PID 0）使用路径 <code>/portal/&#123;game&#125;</code>，
+            第一方（PID 0）使用路径 <code>/gc/&#123;game&#125;</code>，
             <strong>不需要</strong> portal_key。只需选择激活的游戏。
           </>
         ) : (
           <>
             平台授权：写入 <code>portal_key</code> + <code>games</code>，并启用{" "}
             <code>portal</code> context。路径：
-            <code>/portal/&#123;key&#125;/&#123;game&#125;</code>。
+            <code>/gc/&#123;key&#125;/&#123;game&#125;</code>。
           </>
         )}
       </p>
@@ -325,7 +341,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         </label>
       </fieldset>
       <fieldset className="merchant-field merchant-field--radio">
-        <legend>免费 → 门票入场</legend>
+        <legend>免费 → 广告 → 门票入场</legend>
         <div className="merchant-field-row">
           <label className="merchant-field">
             单人免费/日
@@ -352,6 +368,52 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
             />
           </label>
         </div>
+        <label className="merchant-radio">
+          <input
+            type="checkbox"
+            checked={adEntryEnabled}
+            onChange={(e) => setAdEntryEnabled(e.target.checked)}
+            disabled={!canEdit}
+          />
+          广告入场
+        </label>
+        <p className="merchant-note">免费用尽后可看广告进入；填 0 关闭该模式广告入场日限档。</p>
+        <div className="merchant-field-row">
+          <label className="merchant-field">
+            单人广告入场/日
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={adEntrySoloCap}
+              onChange={(e) => setAdEntrySoloCap(e.target.value)}
+              placeholder="默认 5"
+              disabled={!canEdit || !adEntryEnabled}
+            />
+          </label>
+          <label className="merchant-field">
+            多人广告入场/日
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={adEntryMultiCap}
+              onChange={(e) => setAdEntryMultiCap(e.target.value)}
+              placeholder="默认 10"
+              disabled={!canEdit || !adEntryEnabled}
+            />
+          </label>
+        </div>
+        <label className="merchant-radio">
+          <input
+            type="checkbox"
+            checked={ticketEntryEnabled}
+            onChange={(e) => setTicketEntryEnabled(e.target.checked)}
+            disabled={!canEdit}
+          />
+          门票入场
+        </label>
+        <p className="merchant-note">广告入场用尽后可用门票进入；填 0 关闭该模式门票入场日限档。</p>
         <div className="merchant-field-row">
           <label className="merchant-field">
             单人门票价格
@@ -362,7 +424,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
               value={ticketSoloPrice}
               onChange={(e) => setTicketSoloPrice(e.target.value)}
               placeholder="默认 1"
-              disabled={!canEdit}
+              disabled={!canEdit || !ticketEntryEnabled}
             />
           </label>
           <label className="merchant-field">
@@ -374,7 +436,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
               value={ticketSoloCap}
               onChange={(e) => setTicketSoloCap(e.target.value)}
               placeholder="默认 3"
-              disabled={!canEdit}
+              disabled={!canEdit || !ticketEntryEnabled}
             />
           </label>
         </div>
@@ -388,7 +450,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
               value={ticketMultiPrice}
               onChange={(e) => setTicketMultiPrice(e.target.value)}
               placeholder="默认 2"
-              disabled={!canEdit}
+              disabled={!canEdit || !ticketEntryEnabled}
             />
           </label>
           <label className="merchant-field">
@@ -400,7 +462,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
               value={ticketMultiCap}
               onChange={(e) => setTicketMultiCap(e.target.value)}
               placeholder="默认 5"
-              disabled={!canEdit}
+              disabled={!canEdit || !ticketEntryEnabled}
             />
           </label>
         </div>

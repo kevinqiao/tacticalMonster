@@ -12,7 +12,7 @@ import {
 /** Clears platform session when embed/login partner does not match URL-resolved partnerPid. */
 export function PartnerSessionGuard() {
   const { partnerPid, partnerResolveReady } = usePartnerManager();
-  const { user, authReady, logout } = useUserManager();
+  const { user, authReady, logoutForPartnerMismatch } = useUserManager();
   const locationKey = useHistoryLocationKey();
   const clearingRef = useRef(false);
 
@@ -29,10 +29,10 @@ export function PartnerSessionGuard() {
       sessionPartner: user?.partner,
       uid: user?.uid,
     });
-    void logout().finally(() => {
+    void logoutForPartnerMismatch().finally(() => {
       clearingRef.current = false;
     });
-  }, [authReady, partnerResolveReady, user, partnerPid, logout, locationKey]);
+  }, [authReady, partnerResolveReady, user, partnerPid, logoutForPartnerMismatch, locationKey]);
 
   return null;
 }

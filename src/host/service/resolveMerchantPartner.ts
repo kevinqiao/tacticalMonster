@@ -27,7 +27,7 @@ export type PartnerSlugResolution = {
   partnerSlug: string;
 };
 
-/** Resolve SSO partner pid from public partner slug (`/campaign/{partnerSlug}/...`). */
+/** Resolve SSO partner pid from public partner slug (`/cc/{partnerSlug}/...`). */
 export async function resolvePartnerIdByPartnerSlug(
   partnerSlug: string
 ): Promise<PartnerSlugResolution | null> {

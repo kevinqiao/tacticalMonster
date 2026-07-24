@@ -31,7 +31,7 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
 
       <header className={`playmint-header${headerScrolled ? " is-scrolled" : ""}`}>
         <div className="playmint-header__inner">
-          <a className="playmint-logo" href="/campaign/home" aria-label="PlayMint home">
+          <a className="playmint-logo" href="/cc/home" aria-label="PlayMint home">
             <span className="playmint-logo__mark" aria-hidden="true">
               P
             </span>
@@ -437,7 +437,7 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
               <span className="playmint-roadmap__tag">Live now</span>
               <h3>What merchants get today</h3>
               <ul>
-                <li>Store homepage carousel at /campaign/your-slug</li>
+                <li>Store homepage carousel at /cc/your-slug</li>
                 <li>Display poster campaigns + skill challenges</li>
                 <li>Branded H5 + staff QR / web redeem</li>
                 <li>Merchant dashboard + issued coupon tracking</li>
@@ -472,7 +472,7 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
               <details>
                 <summary>What is the merchant homepage link?</summary>
                 <p>
-                  Every store gets one URL: /campaign/your-slug. All live campaigns appear in a
+                  Every store gets one URL: /cc/your-slug. All live campaigns appear in a
                   carousel — share this single link everywhere instead of reprinting QR codes each
                   week.
                 </p>
@@ -539,7 +539,7 @@ const PlayMintMarketingPage: React.FC<PageProp> = ({ visible }) => {
         <div className="playmint-footer__inner">
           <span>© {new Date().getFullYear()} PlayMint · Activity hub + Wallet reminders for local shops</span>
           <div className="playmint-footer__links">
-            <a href="/campaign/home">Home</a>
+            <a href="/cc/home">Home</a>
             <a href={MERCHANT_URL}>Merchants</a>
           </div>
         </div>

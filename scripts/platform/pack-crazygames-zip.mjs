@@ -6,7 +6,7 @@
  * This pack builds with VITE_BASE=./ and rewrites remaining `/assets/` refs to `./assets/`.
  *
  * After copy, prunes static art not needed for the CG entry
- * `/portal/crazygames/solitaire` (keeps portal/solitaire + portal/3d/ui + hashed JS/CSS),
+ * `/gc/crazygames/solitaire` (keeps portal/solitaire + portal/3d/ui + hashed JS/CSS),
  * and drops PNG/SVG originals when a sibling `.webp` exists (from compress step).
  *
  * Upload: drag contents of releases/crazygames-upload/ (NOT the .zip).

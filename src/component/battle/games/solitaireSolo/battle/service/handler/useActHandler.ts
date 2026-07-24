@@ -1039,52 +1039,80 @@ const useActHandler = () => {
     }, [gameState, runSolitaireSettlement, casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]);
 
     /**
-     * 通关：庆祝动画与结算提交并行；动画 onComplete 当下立刻打开结束流程（不等网络空档）。
+     * 通关：立刻播庆祝；结算可等 `beforeSettle`（清盘后台 move 队列）完成后再提交，
+     * 避免服务端仍 PLAYING → not_terminal → 关掉得分弹窗。
      */
     const finishWinWithVictoryEffect = useCallback(
-        async (nextGs: SoloGameState) => {
+        async (
+            nextGs: SoloGameState,
+            opts?: { beforeSettle?: Promise<unknown> }
+        ) => {
             setInteractionPhase(GameInteractionPhase.animating);
-            gameStateRef.current = nextGs;
-            // 同步 React status=COMPLETED，避免布局 effect 在 idle 窗口把牌拽回 foundation
-            syncReplayState(nextGs);
-
-            const score = Math.max(0, Math.floor(nextGs.score ?? 0));
-            const settlePromise = runSolitaireSettlement(score, { deferHostNotify: true });
-
+            const wonGs: SoloGameState = {
+                ...nextGs,
+                status: SoloGameStatus.COMPLETED,
+            };
+            gameStateRef.current = wonGs;
+            // 清盘期间 React 仍可能是旧 tableau；先锁布局再同步，避免胜利动画背景刷回牌列
+            autoCompleteLayoutGate.blocked = true;
             const victoryRoot =
                 document.querySelector(".solo-player-container") ??
                 document.querySelector(".solo-board-surface");
             victoryRoot?.setAttribute("data-solo-victory", "1");
+            // 同步 React status=COMPLETED，必须 flush，否则 layout effect 可能仍读到 PLAYING+tableau
+            flushSync(() => {
+                syncReplayState(wonGs);
+            });
 
-            try {
-                const dim = boardDimensionRef.current;
-                if (dim) {
-                    layoutAllSoloCardsFromModel(nextGs, dim, boardDimensionRef);
-                }
-                await new Promise<void>((r) => requestAnimationFrame(() => r()));
-                await new Promise<void>((r) => requestAnimationFrame(() => r()));
-                await new Promise<void>((resolve) => {
-                    const fallback = window.setTimeout(resolve, 8000);
-                    PlayEffects.gameOver({
-                        effectType: "classicSimple",
-                        data: {
-                            cards: nextGs.cards,
-                            boardDimension: boardDimensionRef.current,
-                            gameState: nextGs,
-                        },
-                        onComplete: () => {
-                            window.clearTimeout(fallback);
-                            resolve();
-                        },
+            const score = Math.max(0, Math.floor(wonGs.score ?? 0));
+
+            const playVictory = async () => {
+                try {
+                    const dim = boardDimensionRef.current;
+                    if (dim) {
+                        for (const c of wonGs.cards) {
+                            if (c.ele) gsap.killTweensOf(c.ele);
+                        }
+                        // 清盘末尾牌可能还在飞：直接吸附到 foundation 后立刻开扇
+                        layoutAllSoloCardsFromModel(wonGs, dim, boardDimensionRef);
+                    }
+                    await new Promise<void>((resolve) => {
+                        const fallback = window.setTimeout(resolve, 8000);
+                        PlayEffects.gameOver({
+                            effectType: "classicSimple",
+                            data: {
+                                cards: wonGs.cards,
+                                boardDimension: boardDimensionRef.current,
+                                gameState: wonGs,
+                            },
+                            onComplete: () => {
+                                window.clearTimeout(fallback);
+                                resolve();
+                            },
+                        });
                     });
-                });
-            } catch (e) {
-                console.warn("[Solitaire] victory effect", e);
-            }
+                } catch (e) {
+                    console.warn("[Solitaire] victory effect", e);
+                }
+            };
 
-            // 庆祝结束立刻盖上得分遮罩，避免等 settle/findReport 时裸桌闪屏
+            // 庆祝立刻播；结算等清盘 move 队列（与庆祝并行），胜利结束马上盖得分弹窗
+            const victoryPromise = playVictory();
+            const settlePromise = (async () => {
+                if (opts?.beforeSettle) {
+                    try {
+                        await opts.beforeSettle;
+                    } catch (e) {
+                        console.warn("[Solitaire] beforeSettle failed", e);
+                    }
+                }
+                return runSolitaireSettlement(score, { deferHostNotify: true });
+            })();
+
+            await victoryPromise;
+
+            // 庆祝结束立刻盖上得分遮罩（先于 settle 完成也可）
             postSettleLayoutFreezeRef.current = true;
-            // 解锁交互相位：否则再战重开前若仍 animating，会与终局 ref 叠成「看得见却不能操作」
             setInteractionPhase(GameInteractionPhase.idle);
             setPostCasualScoreReport({
                 gameLabel: "Solitaire",
@@ -1102,37 +1130,49 @@ const useActHandler = () => {
             });
             setPostCasualScoreReportOpen(true);
 
-            const r = await settlePromise;
-            if (!r.ok) {
-                console.warn("[Solitaire] win settle failed", r);
-                victoryRoot?.removeAttribute("data-solo-victory");
-                postSettleLayoutFreezeRef.current = false;
-                setPostCasualScoreReportOpen(false);
-                setPostCasualScoreReport(null);
-                await completeCasualSolitaireRun(nextGs);
-                return;
+            let r = await settlePromise;
+            if (!r.ok && r.error === "not_terminal") {
+                // 队列偶发未刷完：短等再试一次
+                await new Promise<void>((resolve) => window.setTimeout(resolve, 400));
+                r = await runSolitaireSettlement(score, { deferHostNotify: true });
             }
+            if (!r.ok) {
+                console.warn("[Solitaire] win settle failed, trying forceEnd", r);
+                r = await runForceEndCasualSettlement({ deferHostNotify: true });
+            }
+
             const isCasualRun =
                 Boolean(casualTournamentId) &&
-                typeof nextGs.gameId === "string" &&
-                nextGs.gameId.startsWith("game_");
+                typeof wonGs.gameId === "string" &&
+                wonGs.gameId.startsWith("game_");
+
+            if (!r.ok) {
+                console.warn("[Solitaire] win settle failed; keep local score report", r);
+                // 保留本局得分弹窗，勿清空（否则胜利后像「中断」）
+                victoryRoot?.removeAttribute("data-solo-victory");
+                autoCompleteLayoutGate.blocked = false;
+                return;
+            }
+
             if (isCasualRun) {
                 if (r.triathlonScoreReportOnly) {
-                    await beginCasualPostSettleFlow(nextGs.gameId, score, {
+                    await beginCasualPostSettleFlow(wonGs.gameId, score, {
                         deferTriathlonTableSummary: true,
                     });
                 } else {
-                    await beginCasualPostSettleFlow(nextGs.gameId, score, r);
+                    await beginCasualPostSettleFlow(wonGs.gameId, score, r);
                     console.info("[Solitaire] post-settle UI opened (with victory)", {
-                        gameId: nextGs.gameId,
+                        gameId: wonGs.gameId,
                         score,
                     });
                 }
                 requestAnimationFrame(() => {
                     victoryRoot?.removeAttribute("data-solo-victory");
+                    autoCompleteLayoutGate.blocked = false;
                 });
             } else {
                 victoryRoot?.removeAttribute("data-solo-victory");
+                autoCompleteLayoutGate.blocked = false;
                 postSettleLayoutFreezeRef.current = false;
                 setPostCasualScoreReportOpen(false);
                 setPostCasualScoreReport(null);
@@ -1142,9 +1182,9 @@ const useActHandler = () => {
         [
             boardDimensionRef,
             runSolitaireSettlement,
+            runForceEndCasualSettlement,
             casualTournamentId,
             beginCasualPostSettleFlow,
-            completeCasualSolitaireRun,
             onGameSubmit,
             setInteractionPhase,
             syncReplayState,
@@ -1924,43 +1964,44 @@ const useActHandler = () => {
         autoCompleteLayoutGate.blocked = true;
         setInteractionPhase(GameInteractionPhase.animating);
 
-        const playFoundationMove = async (
+        const sleepMs = (ms: number) =>
+            new Promise<void>((resolve) => {
+                window.setTimeout(resolve, ms);
+            });
+
+        /** 仅启动飞行；不等待结束，便于下一张交错起飞 */
+        const startFoundationFlight = (
             state: SoloGameState,
             moveCards: SoloCard[],
-            targetZoneId: string,
-            serverFlip?: SoloCard
-        ) => {
-            const moveData = attachMovePlanEle(state, moveCards);
-            await new Promise<void>((resolve) => {
+            targetZoneId: string
+        ): Promise<void> =>
+            new Promise<void>((resolve) => {
                 PlayEffects.moveCard({
                     data: {
                         boardDimensionRef,
                         gameState: state,
-                        moveCards: moveData,
+                        moveCards: attachMovePlanEle(state, moveCards),
                         targetZoneId,
                         autoFoundationMove: true,
                     },
                     onComplete: () => resolve(),
                 });
             });
-            if (serverFlip?.rank && serverFlip?.suit) {
-                const faceCard = mergeServerFaceOntoDomCard(
-                    state.cards.find((c) => c.id === serverFlip.id),
-                    serverFlip
-                );
-                if (faceCard.ele) {
-                    await new Promise<void>((resolve) => {
-                        PlayEffects.flipCard({
-                            data: {
-                                card: faceCard,
-                                gameState: state,
-                                duration: SOLO_ANIMATION_CONFIG.duration.flip.autoFoundation,
-                            },
-                            onComplete: resolve,
-                        });
-                    });
-                }
-            }
+
+        const playFlipAsync = (state: SoloGameState, serverFlip: SoloCard) => {
+            if (!serverFlip.rank || !serverFlip.suit) return;
+            const faceCard = mergeServerFaceOntoDomCard(
+                state.cards.find((c) => c.id === serverFlip.id),
+                serverFlip
+            );
+            if (!faceCard.ele) return;
+            PlayEffects.flipCard({
+                data: {
+                    card: faceCard,
+                    gameState: state,
+                    duration: SOLO_ANIMATION_CONFIG.duration.flip.autoFoundation,
+                },
+            });
         };
 
         const logDrainBlocker = (cur: SoloGameState) => {
@@ -1982,8 +2023,22 @@ const useActHandler = () => {
             console.warn("[Solitaire] local drain blocked", { tops, foundations });
         };
 
+        const staggerMs = Math.max(
+            16,
+            Math.round(
+                (SOLO_ANIMATION_CONFIG.duration.move.autoFoundationStagger ?? 0.055) * 1000
+            )
+        );
+        let serverChain: Promise<void> = Promise.resolve();
+        const enqueueServer = (task: () => Promise<void>) => {
+            serverChain = serverChain.then(task).catch((e) => {
+                console.warn("[Solitaire] auto-complete server queue", e);
+            });
+        };
+
         try {
-            // 本地规划为主：每步 plan → 动画 → 尽力 sync 服务端 move（失败不中断本地收牌）
+            // 本地规划为主：起飞 → 立刻推进本地状态 → 后台串行 sync 服务端
+            // 只等待 stagger，多牌同时在空中，避免「一顿一顿」。
             for (let step = 0; step < 60; step++) {
                 gs = gameStateRef.current;
                 if (!gs) break;
@@ -1992,9 +2047,13 @@ const useActHandler = () => {
                     gameStateRef.current = gs;
                 }
                 if (isAllCardsOnFoundation(gs)) {
-                    const wonGs = { ...gs, status: SoloGameStatus.COMPLETED };
+                    // 模型收齐立即胜利；结算等后台 move 队列，避免 not_terminal
+                    const wonGs = {
+                        ...(gameStateRef.current ?? gs),
+                        status: SoloGameStatus.COMPLETED,
+                    };
                     gameStateRef.current = wonGs;
-                    await finishWinWithVictoryEffect(wonGs);
+                    await finishWinWithVictoryEffect(wonGs, { beforeSettle: serverChain });
                     return;
                 }
 
@@ -2013,26 +2072,33 @@ const useActHandler = () => {
                                 ...((result.data.flip as SoloCard[] | undefined) ?? []),
                             ];
                             const moveCards = result.data.move as SoloCard[];
-                            await playFoundationMove(
-                                gs,
-                                moveCards,
-                                moveCards[0]!.zoneId,
-                                result.data?.flip?.[0] as SoloCard | undefined
-                            );
+                            const targetZoneId = moveCards[0]!.zoneId;
+                            const planState = gs;
+                            void startFoundationFlight(planState, moveCards, targetZoneId);
                             let nextGs = mergeCardPatches(gs, updateCards);
                             const clear = isAllCardsOnFoundation(nextGs);
-                            nextGs = applyServerProgress(
-                                syncReplayScore,
-                                nextGs,
-                                {
-                                    score: result.score,
-                                    moves: result.moves,
-                                    gameStatus: result.gameStatus,
-                                },
-                                { allowCompleted: clear }
-                            );
-                            if (clear) nextGs = { ...nextGs, status: SoloGameStatus.COMPLETED };
+                            nextGs = {
+                                ...nextGs,
+                                ...(typeof result.score === "number"
+                                    ? { score: result.score }
+                                    : {}),
+                                ...(typeof result.moves === "number"
+                                    ? { moves: result.moves }
+                                    : {}),
+                                status: clear
+                                    ? SoloGameStatus.COMPLETED
+                                    : SoloGameStatus.PLAYING,
+                            };
                             gameStateRef.current = nextGs;
+                            const flip0 = result.data?.flip?.[0] as SoloCard | undefined;
+                            if (flip0) playFlipAsync(nextGs, flip0);
+                            if (clear) {
+                                await finishWinWithVictoryEffect(nextGs, {
+                                    beforeSettle: serverChain,
+                                });
+                                return;
+                            }
+                            await sleepMs(staggerMs);
                             continue;
                         }
                     } catch (e) {
@@ -2055,58 +2121,70 @@ const useActHandler = () => {
 
                 const moveCards = plan.data.move as SoloCard[];
                 const targetZoneId = next.toZoneId;
+                const planState = gs;
 
-                // 先动画再更新 ref。清盘过程中不要 syncReplayState：
-                // 会按 zoneIndex 重排 DOM，冲掉 GSAP 飞行动画，看起来像「没动画」。
-                await playFoundationMove(gs, moveCards, targetZoneId);
+                // 清盘过程中不要 syncReplayState：会按 zoneIndex 重排 DOM，冲掉飞行。
+                void startFoundationFlight(planState, moveCards, targetZoneId);
 
                 let nextGs = mergeCardPatches(gs, moveCards);
                 nextGs = { ...nextGs, status: SoloGameStatus.PLAYING };
                 gameStateRef.current = nextGs;
 
-                try {
+                const cardId = live.id;
+                const gameId = gs.gameId;
+                enqueueServer(async () => {
                     const result = (await convex.mutation(api.service.gameManager.move, {
-                        gameId: gs.gameId,
-                        cardId: live.id,
+                        gameId,
+                        cardId,
                         toZone: targetZoneId,
-                    })) as ActionResult & ServerProgress & { error?: string; idempotent?: boolean };
-                    if (result?.ok) {
-                        const flip = result.data?.flip as SoloCard[] | undefined;
-                        if (flip?.length) {
-                            nextGs = mergeCardPatches(nextGs, flip);
+                    })) as ActionResult &
+                        ServerProgress & { error?: string; idempotent?: boolean };
+                    if (!result?.ok) {
+                        if (result?.error !== "terminal") {
+                            console.warn(
+                                "[Solitaire] auto-complete server move skipped",
+                                result?.error ?? "rejected",
+                                `${live.rank ?? "?"}${live.suit?.[0] ?? "?"}→${targetZoneId}`
+                            );
                         }
-                        const clear = isAllCardsOnFoundation(nextGs);
-                        nextGs = applyServerProgress(
-                            syncReplayScore,
-                            nextGs,
-                            {
-                                score: result.score,
-                                moves: result.moves,
-                                gameStatus: result.gameStatus,
-                            },
-                            { allowCompleted: clear }
-                        );
-                        if (clear) nextGs = { ...nextGs, status: SoloGameStatus.COMPLETED };
-                        gameStateRef.current = nextGs;
-                    } else if (result?.error === "terminal") {
-                        // 另一路已收齐 / 本局已结束：本地继续收完即可
-                    } else {
-                        console.warn(
-                            "[Solitaire] auto-complete server move skipped",
-                            result?.error ?? "rejected",
-                            `${live.rank ?? "?"}${live.suit?.[0] ?? "?"}→${targetZoneId}`
-                        );
+                        return;
                     }
-                } catch (e) {
-                    console.warn("[Solitaire] auto-complete server move error — continuing locally", e);
+                    let cur = gameStateRef.current;
+                    if (!cur) return;
+                    const flip = result.data?.flip as SoloCard[] | undefined;
+                    if (flip?.length) {
+                        cur = mergeCardPatches(cur, flip);
+                        for (const f of flip) {
+                            playFlipAsync(cur, f);
+                        }
+                    }
+                    const clear = isAllCardsOnFoundation(cur);
+                    // 清盘中不要 syncReplayScore：会把 React 打成 PLAYING+旧牌面，胜利动画背景刷回 tableau
+                    cur = {
+                        ...cur,
+                        ...(typeof result.score === "number" ? { score: result.score } : {}),
+                        ...(typeof result.moves === "number" ? { moves: result.moves } : {}),
+                        status: clear ? SoloGameStatus.COMPLETED : SoloGameStatus.PLAYING,
+                    };
+                    gameStateRef.current = cur;
+                });
+
+                // 最后一张入模后立刻胜利（吸附未飞完的牌），不等 stagger
+                if (isAllCardsOnFoundation(nextGs)) {
+                    const wonGs = { ...nextGs, status: SoloGameStatus.COMPLETED };
+                    gameStateRef.current = wonGs;
+                    await finishWinWithVictoryEffect(wonGs, { beforeSettle: serverChain });
+                    return;
                 }
+
+                await sleepMs(staggerMs);
             }
 
             const finalGs = gameStateRef.current;
             if (finalGs && isAllCardsOnFoundation(finalGs)) {
                 const wonGs = { ...finalGs, status: SoloGameStatus.COMPLETED };
                 gameStateRef.current = wonGs;
-                await finishWinWithVictoryEffect(wonGs);
+                await finishWinWithVictoryEffect(wonGs, { beforeSettle: serverChain });
                 return;
             }
             if (finalGs) {
@@ -2121,25 +2199,34 @@ const useActHandler = () => {
                         .map((c) => `${c.rank}${c.suit?.[0]}:${c.zoneId}`)
                 );
             }
+            await serverChain;
         } finally {
             const snap = gameStateRef.current;
+            const won =
+                Boolean(snap) &&
+                (isAllCardsOnFoundation(snap!) ||
+                    isTerminalSoloStatus(snap!.status));
             // 必须在解除 layout 锁 / 切 idle 之前把权威牌面刷进 React
             if (snap) {
                 flushSync(() => {
-                    syncReplayState(snap);
+                    syncReplayState(
+                        won ? { ...snap, status: SoloGameStatus.COMPLETED } : snap
+                    );
                 });
             }
             autoCompleteRunningRef.current = false;
             autoCompleteGameLocks.delete(lockId);
             holdGameStateRefSync.current = false;
-            autoCompleteLayoutGate.blocked = false;
+            // 胜利路径由 finishWin 在去掉 data-solo-victory 后再解锁；此处勿提前放开
+            if (!won) {
+                autoCompleteLayoutGate.blocked = false;
+            }
             setInteractionPhase(GameInteractionPhase.idle);
         }
     }, [
         config.autoComplete,
         convex,
         boardDimensionRef,
-        syncReplayScore,
         syncReplayState,
         setInteractionPhase,
         finishWinWithVictoryEffect,

@@ -7,16 +7,16 @@ import {
 } from "@/host/util/portalPathParse";
 
 describe("parsePortalPathFromPathname", () => {
-  it("parses first-party /portal/{gameType}", () => {
-    expect(parsePortalPathFromPathname("/portal/block_blast")).toEqual({
+  it("parses first-party /gc/{gameType}", () => {
+    expect(parsePortalPathFromPathname("/gc/block_blast")).toEqual({
       partnerKey: null,
       gameType: "block_blast",
       isFirstPartyPortal: true,
     });
   });
 
-  it("parses partner /portal/{key}/{gameType}", () => {
-    expect(parsePortalPathFromPathname("/portal/acme/solitaire")).toEqual({
+  it("parses partner /gc/{key}/{gameType}", () => {
+    expect(parsePortalPathFromPathname("/gc/acme/solitaire")).toEqual({
       partnerKey: "acme",
       gameType: "solitaire",
       isFirstPartyPortal: false,
@@ -24,7 +24,7 @@ describe("parsePortalPathFromPathname", () => {
   });
 
   it("normalizes partner key to lowercase", () => {
-    expect(parsePortalPathFromPathname("/portal/AcMe/yatz").partnerKey).toBe("acme");
+    expect(parsePortalPathFromPathname("/gc/AcMe/yatz").partnerKey).toBe("acme");
   });
 
   it("returns non-portal paths as inactive", () => {
@@ -35,8 +35,8 @@ describe("parsePortalPathFromPathname", () => {
     });
   });
 
-  it("handles bare /portal/{key} without game", () => {
-    expect(parsePortalPathFromPathname("/portal/acme")).toEqual({
+  it("handles bare /gc/{key} without game", () => {
+    expect(parsePortalPathFromPathname("/gc/acme")).toEqual({
       partnerKey: "acme",
       gameType: null,
       isFirstPartyPortal: false,
@@ -44,13 +44,13 @@ describe("parsePortalPathFromPathname", () => {
   });
 
   it("builds launch paths", () => {
-    expect(portalLaunchPath(null, "match_3")).toBe("/portal/match_3");
-    expect(portalLaunchPath("acme", "tower_arena")).toBe("/portal/acme/tower_arena");
+    expect(portalLaunchPath(null, "match_3")).toBe("/gc/match_3");
+    expect(portalLaunchPath("acme", "tower_arena")).toBe("/gc/acme/tower_arena");
   });
 
   it("recognizes all registered game types in first-party URLs", () => {
     for (const gameType of PARTNER_GAME_TYPES) {
-      const parsed = parsePortalPathFromPathname(`/portal/${gameType}`);
+      const parsed = parsePortalPathFromPathname(`/gc/${gameType}`);
       expect(parsed.isFirstPartyPortal).toBe(true);
       expect(parsed.gameType).toBe(gameType);
     }

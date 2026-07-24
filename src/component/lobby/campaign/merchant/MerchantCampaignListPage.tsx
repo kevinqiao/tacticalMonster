@@ -1204,7 +1204,7 @@ export const MerchantCampaignListInner: React.FC<{
 
   const [creating, setCreating] = useState(false);
 
-  /** Partner public /campaign/{slug} when available (optional display). */
+  /** Partner public /cc/{slug} when available (optional display). */
   const [partnerSlug, setPartnerSlug] = useState("");
 
   const { options: partnerGameOptions, loading: partnerGamesLoading } = usePartnerGameOptions(
@@ -1242,7 +1242,7 @@ export const MerchantCampaignListInner: React.FC<{
 
 
   useEffect(() => {
-    // Partner slug for public /campaign/{slug} links — wire when partner detail is available.
+    // Partner slug for public /cc/{slug} links — wire when partner detail is available.
     setPartnerSlug("");
   }, [partnerId]);
 
@@ -2058,8 +2058,8 @@ export const MerchantCampaignListInner: React.FC<{
           {partnerSlug ? (
             <p className="merchant-note">
               {t("campaigns.merchantHomeUrl", { partnerSlug })}{" "}
-              <a href={`/campaign/${partnerSlug}`} target="_blank" rel="noopener noreferrer">
-                /campaign/{partnerSlug}
+              <a href={`/cc/${partnerSlug}`} target="_blank" rel="noopener noreferrer">
+                /cc/{partnerSlug}
               </a>
             </p>
           ) : null}
@@ -2073,8 +2073,8 @@ export const MerchantCampaignListInner: React.FC<{
           {partnerSlug ? (
             <p className="merchant-note">
               {t("campaigns.merchantHomeUrl", { partnerSlug })}{" "}
-              <a href={`/campaign/${partnerSlug}`} target="_blank" rel="noopener noreferrer">
-                /campaign/{partnerSlug}
+              <a href={`/cc/${partnerSlug}`} target="_blank" rel="noopener noreferrer">
+                /cc/{partnerSlug}
               </a>
             </p>
           ) : null}

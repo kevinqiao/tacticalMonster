@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type {
+  PortalAdCoinOffer,
   PortalRedemptionProfileView,
   PortalShopSkuRow,
 } from "../service/usePortalManager";
@@ -28,6 +29,12 @@ type PortalShopPanelProps = {
   verifiedEmail?: string;
   verifiedPhone?: string;
   onFeedback?: (message: string | null) => void;
+  /** 自营看广告领金币；null/undefined 时不展示 */
+  adCoinOffer?: PortalAdCoinOffer | null;
+  onWatchAdForCoins?: () => Promise<
+    | { ok: true; coinsGranted: number; remaining: number; rewardAmount: number }
+    | { ok: false; error: string }
+  >;
 };
 
 function profileHint(profile?: PortalRedemptionProfileView | null): string | null {
@@ -38,6 +45,16 @@ function profileHint(profile?: PortalRedemptionProfileView | null): string | nul
 
 function sectionLabelKey(sectionId: string): string {
   return `shop.sections.${sectionId}`;
+}
+
+function adCoinErrorMessage(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  error: string
+): string {
+  const key = `shop.adCoin.errors.${error}`;
+  const translated = t(key, { defaultValue: "" });
+  if (translated) return translated;
+  return t("shop.adCoin.errors.generic");
 }
 
 export function PortalShopPanel({
@@ -51,11 +68,14 @@ export function PortalShopPanel({
   verifiedEmail,
   verifiedPhone,
   onFeedback,
+  adCoinOffer = null,
+  onWatchAdForCoins,
 }: PortalShopPanelProps) {
   const { t } = useTranslation("portal.player");
   const coinIcon = PORTAL_SHOP_COIN_ICON;
   const ticketIcon = PORTAL_SHOP_TICKET_ICON;
   const [buying, setBuying] = useState<string | null>(null);
+  const [watchingAd, setWatchingAd] = useState(false);
   const [inlineNote, setInlineNote] = useState<string | null>(null);
   const [regionModalOpen, setRegionModalOpen] = useState(false);
   const [pendingSkuId, setPendingSkuId] = useState<string | null>(null);
@@ -89,6 +109,16 @@ export function PortalShopPanel({
   const showOrdersLink = Boolean(
     onOpenGiftCardOrders && (hasGiftCardCatalog || giftCardOrderCount > 0)
   );
+
+  const showAdCoin =
+    Boolean(adCoinOffer?.enabled) &&
+    typeof adCoinOffer?.rewardAmount === "number" &&
+    Boolean(onWatchAdForCoins);
+
+  const adCap = adCoinOffer?.cap ?? 0;
+  const adRemaining = adCoinOffer?.remaining ?? 0;
+  const adReward = adCoinOffer?.rewardAmount ?? 0;
+  const adExhausted = adRemaining <= 0;
 
   const executeBuy = useCallback(
     async (skuId: string, priceCoins: number) => {
@@ -127,6 +157,29 @@ export function PortalShopPanel({
     },
     [executeBuy]
   );
+
+  const handleWatchAd = useCallback(async () => {
+    if (!onWatchAdForCoins || watchingAd || adExhausted) return;
+    setWatchingAd(true);
+    setInlineNote(null);
+    onFeedback?.(null);
+    try {
+      const r = await onWatchAdForCoins();
+      if (r.ok) {
+        const message = t("shop.adCoin.success", {
+          coins: r.coinsGranted.toLocaleString(),
+        });
+        if (onFeedback) onFeedback(message);
+        else setInlineNote(message);
+      } else {
+        const message = adCoinErrorMessage(t, r.error);
+        if (onFeedback) onFeedback(message);
+        else setInlineNote(message);
+      }
+    } finally {
+      setWatchingAd(false);
+    }
+  }, [adExhausted, onFeedback, onWatchAdForCoins, t, watchingAd]);
 
   const handleRegionConfirm = useCallback(
     async (region: string) => {
@@ -203,7 +256,7 @@ export function PortalShopPanel({
               ? "portal-shop-panel__buy"
               : "portal-shop-panel__buy portal-shop-panel__buy--insufficient"
           }
-          disabled={buying != null || locked}
+          disabled={buying != null || watchingAd || locked}
           onClick={() => void handleBuy(sku)}
         >
           {buying === sku.skuId
@@ -246,9 +299,42 @@ export function PortalShopPanel({
         <p className="portal-shop-panel__note">{inlineNote}</p>
       ) : null}
 
+      {showAdCoin ? (
+        <div className="portal-shop-panel__adCoin" aria-label={t("shop.adCoin.title")}>
+          <div className="portal-shop-panel__item portal-shop-panel__item--adCoin">
+            <div className="portal-shop-panel__itemMain">
+              <div className="portal-shop-panel__itemTitleRow">
+                <strong>{t("shop.adCoin.title")}</strong>
+              </div>
+              <p className="portal-shop-panel__desc">{t("shop.adCoin.hint")}</p>
+              <p className="portal-shop-panel__limit">
+                {t("shop.adCoin.remaining", {
+                  remaining: adRemaining,
+                  cap: adCap,
+                })}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="portal-shop-panel__buy"
+              disabled={watchingAd || buying != null || adExhausted}
+              onClick={() => void handleWatchAd()}
+            >
+              {watchingAd
+                ? t("shop.adCoin.watching")
+                : adExhausted
+                  ? t("shop.adCoin.exhausted")
+                  : t("shop.adCoin.watch", { coins: adReward })}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="portal-shop-panel__catalog">
         {skuGroups.length === 0 ? (
-          <p className="portal-shop-panel__empty">{t("shop.empty")}</p>
+          showAdCoin ? null : (
+            <p className="portal-shop-panel__empty">{t("shop.empty")}</p>
+          )
         ) : (
           skuGroups.map((group) => (
             <section

@@ -3,6 +3,8 @@ import {
   type RegisteredPartnerGameType,
 } from "@/convex/portal/convex/data/partnerGameRegistry";
 
+import { PORTAL_URL_PREFIX, PORTAL_URL_SEGMENT } from "./appUrlSegments";
+
 export type ParsedPortalPath = {
   partnerKey: string | null;
   gameType: RegisteredPartnerGameType | null;
@@ -16,7 +18,7 @@ function isGameType(segment: string | undefined): segment is RegisteredPartnerGa
 
 export function parsePortalPathFromPathname(pathname: string): ParsedPortalPath {
   const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] !== "portal") {
+  if (parts[0] !== PORTAL_URL_SEGMENT) {
     return { partnerKey: null, gameType: null, isFirstPartyPortal: false };
   }
   const seg2 = parts[1]?.trim();
@@ -31,6 +33,8 @@ export function parsePortalPathFromPathname(pathname: string): ParsedPortalPath 
 }
 
 export function portalLaunchPath(partnerKey: string | null, gameType: RegisteredPartnerGameType): string {
-  if (partnerKey) return "/portal/" + partnerKey + "/" + gameType;
-  return "/portal/" + gameType;
+  if (partnerKey) return `${PORTAL_URL_PREFIX}/${partnerKey}/${gameType}`;
+  return `${PORTAL_URL_PREFIX}/${gameType}`;
 }
+
+export { PORTAL_URL_PREFIX, PORTAL_URL_SEGMENT };

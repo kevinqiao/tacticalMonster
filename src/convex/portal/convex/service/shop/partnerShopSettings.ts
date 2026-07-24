@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { internalMutation, internalQuery } from "../../_generated/server";
 import {
   defaultPortalPartnerShopSettings,
@@ -44,6 +45,19 @@ function normalize(
     overrides: row.overrides ?? {},
     updatedAt: row.updatedAt,
   };
+}
+
+/** Load a partner's shop settings, or null when no row exists. */
+export async function loadPartnerShopSettings(
+  ctx: QueryCtx | MutationCtx,
+  partnerId: number
+): Promise<PortalPartnerShopSettings | null> {
+  const row = await ctx.db
+    .query("portal_partner_shop_settings")
+    .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerId))
+    .unique();
+  if (!row) return null;
+  return normalize(partnerId, row);
 }
 
 export const getPartnerShopSettingsInternal = internalQuery({

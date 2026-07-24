@@ -21,12 +21,14 @@ export const joinTournament = authedAction({
     tournamentId: v.optional(v.string()),
     partnerSlug: v.optional(v.string()),
     campaignSlug: v.optional(v.string()),
-    /** Explicitly select the ticket rung after free plays are exhausted. */
+    /** Explicitly select the ad rung after free plays are exhausted. */
+    adEntry: v.optional(v.boolean()),
+    /** Explicitly select the ticket rung after free + ad are exhausted. */
     ticketEntry: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
-    { tournamentId, partnerSlug, campaignSlug, ticketEntry }
+    { tournamentId, partnerSlug, campaignSlug, adEntry, ticketEntry }
   ): Promise<JoinCasualRunResult> => {
     const uid = ctx.uid;
     let resolvedTemplateId = tournamentId;
@@ -88,6 +90,16 @@ export const joinTournament = authedAction({
     }
     if (!isCasualGameLobbyVisible(def.gameType)) {
       return { ok: false as const, error: "game_not_available" };
+    }
+    if (adEntry && ticketEntry) {
+      return { ok: false as const, error: "invalid_entry_mode" };
+    }
+    if (adEntry) {
+      const entry = await ctx.runMutation(
+        internal.service.ads.portalAdEntryService.consumeAdEntryForJoin,
+        { uid, templateId: resolvedTemplateId }
+      );
+      if (!entry.ok) return entry;
     }
     if (ticketEntry) {
       const entry = await ctx.runMutation(

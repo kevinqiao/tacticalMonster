@@ -5,13 +5,19 @@ import {
 } from "@/convex/sso/convex/service/partner/partnerCapabilities";
 import { resolveEmbedMethod } from "@/convex/sso/convex/service/embed/partnerEmbedConfig";
 
+import { CAMPAIGN_URL_PREFIX, PORTAL_URL_PREFIX } from "@/host/util/appUrlSegments";
+
 import type { Partner } from "../../PartnerManager";
 
 export type AppEmbedContext = "portal" | "campaign" | "casual" | "tactical";
 
 export function resolveAppEmbedContext(pathname: string): AppEmbedContext | null {
-  if (pathname.startsWith("/portal/") || pathname === "/portal") return "portal";
-  if (pathname.startsWith("/campaign/") || pathname === "/campaign") return "campaign";
+  if (pathname.startsWith(`${PORTAL_URL_PREFIX}/`) || pathname === PORTAL_URL_PREFIX) {
+    return "portal";
+  }
+  if (pathname.startsWith(`${CAMPAIGN_URL_PREFIX}/`) || pathname === CAMPAIGN_URL_PREFIX) {
+    return "campaign";
+  }
   if (pathname.startsWith("/casual/") || pathname === "/casual") return "casual";
   if (pathname.startsWith("/tactical/") || pathname === "/tactical") return "tactical";
   return null;

@@ -1,5 +1,11 @@
 ﻿import { AppsConfiguration } from "host/config/PageConfiguration";
 
+import {
+    CAMPAIGN_URL_PREFIX,
+    CAMPAIGN_URL_SEGMENT,
+    PORTAL_URL_PREFIX,
+    PORTAL_URL_SEGMENT,
+} from "./appUrlSegments";
 import { parsePortalPathFromPathname } from "./portalPathParse";
 
 import { useMemo } from "react";
@@ -9,7 +15,14 @@ export const DEFAULT_MOUNT_CONTEXT = "/tactical";
 
 export type AppContextTag = "tactical" | "casual" | "portal" | "campaign" | "platform" | "partner" | "shared";
 
-/** Resolve URL context segment: `/campaign/foo` â†’ `/campaign`, `/` â†’ `/`. */
+/** Map URL context (`/gc`, `/cc`) to modal/shell tags (`portal`, `campaign`). */
+function activeContextToTag(ctx: string): AppContextTag {
+    if (ctx === PORTAL_URL_PREFIX) return "portal";
+    if (ctx === CAMPAIGN_URL_PREFIX) return "campaign";
+    return ctx.replace(/^\//, "") as AppContextTag;
+}
+
+/** Resolve URL context segment: `/cc/foo` → `/cc`, `/` → `/`. */
 export function resolveActiveContext(pathname: string): string {
     const ps = pathname.split("/").filter(Boolean);
     if (ps.length === 0) return "/";
@@ -35,7 +48,7 @@ export function modalMatchesActiveContext(
     const tags = modal.contexts ?? inferModalContexts(modal.path);
     if (tags.includes("shared")) return true;
     const ctx = resolveActiveContext(pathname);
-    const tag = ctx.replace(/^\//, "") as AppContextTag;
+    const tag = activeContextToTag(ctx);
     return tags.includes(tag);
 }
 
@@ -44,13 +57,13 @@ export const parseLocation = (): PageItem | undefined => {
     page.uri = window.location.pathname;
 
     const ps = window.location.pathname.split("/");
-    if (ps[1] === "portal") {
+    if (ps[1] === PORTAL_URL_SEGMENT) {
         const portalPath = parsePortalPathFromPathname(window.location.pathname);
         if (portalPath.gameType) {
             page.data = { gameType: portalPath.gameType };
         }
     }
-    if (ps[1] === "campaign" && ps[2] && ps[2] !== "merchant" && ps[2] !== "home") {
+    if (ps[1] === CAMPAIGN_URL_SEGMENT && ps[2] && ps[2] !== "merchant" && ps[2] !== "home") {
         page.data = {
             partnerSlug: ps[2],
             ...(ps[3] ? { campaignSlug: ps[3] } : {}),
@@ -74,7 +87,9 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
     const ps = location.pathname.split("/");
     // console.log(ps)
     res["ctx"] = ps[1].length === 0 ? "/" : ps[1];
-    let app: any = AppsConfiguration.find((a) => a.context === res['ctx']);
+    let app: any = AppsConfiguration.find(
+        (a) => a.context === res["ctx"] || a.context === `/${res["ctx"]}`
+    );
     if (!app) {
         app = AppsConfiguration.find((a) => a.context === "/" || a.context === "");
         res['ctx'] = "/"
@@ -85,9 +100,9 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
 
         const uri = res['ctx'] === "/" ? location.pathname : location.pathname.substring(res['ctx'].length);
         let navCfg: any;
-        if (res["ctx"] === "campaign" && ps[2] === "merchant") {
+        if (res["ctx"] === CAMPAIGN_URL_SEGMENT && ps[2] === "merchant") {
             navCfg = app.navs.find((nav: any) => nav.uri === "merchant");
-        } else if (res["ctx"] === "campaign" && ps[2] === "home") {
+        } else if (res["ctx"] === CAMPAIGN_URL_SEGMENT && ps[2] === "home") {
             navCfg = app.navs.find((nav: any) => nav.uri === "home");
         } else if (res["ctx"] === "partner" && ps[2] === "admin") {
             navCfg = app.navs.find((nav: any) => nav.uri === "admin");
@@ -95,20 +110,20 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
             navCfg = app.navs.find((nav: any) => nav.uri === "operation");
         } else if (res["ctx"] === "platform" && ps[2] === "admin") {
             navCfg = app.navs.find((nav: any) => nav.uri === "admin");
-        } else if (res["ctx"] === "campaign" && ps[2] && ps[2] !== "merchant") {
+        } else if (res["ctx"] === CAMPAIGN_URL_SEGMENT && ps[2] && ps[2] !== "merchant") {
             navCfg = app.navs.find((nav: any) => nav.uri === "");
-        } else if (res["ctx"] === "portal" && ps[2] === "preview") {
+        } else if (res["ctx"] === PORTAL_URL_SEGMENT && ps[2] === "preview") {
             navCfg = undefined;
         } else {
             navCfg = app.navs.find((nav: any) => nav.uri && uri.includes(nav.uri));
         }
-        if (!navCfg && res["ctx"] === "portal" && app.navs.length > 0) {
+        if (!navCfg && res["ctx"] === PORTAL_URL_SEGMENT && app.navs.length > 0) {
             navCfg = app.navs.find((nav: any) => nav.uri === "") ?? app.navs[0];
         }
-        if (!navCfg && res["ctx"] === "campaign" && isCampaignPlayerShellUri(location.pathname) && app.navs.length > 0) {
+        if (!navCfg && res["ctx"] === CAMPAIGN_URL_SEGMENT && isCampaignPlayerShellUri(location.pathname) && app.navs.length > 0) {
             navCfg = app.navs.find((nav: any) => nav.uri === "") ?? app.navs[0];
         }
-        if (!navCfg && res["ctx"] === "campaign" && ps[2] === "merchant") {
+        if (!navCfg && res["ctx"] === CAMPAIGN_URL_SEGMENT && ps[2] === "merchant") {
             navCfg = app.navs.find((nav: any) => nav.uri === "merchant") ?? app.navs[0];
         }
         // if (!navCfg) {
@@ -138,7 +153,7 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
                 navItem.data = params;
                 navItem.params = params
             }
-            if (res["ctx"] === "portal") {
+            if (res["ctx"] === PORTAL_URL_SEGMENT) {
                 const gameType = ps[2]?.trim();
                 if (gameType && gameType !== "preview") {
                     navItem.data = { ...(navItem.data ?? {}), gameType };
@@ -184,7 +199,7 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
                     navItem.data = { ...(navItem.data ?? {}), campaignId };
                 }
             }
-            if (res["ctx"] === "campaign") {
+            if (res["ctx"] === CAMPAIGN_URL_SEGMENT) {
                 if (ps[2] === "merchant") {
                     const sub = ps[3]?.trim();
                     if (sub) {
@@ -280,22 +295,22 @@ export function normalizePageUri(uri: string): string {
     return t.replace(/\/+$/, "");
 }
 
-/** Campaign landing shell is `/campaign/{partnerSlug}/{campaignSlug}` — not staff consoles. */
+/** Campaign landing shell is `/cc/{partnerSlug}/{campaignSlug}` — not staff consoles. */
 const CAMPAIGN_PATH_RESERVED = new Set(["home", "merchant"]);
 
 export function isCampaignLandingPageUri(uri: string): boolean {
     const u = normalizePageUri(uri);
-    if (!u.startsWith("/campaign/")) return false;
+    if (!u.startsWith(`${CAMPAIGN_URL_PREFIX}/`)) return false;
     const parts = u.split("/").filter(Boolean);
     if (parts.length < 3) return false;
     if (CAMPAIGN_PATH_RESERVED.has(parts[1]!)) return false;
     return true;
 }
 
-/** Partner carousel entry: `/campaign/{partnerSlug}` (no campaign slug yet). */
+/** Partner carousel entry: `/cc/{partnerSlug}` (no campaign slug yet). */
 export function isCampaignMerchantEntryUri(uri: string): boolean {
     const u = normalizePageUri(uri);
-    if (!u.startsWith("/campaign/")) return false;
+    if (!u.startsWith(`${CAMPAIGN_URL_PREFIX}/`)) return false;
     const parts = u.split("/").filter(Boolean);
     if (parts.length !== 2) return false;
     if (CAMPAIGN_PATH_RESERVED.has(parts[1]!)) return false;
@@ -307,10 +322,10 @@ export function isCampaignPlayerShellUri(uri: string): boolean {
     return isCampaignMerchantEntryUri(uri) || isCampaignLandingPageUri(uri);
 }
 
-/** `/campaign/{partnerSlug}` or `/campaign/{partnerSlug}/{campaignSlug}` → partner slug. */
+/** `/cc/{partnerSlug}` or `/cc/{partnerSlug}/{campaignSlug}` → partner slug. */
 export function parseCampaignPartnerSlugFromPathname(pathname: string): string | null {
     const parts = pathname.split("/").filter(Boolean);
-    if (parts[0] !== "campaign" || !parts[1] || CAMPAIGN_PATH_RESERVED.has(parts[1])) {
+    if (parts[0] !== CAMPAIGN_URL_SEGMENT || !parts[1] || CAMPAIGN_PATH_RESERVED.has(parts[1])) {
         return null;
     }
     return parts[1].trim().toLowerCase();
@@ -329,7 +344,7 @@ export function pageUriMatchesContainer(pageUri: string, containerUri: string): 
     const u = normalizePageUri(pageUri);
     const c = normalizePageUri(containerUri);
     if (u === c) return true;
-    if (c === "/campaign") {
+    if (c === CAMPAIGN_URL_PREFIX) {
         return isCampaignPlayerShellUri(u);
     }
     return u.startsWith(`${c}/`);
@@ -338,10 +353,14 @@ export function pageUriMatchesContainer(pageUri: string, containerUri: string): 
 export const findContainerByURI = (container: PageContainer, uri: string): PageContainer | null => {
   const u = normalizePageUri(uri);
   const containerUri = normalizePageUri(container.uri);
-  if (containerUri === "/portal" && u.startsWith("/portal/") && !u.startsWith("/portal/preview")) {
+  if (
+    containerUri === PORTAL_URL_PREFIX &&
+    u.startsWith(`${PORTAL_URL_PREFIX}/`) &&
+    !u.startsWith(`${PORTAL_URL_PREFIX}/preview`)
+  ) {
     return container;
   }
-  if (normalizePageUri(container.uri) === "/campaign" && isCampaignPlayerShellUri(u)) {
+  if (normalizePageUri(container.uri) === CAMPAIGN_URL_PREFIX && isCampaignPlayerShellUri(u)) {
     return container;
   }
   if (normalizePageUri(container.uri) === u) {
@@ -407,9 +426,9 @@ export const findAncestor = (containers: PageContainer[], uri: string): PageCont
     return null;
 }
 
-/** `/portal/preview` 由 MainApp 独立壳层渲染，不参与 RenderApp page_container 树。 */
+/** `/gc/preview` 由 MainApp 独立壳层渲染，不参与 RenderApp page_container 树。 */
 export function isPortalPreviewUri(uri: string): boolean {
-    return normalizePageUri(uri).startsWith("/portal/preview");
+    return normalizePageUri(uri).startsWith(`${PORTAL_URL_PREFIX}/preview`);
 }
 
 /**

@@ -52,7 +52,7 @@ export default defineSchema({
          */
         data: v.optional(v.any()),
 
-        /** URL segment for /portal/{portal_key}/{gameType} (e.g. crazygames). */
+        /** URL segment for /gc/{portal_key}/{gameType} (e.g. crazygames). */
         portal_key: v.optional(v.string()),
 
         /**
@@ -72,7 +72,7 @@ export default defineSchema({
           })
         ),
 
-        /** Public URL segment for /campaign/{slug}/... when campaignOps. */
+        /** Public URL segment for /cc/{slug}/... when campaignOps. */
         slug: v.optional(v.string()),
 
     })

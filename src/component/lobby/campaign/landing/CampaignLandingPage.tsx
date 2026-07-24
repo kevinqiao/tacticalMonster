@@ -2,6 +2,8 @@ import React, { useMemo } from "react";
 
 import { useTranslation } from "react-i18next";
 
+import { CAMPAIGN_URL_SEGMENT } from "@/host/util/appUrlSegments";
+
 import { PageProp } from "host/RenderApp";
 
 import { useUserManager } from "host/service/UserManager";
@@ -30,7 +32,7 @@ import "./campaignLanding.css";
 function slugsFromLocation(): { partnerSlug: string; campaignSlug: string } {
   const parts = window.location.pathname.split("/").filter(Boolean);
 
-  if (parts[0] === "campaign" && parts[1] && parts[1] !== "merchant") {
+  if (parts[0] === CAMPAIGN_URL_SEGMENT && parts[1] && parts[1] !== "merchant") {
     return { partnerSlug: parts[1], campaignSlug: parts[2] ?? "" };
   }
 

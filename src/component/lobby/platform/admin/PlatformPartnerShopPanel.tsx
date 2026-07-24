@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import { PORTAL_SHOP_SKU_CATALOG } from "@/convex/portal/convex/data/portalShopCatalog";
 import PartnerAdminShopPanel from "../../partner/admin/PartnerAdminShopPanel";
-import { usePlatformAdminMutations } from "./usePlatformAdmin";
+import { usePlatformAdminAuth, usePlatformAdminMutations } from "./usePlatformAdmin";
 
 type ShopSettingsForm = {
   enabled: boolean;
@@ -38,6 +38,7 @@ const DEFAULT_FORM: ShopSettingsForm = {
  * Settings SoT lives in Portal; Platform Admin writes via SSO → Portal bridge.
  */
 const PlatformPartnerShopPanel: React.FC<Props> = ({ partnerId, canEdit }) => {
+  const { authed } = usePlatformAdminAuth();
   const { getPlatformPartnerShopSettings, savePlatformPartnerShopSettings } =
     usePlatformAdminMutations();
   const [form, setForm] = useState<ShopSettingsForm>(DEFAULT_FORM);
@@ -46,6 +47,7 @@ const PlatformPartnerShopPanel: React.FC<Props> = ({ partnerId, canEdit }) => {
   const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!authed) return;
     let cancelled = false;
     setLoading(true);
     void getPlatformPartnerShopSettings({ partnerId })
@@ -76,7 +78,7 @@ const PlatformPartnerShopPanel: React.FC<Props> = ({ partnerId, canEdit }) => {
     return () => {
       cancelled = true;
     };
-  }, [getPlatformPartnerShopSettings, partnerId]);
+  }, [authed, getPlatformPartnerShopSettings, partnerId]);
 
   const toggleSku = (skuId: string) => {
     setForm((current) => ({
@@ -186,6 +188,9 @@ const PlatformPartnerShopPanel: React.FC<Props> = ({ partnerId, canEdit }) => {
         {form.assortmentMode === "allowlist" ? (
           <fieldset className="merchant-field merchant-field--radio">
             <legend>共享 SKU 选品</legend>
+            <p className="merchant-note">
+              白名单只约束上方共享目录；Partner 专属虚拟商品 / 兑换券由下方 CRUD 与对应开关控制，无需加入白名单。
+            </p>
             {PORTAL_SHOP_SKU_CATALOG.map((sku) => (
               <label key={sku.skuId} className="merchant-radio">
                 <input

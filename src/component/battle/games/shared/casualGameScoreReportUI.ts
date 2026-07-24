@@ -124,11 +124,12 @@ export function normalizeAdReplayDailyRemaining(
   return Math.max(0, Math.floor(adReplayDailyRemaining));
 }
 
-/** 按钮主文案（剩余次数由 overlay 单独展示，避免加载态/截断丢掉）。 */
-export function formatCasualAdReplayButtonLabel(adReplayDailyRemaining?: number): string {
-  const n = normalizeAdReplayDailyRemaining(adReplayDailyRemaining);
-  return n != null ? `再战·剩${n}次` : '再战';
+/** 广告再战按钮主文案（不展示日剩次数）。 */
+export function formatCasualAdReplayButtonLabel(_adReplayDailyRemaining?: number): string {
+  return '看广告重玩';
 }
+
+export const CASUAL_AD_REPLAY_BUTTON_LABEL = '看广告重玩';
 
 /** 同桌结算层 / 多人竞技：与单人 P75 一致，不可战时不展示按钮。 */
 export function resolveCasualPostSettleReplayPresentation(opts: {
@@ -164,7 +165,7 @@ export function resolveCasualPostSettleReplayPresentation(opts: {
   if (opts.replayMode === 'ad') {
     return {
       showReplay: true,
-      replayLabel: '再战',
+      replayLabel: CASUAL_AD_REPLAY_BUTTON_LABEL,
       ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
     };
   }
@@ -201,7 +202,8 @@ export function resolveCasualScoreReportSecondaryAction(opts: {
       showReplaySecondary: showReplay,
       ...(showReplay
         ? {
-            secondaryLabel: opts.replayMode === 'token' ? '门票再战' : '再战',
+            secondaryLabel:
+              opts.replayMode === 'token' ? '门票再战' : CASUAL_AD_REPLAY_BUTTON_LABEL,
             ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
           }
         : {}),

@@ -380,6 +380,14 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         if (interactionPhase === GameInteractionPhase.pointerDrag) return;
         // 自动清盘中：禁止用（可能滞后的）React model 把牌拽回 tableau
         if (autoCompleteLayoutGate.blocked) return;
+        // 胜利动画期间：React model 可能仍是清盘前的 tableau，绝不能重排
+        if (
+            containerRef.current?.getAttribute("data-solo-victory") === "1" ||
+            boardSurfaceRef.current?.getAttribute("data-solo-victory") === "1" ||
+            document.querySelector(".solo-player-container[data-solo-victory='1'], .solo-board-surface[data-solo-victory='1']")
+        ) {
+            return;
+        }
 
         const st = gameState.status as SoloGameStatus | number | undefined;
         // 终局胜利动画期间禁止把牌拽回 foundation（否则与 Lab 效果不一致）

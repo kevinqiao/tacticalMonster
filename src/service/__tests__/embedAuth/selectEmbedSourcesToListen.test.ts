@@ -37,7 +37,7 @@ describe("selectEmbedSourcesToListen (extensible host claim)", () => {
   it("starts only host claimer when crazygames_jwt portal claims (no postMessage)", () => {
     vi.stubGlobal("location", {
       ...window.location,
-      pathname: "/portal/crazygames/solitaire",
+      pathname: "/gc/crazygames/solitaire",
       search: "",
     });
     injectPartnerEmbedAuthGlobals("tok", 100);

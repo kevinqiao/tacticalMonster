@@ -22,7 +22,7 @@ describe("crazyGamesHost", () => {
   it("detects CDN bundle paths", () => {
     expect(isCrazyGamesCdnBundlePath("/solitaire-arena/2/index.html")).toBe(true);
     expect(isCrazyGamesCdnBundlePath("/solitaire-arena/2")).toBe(true);
-    expect(isCrazyGamesCdnBundlePath("/portal/crazygames/solitaire")).toBe(false);
+    expect(isCrazyGamesCdnBundlePath("/gc/crazygames/solitaire")).toBe(false);
   });
 
   it("rewrites CDN path to portal entry", () => {

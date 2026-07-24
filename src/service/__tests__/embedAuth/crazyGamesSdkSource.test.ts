@@ -27,7 +27,7 @@ describe("crazyGamesSdkSource eligibility", () => {
   it("preloads when partner embed.method is crazygames_jwt on portal (any pid)", () => {
     vi.stubGlobal("location", {
       ...window.location,
-      pathname: "/portal/cg-test/solitaire",
+      pathname: "/gc/cg-test/solitaire",
       search: "",
     });
     const ctx = portalCtx({
@@ -45,7 +45,7 @@ describe("crazyGamesSdkSource eligibility", () => {
   it("does not preload for jwt_local even when partnerPid matches legacy default", () => {
     vi.stubGlobal("location", {
       ...window.location,
-      pathname: "/portal/cg-test/solitaire",
+      pathname: "/gc/cg-test/solitaire",
       search: "",
     });
     const ctx = portalCtx({
@@ -63,7 +63,7 @@ describe("crazyGamesSdkSource eligibility", () => {
   it("does not preload without resolved partner (no pid fallback)", () => {
     vi.stubGlobal("location", {
       ...window.location,
-      pathname: "/portal/cg-test/solitaire",
+      pathname: "/gc/cg-test/solitaire",
       search: "",
     });
     const ctx = buildEmbedSourceContext({
@@ -81,7 +81,7 @@ describe("crazyGamesSdkSource eligibility", () => {
   it("still preloads with ?crazygames=1 dev flag", () => {
     vi.stubGlobal("location", {
       ...window.location,
-      pathname: "/portal/cg-test/solitaire",
+      pathname: "/gc/cg-test/solitaire",
       search: "?crazygames=1",
     });
     const ctx = portalCtx({

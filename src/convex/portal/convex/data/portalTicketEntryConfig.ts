@@ -1,7 +1,8 @@
-/** Portal ticket entry: after free plays, before advertising and coins. */
+/** Portal ticket entry: after free plays and ad entry. */
 export type PortalTicketEntryMode = "solo" | "multi";
 
 export type PortalTicketEntryModeConfig = {
+  enabled: boolean;
   priceTickets: number;
   dailyCap: number;
 };
@@ -11,8 +12,8 @@ export const PORTAL_TICKET_ENTRY_DEFAULTS: Record<
   PortalTicketEntryMode,
   PortalTicketEntryModeConfig
 > = {
-  solo: { priceTickets: 1, dailyCap: 3 },
-  multi: { priceTickets: 2, dailyCap: 5 },
+  solo: { enabled: true, priceTickets: 1, dailyCap: 3 },
+  multi: { enabled: true, priceTickets: 2, dailyCap: 5 },
 };
 
 export const PORTAL_TICKET_ENTRY_PRICE_MIN = 1;
@@ -43,4 +44,12 @@ export function clampTicketEntryDailyCap(
   return result >= 0 && result <= PORTAL_TICKET_ENTRY_DAILY_CAP_MAX
     ? result
     : fallback;
+}
+
+export function resolveTicketEntryEnabled(
+  value: unknown,
+  mode: PortalTicketEntryMode
+): boolean {
+  if (typeof value === "boolean") return value;
+  return PORTAL_TICKET_ENTRY_DEFAULTS[mode].enabled;
 }

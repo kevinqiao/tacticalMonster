@@ -97,6 +97,15 @@ export const portalTournamentFns = {
   getTicketEntryOffer: makeFunctionReference<"query">(
     "service/ads/portalTicketEntryQueries:getTicketEntryOffer"
   ),
+  getAdEntryOffer: makeFunctionReference<"query">(
+    "service/ads/portalAdEntryQueries:getAdEntryOffer"
+  ),
+  beginAdEntrySession: makeFunctionReference<"mutation">(
+    "service/ads/portalAdEntryMutations:beginAdEntrySession"
+  ),
+  completeAdEntrySession: makeFunctionReference<"mutation">(
+    "service/ads/portalAdEntryMutations:completeAdEntrySession"
+  ),
   listCampaignPlayHistory: makeFunctionReference<"query">(
     "service/tournament/join/campaignPlayHistory:listCampaignPlayHistory"
   ),
@@ -117,5 +126,14 @@ export const portalTournamentFns = {
   ),
   getAdReplayDailyRemaining: makeFunctionReference<"query">(
     "service/ads/portalAdReplayQueries:getAdReplayDailyRemaining"
+  ),
+  getAdCoinOffer: makeFunctionReference<"query">(
+    "service/ads/portalAdCoinQueries:getAdCoinOffer"
+  ),
+  beginAdCoinSession: makeFunctionReference<"mutation">(
+    "service/ads/portalAdCoinMutations:beginAdCoinSession"
+  ),
+  completeAdCoinSession: makeFunctionReference<"mutation">(
+    "service/ads/portalAdCoinMutations:completeAdCoinSession"
   ),
 } as const;

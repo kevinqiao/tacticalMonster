@@ -29,6 +29,7 @@
     },
     "play": "Play",
     "playFree": "Play ({{used}}/{{cap}})",
+    "playWatchAd": "Watch ad to enter",
     "playWithTickets": "Ticket ×{{price}}",
     "playWithTicketsSub": "{{remaining}} left today",
     "continue": "Continue",
@@ -170,7 +171,32 @@
     "buying": "Redeeming…",
     "soldOut": "Sold out",
     "success": "Redeemed!",
-    "giftCardProcessing": "Processing — check My gift card orders"
+    "giftCardProcessing": "Processing — check My gift card orders",
+    "adCoin": {
+      "title": "Free coins",
+      "hint": "Watch a short video ad to earn coins",
+      "remaining": "{{remaining}} / {{cap}} left today",
+      "watch": "Watch ad +{{coins}}",
+      "watching": "Playing…",
+      "exhausted": "Daily limit reached",
+      "success": "Earned {{coins}} coins",
+      "errors": {
+        "generic": "Couldn't claim the ad reward. Try again later.",
+        "ad_channel_unsupported": "Ad rewards aren't available here",
+        "daily_cap_reached": "Daily ad limit reached",
+        "begin_failed": "Couldn't start the ad. Try again.",
+        "complete_failed": "Couldn't grant the reward. Try again.",
+        "unfilled": "No ad available right now. Try again later.",
+        "user_dismissed": "Watch the full ad to earn the reward",
+        "adblock": "Disable your ad blocker and try again",
+        "sdk_error": "Ad failed to load. Try again.",
+        "unsupported": "Ad rewards aren't available here",
+        "disabled": "Ad rewards are temporarily unavailable",
+        "session_expired": "Session expired. Please try again.",
+        "grant_failed": "Couldn't grant coins. Try again.",
+        "no_auth": "Please sign in first"
+      }
+    }
   },
   "shopSkus": {
     "portal_shop_replay_3": {

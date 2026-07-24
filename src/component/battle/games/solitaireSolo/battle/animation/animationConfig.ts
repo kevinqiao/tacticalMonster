@@ -4,12 +4,17 @@ export const SOLO_ANIMATION_CONFIG = {
         move: {
             /** 手拖/普通落子：略长 + power3.out 比 power2.in 更「丝滑」到站 */
             normal: 0.4,
-            /** 自动收 foundation：单段直达槽位，略快于手拖 */
-            autoFoundation: 0.32,
+            /**
+             * 自动收 foundation：单段直达槽位。
+             * 清盘用交错起飞（autoFoundationStagger），时长略长更顺滑。
+             */
+            autoFoundation: 0.22,
+            /** 下一张起飞间隔（秒）；小于飞行时长 → 多牌同时在空中 */
+            autoFoundationStagger: 0.055,
         },
         flip: {
             normal: 0.28,
-            autoFoundation: 0.12,
+            autoFoundation: 0.1,
         },
         /** waste → talon 回收 */
         recycle: {
@@ -32,6 +37,7 @@ export const SOLO_ANIMATION_CONFIG = {
     ease: {
         move: {
             normal: "power3.out",
+            /** 清盘交错飞行：稍柔和的减速，避免逐张「顿一下」 */
             autoFoundation: "power2.out",
         },
         recycle: "power2.in",

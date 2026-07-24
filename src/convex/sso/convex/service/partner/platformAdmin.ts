@@ -399,7 +399,7 @@ export const getPartnerPortalConfig = authedQuery({
       games,
       isFirstParty,
       launchUrls: games.map((gameType) =>
-        isFirstParty || !key ? "/portal/" + gameType : "/portal/" + key + "/" + gameType
+        isFirstParty || !key ? "/gc/" + gameType : "/gc/" + key + "/" + gameType
       ),
       registryGames: [...PARTNER_GAME_TYPES],
       adReplayDailyCap: adReplayOverride,
@@ -421,6 +421,12 @@ export const getPartnerPortalConfig = authedQuery({
       ticketReplayPriceTicketsEffective: replay.ticketReplayPriceTickets,
       freePlaySoloDailyCap: data?.freePlaySoloDailyCap ?? null,
       freePlayMultiDailyCap: data?.freePlayMultiDailyCap ?? null,
+      adEntryEnabled:
+        typeof data?.adEntryEnabled === "boolean" ? data.adEntryEnabled : null,
+      adEntrySoloDailyCap: data?.adEntrySoloDailyCap ?? null,
+      adEntryMultiDailyCap: data?.adEntryMultiDailyCap ?? null,
+      ticketEntryEnabled:
+        typeof data?.ticketEntryEnabled === "boolean" ? data.ticketEntryEnabled : null,
       ticketEntrySoloPriceTickets: data?.ticketEntrySoloPriceTickets ?? null,
       ticketEntrySoloDailyCap: data?.ticketEntrySoloDailyCap ?? null,
       ticketEntryMultiPriceTickets: data?.ticketEntryMultiPriceTickets ?? null,
@@ -432,7 +438,7 @@ export const getPartnerPortalConfig = authedQuery({
 /**
  * Platform-only: activate portal_key + games for a partner.
  * Partner staff cannot self-activate games.
- * PID 0 (first-party) does not require portal_key — URLs are /portal/{gameType}.
+ * PID 0 (first-party) does not require portal_key — URLs are /gc/{gameType}.
  *
  * Optional `adReplayDailyCap`: omit = leave unchanged; null = clear override (default unlimited).
  */
@@ -449,6 +455,10 @@ export const updatePartnerPortalConfig = authedMutation({
     ticketReplayPriceTickets: v.optional(v.union(v.number(), v.null())),
     freePlaySoloDailyCap: v.optional(v.union(v.number(), v.null())),
     freePlayMultiDailyCap: v.optional(v.union(v.number(), v.null())),
+    adEntryEnabled: v.optional(v.union(v.boolean(), v.null())),
+    adEntrySoloDailyCap: v.optional(v.union(v.number(), v.null())),
+    adEntryMultiDailyCap: v.optional(v.union(v.number(), v.null())),
+    ticketEntryEnabled: v.optional(v.union(v.boolean(), v.null())),
     ticketEntrySoloPriceTickets: v.optional(v.union(v.number(), v.null())),
     ticketEntrySoloDailyCap: v.optional(v.union(v.number(), v.null())),
     ticketEntryMultiPriceTickets: v.optional(v.union(v.number(), v.null())),
@@ -476,7 +486,7 @@ export const updatePartnerPortalConfig = authedMutation({
 
     let portalKey: string | undefined;
     if (isFirstParty) {
-      // First-party uses /portal/{gameType}; never validate or write portal_key.
+      // First-party uses /gc/{gameType}; never validate or write portal_key.
       portalKey = undefined;
     } else {
       portalKey = validatePortalKey(args.portalKey ?? "");
@@ -500,8 +510,17 @@ export const updatePartnerPortalConfig = authedMutation({
         : {}),
       ticketReplayPriceTickets: ticketPriceInput,
     });
+    if (args.adEntryEnabled !== undefined) {
+      if (args.adEntryEnabled === null) delete nextData.adEntryEnabled;
+      else nextData.adEntryEnabled = args.adEntryEnabled;
+    }
+    if (args.ticketEntryEnabled !== undefined) {
+      if (args.ticketEntryEnabled === null) delete nextData.ticketEntryEnabled;
+      else nextData.ticketEntryEnabled = args.ticketEntryEnabled;
+    }
     for (const key of [
       "freePlaySoloDailyCap", "freePlayMultiDailyCap",
+      "adEntrySoloDailyCap", "adEntryMultiDailyCap",
       "ticketEntrySoloPriceTickets", "ticketEntrySoloDailyCap",
       "ticketEntryMultiPriceTickets", "ticketEntryMultiDailyCap",
     ] as const) {
@@ -557,6 +576,10 @@ export const updatePartnerPortalConfig = authedMutation({
         partnerId: args.partnerId,
         ...(typeof nextData.freePlaySoloDailyCap === "number" ? { freePlaySoloDailyCap: nextData.freePlaySoloDailyCap } : {}),
         ...(typeof nextData.freePlayMultiDailyCap === "number" ? { freePlayMultiDailyCap: nextData.freePlayMultiDailyCap } : {}),
+        ...(typeof nextData.adEntryEnabled === "boolean" ? { adEntryEnabled: nextData.adEntryEnabled } : {}),
+        ...(typeof nextData.adEntrySoloDailyCap === "number" ? { adEntrySoloDailyCap: nextData.adEntrySoloDailyCap } : {}),
+        ...(typeof nextData.adEntryMultiDailyCap === "number" ? { adEntryMultiDailyCap: nextData.adEntryMultiDailyCap } : {}),
+        ...(typeof nextData.ticketEntryEnabled === "boolean" ? { ticketEntryEnabled: nextData.ticketEntryEnabled } : {}),
         ...(typeof nextData.ticketEntrySoloPriceTickets === "number" ? { ticketEntrySoloPriceTickets: nextData.ticketEntrySoloPriceTickets } : {}),
         ...(typeof nextData.ticketEntrySoloDailyCap === "number" ? { ticketEntrySoloDailyCap: nextData.ticketEntrySoloDailyCap } : {}),
         ...(typeof nextData.ticketEntryMultiPriceTickets === "number" ? { ticketEntryMultiPriceTickets: nextData.ticketEntryMultiPriceTickets } : {}),

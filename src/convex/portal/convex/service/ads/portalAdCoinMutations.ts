@@ -1,0 +1,24 @@
+import { v } from "convex/values";
+
+import { authedMutation } from "../../custom/session";
+import { PORTAL_AD_COIN_CHANNELS } from "../../data/portalAdCoinConfig";
+import {
+  beginPortalAdCoinSessionCore,
+  completePortalAdCoinSessionCore,
+} from "./portalAdCoinService";
+
+export const beginAdCoinSession = authedMutation({
+  args: {
+    channel: v.union(...PORTAL_AD_COIN_CHANNELS.map((c) => v.literal(c))),
+  },
+  handler: async (ctx, args) => beginPortalAdCoinSessionCore(ctx, { uid: ctx.uid, ...args }),
+});
+
+export const completeAdCoinSession = authedMutation({
+  args: {
+    sessionId: v.string(),
+    clientProof: v.optional(v.string()),
+  },
+  handler: async (ctx, args) =>
+    completePortalAdCoinSessionCore(ctx, { uid: ctx.uid, ...args }),
+});

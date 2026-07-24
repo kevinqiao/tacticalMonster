@@ -95,8 +95,8 @@ const SSOController: React.FC = () => {
   const isPortalRoute = useMemo(() => {
     const pathname =
       currentPage?.uri ?? (typeof window !== "undefined" ? window.location.pathname : "");
-    // Partner portals (/portal/{key}/{game}) share the same Clerk/SSO chrome as first-party.
-    return pathname.split("/").filter(Boolean)[0] === "portal";
+    // Partner portals (/gc/{key}/{game}) share the same Clerk/SSO chrome as first-party.
+    return pathname.split("/").filter(Boolean)[0] === "gc";
   }, [currentPage]);
 
   const { playOpen, playClose } = useAuthAnimate({ container: authContainer });

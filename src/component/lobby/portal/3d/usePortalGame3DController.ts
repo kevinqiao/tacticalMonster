@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { getPortalTournamentDefinition } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { getPortalDailyPlayLimits } from "@/convex/portal/convex/data/portalDailyPlayLimits";
+import {
+  getPortalTournamentDefinition,
+  portalTournamentIdForMode,
+} from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { getPortalAdPhase, setPortalAdPhase } from "host/service/ads/display/portalAdPhase";
+import { isPortalAdCoinClientSurfaceEnabled } from "host/service/ads/rewarded/portalAdCoinSurface";
 import { useModalManager } from "host/service/ModalManager";
 import { useUserManager } from "host/service/UserManager";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
@@ -20,6 +24,7 @@ import {
   useAwaitOpenCasualRunAssignment,
 } from "../../casual/service/useAwaitOpenCasualRunAssignment";
 import { usePortalHistoryReport } from "../PortalHistoryReportOverlays";
+import { requestPortalAdEntry } from "../service/requestPortalAdEntry";
 import {
   portalPlayModalForGameType,
   usePortal,
@@ -167,37 +172,49 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       })
     : 0;
   /**
-   * 展示/灰钮：取服务端与战绩推算的较大值。
-   * 服务端返回 0 时 `??` 不会回退到 client，会导致一直显示 0/3。
+   * 今日已挑战（免费 + 广告入场 + 门票入场）。
+   * 取服务端与战绩推算的较大值；服务端 0 时 `??` 不会回退，故用 Math.max。
    */
-  const soloPlaysTodayRaw = Math.max(
+  const soloPlaysToday = Math.max(
     portal.dailyPlayQuota?.solo.playsToday ?? 0,
     clientSoloPlays
   );
-  const multiPlaysTodayRaw = Math.max(
+  const multiPlaysToday = Math.max(
     portal.dailyPlayQuota?.multi.playsToday ?? 0,
     clientMultiPlays
   );
-  const soloDailyExhausted = authed && soloPlaysTodayRaw >= soloMaxPlaysPerDay;
-  const multiDailyExhausted = authed && multiPlaysTodayRaw >= multiMaxPlaysPerDay;
+  /** 免费档用尽 → 切到广告/门票入场 CTA（上限仍是免费 cap，与 assert 的 free 段一致） */
+  const soloDailyExhausted = authed && soloPlaysToday >= soloMaxPlaysPerDay;
+  const multiDailyExhausted = authed && multiPlaysToday >= multiMaxPlaysPerDay;
+  const soloAdEntryAvailable =
+    portal.adEntryOffer?.solo.enabled === true &&
+    ((portal.adEntryOffer.solo.remaining ?? 0) > 0 ||
+      portal.adEntryOffer.solo.hasReadyGrant === true);
+  const multiAdEntryAvailable =
+    portal.adEntryOffer?.multi.enabled === true &&
+    ((portal.adEntryOffer.multi.remaining ?? 0) > 0 ||
+      portal.adEntryOffer.multi.hasReadyGrant === true);
   const soloTicketEntryAvailable =
     portal.ticketEntryOffer?.solo.enabled === true &&
     (portal.ticketEntryOffer.solo.remaining ?? 0) > 0;
   const multiTicketEntryAvailable =
     portal.ticketEntryOffer?.multi.enabled === true &&
     (portal.ticketEntryOffer.multi.remaining ?? 0) > 0;
-  /** 展示不超过上限，避免限次上线前超额场次显示成 6/3 */
-  const soloPlaysToday = Math.min(soloPlaysTodayRaw, soloMaxPlaysPerDay);
-  const multiPlaysToday = Math.min(multiPlaysTodayRaw, multiMaxPlaysPerDay);
 
   const soloJoinBlocked =
     matchOverlayOpen ||
     (hasGlobalOpenRun && soloOpenAssignment == null) ||
-    (soloDailyExhausted && !soloTicketEntryAvailable && soloOpenAssignment == null);
+    (soloDailyExhausted &&
+      !soloAdEntryAvailable &&
+      !soloTicketEntryAvailable &&
+      soloOpenAssignment == null);
   const multiJoinBlocked =
     matchOverlayOpen ||
     (hasGlobalOpenRun && multiOpenAssignment == null) ||
-    (multiDailyExhausted && !multiTicketEntryAvailable && multiOpenAssignment == null);
+    (multiDailyExhausted &&
+      !multiAdEntryAvailable &&
+      !multiTicketEntryAvailable &&
+      multiOpenAssignment == null);
 
   const openAssignment = useCallback(
     (hit: OpenCasualRunAssignment) => {
@@ -368,10 +385,44 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       setJoining(mode);
       setNote(null);
       try {
+        const freeExhausted =
+          mode === "solo" ? soloDailyExhausted : multiDailyExhausted;
+        const adAvailable =
+          mode === "solo" ? soloAdEntryAvailable : multiAdEntryAvailable;
+        const ticketAvailable =
+          mode === "solo" ? soloTicketEntryAvailable : multiTicketEntryAvailable;
+        const hasReadyGrant =
+          mode === "solo"
+            ? portal.adEntryOffer?.solo.hasReadyGrant === true
+            : portal.adEntryOffer?.multi.hasReadyGrant === true;
+
+        let adEntry = false;
+        let ticketEntry = false;
+        if (freeExhausted) {
+          if (adAvailable) {
+            if (!hasReadyGrant) {
+              const templateId = portal.gameType
+                ? portalTournamentIdForMode(portal.gameType, mode)
+                : null;
+              if (!templateId) {
+                setNote(joinEntryErrorMessage("unknown_tournament"));
+                return;
+              }
+              const ad = await requestPortalAdEntry({ mode, templateId });
+              if (!ad.ok) {
+                setNote(joinEntryErrorMessage(ad.error));
+                return;
+              }
+            }
+            adEntry = true;
+          } else if (ticketAvailable) {
+            ticketEntry = true;
+          }
+        }
+
         const outcome = await portal.joinTournament(mode, {
-          ticketEntry:
-            mode === "solo" ? soloDailyExhausted && soloTicketEntryAvailable :
-              multiDailyExhausted && multiTicketEntryAvailable,
+          ...(adEntry ? { adEntry: true } : {}),
+          ...(ticketEntry ? { ticketEntry: true } : {}),
         });
         if (outcome.kind === "ready") {
           openModal({
@@ -408,20 +459,30 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       askAuth,
       authed,
       hasGlobalOpenRun,
+      multiAdEntryAvailable,
       multiDailyExhausted,
       multiJoinBlocked,
       multiOpenAssignment,
+      multiTicketEntryAvailable,
       openAssignment,
       openModal,
+      portal.adEntryOffer,
       portal.gameType,
       portal.joinTournament,
       portal.portalSessionReady,
       queueWaiting,
+      soloAdEntryAvailable,
       soloDailyExhausted,
       soloJoinBlocked,
       soloOpenAssignment,
+      soloTicketEntryAvailable,
     ]
   );
+
+  const adCoinClientEnabled =
+    authed &&
+    isPortalAdCoinClientSurfaceEnabled() &&
+    portal.adCoinOffer?.enabled === true;
 
   return {
     portal,
@@ -432,6 +493,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     userPhone: user?.phone,
     signIn,
     signOut,
+    adCoinClientEnabled,
     joining,
     note,
     showNote,
@@ -459,6 +521,8 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     multiMaxPlaysPerDay,
     soloDailyExhausted,
     multiDailyExhausted,
+    soloAdEntryAvailable,
+    multiAdEntryAvailable,
     soloTicketEntryAvailable,
     multiTicketEntryAvailable,
     soloTicketEntryPrice: portal.ticketEntryOffer?.solo.priceTickets,

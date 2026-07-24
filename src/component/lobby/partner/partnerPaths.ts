@@ -1,3 +1,5 @@
+import { CAMPAIGN_URL_PREFIX } from "@/host/util/appUrlSegments";
+
 /** Partner HQ console. */
 export const PARTNER_ADMIN_PATH = "/partner/admin";
 
@@ -5,7 +7,7 @@ export const PARTNER_ADMIN_PATH = "/partner/admin";
 export const PARTNER_OPERATION_PATH = "/partner/operation";
 
 /** Legacy store console path — keep for QR / bookmarks; redirect to operation. */
-export const LEGACY_CAMPAIGN_MERCHANT_PATH = "/campaign/merchant";
+export const LEGACY_CAMPAIGN_MERCHANT_PATH = `${CAMPAIGN_URL_PREFIX}/merchant`;
 
 export function isPartnerOperationPath(
   pathname = typeof window !== "undefined" ? window.location.pathname : ""

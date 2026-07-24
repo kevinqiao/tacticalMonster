@@ -1,6 +1,6 @@
 import { chromium } from "playwright";
 
-const url = process.argv[2] ?? "http://localhost:3000/portal/solitaire";
+const url = process.argv[2] ?? "http://localhost:3000/gc/solitaire";
 const logs = [];
 const errors = [];
 

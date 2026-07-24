@@ -72,7 +72,7 @@ export const PortalPlace =
 {
     name: "portalPlace",
     entry: "portal",
-    context: "/portal",
+    context: "/gc",
     navs: [
         {
             name: "game",
@@ -139,7 +139,7 @@ export const CampaignPlace =
 {
     name: "campaignPlace",
     entry: "campaign",
-    context: "/campaign",
+    context: "/cc",
     navs: [
         {
             name: "home",
@@ -172,7 +172,7 @@ export const CampaignPlace =
     ],
 }
 
-/** @deprecated use CampaignPlace (/campaign) */
+/** @deprecated use CampaignPlace (/cc) */
 export const PromoPlace = CampaignPlace;
 
 export const W3Home =

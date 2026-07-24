@@ -19,7 +19,7 @@ const TITLE_BY_SHELL: Record<BootShellId, string> = {
 
 /** Exact path overrides (checked before shell fallback). */
 const TITLE_BY_EXACT_PATH: Record<string, string> = {
-  "/campaign/home":
+  "/cc/home":
     "PlayMint — Merchant activity hub + Wallet reminders for local shops.",
 };
 

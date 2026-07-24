@@ -461,19 +461,20 @@ export default defineSchema({
     .index("by_uid", ["uid"])
     .index("by_uid_template_status", ["uid", "templateId", "status"]),
 
-  /** Partner overrides for the free → ticket → ad → coin entry ladder. */
+  /** Partner overrides for the free → ad → ticket → coin entry ladder. */
   portal_partner_play_entry_settings: defineTable({
     partnerId: v.number(),
     freePlaySoloDailyCap: v.optional(v.number()),
     freePlayMultiDailyCap: v.optional(v.number()),
+    ticketEntryEnabled: v.optional(v.boolean()),
     ticketEntrySoloPriceTickets: v.optional(v.number()),
     ticketEntrySoloDailyCap: v.optional(v.number()),
     ticketEntryMultiPriceTickets: v.optional(v.number()),
     ticketEntryMultiDailyCap: v.optional(v.number()),
-    /** Reserved: ad/coin entry ladder (not wired yet). */
     adEntryEnabled: v.optional(v.boolean()),
     adEntrySoloDailyCap: v.optional(v.number()),
     adEntryMultiDailyCap: v.optional(v.number()),
+    /** Reserved: coin entry (not wired yet). */
     coinEntryEnabled: v.optional(v.boolean()),
     coinEntrySoloPriceCoins: v.optional(v.number()),
     coinEntrySoloDailyCap: v.optional(v.number()),
@@ -491,6 +492,102 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_uid_dayKey_mode", ["uid", "dayKey", "mode"]),
+
+  /** Ad-entry session (begin → watch → complete grant). */
+  portal_ad_entry_sessions: defineTable({
+    sessionId: v.string(),
+    uid: v.string(),
+    mode: v.union(v.literal("solo"), v.literal("multi")),
+    channel: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("expired"),
+      v.literal("cancelled")
+    ),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    completedAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+    clientProof: v.optional(v.string()),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_uid_mode_status", ["uid", "mode", "status"]),
+
+  /**
+   * Short-lived grant after a successful ad watch; join with adEntry consumes it
+   * and bumps daily usage.
+   */
+  portal_ad_entry_grants: defineTable({
+    grantId: v.string(),
+    uid: v.string(),
+    mode: v.union(v.literal("solo"), v.literal("multi")),
+    sessionId: v.string(),
+    dayKey: v.string(),
+    status: v.union(
+      v.literal("ready"),
+      v.literal("consumed"),
+      v.literal("expired")
+    ),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    consumedAt: v.optional(v.number()),
+  })
+    .index("by_grantId", ["grantId"])
+    .index("by_uid_mode_status", ["uid", "mode", "status"]),
+
+  /** Ad-entry daily usage (bumped when a grant is consumed at join). */
+  portal_ad_entry_daily_usage: defineTable({
+    uid: v.string(),
+    dayKey: v.string(),
+    mode: v.union(v.literal("solo"), v.literal("multi")),
+    usedCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_uid_dayKey_mode", ["uid", "dayKey", "mode"]),
+
+  /** Watch-ad-for-coins session (begin → watch → complete grant; shop entry). */
+  portal_ad_coin_sessions: defineTable({
+    sessionId: v.string(),
+    uid: v.string(),
+    channel: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("expired"),
+      v.literal("cancelled")
+    ),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    completedAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+    clientProof: v.optional(v.string()),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_uid", ["uid"])
+    .index("by_uid_status", ["uid", "status"]),
+
+  /** Watch-ad-for-coins audit (one row per granted claim). */
+  portal_ad_coin_claims: defineTable({
+    uid: v.string(),
+    sessionId: v.string(),
+    channel: v.string(),
+    dayKey: v.string(),
+    coinsGranted: v.number(),
+    clientProof: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_uid_dayKey", ["uid", "dayKey"]),
+
+  /** Watch-ad-for-coins daily usage (bumped when coins are granted). */
+  portal_ad_coin_daily_usage: defineTable({
+    uid: v.string(),
+    dayKey: v.string(),
+    usedCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_uid_dayKey", ["uid", "dayKey"]),
 
   portal_bot_personas: defineTable({
     botPersonaId: v.string(),

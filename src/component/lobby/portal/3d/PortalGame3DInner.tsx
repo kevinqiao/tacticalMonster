@@ -15,6 +15,7 @@ import {
   shouldShowPortalAccountChrome,
   shouldShowPortalAuthMenuActions,
 } from "../portalAuthButtonVisible";
+import { CasualAdReplayVideoIcon } from "@/component/battle/games/shared/CasualAdReplayVideoIcon";
 import { formatWeekRemaining } from "./portalGame3DFormatters";
 
 /** 统一规则弹窗的定位锚点：solo/multi 定位到积分段的对应模式卡 */
@@ -58,18 +59,21 @@ export interface PortalGame3DInnerProps {
   multiJoinBlocked?: boolean;
   soloOpenAssignment?: unknown;
   multiOpenAssignment?: unknown;
-  /** 今日已挑战次数（单人） */
+  /** 今日已挑战次数（单人：免费+广告+门票合计） */
   soloPlaysToday?: number;
-  /** 今日上限（单人） */
+  /** 免费每日上限（单人；按钮 used/cap 用） */
   soloMaxPlaysPerDay?: number;
-  /** 今日已挑战次数（多人） */
+  /** 今日已挑战次数（多人：免费+广告+门票合计） */
   multiPlaysToday?: number;
-  /** 今日上限（多人） */
+  /** 免费每日上限（多人；按钮 used/cap 用） */
   multiMaxPlaysPerDay?: number;
   /** 单人今日次数已用尽（无进行中对局时「开始」应灰掉） */
   soloDailyExhausted?: boolean;
   /** 多人今日次数已用尽 */
   multiDailyExhausted?: boolean;
+  /** 免费用尽后可看广告入场 */
+  soloAdEntryAvailable?: boolean;
+  multiAdEntryAvailable?: boolean;
   soloTicketEntryAvailable?: boolean;
   multiTicketEntryAvailable?: boolean;
   soloTicketEntryPrice?: number;
@@ -120,6 +124,8 @@ export function PortalGame3DInner({
   multiMaxPlaysPerDay = 10,
   soloDailyExhausted = false,
   multiDailyExhausted = false,
+  soloAdEntryAvailable = false,
+  multiAdEntryAvailable = false,
   soloTicketEntryAvailable = false,
   multiTicketEntryAvailable = false,
   soloTicketEntryPrice,
@@ -217,21 +223,27 @@ export function PortalGame3DInner({
   const soloStartGrayed =
     authed &&
     !soloOpenAssignment &&
-    ((soloDailyExhausted && !soloTicketEntryAvailable) || soloJoinDisabled);
+    ((soloDailyExhausted && !soloAdEntryAvailable && !soloTicketEntryAvailable) ||
+      soloJoinDisabled);
   const multiStartGrayed =
     authed &&
     !multiOpenAssignment &&
     !queueWaiting &&
-    ((multiDailyExhausted && !multiTicketEntryAvailable) || multiJoinDisabled);
+    ((multiDailyExhausted &&
+      !multiAdEntryAvailable &&
+      !multiTicketEntryAvailable) ||
+      multiJoinDisabled);
 
+  // 免费按钮只展示免费档进度；「今日已挑战」文案用合计场次（可大于免费 cap）
   const soloFreePlayLabel = t("lobby.playFree", {
-    used: soloPlaysToday,
+    used: Math.min(soloPlaysToday, soloMaxPlaysPerDay),
     cap: soloMaxPlaysPerDay,
   });
   const multiFreePlayLabel = t("lobby.playFree", {
-    used: multiPlaysToday,
+    used: Math.min(multiPlaysToday, multiMaxPlaysPerDay),
     cap: multiMaxPlaysPerDay,
   });
+  const adEntryLabel = t("lobby.playWatchAd");
 
   const handleSoloClick = () => {
     if (!authed) {
@@ -550,11 +562,13 @@ export function PortalGame3DInner({
                     ? t("lobby.joining")
                     : soloOpenAssignment
                       ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
-                      : soloDailyExhausted && soloTicketEntryAvailable
-                        ? t("lobby.playWithTickets", {
-                            price: soloTicketEntryPrice ?? 1,
-                          })
-                        : soloFreePlayLabel
+                      : soloDailyExhausted && soloAdEntryAvailable
+                        ? adEntryLabel
+                        : soloDailyExhausted && soloTicketEntryAvailable
+                          ? t("lobby.playWithTickets", {
+                              price: soloTicketEntryPrice ?? 1,
+                            })
+                          : soloFreePlayLabel
                 }
                 style={{
                   cursor: !authed || !soloJoinDisabled ? "pointer" : "not-allowed",
@@ -567,6 +581,16 @@ export function PortalGame3DInner({
                     <span className={styles.modePlayText}>{t("lobby.continue")}</span>
                     <span className={styles.modePlaySubtext}>
                       {t("lobby.continueInProgress")}
+                    </span>
+                  </span>
+                ) : soloDailyExhausted && soloAdEntryAvailable ? (
+                  <span className={styles.modePlayStack}>
+                    <span
+                      className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+                    >
+                      <CasualAdReplayVideoIcon />
+                      {adEntryLabel}
                     </span>
                   </span>
                 ) : soloDailyExhausted && soloTicketEntryAvailable ? (
@@ -615,11 +639,13 @@ export function PortalGame3DInner({
                     ? t("lobby.matching")
                     : multiOpenAssignment
                       ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
-                      : multiDailyExhausted && multiTicketEntryAvailable
-                        ? t("lobby.playWithTickets", {
-                            price: multiTicketEntryPrice ?? 2,
-                          })
-                        : multiFreePlayLabel
+                      : multiDailyExhausted && multiAdEntryAvailable
+                        ? adEntryLabel
+                        : multiDailyExhausted && multiTicketEntryAvailable
+                          ? t("lobby.playWithTickets", {
+                              price: multiTicketEntryPrice ?? 2,
+                            })
+                          : multiFreePlayLabel
                 }
                 style={{
                   cursor: !authed || !multiJoinDisabled ? "pointer" : "not-allowed",
@@ -632,6 +658,16 @@ export function PortalGame3DInner({
                     <span className={styles.modePlayText}>{t("lobby.continue")}</span>
                     <span className={styles.modePlaySubtext}>
                       {t("lobby.continueInProgress")}
+                    </span>
+                  </span>
+                ) : multiDailyExhausted && multiAdEntryAvailable ? (
+                  <span className={styles.modePlayStack}>
+                    <span
+                      className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+                    >
+                      <CasualAdReplayVideoIcon />
+                      {adEntryLabel}
                     </span>
                   </span>
                 ) : multiDailyExhausted && multiTicketEntryAvailable ? (

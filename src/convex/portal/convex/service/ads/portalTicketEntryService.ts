@@ -6,6 +6,7 @@ import {
   clampTicketEntryDailyCap,
   clampTicketEntryPrice,
   PORTAL_TICKET_ENTRY_DEFAULTS,
+  resolveTicketEntryEnabled,
   type PortalTicketEntryMode,
 } from "../../data/portalTicketEntryConfig";
 import {
@@ -36,12 +37,15 @@ export async function resolveTicketEntryConfig(
     .query("portal_partner_play_entry_settings")
     .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerIdFromUid(uid)))
     .first();
+  const enabled = resolveTicketEntryEnabled(row?.ticketEntryEnabled, mode);
   return mode === "solo"
     ? {
+        enabled,
         priceTickets: clampTicketEntryPrice(row?.ticketEntrySoloPriceTickets, mode),
         dailyCap: clampTicketEntryDailyCap(row?.ticketEntrySoloDailyCap, mode),
       }
     : {
+        enabled,
         priceTickets: clampTicketEntryPrice(row?.ticketEntryMultiPriceTickets, mode),
         dailyCap: clampTicketEntryDailyCap(row?.ticketEntryMultiDailyCap, mode),
       };
@@ -72,8 +76,13 @@ export async function getPortalTicketEntryOfferCore(
   const key = dailyPeriodKey(Date.now());
   const make = async (mode: PortalTicketEntryMode) => {
     const [cfg, used] = await Promise.all([resolveTicketEntryConfig(ctx, uid, mode), readTicketEntryUsedToday(ctx, uid, key, mode)]);
-    return { enabled: cfg.dailyCap > 0, cap: cfg.dailyCap, usedToday: used,
-      remaining: Math.max(0, cfg.dailyCap - used), priceTickets: cfg.priceTickets };
+    return {
+      enabled: cfg.enabled && cfg.dailyCap > 0,
+      cap: cfg.dailyCap,
+      usedToday: used,
+      remaining: Math.max(0, cfg.dailyCap - used),
+      priceTickets: cfg.priceTickets,
+    };
   };
   const [solo, multi] = await Promise.all([make("solo"), make("multi")]);
   return { solo, multi };
@@ -85,6 +94,7 @@ export async function useTicketEntryForJoin(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const now = args.now ?? Date.now();
   const cfg = await resolveTicketEntryConfig(ctx, args.uid, args.mode);
+  if (!cfg.enabled) return { ok: false, error: "ticket_entry_not_available" };
   const key = dailyPeriodKey(now);
   const used = await readTicketEntryUsedToday(ctx, args.uid, key, args.mode);
   if (cfg.dailyCap <= 0 || used >= cfg.dailyCap) return { ok: false, error: "ticket_entry_limit_reached" };
@@ -122,10 +132,14 @@ export const upsertPartnerPlayEntrySettingsInternal = internalMutation({
     partnerId: v.number(),
     freePlaySoloDailyCap: v.optional(v.number()),
     freePlayMultiDailyCap: v.optional(v.number()),
+    ticketEntryEnabled: v.optional(v.boolean()),
     ticketEntrySoloPriceTickets: v.optional(v.number()),
     ticketEntrySoloDailyCap: v.optional(v.number()),
     ticketEntryMultiPriceTickets: v.optional(v.number()),
     ticketEntryMultiDailyCap: v.optional(v.number()),
+    adEntryEnabled: v.optional(v.boolean()),
+    adEntrySoloDailyCap: v.optional(v.number()),
+    adEntryMultiDailyCap: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const partnerId = Math.floor(args.partnerId);

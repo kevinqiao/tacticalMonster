@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-import { usePartnerAdminMutations } from "./usePartnerAdmin";
+import { partnerAdminErrorMessage } from "./partnerAdminHelpers";
+import { usePartnerAdminAuth, usePartnerAdminMutations } from "./usePartnerAdmin";
 
 export type PartnerVoucherSkuRow = {
   skuId: string;
@@ -18,6 +19,7 @@ export type PartnerVoucherSkuRow = {
 type Props = { partnerId: number };
 
 const PartnerAdminVoucherPanel: React.FC<Props> = ({ partnerId }) => {
+  const { authReady } = usePartnerAdminAuth();
   const { listPartnerShopSkus, upsertPartnerShopSku, setPartnerShopSkuActive, deletePartnerShopSku } =
     usePartnerAdminMutations();
   const [rows, setRows] = useState<PartnerVoucherSkuRow[]>([]);
@@ -29,10 +31,16 @@ const PartnerAdminVoucherPanel: React.FC<Props> = ({ partnerId }) => {
   const [note, setNote] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const result = await listPartnerShopSkus({ partnerId, kind: "voucher" });
-    const skus = (result as { skus?: PartnerVoucherSkuRow[] }).skus;
-    setRows(Array.isArray(skus) ? skus : []);
-  }, [listPartnerShopSkus, partnerId]);
+    if (!authReady) return;
+    try {
+      const result = await listPartnerShopSkus({ partnerId, kind: "voucher" });
+      const skus = (result as { skus?: PartnerVoucherSkuRow[] }).skus;
+      setRows(Array.isArray(skus) ? skus : []);
+    } catch (error) {
+      setNote(partnerAdminErrorMessage(error));
+      setRows([]);
+    }
+  }, [authReady, listPartnerShopSkus, partnerId]);
 
   useEffect(() => {
     void refresh();
@@ -127,7 +135,9 @@ const PartnerAdminVoucherPanel: React.FC<Props> = ({ partnerId }) => {
                     partnerId,
                     skuId: row.skuId,
                     active: !row.active,
-                  }).then(refresh)
+                  })
+                    .then(refresh)
+                    .catch((error) => setNote(partnerAdminErrorMessage(error)))
                 }
               >
                 {row.active ? "停用" : "启用"}
@@ -136,7 +146,9 @@ const PartnerAdminVoucherPanel: React.FC<Props> = ({ partnerId }) => {
                 type="button"
                 className="merchant-btn-secondary merchant-btn merchant-btn--compact"
                 onClick={() =>
-                  void deletePartnerShopSku({ partnerId, skuId: row.skuId }).then(refresh)
+                  void deletePartnerShopSku({ partnerId, skuId: row.skuId })
+                    .then(refresh)
+                    .catch((error) => setNote(partnerAdminErrorMessage(error)))
                 }
               >
                 删除

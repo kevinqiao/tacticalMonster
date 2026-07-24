@@ -152,7 +152,24 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <!-- CrazyGames CDN: rewrite /game/version/index.html → portal entry before SPA boots -->
+  <!-- Legacy player URLs: /portal/* → /gc/*, /campaign/* → /cc/* -->
+  <script>
+    (function () {
+      try {
+        var p = location.pathname || "";
+        var next = null;
+        if (p === "/portal" || p.indexOf("/portal/") === 0) {
+          next = "/gc" + p.slice("/portal".length);
+        } else if (p === "/campaign" || p.indexOf("/campaign/") === 0) {
+          next = "/cc" + p.slice("/campaign".length);
+        }
+        if (next) {
+          history.replaceState(history.state, "", next + location.search + location.hash);
+        }
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
+  <!-- CrazyGames CDN: rewrite /game/version/index.html → /gc entry before SPA boots -->
   <script>
     (function () {
       try {
@@ -164,14 +181,14 @@
         if (!onCg) return;
         var p = location.pathname || "";
         if (
-          p.indexOf("/portal/") === 0 ||
+          p.indexOf("/gc/") === 0 ||
           p.indexOf("/casual/") === 0 ||
           p.indexOf("/tactical/") === 0 ||
-          p.indexOf("/campaign/") === 0
+          p.indexOf("/cc/") === 0
         ) {
           return;
         }
-        var entry = "/portal/crazygames/solitaire";
+        var entry = "/gc/crazygames/solitaire";
         history.replaceState(history.state, "", entry + location.search + location.hash);
       } catch (e) { /* ignore */ }
     })();
@@ -248,10 +265,10 @@
       function resolveShellId(path) {
         if (path.indexOf("/platform") === 0) return "platform";
         if (path.indexOf("/partner/operation") === 0) return "partnerOperation";
-        if (path.indexOf("/campaign/merchant") === 0) return "partnerOperation";
+        if (path.indexOf("/cc/merchant") === 0) return "partnerOperation";
         if (path.indexOf("/partner") === 0) return "partner";
-        if (path.indexOf("/campaign") === 0) return "campaign";
-        if (path.indexOf("/portal") === 0) return "portal";
+        if (path.indexOf("/cc") === 0) return "campaign";
+        if (path.indexOf("/gc") === 0) return "portal";
         if (path.indexOf("/tactical") === 0) return "tactical";
         if (path.indexOf("/casual") === 0) return "casual";
         return "portal";

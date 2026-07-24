@@ -313,7 +313,7 @@ export const bootstrapDevCampaignFixture = mutation({
       rewardModel,
       portalTemplateId,
       live,
-      landingPath: `/campaign/${partnerSlug}/${campaignSlug}`,
+      landingPath: `/cc/${partnerSlug}/${campaignSlug}`,
     };
   },
 });

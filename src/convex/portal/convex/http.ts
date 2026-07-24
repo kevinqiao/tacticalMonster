@@ -1025,7 +1025,7 @@ http.route({
   }),
 });
 
-/** SSO → Portal: partner free-play and ticket-entry ladder overrides. */
+/** SSO → Portal: partner free → ad → ticket entry ladder overrides. */
 http.route({
   path: "/internal/upsert-partner-play-entry-settings",
   method: "POST",
@@ -1035,18 +1035,38 @@ http.route({
     }
     const body = await readMcpJsonBody(request);
     const partnerId = typeof body?.partnerId === "number" ? Math.floor(body.partnerId) : NaN;
-    const keys = [
+    const numberKeys = [
       "freePlaySoloDailyCap", "freePlayMultiDailyCap",
+      "adEntrySoloDailyCap", "adEntryMultiDailyCap",
       "ticketEntrySoloPriceTickets", "ticketEntrySoloDailyCap",
       "ticketEntryMultiPriceTickets", "ticketEntryMultiDailyCap",
     ] as const;
     if (!Number.isFinite(partnerId) || partnerId < 0 ||
-      keys.some((key) => body?.[key] != null && (typeof body[key] !== "number" || !Number.isFinite(body[key] as number)))) {
+      numberKeys.some((key) => body?.[key] != null && (typeof body[key] !== "number" || !Number.isFinite(body[key] as number)))) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    if (body?.adEntryEnabled != null && typeof body.adEntryEnabled !== "boolean") {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    if (body?.ticketEntryEnabled != null && typeof body.ticketEntryEnabled !== "boolean") {
       return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
     }
     const result = await ctx.runMutation(
       internal.service.ads.portalTicketEntryService.upsertPartnerPlayEntrySettingsInternal,
-      { partnerId, ...Object.fromEntries(keys.filter((key) => body?.[key] != null).map((key) => [key, Math.floor(body![key] as number)])) }
+      {
+        partnerId,
+        ...Object.fromEntries(
+          numberKeys
+            .filter((key) => body?.[key] != null)
+            .map((key) => [key, Math.floor(body![key] as number)])
+        ),
+        ...(typeof body?.adEntryEnabled === "boolean"
+          ? { adEntryEnabled: body.adEntryEnabled }
+          : {}),
+        ...(typeof body?.ticketEntryEnabled === "boolean"
+          ? { ticketEntryEnabled: body.ticketEntryEnabled }
+          : {}),
+      }
     );
     return jsonResponse(result);
   }),

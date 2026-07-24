@@ -39,7 +39,7 @@
   status = 200
   force = true
 
-# SPA fallback (Portal /casual /campaign /… deep links).
+# SPA fallback (/gc /cc /casual /… deep links).
 # force=false so real files under /assets, /favicon, etc. still win.
 [[redirects]]
   from = "/*"

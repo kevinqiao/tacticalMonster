@@ -29,6 +29,7 @@
     },
     "play": "开始",
     "playFree": "开始（{{used}}/{{cap}}）",
+    "playWatchAd": "看广告进入",
     "playWithTickets": "门票×{{price}}",
     "playWithTicketsSub": "今日剩余 {{remaining}}",
     "continue": "继续",
@@ -170,7 +171,32 @@
     "buying": "兑换中…",
     "soldOut": "已售罄",
     "success": "兑换成功！",
-    "giftCardProcessing": "兑换处理中，请在「我的礼品卡订单」查看"
+    "giftCardProcessing": "兑换处理中，请在「我的礼品卡订单」查看",
+    "adCoin": {
+      "title": "免费金币",
+      "hint": "观看短视频广告获取金币",
+      "remaining": "今日还可 {{remaining}} / {{cap}} 次",
+      "watch": "观看广告 +{{coins}}",
+      "watching": "播放中…",
+      "exhausted": "今日已用尽",
+      "success": "已获得 {{coins}} 金币",
+      "errors": {
+        "generic": "广告奖励领取失败，请稍后再试",
+        "ad_channel_unsupported": "当前环境暂不支持广告奖励",
+        "daily_cap_reached": "今日广告次数已用尽",
+        "begin_failed": "无法开始广告，请稍后再试",
+        "complete_failed": "奖励发放失败，请稍后再试",
+        "unfilled": "暂无广告可播放，请稍后再试",
+        "user_dismissed": "需看完广告才能领取奖励",
+        "adblock": "请关闭广告拦截后重试",
+        "sdk_error": "广告加载失败，请稍后再试",
+        "unsupported": "当前环境暂不支持广告奖励",
+        "disabled": "广告奖励暂未开放",
+        "session_expired": "会话已过期，请重试",
+        "grant_failed": "发奖失败，请稍后再试",
+        "no_auth": "请先登录"
+      }
+    }
   },
   "shopSkus": {
     "portal_shop_replay_3": {

@@ -50,7 +50,7 @@ console.log("\n--- WebView: postMessage after load ---\n");
 console.log(`window.postMessage(${JSON.stringify({ type: "PARTNER_AUTH", token })}, "*");`);
 
 console.log("\n--- Campaign URL example (partner from merchant slug) ---\n");
-console.log(`http://localhost:3000/campaign/{merchant}/{campaign}`);
+console.log(`http://localhost:3000/cc/{merchant}/{campaign}`);
 
 console.log("\n--- Convex action (requires SSO dev + signed platform key) ---\n");
 console.log("service.auth.platformAuth.exchangeEmbedCredential");

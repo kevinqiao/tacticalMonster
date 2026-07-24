@@ -175,6 +175,10 @@ export function PortalGame3DOverlays({
           onPurchase={portal.purchasePortalShopSku}
           onSyncProfile={portal.syncRedemptionProfile}
           onFeedback={ctrl.showNote}
+          adCoinOffer={ctrl.adCoinClientEnabled ? portal.adCoinOffer : null}
+          onWatchAdForCoins={
+            ctrl.adCoinClientEnabled ? portal.watchAdForCoins : undefined
+          }
         />
       </PortalCenterModal>
 

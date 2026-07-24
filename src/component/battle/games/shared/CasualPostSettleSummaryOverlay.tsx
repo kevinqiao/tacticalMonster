@@ -12,6 +12,8 @@ import { formatWeeklyLeagueSettleLines } from './casualWeeklyLeagueScoreUI';
 
 import type { CasualAsyncTableSummaryUI, Match3WatchContext } from './casualAsyncTableSummaryUI';
 
+import { CasualAdReplayVideoIcon } from './CasualAdReplayVideoIcon';
+import { CASUAL_AD_REPLAY_BUTTON_LABEL } from './casualGameScoreReportUI';
 import { CasualTableSummaryPanel } from './CasualTableSummaryPanel';
 
 import { useReplayWindowCountdown } from './useReplayWindowCountdown';
@@ -107,11 +109,11 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
 
   replayAvailable = false,
 
-  replayLabel = '再战',
+  replayLabel = CASUAL_AD_REPLAY_BUTTON_LABEL,
 
   replayMode = "token",
 
-  adReplayDailyRemaining,
+  adReplayDailyRemaining: _adReplayDailyRemaining,
 
   onReplay,
 
@@ -178,15 +180,11 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
 
 
   const showReplayBtn = replayAvailable && Boolean(onReplay);
-
-  const remaining =
-    typeof adReplayDailyRemaining === "number" && Number.isFinite(adReplayDailyRemaining)
-      ? Math.max(0, Math.floor(adReplayDailyRemaining))
-      : undefined;
+  const isAdReplay = replayMode === "ad";
 
   let replayBtnText = replayLabel;
 
-  if (replayMode === "ad" && !midgameReady) {
+  if (isAdReplay && !midgameReady) {
     replayBtnText = "广告加载中…";
   } else if (replayBusy) {
     replayBtnText = "匹配中…";
@@ -303,16 +301,14 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
               <button
                 type="button"
                 className="ssc__btn ssc__btn--secondary ssc__btn--replayCompact"
-                disabled={(replayMode === "ad" && !midgameReady) || replayBusy}
+                disabled={(isAdReplay && !midgameReady) || replayBusy}
                 onClick={() => onReplay?.()}
-                title={
-                  remaining != null ? `${replayLabel}（今日剩${remaining}次）` : replayLabel
-                }
+                title={replayLabel}
               >
-                <span className="ssc__replayMain">{replayBtnText}</span>
-                {remaining != null ? (
-                  <span className="ssc__replayRemaining">剩{remaining}次</span>
+                {isAdReplay && midgameReady && !replayBusy ? (
+                  <CasualAdReplayVideoIcon />
                 ) : null}
+                <span className="ssc__replayMain">{replayBtnText}</span>
               </button>
             ) : null}
             <button

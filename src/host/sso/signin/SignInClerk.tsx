@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef } from "react";
 
 import type { User } from "host/service/UserManager";
 import { usePartnerManager } from "host/service/PartnerManager";
+import { shouldSuppressClerkAutoExchange } from "host/service/clerk/clerkSessionBridge";
 import { clerkReturnUrl } from "host/service/clerk/clerkReturnUrl";
 import { isClerkConfigured } from "host/service/clerk/clerkEnv";
 import { isCampaignPlayerShellUri } from "host/util/PageUtils";
@@ -28,6 +29,9 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
   const { exchangeSession, busy, error, clearError } = useClerkSignIn({
     partnerId: partnerPid,
     onSuccess: onComplete,
+    // askAuth clears suppress before opening SSO; while suppress is set, show
+    // Clerk sign-in form instead of silently minting a new partner JWT.
+    respectAutoExchangeSuppress: true,
   });
 
   const tryExchange = useCallback(async () => {
@@ -39,7 +43,9 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
     exchangedRef.current = true;
     const ok = await exchangeSession(token);
     if (!ok) {
-      // Stop the 800ms hammer on hard failures; user can retry via sign-out.
+      // Allow retry after askAuth clears partner-switch suppress, or after
+      // hard auth failures where the user signs out of Clerk.
+      exchangedRef.current = false;
       if (retryTimerRef.current != null) {
         window.clearInterval(retryTimerRef.current);
         retryTimerRef.current = null;
@@ -56,6 +62,13 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
   useEffect(() => {
     if (!partnerResolveReady || !isSignedIn) return;
 
+    // Partner-switch suppress still set → drop Clerk session and show the form
+    // instead of spinning on "正在换取平台会话".
+    if (shouldSuppressClerkAutoExchange()) {
+      void signOut();
+      return;
+    }
+
     void tryExchange();
 
     retryTimerRef.current = window.setInterval(() => {
@@ -68,7 +81,7 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
         retryTimerRef.current = null;
       }
     };
-  }, [isSignedIn, partnerResolveReady, tryExchange]);
+  }, [isSignedIn, partnerResolveReady, signOut, tryExchange]);
 
   // Popup: campaign player shells (keep landing SPA) + embeds (CrazyGames iframes).
   // Other first-party surfaces still use redirect.

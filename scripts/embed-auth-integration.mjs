@@ -74,7 +74,7 @@ function assertSession(session) {
 }
 
 function printBrowserHandoff({ token, partnerSlug, campaignSlug }) {
-  const landing = `/campaign/${partnerSlug}/${campaignSlug}`;
+  const landing = `/cc/${partnerSlug}/${campaignSlug}`;
   console.log("\n=== Browser handoff (paste in devtools before/at load) ===\n");
   console.log(`window.__PARTNER_AUTH__ = { token: ${JSON.stringify(token)} };`);
   console.log("\nLanding URL:");

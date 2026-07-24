@@ -4,6 +4,7 @@ import {
   resolveWebSignInFromLocation,
 } from "@/component/lobby/shared/resolveWebSignInFromLocation";
 import { parseCampaignPartnerSlugFromPathname } from "@/host/util/PageUtils";
+import { PORTAL_URL_PREFIX } from "@/host/util/appUrlSegments";
 
 import type { User } from "../UserManager";
 
@@ -33,6 +34,6 @@ export function shouldEnforceUrlPartnerSession(
   if (isStaffWebSignInContext(resolveWebSignInFromLocation(pathname, search))) {
     return false;
   }
-  if (pathname.startsWith("/portal")) return true;
+  if (pathname.startsWith(PORTAL_URL_PREFIX)) return true;
   return parseCampaignPartnerSlugFromPathname(pathname) != null;
 }
