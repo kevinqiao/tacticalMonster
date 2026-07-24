@@ -5,6 +5,7 @@
     left: 0;
     /* 初始隐藏；布局/动画用 GSAP autoAlpha 显示。勿在 React style 里每次写 opacity:0 */
     opacity: 0;
+    overflow: visible;
     transform-style: preserve-3d;
     perspective: 1000px;
     -webkit-transform-style: preserve-3d;
@@ -55,6 +56,37 @@
 .card .front {
     transform: rotateY(180deg);
     -webkit-transform: rotateY(180deg);
+}
+
+/* 小屏专用「中间偏下」花色；大屏隐藏 */
+.card .front .solo-face-suit-low {
+    visibility: hidden;
+}
+
+/**
+ * 窄屏 compact：左上点数 + 中间偏下大花色
+ * 大屏不打 data-compact-face → 经典完整牌面（角标+正中花色）
+ */
+.solo-board-surface[data-compact-face="1"] .card .front .solo-face-mirror,
+.solo-board-surface[data-compact-face="1"] .card .front .solo-face-suit-corner,
+.solo-board-surface[data-compact-face="1"] .card .front .solo-face-center {
+    visibility: hidden;
+}
+
+.solo-board-surface[data-compact-face="1"] .card .front .solo-face-suit-low {
+    visibility: visible;
+}
+
+.solo-board-surface[data-compact-face="1"] .card .front text.solo-face-rank {
+    font-size: var(--solo-face-rank-px, 40px) !important;
+    dominant-baseline: hanging;
+    /* 经典 y=25 偏下；小屏上移贴近顶边 */
+    transform: translateY(-10px);
+}
+
+.solo-board-surface[data-compact-face="1"] .card .front text.solo-face-suit-low {
+    font-size: var(--solo-face-center-px, 48px) !important;
+    dominant-baseline: middle;
 }
 
 /**

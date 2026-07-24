@@ -6,7 +6,7 @@ import gsap from 'gsap';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { ActMode, GameInteractionPhase, SoloActionData, SoloBoardDimension, SoloCard, SoloDropTarget, ZoneType } from '../types/SoloTypes';
 import { SOLO_ANIMATION_CONFIG } from '../animation/animationConfig';
-import { buildDropZoneCache, DropZoneCacheEntry, findBestDropTarget } from '../Utils';
+import { buildDropZoneCache, DropZoneCacheEntry, findBestDropTarget, TABLEAU_VERTICAL_PEEK } from '../Utils';
 import { useSoloGameManager } from './GameManager';
 import useActHandler from './handler/useActHandler';
 
@@ -159,14 +159,14 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         const followerCount = stackFollowers?.length ?? 0;
         if (stackFollowers) {
             stackFollowers.forEach((c: SoloCard, index: number) => {
-                const dy = y + (index + 1) * (boardDimension.cardHeight * 0.3);
+                const dy = y + (index + 1) * (boardDimension.cardHeight * TABLEAU_VERTICAL_PEEK);
                 if (c.ele) gsap.set(c.ele, { x, y: dy });
             });
         }
 
         const cardW = boardDimension.cardWidth;
         const cardH = boardDimension.cardHeight;
-        const stackExtra = followerCount * (cardH * 0.3);
+        const stackExtra = followerCount * (cardH * TABLEAU_VERTICAL_PEEK);
         const dragBox = {
             left: originLeft + x,
             right: originLeft + x + cardW,
@@ -292,7 +292,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             const followerCount = session.cards?.length ?? 0;
             const cardW = boardDimension.cardWidth;
             const cardH = boardDimension.cardHeight;
-            const stackExtra = followerCount * (cardH * 0.3);
+            const stackExtra = followerCount * (cardH * TABLEAU_VERTICAL_PEEK);
             const dragBox = {
                 left: originLeft + gx,
                 right: originLeft + gx + cardW,

@@ -30,6 +30,7 @@ import {
   usePortal,
 } from "../service/usePortalManager";
 import {
+  pickActivePortalOpenAssignmentsForGameType,
   pickPortalOpenAssignmentForMode,
   pickPortalOpenAssignmentsForGameType,
   pickPortalMatchQueueForGameType,
@@ -53,8 +54,10 @@ export type Portal3DPanelModal = "lb" | "history" | null;
 export function usePortalGame3DController({ visible }: { visible: number }) {
   const portal = usePortal();
   const { user, askAuth, cancelAuth, logout } = useUserManager();
-  const { openModal } = useModalManager();
+  const { openModal, modals } = useModalManager();
   const historyReport = usePortalHistoryReport();
+  /** 刷新后若有进行中对局，自动打开一次（避免再点「继续」） */
+  const autoResumeOpenRunRef = useRef(false);
 
   const signIn = useCallback(() => {
     askAuth({});
@@ -227,6 +230,42 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     },
     [openModal, portal.gameType]
   );
+
+  useEffect(() => {
+    if (autoResumeOpenRunRef.current) return;
+    if (visible === 0 || !authed || !portal.gameType) return;
+    // 排队/匹配中交给既有 await 流程；周结算弹窗打开时等关掉后再进
+    if (matchOverlayOpen || weeklyCloseModalOpen) return;
+
+    const playModalName = portalPlayModalForGameType(portal.gameType);
+    if (modals.some((m) => m.name === playModalName)) {
+      autoResumeOpenRunRef.current = true;
+      return;
+    }
+
+    const resume =
+      pickActivePortalOpenAssignmentsForGameType(
+        portal.openRunAssignments,
+        portal.gameType
+      )[0] ??
+      soloOpenAssignment ??
+      multiOpenAssignment;
+    if (!resume) return;
+
+    autoResumeOpenRunRef.current = true;
+    openAssignment(resume);
+  }, [
+    visible,
+    authed,
+    portal.gameType,
+    portal.openRunAssignments,
+    soloOpenAssignment,
+    multiOpenAssignment,
+    matchOverlayOpen,
+    weeklyCloseModalOpen,
+    modals,
+    openAssignment,
+  ]);
 
   const league = portal.weeklyLeagueTierView;
   const cohortLeaderboard = portal.cohortLeaderboard;

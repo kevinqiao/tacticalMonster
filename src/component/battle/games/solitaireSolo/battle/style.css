@@ -383,9 +383,9 @@
         20px
     );
     --solo-foundation-tableau-gap: clamp(
-        10px,
-        max(5cqh, calc(var(--solo-card-height, 78px) * 0.2)),
-        52px
+        14px,
+        max(4.5cqh, calc(var(--solo-card-height, 78px) * 0.18)),
+        44px
     );
     --solo-board-w-h-ratio: 1;
     width: 100%;
@@ -397,19 +397,20 @@
     grid-template-rows: auto minmax(0, 1fr);
     column-gap: var(--solo-zone-gap);
     row-gap: var(--solo-foundation-tableau-gap);
+    align-content: start;
     background-color: transparent;
 }
 
-@container solo-play (max-height: 520px) {
+@container solo-play (max-height: 560px) {
     .solo-board-surface {
         --solo-zone-gap: clamp(
-            3px,
-            max(1cqi, calc(var(--solo-card-width, 56px) * 0.08)),
-            12px
+            2px,
+            max(0.8cqi, calc(var(--solo-card-width, 56px) * 0.06)),
+            10px
         );
         --solo-foundation-tableau-gap: clamp(
-            6px,
-            max(3.5cqh, calc(var(--solo-card-height, 78px) * 0.12)),
+            10px,
+            max(3cqh, calc(var(--solo-card-height, 78px) * 0.14)),
             28px
         );
     }
@@ -419,9 +420,23 @@
     }
 }
 
-@media (orientation: landscape) and (max-height: 520px) {
+/* 手机横屏：略收紧，但仍保留 foundation 与 tableau 可读间距 */
+@media (orientation: landscape) and (max-height: 500px) {
+    .solo-game-header {
+        min-height: 36px;
+        padding: 4px 10px;
+        gap: 8px;
+    }
+
     .solo-board-surface {
         --solo-board-w-h-ratio: 1;
+        --solo-zone-gap: 3px;
+        --solo-foundation-tableau-gap: 12px;
+        padding: 3px 4px;
+    }
+
+    .solo-board-surface .tableau-column {
+        min-height: 0;
     }
 }
 
@@ -440,6 +455,9 @@
     background-color: rgba(0, 60, 20, 0.18);
     box-shadow: inset 0 2px 6px rgba(0, 50, 15, 0.25);
     color: rgba(255, 255, 255, 0.5);
+    /* 小屏 foundation 占位花色随牌高缩放，并设可读下限 */
+    font-size: clamp(14px, calc(var(--solo-card-height, 56px) * 0.5), 32px);
+    line-height: 1;
     box-sizing: border-box;
     justify-self: center;
     align-self: start;

@@ -8,7 +8,7 @@ interface CardSVGProps {
   height?: string;
 }
 
-/** 高对比色 + 常规字重；避免过粗字重在小尺寸下显粗糙 */
+/** 大屏经典牌面：SVG user unit 字号；小屏字号由 [data-compact-face] CSS 变量覆盖 */
 const FACE_TEXT_PROPS = {
   fontFamily: '"Fredoka", "Segoe UI", Arial, sans-serif',
   fontWeight: 600,
@@ -78,19 +78,48 @@ export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps)
           rx="5"
           ry="5"
         />
-        {/* 文案由 popCard 写入；y 坐标勿改（hideCard/popCard 用属性选择器） */}
-        <text x="10" y="25" fontSize="20" fill={color} {...FACE_TEXT_PROPS} />
-        <text x="10" y="45" fontSize="18" fill={color} {...FACE_TEXT_PROPS} />
-        <g transform="translate(90, 145) rotate(180)">
+        {/* 文案由 popCard 按 class 写入；大屏用下列 SVG 字号/坐标（经典布局） */}
+        <g className="solo-face-top">
+          <text
+            className="solo-face-rank"
+            x="10"
+            y="25"
+            fontSize="20"
+            fill={color}
+            {...FACE_TEXT_PROPS}
+          />
+          <text
+            className="solo-face-suit-corner"
+            x="10"
+            y="45"
+            fontSize="18"
+            fill={color}
+            {...FACE_TEXT_PROPS}
+          />
+        </g>
+        <g className="solo-face-mirror" transform="translate(90, 145) rotate(180)">
           <text x="0" y="20" fontSize="20" fill={color} {...FACE_TEXT_PROPS} />
           <text x="0" y="40" fontSize="18" fill={color} {...FACE_TEXT_PROPS} />
         </g>
+        {/* 大屏经典：正中花色 */}
         <text
+          className="solo-face-center"
           x="50"
           y="90"
           fontSize="40"
           fill={color}
           textAnchor="middle"
+          {...FACE_TEXT_PROPS}
+        />
+        {/* 小屏 compact：中间偏下花色（常态隐藏） */}
+        <text
+          className="solo-face-suit-low"
+          x="50"
+          y="118"
+          fontSize="40"
+          fill={color}
+          textAnchor="middle"
+          dominantBaseline="middle"
           {...FACE_TEXT_PROPS}
         />
       </svg>

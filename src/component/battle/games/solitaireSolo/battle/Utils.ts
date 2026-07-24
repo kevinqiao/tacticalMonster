@@ -3,8 +3,13 @@ import { RefObject } from "react";
 import { CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, ZoneType } from "./types/SoloTypes";
 
 /**
+ * 同列牌垂直露出比例（相对牌高）。越大重叠越少、列越松；槽位不够时由 vScale 统一压紧。
+ */
+export const TABLEAU_VERTICAL_PEEK = 0.28;
+
+/**
  * 接龙列在「最厚一摞」的牌间步长之和 + 单牌高度超过槽位可用高度时，按比例压紧垂距，避免整摞超出区底/屏底。
- * 不改动牌面尺寸，只缩 0.3/0.1 的叠放步长；各列用同一倍率，保证最厚一摞刚好装下。
+ * 不改动牌面尺寸，只缩叠放步长；各列用同一倍率，保证最厚一摞刚好装下。
  */
 function getTableauVerticalStepScale(
     boardDimension: SoloBoardDimension,
@@ -18,7 +23,7 @@ function getTableauVerticalStepScale(
     const H = Math.max(0, slotH - pad);
     if (H < h) return 0;
 
-    const baseStep = (c: SoloCard) => 0.2 * h;
+    const baseStep = () => TABLEAU_VERTICAL_PEEK * h;
     let gMax = 0;
     for (let col = 0; col < 7; col++) {
         const zoneId = `tableau-${col}`;
@@ -27,7 +32,7 @@ function getTableauVerticalStepScale(
             .sort((a, b) => a.zoneIndex - b.zoneIndex);
         let g = 0;
         for (let i = 0; i < column.length - 1; i++) {
-            g += baseStep(column[i]!);
+            g += baseStep();
         }
         gMax = Math.max(gMax, g);
     }
@@ -38,7 +43,8 @@ function getTableauVerticalStepScale(
 
 /** Draw 3：waste 区仅铺开最新三张，更早的牌叠在 fan 左端同位置 */
 export const SOLITAIRE_WASTE_VISIBLE_FAN = 3;
-export const WASTE_FAN_STEP_RATIO = 0.26;
+/** Draw-3 waste 水平扇开比例（相对牌宽）；加大以便露出被盖住的花色/点数 */
+export const WASTE_FAN_STEP_RATIO = 0.52;
 const WASTE_Z_BASE = 2000;
 
 function sortedWastePile(wastePile: SoloCard[], zoneId = "waste"): SoloCard[] {
@@ -179,7 +185,7 @@ export const getCardCoord = (card: SoloCard, zoneCards: SoloCard[], boardDimensi
 
             const vScale = getTableauVerticalStepScale(boardDimension, zoneCards);
             let y = boardDimension.zones.tableau.y
-            y = y + card.zoneIndex * 0.2 * h * vScale;
+            y = y + card.zoneIndex * TABLEAU_VERTICAL_PEEK * h * vScale;
             return { x, y };
         }
         case ZoneType.FOUNDATION: {

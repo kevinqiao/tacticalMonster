@@ -54,6 +54,11 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     const wasteZoneRef = useRef<HTMLDivElement | undefined>(undefined);
     const foundationSlotRefs = useRef<(HTMLDivElement | null)[]>(Array.from({ length: 4 }, () => null));
     const tableauColRefs = useRef<(HTMLDivElement | null)[]>(Array.from({ length: 7 }, () => null));
+    /** 窄屏 compact 字号（屏幕 px）；大屏为空，走 SVG 经典字号 */
+    const faceFontCssRef = useRef<{ rank: string; center: string }>({
+        rank: "",
+        center: "",
+    });
     const {
         gameState,
         updateBoardDimension,
@@ -214,10 +219,18 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         const boardInnerH = Math.max(0, board.clientHeight - padY);
         /* 预留 foundation 一行 + 至少一行牌高的 tableau，避免扁屏下槽位仍按列宽撑高、牌被压扁 */
         const CARD_H_OVER_W = 7 / 5;
-        const maxCardH = Math.max(22, (boardInnerH - rowGap) / 2);
+        /*
+         * 竖屏：上下约各半。
+         * 横屏矮板：若仍按 /2，foundation 行过高，tableau 被顶到偏下、中间空一大块。
+         */
+        const landscapeShort =
+            board.clientWidth > boardInnerH * 1.1 && boardInnerH > 0 && boardInnerH < 480;
+        const heightFrac = landscapeShort ? 0.36 : 0.5;
+        const maxCardH = Math.max(28, (boardInnerH - rowGap) * heightFrac);
         let cardW = Math.min(colW, maxCardH / CARD_H_OVER_W);
         let cardH = cardW * CARD_H_OVER_W;
-        if (cardW < 16 || cardH < 22) return null;
+        /* 过小则角标不可读；略抬下限 */
+        if (cardW < 20 || cardH < 28) return null;
 
         const cardWRounded = Math.round(cardW);
         const cardHRounded = Math.round(cardH);
@@ -234,6 +247,38 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             board.style.setProperty('--solo-card-height', nextH);
             board.style.setProperty('--solo-waste-fan-step', nextFan);
             void board.offsetHeight;
+        }
+
+        /*
+         * 窄屏 compact：左上点数 + 中间偏下大花色（屏幕 px）。
+         * 大屏：不打标，经典完整牌面（SVG user unit）。
+         */
+        const compactFace = board.clientWidth > 0 && board.clientWidth < 768;
+        const setFlag = (name: string, on: boolean) => {
+            const cur = board.getAttribute(name);
+            if (on && cur !== "1") board.setAttribute(name, "1");
+            else if (!on && cur != null) board.removeAttribute(name);
+        };
+        setFlag("data-compact-face", compactFace);
+        board.removeAttribute("data-face-boost");
+
+        const clampPx = (n: number, lo: number, hi: number) =>
+            Math.max(lo, Math.min(hi, Math.round(n)));
+        if (compactFace) {
+            const rankPx = clampPx(cardHRounded * 0.6, 38, 56);
+            const suitLowPx = clampPx(cardHRounded * 0.8, 44, 64);
+            faceFontCssRef.current = {
+                rank: `${rankPx}px`,
+                center: `${suitLowPx}px`,
+            };
+            board.style.setProperty("--solo-face-rank-px", faceFontCssRef.current.rank);
+            board.style.setProperty("--solo-face-center-px", faceFontCssRef.current.center);
+        } else {
+            faceFontCssRef.current = { rank: "", center: "" };
+            board.style.removeProperty("--solo-face-rank-px");
+            board.style.removeProperty("--solo-face-center-px");
+            board.style.removeProperty("--solo-face-suit-px");
+            board.style.removeProperty("--solo-face-corner-px");
         }
 
         fRects = slots.filter((s): s is HTMLDivElement => !!s).map(rel);
@@ -559,9 +604,17 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 style={
                     boardDimension
                         ? ({
-                              ['--solo-card-width' as string]: `${boardDimension.cardWidth}px`,
-                              ['--solo-card-height' as string]: `${boardDimension.cardHeight}px`,
-                              ['--solo-waste-fan-step' as string]: `${wasteFanStepPx(boardDimension.cardWidth)}px`,
+                              ["--solo-card-width" as string]: `${boardDimension.cardWidth}px`,
+                              ["--solo-card-height" as string]: `${boardDimension.cardHeight}px`,
+                              ["--solo-waste-fan-step" as string]: `${wasteFanStepPx(boardDimension.cardWidth)}px`,
+                              ...(faceFontCssRef.current.rank
+                                  ? {
+                                        ["--solo-face-rank-px" as string]:
+                                            faceFontCssRef.current.rank,
+                                        ["--solo-face-center-px" as string]:
+                                            faceFontCssRef.current.center,
+                                    }
+                                  : {}),
                           } as React.CSSProperties)
                         : undefined
                 }
