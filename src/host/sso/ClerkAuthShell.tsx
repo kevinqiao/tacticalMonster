@@ -4,9 +4,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import ClerkPlatformBridge from "../service/clerk/ClerkPlatformBridge";
 import ClerkSsoCallbackHost from "../service/clerk/ClerkSsoCallbackHost";
 import { clerkReturnUrl } from "../service/clerk/clerkReturnUrl";
-import { getClerkPublishableKey, isClerkConfigured } from "../service/clerk/clerkEnv";
+import { getClerkPublishableKey, isClerkEnabled } from "../service/clerk/clerkEnv";
 import { clerkSpaNavigateAsync } from "../service/clerk/clerkSpaNavigate";
-import { shouldSkipClerkOnCrazyGamesHost } from "../service/platformAuth/embedSources/crazyGamesHost";
 import { useHistoryLocationKey } from "../service/useHistoryLocationKey";
 
 type ClerkAuthShellProps = {
@@ -33,7 +32,7 @@ const ClerkAuthShell: React.FC<ClerkAuthShellProps> = ({ children }) => {
     setReturnUrl(clerkReturnUrl());
   }, [locationKey]);
 
-  if (!isClerkConfigured() || shouldSkipClerkOnCrazyGamesHost()) {
+  if (!isClerkEnabled()) {
     return <>{children}</>;
   }
 

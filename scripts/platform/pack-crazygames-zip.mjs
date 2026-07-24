@@ -255,11 +255,24 @@ if (pruneOnly) {
     windowsHide: true,
   });
 
-  console.log("  building with VITE_BASE=./ (relative assets)...");
+  console.log(
+    "  building with VITE_BASE=./ (Clerk off, mock rewarded ads on)..."
+  );
+  // CrazyGames: embed JWT only (no Clerk). Prefer mock rewarded ads while CG
+  // inventory is unreliable — backend must allow channel `dev` (PORTAL_AD_REPLAY_MOCK).
   execSync("npx vite build", {
     cwd: root,
     stdio: "inherit",
-    env: { ...process.env, VITE_BASE: "./" },
+    env: {
+      ...process.env,
+      VITE_BASE: "./",
+      VITE_DISABLE_CLERK: "1",
+      VITE_AD_REPLAY_MOCK: "1",
+      VITE_CLERK_PUBLISHABLE_KEY: "",
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "",
+      REACT_APP_CLERK_PUBLISHABLE_KEY: "",
+      CLERK_PUBLISHABLE_KEY: "",
+    },
     shell: true,
     windowsHide: true,
   });

@@ -63,6 +63,8 @@ export function PortalGame3DOverlays({
     historyReport,
     hasOpenRun,
     matchOverlayOpen,
+    joining,
+    openingPlay,
     queueClaiming,
     queueWaiting,
     primaryQueueEntry,
@@ -72,16 +74,25 @@ export function PortalGame3DOverlays({
     awaitingMatch,
   } = ctrl;
 
+  const creatingMatch =
+    joining != null || openingPlay || queueClaiming;
+
   return (
     <>
       <CasualPlayMatchOverlay
         className="portal-3d-match-overlay"
-        open={visible !== 0 && !hasOpenRun && matchOverlayOpen}
-        phase={queueClaiming ? "claiming" : "waiting"}
+        open={
+          visible !== 0 &&
+          matchOverlayOpen &&
+          (creatingMatch || !hasOpenRun)
+        }
+        phase={creatingMatch ? "claiming" : "waiting"}
         waitingForPeer={
-          awaitingMatch != null && !queueWaiting && !queueClaiming
+          creatingMatch
             ? false
-            : (primaryQueueEntry?.waitingForPeer ?? false)
+            : awaitingMatch != null && !queueWaiting && !queueClaiming
+              ? false
+              : (primaryQueueEntry?.waitingForPeer ?? false)
         }
         tournamentTitle={primaryQueueTitle || undefined}
         leaving={leavingMatch}

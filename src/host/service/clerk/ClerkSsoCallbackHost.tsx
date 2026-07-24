@@ -7,7 +7,7 @@ import {
   clerkReturnUrl,
   isClerkSsoCallbackHash,
 } from "./clerkReturnUrl";
-import { isClerkConfigured } from "./clerkEnv";
+import { isClerkEnabled } from "./clerkEnv";
 import { clerkSpaNavigateAsync } from "./clerkSpaNavigate";
 
 /**
@@ -48,7 +48,7 @@ const ClerkSsoCallbackHostInner: React.FC = () => {
 };
 
 const ClerkSsoCallbackHost: React.FC = () => {
-  if (!isClerkConfigured()) return null;
+  if (!isClerkEnabled()) return null;
   return <ClerkSsoCallbackHostInner />;
 };
 

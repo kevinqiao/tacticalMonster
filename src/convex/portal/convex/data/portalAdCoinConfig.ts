@@ -11,10 +11,8 @@ export const PORTAL_AD_COIN_DAILY_CAP = 5;
 /** begin → complete 会话有效期 */
 export const PORTAL_AD_COIN_SESSION_TTL_MS = 120_000;
 
-/**
- * 支持的广告渠道。不含 crazygames：CG 包走平台独家广告，不开放自营领币。
- */
-export const PORTAL_AD_COIN_CHANNELS = ["partner", "poki", "dev"] as const;
+/** 支持的广告渠道（含 CrazyGames 激励与本地 mock `dev`）。 */
+export const PORTAL_AD_COIN_CHANNELS = ["partner", "poki", "dev", "crazygames"] as const;
 
 export type PortalAdCoinChannel = (typeof PORTAL_AD_COIN_CHANNELS)[number];
 

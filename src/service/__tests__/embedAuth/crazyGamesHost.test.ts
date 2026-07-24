@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { isClerkEnabled } from "@/host/service/clerk/clerkEnv";
 import {
   crazyGamesEntryPath,
   isCrazyGamesCdnBundlePath,
@@ -50,5 +51,6 @@ describe("crazyGamesHost", () => {
       search: "",
     });
     expect(shouldSkipClerkOnCrazyGamesHost()).toBe(true);
+    expect(isClerkEnabled()).toBe(false);
   });
 });

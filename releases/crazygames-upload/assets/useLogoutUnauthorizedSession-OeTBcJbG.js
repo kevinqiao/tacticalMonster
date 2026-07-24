@@ -1,0 +1,2 @@
+import{r as s}from"./react-vendor-CrzCOU9b.js";import{b as m,h as R,j as g}from"./app-shell-DjjuQ6NM.js";function p(c){const{forceReauth:o,askAuth:r,authReady:f,isAuthenticated:e,user:t}=m(),a=s.useRef(!1),i=R().staffGate,n=t==null?void 0:t.staffGate,h=!!(g()&&e&&n&&n!=="none"&&n!==i),u=c||h;s.useEffect(()=>{if(!u){a.current=!1;return}a.current||(a.current=!0,o())},[u,o]),s.useEffect(()=>{!f||e||t!=null&&t.authReq||r({})},[f,e,r,t==null?void 0:t.authReq])}export{p as u};
+//# sourceMappingURL=useLogoutUnauthorizedSession-OeTBcJbG.js.map

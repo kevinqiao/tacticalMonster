@@ -3,6 +3,16 @@
 export const PORTAL_MIN_GUTTER_WIDTH_PX = 120;
 export const PORTAL_DESKTOP_MIN_WIDTH_PX = 1024;
 
+/** Same threshold as PortalGame3DInner / solitaire lobby (≈0.725). */
+export const PORTAL_PORTRAIT_ASPECT_THRESHOLD = 132 / 182;
+
+export function isPortalViewportPortrait(
+  windowWidth: number,
+  windowHeight: number
+): boolean {
+  return windowWidth / Math.max(windowHeight, 1) < PORTAL_PORTRAIT_ASPECT_THRESHOLD;
+}
+
 export type ViewportGutterRect = {
   x: number;
   y: number;
@@ -33,7 +43,7 @@ export function computePortalViewportLayout(args: {
   portrait?: boolean;
 }): ViewportLayout {
   const portrait =
-    args.portrait ?? args.windowWidth / Math.max(args.windowHeight, 1) < 132 / 182;
+    args.portrait ?? isPortalViewportPortrait(args.windowWidth, args.windowHeight);
   const designWidth = args.designWidth ?? 1440;
   const designHeight = args.designHeight ?? (portrait ? 2560 : 1080);
 

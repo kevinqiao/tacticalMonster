@@ -11,11 +11,11 @@ import {
 } from "../../../data/portalPartnerShopSettings";
 
 describe("portalAdCoinConfig", () => {
-  it("allows partner/poki/dev and rejects crazygames", () => {
+  it("allows partner/poki/dev/crazygames", () => {
     expect(isPortalAdCoinChannel("partner")).toBe(true);
     expect(isPortalAdCoinChannel("poki")).toBe(true);
     expect(isPortalAdCoinChannel("dev")).toBe(true);
-    expect(isPortalAdCoinChannel("crazygames")).toBe(false);
+    expect(isPortalAdCoinChannel("crazygames")).toBe(true);
   });
 
   it("keeps reward and daily cap in expected ranges", () => {

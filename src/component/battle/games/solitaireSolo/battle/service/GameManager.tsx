@@ -3,7 +3,7 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 import { useConvex } from 'convex/react';
-import React, { createContext, ReactNode, RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, ReactNode, RefObject, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../../../../convex/solitaireArena/convex/_generated/api';
 import {
     Card,
@@ -15,12 +15,95 @@ import {
     SoloGameConfig,
     SoloGameState,
     SoloGameStatus,
-    isSolitairePlayableStatus,
+    ZoneType,
 } from '../types/SoloTypes';
+import { dealEffect } from '../animation/effects/dealEffect';
 import { createRolloutReplayState } from '../replay/solitaireRolloutReplay';
 import { autoCompleteLayoutGate } from '../autoCompleteLayoutGate';
+import { layoutAllSoloCardsFromModel } from '../soloCardLayout';
 import SoloRuleManager from './SoloRuleManager';
 import { createZones } from '@/convex/solitaireArena/convex/service/SoloGameEngine';
+
+type OpeningDealEvent = { name: string; cards: Card[] };
+
+/**
+ * Opening deal when board is fresh (OPEN/DEALED, no moves yet).
+ * `loadGame` often returns existing rows with `events: []` — synthesize from tableau.
+ */
+function resolveOpeningDealEvent(
+    game: SoloGameState,
+    events?: Array<{ name?: string; cards?: Card[] }>
+): OpeningDealEvent | null {
+    const st = Number(game.status);
+    // PLAYING with 0 moves can still be a fresh board (status advanced without a scored op).
+    if (
+        st !== SoloGameStatus.OPEN &&
+        st !== SoloGameStatus.DEALED &&
+        st !== SoloGameStatus.PLAYING
+    ) {
+        return null;
+    }
+    if ((game.moves ?? 0) > 0) return null;
+    if (typeof game.playStartedAt === 'number' && Number.isFinite(game.playStartedAt)) {
+        return null;
+    }
+
+    const fromServer = events?.find((e) => e.name === 'deal' && (e.cards?.length ?? 0) > 0);
+    if (fromServer?.cards?.length) {
+        return { name: 'deal', cards: fromServer.cards };
+    }
+
+    const tableau = game.cards.filter(
+        (c) =>
+            c.zone === ZoneType.TABLEAU ||
+            String(c.zoneId ?? '').startsWith('tableau-')
+    );
+    if (tableau.length === 0) return null;
+
+    return {
+        name: 'deal',
+        cards: tableau.map((c) => {
+            const patch: Card = {
+                id: c.id,
+                zone: c.zone,
+                zoneId: c.zoneId,
+                zoneIndex: c.zoneIndex,
+                isRevealed: Boolean(c.isRevealed),
+            };
+            if (c.isRevealed) {
+                if (c.suit != null) patch.suit = c.suit;
+                if (c.rank != null) patch.rank = c.rank;
+                if (c.value != null) patch.value = c.value;
+                if (c.isRed != null) patch.isRed = c.isRed;
+            }
+            return patch;
+        }),
+    };
+}
+
+function applyDealPatchesToGame(
+    prev: SoloGameState,
+    dealCards: Card[]
+): SoloGameState {
+    const byId = new Map(dealCards.map((r) => [r.id, r]));
+    const cards = prev.cards.map((c: SoloCard) => {
+        const r = byId.get(c.id);
+        if (!r) return c;
+        const next: SoloCard = {
+            ...c,
+            isRevealed: r.isRevealed,
+            zone: r.zone,
+            zoneId: r.zoneId,
+            zoneIndex: r.zoneIndex,
+        };
+        if (r.isRevealed && r.rank != null) next.rank = r.rank;
+        if (r.isRevealed && r.suit != null) next.suit = r.suit;
+        if (r.isRevealed && r.value != null) next.value = r.value;
+        if (r.isRevealed && r.isRed != null) next.isRed = r.isRed;
+        return next;
+    });
+    return { ...prev, status: SoloGameStatus.DEALED, cards };
+}
 
 export type SoloScoreFloat = {
     id: number;
@@ -75,6 +158,10 @@ interface ISoloGameContext {
     loadGame: () => void;
     /** 平台 authorize 后同 gameId 清档重开 */
     reloadCasualRun: () => Promise<boolean>;
+    /** Skip in-progress opening deal (tap-to-skip). */
+    skipOpeningDeal: () => void;
+    /** True while the short opening deal timeline is running. */
+    openingDealActive: boolean;
     /** 动画回放：合并卡牌 patch 并触发重渲染 */
     saveUpdate: (cards: SoloCard[]) => void;
     /** 动画回放：将模拟状态完整同步到 live 棋盘（含 score/moves） */
@@ -106,6 +193,8 @@ const SoloGameContext = createContext<ISoloGameContext>({
     updateBoardDimension: () => { },
     loadGame: () => { },
     reloadCasualRun: async () => false,
+    skipOpeningDeal: () => { },
+    openingDealActive: false,
     saveUpdate: () => { },
     syncReplayState: () => { },
     syncReplayScore: () => { },
@@ -152,7 +241,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     const [gameState, setGameState] = useState<SoloGameState | null>(() =>
         replaySeedId && !gameId ? createRolloutReplayState(replaySeedId) : null
     );
-    const [dealEvent, setDealEvent] = useState<{ cards: Card[], name: string } | null>(null);
+    const [dealEvent, setDealEvent] = useState<OpeningDealEvent | null>(null);
+    const [openingDealActive, setOpeningDealActive] = useState(false);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const [interactionPhase, setInteractionPhase] = useState<GameInteractionPhase>(GameInteractionPhase.idle);
     const [targetScore, setTargetScore] = useState<number | undefined>(undefined);
@@ -160,6 +250,9 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     const scoreFloatIdRef = useRef(0);
     const boardDimensionRef = useRef<SoloBoardDimension | null>(null);
     const timelinesRef = useRef<{ [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }>({});
+    const openingDealStartedRef = useRef(false);
+    const dealEventRef = useRef(dealEvent);
+    dealEventRef.current = dealEvent;
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const convex = useConvex();
     const casualPlatformBridge = casualTournamentId?.startsWith("portal_")
@@ -226,19 +319,19 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             ...rest,
             zones: rest.zones?.length ? rest.zones : createZones(),
         } as SoloGameState;
-        const event = res.events?.find((e: { name?: string }) => e.name === "deal");
-        const st = Number(game.status);
-        const skipDealAnim =
-            isSolitairePlayableStatus(st) ||
-            st === SoloGameStatus.COMPLETED ||
-            st === SoloGameStatus.CANCELLED;
-        // 仅 OPEN 局播发牌动画；已 DEALED/PLAYING 时忽略 deal 事件，避免长期 animating + 牌面 opacity 0
-        if (event && !skipDealAnim) {
-            setDealEvent(event);
+        const opening = resolveOpeningDealEvent(
+            game,
+            res.events as Array<{ name?: string; cards?: Card[] }> | undefined
+        );
+        openingDealStartedRef.current = false;
+        if (opening) {
+            setDealEvent(opening);
             setInteractionPhase(GameInteractionPhase.animating);
+            setOpeningDealActive(true);
         } else {
             setDealEvent(null);
             setInteractionPhase(GameInteractionPhase.idle);
+            setOpeningDealActive(false);
         }
         onGameLoadComplete?.();
         setGameState(game);
@@ -265,18 +358,19 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             ...rest,
             zones: rest.zones?.length ? rest.zones : createZones(),
         } as SoloGameState;
-        const event = res.events?.find((e: { name?: string }) => e.name === "deal");
-        const st = Number(game.status);
-        const skipDealAnim =
-            isSolitairePlayableStatus(st) ||
-            st === SoloGameStatus.COMPLETED ||
-            st === SoloGameStatus.CANCELLED;
-        if (event && !skipDealAnim) {
-            setDealEvent(event);
+        const opening = resolveOpeningDealEvent(
+            game,
+            res.events as Array<{ name?: string; cards?: Card[] }> | undefined
+        );
+        openingDealStartedRef.current = false;
+        if (opening) {
+            setDealEvent(opening);
             setInteractionPhase(GameInteractionPhase.animating);
+            setOpeningDealActive(true);
         } else {
             setDealEvent(null);
             setInteractionPhase(GameInteractionPhase.idle);
+            setOpeningDealActive(false);
         }
         setGameState(game);
         const threshold = (res as { seedScoreThreshold?: number }).seedScoreThreshold;
@@ -285,6 +379,32 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         }
         return true;
     }, [convex, gameId, casualPlatformBridge]);
+
+    const finishOpeningDeal = useCallback(() => {
+        openingDealStartedRef.current = false;
+        setDealEvent(null);
+        setOpeningDealActive(false);
+        setInteractionPhase(GameInteractionPhase.idle);
+    }, []);
+
+    const skipOpeningDeal = useCallback(() => {
+        if (!openingDealActive && !dealEventRef.current) return;
+        const entry = timelinesRef.current.dealOpening;
+        entry?.timeline?.kill();
+        delete timelinesRef.current.dealOpening;
+        const gs = gameState;
+        const dim = boardDimensionRef.current ?? boardDimension;
+        if (gs && dim) {
+            const patches = dealEventRef.current?.cards;
+            const next =
+                patches && Number(gs.status) === SoloGameStatus.OPEN
+                    ? applyDealPatchesToGame(gs, patches)
+                    : gs;
+            if (next !== gs) setGameState(next);
+            layoutAllSoloCardsFromModel(next, dim, boardDimensionRef);
+        }
+        finishOpeningDeal();
+    }, [openingDealActive, gameState, boardDimension, finishOpeningDeal]);
 
     const saveUpdate = useCallback((cards: SoloCard[]) => {
         setGameState((prev) => {
@@ -406,6 +526,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         if (replaySeedId && !gameId) return;
         setGameState(null);
         setDealEvent(null);
+        setOpeningDealActive(false);
+        openingDealStartedRef.current = false;
         setInteractionPhase(GameInteractionPhase.idle);
         void loadGame();
     }, [loadGame, replaySeedId, gameId]);
@@ -413,6 +535,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     /** 发牌/走子动画异常未回调时，避免长期锁在 animating（表现为「有遮罩、不能操作」） */
     useEffect(() => {
         if (interactionPhase !== GameInteractionPhase.animating) return;
+        // Opening deal has its own wait timeout; the 4s watchdog was killing it before start.
+        if (dealEventRef.current || openingDealActive) return;
         const id = window.setTimeout(() => {
             // 清盘 / 胜利动画可能超过 4s；此时强行 idle 会让滞后 React model 把牌刷回 tableau
             if (autoCompleteLayoutGate.blocked) return;
@@ -423,46 +547,81 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             ) {
                 return;
             }
+            if (dealEventRef.current || timelinesRef.current.dealOpening) return;
             console.warn('[SoloGameProvider] interaction animating watchdog -> idle');
-            setDealEvent(null);
             setInteractionPhase(GameInteractionPhase.idle);
         }, 4_000);
         return () => window.clearTimeout(id);
-    }, [interactionPhase]);
+    }, [interactionPhase, openingDealActive]);
 
-    useEffect(() => {
-        if (!dealEvent || !boardDimension || !gameState) return;
+    /**
+     * Play short opening deal once cards + board are mounted.
+     * Poll via rAF (board dim via ref) so ResizeObserver measure churn cannot cancel the wait.
+     */
+    useLayoutEffect(() => {
+        if (!dealEvent || !gameState) return;
+        if (openingDealStartedRef.current) return;
 
-        const ready = gameState.cards.every((card) => card.ele !== null) || false;
-        if (!ready) return;
+        let cancelled = false;
+        let raf = 0;
+        const startedAt = performance.now();
+        const patches = dealEvent.cards;
 
-        const st = Number(gameState.status);
-        if (st === SoloGameStatus.OPEN) {
-            setGameState((prev) => {
-                if (!prev || Number(prev.status) !== SoloGameStatus.OPEN) return prev;
-                const byId = new Map(dealEvent.cards.map((r: Card) => [r.id, r]));
-                const cards = prev.cards.map((c: SoloCard) => {
-                    const r = byId.get(c.id);
-                    if (!r) return c;
-                    const next: SoloCard = {
-                        ...c,
-                        isRevealed: r.isRevealed,
-                        zone: r.zone,
-                        zoneId: r.zoneId,
-                        zoneIndex: r.zoneIndex,
-                    };
-                    if (r.isRevealed && r.rank != null) next.rank = r.rank;
-                    if (r.isRevealed && r.suit != null) next.suit = r.suit;
-                    if (r.isRevealed && r.value != null) next.value = r.value;
-                    if (r.isRevealed && r.isRed != null) next.isRed = r.isRed;
-                    return next;
-                });
-                return { ...prev, status: SoloGameStatus.DEALED, cards };
+        const tryStart = () => {
+            if (cancelled || openingDealStartedRef.current) return;
+            const dim = boardDimensionRef.current;
+            // `ele` starts undefined — must use != null (!== null wrongly treats undefined as ready).
+            const ready =
+                !!dim &&
+                gameState.cards.length > 0 &&
+                gameState.cards.every((card) => card.ele != null && card.ele.isConnected);
+            if (!ready) {
+                if (performance.now() - startedAt > 8_000) {
+                    console.warn('[SoloGameProvider] opening deal wait timed out');
+                    finishOpeningDeal();
+                    return;
+                }
+                raf = window.requestAnimationFrame(tryStart);
+                return;
+            }
+
+            openingDealStartedRef.current = true;
+            setOpeningDealActive(true);
+            setInteractionPhase(GameInteractionPhase.animating);
+
+            const st = Number(gameState.status);
+            let animState = gameState;
+            if (st === SoloGameStatus.OPEN) {
+                animState = applyDealPatchesToGame(gameState, patches);
+                setGameState(animState);
+            }
+
+            dealEffect({
+                effectType: "opening",
+                timelines: timelinesRef.current,
+                data: {
+                    cards: patches,
+                    gameState: animState,
+                    boardDimensionRef,
+                    boardDimension: dim,
+                },
+                onComplete: () => {
+                    if (Number(animState.status) === SoloGameStatus.OPEN) {
+                        setGameState((prev) =>
+                            prev ? applyDealPatchesToGame(prev, patches) : prev
+                        );
+                    }
+                    finishOpeningDeal();
+                },
             });
-        }
-        setDealEvent(null);
-        setInteractionPhase(GameInteractionPhase.idle);
-    }, [dealEvent, gameState, boardDimension]);
+        };
+
+        raf = window.requestAnimationFrame(tryStart);
+        return () => {
+            cancelled = true;
+            window.cancelAnimationFrame(raf);
+        };
+    }, [dealEvent, gameState, finishOpeningDeal]);
 
     // const isPlaying = useCallback((card: SoloCard) => {
     //     return Object.values(timelinesRef.current).some(tl => tl.timeline.isActive() && tl.cards.some(c => c.id === card.id));
@@ -478,6 +637,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         updateBoardDimension,
         loadGame,
         reloadCasualRun,
+        skipOpeningDeal,
+        openingDealActive,
         saveUpdate,
         syncReplayState,
         syncReplayScore,

@@ -5,7 +5,7 @@ import type { User } from "host/service/UserManager";
 import { usePartnerManager } from "host/service/PartnerManager";
 import { shouldSuppressClerkAutoExchange } from "host/service/clerk/clerkSessionBridge";
 import { clerkReturnUrl } from "host/service/clerk/clerkReturnUrl";
-import { isClerkConfigured } from "host/service/clerk/clerkEnv";
+import { isClerkEnabled } from "host/service/clerk/clerkEnv";
 import { isCampaignPlayerShellUri } from "host/util/PageUtils";
 
 import { useClerkSignIn } from "@/component/lobby/shared/useClerkSignIn";
@@ -149,7 +149,7 @@ const SignInClerkInner: React.FC<SignInClerkProps> = ({ cid, onComplete, portalT
 };
 
 const SignInClerk: React.FC<SignInClerkProps> = (props) => {
-  if (!isClerkConfigured()) {
+  if (!isClerkEnabled()) {
     return (
       <div
         style={{

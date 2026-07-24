@@ -1,7 +1,7 @@
 /**
  * 单人纸牌游戏可拖拽卡牌组件（Pointer Events）
  */
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { useSoloDnDManager } from "../service/SoloDnDProvider";
 import { useSoloGameManager } from "../service/GameManager";
 import { ActMode, SoloCard } from "../types/SoloTypes";
@@ -25,6 +25,8 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 }) => {
     const { onPointerDragStart } = useSoloDnDManager();
     const { ruleManager } = useSoloGameManager();
+    const onCardDomChangeRef = useRef(onCardDomChange);
+    onCardDomChangeRef.current = onCardDomChange;
 
     const canDrag = useMemo(() => {
         if (!ruleManager) return false;
@@ -57,20 +59,32 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         e.stopPropagation();
     }, []);
 
-    const load = useCallback(
+    /**
+     * Ignore ref(null) from callback-identity churn (parent re-render creates a new
+     * `ref={fn}` each time). Clearing ele there + notifying parent caused update loops.
+     * True unmount clears via layout effect cleanup.
+     */
+    const setEleRef = useCallback(
         (ele: HTMLDivElement | null) => {
-            const hadEle = card.ele != null;
+            if (!ele) return;
+            const wasMissing = card.ele == null;
             card.ele = ele;
-            if (ele && !hadEle) {
-                onCardDomChange?.();
+            if (wasMissing) {
+                onCardDomChangeRef.current?.();
             }
         },
-        [card, onCardDomChange]
+        [card]
     );
+
+    useLayoutEffect(() => {
+        return () => {
+            card.ele = null;
+        };
+    }, [card]);
 
     return (
         <div
-            ref={(ele) => load(ele)}
+            ref={setEleRef}
             data-card-id={card.id}
             className={`card ${canDrag ? "card--interactive" : ""} ${className}`.trim()}
             style={cardStyle}

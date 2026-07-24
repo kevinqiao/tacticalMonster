@@ -3,7 +3,7 @@ import {
   resolveWebSignInFromLocation,
 } from "@/component/lobby/shared/resolveWebSignInFromLocation";
 import { usePartnerManager } from "host/service/PartnerManager";
-import { isClerkConfigured } from "host/service/clerk/clerkEnv";
+import { isClerkEnabled } from "host/service/clerk/clerkEnv";
 import { User } from "host/service/UserManager";
 import React, { useEffect, useMemo, useState } from "react";
 import SignInClerk from "../signin/SignInClerk";
@@ -28,10 +28,10 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: bool
   const clerkAllowed = playerMode === "clerk" || playerMode === "embed_then_clerk";
   const staffWebEnabled = partner?.staffAuth?.mode === "web" || !partner?.staffAuth;
 
-  const clerkKeyConfigured = isClerkConfigured();
+  const clerkRuntimeEnabled = isClerkEnabled();
   /** Staff consoles always offer Web sign-in UI. */
   const hasWeb = staffConsole;
-  const hasClerk = !staffConsole && clerkAllowed && clerkKeyConfigured;
+  const hasClerk = !staffConsole && clerkAllowed && clerkRuntimeEnabled;
   const defaultTab: AuthTab = hasWeb ? "web" : "clerk";
   const [tab, setTab] = useState<AuthTab>(defaultTab);
 
@@ -81,7 +81,7 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: bool
 
   return (
     <div className={portalTheme ? "sso-auth-panel sso-auth-panel--portal" : "sso-auth-panel"}>
-      {clerkKeyConfigured && !clerkAllowed && partnerResolveReady ? (
+      {clerkRuntimeEnabled && !clerkAllowed && partnerResolveReady ? (
         <div
           style={{
             padding: "8px 16px",
@@ -96,7 +96,7 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: bool
         </div>
       ) : null}
 
-      {clerkAllowed && !clerkKeyConfigured ? (
+      {clerkAllowed && !clerkRuntimeEnabled ? (
         <div
           style={{
             padding: "8px 16px",
@@ -106,7 +106,8 @@ const WebPanel1: React.FC<{ onComplete: (user: User) => void; portalTheme?: bool
             textAlign: "center",
           }}
         >
-          Partner 已启用 Clerk，但未配置 <code>VITE_CLERK_PUBLISHABLE_KEY</code>。
+          Partner 已启用 Clerk，但未配置 <code>VITE_CLERK_PUBLISHABLE_KEY</code>
+          （CrazyGames 等嵌入端不使用 Clerk）。
         </div>
       ) : null}
 

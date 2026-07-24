@@ -70,6 +70,11 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
 
   const authed = Boolean(isPlatformAuthed(user) && portal.portalSessionReady);
   const [joining, setJoining] = useState<"solo" | "multi" | null>(null);
+  /**
+   * Keep the shared match overlay up after join returns `ready` until the play
+   * modal is registered — covers the Suspense/chunk gap solo used to flash through.
+   */
+  const [openingPlay, setOpeningPlay] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const showNote = useCallback((message: string | null) => {
     setNote(message);
@@ -139,8 +144,29 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
 
   const hasGlobalOpenRun = hasAnyOpenCasualRunAssignment(portal.openRunAssignments);
   const hasOpenRun = openAssignments.length > 0;
+  const playModalName = portal.gameType
+    ? portalPlayModalForGameType(portal.gameType)
+    : null;
+  const playModalOpen = Boolean(
+    playModalName && modals.some((m) => m.name === playModalName)
+  );
+  /** Solo (and multi pre-queue) reuse the multi “Creating match” overlay. */
   const matchOverlayOpen =
-    awaitingMatch != null || queueWaiting || queueClaiming;
+    joining != null ||
+    openingPlay ||
+    awaitingMatch != null ||
+    queueWaiting ||
+    queueClaiming;
+
+  useEffect(() => {
+    if (!openingPlay) return;
+    if (playModalOpen) {
+      setOpeningPlay(false);
+      return;
+    }
+    const t = window.setTimeout(() => setOpeningPlay(false), 10_000);
+    return () => window.clearTimeout(t);
+  }, [openingPlay, playModalOpen]);
 
   useEffect(() => {
     if (visible === 0) return;
@@ -237,8 +263,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     // 排队/匹配中交给既有 await 流程；周结算弹窗打开时等关掉后再进
     if (matchOverlayOpen || weeklyCloseModalOpen) return;
 
-    const playModalName = portalPlayModalForGameType(portal.gameType);
-    if (modals.some((m) => m.name === playModalName)) {
+    if (playModalOpen) {
       autoResumeOpenRunRef.current = true;
       return;
     }
@@ -263,7 +288,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     multiOpenAssignment,
     matchOverlayOpen,
     weeklyCloseModalOpen,
-    modals,
+    playModalOpen,
     openAssignment,
   ]);
 
@@ -464,6 +489,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
           ...(ticketEntry ? { ticketEntry: true } : {}),
         });
         if (outcome.kind === "ready") {
+          setOpeningPlay(true);
           openModal({
             name: portalPlayModalForGameType(portal.gameType!),
             data: {
@@ -483,6 +509,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
           const fallback =
             mode === "solo" ? soloOpenAssignment : multiOpenAssignment;
           if (fallback) {
+            setOpeningPlay(true);
             openAssignment(fallback);
           } else {
             setNote(outcome.error);
@@ -534,6 +561,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     signOut,
     adCoinClientEnabled,
     joining,
+    openingPlay,
     note,
     showNote,
     leavingMatch,

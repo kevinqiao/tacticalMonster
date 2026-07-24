@@ -1,4 +1,8 @@
-/** Dev-only mock rewarded ad: local Vite dev, `?adReplay=mock`, or `VITE_AD_REPLAY_MOCK=1`. */
+/**
+ * Mock rewarded ad: local Vite dev, `?adReplay=mock`, or `VITE_AD_REPLAY_MOCK=1`.
+ * When enabled, `resolveRewardedAdProvider` prefers this over CrazyGames SDK
+ * (CG auction errors like "Something is wrong" would otherwise block mock).
+ */
 
 const SESSION_KEY = "portal.adReplay.mock";
 

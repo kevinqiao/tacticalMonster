@@ -1,0 +1,2 @@
+import{r,j as t}from"./react-vendor-CrzCOU9b.js";import{T as o}from"./TournamentHome-B-hvunvI.js";/* empty css                       */import"./modal-app-BZcjd_tW.js";import"./app-shell-DjjuQ6NM.js";import"./vendor-D9xM0_cR.js";import"./convex-vendor-B5P1QFoW.js";import"./gsap-vendor-DtRcpDEb.js";import"./three-vendor-BkxEoS7N.js";const l=({visible:i,data:e,close:m})=>(r.useEffect(()=>{},[]),t.jsx("div",{style:{width:"100%",height:"100%"},children:t.jsx(o,{})}));export{l as default};
+//# sourceMappingURL=TournamentJoinList-DXZbZhPO.js.map

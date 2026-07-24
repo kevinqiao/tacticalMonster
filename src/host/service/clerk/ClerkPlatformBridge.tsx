@@ -15,7 +15,7 @@ import {
   registerClerkSignOut,
   shouldSuppressClerkAutoExchange,
 } from "./clerkSessionBridge";
-import { isClerkConfigured } from "./clerkEnv";
+import { isClerkEnabled } from "./clerkEnv";
 
 /** After Clerk sign-in, exchange session token for platform JWT (cid=1). */
 const ClerkPlatformBridgeInner: React.FC = () => {
@@ -90,7 +90,7 @@ const ClerkPlatformBridgeInner: React.FC = () => {
 
 /** Must render only as a descendant of `ClerkProvider`. */
 const ClerkPlatformBridge: React.FC = () => {
-  if (!isClerkConfigured()) return null;
+  if (!isClerkEnabled()) return null;
   return <ClerkPlatformBridgeInner />;
 };
 

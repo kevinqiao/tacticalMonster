@@ -46,9 +46,6 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     /** 整局在 animating+DEALED 下只批量补跑一次牌位（与原先各 SoloDnDCard 的 postDealLayoutOnce 等价）。 */
     const postDealBatchLayoutDoneRef = useRef(false);
     const [cardMountEpoch, setCardMountEpoch] = useState(0);
-    const notifyCardDomChange = useCallback(() => {
-        setCardMountEpoch((n) => n + 1);
-    }, []);
     const containerRef = useRef<HTMLDivElement>(null);
     const boardSurfaceRef = useRef<HTMLDivElement>(null);
     const talonZoneRef = useRef<HTMLDivElement | undefined>(undefined);
@@ -70,7 +67,12 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         targetScore,
         casualTournamentId,
         scoreFloats,
+        openingDealActive,
+        skipOpeningDeal,
     } = useSoloGameManager();
+    const notifyCardDomChange = useCallback(() => {
+        setCardMountEpoch((n) => n + 1);
+    }, []);
     const { cards } = gameState || {};
     /** Solitaire Cash：局中 base 可因 recycle 暂为负，展示与结算一致不低于 0 */
     const displayScore =
@@ -425,6 +427,8 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     useLayoutEffect(() => {
         if (!gameState || !boardDimension || !boardDimensionRef.current) return;
         if (interactionPhase === GameInteractionPhase.pointerDrag) return;
+        // Opening deal owns positions (talon → cascade); skip model snap to avoid a dealt flash.
+        if (openingDealActive) return;
         // 自动清盘中：禁止用（可能滞后的）React model 把牌拽回 tableau
         if (autoCompleteLayoutGate.blocked) return;
         // 胜利动画期间：React model 可能仍是清盘前的 tableau，绝不能重排
@@ -465,7 +469,14 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         if (allowWhileAnimatingDeal) {
             postDealBatchLayoutDoneRef.current = true;
         }
-    }, [gameState, boardDimension, boardDimensionRef, interactionPhase, cardMountEpoch]);
+    }, [
+        gameState,
+        boardDimension,
+        boardDimensionRef,
+        interactionPhase,
+        cardMountEpoch,
+        openingDealActive,
+    ]);
 
 
     const loadZone = useCallback((zoneId: string, ele: HTMLDivElement | null) => {
@@ -580,6 +591,16 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             ref={containerRef}
             className="solo-player-container"
             data-game-visual-key={visualTheme.visualKey}
+            data-opening-deal={openingDealActive ? "1" : undefined}
+            onPointerDownCapture={
+                openingDealActive
+                    ? (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          skipOpeningDeal();
+                      }
+                    : undefined
+            }
             style={{
                 width: '100%',
                 height: '100%',
