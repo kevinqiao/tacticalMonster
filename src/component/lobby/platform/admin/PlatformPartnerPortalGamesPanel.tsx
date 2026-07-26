@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-import type { RegisteredPartnerGameType } from "@/convex/portal/convex/data/partnerGameRegistry";
 import { isFirstPartyPartnerId } from "@/convex/sso/convex/service/auth/platformUid";
-import { portalLaunchPath } from "@/host/util/portalPathParse";
 import { parseErrorCode } from "../../campaign/shared/campaignErrorMessage";
 
 import {
@@ -15,16 +13,21 @@ import {
 } from "./usePlatformAdmin";
 
 const PORTAL_ERROR_MAP: Record<string, string> = {
-  portal_key_required: "Portal key 必填（非第一方 Partner）。",
-  portal_key_invalid: "Portal key 格式无效（小写字母、数字、连字符）。",
-  portal_key_conflicts_game_type: "Portal key 不能与游戏类型同名。",
-  portal_key_taken: "该 Portal key 已被占用。",
-  portal_games_required: "请至少选择一款游戏。",
-  portal_game_invalid: "存在未注册的游戏类型。",
+  slug_required: "Partner slug 必填（非第一方 Partner）。",
+  slug_invalid: "Partner slug 格式无效（小写字母、数字、连字符）。",
+  slug_reserved: "该 Partner slug 为保留字。",
+  slug_conflicts_game_type: "Partner slug 不能与游戏类型同名。",
+  slug_taken: "该 Partner slug 已被占用。",
+  /** @deprecated aliases */
+  portal_key_required: "Partner slug 必填（非第一方 Partner）。",
+  portal_key_invalid: "Partner slug 格式无效（小写字母、数字、连字符）。",
+  portal_key_conflicts_game_type: "Partner slug 不能与游戏类型同名。",
+  portal_key_taken: "该 Partner slug 已被占用。",
   ad_replay_daily_cap_invalid: "每日广告再战次数须为 0–100 的整数（空=默认无限）。",
   max_replays_per_match_invalid: "同局最多再战次数须为 0–20 的整数（空=默认 1）。",
   ticket_replay_price_invalid: "门票再战价格须为 1–100 的整数（空=默认 1）。",
-  play_entry_setting_invalid: "免费/广告次数须为 0–100；门票价格须为 1–100，次数须为 0–100。",
+  play_entry_setting_invalid:
+    "入场共享范围须为 mode/lobby/tournament；免费/广告次数须为 0–100；门票价格须为 1–100，次数须为 0–100。",
   forbidden: "需要 platform_staff admin（或 owner）权限。",
   unauthenticated: "请重新登录后再试。",
   not_found: "找不到该 Partner。",
@@ -40,11 +43,11 @@ type Props = {
   canEdit: boolean;
 };
 
+/** Partner base settings: slug + entry ladder + replay (games come from Lobbies). */
 const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }) => {
   const config = usePartnerPortalConfig(partnerId);
   const { updatePartnerPortalConfig } = usePlatformAdminMutations();
-  const [portalKey, setPortalKey] = useState("");
-  const [selectedGames, setSelectedGames] = useState<string[]>([]);
+  const [partnerSlug, setPartnerSlug] = useState("");
   /** Empty string = use platform default (unlimited). */
   const [adReplayDailyCapInput, setAdReplayDailyCapInput] = useState("");
   /** Empty string = use default 1. */
@@ -54,6 +57,10 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   const [ticketReplayPriceInput, setTicketReplayPriceInput] = useState("");
   const [freeSolo, setFreeSolo] = useState("");
   const [freeMulti, setFreeMulti] = useState("");
+  /** mode | lobby | tournament — default mode when unset. */
+  const [quotaScope, setQuotaScope] = useState<"mode" | "lobby" | "tournament">(
+    "mode"
+  );
   const [adEntryEnabled, setAdEntryEnabled] = useState(true);
   const [adEntrySoloCap, setAdEntrySoloCap] = useState("");
   const [adEntryMultiCap, setAdEntryMultiCap] = useState("");
@@ -66,7 +73,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   const [saving, setSaving] = useState(false);
   const hydratedForPartner = useRef<number | null>(null);
 
-  // Prefer pid check over query flag so PID 0 never blocks on portal_key.
+  // Prefer pid check over query flag so PID 0 never blocks on partnerSlug.
   const isFirstParty =
     isFirstPartyPartnerId(partnerId) || config?.isFirstParty === true;
 
@@ -78,12 +85,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
     if (!config) return;
     if (hydratedForPartner.current === partnerId) return;
     hydratedForPartner.current = partnerId;
-    setPortalKey(config.portalKey ?? "");
-    const initialGames =
-      config.games && config.games.length > 0
-        ? config.games
-        : [...(config.registryGames ?? [])];
-    setSelectedGames(initialGames);
+    setPartnerSlug(config.partnerSlug ?? config.portalKey ?? "");
     setAdReplayDailyCapInput(
       typeof config.adReplayDailyCap === "number"
         ? String(config.adReplayDailyCap)
@@ -103,6 +105,11 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
     );
     setFreeSolo(config.freePlaySoloDailyCap == null ? "" : String(config.freePlaySoloDailyCap));
     setFreeMulti(config.freePlayMultiDailyCap == null ? "" : String(config.freePlayMultiDailyCap));
+    setQuotaScope(
+      config.quotaScope === "lobby" || config.quotaScope === "tournament"
+        ? config.quotaScope
+        : "mode"
+    );
     setAdEntryEnabled(config.adEntryEnabled !== false);
     setAdEntrySoloCap(
       config.adEntrySoloDailyCap == null ? "" : String(config.adEntrySoloDailyCap)
@@ -117,14 +124,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
     setTicketMultiCap(config.ticketEntryMultiDailyCap == null ? "" : String(config.ticketEntryMultiDailyCap));
   }, [config, partnerId]);
 
-  const toggleGame = (gameType: string) => {
-    if (!canEdit) return;
-    setSelectedGames((prev) =>
-      prev.includes(gameType) ? prev.filter((g) => g !== gameType) : [...prev, gameType]
-    );
-  };
-
-  const trimmedKey = portalKey.trim();
+  const trimmedSlug = partnerSlug.trim();
 
   const onSave = async () => {
     if (!canEdit) {
@@ -133,12 +133,8 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
     }
     // Re-check by pid at save time (avoid stale closure / wrong flag).
     const saveAsFirstParty = isFirstPartyPartnerId(partnerId);
-    if (!saveAsFirstParty && !trimmedKey) {
-      setNote(portalConfigErrorMessage(new Error("portal_key_required")));
-      return;
-    }
-    if (selectedGames.length === 0) {
-      setNote(portalConfigErrorMessage(new Error("portal_games_required")));
+    if (!saveAsFirstParty && !trimmedSlug) {
+      setNote(portalConfigErrorMessage(new Error("slug_required")));
       return;
     }
     const capTrimmed = adReplayDailyCapInput.trim();
@@ -183,7 +179,6 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
     try {
       await updatePartnerPortalConfig({
         partnerId,
-        games: selectedGames,
         adReplayDailyCap,
         maxReplaysPerMatch,
         adReplayEnabled,
@@ -191,6 +186,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         ticketReplayPriceTickets,
         freePlaySoloDailyCap: freeSolo === "" ? null : Number(freeSolo),
         freePlayMultiDailyCap: freeMulti === "" ? null : Number(freeMulti),
+        quotaScope,
         adEntryEnabled,
         adEntrySoloDailyCap: adEntrySoloCap === "" ? null : Number(adEntrySoloCap),
         adEntryMultiDailyCap: adEntryMultiCap === "" ? null : Number(adEntryMultiCap),
@@ -199,7 +195,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         ticketEntrySoloDailyCap: ticketSoloCap === "" ? null : Number(ticketSoloCap),
         ticketEntryMultiPriceTickets: ticketMultiPrice === "" ? null : Number(ticketMultiPrice),
         ticketEntryMultiDailyCap: ticketMultiCap === "" ? null : Number(ticketMultiCap),
-        ...(saveAsFirstParty ? {} : { portalKey: trimmedKey }),
+        ...(saveAsFirstParty ? {} : { partnerSlug: trimmedSlug }),
       });
       hydratedForPartner.current = null;
       setNote(platformAdminSuccessMessage("portalSaved"));
@@ -217,54 +213,54 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
     return <p className="merchant-note">找不到 Partner 或无权限。</p>;
   }
 
-  const registryGames = config.registryGames ?? [];
+  const derivedGames = config.games ?? [];
 
   return (
-    <>
+    <section style={{ marginBottom: 28 }}>
+      <h3 className="merchant-section-title">Partner 基础设置</h3>
       <p className="merchant-note">
         {isFirstParty ? (
           <>
-            第一方（PID 0）使用路径 <code>/gc/&#123;game&#125;</code>，
-            <strong>不需要</strong> portal_key。只需选择激活的游戏。
+            第一方（PID 0）使用路径 <code>/gc/&#123;game&#125;</code> 或 Lobby URL，
+            <strong>不需要</strong> Partner slug。激活游戏由 Game Lobby 的 offerings 派生。
           </>
         ) : (
           <>
-            平台授权：写入 <code>portal_key</code> + <code>games</code>，并启用{" "}
-            <code>portal</code> context。路径：
-            <code>/gc/&#123;key&#125;/&#123;game&#125;</code>。
+            Partner 级底配置：slug、入场阶梯与再战。激活游戏由 Game Lobby offerings 自动同步到{" "}
+            <code>partner.games</code>。
           </>
         )}
       </p>
       {!isFirstParty ? (
         <label className="merchant-field">
-          Portal key
+          Partner slug
           <input
-            value={portalKey}
-            onChange={(e) => setPortalKey(e.target.value)}
+            value={partnerSlug}
+            onChange={(e) => setPartnerSlug(e.target.value)}
             placeholder="my-partner"
             autoComplete="off"
             disabled={!canEdit}
           />
         </label>
       ) : null}
-      <fieldset className="merchant-field merchant-field--radio">
-        <legend>激活游戏</legend>
-        {registryGames.length === 0 ? (
-          <p className="merchant-note">无注册游戏。</p>
-        ) : (
-          registryGames.map((gameType) => (
-            <label key={gameType} className="merchant-radio">
-              <input
-                type="checkbox"
-                checked={selectedGames.includes(gameType)}
-                onChange={() => toggleGame(gameType)}
-                disabled={!canEdit}
-              />
-              {gameType}
-            </label>
-          ))
-        )}
-      </fieldset>
+      {typeof config.lobbyUrl === "string" && config.lobbyUrl ? (
+        <p className="merchant-note">
+          默认 Lobby URL：<code>{config.lobbyUrl}</code>
+        </p>
+      ) : null}
+      {derivedGames.length > 0 ? (
+        <p className="merchant-note">
+          当前派生游戏：{" "}
+          {derivedGames.map((g, i) => (
+            <React.Fragment key={g}>
+              {i > 0 ? " · " : null}
+              <code>{g}</code>
+            </React.Fragment>
+          ))}
+        </p>
+      ) : (
+        <p className="merchant-note">尚未从 Lobby 派生游戏 — 请先在 Game Lobby 配置 offerings。</p>
+      )}
       <fieldset className="merchant-field merchant-field--radio">
         <legend>再战设置</legend>
         <label className="merchant-field">
@@ -341,7 +337,24 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         </label>
       </fieldset>
       <fieldset className="merchant-field merchant-field--radio">
-        <legend>免费 → 广告 → 门票入场</legend>
+        <legend>免费 → 广告 → 门票入场（Partner 底配置）</legend>
+        <label className="merchant-field">
+          入场次数共享范围
+          <select
+            value={quotaScope}
+            onChange={(e) =>
+              setQuotaScope(e.target.value as "mode" | "lobby" | "tournament")
+            }
+            disabled={!canEdit}
+          >
+            <option value="mode">按模式（单人/多人各一池，跨游戏共享）</option>
+            <option value="lobby">整个 Lobby（所有模式与赛事共用一池）</option>
+            <option value="tournament">每个赛事独立</option>
+          </select>
+        </label>
+        <p className="merchant-note">
+          Lobby 可再覆盖此底配置。默认「按模式」：Solitaire / Block Blast 共用单人免费次数。
+        </p>
         <div className="merchant-field-row">
           <label className="merchant-field">
             单人免费/日
@@ -467,24 +480,6 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
           </label>
         </div>
       </fieldset>
-      {selectedGames.length > 0 ? (
-        <ul className="merchant-note">
-          {selectedGames.map((gameType) => (
-            <li key={gameType}>
-              <code>
-                {isFirstParty
-                  ? portalLaunchPath(null, gameType as RegisteredPartnerGameType)
-                  : portalLaunchPath(
-                      trimmedKey.toLowerCase(),
-                      gameType as RegisteredPartnerGameType
-                    )}
-              </code>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="merchant-note">请至少选择一款游戏。</p>
-      )}
       {canEdit ? (
         <button
           type="button"
@@ -492,13 +487,13 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
           disabled={saving}
           onClick={() => void onSave()}
         >
-          {saving ? "保存中…" : "保存 Portal 授权"}
+          {saving ? "保存中…" : "保存基础设置"}
         </button>
       ) : (
-        <p className="merchant-note">仅 owner / admin 可修改激活权。</p>
+        <p className="merchant-note">仅 owner / admin 可修改基础设置。</p>
       )}
       {note ? <p className="merchant-note">{note}</p> : null}
-    </>
+    </section>
   );
 };
 

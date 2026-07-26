@@ -13,7 +13,7 @@ function portalCtx(overrides: {
     partner: overrides.partner,
     partnerResolveReady: true,
     campaignPartnerSlug: null,
-    portalPartnerKey: "cg-test",
+    portalPartnerSlug: "cg-test",
     isFirstPartyPortal: false,
     search: overrides.search ?? "",
   });
@@ -71,7 +71,7 @@ describe("crazyGamesSdkSource eligibility", () => {
       partner: null,
       partnerResolveReady: true,
       campaignPartnerSlug: null,
-      portalPartnerKey: "cg-test",
+      portalPartnerSlug: "cg-test",
       isFirstPartyPortal: false,
       search: "",
     });

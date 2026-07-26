@@ -9,10 +9,16 @@ export function partnerIdFromLocation(): number | null {
 }
 
 const PARTNER_ADMIN_ERROR_MAP: Record<string, string> = {
-  portal_key_required: "Portal key is required.",
-  portal_key_invalid: "Portal key format is invalid (use lowercase letters, numbers, hyphens).",
-  portal_key_conflicts_game_type: "Portal key cannot match a registered game type.",
-  portal_key_taken: "That portal key is already in use.",
+  slug_required: "Partner slug is required.",
+  slug_invalid: "Partner slug format is invalid (use lowercase letters, numbers, hyphens).",
+  slug_reserved: "That partner slug is reserved.",
+  slug_conflicts_game_type: "Partner slug cannot match a registered game type.",
+  slug_taken: "That partner slug is already in use.",
+  /** @deprecated aliases — same messages as slug_* */
+  portal_key_required: "Partner slug is required.",
+  portal_key_invalid: "Partner slug format is invalid (use lowercase letters, numbers, hyphens).",
+  portal_key_conflicts_game_type: "Partner slug cannot match a registered game type.",
+  portal_key_taken: "That partner slug is already in use.",
   portal_context_required:
     "Portal Games capability must be enabled in /platform/admin before saving portal config.",
   portal_games_required: "Select at least one portal game.",

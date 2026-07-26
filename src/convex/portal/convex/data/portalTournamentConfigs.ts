@@ -1,4 +1,4 @@
-/** Portal 锦标配表：单人 P75 + 5 人多人竞技，纯积分无钱包 */
+/** Portal 锦标配表：单人 P75 + 多人竞技（积分桌 / 金币桌） */
 
 export type EntryCost = { kind: "none" } | { kind: "coins"; amount: number } | { kind: "gems"; amount: number };
 
@@ -23,6 +23,14 @@ export type PortalPointsConfig = {
 
 export type PortalRankPointsConfig = Record<number, number>;
 
+export type PortalTournamentCoinRewards = {
+  /** Solo: coins on success / fail (optional). */
+  soloSuccess?: number;
+  soloFail?: number;
+  /** Multi: coins by rank (string keys "1".."5"). */
+  rankCoins?: Record<string, number>;
+};
+
 export interface PortalTournamentDefinition {
   tournamentId: string;
   title: string;
@@ -35,9 +43,43 @@ export interface PortalTournamentDefinition {
   soloPoints?: PortalPointsConfig;
   /** 多人按名次积分 */
   rankPoints?: PortalRankPointsConfig;
+  /** Optional coin rewards (template defaults; lobby offering may override). */
+  coinRewards?: PortalTournamentCoinRewards;
   seedQuantileSuccess?: { quantile: "p75" };
   rankRates?: PortalRankRateEntry[];
   referenceScoreQuantiles?: PortalReferenceScoreQuantiles;
+}
+
+/**
+ * Free → ad → ticket daily ladder only applies to unpaid templates.
+ * Coin / gem entry tables are paid separately and must not consume that quota.
+ */
+export function portalTournamentUsesPlayEntryLadder(
+  def: Pick<PortalTournamentDefinition, "entry">
+): boolean {
+  return def.entry.kind === "none";
+}
+
+/** Merge template rewards with optional lobby offering override. */
+export function resolveEffectiveTournamentRewards(
+  def: PortalTournamentDefinition,
+  rewardsOverride?: {
+    soloPoints?: PortalPointsConfig;
+    rankPoints?: Record<string, number>;
+    coins?: PortalTournamentCoinRewards;
+  } | null
+) {
+  const soloPoints = rewardsOverride?.soloPoints ?? def.soloPoints;
+  const rankPoints = rewardsOverride?.rankPoints
+    ? Object.fromEntries(
+        Object.entries(rewardsOverride.rankPoints).map(([k, v]) => [Number(k), v])
+      )
+    : def.rankPoints;
+  const coinRewards = {
+    ...(def.coinRewards ?? {}),
+    ...(rewardsOverride?.coins ?? {}),
+  };
+  return { soloPoints, rankPoints, coinRewards };
 }
 
 export const PORTAL_SOLO_POINTS: PortalPointsConfig = { success: 3, fail: -1 };
@@ -57,6 +99,22 @@ const CASUAL_RANK_RATES_5 = [
   { rank: 4, odd: 15 },
   { rank: 5, odd: 10 },
 ] as const;
+
+const CASUAL_RANK_RATES_4 = [
+  { rank: 1, odd: 35 },
+  { rank: 2, odd: 28 },
+  { rank: 3, odd: 22 },
+  { rank: 4, odd: 15 },
+] as const;
+
+/** 4 人金币竞技：入场 20，奖励 45 / 25 / 15 / 5 */
+export const PORTAL_MULTI_COIN_ENTRY = 20;
+export const PORTAL_MULTI_COIN_RANK_REWARDS: Record<string, number> = {
+  "1": 45,
+  "2": 25,
+  "3": 15,
+  "4": 5,
+};
 
 function soloDef(gameType: string, title: string): PortalTournamentDefinition {
   return {
@@ -86,17 +144,41 @@ function multiDef(gameType: string, title: string): PortalTournamentDefinition {
   };
 }
 
+/**
+ * 金币入场多人桌（与免费积分桌并存；Lobby offerings 勾选后出现）。
+ * 周积分与免费桌相同（PORTAL_MULTI_RANK_POINTS）；另按名次发金币。
+ */
+function multiCoinDef(gameType: string, title: string): PortalTournamentDefinition {
+  return {
+    tournamentId: `portal_multi_coin_${gameType}`,
+    title: `${title} · 金币竞技`,
+    gameType,
+    matchType: "multi_ranked",
+    status: "open",
+    maxPlayers: 4,
+    entry: { kind: "coins", amount: PORTAL_MULTI_COIN_ENTRY },
+    rankPoints: { ...PORTAL_MULTI_RANK_POINTS },
+    coinRewards: { rankCoins: { ...PORTAL_MULTI_COIN_RANK_REWARDS } },
+    rankRates: [...CASUAL_RANK_RATES_4],
+  };
+}
+
 export const PORTAL_TOURNAMENT_DEFINITIONS: PortalTournamentDefinition[] = [
   soloDef("solitaire", "Solitaire"),
   multiDef("solitaire", "Solitaire"),
+  multiCoinDef("solitaire", "Solitaire"),
   soloDef("block_blast", "Block Blast"),
   multiDef("block_blast", "Block Blast"),
+  multiCoinDef("block_blast", "Block Blast"),
   soloDef("match_3", "Match-3"),
   multiDef("match_3", "Match-3"),
+  multiCoinDef("match_3", "Match-3"),
   soloDef("tower_arena", "Tower Arena"),
   multiDef("tower_arena", "Tower Arena"),
+  multiCoinDef("tower_arena", "Tower Arena"),
   soloDef("yatz", "Yatz"),
   multiDef("yatz", "Yatz"),
+  multiCoinDef("yatz", "Yatz"),
 ];
 
 const byId = new Map(PORTAL_TOURNAMENT_DEFINITIONS.map((d) => [d.tournamentId, d]));
@@ -155,6 +237,20 @@ export function portalRankPointDelta(
 ): number {
   if (!def.rankPoints) return 0;
   return def.rankPoints[rank] ?? 0;
+}
+
+/** Multi coin table payout for a final rank (0 if none). */
+export function portalRankCoinReward(
+  def: PortalTournamentDefinition,
+  rank: number,
+  rewardsOverride?: {
+    coins?: PortalTournamentCoinRewards;
+  } | null
+): number {
+  const { coinRewards } = resolveEffectiveTournamentRewards(def, rewardsOverride);
+  const raw = coinRewards.rankCoins?.[String(rank)];
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return 0;
+  return Math.max(0, Math.floor(raw));
 }
 
 export function isPortalP75Success(

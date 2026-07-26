@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { ModalConfig, Modals } from "../config/PageConfiguration";
+import { AudioBus } from "./audio/AudioBus";
 import { useUserManager } from "./UserManager";
 export interface ModalProp {
   visible: boolean;
@@ -70,10 +71,12 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
         next[i] = { name, data, effect };
         return next;
       }
+      setModalEvent({ name: "modalOpen", modals: [name] });
+      AudioBus.emit("ui.modal.open");
       return [...prev, { name, data, effect }];
     });
 
-  }, [user, askAuth])
+  }, [user, askAuth, modalContainers])
   const submitModal = useCallback((modal: ModalItem) => {
     setModals((prev) => {
       const pre = prev.find((modal) => modal.name === modal.name)
@@ -92,19 +95,22 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
     closeModal: useCallback((name?: string) => {
       setModals((prev) => {
         if (!name) {
-          const newModals = prev.slice(0, -1);
-          return newModals;
+          if (prev.length > 0) {
+            setModalEvent({ name: "modalClose", modals: [prev[prev.length - 1]!.name] });
+            AudioBus.emit("ui.modal.close");
+          }
+          return prev.slice(0, -1);
         }
         setModalEvent({ name: "modalClose", modals: [name] });
-        const newModals = prev.filter((modal) => modal.name !== name);
-        // console.log("close modal", newModals);
-        return newModals;
+        AudioBus.emit("ui.modal.close");
+        return prev.filter((modal) => modal.name !== name);
       })
     }, []),
     closeAll: useCallback(() => {
       setModals((prev) => {
         if (prev && prev.length > 0) {
           setModalEvent({ name: "modalClose", modals: prev.map((modal) => modal.name) });
+          AudioBus.emit("ui.modal.close");
         }
         return [];
       })

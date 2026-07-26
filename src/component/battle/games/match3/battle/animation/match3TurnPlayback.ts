@@ -1,3 +1,4 @@
+import { AudioBus } from 'host/service/audio';
 import type { Match3Cell, Match3TurnStep } from '../types/Match3Types';
 import { CELL_SIZE_PX, CELL_GAP_PX, CELL_STEP_PX } from './animationConfig';
 import { playClearAnim, playFallAnim, playSpawnAnim } from './effects/cascadeAnim';
@@ -159,12 +160,14 @@ async function playCascadeRoundGsap(
   const spawnDropSteps = buildSpawnDropSteps(spawnCells);
 
   const clearRefs = collectClearRefs(round, refs);
+  AudioBus.emit('game.match3.clear');
   await playClearAnim(clearRefs);
 
   applyClear(working, round.clear.cells);
   commitGrid(cloneGrid(working));
   await waitPaint();
 
+  AudioBus.emit('game.match3.fall');
   await playFallAnim(collectFallMoves(round, refs, cellStepPx));
 
   for (const fall of round.falls) applyFall(working, fall.moves);
@@ -172,6 +175,7 @@ async function playCascadeRoundGsap(
   await waitPaint();
 
   if (spawnCells.length > 0) {
+    AudioBus.emit('game.match3.spawn');
     const spawnTargets = spawnCells
       .map((cell) => {
         const el = refs[cell.row]?.[cell.col];
@@ -181,7 +185,7 @@ async function playCascadeRoundGsap(
           dropSteps: spawnDropSteps[cellKey(cell.row, cell.col)] ?? 1,
         };
       })
-      .filter((t): t is { el: HTMLElement; dropSteps: number } => t != null);
+      .filter((t): t is { el: HTMLDivElement; dropSteps: number } => t != null);
 
     applySpawnFromFinal(working, spawnCells, finalGrid);
     commitGrid(cloneGrid(working));

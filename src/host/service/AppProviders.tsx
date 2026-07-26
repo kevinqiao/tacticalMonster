@@ -9,6 +9,7 @@ import { PartnerSessionGuard } from "./platformAuth/PartnerSessionGuard";
 import { PlatformAuthProvider } from "./platformAuth/PlatformAuthProvider";
 import PartnerProvider from "./PartnerManager";
 import { MockRewardedAdOverlay } from "./ads/rewarded/MockRewardedAdOverlay";
+import { AudioProvider } from "./audio/AudioProvider";
 import { ModalProvider } from "./ModalManager";
 import { PageProvider } from "./PageManager";
 import { SharedPageDataProvider } from "./SharedPageDataManager";
@@ -39,9 +40,11 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
                                 <ConvexAuthBinder>
                                 <SharedPageDataProvider>
                                     <PageProvider>
-                                        <BootLoadingOverlay />
-                                        <MockRewardedAdOverlay />
-                                        <ModalProvider>{children}</ModalProvider>
+                                        <AudioProvider>
+                                            <BootLoadingOverlay />
+                                            <MockRewardedAdOverlay />
+                                            <ModalProvider>{children}</ModalProvider>
+                                        </AudioProvider>
                                     </PageProvider>
                                 </SharedPageDataProvider>
                             </ConvexAuthBinder>

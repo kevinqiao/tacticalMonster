@@ -157,21 +157,48 @@ export async function applyCasualJoinEntryCharge(
     { tournamentId }
   );
   const activityIds = modifiers.activityIds;
-  const costResult = applyEntryCostToPlayerPatch(player, entryCost);
-  if (!costResult.ok) {
-    return { ok: false as const, error: costResult.error };
+
+  // Inline wallet writes (ctx.db) — avoid nested-mutation / args-validation footguns
+  // that abort claimQueueAndCharge and leave the user stuck in "creating match".
+  if (entryCost.kind === "coins" || entryCost.kind === "gems") {
+    const costResult = applyEntryCostToPlayerPatch(player, entryCost);
+    if (!costResult.ok) {
+      return { ok: false as const, error: costResult.error };
+    }
+    const now = Date.now();
+    const playerRow = await ctx.db
+      .query("portal_players")
+      .withIndex("by_uid", (q) => q.eq("uid", uid))
+      .unique();
+    if (!playerRow) {
+      return { ok: false as const, error: "no_player" };
+    }
+    await ctx.db.patch(playerRow._id, { ...costResult.patch, updatedAt: now });
+    if (entryCost.kind === "coins") {
+      const balanceAfter = costResult.patch.coins as number;
+      await ctx.db.insert("portal_coin_ledger", {
+        uid,
+        kind: "coins",
+        delta: -entryCost.amount,
+        balanceAfter,
+        reason: `join_entry:${tournamentId}`,
+        gameType: def.gameType,
+        createdAt: now,
+      });
+    }
+    return {
+      ok: true as const,
+      coinsCharged: entryCost.kind === "coins" ? entryCost.amount : undefined,
+      gemsCharged: entryCost.kind === "gems" ? entryCost.amount : undefined,
+      activityIds,
+    };
   }
-  if (Object.keys(costResult.patch).length > 0) {
-    await ctx.runMutation(internal.dao.casualPlayerDao.patchByUid, {
-      uid,
-      ...costResult.patch,
-    });
-  }
+
   return {
     ok: true as const,
     vouchersCharged: undefined,
-    coinsCharged: entryCost.kind === "coins" ? entryCost.amount : undefined,
-    gemsCharged: entryCost.kind === "gems" ? entryCost.amount : undefined,
+    coinsCharged: undefined,
+    gemsCharged: undefined,
     activityIds,
   };
 }
@@ -242,16 +269,32 @@ export async function refundCasualJoinEntryCharge(
       deltaVouchers: meta.vouchersCharged,
     });
   }
-  const player = await ctx.runQuery(internal.dao.casualPlayerDao.findByUid, { uid });
-  if (!player) return;
   const coinsAdd = meta.coinsCharged ?? 0;
   const gemsAdd = meta.gemsCharged ?? 0;
   if (coinsAdd <= 0 && gemsAdd <= 0) return;
-  await ctx.runMutation(internal.dao.casualPlayerDao.patchByUid, {
-    uid,
-    ...(coinsAdd > 0 ? { coins: (player.coins ?? 0) + coinsAdd } : {}),
-    ...(gemsAdd > 0 ? { gems: (player.gems ?? 0) + gemsAdd } : {}),
-  });
+  const playerRow = await ctx.db
+    .query("portal_players")
+    .withIndex("by_uid", (q) => q.eq("uid", uid))
+    .unique();
+  if (!playerRow) return;
+  const now = Date.now();
+  const patch: { coins?: number; gems?: number; updatedAt: number } = { updatedAt: now };
+  if (coinsAdd > 0) {
+    const balanceAfter = (playerRow.coins ?? 0) + coinsAdd;
+    patch.coins = balanceAfter;
+    await ctx.db.insert("portal_coin_ledger", {
+      uid,
+      kind: "coins",
+      delta: coinsAdd,
+      balanceAfter,
+      reason: "join_entry_refund",
+      createdAt: now,
+    });
+  }
+  if (gemsAdd > 0) {
+    patch.gems = (playerRow.gems ?? 0) + gemsAdd;
+  }
+  await ctx.db.patch(playerRow._id, patch);
 }
 
 export async function insertCasualRunDocumentsForHumans(

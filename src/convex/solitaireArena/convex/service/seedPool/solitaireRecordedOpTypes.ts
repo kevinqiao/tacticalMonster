@@ -189,7 +189,8 @@ export type SeedPoolRejectReason =
   | "verify_failed"
   | "no_opening_moves"
   | "low_player_ceiling"
-  | "collapsed_scores";
+  | "collapsed_scores"
+  | "not_solvable";
 
 export type SeedPoolRejectedEntry = {
   seedId: string;

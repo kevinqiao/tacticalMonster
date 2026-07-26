@@ -11,17 +11,34 @@
   },
   "gate": {
     "loading": "Loading…",
-    "unknownKey": "Unknown portal key: {{key}}",
+    "unknownKey": "Unknown partner: {{key}}",
     "unknownGame": "Unknown game type",
+    "unknownLobby": "Lobby not found",
     "gameNotOpen": "This game is not available",
     "portalDisabled": "Portal is not enabled for this partner"
   },
   "lobby": {
+    "pickTournament": "Choose {{mode}} tournament",
+    "pickTournamentTitle": "Choose an event",
+    "pickModeSolo": "Challenge Mode",
+    "pickModeMulti": "Arena Mode",
+    "cancel": "Cancel",
     "shop": "Shop",
     "signIn": "Sign In",
     "signOut": "Sign Out",
     "leaderboard": "Standings",
     "history": "Matches",
+    "prizePoints": "Prize points",
+    "prizeTopPoints": "1st place points",
+    "prizeTopCoins": "1st place coins",
+    "prizeTopPointsAndCoins": "1st place points / coins",
+    "entryFee": "Entry",
+    "entryFree": "Free",
+    "entryFreeQuota": "{{used}}/{{cap}}",
+    "entryAd": "Ad",
+    "entryCoins": "🪙 {{amount}}",
+    "entryGems": "💎 {{amount}}",
+    "players": "Players",
     "modes": {
       "challenge": "Challenge",
       "arena": "Arena",
@@ -105,6 +122,7 @@
     "empty": "No matches yet",
     "ongoing": "In progress",
     "enter": "Tap to enter ›",
+    "gameType": "Game: {{name}}",
     "score": "Score {{score}}",
     "soloScore": "Score {{score}}",
     "soloTarget": "Target {{target}}",
@@ -112,11 +130,13 @@
     "challengeFail": "Challenge failed",
     "rank": "Rank {{rank}}",
     "points": "{{delta}} pts",
+    "coins": "{{coins}} coins",
     "pendingSettlement": "Awaiting settlement",
     "report": "Report",
     "matchTypes": {
       "solo_p75": "Solo Challenge",
-      "multi_ranked": "Arena"
+      "multi_ranked": "Arena",
+      "multi_ranked_coin": "Coin Arena"
     }
   },
   "leaderboard": {

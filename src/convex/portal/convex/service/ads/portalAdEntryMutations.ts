@@ -12,6 +12,7 @@ export const beginAdEntrySession = authedMutation({
     mode: v.union(v.literal("solo"), v.literal("multi")),
     templateId: v.string(),
     channel: v.union(...PORTAL_AD_ENTRY_CHANNELS.map((c) => v.literal(c))),
+    lobbyId: v.optional(v.id("portal_lobbies")),
   },
   handler: async (ctx, args) =>
     beginPortalAdEntrySessionCore(ctx, { uid: ctx.uid, ...args }),

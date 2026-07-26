@@ -4,6 +4,12 @@ import {
   endPortalGameSession,
   markPortalGameplayReady,
 } from 'host/service/ads/display/portalAdPhase';
+import {
+  AudioBus,
+  BLOCKBLAST_AUDIO_BANK,
+  MATCH3_AUDIO_BANK,
+  SOLITAIRE_AUDIO_BANK,
+} from 'host/service/audio';
 import React, { useEffect } from 'react';
 
 import { CasualTriathlonGameStage } from './CasualTriathlonGameStage';
@@ -31,14 +37,30 @@ export const PlayCasualGameModalShell: React.FC<Props> = ({
   useEffect(() => {
     if (!visible || !casualMatchGameId) return;
     beginPortalGameSessionLoad();
+    AudioBus.unlock();
+    const tid = String(casualTournamentId ?? '');
+    if (tid.includes('solitaire') || tid.includes('Solitaire')) {
+      AudioBus.preload(SOLITAIRE_AUDIO_BANK);
+    } else if (tid.includes('block') || tid.includes('Block') || tid.includes('blast')) {
+      AudioBus.preload(BLOCKBLAST_AUDIO_BANK);
+    } else if (tid.includes('match') || tid.includes('Match')) {
+      AudioBus.preload(MATCH3_AUDIO_BANK);
+    } else {
+      AudioBus.preload([
+        ...SOLITAIRE_AUDIO_BANK,
+        ...BLOCKBLAST_AUDIO_BANK,
+        ...MATCH3_AUDIO_BANK,
+      ]);
+    }
     const timer = window.setTimeout(() => {
       markPortalGameplayReady();
     }, GAMEPLAY_READY_FALLBACK_MS);
     return () => {
       window.clearTimeout(timer);
+      AudioBus.stopAll();
       endPortalGameSession();
     };
-  }, [visible, casualMatchGameId]);
+  }, [visible, casualMatchGameId, casualTournamentId]);
 
   if (!visible) return null;
 

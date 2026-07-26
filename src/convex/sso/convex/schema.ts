@@ -52,9 +52,6 @@ export default defineSchema({
          */
         data: v.optional(v.any()),
 
-        /** URL segment for /gc/{portal_key}/{gameType} (e.g. crazygames). */
-        portal_key: v.optional(v.string()),
-
         /**
          * Enabled game types from partnerGameRegistry (allowlist; unset/empty → full registry).
          * Also caps merchant campaign gameType for merchants bound to this partner.
@@ -72,14 +69,24 @@ export default defineSchema({
           })
         ),
 
-        /** Public URL segment for /cc/{slug}/... when campaignOps. */
+        /**
+         * Public partnerSlug for Portal `/gc/{slug}/...` and Campaign `/cc/{slug}/...`.
+         * Deprecated alias: historical `portal_key` values were migrated into this field.
+         */
         slug: v.optional(v.string()),
+
+        /**
+         * @deprecated Read-only fallback during migration. Prefer `slug` (partnerSlug).
+         * New writes must not set this field.
+         */
+        portal_key: v.optional(v.string()),
 
     })
         .index("by_pid", ["pid"])
         .index("by_name", ["name"])
-        .index("by_portal_key", ["portal_key"])
-        .index("by_slug", ["slug"]),
+        .index("by_slug", ["slug"])
+        /** @deprecated Prefer by_slug; kept for findByPartnerSlug fallback. */
+        .index("by_portal_key", ["portal_key"]),
 
 
 

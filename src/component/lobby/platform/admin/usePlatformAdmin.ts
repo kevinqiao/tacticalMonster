@@ -20,6 +20,12 @@ export const platformAdminFns = {
     api.service.partner.platformPartnerShopAdmin.getPlatformPartnerShopSettings,
   savePlatformPartnerShopSettings:
     api.service.partner.platformPartnerShopAdmin.savePlatformPartnerShopSettings,
+  listPlatformPartnerLobbies:
+    api.service.partner.platformPartnerLobbyAdmin.listPlatformPartnerLobbies,
+  upsertPlatformPartnerLobby:
+    api.service.partner.platformPartnerLobbyAdmin.upsertPlatformPartnerLobby,
+  deletePlatformPartnerLobby:
+    api.service.partner.platformPartnerLobbyAdmin.deletePlatformPartnerLobby,
 };
 
 export function usePlatformAdminAuth() {
@@ -67,6 +73,15 @@ export function usePlatformAdminMutations() {
     ),
     savePlatformPartnerShopSettings: useAction(
       platformAdminFns.savePlatformPartnerShopSettings
+    ),
+    listPlatformPartnerLobbies: useAction(
+      platformAdminFns.listPlatformPartnerLobbies
+    ),
+    upsertPlatformPartnerLobby: useAction(
+      platformAdminFns.upsertPlatformPartnerLobby
+    ),
+    deletePlatformPartnerLobby: useAction(
+      platformAdminFns.deletePlatformPartnerLobby
     ),
   };
 }

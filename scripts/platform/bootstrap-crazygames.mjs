@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Seed CrazyGames SSO partner (pid 100) with embed JWT + portal_key.
+ * Seed CrazyGames SSO partner (pid 100) with embed JWT + partnerSlug.
  *
  * Usage:
  *   node scripts/platform/bootstrap-crazygames.mjs
@@ -23,7 +23,7 @@ const args = [
   "--name=CrazyGames",
   "--host=https://www.crazygames.com",
   "--embed-method=crazygames_jwt",
-  "--portal-key=crazygames",
+  "--partner-slug=crazygames",
   "--portal-games=true",
   "--campaign-ops=false",
 ];

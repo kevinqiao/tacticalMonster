@@ -1,11 +1,24 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 
-import type { OpenCasualRunAssignment } from "../casual/service/casualOpenRunAssignment";
+import {
+  inferCasualGameKindFromAssignment,
+  type OpenCasualRunAssignment,
+} from "../casual/service/casualOpenRunAssignment";
 import { canOpenPortalHistoryReport } from "./service/portalHistoryReport";
-import type { PortalGameHistoryRow } from "./service/usePortalManager";
+import {
+  isValidPortalGameType,
+  portalGameDisplayName,
+  type PortalGameHistoryRow,
+} from "./service/usePortalManager";
 import { portalMatchTypeLabel } from "./service/portalOpenRunHelpers";
 import { resolvePlayerDisplayName } from "@/convex/shared/displayName";
+
+function historyGameTypeLabel(gameType: string | undefined): string | null {
+  if (!gameType) return null;
+  if (isValidPortalGameType(gameType)) return portalGameDisplayName(gameType);
+  return gameType;
+}
 
 export const PortalHistoryList: React.FC<{
   openAssignments: OpenCasualRunAssignment[];
@@ -21,7 +34,9 @@ export const PortalHistoryList: React.FC<{
 
   return (
     <ul className="portal-history">
-      {openAssignments.map((a) => (
+      {openAssignments.map((a) => {
+        const gameLabel = historyGameTypeLabel(inferCasualGameKindFromAssignment(a));
+        return (
         <li key={a.gameId}>
           <button
             type="button"
@@ -30,6 +45,9 @@ export const PortalHistoryList: React.FC<{
           >
             <div className="portal-history-main">
               <strong>{portalMatchTypeLabel(a.templateId)}</strong>
+              {gameLabel ? (
+                <span className="portal-history-game">{t("history.gameType", { name: gameLabel })}</span>
+              ) : null}
               <span className="portal-history-badge">{t("history.ongoing")}</span>
             </div>
             <div className="portal-history-meta">
@@ -38,11 +56,13 @@ export const PortalHistoryList: React.FC<{
             </div>
           </button>
         </li>
-      ))}
+        );
+      })}
       {gameHistory.map((row) => {
         const showReport = canOpenPortalHistoryReport(row);
         const pendingSettlement = row.settlementPending === true;
         const isSoloChallenge = row.matchType === "solo_p75";
+        const gameLabel = historyGameTypeLabel(row.gameType);
         const detail = isSoloChallenge ? (
           <>
             {t("history.soloScore", { score: row.score ?? t("common.dash") })}
@@ -65,6 +85,9 @@ export const PortalHistoryList: React.FC<{
           <li key={row.entryId} className="portal-history-row portal-history-row--done">
             <div className="portal-history-main">
               <strong>{portalMatchTypeLabel(row.tournamentId || row.matchType)}</strong>
+              {gameLabel ? (
+                <span className="portal-history-game">{t("history.gameType", { name: gameLabel })}</span>
+              ) : null}
               <span>{detail}</span>
             </div>
             <div className="portal-history-meta">
@@ -75,6 +98,11 @@ export const PortalHistoryList: React.FC<{
                   })}
                 </span>
               )}
+              {row.coinsGranted != null && row.coinsGranted > 0 ? (
+                <span className="portal-pts-pos">
+                  {t("history.coins", { coins: `+${row.coinsGranted}` })}
+                </span>
+              ) : null}
               <span className="portal-muted">
                 {pendingSettlement
                   ? t("history.pendingSettlement")

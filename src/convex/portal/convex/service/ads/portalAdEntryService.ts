@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 
+import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { internalMutation } from "../../_generated/server";
 import {
@@ -11,14 +12,26 @@ import {
   type PortalAdEntryChannel,
   type PortalAdEntryMode,
 } from "../../data/portalAdEntryConfig";
-import { getPortalTournamentDefinition } from "../../data/portalTournamentConfigs";
-import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
-import { partnerIdFromUid } from "./partnerAdReplayConfig";
 import {
-  countPortalPlaysInOpsDay,
+  getPortalTournamentDefinition,
+  portalTournamentUsesPlayEntryLadder,
+} from "../../data/portalTournamentConfigs";
+import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
+import {
+  countPortalPlaysForQuotaScope,
   portalDailyPlayModeFromDef,
 } from "../tournament/join/portalDailyPlayLimit";
+import { partnerIdFromUid } from "./partnerAdReplayConfig";
+import {
+  bumpAdEntryUsedToday,
+  readAdEntryUsedToday,
+} from "./portalEntryDailyUsage";
+import type { PlayEntryContext } from "./portalEntryUsageScope";
 import { resolveFreePlayDailyCap } from "./portalTicketEntryService";
+import {
+  quotaScopeFromSettings,
+  resolvePlayEntrySettings,
+} from "./resolvePlayEntrySettings";
 
 export type AdEntryModeOffer = {
   enabled: boolean;
@@ -27,6 +40,8 @@ export type AdEntryModeOffer = {
   usedToday: number;
   hasReadyGrant: boolean;
 };
+
+export { readAdEntryUsedToday };
 
 function randomHexId(byteLength = 16): string {
   const bytes = new Uint8Array(byteLength);
@@ -37,33 +52,24 @@ function randomHexId(byteLength = 16): string {
 export async function resolveAdEntryConfig(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  mode: PortalAdEntryMode
+  mode: PortalAdEntryMode,
+  entryCtx?: PlayEntryContext
 ) {
-  const row = await ctx.db
-    .query("portal_partner_play_entry_settings")
-    .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerIdFromUid(uid)))
-    .first();
-  const enabled = resolveAdEntryEnabled(row?.adEntryEnabled, mode);
+  const { settings } = await resolvePlayEntrySettings(ctx, {
+    partnerId: partnerIdFromUid(uid),
+    lobbyId: entryCtx?.lobbyId,
+    tournamentId: entryCtx?.tournamentId,
+  });
+  const enabled = resolveAdEntryEnabled(settings.adEntryEnabled, mode);
   const dailyCap = clampAdEntryDailyCap(
-    mode === "solo" ? row?.adEntrySoloDailyCap : row?.adEntryMultiDailyCap,
+    mode === "solo" ? settings.adEntrySoloDailyCap : settings.adEntryMultiDailyCap,
     mode
   );
-  return { enabled: enabled && dailyCap > 0, dailyCap };
-}
-
-export async function readAdEntryUsedToday(
-  ctx: QueryCtx | MutationCtx,
-  uid: string,
-  dayKey: string,
-  mode: PortalAdEntryMode
-) {
-  const row = await ctx.db
-    .query("portal_ad_entry_daily_usage")
-    .withIndex("by_uid_dayKey_mode", (q) =>
-      q.eq("uid", uid).eq("dayKey", dayKey).eq("mode", mode)
-    )
-    .unique();
-  return Math.max(0, Math.floor(row?.usedCount ?? 0));
+  return {
+    enabled: enabled && dailyCap > 0,
+    dailyCap,
+    quotaScope: quotaScopeFromSettings(settings),
+  };
 }
 
 async function findReadyAdEntryGrant(
@@ -106,13 +112,21 @@ async function expireStaleReadyGrants(
 
 export async function getPortalAdEntryOfferCore(
   ctx: QueryCtx | MutationCtx,
-  uid: string
+  uid: string,
+  entryCtx?: PlayEntryContext
 ): Promise<{ solo: AdEntryModeOffer; multi: AdEntryModeOffer }> {
   const now = Date.now();
   const key = dailyPeriodKey(now);
   const make = async (mode: PortalAdEntryMode): Promise<AdEntryModeOffer> => {
-    const cfg = await resolveAdEntryConfig(ctx, uid, mode);
-    const used = await readAdEntryUsedToday(ctx, uid, key, mode);
+    const cfg = await resolveAdEntryConfig(ctx, uid, mode, entryCtx);
+    const used = await readAdEntryUsedToday(
+      ctx,
+      uid,
+      key,
+      mode,
+      entryCtx,
+      cfg.quotaScope
+    );
     const ready = await findReadyAdEntryGrant(ctx, uid, mode, now);
     const remaining = cfg.enabled ? Math.max(0, cfg.dailyCap - used) : 0;
     return {
@@ -134,6 +148,7 @@ export async function beginPortalAdEntrySessionCore(
     mode: PortalAdEntryMode;
     channel: string;
     templateId: string;
+    lobbyId?: Id<"portal_lobbies"> | null;
     now?: number;
   }
 ) {
@@ -143,14 +158,31 @@ export async function beginPortalAdEntrySessionCore(
   }
   const def = getPortalTournamentDefinition(args.templateId);
   if (!def) return { ok: false as const, error: "invalid_mode" as const };
+  // Coin/gem tables are outside the free→ad→ticket ladder.
+  if (!portalTournamentUsesPlayEntryLadder(def)) {
+    return { ok: false as const, error: "disabled" as const };
+  }
   const mode = portalDailyPlayModeFromDef(def);
   if (mode !== args.mode) {
     return { ok: false as const, error: "invalid_mode" as const };
   }
 
-  const freeCap = await resolveFreePlayDailyCap(ctx, args.uid, mode);
-  const playsToday = await countPortalPlaysInOpsDay(ctx, {
+  const entryCtx: PlayEntryContext = {
+    lobbyId: args.lobbyId ?? null,
+    tournamentId: args.templateId,
+  };
+  const freeCap = await resolveFreePlayDailyCap(ctx, args.uid, mode, entryCtx);
+  const { settings } = await resolvePlayEntrySettings(ctx, {
+    partnerId: partnerIdFromUid(args.uid),
+    lobbyId: entryCtx.lobbyId,
+    tournamentId: entryCtx.tournamentId,
+  });
+  const quotaScope = quotaScopeFromSettings(settings);
+  const playsToday = await countPortalPlaysForQuotaScope(ctx, {
     uid: args.uid,
+    mode,
+    quotaScope,
+    lobbyId: args.lobbyId,
     templateId: args.templateId,
     nowMs: now,
   });
@@ -158,7 +190,7 @@ export async function beginPortalAdEntrySessionCore(
     return { ok: false as const, error: "free_quota_available" as const };
   }
 
-  const cfg = await resolveAdEntryConfig(ctx, args.uid, mode);
+  const cfg = await resolveAdEntryConfig(ctx, args.uid, mode, entryCtx);
   if (!cfg.enabled) return { ok: false as const, error: "disabled" as const };
 
   await expireStaleReadyGrants(ctx, args.uid, mode, now);
@@ -173,7 +205,14 @@ export async function beginPortalAdEntrySessionCore(
   }
 
   const dayKey = dailyPeriodKey(now);
-  const used = await readAdEntryUsedToday(ctx, args.uid, dayKey, mode);
+  const used = await readAdEntryUsedToday(
+    ctx,
+    args.uid,
+    dayKey,
+    mode,
+    entryCtx,
+    cfg.quotaScope
+  );
   if (used >= cfg.dailyCap) {
     return { ok: false as const, error: "daily_cap_reached" as const };
   }
@@ -234,7 +273,14 @@ export async function completePortalAdEntrySessionCore(
   const cfg = await resolveAdEntryConfig(ctx, args.uid, session.mode);
   if (!cfg.enabled) return { ok: false as const, error: "disabled" as const };
   const dayKey = dailyPeriodKey(now);
-  const used = await readAdEntryUsedToday(ctx, args.uid, dayKey, session.mode);
+  const used = await readAdEntryUsedToday(
+    ctx,
+    args.uid,
+    dayKey,
+    session.mode,
+    null,
+    cfg.quotaScope
+  );
   if (used >= cfg.dailyCap) {
     return { ok: false as const, error: "daily_cap_reached" as const };
   }
@@ -274,43 +320,54 @@ export async function completePortalAdEntrySessionCore(
 /** Consume a ready ad-entry grant at join time and bump daily usage. */
 export async function useAdEntryGrantForJoin(
   ctx: MutationCtx,
-  args: { uid: string; mode: PortalAdEntryMode; now?: number }
+  args: {
+    uid: string;
+    mode: PortalAdEntryMode;
+    templateId: string;
+    lobbyId?: Id<"portal_lobbies"> | null;
+    now?: number;
+  }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const now = args.now ?? Date.now();
+  const entryCtx: PlayEntryContext = {
+    lobbyId: args.lobbyId ?? null,
+    tournamentId: args.templateId,
+  };
   await expireStaleReadyGrants(ctx, args.uid, args.mode, now);
   const grant = await findReadyAdEntryGrant(ctx, args.uid, args.mode, now);
   if (!grant) return { ok: false, error: "ad_entry_grant_missing" };
 
-  const cfg = await resolveAdEntryConfig(ctx, args.uid, args.mode);
+  const cfg = await resolveAdEntryConfig(ctx, args.uid, args.mode, entryCtx);
   if (!cfg.enabled) return { ok: false, error: "disabled" };
   const dayKey = dailyPeriodKey(now);
-  const used = await readAdEntryUsedToday(ctx, args.uid, dayKey, args.mode);
+  const used = await readAdEntryUsedToday(
+    ctx,
+    args.uid,
+    dayKey,
+    args.mode,
+    entryCtx,
+    cfg.quotaScope
+  );
   if (used >= cfg.dailyCap) return { ok: false, error: "daily_cap_reached" };
 
   await ctx.db.patch(grant._id, { status: "consumed", consumedAt: now });
-  const usage = await ctx.db
-    .query("portal_ad_entry_daily_usage")
-    .withIndex("by_uid_dayKey_mode", (q) =>
-      q.eq("uid", args.uid).eq("dayKey", dayKey).eq("mode", args.mode)
-    )
-    .unique();
-  if (usage) {
-    await ctx.db.patch(usage._id, { usedCount: usage.usedCount + 1, updatedAt: now });
-  } else {
-    await ctx.db.insert("portal_ad_entry_daily_usage", {
-      uid: args.uid,
-      dayKey,
-      mode: args.mode,
-      usedCount: 1,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
+  await bumpAdEntryUsedToday(ctx, {
+    uid: args.uid,
+    dayKey,
+    mode: args.mode,
+    now,
+    entryCtx,
+    quotaScope: cfg.quotaScope,
+  });
   return { ok: true };
 }
 
 export const consumeAdEntryForJoin = internalMutation({
-  args: { uid: v.string(), templateId: v.string() },
+  args: {
+    uid: v.string(),
+    templateId: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+  },
   handler: async (ctx, args) => {
     const def = getPortalTournamentDefinition(args.templateId);
     const mode =
@@ -320,7 +377,11 @@ export const consumeAdEntryForJoin = internalMutation({
           ? "multi"
           : null;
     if (!mode) return { ok: false as const, error: "invalid_mode" };
-    return await useAdEntryGrantForJoin(ctx, { uid: args.uid, mode });
+    return await useAdEntryGrantForJoin(ctx, {
+      uid: args.uid,
+      mode,
+      templateId: args.templateId,
+      lobbyId: args.lobbyId,
+    });
   },
 });
-

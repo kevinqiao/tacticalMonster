@@ -38,11 +38,42 @@ export const findInternal = internalQuery({
   },
 });
 
+/**
+ * Resolve partner by public partnerSlug (`partner.slug`).
+ * Temporary fallback: historical `portal_key` when slug is missing / not yet migrated.
+ */
+export const findByPartnerSlug = query({
+  args: { partnerSlug: v.string() },
+  handler: async (ctx, { partnerSlug }) => {
+    const key = partnerSlug.trim().toLowerCase();
+    if (!key) return null;
+    const bySlug = await ctx.db
+      .query("partner")
+      .withIndex("by_slug", (q) => q.eq("slug", key))
+      .unique();
+    if (bySlug) return formatPartnerRow(bySlug);
+
+    // Migration fallback — remove after portal_key backfill is complete.
+    const byLegacyKey = await ctx.db
+      .query("partner")
+      .withIndex("by_portal_key", (q) => q.eq("portal_key", key))
+      .unique();
+    if (!byLegacyKey) return null;
+    return formatPartnerRow(byLegacyKey);
+  },
+});
+
+/** @deprecated Use findByPartnerSlug. */
 export const findByPortalKey = query({
   args: { portalKey: v.string() },
   handler: async (ctx, { portalKey }) => {
     const key = portalKey.trim().toLowerCase();
     if (!key) return null;
+    const bySlug = await ctx.db
+      .query("partner")
+      .withIndex("by_slug", (q) => q.eq("slug", key))
+      .unique();
+    if (bySlug) return formatPartnerRow(bySlug);
     const partner = await ctx.db
       .query("partner")
       .withIndex("by_portal_key", (q) => q.eq("portal_key", key))

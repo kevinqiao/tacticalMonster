@@ -59,12 +59,16 @@ export interface PortalGame3DInnerProps {
   multiJoinBlocked?: boolean;
   soloOpenAssignment?: unknown;
   multiOpenAssignment?: unknown;
-  /** 今日已挑战次数（单人：免费+广告+门票合计） */
+  /** 今日已挑战次数（单人：含金币桌等全部对局；主页文案用） */
   soloPlaysToday?: number;
+  /** 免费/广告/门票阶梯今日次数（单人；开始按钮 used/cap 用） */
+  soloLadderPlaysToday?: number;
   /** 免费每日上限（单人；按钮 used/cap 用） */
   soloMaxPlaysPerDay?: number;
-  /** 今日已挑战次数（多人：免费+广告+门票合计） */
+  /** 今日已挑战次数（多人：含金币桌等全部对局；主页文案用） */
   multiPlaysToday?: number;
+  /** 免费/广告/门票阶梯今日次数（多人；开始按钮 used/cap 用） */
+  multiLadderPlaysToday?: number;
   /** 免费每日上限（多人；按钮 used/cap 用） */
   multiMaxPlaysPerDay?: number;
   /** 单人今日次数已用尽（无进行中对局时「开始」应灰掉） */
@@ -80,6 +84,12 @@ export interface PortalGame3DInnerProps {
   multiTicketEntryPrice?: number;
   soloTicketEntryRemaining?: number;
   multiTicketEntryRemaining?: number;
+  /**
+   * 该模式有多个 tournament：免费→广告 CTA 落在选择弹窗的每条记录上，
+   * 主页模式框只显示「开始 / 继续」。
+   */
+  soloHasMultipleOfferings?: boolean;
+  multiHasMultipleOfferings?: boolean;
   queueWaiting?: boolean;
   weekEndsAt?: number | null;
   bgUrl?: string;
@@ -119,8 +129,10 @@ export function PortalGame3DInner({
   soloOpenAssignment,
   multiOpenAssignment,
   soloPlaysToday = 0,
+  soloLadderPlaysToday = 0,
   soloMaxPlaysPerDay = 3,
   multiPlaysToday = 0,
+  multiLadderPlaysToday = 0,
   multiMaxPlaysPerDay = 10,
   soloDailyExhausted = false,
   multiDailyExhausted = false,
@@ -132,6 +144,8 @@ export function PortalGame3DInner({
   multiTicketEntryPrice,
   soloTicketEntryRemaining,
   multiTicketEntryRemaining,
+  soloHasMultipleOfferings = false,
+  multiHasMultipleOfferings = false,
   queueWaiting = false,
   weekEndsAt,
   bgUrl,
@@ -219,39 +233,36 @@ export function PortalGame3DInner({
 
   const soloJoinDisabled = !authed || joining != null || soloJoinBlocked;
   const multiJoinDisabled = !authed || joining != null || multiJoinBlocked;
-  /** 次数用尽（或其它原因不可新开）且无「继续」时，开始按钮灰掉 */
-  const soloStartGrayed =
-    authed &&
-    !soloOpenAssignment &&
-    ((soloDailyExhausted && !soloAdEntryAvailable && !soloTicketEntryAvailable) ||
-      soloJoinDisabled);
+  /** 不可新开且无「继续」时灰掉（含免费/广告/门票用尽；金币桌不受此限） */
+  const soloStartGrayed = authed && !soloOpenAssignment && soloJoinDisabled;
   const multiStartGrayed =
-    authed &&
-    !multiOpenAssignment &&
-    !queueWaiting &&
-    ((multiDailyExhausted &&
-      !multiAdEntryAvailable &&
-      !multiTicketEntryAvailable) ||
-      multiJoinDisabled);
+    authed && !multiOpenAssignment && !queueWaiting && multiJoinDisabled;
 
   // 免费按钮展示（used/cap）；次数用尽且无广告/门票时灰掉，只显示「开始」
+  // 多 tournament 时入场 CTA 在选择弹窗里，主页模式框只显示「开始」
   const soloFreeExhaustedNoAlt =
     soloDailyExhausted && !soloAdEntryAvailable && !soloTicketEntryAvailable;
   const multiFreeExhaustedNoAlt =
     multiDailyExhausted && !multiAdEntryAvailable && !multiTicketEntryAvailable;
-  const soloFreePlayLabel = soloFreeExhaustedNoAlt
+  const soloFreePlayLabel = soloHasMultipleOfferings
     ? t("lobby.play")
-    : t("lobby.playFree", {
-        used: Math.min(soloPlaysToday, soloMaxPlaysPerDay),
-        cap: soloMaxPlaysPerDay,
-      });
-  const multiFreePlayLabel = multiFreeExhaustedNoAlt
+    : soloFreeExhaustedNoAlt
+      ? t("lobby.play")
+      : t("lobby.playFree", {
+          used: Math.min(soloLadderPlaysToday, soloMaxPlaysPerDay),
+          cap: soloMaxPlaysPerDay,
+        });
+  const multiFreePlayLabel = multiHasMultipleOfferings
     ? t("lobby.play")
-    : t("lobby.playFree", {
-        used: Math.min(multiPlaysToday, multiMaxPlaysPerDay),
-        cap: multiMaxPlaysPerDay,
-      });
+    : multiFreeExhaustedNoAlt
+      ? t("lobby.play")
+      : t("lobby.playFree", {
+          used: Math.min(multiLadderPlaysToday, multiMaxPlaysPerDay),
+          cap: multiMaxPlaysPerDay,
+        });
   const adEntryLabel = t("lobby.playWatchAd");
+  const soloShowEntryCtaOnHome = !soloHasMultipleOfferings;
+  const multiShowEntryCtaOnHome = !multiHasMultipleOfferings;
 
   const handleSoloClick = () => {
     if (!authed) {
@@ -570,9 +581,13 @@ export function PortalGame3DInner({
                     ? t("lobby.joining")
                     : soloOpenAssignment
                       ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
-                      : soloDailyExhausted && soloAdEntryAvailable
+                      : soloShowEntryCtaOnHome &&
+                          soloDailyExhausted &&
+                          soloAdEntryAvailable
                         ? adEntryLabel
-                        : soloDailyExhausted && soloTicketEntryAvailable
+                        : soloShowEntryCtaOnHome &&
+                            soloDailyExhausted &&
+                            soloTicketEntryAvailable
                           ? t("lobby.playWithTickets", {
                               price: soloTicketEntryPrice ?? 1,
                             })
@@ -591,7 +606,9 @@ export function PortalGame3DInner({
                       {t("lobby.continueInProgress")}
                     </span>
                   </span>
-                ) : soloDailyExhausted && soloAdEntryAvailable ? (
+                ) : soloShowEntryCtaOnHome &&
+                  soloDailyExhausted &&
+                  soloAdEntryAvailable ? (
                   <span className={styles.modePlayStack}>
                     <span
                       className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}
@@ -601,7 +618,9 @@ export function PortalGame3DInner({
                       {adEntryLabel}
                     </span>
                   </span>
-                ) : soloDailyExhausted && soloTicketEntryAvailable ? (
+                ) : soloShowEntryCtaOnHome &&
+                  soloDailyExhausted &&
+                  soloTicketEntryAvailable ? (
                   <span className={styles.modePlayStack}>
                     <span className={styles.modePlayText}>
                       {t("lobby.playWithTickets", {
@@ -647,9 +666,13 @@ export function PortalGame3DInner({
                     ? t("lobby.matching")
                     : multiOpenAssignment
                       ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
-                      : multiDailyExhausted && multiAdEntryAvailable
+                      : multiShowEntryCtaOnHome &&
+                          multiDailyExhausted &&
+                          multiAdEntryAvailable
                         ? adEntryLabel
-                        : multiDailyExhausted && multiTicketEntryAvailable
+                        : multiShowEntryCtaOnHome &&
+                            multiDailyExhausted &&
+                            multiTicketEntryAvailable
                           ? t("lobby.playWithTickets", {
                               price: multiTicketEntryPrice ?? 2,
                             })
@@ -668,7 +691,9 @@ export function PortalGame3DInner({
                       {t("lobby.continueInProgress")}
                     </span>
                   </span>
-                ) : multiDailyExhausted && multiAdEntryAvailable ? (
+                ) : multiShowEntryCtaOnHome &&
+                  multiDailyExhausted &&
+                  multiAdEntryAvailable ? (
                   <span className={styles.modePlayStack}>
                     <span
                       className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}
@@ -678,7 +703,9 @@ export function PortalGame3DInner({
                       {adEntryLabel}
                     </span>
                   </span>
-                ) : multiDailyExhausted && multiTicketEntryAvailable ? (
+                ) : multiShowEntryCtaOnHome &&
+                  multiDailyExhausted &&
+                  multiTicketEntryAvailable ? (
                   <span className={styles.modePlayStack}>
                     <span className={styles.modePlayText}>
                       {t("lobby.playWithTickets", {

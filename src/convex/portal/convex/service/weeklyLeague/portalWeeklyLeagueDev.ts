@@ -205,7 +205,7 @@ export const devClaimPortalWeeklyLeagueRewardsForUid = mutation({
       .unique();
 
     if ((!member?.pendingRewards || member.rewardsClaimedAt) && !weekKeyArg) {
-      const unclaimed = await findUnclaimedPortalWeeklyLeagueRewards(ctx, uid, gameType);
+      const unclaimed = await findUnclaimedPortalWeeklyLeagueRewards(ctx, uid, { gameType });
       if (unclaimed) {
         member = await ctx.db
           .query("portal_weekly_league_members")

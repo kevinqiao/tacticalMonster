@@ -1,3 +1,4 @@
+import { AudioBus } from "host/service/audio";
 import { SoloCard } from "../types/SoloTypes";
 import { dealEffect } from "./effects/dealEffect";
 import { dragCancel } from "./effects/dragCancel";
@@ -43,27 +44,40 @@ export const PlayEffects: PlayEffects = {
 
     // 默认发牌效果
     deal: ({ effectType, data, onComplete }) => {
+        if (effectType === "opening") {
+            AudioBus.emit("game.solitaire.deal.opening");
+        }
         dealEffect({ effectType, data, onComplete });
     },
     dragCancel: ({ data, onComplete }) => {
+        AudioBus.emit("game.solitaire.drag_cancel");
         dragCancel({ data, onComplete });
     },
     flipCard: ({ data, onComplete }) => {
+        AudioBus.emit("game.solitaire.flip");
         flipCard({ data, onComplete });
     },
 
     drawCard: ({ data, onComplete }) => {
+        AudioBus.emit("game.solitaire.draw");
         drawCard({ data, onComplete });
     },
     moveCard: ({ data, onComplete }) => {
+        const target = String(data?.targetZoneId ?? "");
+        if (target.startsWith("foundation")) {
+            AudioBus.emit("game.solitaire.move.foundation");
+        } else {
+            AudioBus.emit("game.solitaire.move");
+        }
         moveCard({ data, onComplete });
     },
     recycle: ({ data, onComplete }) => {
+        // SFX is timed inside recycle() to each card's flight start
         recycle({ data, onComplete });
     },
 
 
-    // 游戏胜利效果
+    // 游戏胜利效果（win SFX 跟拍在 cascadeClassicSimple 时间线内）
     gameOver: ({ effectType, data, onComplete }) => {
         gameOverEffect({ effectType: effectType || 'default', data, onComplete });
     }

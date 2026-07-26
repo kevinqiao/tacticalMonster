@@ -25,10 +25,7 @@ import {
   validatePartnerSlug,
   type PartnerCapabilities,
 } from "./partnerCapabilities";
-import {
-  sanitizePartnerGames,
-  validatePortalKey,
-} from "./portalPartnerConfig";
+import { sanitizePartnerGames } from "./portalPartnerConfig";
 import {
   assertValidStoreSlug,
   getStoreBySlug,
@@ -440,17 +437,19 @@ export const ensureCampaignOpsDevPartner = mutation({
     partnerId: v.optional(v.number()),
     partnerSlug: v.optional(v.string()),
     partnerName: v.optional(v.string()),
+    /** @deprecated Prefer partnerSlug */
     portalKey: v.optional(v.string()),
     games: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     assertBootstrapSecret(args.bootstrapSecret);
 
-    const partnerSlug = validatePartnerSlug(args.partnerSlug ?? "demo-partner");
+    const partnerSlug = validatePartnerSlug(
+      args.partnerSlug ?? args.portalKey ?? "demo-partner"
+    );
     if (!partnerSlug) throw new Error("slug_required");
     const partnerName = (args.partnerName ?? "Demo Partner").trim() || "Demo Partner";
     const games = sanitizePartnerGames(args.games ?? ["block_blast"]);
-    const portalKey = validatePortalKey(args.portalKey ?? "demo");
 
     let created = false;
     let partner =
@@ -476,11 +475,6 @@ export const ensureCampaignOpsDevPartner = mutation({
         .withIndex("by_slug", (q) => q.eq("slug", partnerSlug))
         .unique();
       if (slugConflict) throw new Error("slug_taken");
-      const portalConflict = await ctx.db
-        .query("partner")
-        .withIndex("by_portal_key", (q) => q.eq("portal_key", portalKey))
-        .unique();
-      if (portalConflict) throw new Error("portal_key_taken");
 
       const pid = await nextPartnerId(ctx);
       await ctx.db.insert("partner", {
@@ -490,7 +484,6 @@ export const ensureCampaignOpsDevPartner = mutation({
         staffAuth: DEFAULT_STAFF_AUTH,
         capabilities,
         slug: partnerSlug,
-        portal_key: portalKey,
         games,
       });
       partner = await getPartnerByPid(ctx, pid);
@@ -506,13 +499,6 @@ export const ensureCampaignOpsDevPartner = mutation({
     if (slugConflict && slugConflict.pid !== partner.pid) {
       throw new Error("slug_taken");
     }
-    const portalConflict = await ctx.db
-      .query("partner")
-      .withIndex("by_portal_key", (q) => q.eq("portal_key", portalKey))
-      .unique();
-    if (portalConflict && portalConflict.pid !== partner.pid) {
-      throw new Error("portal_key_taken");
-    }
 
     const prevData = (partner.data ?? {}) as Record<string, unknown>;
     const { enabledContexts: _drop, ...dataRest } = prevData;
@@ -520,7 +506,6 @@ export const ensureCampaignOpsDevPartner = mutation({
       name: partnerName,
       capabilities,
       slug: partnerSlug,
-      portal_key: portalKey,
       games,
       data: dataRest,
     });
@@ -536,7 +521,6 @@ export const ensureCampaignOpsDevPartner = mutation({
       created,
       partnerId: partner.pid,
       partnerSlug,
-      portalKey,
       games,
     };
   },

@@ -44,7 +44,7 @@ export const EmbedAuthGateProvider: React.FC<{ children: React.ReactNode }> = ({
     partnerPid,
     partnerResolveReady,
     campaignPartnerSlug,
-    portalPartnerKey,
+    portalPartnerSlug,
     isFirstPartyPortal,
   } = usePartnerManager();
   const { user, authReady } = useUserManager();
@@ -123,7 +123,7 @@ export const EmbedAuthGateProvider: React.FC<{ children: React.ReactNode }> = ({
       partner,
       partnerResolveReady,
       campaignPartnerSlug,
-      portalPartnerKey,
+      portalPartnerSlug,
       isFirstPartyPortal,
     });
 
@@ -166,7 +166,7 @@ export const EmbedAuthGateProvider: React.FC<{ children: React.ReactNode }> = ({
     partner,
     partnerPid,
     partnerResolveReady,
-    portalPartnerKey,
+    portalPartnerSlug,
     user,
   ]);
 

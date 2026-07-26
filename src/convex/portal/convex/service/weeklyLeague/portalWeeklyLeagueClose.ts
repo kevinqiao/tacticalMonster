@@ -144,7 +144,9 @@ async function closeOnePortalCohort(
 
               weekKey: cohort.weekKey,
 
-              gameType: cohort.gameType,
+              gameType: cohort.gameType ?? (cohort.lobbyId ? `lobby:${cohort.lobbyId}` : undefined),
+
+              lobbyId: cohort.lobbyId ? String(cohort.lobbyId) : undefined,
 
               leagueTierId: cohort.leagueTierId,
 
@@ -228,17 +230,21 @@ async function closeOnePortalCohort(
 
 
 
-    const profile = await ctx.db
-
-      .query("portal_weekly_league_profile")
-
-      .withIndex("by_uid_game", (q) =>
-
-        q.eq("uid", member.uid).eq("gameType", member.gameType)
-
-      )
-
-      .unique();
+    const profile = member.lobbyId
+      ? await ctx.db
+          .query("portal_weekly_league_profile")
+          .withIndex("by_uid_lobby", (q) =>
+            q.eq("uid", member.uid).eq("lobbyId", member.lobbyId!)
+          )
+          .unique()
+      : member.gameType
+        ? await ctx.db
+            .query("portal_weekly_league_profile")
+            .withIndex("by_uid_game", (q) =>
+              q.eq("uid", member.uid).eq("gameType", member.gameType!)
+            )
+            .unique()
+        : null;
 
     if (!profile) continue;
 

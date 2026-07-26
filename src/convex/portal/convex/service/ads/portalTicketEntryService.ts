@@ -3,22 +3,29 @@ import { internal } from "../../_generated/api";
 import { internalMutation } from "../../_generated/server";
 import { v } from "convex/values";
 import {
-  clampTicketEntryDailyCap,
-  clampTicketEntryPrice,
   PORTAL_TICKET_ENTRY_DEFAULTS,
-  resolveTicketEntryEnabled,
   type PortalTicketEntryMode,
 } from "../../data/portalTicketEntryConfig";
-import {
-  clampFreePlayDailyCap,
-  type PortalDailyPlayMode,
-} from "../../data/portalDailyPlayLimits";
+import { type PortalDailyPlayMode } from "../../data/portalDailyPlayLimits";
 import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
 import { partnerIdFromUid } from "./partnerAdReplayConfig";
 import { readPortalTicketBalance } from "../tournament/replay/casualReplayTokens";
 import {
   getPortalTournamentDefinition,
+  portalTournamentUsesPlayEntryLadder,
 } from "../../data/portalTournamentConfigs";
+import type { Id } from "../../_generated/dataModel";
+import {
+  bumpTicketEntryUsedToday,
+  readTicketEntryUsedToday,
+} from "./portalEntryDailyUsage";
+import type { PlayEntryContext } from "./portalEntryUsageScope";
+import {
+  freePlayCapFromSettings,
+  quotaScopeFromSettings,
+  resolvePlayEntrySettings,
+  ticketConfigFromSettings,
+} from "./resolvePlayEntrySettings";
 
 export type TicketEntryModeOffer = {
   enabled: boolean;
@@ -28,54 +35,57 @@ export type TicketEntryModeOffer = {
   priceTickets: number;
 };
 
+export type { PlayEntryContext };
+
+export { readTicketEntryUsedToday };
+
 export async function resolveTicketEntryConfig(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  mode: PortalTicketEntryMode
+  mode: PortalTicketEntryMode,
+  entryCtx?: PlayEntryContext
 ) {
-  const row = await ctx.db
-    .query("portal_partner_play_entry_settings")
-    .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerIdFromUid(uid)))
-    .first();
-  const enabled = resolveTicketEntryEnabled(row?.ticketEntryEnabled, mode);
-  return mode === "solo"
-    ? {
-        enabled,
-        priceTickets: clampTicketEntryPrice(row?.ticketEntrySoloPriceTickets, mode),
-        dailyCap: clampTicketEntryDailyCap(row?.ticketEntrySoloDailyCap, mode),
-      }
-    : {
-        enabled,
-        priceTickets: clampTicketEntryPrice(row?.ticketEntryMultiPriceTickets, mode),
-        dailyCap: clampTicketEntryDailyCap(row?.ticketEntryMultiDailyCap, mode),
-      };
+  const { settings } = await resolvePlayEntrySettings(ctx, {
+    partnerId: partnerIdFromUid(uid),
+    lobbyId: entryCtx?.lobbyId,
+    tournamentId: entryCtx?.tournamentId,
+  });
+  return {
+    ...ticketConfigFromSettings(settings, mode),
+    quotaScope: quotaScopeFromSettings(settings),
+  };
 }
 
 export async function resolveFreePlayDailyCap(
-  ctx: QueryCtx | MutationCtx, uid: string, mode: PortalDailyPlayMode
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  mode: PortalDailyPlayMode,
+  entryCtx?: PlayEntryContext
 ): Promise<number> {
-  const row = await ctx.db.query("portal_partner_play_entry_settings")
-    .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerIdFromUid(uid))).first();
-  return clampFreePlayDailyCap(
-    mode === "solo" ? row?.freePlaySoloDailyCap : row?.freePlayMultiDailyCap, mode
-  );
-}
-
-export async function readTicketEntryUsedToday(
-  ctx: QueryCtx | MutationCtx, uid: string, dayKey: string, mode: PortalTicketEntryMode
-) {
-  const row = await ctx.db.query("portal_ticket_entry_daily_usage")
-    .withIndex("by_uid_dayKey_mode", (q) => q.eq("uid", uid).eq("dayKey", dayKey).eq("mode", mode))
-    .unique();
-  return Math.max(0, Math.floor(row?.usedCount ?? 0));
+  const { settings } = await resolvePlayEntrySettings(ctx, {
+    partnerId: partnerIdFromUid(uid),
+    lobbyId: entryCtx?.lobbyId,
+    tournamentId: entryCtx?.tournamentId,
+  });
+  return freePlayCapFromSettings(settings, mode);
 }
 
 export async function getPortalTicketEntryOfferCore(
-  ctx: QueryCtx | MutationCtx, uid: string
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  entryCtx?: PlayEntryContext
 ): Promise<{ solo: TicketEntryModeOffer; multi: TicketEntryModeOffer }> {
   const key = dailyPeriodKey(Date.now());
   const make = async (mode: PortalTicketEntryMode) => {
-    const [cfg, used] = await Promise.all([resolveTicketEntryConfig(ctx, uid, mode), readTicketEntryUsedToday(ctx, uid, key, mode)]);
+    const cfg = await resolveTicketEntryConfig(ctx, uid, mode, entryCtx);
+    const used = await readTicketEntryUsedToday(
+      ctx,
+      uid,
+      key,
+      mode,
+      entryCtx,
+      cfg.quotaScope
+    );
     return {
       enabled: cfg.enabled && cfg.dailyCap > 0,
       cap: cfg.dailyCap,
@@ -90,26 +100,57 @@ export async function getPortalTicketEntryOfferCore(
 
 /** Atomically charge a ticket entry after the free quota is exhausted. */
 export async function useTicketEntryForJoin(
-  ctx: MutationCtx, args: { uid: string; mode: PortalTicketEntryMode; now?: number }
+  ctx: MutationCtx,
+  args: {
+    uid: string;
+    mode: PortalTicketEntryMode;
+    templateId: string;
+    lobbyId?: Id<"portal_lobbies"> | null;
+    now?: number;
+  }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const now = args.now ?? Date.now();
-  const cfg = await resolveTicketEntryConfig(ctx, args.uid, args.mode);
+  const def = getPortalTournamentDefinition(args.templateId);
+  if (def && !portalTournamentUsesPlayEntryLadder(def)) {
+    return { ok: false, error: "ticket_entry_not_available" };
+  }
+  const entryCtx: PlayEntryContext = {
+    lobbyId: args.lobbyId ?? null,
+    tournamentId: args.templateId,
+  };
+  const cfg = await resolveTicketEntryConfig(ctx, args.uid, args.mode, entryCtx);
   if (!cfg.enabled) return { ok: false, error: "ticket_entry_not_available" };
   const key = dailyPeriodKey(now);
-  const used = await readTicketEntryUsedToday(ctx, args.uid, key, args.mode);
-  if (cfg.dailyCap <= 0 || used >= cfg.dailyCap) return { ok: false, error: "ticket_entry_limit_reached" };
+  const used = await readTicketEntryUsedToday(
+    ctx,
+    args.uid,
+    key,
+    args.mode,
+    entryCtx,
+    cfg.quotaScope
+  );
+  if (cfg.dailyCap <= 0 || used >= cfg.dailyCap) {
+    return { ok: false, error: "ticket_entry_limit_reached" };
+  }
   if ((await readPortalTicketBalance(ctx, args.uid)) < cfg.priceTickets) {
     return { ok: false, error: "insufficient_tickets" };
   }
-  const charged = await ctx.runMutation(internal.service.reward.casualRewardRegistry.spendPortalTickets, {
-    uid: args.uid, amount: cfg.priceTickets, reason: `ticket_entry:${args.mode}`,
-  });
+  const charged = await ctx.runMutation(
+    internal.service.reward.casualRewardRegistry.spendPortalTickets,
+    {
+      uid: args.uid,
+      amount: cfg.priceTickets,
+      reason: `ticket_entry:${args.mode}`,
+    }
+  );
   if (!charged.ok) return { ok: false, error: charged.error };
-  const usage = await ctx.db.query("portal_ticket_entry_daily_usage")
-    .withIndex("by_uid_dayKey_mode", (q) => q.eq("uid", args.uid).eq("dayKey", key).eq("mode", args.mode)).unique();
-  if (usage) await ctx.db.patch(usage._id, { usedCount: usage.usedCount + 1, updatedAt: now });
-  else await ctx.db.insert("portal_ticket_entry_daily_usage", {
-    uid: args.uid, dayKey: key, mode: args.mode, usedCount: 1, createdAt: now, updatedAt: now,
+  await bumpTicketEntryUsedToday(ctx, {
+    uid: args.uid,
+    dayKey: key,
+    mode: args.mode,
+    now,
+    entryCtx,
+    quotaScope: cfg.quotaScope,
   });
   return { ok: true };
 }
@@ -117,12 +158,29 @@ export async function useTicketEntryForJoin(
 export { PORTAL_TICKET_ENTRY_DEFAULTS };
 
 export const consumeTicketEntryForJoin = internalMutation({
-  args: { uid: v.string(), templateId: v.string() },
+  args: {
+    uid: v.string(),
+    templateId: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+  },
   handler: async (ctx, args) => {
     const def = getPortalTournamentDefinition(args.templateId);
-    const mode = def?.matchType === "solo_p75" ? "solo" : def?.matchType === "multi_ranked" ? "multi" : null;
+    if (def && !portalTournamentUsesPlayEntryLadder(def)) {
+      return { ok: false as const, error: "ticket_entry_not_available" };
+    }
+    const mode =
+      def?.matchType === "solo_p75"
+        ? "solo"
+        : def?.matchType === "multi_ranked"
+          ? "multi"
+          : null;
     if (!mode) return { ok: false as const, error: "invalid_mode" };
-    return await useTicketEntryForJoin(ctx, { uid: args.uid, mode });
+    return await useTicketEntryForJoin(ctx, {
+      uid: args.uid,
+      mode,
+      templateId: args.templateId,
+      lobbyId: args.lobbyId,
+    });
   },
 });
 
@@ -130,6 +188,14 @@ export const consumeTicketEntryForJoin = internalMutation({
 export const upsertPartnerPlayEntrySettingsInternal = internalMutation({
   args: {
     partnerId: v.number(),
+    quotaScope: v.optional(
+      v.union(
+        v.literal("mode"),
+        v.literal("lobby"),
+        v.literal("tournament"),
+        v.null()
+      )
+    ),
     freePlaySoloDailyCap: v.optional(v.number()),
     freePlayMultiDailyCap: v.optional(v.number()),
     ticketEntryEnabled: v.optional(v.boolean()),
@@ -143,17 +209,52 @@ export const upsertPartnerPlayEntrySettingsInternal = internalMutation({
   },
   handler: async (ctx, args) => {
     const partnerId = Math.floor(args.partnerId);
-    if (!Number.isFinite(partnerId) || partnerId < 0) return { ok: false as const, error: "invalid_partner" };
-    const rows = await ctx.db.query("portal_partner_play_entry_settings")
-      .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerId)).collect();
-    const data = { ...args, partnerId, updatedAt: Date.now() };
-    delete (data as Partial<typeof data>).partnerId;
-    if (rows[0]) {
-      await ctx.db.patch(rows[0]._id, data);
-      for (const duplicate of rows.slice(1)) await ctx.db.delete(duplicate._id);
-    } else {
-      await ctx.db.insert("portal_partner_play_entry_settings", { partnerId, ...data });
+    if (!Number.isFinite(partnerId) || partnerId < 0) {
+      return { ok: false as const, error: "invalid_partner" };
     }
+    const rows = await ctx.db
+      .query("portal_partner_play_entry_settings")
+      .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerId))
+      .collect();
+    const baseRows = rows.filter(
+      (r) => r.lobbyId == null && (r.tournamentId == null || r.tournamentId === "")
+    );
+    const overlayRows = rows.filter((r) => !baseRows.includes(r));
+    const { partnerId: _p, quotaScope, ...rest } = args;
+    void _p;
+    const patch: Record<string, unknown> = { ...rest, updatedAt: Date.now() };
+    if (quotaScope === "mode" || quotaScope === "lobby" || quotaScope === "tournament") {
+      patch.quotaScope = quotaScope;
+    }
+    if (baseRows[0]) {
+      if (quotaScope === null) {
+        const prev = baseRows[0];
+        const {
+          _id: _idDrop,
+          _creationTime: _ct,
+          quotaScope: _qs,
+          ...keep
+        } = prev as typeof prev & { quotaScope?: string };
+        void _idDrop;
+        void _ct;
+        void _qs;
+        await ctx.db.replace(prev._id, {
+          ...keep,
+          ...patch,
+          partnerId,
+          updatedAt: Date.now(),
+        } as never);
+      } else {
+        await ctx.db.patch(baseRows[0]._id, patch);
+      }
+      for (const duplicate of baseRows.slice(1)) await ctx.db.delete(duplicate._id);
+    } else {
+      await ctx.db.insert("portal_partner_play_entry_settings", {
+        partnerId,
+        ...patch,
+      } as never);
+    }
+    void overlayRows;
     return { ok: true as const };
   },
 });

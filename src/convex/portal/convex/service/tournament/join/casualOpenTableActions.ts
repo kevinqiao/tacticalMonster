@@ -19,6 +19,7 @@ type ClaimOk = {
   joinChargeByUid: Record<string, JoinChargeMeta>;
   instanceId?: Id<"portal_tournament_instances">;
   activityIds?: string[];
+  lobbyId?: Id<"portal_lobbies">;
   campaignId?: string;
   partnerId?: number;
   campaignRewardMode?: "pass_per_run" | "competitive_leaderboard";
@@ -111,6 +112,7 @@ async function openCasualTableFromClaimHandler(
       templateId,
       uids: claim.uids,
       joinChargeByUid: claim.joinChargeByUid,
+      ...(claim.lobbyId ? { lobbyId: claim.lobbyId } : {}),
       ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
       ...(claim.campaignId ? { campaignId: claim.campaignId } : {}),
       ...(claim.partnerId != null ? { partnerId: claim.partnerId } : {}),
@@ -207,11 +209,10 @@ export const openCasualTableFromQueue = internalAction({
         }
         return claim;
       }
+      // charge_failed / invalid_queue_row: row was deleted or is unusable — do not retry forever.
       if (
         queueRowIds.length === 1 &&
-        (claim.error === "charge_failed" ||
-          claim.error === "invalid_queue_row" ||
-          OPEN_TABLE_RETRY_ERRORS.has(claim.error))
+        OPEN_TABLE_RETRY_ERRORS.has(claim.error)
       ) {
         await scheduleSoloOpenRetry(ctx, queueRowIds[0]!);
       }
@@ -237,6 +238,7 @@ export const openCasualSoloTable = internalAction({
   args: {
     uid: v.string(),
     templateId: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
     campaignId: v.optional(v.string()),
     partnerId: v.optional(v.number()),
     campaignRewardMode: v.optional(
@@ -263,6 +265,7 @@ export const openCasualSoloTable = internalAction({
     {
       uid,
       templateId,
+      lobbyId,
       campaignId,
       partnerId,
       campaignRewardMode,
@@ -296,6 +299,7 @@ export const openCasualSoloTable = internalAction({
         {
           uid,
           templateId,
+          ...(lobbyId ? { lobbyId } : {}),
           ...(dayTimezone ? { dayTimezone } : {}),
         }
       );
@@ -319,6 +323,7 @@ export const openCasualSoloTable = internalAction({
       joinChargeByUid: charge.joinChargeByUid,
       instanceId: charge.instanceId,
       activityIds: charge.activityIds,
+      ...(lobbyId ? { lobbyId } : {}),
       ...(campaignId ? { campaignId } : {}),
       ...(partnerId != null ? { partnerId } : {}),
       ...(campaignRewardMode ? { campaignRewardMode } : {}),
@@ -404,7 +409,7 @@ export const openSoloAsyncTableFromQueue = internalAction({
     );
     if (!row) {
       console.warn("[casual] openSoloAsyncTableFromQueue skipped", { queueRowId, reason: "no_waiting_row" });
-      return { ok: true as const };
+      return { ok: false as const, error: "invalid_queue_row" as const };
     }
     console.log("[casual] openSoloAsyncTableFromQueue", { queueRowId, templateId: row.templateId });
     return await ctx.runAction(internal.service.tournament.join.casualOpenTableActions.openCasualTableFromQueue, {

@@ -327,6 +327,7 @@ type CohortRow = {
   _id?: string;
   weekKey?: string;
   gameType?: string;
+  lobbyId?: string;
   leagueTierId?: string;
   startsAt: number;
   endsAt: number;
@@ -358,16 +359,22 @@ function resolveCohortKeyAndSlot(
 
   if (overrides?.cohortKey) return { cohortKey: overrides.cohortKey, slot };
 
+  const scopeKey =
+    cohort.lobbyId != null
+      ? `lobby:${cohort.lobbyId}`
+      : cohort.gameType != null
+        ? cohort.gameType
+        : null;
   if (
     cohort.weekKey != null &&
-    cohort.gameType != null &&
+    scopeKey != null &&
     cohort.leagueTierId != null &&
     cohort._id != null
   ) {
     return {
       cohortKey: portalWeeklyLeagueCohortKey({
         weekKey: cohort.weekKey,
-        gameType: cohort.gameType,
+        gameType: scopeKey,
         leagueTierId: cohort.leagueTierId,
         cohortId: String(cohort._id),
       }),

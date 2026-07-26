@@ -40,19 +40,48 @@ export function partnerHasCampaignOps(partner: {
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 
-/** Reserved under `/cc/{slug}` — must not be partner public slugs. */
-const RESERVED_CAMPAIGN_PARTNER_SLUGS = new Set(["home", "merchant"]);
+/** Reserved under `/cc/{slug}` and `/gc/{slug}` — must not be partner public slugs. */
+const RESERVED_PARTNER_SLUGS = new Set(["home", "merchant", "preview"]);
+
+/** Game-type path segments — partnerSlug must not collide (Portal path disambiguation). */
+const RESERVED_GAME_TYPE_SLUGS = new Set([
+  "solitaire",
+  "block_blast",
+  "match_3",
+  "tower_arena",
+  "yatz",
+]);
 
 export function normalizePartnerSlug(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
-/** Validate public campaign slug; empty → undefined (cleared). */
-export function validatePartnerSlug(raw: string | undefined): string | undefined {
-  if (raw === undefined) return undefined;
+/**
+ * Validate public partner slug for Portal `/gc/{slug}` and Campaign `/cc/{slug}`.
+ * empty → undefined (cleared) when `required` is false (default).
+ */
+export function validatePartnerSlug(
+  raw: string | undefined,
+  opts?: { required?: boolean }
+): string | undefined {
+  if (raw === undefined) {
+    if (opts?.required) throw new Error("slug_required");
+    return undefined;
+  }
   const normalized = normalizePartnerSlug(raw);
-  if (!normalized) return undefined;
+  if (!normalized) {
+    if (opts?.required) throw new Error("slug_required");
+    return undefined;
+  }
   if (!SLUG_RE.test(normalized)) throw new Error("slug_invalid");
-  if (RESERVED_CAMPAIGN_PARTNER_SLUGS.has(normalized)) throw new Error("slug_reserved");
+  if (RESERVED_PARTNER_SLUGS.has(normalized)) throw new Error("slug_reserved");
+  if (RESERVED_GAME_TYPE_SLUGS.has(normalized)) throw new Error("slug_conflicts_game_type");
   return normalized;
+}
+
+/** Require a non-empty partner slug (Portal partner activation). */
+export function requirePartnerSlug(raw: string | undefined): string {
+  const slug = validatePartnerSlug(raw, { required: true });
+  if (!slug) throw new Error("slug_required");
+  return slug;
 }

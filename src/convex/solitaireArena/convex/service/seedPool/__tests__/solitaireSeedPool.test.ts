@@ -365,6 +365,36 @@ describe("solitaireSeedQuickScreen", () => {
     }
     expect(collapsedReject).toBe(true);
   });
+
+  it("processOneSeed rejects not_solvable when requireSolvable and budget is tiny", () => {
+    const seen = new Set<string>();
+    let notSolvable = false;
+    for (let i = 0; i < 40; i++) {
+      const r = processOneSeed(
+        20000 + i,
+        {
+          poolVersion: "v2",
+          rejectDead: false,
+          rolloutCount: 1,
+          matchSeconds: 300,
+          writeRolloutSummaries: false,
+          writeRolloutFiles: false,
+          requireSolvable: true,
+          solveOpts: { maxNodes: 1, timeoutMs: 1 },
+          playerFriendly: {
+            ...DEFAULT_PLAYER_FRIENDLY_OPTIONS,
+            quickScreenRollouts: 0,
+          },
+        },
+        seen
+      );
+      if (r.kind === "rejected" && r.entry.reason === "not_solvable") {
+        notSolvable = true;
+        break;
+      }
+    }
+    expect(notSolvable).toBe(true);
+  });
 });
 
 describe("solitaireSeedScoreLookup", () => {

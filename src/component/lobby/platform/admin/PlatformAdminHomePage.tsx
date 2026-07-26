@@ -9,7 +9,9 @@ import {
   platformAdminSuccessMessage,
 } from "./platformAdminHelpers";
 import PlatformAdminToolbar from "./PlatformAdminToolbar";
+import PlatformPartnerBaseSettingsModal from "./PlatformPartnerBaseSettingsModal";
 import PlatformPartnerPortalGamesModal from "./PlatformPartnerPortalGamesModal";
+import PlatformPartnerShopModal from "./PlatformPartnerShopModal";
 import PlatformPartnerTeamModal from "./PlatformPartnerTeamModal";
 import PlatformStaffEditModal, { type PlatformStaffEditMember } from "./PlatformStaffEditModal";
 import {
@@ -56,7 +58,15 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
   const [teamModalPartner, setTeamModalPartner] = useState<{ pid: number; name: string } | null>(
     null
   );
+  const [baseSettingsModalPartner, setBaseSettingsModalPartner] = useState<{
+    pid: number;
+    name: string;
+  } | null>(null);
   const [portalModalPartner, setPortalModalPartner] = useState<{
+    pid: number;
+    name: string;
+  } | null>(null);
+  const [shopModalPartner, setShopModalPartner] = useState<{
     pid: number;
     name: string;
   } | null>(null);
@@ -294,13 +304,31 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                       团队
                     </button>
                     {p.capabilities?.portalGames || canManagePartners ? (
-                      <button
-                        type="button"
-                        className="merchant-link-btn"
-                        onClick={() => setPortalModalPartner({ pid: p.pid, name: p.name })}
-                      >
-                        Portal 游戏
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="merchant-link-btn"
+                          onClick={() =>
+                            setBaseSettingsModalPartner({ pid: p.pid, name: p.name })
+                          }
+                        >
+                          基础设置
+                        </button>
+                        <button
+                          type="button"
+                          className="merchant-link-btn"
+                          onClick={() => setPortalModalPartner({ pid: p.pid, name: p.name })}
+                        >
+                          Game Lobby
+                        </button>
+                        <button
+                          type="button"
+                          className="merchant-link-btn"
+                          onClick={() => setShopModalPartner({ pid: p.pid, name: p.name })}
+                        >
+                          商店
+                        </button>
+                      </>
                     ) : null}
                     {canManagePartners ? (
                       <button
@@ -444,12 +472,28 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
           onClose={() => setTeamModalPartner(null)}
         />
       ) : null}
+      {baseSettingsModalPartner ? (
+        <PlatformPartnerBaseSettingsModal
+          partnerId={baseSettingsModalPartner.pid}
+          partnerName={baseSettingsModalPartner.name}
+          canEdit={canManagePartners}
+          onClose={() => setBaseSettingsModalPartner(null)}
+        />
+      ) : null}
       {portalModalPartner ? (
         <PlatformPartnerPortalGamesModal
           partnerId={portalModalPartner.pid}
           partnerName={portalModalPartner.name}
           canEdit={canManagePartners}
           onClose={() => setPortalModalPartner(null)}
+        />
+      ) : null}
+      {shopModalPartner ? (
+        <PlatformPartnerShopModal
+          partnerId={shopModalPartner.pid}
+          partnerName={shopModalPartner.name}
+          canEdit={canManagePartners}
+          onClose={() => setShopModalPartner(null)}
         />
       ) : null}
     </div>

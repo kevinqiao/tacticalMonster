@@ -1051,10 +1051,22 @@ http.route({
     if (body?.ticketEntryEnabled != null && typeof body.ticketEntryEnabled !== "boolean") {
       return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
     }
+    const quotaScope =
+      body?.quotaScope === null
+        ? null
+        : body?.quotaScope === "mode" ||
+            body?.quotaScope === "lobby" ||
+            body?.quotaScope === "tournament"
+          ? body.quotaScope
+          : undefined;
+    if (body?.quotaScope !== undefined && body?.quotaScope !== null && quotaScope == null) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
     const result = await ctx.runMutation(
       internal.service.ads.portalTicketEntryService.upsertPartnerPlayEntrySettingsInternal,
       {
         partnerId,
+        ...(quotaScope !== undefined ? { quotaScope } : {}),
         ...Object.fromEntries(
           numberKeys
             .filter((key) => body?.[key] != null)
@@ -1297,6 +1309,81 @@ http.route({
       return jsonResponse(
         { ok: false, error: message },
         message === "unauthorized" ? 401 : 400
+      );
+    }
+  }),
+});
+
+/** Platform Admin → Portal: list / upsert / delete partner lobbies. */
+http.route({
+  path: "/internal/partner-lobbies",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (request.headers.get("X-Portal-Bridge-Secret") !== portalGameBridgeSecret()) {
+      return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+    }
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const partnerId = partnerIdFromBody(parsed.body);
+    const operation = parsed.body.operation;
+    if (partnerId === null || typeof operation !== "string") {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    try {
+      if (operation === "list") {
+        const lobbies = await ctx.runQuery(
+          internal.service.lobby.portalLobbyMutations.listPortalLobbiesInternal,
+          { partnerId }
+        );
+        return jsonResponse({ ok: true, lobbies });
+      }
+      if (operation === "upsert") {
+        const b = parsed.body;
+        if (typeof b.slug !== "string" || typeof b.title !== "string" || !Array.isArray(b.offerings)) {
+          return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+        }
+        const result = await ctx.runMutation(
+          internal.service.lobby.portalLobbyMutations.upsertPortalLobbyInternal,
+          {
+            partnerId,
+            ...(typeof b.lobbyId === "string" ? { lobbyId: b.lobbyId as any } : {}),
+            slug: b.slug,
+            title: b.title,
+            ...(typeof b.isDefault === "boolean" ? { isDefault: b.isDefault } : {}),
+            ...(typeof b.enabled === "boolean" ? { enabled: b.enabled } : {}),
+            ...(b.branding && typeof b.branding === "object"
+              ? { branding: b.branding as any }
+              : {}),
+            offerings: b.offerings as any,
+            ...(b.quotaScope === null
+              ? { quotaScope: null }
+              : b.quotaScope === "mode" ||
+                  b.quotaScope === "lobby" ||
+                  b.quotaScope === "tournament"
+                ? { quotaScope: b.quotaScope }
+                : {}),
+          }
+        );
+        return jsonResponse({ ok: true, ...result });
+      }
+      if (operation === "delete") {
+        if (typeof parsed.body.lobbyId !== "string") {
+          return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+        }
+        const result = await ctx.runMutation(
+          internal.service.lobby.portalLobbyMutations.deletePortalLobbyInternal,
+          {
+            partnerId,
+            lobbyId: parsed.body.lobbyId as any,
+          }
+        );
+        return jsonResponse(result);
+      }
+      return jsonResponse({ ok: false, error: "unknown_operation" }, 400);
+    } catch (error) {
+      return jsonResponse(
+        { ok: false, error: error instanceof Error ? error.message : "operation_failed" },
+        400
       );
     }
   }),

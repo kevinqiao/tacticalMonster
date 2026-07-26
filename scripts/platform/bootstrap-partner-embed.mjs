@@ -5,8 +5,9 @@
  * Usage:
  *   node scripts/platform/bootstrap-partner-embed.mjs
  *   node scripts/platform/bootstrap-partner-embed.mjs --apply
- *   node scripts/platform/bootstrap-partner-embed.mjs --apply --pid=100 --name=CrazyGames --host=https://www.crazygames.com --embed-method=crazygames_jwt --portal-key=crazygames --prod
+ *   node scripts/platform/bootstrap-partner-embed.mjs --apply --pid=100 --name=CrazyGames --host=https://www.crazygames.com --embed-method=crazygames_jwt --partner-slug=crazygames --prod
  *   node scripts/platform/bootstrap-partner-embed.mjs --apply --pid=100 --ad-replay-daily-cap=5 --prod
+ *   (--portal-key is accepted as a deprecated alias for --partner-slug)
  *
  * Env (optional):
  *   PARTNER_EMBED_BOOTSTRAP_SECRET  (default dev-local-partner-embed-bootstrap)
@@ -46,7 +47,7 @@ function parseArgs(argv) {
     host: get("--host") ?? "http://localhost:3000",
     jwtSecret: get("--secret"),
     embedMethod: get("--embed-method") ?? "jwt_local",
-    portalKey: get("--portal-key"),
+    partnerSlug: get("--partner-slug") ?? get("--portal-key"),
     games: gamesRaw
       ? gamesRaw
           .split(",")
@@ -109,8 +110,8 @@ console.log("  pid:", config.pid);
 console.log("  name:", config.name);
 console.log("  host:", config.host);
 console.log("  embedMethod:", config.embedMethod);
-console.log("  portalKey:", config.portalKey ?? "(unchanged)");
-console.log("  games:", config.games ?? (config.portalKey ? "(full registry)" : "(unchanged)"));
+console.log("  partnerSlug:", config.partnerSlug ?? "(unchanged)");
+console.log("  games:", config.games ?? (config.partnerSlug ? "(full registry)" : "(unchanged)"));
 console.log("  portalGames:", config.portalGames);
 console.log("  campaignOps:", config.campaignOps);
 console.log(
@@ -141,7 +142,7 @@ const out = runConvexSso(
     embedMethod: config.embedMethod,
     portalGames: config.portalGames,
     campaignOps: config.campaignOps,
-    ...(config.portalKey ? { portalKey: config.portalKey } : {}),
+    ...(config.partnerSlug ? { partnerSlug: config.partnerSlug } : {}),
     ...(config.games ? { games: config.games } : {}),
     ...(config.jwtSecret ? { jwtSecret: config.jwtSecret } : {}),
     ...(config.adReplayDailyCap != null

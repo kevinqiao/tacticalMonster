@@ -37,18 +37,16 @@ const CasualPlayMatchOverlay: React.FC<CasualPlayMatchOverlayProps> = ({
   }
 
   const isClaiming = phase === "claiming";
-  const showWaitingForPeer = waitingForPeer && phase === "waiting";
+  const showMatchingCopy = waitingForPeer && phase === "waiting";
 
-  const title =
-    isClaiming || !waitingForPeer
-      ? t("matchOverlay.creatingTitle")
-      : t("matchOverlay.matchingTitle");
-  const subtitle =
-    isClaiming || !waitingForPeer
-      ? t("matchOverlay.creatingSubtitle")
-      : tournamentTitle
-        ? t("matchOverlay.waitingWithTitle", { title: tournamentTitle })
-        : t("matchOverlay.waitingSubtitle");
+  const title = showMatchingCopy
+    ? t("matchOverlay.matchingTitle")
+    : t("matchOverlay.creatingTitle");
+  const subtitle = showMatchingCopy
+    ? tournamentTitle
+      ? t("matchOverlay.waitingWithTitle", { title: tournamentTitle })
+      : t("matchOverlay.waitingSubtitle")
+    : t("matchOverlay.creatingSubtitle");
 
   return createPortal(
     <div
@@ -65,7 +63,7 @@ const CasualPlayMatchOverlay: React.FC<CasualPlayMatchOverlayProps> = ({
           {title}
         </h2>
         <p className="casual-play-match-overlay__sub">{subtitle}</p>
-        {showWaitingForPeer && onLeave ? (
+        {onLeave ? (
           <button
             type="button"
             className="casual-play-match-overlay__leave"

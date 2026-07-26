@@ -14,8 +14,7 @@ export interface Partner {
     pid: number;
     name?: string;
     host?: string;
-    portal_key?: string;
-    /** Public /campaign/{slug} segment when campaignOps. */
+    /** Public /gc/{slug} and /cc/{slug} segment. */
     slug?: string;
     /** Product flags: Portal vs Campaign Ops (SoT for those contexts). */
     capabilities?: { portalGames?: boolean; campaignOps?: boolean };
@@ -45,9 +44,9 @@ interface IPartnerContext {
     partnerResolveReady: boolean;
     /** Partner slug when on a player campaign shell route. */
     campaignPartnerSlug: string | null;
-    /** Portal URL partner key when on /portal/{key}/... */
-    portalPartnerKey: string | null;
-    /** True on first-party /portal/{gameType} routes (no partner key). */
+    /** Portal URL partner slug when on /gc/{slug}/... */
+    portalPartnerSlug: string | null;
+    /** True on first-party /gc/{gameType} routes (no partner slug). */
     isFirstPartyPortal: boolean;
 }
 const PartnerContext = createContext<IPartnerContext>({
@@ -55,7 +54,7 @@ const PartnerContext = createContext<IPartnerContext>({
     partnerPid: 0,
     partnerResolveReady: false,
     campaignPartnerSlug: null,
-    portalPartnerKey: null,
+    portalPartnerSlug: null,
     isFirstPartyPortal: false,
 });
 
@@ -64,7 +63,7 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
     const [partnerPid, setPartnerPid] = useState(0);
     const [partnerResolveReady, setPartnerResolveReady] = useState(false);
     const [campaignPartnerSlug, setCampaignPartnerSlug] = useState<string | null>(null);
-    const [portalPartnerKey, setPortalPartnerKey] = useState<string | null>(null);
+    const [portalPartnerSlug, setPortalPartnerSlug] = useState<string | null>(null);
     const [isFirstPartyPortal, setIsFirstPartyPortal] = useState(false);
     const convex = useConvex();
     const locationKey = useHistoryLocationKey();
@@ -73,7 +72,7 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
         partnerPid,
         partnerResolveReady,
         campaignPartnerSlug,
-        portalPartnerKey,
+        portalPartnerSlug,
         isFirstPartyPortal,
     };
     useEffect(() => {
@@ -87,7 +86,9 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
             setCampaignPartnerSlug(partnerSlug);
 
             const portalPath = parsePortalPathFromPathname(pathname);
-            setPortalPartnerKey(portalPath.partnerKey);
+            // Prefer partnerSlug; partnerKey is a deprecated alias on ParsedPortalPath.
+            const pathPartnerSlug = portalPath.partnerSlug ?? portalPath.partnerKey;
+            setPortalPartnerSlug(pathPartnerSlug);
             setIsFirstPartyPortal(portalPath.isFirstPartyPortal);
 
             let pid = 0;
@@ -105,9 +106,9 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
                 const row = await convex.query(api.service.PartnerManager.find, { pid: 0 });
                 if (cancelled) return;
                 partnerRow = row ? (row as Partner) : null;
-            } else if (portalPath.partnerKey) {
-                const row = await convex.query(api.service.PartnerManager.findByPortalKey, {
-                    portalKey: portalPath.partnerKey,
+            } else if (pathPartnerSlug) {
+                const row = await convex.query(api.service.PartnerManager.findByPartnerSlug, {
+                    partnerSlug: pathPartnerSlug,
                 });
                 if (cancelled) return;
                 if (row) {

@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { AudioBus } from "host/service/audio";
 import { SoloCard } from "../../types/SoloTypes";
 import { soloCardZIndex } from "../../Utils";
 import { SOLO_ANIMATION_CONFIG } from "../animationConfig";
@@ -76,6 +77,8 @@ export const recycle = ({ data, onComplete }: { data: any; onComplete?: () => vo
                 ease: recycleEase,
                 onStart: () => {
                     if (card.ele) gsap.set(card.ele, { zIndex: flightZ });
+                    // Match cascade: tick as each card lifts (catalog throttle paces dense piles)
+                    AudioBus.emit("game.solitaire.recycle");
                 },
             },
             index * stagger

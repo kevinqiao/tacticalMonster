@@ -197,6 +197,8 @@ export default defineSchema({
     status: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    /** Portal lobby that opened this run; weekly league points settle into this lobby. */
+    lobbyId: v.optional(v.id("portal_lobbies")),
     /** 周期型：指向当前开放桶；`single_match` 省略 */
     instanceId: v.optional(v.id("portal_tournament_instances")),
     campaignId: v.optional(v.string()),
@@ -235,6 +237,8 @@ export default defineSchema({
     updatedAt: v.number(),
     pointDelta: v.optional(v.number()),
     weeklyPointsAfter: v.optional(v.number()),
+    /** Coin payout written at settle (coin multi / solo coin tables). */
+    coinsGranted: v.optional(v.number()),
     /** Legacy fields (prod rows); SSOT is portal_run_player_matches. */
     seedScoreThreshold: v.optional(v.number()),
     challengeSuccess: v.optional(v.boolean()),
@@ -243,27 +247,6 @@ export default defineSchema({
     .index("by_uid_template", ["uid", "templateId"])
     .index("by_uid_updatedAt", ["uid", "updatedAt"])
     .index("by_tournament", ["tournamentId"]),
-
-  /**
-   * 周期场分档预发奖：每档一条文档，领取前钱包不落账；`gameHistory` 将同一局同批多档合并为一行展示。
-   * `matchGameId` = `portal_run_player_matches.gameId`（`game_${matchId}_${uid}`）。
-   */
-  portal_score_tier_pending: defineTable({
-    uid: v.string(),
-    instanceId: v.id("portal_tournament_instances"),
-    runTournamentId: v.id("portal_run_tournaments"),
-    templateId: v.string(),
-    minScore: v.number(),
-    matchGameId: v.string(),
-    gameType: v.string(),
-    coins: v.number(),
-    gems: v.number(),
-    status: v.union(v.literal("pending"), v.literal("claimed")),
-    createdAt: v.number(),
-    claimedAt: v.optional(v.number()),
-  })
-    .index("by_uid", ["uid"])
-    .index("by_instance_uid", ["instanceId", "uid"]),
 
   /** 周期型锦标时间桶（日/周/季）：同一 `templateId` + `instanceKey` 唯一；`single_match` 不写此表。 */
   portal_tournament_instances: defineTable({
@@ -453,6 +436,8 @@ export default defineSchema({
     ),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
+    /** Copied onto portal_run_tournaments when the table opens. */
+    lobbyId: v.optional(v.id("portal_lobbies")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -461,9 +446,74 @@ export default defineSchema({
     .index("by_uid", ["uid"])
     .index("by_uid_template_status", ["uid", "templateId", "status"]),
 
-  /** Partner overrides for the free → ad → ticket → coin entry ladder. */
+  /**
+   * Named portal lobbies per partner.
+   * URL: /gc/{partnerSlug} (default) or /gc/{partnerSlug}/{lobbySlug}.
+   */
+  portal_lobbies: defineTable({
+    partnerId: v.number(),
+    /** URL segment; "default" for the partner default lobby. */
+    slug: v.string(),
+    title: v.string(),
+    isDefault: v.boolean(),
+    enabled: v.boolean(),
+    branding: v.optional(
+      v.object({
+        logoUrl: v.optional(v.string()),
+        backgroundLandscapeUrl: v.optional(v.string()),
+        backgroundPortraitUrl: v.optional(v.string()),
+      })
+    ),
+    offerings: v.array(
+      v.object({
+        tournamentId: v.string(),
+        sortOrder: v.number(),
+        titleOverride: v.optional(v.string()),
+        rewardsOverride: v.optional(
+          v.object({
+            soloPoints: v.optional(
+              v.object({
+                success: v.number(),
+                fail: v.number(),
+              })
+            ),
+            rankPoints: v.optional(v.record(v.string(), v.number())),
+            coins: v.optional(
+              v.object({
+                soloSuccess: v.optional(v.number()),
+                soloFail: v.optional(v.number()),
+                rankCoins: v.optional(v.record(v.string(), v.number())),
+              })
+            ),
+          })
+        ),
+        enabled: v.optional(v.boolean()),
+      })
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_partnerId", ["partnerId"])
+    .index("by_partnerId_slug", ["partnerId", "slug"])
+    .index("by_partnerId_default", ["partnerId", "isDefault"]),
+
+  /**
+   * Partner entry ladder: partner base (no lobbyId) ⊕ lobby ⊕ tournament overlays.
+   * Field-level overlay; more specific rows override set fields only.
+   */
   portal_partner_play_entry_settings: defineTable({
     partnerId: v.number(),
+    /** Omit = partner base config. */
+    lobbyId: v.optional(v.id("portal_lobbies")),
+    /** Requires lobbyId; omit = lobby-level (or partner-level) row. */
+    tournamentId: v.optional(v.string()),
+    /**
+     * Free/ad/ticket pool sharing:
+     * mode | lobby | tournament (see portalQuotaScope.ts). Default mode.
+     */
+    quotaScope: v.optional(
+      v.union(v.literal("mode"), v.literal("lobby"), v.literal("tournament"))
+    ),
     freePlaySoloDailyCap: v.optional(v.number()),
     freePlayMultiDailyCap: v.optional(v.number()),
     ticketEntryEnabled: v.optional(v.boolean()),
@@ -474,24 +524,37 @@ export default defineSchema({
     adEntryEnabled: v.optional(v.boolean()),
     adEntrySoloDailyCap: v.optional(v.number()),
     adEntryMultiDailyCap: v.optional(v.number()),
-    /** Reserved: coin entry (not wired yet). */
     coinEntryEnabled: v.optional(v.boolean()),
     coinEntrySoloPriceCoins: v.optional(v.number()),
     coinEntrySoloDailyCap: v.optional(v.number()),
     coinEntryMultiPriceCoins: v.optional(v.number()),
     coinEntryMultiDailyCap: v.optional(v.number()),
     updatedAt: v.number(),
-  }).index("by_partnerId", ["partnerId"]),
+  })
+    .index("by_partnerId", ["partnerId"])
+    .index("by_partner_lobby", ["partnerId", "lobbyId"])
+    .index("by_partner_lobby_tournament", ["partnerId", "lobbyId", "tournamentId"]),
 
-  /** One ticket-entry count per player/mode/operations day. */
+  /** One ticket-entry count per player/mode/operations day (scoped by lobby/tournament when set). */
   portal_ticket_entry_daily_usage: defineTable({
     uid: v.string(),
     dayKey: v.string(),
     mode: v.union(v.literal("solo"), v.literal("multi")),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+    tournamentId: v.optional(v.string()),
     usedCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_uid_dayKey_mode", ["uid", "dayKey", "mode"]),
+  })
+    .index("by_uid_dayKey_mode", ["uid", "dayKey", "mode"])
+    .index("by_uid_dayKey_mode_lobby", ["uid", "dayKey", "mode", "lobbyId"])
+    .index("by_uid_dayKey_mode_lobby_tournament", [
+      "uid",
+      "dayKey",
+      "mode",
+      "lobbyId",
+      "tournamentId",
+    ]),
 
   /** Ad-entry session (begin → watch → complete grant). */
   portal_ad_entry_sessions: defineTable({
@@ -541,10 +604,21 @@ export default defineSchema({
     uid: v.string(),
     dayKey: v.string(),
     mode: v.union(v.literal("solo"), v.literal("multi")),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+    tournamentId: v.optional(v.string()),
     usedCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_uid_dayKey_mode", ["uid", "dayKey", "mode"]),
+  })
+    .index("by_uid_dayKey_mode", ["uid", "dayKey", "mode"])
+    .index("by_uid_dayKey_mode_lobby", ["uid", "dayKey", "mode", "lobbyId"])
+    .index("by_uid_dayKey_mode_lobby_tournament", [
+      "uid",
+      "dayKey",
+      "mode",
+      "lobbyId",
+      "tournamentId",
+    ]),
 
   /** Watch-ad-for-coins session (begin → watch → complete grant; shop entry). */
   portal_ad_coin_sessions: defineTable({
@@ -656,19 +730,25 @@ export default defineSchema({
     .index("by_run_uid", ["tournamentId", "uid"])
     .index("by_run_tournament", ["tournamentId"]),
 
-  /** 周联赛档案：按 gameType 持久段位 */
+  /** 周联赛档案：按 lobby 持久段位（legacy gameType retained for old rows） */
   portal_weekly_league_profile: defineTable({
     uid: v.string(),
-    gameType: v.string(),
+    /** @deprecated Prefer lobbyId for new rows. */
+    gameType: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
     weeklyLeagueTier: v.string(),
     peakLeagueTier: v.string(),
     updatedAt: v.number(),
-  }).index("by_uid_game", ["uid", "gameType"]),
+  })
+    .index("by_uid_game", ["uid", "gameType"])
+    .index("by_uid_lobby", ["uid", "lobbyId"]),
 
-  /** 周联赛 cohort：同 week + gameType + 段位 下分组 */
+  /** 周联赛 cohort：同 week + lobby + 段位 下分组 */
   portal_weekly_league_cohorts: defineTable({
     weekKey: v.string(),
-    gameType: v.string(),
+    /** @deprecated Prefer lobbyId for new cohorts. */
+    gameType: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
     leagueTierId: v.string(),
     cohortIndex: v.number(),
     /** 用户可见 8 位字母数字组号 */
@@ -690,13 +770,17 @@ export default defineSchema({
   })
     .index("by_week_game_tier_status", ["weekKey", "gameType", "leagueTierId", "status"])
     .index("by_week_game_tier_index", ["weekKey", "gameType", "leagueTierId", "cohortIndex"])
+    .index("by_week_lobby_tier_status", ["weekKey", "lobbyId", "leagueTierId", "status"])
+    .index("by_week_lobby_tier_index", ["weekKey", "lobbyId", "leagueTierId", "cohortIndex"])
     .index("by_status_matching_ends", ["status", "matchingEndsAt"]),
 
   /** 周联赛成员：组内按 weeklyPoints 排名（结算直接累加） */
   portal_weekly_league_members: defineTable({
     weekKey: v.string(),
     uid: v.string(),
-    gameType: v.string(),
+    /** @deprecated Prefer lobbyId for new rows. */
+    gameType: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
     cohortId: v.id("portal_weekly_league_cohorts"),
     leagueTierId: v.string(),
     weeklyPoints: v.number(),
@@ -720,7 +804,9 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_week_game_uid", ["weekKey", "gameType", "uid"])
+    .index("by_week_lobby_uid", ["weekKey", "lobbyId", "uid"])
     .index("by_uid_game", ["uid", "gameType"])
+    .index("by_uid_lobby", ["uid", "lobbyId"])
     .index("by_cohort", ["cohortId"])
     .index("by_week_cohort_points", ["weekKey", "cohortId", "weeklyPoints"]),
 
@@ -728,6 +814,8 @@ export default defineSchema({
     uid: v.string(),
     runTournamentId: v.id("portal_run_tournaments"),
     gameType: v.string(),
+    /** Weekly-league scope; preferred over gameType for cohort accrual. */
+    lobbyId: v.optional(v.id("portal_lobbies")),
     mode: v.union(v.literal("solo"), v.literal("multi")),
     weekKey: v.string(),
     delta: v.number(),
@@ -735,7 +823,9 @@ export default defineSchema({
     rank: v.optional(v.number()),
     p75Success: v.optional(v.boolean()),
     createdAt: v.number(),
-  }).index("by_uid", ["uid"]),
+  })
+    .index("by_uid", ["uid"])
+    .index("by_uid_lobby_week", ["uid", "lobbyId", "weekKey"]),
 
   /** 广告再战会话（begin → complete，短生命周期） */
   portal_ad_replay_sessions: defineTable({

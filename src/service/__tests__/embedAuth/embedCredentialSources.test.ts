@@ -16,7 +16,7 @@ describe("embed credential sources", () => {
         partner: { pid: 1, playerAuth: { mode: "embed" } },
         partnerResolveReady: true,
         campaignPartnerSlug: null,
-        portalPartnerKey: null,
+        portalPartnerSlug: null,
         isFirstPartyPortal: false,
         search: "",
       })
@@ -33,7 +33,7 @@ describe("embed credential sources", () => {
         partner: { pid: 100, playerAuth: { mode: "embed" } },
         partnerResolveReady: true,
         campaignPartnerSlug: null,
-        portalPartnerKey: null,
+        portalPartnerSlug: null,
         isFirstPartyPortal: false,
         search: "?crazygames=1",
       })

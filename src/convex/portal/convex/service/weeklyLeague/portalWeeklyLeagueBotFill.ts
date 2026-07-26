@@ -65,7 +65,8 @@ async function insertBotMembers(
     await ctx.db.insert("portal_weekly_league_members", {
       weekKey: cohort.weekKey,
       uid: leagueBotUidForSlot(String(cohort._id), plan.slot),
-      gameType: cohort.gameType,
+      ...(cohort.lobbyId ? { lobbyId: cohort.lobbyId } : {}),
+      ...(cohort.gameType ? { gameType: cohort.gameType } : {}),
       cohortId: cohort._id,
       leagueTierId: cohort.leagueTierId,
       weeklyPoints: visibleNow ? startPoints : 0,
@@ -101,7 +102,10 @@ export async function seedPortalWeeklyLeagueInitialBots(
   }
 
   const createdAt = cohort.createdAt;
-  const cohortKey = `${cohort.weekKey}|${cohort.gameType}|${cohort.leagueTierId}|${cohortId}`;
+  const scopeKey = cohort.lobbyId
+    ? `lobby:${cohort.lobbyId}`
+    : (cohort.gameType ?? "unknown");
+  const cohortKey = `${cohort.weekKey}|${scopeKey}|${cohort.leagueTierId}|${cohortId}`;
   const plans = planPortalWeeklyLeagueInitialBotRevealSchedule({
     cohortKey,
     createdAt,
@@ -176,7 +180,10 @@ export async function syncPortalWeeklyLeagueBotPadding(
   }
 
   const matchingClosedAt = cohort.matchingClosedAt;
-  const cohortKey = `${cohort.weekKey}|${cohort.gameType}|${cohort.leagueTierId}|${cohortId}`;
+  const scopeKey = cohort.lobbyId
+    ? `lobby:${cohort.lobbyId}`
+    : (cohort.gameType ?? "unknown");
+  const cohortKey = `${cohort.weekKey}|${scopeKey}|${cohort.leagueTierId}|${cohortId}`;
   const maxSlot = bots.reduce((acc, b) => {
     const part = b.uid.split("_").pop();
     const n = part != null ? Number(part) : NaN;

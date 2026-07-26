@@ -65,6 +65,7 @@ import type * as service_partner_platformAdminAuth from "../service/partner/plat
 import type * as service_partner_platformAdminBootstrap from "../service/partner/platformAdminBootstrap.js";
 import type * as service_partner_platformAdminBrandSync from "../service/partner/platformAdminBrandSync.js";
 import type * as service_partner_platformOperator from "../service/partner/platformOperator.js";
+import type * as service_partner_platformPartnerLobbyAdmin from "../service/partner/platformPartnerLobbyAdmin.js";
 import type * as service_partner_platformPartnerShopAdmin from "../service/partner/platformPartnerShopAdmin.js";
 import type * as service_partner_platformStaff from "../service/partner/platformStaff.js";
 import type * as service_partner_portalPartnerConfig from "../service/partner/portalPartnerConfig.js";
@@ -142,6 +143,7 @@ declare const fullApi: ApiFromModules<{
   "service/partner/platformAdminBootstrap": typeof service_partner_platformAdminBootstrap;
   "service/partner/platformAdminBrandSync": typeof service_partner_platformAdminBrandSync;
   "service/partner/platformOperator": typeof service_partner_platformOperator;
+  "service/partner/platformPartnerLobbyAdmin": typeof service_partner_platformPartnerLobbyAdmin;
   "service/partner/platformPartnerShopAdmin": typeof service_partner_platformPartnerShopAdmin;
   "service/partner/platformStaff": typeof service_partner_platformStaff;
   "service/partner/portalPartnerConfig": typeof service_partner_portalPartnerConfig;

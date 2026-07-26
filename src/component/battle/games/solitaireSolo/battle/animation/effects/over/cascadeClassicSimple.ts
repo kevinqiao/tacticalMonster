@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { AudioBus } from "host/service/audio";
 import { SoloCard, ZoneType } from "../../../types/SoloTypes";
 import { getCardCoord } from "../../../Utils";
 
@@ -47,6 +48,7 @@ export const cascadeClassicSimple = ({
 
   if (items.length === 0) {
     console.warn("[Solitaire] fan victory: 0 cards");
+    AudioBus.emit("game.solitaire.win");
     onComplete?.();
     return;
   }
@@ -122,6 +124,8 @@ export const cascadeClassicSimple = ({
   const gatherStagger = 0.02;
   ordered.forEach((item, i) => {
     gsap.set(item.ele, { zIndex: 3000 + i });
+    // 跟拍：每张汇聚一小下（throttle 在 catalog）
+    master.call(() => AudioBus.emit("game.solitaire.score_delta"), undefined, i * gatherStagger);
     master.to(
       item.ele,
       {
@@ -139,6 +143,7 @@ export const cascadeClassicSimple = ({
   const gatherEnd = (n - 1) * gatherStagger + gatherDur;
   // 等全部叠到中心后再开扇（局内若提前开扇，看起来像四堆各扇一下）
   const fanAt = gatherEnd + 0.06;
+  master.call(() => AudioBus.emit("game.solitaire.win"), undefined, fanAt);
 
   // —— 2) 打开扇子：从中心向两侧展开 ——
   const openDur = 0.72;
@@ -156,6 +161,9 @@ export const cascadeClassicSimple = ({
     const t0 = fanAt + delay;
 
     gsap.set(item.ele, { zIndex: 5000 + i });
+    if (i % 4 === 0) {
+      master.call(() => AudioBus.emit("game.solitaire.flip"), undefined, t0);
+    }
 
     master.to(
       item.ele,

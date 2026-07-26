@@ -1,6 +1,9 @@
 import { makeFunctionReference } from "convex/server";
 
 export const portalTournamentFns = {
+  resolvePortalLobby: makeFunctionReference<"mutation">(
+    "service/lobby/portalLobbyMutations:resolvePortalLobby"
+  ),
   listTournaments: makeFunctionReference<"query">(
     "service/tournament/list/casualTournamentQueries:listTournaments"
   ),
@@ -93,6 +96,9 @@ export const portalTournamentFns = {
   ),
   getPortalDailyPlayQuota: makeFunctionReference<"query">(
     "service/tournament/join/portalDailyPlayLimit:getPortalDailyPlayQuota"
+  ),
+  getPortalTournamentDailyPlayQuotas: makeFunctionReference<"query">(
+    "service/tournament/join/portalDailyPlayLimit:getPortalTournamentDailyPlayQuotas"
   ),
   getTicketEntryOffer: makeFunctionReference<"query">(
     "service/ads/portalTicketEntryQueries:getTicketEntryOffer"

@@ -88,11 +88,17 @@ function buildQueuedResponse(args: {
   templateId: string;
   effectiveHumans: number;
   expiresAt?: number;
-}): JoinCasualRunQueuedResult {
+  queueRowId?: Id<"portal_match_queue">;
+}): JoinCasualRunQueuedResult & {
+  effectiveHumans: number;
+  queueRowId?: Id<"portal_match_queue">;
+} {
   return {
     ok: true as const,
     queued: true as const,
     templateId: args.templateId,
+    effectiveHumans: args.effectiveHumans,
+    ...(args.queueRowId ? { queueRowId: args.queueRowId } : {}),
     ...toCasualMatchQueueClientFlags({
       effectiveHumans: args.effectiveHumans,
       expiresAt: args.expiresAt,
@@ -105,6 +111,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
   args: {
     uid: v.string(),
     tournamentId: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
     campaignId: v.optional(v.string()),
     partnerId: v.optional(v.number()),
     campaignRewardMode: v.optional(
@@ -125,12 +132,18 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
     ),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
+    /**
+     * When true, skip scheduler; caller (joinTournament action) will open
+     * eff=1 tables synchronously and return ready/error to the client.
+     */
+    deferOpenToCaller: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
     {
       uid,
       tournamentId,
+      lobbyId,
       campaignId,
       partnerId,
       campaignRewardMode,
@@ -138,6 +151,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       campaignReplaySettings,
       maxPlaysPerDay,
       dayTimezone,
+      deferOpenToCaller,
     }
   ): Promise<JoinCasualRunResult> => {
     const def = getPortalTournamentDefinition(tournamentId);
@@ -186,6 +200,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       const daily = await assertPortalDailyPlayLimit(ctx, {
         uid,
         templateId: tournamentId,
+        ...(lobbyId ? { lobbyId } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
       });
       if (!daily.ok) {
@@ -221,6 +236,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         expiresAt,
         skipEntryCharge: reconciled.skipEntryCharge,
         updatedAt: now,
+        ...(lobbyId ? { lobbyId } : {}),
         ...(campaignId ? { campaignId } : {}),
         ...(partnerId != null ? { partnerId } : {}),
         ...(campaignRewardMode ? { campaignRewardMode } : {}),
@@ -245,6 +261,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         status: "waiting",
         createdAt: now,
         updatedAt: now,
+        ...(lobbyId ? { lobbyId } : {}),
         ...(campaignId ? { campaignId } : {}),
         ...(partnerId != null ? { partnerId } : {}),
         ...(campaignRewardMode ? { campaignRewardMode } : {}),
@@ -255,37 +272,40 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       });
     }
 
-    if (effectiveHumans === 1) {
-      await ctx.scheduler.runAfter(
-        CASUAL_SOLO_ASYNC_OPEN_DELAY_MS,
-        internal.service.tournament.join.casualOpenTableActions.openSoloAsyncTableFromQueue,
-        { queueRowId }
-      );
-      /** 双保险：processQueue 也会 claim eff=1，避免 solo open 调度丢失后一直「匹配中」 */
-      await ctx.scheduler.runAfter(
-        CASUAL_SOLO_ASYNC_OPEN_DELAY_MS + 500,
-        internal.service.tournament.join.casualOpenTableActions.processCasualMatchQueueForTemplate,
-        { templateId: tournamentId }
-      );
-    } else {
-      if (expiresAt != null) {
+    if (!deferOpenToCaller) {
+      if (effectiveHumans === 1) {
         await ctx.scheduler.runAfter(
-          portal_match_queue_TIMEOUT_MS,
-          internal.service.tournament.join.casualOpenTableActions.expireCasualMatchQueueEntryOpen,
+          CASUAL_SOLO_ASYNC_OPEN_DELAY_MS,
+          internal.service.tournament.join.casualOpenTableActions.openSoloAsyncTableFromQueue,
           { queueRowId }
         );
+        /** 双保险：processQueue 也会 claim eff=1，避免 solo open 调度丢失后一直「匹配中」 */
+        await ctx.scheduler.runAfter(
+          CASUAL_SOLO_ASYNC_OPEN_DELAY_MS + 500,
+          internal.service.tournament.join.casualOpenTableActions.processCasualMatchQueueForTemplate,
+          { templateId: tournamentId }
+        );
+      } else {
+        if (expiresAt != null) {
+          await ctx.scheduler.runAfter(
+            portal_match_queue_TIMEOUT_MS,
+            internal.service.tournament.join.casualOpenTableActions.expireCasualMatchQueueEntryOpen,
+            { queueRowId }
+          );
+        }
+        await ctx.scheduler.runAfter(
+          0,
+          internal.service.tournament.join.casualOpenTableActions.processCasualMatchQueueForTemplate,
+          { templateId: tournamentId }
+        );
       }
-      await ctx.scheduler.runAfter(
-        0,
-        internal.service.tournament.join.casualOpenTableActions.processCasualMatchQueueForTemplate,
-        { templateId: tournamentId }
-      );
     }
 
     return buildQueuedResponse({
       templateId: tournamentId,
       effectiveHumans,
       expiresAt,
+      queueRowId,
     });
   },
 });

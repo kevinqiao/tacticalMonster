@@ -4,7 +4,9 @@ import {
   isPeriodScopedTournament,
   isPortalP75Success,
   listPlayCasualTournaments,
+  portalRankCoinReward,
   portalSoloPointDelta,
+  resolveEffectiveTournamentRewards,
   shouldAppearInCasualPlayLobby,
 } from "../../../data/portalTournamentConfigs";
 import { resolveInstanceWindow } from "../../../data/portalInstanceWindow";
@@ -129,11 +131,12 @@ async function resolveRunHistoryRank(
   if (isRegisteredPartnerGameType(opts.gameType)) {
     const def = getPortalTournamentDefinition(opts.templateId);
     if (def && def.maxPlayers > 1) {
-      return computeCasualAsyncSessionRank(ctx, pm.matchId, opts.uid);
+      const live = await computeCasualAsyncSessionRank(ctx, pm.matchId, opts.uid);
+      if (live != null) return live;
     }
   }
 
-  if (pm.status === "settled" && pm.rank != null) {
+  if (typeof pm.rank === "number" && Number.isFinite(pm.rank) && pm.rank >= 1) {
     return pm.rank;
   }
   return null;
@@ -404,7 +407,7 @@ export const gameHistory = authedQuery({
               ? selfPm.score
               : pt.score ?? null;
 
-        const rank = completed
+        const resolvedRank = completed
           ? await resolveRunHistoryRank(ctx, {
               templateId: pt.templateId,
               gameType: resolvedGameType,
@@ -412,10 +415,19 @@ export const gameHistory = authedQuery({
               uid,
             })
           : null;
+        const rank =
+          resolvedRank ??
+          (completed && typeof selfPm?.rank === "number" && Number.isFinite(selfPm.rank)
+            ? selfPm.rank
+            : null);
 
         let seedScoreThreshold: number | null = null;
         let challengeSuccess: boolean | null = null;
         let pointDelta: number | null = pt.pointDelta ?? null;
+        let coinsGranted: number | null =
+          typeof pt.coinsGranted === "number" && Number.isFinite(pt.coinsGranted)
+            ? Math.max(0, Math.floor(pt.coinsGranted))
+            : null;
 
         if (def?.matchType === "solo_p75" && selfPm) {
           if (
@@ -438,6 +450,27 @@ export const gameHistory = authedQuery({
           if (displayScore != null && seedScoreThreshold != null) {
             pointDelta = portalSoloPointDelta(def, displayScore, seedScoreThreshold);
           }
+          if (coinsGranted == null) {
+            const { coinRewards } = resolveEffectiveTournamentRewards(def);
+            const raw =
+              challengeSuccess === true
+                ? coinRewards.soloSuccess
+                : challengeSuccess === false
+                  ? coinRewards.soloFail
+                  : undefined;
+            if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
+              coinsGranted = Math.floor(raw);
+            }
+          }
+        } else if (
+          coinsGranted == null &&
+          def?.matchType === "multi_ranked" &&
+          completed &&
+          typeof rank === "number" &&
+          Number.isFinite(rank)
+        ) {
+          const coins = portalRankCoinReward(def, rank);
+          if (coins > 0 || def.entry.kind === "coins") coinsGranted = coins;
         }
 
         let periodInstanceKey: string | undefined;
@@ -471,6 +504,7 @@ export const gameHistory = authedQuery({
           rank: def?.matchType === "solo_p75" ? null : rank,
           participantCount,
           pointDelta,
+          coinsGranted,
           weeklyPointsAfter: pt.weeklyPointsAfter ?? null,
           seedScoreThreshold,
           challengeSuccess,

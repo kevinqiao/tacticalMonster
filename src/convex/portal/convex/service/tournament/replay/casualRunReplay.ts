@@ -51,22 +51,6 @@ export type StartCasualRunReplayResult =
     }
   | { ok: false; error: string };
 
-async function deleteScoreTierPendingForMatchGame(
-  ctx: MutationCtx,
-  uid: string,
-  matchGameId: string
-): Promise<void> {
-  const pending = await ctx.db
-    .query("portal_score_tier_pending")
-    .withIndex("by_uid", (q) => q.eq("uid", uid))
-    .collect();
-  for (const row of pending) {
-    if (row.matchGameId === matchGameId) {
-      await ctx.db.delete(row._id);
-    }
-  }
-}
-
 async function revertPeriodInstanceAfterReplay(
   ctx: MutationCtx,
   args: {
@@ -228,9 +212,6 @@ export async function authorizeCasualRunReplayCore(
       return { ok: false, error: "missing_triathlon_legs" };
     }
     for (const leg of seatGames) {
-      await deleteScoreTierPendingForMatchGame(ctx, args.uid, leg.gameId);
-    }
-    for (const leg of seatGames) {
       await ctx.db.patch(leg._id, {
         status: leg.gameIndex === 0 ? "replaying" : "locked",
         score: undefined,
@@ -251,8 +232,6 @@ export async function authorizeCasualRunReplayCore(
       updatedAt: now,
     });
   } else {
-    await deleteScoreTierPendingForMatchGame(ctx, args.uid, pg.gameId);
-
     await ctx.db.patch(pg._id, {
       status: "replaying",
       score: undefined,

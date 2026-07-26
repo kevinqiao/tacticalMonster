@@ -5,25 +5,54 @@ import { authedMutation, authedQuery } from "../../custom/session";
 import { weeklyPeriodKey, weeklyWindowMsShanghai } from "../../utils/casualTaskPeriod";
 import {
   ensurePortalWeeklyLeagueMember,
+  ensurePortalWeeklyLeagueMemberForLobby,
   findUnclaimedPortalWeeklyLeagueRewards,
-  getPortalWeeklyLeagueTierViewForUid,
-  listPortalWeeklyLeagueCohortBoard,
+  getPortalWeeklyLeagueTierViewForUidScoped,
+  listPortalWeeklyLeagueCohortBoardScoped,
 } from "./portalWeeklyLeagueService";
+import type { Id } from "../../_generated/dataModel";
 
-/** 本周首次登录 Portal（已鉴权）时入 cohort。 */
+type LeagueScope =
+  | { lobbyId: Id<"portal_lobbies"> }
+  | { gameType: string };
+
+function resolveLeagueScope(args: {
+  lobbyId?: Id<"portal_lobbies">;
+  gameType?: string;
+}): LeagueScope | null {
+  if (args.lobbyId) return { lobbyId: args.lobbyId };
+  if (args.gameType) return { gameType: args.gameType };
+  return null;
+}
+
+/** 本周首次登录 Portal（已鉴权）时入 cohort。 Prefer lobbyId when provided. */
 export const ensurePortalWeeklyLeagueMemberMutation = authedMutation({
   args: {
-    gameType: v.string(),
+    gameType: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+    lobbySlug: v.optional(v.string()),
   },
-  handler: async (ctx, { gameType }) => {
+  handler: async (ctx, { gameType, lobbyId, lobbySlug }) => {
     console.log("[portal] ensurePortalWeeklyLeagueMemberMutation", {
       uid: ctx.uid,
       gameType,
+      lobbyId,
     });
-    const memberId = await ensurePortalWeeklyLeagueMember(ctx, ctx.uid, gameType);
+    let memberId: Id<"portal_weekly_league_members"> | null = null;
+    if (lobbyId) {
+      memberId = await ensurePortalWeeklyLeagueMemberForLobby(
+        ctx,
+        ctx.uid,
+        lobbyId,
+        lobbySlug ?? "lobby"
+      );
+    } else if (gameType) {
+      memberId = await ensurePortalWeeklyLeagueMember(ctx, ctx.uid, gameType);
+    }
     console.log("[portal] ensurePortalWeeklyLeagueMemberMutation done", {
       uid: ctx.uid,
       gameType,
+      lobbyId,
       ok: memberId != null,
       memberId,
     });
@@ -33,22 +62,34 @@ export const ensurePortalWeeklyLeagueMemberMutation = authedMutation({
 
 export const getPortalWeeklyLeagueTierView = authedQuery({
   args: {
-    gameType: v.string(),
+    gameType: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
   },
-  handler: async (ctx, { gameType }) => {
-    return await getPortalWeeklyLeagueTierViewForUid(ctx, ctx.uid, gameType);
+  handler: async (ctx, args) => {
+    const scope = resolveLeagueScope(args);
+    if (!scope) throw new Error("lobbyId_or_gameType_required");
+    return await getPortalWeeklyLeagueTierViewForUidScoped(ctx, ctx.uid, scope);
   },
 });
 
 export const getPortalWeeklyLeagueCohortLeaderboard = authedQuery({
   args: {
-    gameType: v.string(),
+    gameType: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { gameType, limit }) => {
+  handler: async (ctx, args) => {
+    const scope = resolveLeagueScope(args);
+    if (!scope) throw new Error("lobbyId_or_gameType_required");
     const now = Date.now();
-    const n = Math.min(Math.max(limit ?? 50, 1), 100);
-    const board = await listPortalWeeklyLeagueCohortBoard(ctx, ctx.uid, gameType, n, now);
+    const n = Math.min(Math.max(args.limit ?? 50, 1), 100);
+    const board = await listPortalWeeklyLeagueCohortBoardScoped(
+      ctx,
+      ctx.uid,
+      scope,
+      n,
+      now
+    );
     const window = weeklyWindowMsShanghai(now);
     if (!board) {
       return { weekEndsAt: window.endsAt, cohortNo: null, rows: [] as const };
@@ -59,28 +100,53 @@ export const getPortalWeeklyLeagueCohortLeaderboard = authedQuery({
 
 export const claimPortalWeeklyLeagueRewards = authedMutation({
   args: {
-    gameType: v.string(),
+    gameType: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
     weekKey: v.optional(v.string()),
   },
-  handler: async (ctx, { gameType, weekKey: weekKeyArg }) => {
+  handler: async (ctx, args) => {
+    const scope = resolveLeagueScope(args);
+    if (!scope) return { ok: false as const, error: "lobbyId_or_gameType_required" as const };
     const uid = ctx.uid;
-    let weekKey = weekKeyArg ?? weeklyPeriodKey(Date.now());
-    let member = await ctx.db
-      .query("portal_weekly_league_members")
-      .withIndex("by_week_game_uid", (q) =>
-        q.eq("weekKey", weekKey).eq("gameType", gameType).eq("uid", uid)
-      )
-      .unique();
+    let weekKey = args.weekKey ?? weeklyPeriodKey(Date.now());
+    let member =
+      "lobbyId" in scope
+        ? await ctx.db
+            .query("portal_weekly_league_members")
+            .withIndex("by_week_lobby_uid", (q) =>
+              q.eq("weekKey", weekKey).eq("lobbyId", scope.lobbyId).eq("uid", uid)
+            )
+            .unique()
+        : await ctx.db
+            .query("portal_weekly_league_members")
+            .withIndex("by_week_game_uid", (q) =>
+              q.eq("weekKey", weekKey).eq("gameType", scope.gameType).eq("uid", uid)
+            )
+            .unique();
 
-    if ((!member?.pendingRewards || member.rewardsClaimedAt) && !weekKeyArg) {
-      const unclaimed = await findUnclaimedPortalWeeklyLeagueRewards(ctx, uid, gameType);
+    if ((!member?.pendingRewards || member.rewardsClaimedAt) && !args.weekKey) {
+      const unclaimed = await findUnclaimedPortalWeeklyLeagueRewards(ctx, uid, scope);
       if (unclaimed) {
-        member = await ctx.db
-          .query("portal_weekly_league_members")
-          .withIndex("by_week_game_uid", (q) =>
-            q.eq("weekKey", unclaimed.weekKey).eq("gameType", gameType).eq("uid", uid)
-          )
-          .unique();
+        member =
+          "lobbyId" in scope
+            ? await ctx.db
+                .query("portal_weekly_league_members")
+                .withIndex("by_week_lobby_uid", (q) =>
+                  q
+                    .eq("weekKey", unclaimed.weekKey)
+                    .eq("lobbyId", scope.lobbyId)
+                    .eq("uid", uid)
+                )
+                .unique()
+            : await ctx.db
+                .query("portal_weekly_league_members")
+                .withIndex("by_week_game_uid", (q) =>
+                  q
+                    .eq("weekKey", unclaimed.weekKey)
+                    .eq("gameType", scope.gameType)
+                    .eq("uid", uid)
+                )
+                .unique();
         weekKey = unclaimed.weekKey;
       }
     }
@@ -98,7 +164,7 @@ export const claimPortalWeeklyLeagueRewards = authedMutation({
           kind: "coins",
           amount: pr.coins!,
           reason: "weekly_league",
-          gameType,
+          gameType: "gameType" in scope ? scope.gameType : "lobby",
           sourceWeekKey: weekKey,
         }
       );
@@ -117,40 +183,73 @@ export const claimPortalWeeklyLeagueRewards = authedMutation({
 
 export const dismissPortalWeeklyLeagueClose = authedMutation({
   args: {
-    gameType: v.string(),
+    gameType: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
     weekKey: v.optional(v.string()),
   },
-  handler: async (ctx, { gameType, weekKey: weekKeyArg }) => {
+  handler: async (ctx, args) => {
+    const scope = resolveLeagueScope(args);
+    if (!scope) return { ok: false as const };
     const uid = ctx.uid;
-    let member = weekKeyArg
-      ? await ctx.db
-          .query("portal_weekly_league_members")
-          .withIndex("by_week_game_uid", (q) =>
-            q.eq("weekKey", weekKeyArg).eq("gameType", gameType).eq("uid", uid)
-          )
-          .unique()
+    let member = args.weekKey
+      ? "lobbyId" in scope
+        ? await ctx.db
+            .query("portal_weekly_league_members")
+            .withIndex("by_week_lobby_uid", (q) =>
+              q.eq("weekKey", args.weekKey!).eq("lobbyId", scope.lobbyId).eq("uid", uid)
+            )
+            .unique()
+        : await ctx.db
+            .query("portal_weekly_league_members")
+            .withIndex("by_week_game_uid", (q) =>
+              q.eq("weekKey", args.weekKey!).eq("gameType", scope.gameType).eq("uid", uid)
+            )
+            .unique()
       : null;
 
     if (!member) {
-      const unread = (
-        await ctx.db
-          .query("portal_weekly_league_members")
-          .withIndex("by_uid_game", (q) => q.eq("uid", uid).eq("gameType", gameType))
-          .collect()
-      )
+      const unreadRows =
+        "lobbyId" in scope
+          ? await ctx.db
+              .query("portal_weekly_league_members")
+              .withIndex("by_uid_lobby", (q) =>
+                q.eq("uid", uid).eq("lobbyId", scope.lobbyId)
+              )
+              .collect()
+          : await ctx.db
+              .query("portal_weekly_league_members")
+              .withIndex("by_uid_game", (q) =>
+                q.eq("uid", uid).eq("gameType", scope.gameType)
+              )
+              .collect();
+      const unread = unreadRows
         .filter((m) => !m.isBot && m.unreadClose)
         .sort((a, b) => b.updatedAt - a.updatedAt)[0];
       if (unread) {
         member = unread;
       } else {
-        const unclaimed = await findUnclaimedPortalWeeklyLeagueRewards(ctx, uid, gameType);
+        const unclaimed = await findUnclaimedPortalWeeklyLeagueRewards(ctx, uid, scope);
         if (unclaimed) {
-          member = await ctx.db
-            .query("portal_weekly_league_members")
-            .withIndex("by_week_game_uid", (q) =>
-              q.eq("weekKey", unclaimed.weekKey).eq("gameType", gameType).eq("uid", uid)
-            )
-            .unique();
+          member =
+            "lobbyId" in scope
+              ? await ctx.db
+                  .query("portal_weekly_league_members")
+                  .withIndex("by_week_lobby_uid", (q) =>
+                    q
+                      .eq("weekKey", unclaimed.weekKey)
+                      .eq("lobbyId", scope.lobbyId)
+                      .eq("uid", uid)
+                  )
+                  .unique()
+              : await ctx.db
+                  .query("portal_weekly_league_members")
+                  .withIndex("by_week_game_uid", (q) =>
+                    q
+                      .eq("weekKey", unclaimed.weekKey)
+                      .eq("gameType", scope.gameType)
+                      .eq("uid", uid)
+                  )
+                  .unique();
         }
       }
     }

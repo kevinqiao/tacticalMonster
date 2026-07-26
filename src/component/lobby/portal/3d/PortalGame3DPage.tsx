@@ -87,8 +87,10 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           soloOpenAssignment={ctrl.soloOpenAssignment}
           multiOpenAssignment={ctrl.multiOpenAssignment}
           soloPlaysToday={ctrl.soloPlaysToday}
+          soloLadderPlaysToday={ctrl.soloLadderPlaysToday}
           soloMaxPlaysPerDay={ctrl.soloMaxPlaysPerDay}
           multiPlaysToday={ctrl.multiPlaysToday}
+          multiLadderPlaysToday={ctrl.multiLadderPlaysToday}
           multiMaxPlaysPerDay={ctrl.multiMaxPlaysPerDay}
           soloDailyExhausted={ctrl.soloDailyExhausted}
           multiDailyExhausted={ctrl.multiDailyExhausted}
@@ -100,6 +102,8 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           multiTicketEntryPrice={ctrl.multiTicketEntryPrice}
           soloTicketEntryRemaining={ctrl.soloTicketEntryRemaining}
           multiTicketEntryRemaining={ctrl.multiTicketEntryRemaining}
+          soloHasMultipleOfferings={ctrl.soloHasMultipleOfferings}
+          multiHasMultipleOfferings={ctrl.multiHasMultipleOfferings}
           queueWaiting={ctrl.queueWaiting}
           weekEndsAt={portal.weekEndsAt}
           onJoin={(mode) => void ctrl.handleJoin(mode)}

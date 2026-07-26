@@ -53,7 +53,7 @@ export function buildEmbedSourceContext(args: {
   partner: Partner | null;
   partnerResolveReady: boolean;
   campaignPartnerSlug?: string | null;
-  portalPartnerKey?: string | null;
+  portalPartnerSlug?: string | null;
   isFirstPartyPortal?: boolean;
   search?: string;
 }): EmbedSourceContext {
@@ -64,7 +64,8 @@ export function buildEmbedSourceContext(args: {
     partner: args.partner,
     partnerResolveReady: args.partnerResolveReady,
     campaignPartnerSlug: args.campaignPartnerSlug ?? null,
-    portalPartnerKey: args.portalPartnerKey ?? parsed.partnerKey,
+    portalPartnerSlug:
+      args.portalPartnerSlug ?? parsed.partnerSlug ?? parsed.partnerKey,
     isFirstPartyPortal: args.isFirstPartyPortal ?? parsed.isFirstPartyPortal,
     search: args.search ?? (typeof window !== "undefined" ? window.location.search : ""),
   };

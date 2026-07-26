@@ -22,6 +22,7 @@ import { PortalWeeklyLeagueClosePanel } from "./PortalWeeklyLeagueClosePanel";
 import type { PortalTierId } from "./portalGame3DTheme";
 
 import type { usePortalGame3DController } from "./usePortalGame3DController";
+import PortalTournamentPickerModal from "../PortalTournamentPickerModal";
 
 type Controller = ReturnType<typeof usePortalGame3DController>;
 
@@ -72,6 +73,9 @@ export function PortalGame3DOverlays({
     leavingMatch,
     handleLeaveMatchQueue,
     awaitingMatch,
+    tournamentPicker,
+    closeTournamentPicker,
+    selectTournamentFromPicker,
   } = ctrl;
 
   const creatingMatch =
@@ -79,6 +83,19 @@ export function PortalGame3DOverlays({
 
   return (
     <>
+      <PortalTournamentPickerModal
+        open={tournamentPicker != null}
+        mode={tournamentPicker?.mode ?? "solo"}
+        offerings={tournamentPicker?.offerings ?? []}
+        resolveEntry={(tournamentId) =>
+          ctrl.entryStateForTournament(
+            tournamentId,
+            tournamentPicker?.mode ?? "solo"
+          )
+        }
+        onSelect={selectTournamentFromPicker}
+        onClose={closeTournamentPicker}
+      />
       <CasualPlayMatchOverlay
         className="portal-3d-match-overlay"
         open={
@@ -97,7 +114,8 @@ export function PortalGame3DOverlays({
         tournamentTitle={primaryQueueTitle || undefined}
         leaving={leavingMatch}
         onLeave={
-          queueWaiting && primaryQueueEntry?.waitingForPeer
+          // Allow cancel for bot-fill queues too (eff=1 has waitingForPeer=false).
+          queueWaiting || queueClaiming
             ? () => void handleLeaveMatchQueue()
             : undefined
         }

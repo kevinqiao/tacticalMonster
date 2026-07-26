@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 
-import PlatformPartnerPortalGamesPanel from "./PlatformPartnerPortalGamesPanel";
-import PlatformPartnerShopPanel from "./PlatformPartnerShopPanel";
+import PlatformPartnerLobbiesPanel from "./PlatformPartnerLobbiesPanel";
+import { usePartnerPortalConfig } from "./usePlatformAdmin";
 
 import "../../campaign/merchant/merchant.css";
 
@@ -18,6 +18,9 @@ const PlatformPartnerPortalGamesModal: React.FC<Props> = ({
   canEdit,
   onClose,
 }) => {
+  const config = usePartnerPortalConfig(partnerId);
+  const partnerSlug = config?.partnerSlug ?? config?.portalKey ?? "";
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -31,7 +34,7 @@ const PlatformPartnerPortalGamesModal: React.FC<Props> = ({
       <div className="merchant-form-modal__panel">
         <header className="merchant-form-modal__head">
           <h2 className="merchant-form-modal__title">
-            {partnerName} · Portal 游戏授权（PID {partnerId}）
+            {partnerName} · Game Lobby（PID {partnerId}）
           </h2>
           <button
             type="button"
@@ -43,8 +46,11 @@ const PlatformPartnerPortalGamesModal: React.FC<Props> = ({
           </button>
         </header>
         <div className="merchant-form-modal__body">
-          <PlatformPartnerPortalGamesPanel partnerId={partnerId} canEdit={canEdit} />
-          <PlatformPartnerShopPanel partnerId={partnerId} canEdit={canEdit} />
+          <PlatformPartnerLobbiesPanel
+            partnerId={partnerId}
+            canEdit={canEdit}
+            partnerSlug={partnerSlug}
+          />
         </div>
         <footer className="merchant-form-modal__footer">
           <div className="merchant-form-modal__actions">

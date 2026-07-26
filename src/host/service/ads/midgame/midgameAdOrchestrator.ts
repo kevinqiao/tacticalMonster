@@ -7,6 +7,7 @@ import {
   requestCrazyGamesMidgameAd,
   safeCrazyGamesHasModule,
 } from "../../platformAuth/embedSources/crazyGamesSdk";
+import { AudioBus } from "../../audio/AudioBus";
 
 export type MidgameAdLifecycleHooks = {
   onAdStarted?: () => void;
@@ -30,6 +31,7 @@ export async function showMidgameAdAtBreak(
   const resumeGameplay = isCrazyGamesGameplayActive();
   // Block gameplay for the whole request window (auction can take time before adStarted).
   crazyGamesGameplayStop();
+  AudioBus.setDucked(true);
   try {
     const result = await requestCrazyGamesMidgameAd({
       onAdStarted: hooks?.onAdStarted,
@@ -43,6 +45,7 @@ export async function showMidgameAdAtBreak(
     console.warn("[CrazyGames] midgame ad failed", error);
     return { shown: false };
   } finally {
+    AudioBus.setDucked(false);
     if (resumeGameplay) {
       crazyGamesGameplayStart();
     }

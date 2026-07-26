@@ -122,15 +122,30 @@ export const claimQueueAndCharge = internalMutation({
     let batchActivityIds: string[] | undefined;
 
     for (const row of rows) {
-      const ch = await applyCasualJoinEntryChargeWithInstance(
-        ctx,
-        row.uid,
-        templateId,
-        def,
-        instanceId,
-        { skipEntryCharge: row.skipEntryCharge === true }
-      );
+      let ch: Awaited<ReturnType<typeof applyCasualJoinEntryChargeWithInstance>>;
+      try {
+        ch = await applyCasualJoinEntryChargeWithInstance(
+          ctx,
+          row.uid,
+          templateId,
+          def,
+          instanceId,
+          { skipEntryCharge: row.skipEntryCharge === true }
+        );
+      } catch (err) {
+        console.error("[casual] claimQueueAndCharge entry charge threw", {
+          templateId,
+          uid: row.uid,
+          err,
+        });
+        ch = { ok: false as const, error: "charge_failed" };
+      }
       if (!ch.ok) {
+        console.warn("[casual] claimQueueAndCharge entry charge failed", {
+          templateId,
+          uid: row.uid,
+          error: ch.error,
+        });
         await ctx.db.delete(row._id);
         continue;
       }
@@ -171,6 +186,7 @@ export const claimQueueAndCharge = internalMutation({
       joinChargeByUid,
       instanceId: instanceId ?? undefined,
       activityIds: batchActivityIds,
+      ...(rows[0]?.lobbyId ? { lobbyId: rows[0].lobbyId } : {}),
       ...(rows[0]?.campaignId ? { campaignId: rows[0].campaignId } : {}),
       ...(rows[0]?.partnerId != null ? { partnerId: rows[0].partnerId } : {}),
       ...(rows[0]?.campaignRewardMode
@@ -241,6 +257,7 @@ export const insertMatchShell = internalMutation({
     templateId: v.string(),
     uids: v.array(v.string()),
     joinChargeByUid: joinChargeByUidValidator,
+    lobbyId: v.optional(v.id("portal_lobbies")),
     instanceId: v.optional(v.id("portal_tournament_instances")),
     campaignId: v.optional(v.string()),
     partnerId: v.optional(v.number()),
@@ -291,6 +308,7 @@ export const insertMatchShell = internalMutation({
         const daily = await assertPortalDailyPlayLimit(ctx, {
           uid,
           templateId: args.templateId,
+          ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
           ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
         });
         if (!daily.ok) {
@@ -306,6 +324,7 @@ export const insertMatchShell = internalMutation({
       status: RUN_TOURNAMENT_OPEN,
       createdAt: now,
       updatedAt: now,
+      ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
       ...(args.instanceId ? { instanceId: args.instanceId } : {}),
       ...(args.campaignId ? { campaignId: args.campaignId } : {}),
       ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),

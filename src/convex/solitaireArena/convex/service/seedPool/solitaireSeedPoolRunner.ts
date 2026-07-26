@@ -52,6 +52,11 @@ export type GeneratePoolOptions = {
   writeRolloutFiles: boolean;
   /** When false, skip solvability search (faster). Default true. */
   checkSolvability?: boolean;
+  /**
+   * When true, only accept seeds with status `solvable` (forces solvability check).
+   * `unknown` / `unsolvable` are rejected as `not_solvable`.
+   */
+  requireSolvable?: boolean;
   solveOpts?: SolitaireSolveOptions;
 };
 
@@ -104,6 +109,7 @@ export function processOneSeed(
     | "writeRolloutSummaries"
     | "writeRolloutFiles"
     | "checkSolvability"
+    | "requireSolvable"
     | "solveOpts"
   >,
   seenFingerprints: Set<string>
@@ -116,9 +122,10 @@ export function processOneSeed(
     playerFriendly,
     writeRolloutSummaries,
     writeRolloutFiles,
-    checkSolvability = true,
+    requireSolvable = false,
     solveOpts,
   } = options;
+  const checkSolvability = requireSolvable || options.checkSolvability !== false;
   const persistRolloutDetail = writeRolloutSummaries || writeRolloutFiles;
   const seedId = makeSeedId(poolVersion, seedIndex);
 
@@ -191,17 +198,33 @@ export function processOneSeed(
   }
 
   const rolloutSummaries = persistRolloutDetail ? toRolloutSummaries(allRollouts) : [];
-  const solvability =
-    checkSolvability !== false
-      ? resolveSeedSolvability({
-          seedId,
-          hasAnyCompleted: metrics.hasAnyCompleted,
-          rolloutSummaries: persistRolloutDetail
-            ? rolloutSummaries
-            : allRollouts.map((r) => ({ completed: r.completed })),
-          solveOpts: { ...DEFAULT_GENERATE_SOLVE_OPTS, ...solveOpts },
-        })
-      : null;
+  const solvability = checkSolvability
+    ? resolveSeedSolvability({
+        seedId,
+        hasAnyCompleted: metrics.hasAnyCompleted,
+        rolloutSummaries: persistRolloutDetail
+          ? rolloutSummaries
+          : allRollouts.map((r) => ({ completed: r.completed })),
+        solveOpts: { ...DEFAULT_GENERATE_SOLVE_OPTS, ...solveOpts },
+      })
+    : null;
+
+  if (requireSolvable && solvability?.solvable !== "solvable") {
+    return {
+      kind: "rejected",
+      entry: {
+        seedId,
+        reason: "not_solvable",
+        detail:
+          solvability == null
+            ? "solvability_unchecked"
+            : `${solvability.solvable}${
+                solvability.solvableReason ? `:${solvability.solvableReason}` : ""
+              }`,
+        metrics,
+      },
+    };
+  }
 
   return {
     kind: "accepted",
@@ -225,18 +248,32 @@ export function processOneSeed(
 
 /** Processes seeds one at a time; index-only mode skips persisting rollout scripts. */
 export function generateSeedPool(options: GeneratePoolOptions): GeneratePoolResult {
-  const { tierQuotas, start, count, ...oneSeedOpts } = options;
+  const { tierQuotas, start, count, requireSolvable = false, ...oneSeedOpts } = options;
   const rejected: SeedPoolRejectedEntry[] = [];
   const candidates: TierCandidate[] = [];
   const seenFingerprints = new Set<string>();
+  const oneOpts = { ...oneSeedOpts, requireSolvable };
 
-  for (let i = start; i < start + count; i++) {
-    const result = processOneSeed(i, oneSeedOpts, seenFingerprints);
-    if (result.kind === "rejected") {
-      rejected.push(result.entry);
-      continue;
+  if (requireSolvable) {
+    // Keep scanning indices until `count` solvable seeds are accepted.
+    const maxScan = Math.max(count * 20, count);
+    for (let i = start; i < start + maxScan && candidates.length < count; i++) {
+      const result = processOneSeed(i, oneOpts, seenFingerprints);
+      if (result.kind === "rejected") {
+        rejected.push(result.entry);
+        continue;
+      }
+      candidates.push(result.candidate);
     }
-    candidates.push(result.candidate);
+  } else {
+    for (let i = start; i < start + count; i++) {
+      const result = processOneSeed(i, oneOpts, seenFingerprints);
+      if (result.kind === "rejected") {
+        rejected.push(result.entry);
+        continue;
+      }
+      candidates.push(result.candidate);
+    }
   }
 
   const entries = assignTiers(candidates, tierQuotas);

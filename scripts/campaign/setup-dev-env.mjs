@@ -66,9 +66,8 @@ function parseArgs(argv) {
     forceConfig: argv.includes("--force-config"),
     convexArgs: argv.filter((a) => a === "--prod"),
     partnerId: partnerIdRaw != null ? Number(partnerIdRaw) : undefined,
-    partnerSlug: get("--partner-slug") ?? "demo-partner",
+    partnerSlug: get("--partner-slug") ?? get("--portal-key") ?? "demo-partner",
     partnerName: get("--partner-name") ?? "Demo Partner",
-    portalKey: get("--portal-key") ?? "demo",
     storeSlug: get("--store-slug") ?? "demo-cafe",
     storeName: get("--store-name") ?? "Demo Cafe",
     campaignSlug: get("--campaign-slug") ?? "play-test",
@@ -201,7 +200,6 @@ function main() {
         : {}),
       partnerSlug: config.partnerSlug,
       partnerName: config.partnerName,
-      portalKey: config.portalKey,
       games: [config.gameType],
     },
     config.convexArgs

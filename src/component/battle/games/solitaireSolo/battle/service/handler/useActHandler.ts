@@ -3,6 +3,7 @@ import {
     SoloGameEngine,
 } from "@/convex/solitaireArena/convex/service/SoloGameEngine";
 import { useCasualPlatform } from "component/lobby/casual/service/useCasualPlatformManager";
+import { AudioBus } from "host/service/audio";
 import { useUserManager } from "host/service/UserManager";
 import { usePlatformAuth } from "host/service/platformAuth/PlatformAuthProvider";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
@@ -934,6 +935,7 @@ const useActHandler = () => {
         try {
             if (!timeoutUiShownRef.current) {
                 timeoutUiShownRef.current = true;
+                AudioBus.emit("game.solitaire.lose");
                 applyServerProgress(syncReplayScore, gs, { gameStatus: SoloGameStatus.CANCELLED });
                 await beginCasualPostSettleFlow(matchGameId, score, {});
             }
@@ -1461,6 +1463,7 @@ const useActHandler = () => {
         }
         settleInFlightRef.current = true;
         try {
+            AudioBus.emit("game.solitaire.lose");
             const isCasualGameId =
                 typeof gs.gameId === "string" && gs.gameId.startsWith("game_");
             if (Boolean(casualTournamentId) && isCasualGameId && !casualPlatformAuthed) {

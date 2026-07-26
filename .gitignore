@@ -69,3 +69,7 @@ portal-prod-dist.zip
 
 # Local Netlify folder
 .netlify
+
+# Local Kenney extract cache (not shipped)
+public/audio/_src/
+

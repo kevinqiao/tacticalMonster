@@ -38,7 +38,7 @@ export type CasualPlatformRewardConfig = Omit<
   /**
    * 按分数档追加奖励。
    * - `period_instance_close`（缺省）：桶收尾时按当日聚合分命中**最高一档**写入 `pendingInstanceRewards`。
-   * - `on_each_run_settled`：每局结算写入 `portal_score_tier_pending`（每条一档、历史页手动领取）；桶收尾不再发分档。
+   * - `on_each_run_settled`：Portal 不落分档预发表（周期场已迁 casualPlatform / `casual_score_tier_pending`）；桶收尾不再发分档。
    */
   scoreTierRewards?: CasualScoreTierRewardEntry[];
   scoreTierRewardsGrantTiming?: CasualScoreTierRewardsGrantTiming;

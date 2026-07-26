@@ -27,7 +27,7 @@ export const EmbedAuthBridge: React.FC = () => {
     partnerPid,
     partnerResolveReady,
     campaignPartnerSlug,
-    portalPartnerKey,
+    portalPartnerSlug,
     isFirstPartyPortal,
   } = usePartnerManager();
   const { runBootstrap } = useEmbedBootstrap();
@@ -40,7 +40,7 @@ export const EmbedAuthBridge: React.FC = () => {
         partner,
         partnerResolveReady,
         campaignPartnerSlug,
-        portalPartnerKey,
+        portalPartnerSlug,
         isFirstPartyPortal,
       }),
     [
@@ -49,7 +49,7 @@ export const EmbedAuthBridge: React.FC = () => {
       partner,
       partnerPid,
       partnerResolveReady,
-      portalPartnerKey,
+      portalPartnerSlug,
     ]
   );
 

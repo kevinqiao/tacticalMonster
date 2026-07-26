@@ -75,6 +75,14 @@ export const pushPartnerAdReplayCapToPortal = internalAction({
 export const pushPartnerPlayEntrySettingsToPortal = internalAction({
   args: {
     partnerId: v.number(),
+    quotaScope: v.optional(
+      v.union(
+        v.literal("mode"),
+        v.literal("lobby"),
+        v.literal("tournament"),
+        v.null()
+      )
+    ),
     freePlaySoloDailyCap: v.optional(v.number()),
     freePlayMultiDailyCap: v.optional(v.number()),
     adEntryEnabled: v.optional(v.boolean()),

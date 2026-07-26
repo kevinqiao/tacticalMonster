@@ -77,6 +77,7 @@ Common options (before --):
   --resume              create 断点续跑（等同 generate --resume）
   --index-only          不写 rolloutSummaries / 仅 metrics 导入
   --skip-solvability    create：跳过可解性搜索（透传 generate）
+  --require-solvable    create：只接纳可解 seed（unknown/unsolvable 拒绝并继续扫描）
   --seed <seedId>       regen：只更新该 seed
   --sync                regen：本地更新后 upsert catalog rollout 子表
   --all                 regen：index 内全部 seed（慎用，耗时长）
@@ -142,6 +143,8 @@ function parseCommon(flags, defaults) {
     resume: false,
     indexOnly: false,
     updateExisting: false,
+    skipSolvability: false,
+    requireSolvable: false,
     seedId: "",
     sync: false,
     regenAll: false,
@@ -167,6 +170,8 @@ function parseCommon(flags, defaults) {
     else if (a === "--local") opts.local = true;
     else if (a === "--resume") opts.resume = true;
     else if (a === "--index-only") opts.indexOnly = true;
+    else if (a === "--skip-solvability") opts.skipSolvability = true;
+    else if (a === "--require-solvable") opts.requireSolvable = true;
     else if (a === "--update-existing") opts.updateExisting = true;
     else if (a === "--seed") opts.seedId = next();
     else if (a === "--sync") opts.sync = true;
@@ -238,6 +243,8 @@ function cmdCreate(opts, extra) {
   if (opts.rejectCollapsed) args.push("--reject-collapsed");
   if (opts.resume) args.push("--resume");
   if (opts.indexOnly) args.push("--index-only", "true");
+  if (opts.requireSolvable) args.push("--require-solvable");
+  else if (opts.skipSolvability) args.push("--skip-solvability");
   args.push(...extra);
   console.log("create → generate-seed-pool.mjs", args.join(" "));
   runTsx("generate-seed-pool.mjs", args);

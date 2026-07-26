@@ -14,7 +14,7 @@ export type EmbedSourceContext = {
   partner: Partner | null;
   partnerResolveReady: boolean;
   campaignPartnerSlug: string | null;
-  portalPartnerKey: string | null;
+  portalPartnerSlug: string | null;
   isFirstPartyPortal: boolean;
   search: string;
 };

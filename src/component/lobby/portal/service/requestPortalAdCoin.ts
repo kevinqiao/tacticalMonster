@@ -4,6 +4,7 @@ import { portalTournamentFns } from "@/component/lobby/portal/service/portalConv
 import { PORTAL_CONVEX_URL } from "@/component/lobby/portal/service/usePortalManager";
 import { resolvePortalAdCoinChannel } from "host/service/ads/rewarded/portalAdCoinSurface";
 import { showRewardedAdForReplay } from "host/service/ads/rewarded/rewardedAdOrchestrator";
+import { AudioBus } from "host/service/audio";
 import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
 
 let portalHttpClient: ConvexHttpClient | null = null;
@@ -90,6 +91,7 @@ export async function requestPortalAdCoin(): Promise<PortalAdCoinResult> {
     return { ok: false, error: complete?.error ?? "complete_failed" };
   }
 
+  AudioBus.emit("meta.ad.reward");
   return {
     ok: true,
     coinsGranted: complete.coinsGranted,

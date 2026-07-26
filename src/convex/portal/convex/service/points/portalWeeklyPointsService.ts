@@ -1,5 +1,6 @@
 /**
  * Portal 周积分：结算加分只写入 portal_weekly_league_members（+ ledger 审计）。
+ * Prefer lobby-scoped member when the run carries lobbyId.
  */
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
@@ -13,7 +14,9 @@ import {
 import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
 import {
   ensurePortalWeeklyLeagueMember,
+  ensurePortalWeeklyLeagueMemberForLobby,
   getWeeklyLeagueMember,
+  getWeeklyLeagueMemberByLobby,
 } from "../weeklyLeague/portalWeeklyLeagueService";
 import { persistPlayerMatchChallengeOutcome } from "../tournament/settle/playerMatchChallengeOutcome";
 
@@ -47,6 +50,7 @@ export async function applyPortalMatchPoints(
     reason = p75Success ? "solo_p75_success" : "solo_p75_fail";
   } else {
     const rank = args.rank ?? 1;
+    // Free multi and coin multi both use def.rankPoints (same table).
     delta = portalRankPointDelta(args.def, rank);
     reason = `multi_rank_${rank}`;
   }
@@ -56,30 +60,61 @@ export async function applyPortalMatchPoints(
   let weeklyPointsAfter = Math.max(0, delta);
   let appliedDelta = weeklyPointsAfter;
 
+  const runRow = await ctx.db.get(args.runTournamentId);
+  const lobbyId = runRow?.lobbyId;
+
   if (PORTAL_WEEKLY_LEAGUE_ENABLED) {
-    await ensurePortalWeeklyLeagueMember(ctx, args.uid, gameType, now);
-    const member = await getWeeklyLeagueMember(ctx, {
-      uid: args.uid,
-      gameType,
-      weekKey,
-    });
-    if (!member) {
-      throw new Error(
-        `portal weekly league member missing after ensure uid=${args.uid} gameType=${gameType}`
+    if (lobbyId) {
+      const lobby = await ctx.db.get(lobbyId);
+      await ensurePortalWeeklyLeagueMemberForLobby(
+        ctx,
+        args.uid,
+        lobbyId,
+        lobby?.slug ?? "lobby",
+        now
       );
+      const member = await getWeeklyLeagueMemberByLobby(ctx, {
+        uid: args.uid,
+        lobbyId,
+        weekKey,
+      });
+      if (!member) {
+        throw new Error(
+          `portal weekly league member missing after ensure uid=${args.uid} lobbyId=${lobbyId}`
+        );
+      }
+      weeklyPointsAfter = Math.max(0, member.weeklyPoints + delta);
+      appliedDelta = weeklyPointsAfter - member.weeklyPoints;
+      await ctx.db.patch(member._id, {
+        weeklyPoints: weeklyPointsAfter,
+        updatedAt: now,
+      });
+    } else {
+      await ensurePortalWeeklyLeagueMember(ctx, args.uid, gameType, now);
+      const member = await getWeeklyLeagueMember(ctx, {
+        uid: args.uid,
+        gameType,
+        weekKey,
+      });
+      if (!member) {
+        throw new Error(
+          `portal weekly league member missing after ensure uid=${args.uid} gameType=${gameType}`
+        );
+      }
+      weeklyPointsAfter = Math.max(0, member.weeklyPoints + delta);
+      appliedDelta = weeklyPointsAfter - member.weeklyPoints;
+      await ctx.db.patch(member._id, {
+        weeklyPoints: weeklyPointsAfter,
+        updatedAt: now,
+      });
     }
-    weeklyPointsAfter = Math.max(0, member.weeklyPoints + delta);
-    appliedDelta = weeklyPointsAfter - member.weeklyPoints;
-    await ctx.db.patch(member._id, {
-      weeklyPoints: weeklyPointsAfter,
-      updatedAt: now,
-    });
   }
 
   await ctx.db.insert("portal_point_ledger", {
     uid: args.uid,
     runTournamentId: args.runTournamentId,
     gameType,
+    ...(lobbyId ? { lobbyId } : {}),
     mode,
     weekKey,
     delta: appliedDelta,

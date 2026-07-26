@@ -17,6 +17,7 @@ import {
     SoloGameStatus,
     ZoneType,
 } from '../types/SoloTypes';
+import { AudioBus } from 'host/service/audio';
 import { dealEffect } from '../animation/effects/dealEffect';
 import { createRolloutReplayState } from '../replay/solitaireRolloutReplay';
 import { autoCompleteLayoutGate } from '../autoCompleteLayoutGate';
@@ -476,6 +477,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
 
     const pushScoreFloat = useCallback((delta: number, anchorZoneId?: string) => {
         if (!Number.isFinite(delta) || delta === 0) return;
+        if (delta > 0) AudioBus.emit("game.solitaire.score_delta");
         const id = ++scoreFloatIdRef.current;
         setScoreFloats((list) => [...list.slice(-6), { id, delta, anchorZoneId }]);
         window.setTimeout(() => {
@@ -596,6 +598,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
                 setGameState(animState);
             }
 
+            AudioBus.emit("game.solitaire.deal.opening");
             dealEffect({
                 effectType: "opening",
                 timelines: timelinesRef.current,

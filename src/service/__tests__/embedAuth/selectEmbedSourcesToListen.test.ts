@@ -21,7 +21,7 @@ function portalPartnerCtx(search = "") {
     },
     partnerResolveReady: true,
     campaignPartnerSlug: null,
-    portalPartnerKey: "crazygames",
+    portalPartnerSlug: "crazygames",
     isFirstPartyPortal: false,
     search,
   });
@@ -57,7 +57,7 @@ describe("selectEmbedSourcesToListen (extensible host claim)", () => {
       },
       partnerResolveReady: true,
       campaignPartnerSlug: null,
-      portalPartnerKey: null,
+      portalPartnerSlug: null,
       isFirstPartyPortal: false,
       search: "",
     });

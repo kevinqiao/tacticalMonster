@@ -21,6 +21,8 @@ export const joinTournament = authedAction({
     tournamentId: v.optional(v.string()),
     partnerSlug: v.optional(v.string()),
     campaignSlug: v.optional(v.string()),
+    /** Portal lobby for weekly-league settle scope. */
+    lobbyId: v.optional(v.id("portal_lobbies")),
     /** Explicitly select the ad rung after free plays are exhausted. */
     adEntry: v.optional(v.boolean()),
     /** Explicitly select the ticket rung after free + ad are exhausted. */
@@ -28,7 +30,7 @@ export const joinTournament = authedAction({
   },
   handler: async (
     ctx,
-    { tournamentId, partnerSlug, campaignSlug, adEntry, ticketEntry }
+    { tournamentId, partnerSlug, campaignSlug, lobbyId, adEntry, ticketEntry }
   ): Promise<JoinCasualRunResult> => {
     const uid = ctx.uid;
     let resolvedTemplateId = tournamentId;
@@ -97,14 +99,22 @@ export const joinTournament = authedAction({
     if (adEntry) {
       const entry = await ctx.runMutation(
         internal.service.ads.portalAdEntryService.consumeAdEntryForJoin,
-        { uid, templateId: resolvedTemplateId }
+        {
+          uid,
+          templateId: resolvedTemplateId,
+          ...(lobbyId ? { lobbyId } : {}),
+        }
       );
       if (!entry.ok) return entry;
     }
     if (ticketEntry) {
       const entry = await ctx.runMutation(
         internal.service.ads.portalTicketEntryService.consumeTicketEntryForJoin,
-        { uid, templateId: resolvedTemplateId }
+        {
+          uid,
+          templateId: resolvedTemplateId,
+          ...(lobbyId ? { lobbyId } : {}),
+        }
       );
       if (!entry.ok) return entry;
     }
@@ -115,6 +125,7 @@ export const joinTournament = authedAction({
         {
           uid,
           templateId: resolvedTemplateId,
+          ...(lobbyId ? { lobbyId } : {}),
           ...(campaignId ? { campaignId } : {}),
           ...(partnerId != null ? { partnerId } : {}),
           ...(campaignRewardMode ? { campaignRewardMode } : {}),
@@ -126,11 +137,12 @@ export const joinTournament = authedAction({
       );
     }
 
-    return await ctx.runMutation(
+    const enqueued = await ctx.runMutation(
       internal.service.tournament.join.casualMatchmaking.enqueueCasualMatchmakingAndTryMatch,
       {
         uid,
         tournamentId: resolvedTemplateId,
+        ...(lobbyId ? { lobbyId } : {}),
         ...(campaignId ? { campaignId } : {}),
         ...(partnerId != null ? { partnerId } : {}),
         ...(campaignRewardMode ? { campaignRewardMode } : {}),
@@ -138,8 +150,98 @@ export const joinTournament = authedAction({
         ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
+        // Bot-fill (eff=1): open in this action so coin/free multi returns ready/error
+        // instead of leaving the client stuck on "Creating match".
+        deferOpenToCaller: true,
       }
     );
+    if (!enqueued.ok || !enqueued.queued) {
+      return enqueued;
+    }
+
+    const queueRowId =
+      "queueRowId" in enqueued
+        ? (enqueued.queueRowId as string | undefined)
+        : undefined;
+    const effectiveHumans =
+      "effectiveHumans" in enqueued && typeof enqueued.effectiveHumans === "number"
+        ? enqueued.effectiveHumans
+        : enqueued.waitingForPeer
+          ? 2
+          : 1;
+
+    if (effectiveHumans === 1 && queueRowId) {
+      const opened = await ctx.runAction(
+        internal.service.tournament.join.casualOpenTableActions.openSoloAsyncTableFromQueue,
+        { queueRowId: queueRowId as never }
+      );
+      if (opened && typeof opened === "object" && "ok" in opened && opened.ok === true) {
+        const byUid =
+          "byUid" in opened
+            ? (opened.byUid as Record<string, { gameId: string }> | undefined)
+            : undefined;
+        const row = byUid?.[uid];
+        if (row?.gameId && "matchId" in opened && "runTournamentId" in opened) {
+          return {
+            ok: true as const,
+            queued: false as const,
+            templateId: resolvedTemplateId,
+            gameId: row.gameId,
+            matchId: String(opened.matchId),
+            runTournamentId: String(opened.runTournamentId),
+          };
+        }
+      }
+      const err =
+        opened && typeof opened === "object" && "error" in opened
+          ? String((opened as { error: string }).error)
+          : "open_table_failed";
+
+      if (err === "already_in_open_match") {
+        const existing = await ctx.runQuery(
+          internal.service.tournament.join.casualOpenTableGuard.getAnyGlobalOpenCasualMatch,
+          { uid }
+        );
+        if (existing && existing.templateId === resolvedTemplateId) {
+          return {
+            ok: true as const,
+            queued: false as const,
+            templateId: resolvedTemplateId,
+            gameId: existing.gameId,
+            matchId: existing.matchId,
+            runTournamentId: existing.runTournamentId,
+          };
+        }
+      }
+
+      console.error("[casual] joinTournament sync open failed", {
+        templateId: resolvedTemplateId,
+        uid,
+        error: err,
+      });
+      // Drop queue so UI cannot spin forever on a dead row.
+      await ctx.runMutation(
+        internal.service.tournament.join.casualMatchmaking.deleteQueueRow,
+        { queueRowId: queueRowId as never }
+      );
+      return { ok: false as const, error: err };
+    }
+
+    // eff>1: async peer match — schedule process + optional expire.
+    await ctx.scheduler.runAfter(
+      0,
+      internal.service.tournament.join.casualOpenTableActions.processCasualMatchQueueForTemplate,
+      { templateId: resolvedTemplateId }
+    );
+    if (enqueued.expiresAt != null && queueRowId) {
+      const delayMs = Math.max(0, enqueued.expiresAt - Date.now());
+      await ctx.scheduler.runAfter(
+        delayMs,
+        internal.service.tournament.join.casualOpenTableActions.expireCasualMatchQueueEntryOpen,
+        { queueRowId: queueRowId as never }
+      );
+    }
+    return enqueued;
   },
 });
 

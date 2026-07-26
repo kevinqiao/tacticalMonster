@@ -50,6 +50,9 @@ export function portalMatchTypeLabel(templateId: string): string {
     return i18n.t("history.matchTypes.solo_p75", { ns: "portal.player" });
   }
   if (def?.matchType === "multi_ranked") {
+    if (def.entry.kind === "coins") {
+      return i18n.t("history.matchTypes.multi_ranked_coin", { ns: "portal.player" });
+    }
     return i18n.t("history.matchTypes.multi_ranked", { ns: "portal.player" });
   }
   if (templateId === "solo_p75") {

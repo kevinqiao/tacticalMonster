@@ -9,7 +9,7 @@ export function platformAdminSuccessMessage(key: string): string {
     partnerCreated: "Partner 已创建。",
     partnerDeleted: "Partner 已删除。",
     staffUpdated: "成员资料已更新。",
-    portalSaved: "Portal 游戏授权已保存。",
+    portalSaved: "Partner 基础设置已保存。",
     capabilitiesSaved: "能力配置已保存。",
   };
   return map[key] ?? key;

@@ -45,8 +45,11 @@ function parseArgs(argv) {
     writeRolloutSummaries: false,
     writeRolloutFiles: false,
     checkSolvability: true,
+    requireSolvable: false,
     solveMaxNodes: 50_000,
     solveTimeoutMs: 15_000,
+    /** 0 = auto (needCandidates * 20 when --require-solvable) */
+    maxScan: 0,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -81,9 +84,12 @@ function parseArgs(argv) {
         opts.writeRolloutFiles = true;
       }
     } else if (a === "--skip-solvability") opts.checkSolvability = false;
+    else if (a === "--require-solvable") opts.requireSolvable = true;
     else if (a === "--solve-max-nodes") opts.solveMaxNodes = Number(next());
     else if (a === "--solve-timeout-ms") opts.solveTimeoutMs = Number(next());
+    else if (a === "--max-scan") opts.maxScan = Number(next());
   }
+  if (opts.requireSolvable) opts.checkSolvability = true;
   return opts;
 }
 
@@ -323,7 +329,13 @@ async function main() {
 
   const targetAccepted = opts.count;
   const candidateCount = Math.ceil(targetAccepted * Math.max(1, opts.oversampleFactor));
-  const scanEnd = opts.start + candidateCount;
+  const maxScan =
+    opts.maxScan > 0
+      ? opts.maxScan
+      : opts.requireSolvable
+        ? Math.max(candidateCount * 20, candidateCount)
+        : candidateCount;
+  const scanEnd = opts.start + maxScan;
 
   console.log("== Solitaire seed pool generate ==");
   console.log(
@@ -331,7 +343,8 @@ async function main() {
   );
   console.log(
     `out=${opts.out} summaries=${opts.writeRolloutSummaries} rolloutFiles=${opts.writeRolloutFiles} ` +
-      `solvability=${opts.checkSolvability} solveMaxNodes=${opts.solveMaxNodes} solveTimeoutMs=${opts.solveTimeoutMs}`
+      `solvability=${opts.checkSolvability} requireSolvable=${opts.requireSolvable} ` +
+      `solveMaxNodes=${opts.solveMaxNodes} solveTimeoutMs=${opts.solveTimeoutMs} maxScan=${maxScan}`
   );
   if (
     opts.minOpeningMoves > 0 ||
@@ -390,13 +403,18 @@ async function main() {
     writeRolloutSummaries: opts.writeRolloutSummaries,
     writeRolloutFiles: opts.writeRolloutFiles,
     checkSolvability: opts.checkSolvability,
+    requireSolvable: opts.requireSolvable,
     solveOpts: {
       maxNodes: opts.solveMaxNodes,
       timeoutMs: opts.solveTimeoutMs,
     },
   };
 
+  // Fixed window by default; with --require-solvable keep scanning until enough accepted.
+  const stopWhenAccepted = opts.requireSolvable ? candidateCount : Infinity;
   for (let i = opts.start; i < scanEnd; i++) {
+    if (batchCandidates.length >= stopWhenAccepted) break;
+
     console.log = () => {};
     const result = processOneSeed(i, oneSeedOpts, seenFingerprints);
     console.log = log;
@@ -419,10 +437,18 @@ async function main() {
     const done = i - opts.start + 1;
     if (opts.progressEvery > 0 && done % opts.progressEvery === 0) {
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      const goal = opts.requireSolvable ? `${batchCandidates.length}/${candidateCount}` : `${done}/${candidateCount}`;
       console.log(
-        `progress ${done}/${candidateCount} accepted=${batchCandidates.length} rejected=${batchRejected.length} elapsed=${elapsed}s`
+        `progress scanned=${done}/${maxScan} accepted=${goal} rejected=${batchRejected.length} elapsed=${elapsed}s`
       );
     }
+  }
+
+  if (opts.requireSolvable && batchCandidates.length < candidateCount) {
+    console.log(
+      `warn: require-solvable only accepted ${batchCandidates.length}/${candidateCount} before maxScan=${maxScan}; ` +
+        `raise --max-scan or --solve-max-nodes / --solve-timeout-ms`
+    );
   }
 
   const trimmedBatch =
@@ -481,6 +507,12 @@ async function main() {
   }
   if (retiered.length === 0 && opts.minOpeningMoves >= 3) {
     console.log("hint: --min-opening-moves 3+ is very strict; most layouts have 0-2 opening moves.");
+  }
+  if (opts.requireSolvable && (rejectReasons.not_solvable ?? 0) > 0 && retiered.length < targetAccepted) {
+    console.log(
+      "hint: many not_solvable rejects are budget timeouts (unknown), not proven dead. " +
+        "Try --solve-max-nodes 200000 --solve-timeout-ms 30000 or higher --max-scan."
+    );
   }
   console.log(
     `tiers: easy=${tierCounts.easy} medium=${tierCounts.medium} hard=${tierCounts.hard}`

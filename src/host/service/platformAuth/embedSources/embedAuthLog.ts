@@ -29,20 +29,20 @@ export type EmbedSdkLoadCandidate = {
 /** Log which SDK scripts will load (or why none). Always call before loadEmbedSdk. */
 export function logEmbedSdkLoadDecision(
   specs: { id: string; scriptUrl: string }[],
-  ctx: { partnerPid: number; portalPartnerKey?: string | null },
+  ctx: { partnerPid: number; portalPartnerSlug?: string | null },
   candidates: EmbedSdkLoadCandidate[]
 ): void {
   if (specs.length === 0) {
     console.info(PREFIX, "sdk load skipped — no eligible sdk", {
       partnerPid: ctx.partnerPid,
-      portalPartnerKey: ctx.portalPartnerKey ?? null,
+      portalPartnerSlug: ctx.portalPartnerSlug ?? null,
       candidates,
     });
     return;
   }
   console.info(PREFIX, "sdk load planned", {
     partnerPid: ctx.partnerPid,
-    portalPartnerKey: ctx.portalPartnerKey ?? null,
+    portalPartnerSlug: ctx.portalPartnerSlug ?? null,
     sdkIds: specs.map((s) => s.id),
     scriptUrls: specs.map((s) => s.scriptUrl),
     candidates,

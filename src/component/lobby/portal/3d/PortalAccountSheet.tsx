@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 
+import { useAudio } from "host/service/audio";
 import { useUserManager } from "host/service/UserManager";
 
 import { PortalCenterModal } from "../PortalCenterModal";
@@ -34,6 +35,7 @@ export const PortalAccountSheet: React.FC<Props> = ({
 }) => {
   const { t } = useTranslation("portal.player");
   const { user, logout, cancelAuth } = useUserManager();
+  const { muted, toggleMuted } = useAudio();
   const portal = usePortal();
   const allowSignOut =
     showSignOut ?? shouldShowPortalAuthMenuActions();
@@ -87,6 +89,19 @@ export const PortalAccountSheet: React.FC<Props> = ({
           onFeedback={onFeedback}
           onSaved={onClose}
         />
+        <section className="portal-account-shell__section">
+          <h3 className="portal-account-shell__section-title">Sound</h3>
+          <label className="portal-account-shell__mute-row">
+            <span>Mute sound effects</span>
+            <input
+              type="checkbox"
+              checked={muted}
+              onChange={() => {
+                toggleMuted();
+              }}
+            />
+          </label>
+        </section>
         <section className="portal-account-shell__section">
           <h3 className="portal-account-shell__section-title">
             {t("lobby.accountMenu.vouchers")}

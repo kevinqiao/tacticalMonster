@@ -3,6 +3,7 @@ import {
   crazyGamesGameplayStop,
   isCrazyGamesGameplayActive,
 } from "../../platformAuth/embedSources/crazyGamesSdk";
+import { AudioBus } from "../../audio/AudioBus";
 import { resolveRewardedAdProvider } from "./registry";
 import type { RewardedAdShowResult } from "./types";
 
@@ -22,6 +23,7 @@ export async function showRewardedAdForReplay(
   const resumeGameplay = isCrazyGamesGameplayActive();
   // Pause immediately — ad auction is not instantaneous; UI must stay blocked.
   crazyGamesGameplayStop();
+  AudioBus.setDucked(true);
   hooks?.onAdStarted?.();
   try {
     const result = await provider.showRewardedAd();
@@ -32,6 +34,7 @@ export async function showRewardedAdForReplay(
   } catch {
     return { ok: false, reason: "sdk_error" };
   } finally {
+    AudioBus.setDucked(false);
     if (resumeGameplay) {
       crazyGamesGameplayStart();
     }

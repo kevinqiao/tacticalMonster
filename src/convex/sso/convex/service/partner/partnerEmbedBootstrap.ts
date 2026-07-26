@@ -2,10 +2,10 @@ import { v } from "convex/values";
 
 import { mutation } from "../../_generated/server";
 import type { PartnerCapabilities } from "./partnerCapabilities";
+import { requirePartnerSlug } from "./partnerCapabilities";
 import {
   PARTNER_GAME_TYPES,
   sanitizePartnerGames,
-  validatePortalKey,
 } from "./portalPartnerConfig";
 import {
   applyAdReplayDailyCapToPartnerData,
@@ -32,9 +32,11 @@ export const bootstrapDevPartnerEmbed = mutation({
     /** When true (default), enable portalGames capability for this partner. */
     portalGames: v.optional(v.boolean()),
     campaignOps: v.optional(v.boolean()),
-    /** URL segment for /gc/{portal_key}/{game} (e.g. crazygames). */
+    /** URL segment for /gc/{partnerSlug}/{game} (e.g. crazygames). */
+    partnerSlug: v.optional(v.string()),
+    /** @deprecated Prefer partnerSlug */
     portalKey: v.optional(v.string()),
-    /** Enabled game types; default = full partner registry when portalKey is set. */
+    /** Enabled game types; default = full partner registry when partnerSlug is set. */
     games: v.optional(v.array(v.string())),
     /** Optional Portal ad-replay daily cap override (0..100). */
     adReplayDailyCap: v.optional(v.number()),
@@ -54,24 +56,25 @@ export const bootstrapDevPartnerEmbed = mutation({
       campaignOps: args.campaignOps === true,
     };
 
-    const portalKey =
-      args.portalKey != null && args.portalKey.trim() !== ""
-        ? validatePortalKey(args.portalKey)
+    const rawSlug = args.partnerSlug ?? args.portalKey;
+    const partnerSlug =
+      rawSlug != null && rawSlug.trim() !== ""
+        ? requirePartnerSlug(rawSlug)
         : undefined;
     const games =
       args.games != null
         ? sanitizePartnerGames(args.games)
-        : portalKey
+        : partnerSlug
           ? [...PARTNER_GAME_TYPES]
           : undefined;
 
-    if (portalKey) {
+    if (partnerSlug) {
       const conflict = await ctx.db
         .query("partner")
-        .withIndex("by_portal_key", (q) => q.eq("portal_key", portalKey))
+        .withIndex("by_slug", (q) => q.eq("slug", partnerSlug))
         .unique();
       if (conflict && conflict.pid !== pid) {
-        throw new Error("portal_key_taken");
+        throw new Error("slug_taken");
       }
     }
 
@@ -100,7 +103,7 @@ export const bootstrapDevPartnerEmbed = mutation({
     const host = args.host ?? "http://localhost:3000";
 
     const portalFields = {
-      ...(portalKey !== undefined ? { portal_key: portalKey } : {}),
+      ...(partnerSlug !== undefined ? { slug: partnerSlug } : {}),
       ...(games !== undefined ? { games } : {}),
     };
 
@@ -142,7 +145,7 @@ export const bootstrapDevPartnerEmbed = mutation({
         created: false as const,
         jwtSecret,
         embedMethod,
-        portalKey: portalKey ?? existing.portal_key,
+        partnerSlug: partnerSlug ?? existing.slug,
         games: games ?? existing.games,
         adReplayDailyCap: effectiveReplay.adReplayDailyCap,
       };
@@ -183,7 +186,7 @@ export const bootstrapDevPartnerEmbed = mutation({
       created: true as const,
       jwtSecret,
       embedMethod,
-      portalKey,
+      partnerSlug,
       games,
       adReplayDailyCap: effectiveReplay.adReplayDailyCap,
     };

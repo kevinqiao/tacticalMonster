@@ -458,6 +458,11 @@ button.sso-auth-close.portal-modal-close--shell {
   gap: 8px 16px;
 }
 
+.portal-history-game {
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 0.9em;
+}
+
 .portal-history-meta {
   display: flex;
   gap: 12px;

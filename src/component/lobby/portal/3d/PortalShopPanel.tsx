@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AudioBus } from "host/service/audio";
 
 import type {
   PortalAdCoinOffer,
@@ -131,6 +132,9 @@ export function PortalShopPanel({
       onFeedback?.(null);
       try {
         const r = await onPurchase(skuId);
+        if (r.ok) {
+          AudioBus.emit("meta.shop.purchase.success");
+        }
         const message = r.ok
           ? r.skuKind === "giftcard"
             ? t("shop.giftCardProcessing")

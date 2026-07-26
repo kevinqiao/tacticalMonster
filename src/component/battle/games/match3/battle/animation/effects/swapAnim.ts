@@ -1,4 +1,5 @@
 import gsap from 'gsap';
+import { AudioBus } from 'host/service/audio';
 
 import { MATCH3_ANIMATION_CONFIG } from '../animationConfig';
 import type { GridCellRefs } from '../gridCellRefs';
@@ -19,6 +20,7 @@ export function playSwapAnim(args: {
   if (!el1 || !el2) {
     return Promise.resolve();
   }
+  AudioBus.emit('game.match3.swap');
 
   const dx = (args.c2 - args.c1) * args.cellStepPx;
   const dy = (args.r2 - args.r1) * args.cellStepPx;
