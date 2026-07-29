@@ -541,10 +541,7 @@ const CampaignFormFields: React.FC<{
       ) : null}
       {portalVoucherSkus.length === 0 ? (
         <p className="merchant-note">
-          {t("form.noCouponDefs")}{" "}
-          <MerchantNavLink route={{ view: "coupon-defs", partnerId: String(partnerIdHint) }}>
-            {t("nav.couponDefs")}
-          </MerchantNavLink>
+          {t("form.noCouponDefs")} 请先在「商店」中创建兑换券 SKU，再回到此页选择奖励。
         </p>
       ) : null}
       {form.rewardModel === "pass_per_run" && form.mode === "solo" && selectedPortalSku ? (
@@ -1309,11 +1306,6 @@ export const MerchantCampaignListInner: React.FC<{
                     : t("campaigns.finalizeLeaderboard")}
                 </button>
               ) : null}
-              <MerchantNavLink
-                route={{ view: "coupons", partnerId: String(partnerId), campaignId: c.campaignId }}
-              >
-                {t("nav.couponManagement")}
-              </MerchantNavLink>
             </div>
           </article>
         );

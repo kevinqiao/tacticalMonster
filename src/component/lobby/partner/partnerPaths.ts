@@ -34,18 +34,10 @@ export function partnerOperationHref(
   return s ? `${PARTNER_OPERATION_PATH}?${s}` : PARTNER_OPERATION_PATH;
 }
 
-/** Deep link into Partner Admin modal section (campaign ops live here, not /partner/operation). */
+/** Deep link into Partner Admin modal section (not /partner/operation). */
 export function partnerAdminHref(args: {
   partnerId: number | string;
-  section:
-    | "profile"
-    | "auth"
-    | "team"
-    | "campaigns"
-    | "coupon-defs"
-    | "coupons"
-    | "brand"
-    | "stores";
+  section: "profile" | "auth" | "team" | "campaigns" | "brand" | "shop" | "redeem";
   campaignId?: string;
 }): string {
   const q = new URLSearchParams({

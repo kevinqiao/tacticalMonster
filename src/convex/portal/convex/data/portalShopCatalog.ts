@@ -1,5 +1,7 @@
 /**
  * Portal 兑换商店静态配表（与 casualPlatform 独立）。
+ * title/description 为默认文案；玩家端按 skuId 走
+ * `portal.player` → `shopSkus.{skuId}.{title|description}`（见 portalShopCatalogFallback）。
  */
 
 import {

@@ -9,6 +9,7 @@ import {
 } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { PortalCenterModal } from "./PortalCenterModal";
 import type { PortalLobbyOfferingView } from "./PortalLobbyContext";
+import { localizePortalTournamentTitle } from "./portalTournamentLocalize";
 import {
   isValidPortalGameType,
   portalGameDisplayName,
@@ -282,7 +283,13 @@ const PortalTournamentPickerModal: React.FC<Props> = ({
               <div className="portal-tour-ticket-body">
                 <div className="portal-tour-ticket-main">
                   <div className="portal-tour-ticket-title-row">
-                    <strong className="portal-tour-ticket-title">{o.title}</strong>
+                    <strong className="portal-tour-ticket-title">
+                      {localizePortalTournamentTitle(
+                        o.tournamentId,
+                        o.title,
+                        o.titleOverride
+                      )}
+                    </strong>
                     {gameLabel ? (
                       <span className="portal-tour-ticket-game">{gameLabel}</span>
                     ) : null}

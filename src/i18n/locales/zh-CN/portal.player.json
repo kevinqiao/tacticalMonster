@@ -224,18 +224,39 @@
       }
     }
   },
+  "tournaments": {
+    "portal_solo_p75_solitaire": { "title": "Solitaire · 单人挑战" },
+    "portal_multi_solitaire": { "title": "Solitaire · 多人竞技" },
+    "portal_multi_coin_solitaire": { "title": "Solitaire · 金币竞技" },
+    "portal_solo_p75_block_blast": { "title": "Block Blast · 单人挑战" },
+    "portal_multi_block_blast": { "title": "Block Blast · 多人竞技" },
+    "portal_multi_coin_block_blast": { "title": "Block Blast · 金币竞技" },
+    "portal_solo_p75_match_3": { "title": "Match-3 · 单人挑战" },
+    "portal_multi_match_3": { "title": "Match-3 · 多人竞技" },
+    "portal_multi_coin_match_3": { "title": "Match-3 · 金币竞技" },
+    "portal_solo_p75_tower_arena": { "title": "Tower Arena · 单人挑战" },
+    "portal_multi_tower_arena": { "title": "Tower Arena · 多人竞技" },
+    "portal_multi_coin_tower_arena": { "title": "Tower Arena · 金币竞技" },
+    "portal_solo_p75_yatz": { "title": "Yatz · 单人挑战" },
+    "portal_multi_yatz": { "title": "Yatz · 多人竞技" },
+    "portal_multi_coin_yatz": { "title": "Yatz · 金币竞技" }
+  },
   "shopSkus": {
-    "portal_shop_replay_3": {
+    "portal_shop_ticket_3": {
       "title": "门票 ×3",
-      "description": "单局结算后可再战一次，适用于支持的挑战模式。"
+      "description": "获得 3 张门票，可用于继续游戏。"
     },
-    "portal_shop_replay_10": {
+    "portal_shop_ticket_10": {
       "title": "门票 ×10",
-      "description": "超值再战包，适合高频竞技玩家。"
+      "description": "获得 10 张门票，可用于继续游戏。"
     },
     "gc_amazon_5_us": {
       "title": "Amazon 礼品卡 $5",
-      "description": "美国区 Amazon.com 电子礼品卡。"
+      "description": "美国区 Amazon.com 电子礼品卡，兑换后通过链接领取。"
+    },
+    "gc_amazon_5_ca": {
+      "title": "Amazon 礼品卡 CA$5",
+      "description": "加拿大区 Amazon 电子礼品卡，兑换后通过链接领取。"
     }
   },
   "giftcard": {

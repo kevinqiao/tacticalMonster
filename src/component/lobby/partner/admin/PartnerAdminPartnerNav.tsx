@@ -7,10 +7,7 @@ export type PartnerAdminSection =
   | "brand"
   | "shop"
   | "redeem"
-  | "campaigns"
-  | "coupon-defs"
-  | "coupons"
-  | "stores";
+  | "campaigns";
 
 type PartnerAdminPartnerNavProps = {
   partnerId: number;
@@ -76,36 +73,13 @@ const PartnerAdminPartnerNav: React.FC<PartnerAdminPartnerNavProps> = ({
       </button>
     ) : null}
     {campaignOps ? (
-      <>
-        <button
-          type="button"
-          className="merchant-link-btn"
-          onClick={() => onSectionClick("campaigns", partnerId)}
-        >
-          活动
-        </button>
-        <button
-          type="button"
-          className="merchant-link-btn"
-          onClick={() => onSectionClick("coupon-defs", partnerId)}
-        >
-          券定义
-        </button>
-        <button
-          type="button"
-          className="merchant-link-btn"
-          onClick={() => onSectionClick("coupons", partnerId)}
-        >
-          券实例
-        </button>
-        <button
-          type="button"
-          className="merchant-link-btn"
-          onClick={() => onSectionClick("stores", partnerId)}
-        >
-          门店
-        </button>
-      </>
+      <button
+        type="button"
+        className="merchant-link-btn"
+        onClick={() => onSectionClick("campaigns", partnerId)}
+      >
+        活动
+      </button>
     ) : null}
   </nav>
 );

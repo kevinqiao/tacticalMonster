@@ -267,11 +267,6 @@ export const MerchantCouponListInner: React.FC<{
       <nav className="merchant-nav">
         <MerchantNavLink route={{ view: "home" }}>{t("nav.back")}</MerchantNavLink>
         {partnerId ? (
-          <MerchantNavLink route={{ view: "coupon-defs", partnerId: String(partnerId) }}>
-            {t("nav.couponDefs")}
-          </MerchantNavLink>
-        ) : null}
-        {partnerId ? (
           <MerchantNavLink route={{ view: "campaigns", partnerId: String(partnerId) }}>
             {t("nav.campaigns")}
           </MerchantNavLink>

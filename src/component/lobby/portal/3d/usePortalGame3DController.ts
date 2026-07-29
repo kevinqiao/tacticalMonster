@@ -56,6 +56,7 @@ import {
   usePortalLobby,
   type PortalLobbyOfferingView,
 } from "../PortalLobbyContext";
+import { localizePortalTournamentTitle } from "../portalTournamentLocalize";
 
 const getTournamentDef = getPortalTournamentDefinition;
 
@@ -200,8 +201,11 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   const queueClaiming = matchQueue.some((e) => e.status === "claiming");
   const primaryQueueEntry = matchQueue[0];
   const primaryQueueTitle = primaryQueueEntry
-    ? getPortalTournamentDefinition(primaryQueueEntry.templateId)?.title ??
-      primaryQueueEntry.templateId
+    ? localizePortalTournamentTitle(
+        primaryQueueEntry.templateId,
+        getPortalTournamentDefinition(primaryQueueEntry.templateId)?.title ??
+          primaryQueueEntry.templateId
+      )
     : "";
 
   const hasGlobalOpenRun = hasAnyOpenCasualRunAssignment(portal.openRunAssignments);

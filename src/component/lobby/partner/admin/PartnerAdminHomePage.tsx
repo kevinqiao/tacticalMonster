@@ -33,16 +33,15 @@ const PartnerAdminHomePage: React.FC<PageProp> = ({ visible }) => {
 
     const partner = partners.find((p) => p.pid === partnerId);
     const campaignOps = partner?.capabilities?.campaignOps === true;
-    const needsCampaignOps = ["campaigns", "coupon-defs", "coupons", "stores"].includes(
-      section ?? ""
-    );
     if (
-      (needsCampaignOps && !campaignOps) ||
+      (section === "campaigns" && !campaignOps) ||
       ((section === "shop" || section === "redeem") && !partner?.capabilities?.portalGames)
     ) {
       return;
     }
-    openPartnerModal(section, partnerId, partner?.name ?? `Partner ${partnerId}`);
+    openPartnerModal(section, partnerId, partner?.name ?? `Partner ${partnerId}`, {
+      campaignOps,
+    });
     window.history.replaceState(null, "", "/partner/admin");
   }, [authed, openPartnerModal, partners]);
 
@@ -69,8 +68,8 @@ const PartnerAdminHomePage: React.FC<PageProp> = ({ visible }) => {
       <PartnerAdminToolbar />
       <h1>Partner 管理</h1>
       <p className="merchant-note">
-        管理您被授权的平台合作方（Partner）：资料、登录配置、团队、品牌；若开通
-        campaignOps，还可管理活动 / 券 / 门店。Partner 由平台运营创建，不能在此自助注册。
+        管理您被授权的平台合作方（Partner）：资料、登录配置、团队（含门店 / 店员）、品牌、商店（含兑换券
+        SKU）；若开通 campaignOps，还可管理活动。Partner 由平台运营创建，不能在此自助注册。
       </p>
 
       <section>
@@ -92,7 +91,7 @@ const PartnerAdminHomePage: React.FC<PageProp> = ({ visible }) => {
               </p>
               {!caps.campaignOps ? (
                 <p className="merchant-note">
-                  未开通 campaignOps：无法管理活动 / 券 / 门店。请在{" "}
+                  未开通 campaignOps：无法管理活动与门店。请在{" "}
                   <a href="/platform/admin">/platform/admin</a> 为该 Partner 开启 campaignOps
                   并设置 slug，或本地运行 <code>npm run campaign:setup:dev</code>。
                 </p>
@@ -102,7 +101,9 @@ const PartnerAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                 campaignOps={caps.campaignOps}
                 portalGames={caps.portalGames}
                 onSectionClick={(section, partnerId) =>
-                  openPartnerModal(section, partnerId, p.name)
+                  openPartnerModal(section, partnerId, p.name, {
+                    campaignOps: caps.campaignOps,
+                  })
                 }
               />
             </article>

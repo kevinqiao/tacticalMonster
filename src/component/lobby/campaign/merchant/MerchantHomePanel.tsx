@@ -11,7 +11,8 @@ import { useMerchantAdminAuth } from "./useMerchantAdminAuth";
 
 /**
  * Store console home (`/partner/operation`): redeem + store team only.
- * Campaign ops (campaigns / coupon-defs / brand) live under Partner Admin when campaignOps.
+ * Campaigns live under /platform/admin or /partner/admin when campaignOps.
+ * Voucher SKUs → 商店; stores/staff → 团队.
  */
 const MerchantHomePanelBody: React.FC = () => {
   const { t } = useTranslation("campaign.merchant");
@@ -39,8 +40,9 @@ const MerchantHomePanelBody: React.FC = () => {
   return (
     <>
       <p className="merchant-note">
-        门店作业台：仅核销与门店团队。活动 / 券定义 / 品牌请使用{" "}
-        <a href="/partner/admin">Partner 管理</a>（需 campaignOps）。
+        门店作业台：仅核销与门店团队。活动请使用{" "}
+        <a href="/platform/admin">平台运营</a> 或{" "}
+        <a href="/partner/admin">Partner 管理</a>（需 campaignOps）；门店在「团队」，兑换券 SKU 在「商店」。
       </p>
       <nav className="merchant-nav" style={{ marginBottom: "1rem" }}>
         <MerchantNavLink route={{ view: "redeem" }}>{t("nav.redeem")}</MerchantNavLink>

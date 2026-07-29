@@ -1,4 +1,8 @@
-/** Portal 锦标配表：单人 P75 + 多人竞技（积分桌 / 金币桌） */
+/**
+ * Portal 锦标配表：单人 P75 + 多人竞技（积分桌 / 金币桌）。
+ * title 为默认文案；玩家端按 tournamentId 走
+ * `portal.player` → `tournaments.{tournamentId}.title`（见 portalTournamentLocalize）。
+ */
 
 export type EntryCost = { kind: "none" } | { kind: "coins"; amount: number } | { kind: "gems"; amount: number };
 

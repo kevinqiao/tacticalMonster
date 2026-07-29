@@ -145,9 +145,11 @@ function serializeLobby(row: {
     branding,
     offerings: offerings.map((o) => {
       const def = getPortalTournamentDefinition(o.tournamentId);
+      const titleOverride = o.titleOverride?.trim() || undefined;
       return {
         ...o,
-        title: o.titleOverride ?? def?.title ?? o.tournamentId,
+        titleOverride,
+        title: titleOverride ?? def?.title ?? o.tournamentId,
         gameType: def?.gameType ?? null,
         matchType: def?.matchType ?? null,
       };

@@ -7,15 +7,23 @@ import {
   partnerAdminErrorMessage,
   partnerAdminSuccessMessage,
 } from "./partnerAdminHelpers";
+import PartnerTeamStoresBlock from "./PartnerTeamStoresBlock";
 import { usePartnerAdminMutations, usePartnerTeam } from "./usePartnerAdmin";
 
 type Props = {
   partnerId: number;
   partnerName: string;
   onClose: () => void;
+  /** When true, show 门店 / 店员 under this team modal. */
+  campaignOps?: boolean;
 };
 
-const PartnerAdminTeamModal: React.FC<Props> = ({ partnerId, partnerName, onClose }) => {
+const PartnerAdminTeamModal: React.FC<Props> = ({
+  partnerId,
+  partnerName,
+  onClose,
+  campaignOps = false,
+}) => {
   const team = usePartnerTeam(partnerId);
   const { addPartnerStaff, updatePartnerStaffProfile, removePartnerStaff } =
     usePartnerAdminMutations();
@@ -46,8 +54,8 @@ const PartnerAdminTeamModal: React.FC<Props> = ({ partnerId, partnerName, onClos
       }
     >
       <p className="merchant-note">
-        成员关系在 <code>partner_staff</code>；身份在 <code>auth_identities</code>；Web 登录账号在{" "}
-        <code>user</code>（可选）。
+        Partner 成员在 <code>partner_staff</code>
+        {campaignOps ? "；门店与店员用于核销范围（店员登录 /partner/operation）。" : "。"}
       </p>
       <PartnerTeamPanel
         team={team}
@@ -109,6 +117,7 @@ const PartnerAdminTeamModal: React.FC<Props> = ({ partnerId, partnerName, onClos
           }
         }}
       />
+      <PartnerTeamStoresBlock partnerId={partnerId} campaignOps={campaignOps} />
     </PartnerAdminFormModal>
   );
 };

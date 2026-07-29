@@ -10,7 +10,9 @@ import {
 } from "./platformAdminHelpers";
 import PartnerAdminAuthChannelsModal from "../../partner/admin/PartnerAdminAuthChannelsModal";
 import PartnerAdminBrandModal from "../../partner/admin/PartnerAdminBrandModal";
+import PartnerAdminCampaignOpsModal from "../../partner/admin/PartnerAdminCampaignOpsModal";
 import PartnerAdminProfileModal from "../../partner/admin/PartnerAdminProfileModal";
+import type { PartnerCampaignOpsView } from "../../partner/admin/partnerCampaignOpsNav";
 import PlatformAdminToolbar from "./PlatformAdminToolbar";
 import PlatformMaintenancePanel from "./PlatformMaintenancePanel";
 import PlatformPartnerBaseSettingsModal from "./PlatformPartnerBaseSettingsModal";
@@ -30,6 +32,10 @@ import "../../campaign/merchant/merchant.css";
 
 const STAFF_ROLES = ["owner", "admin", "viewer"] as const;
 
+const CAMPAIGN_OPS_NAV: { section: PartnerCampaignOpsView; label: string }[] = [
+  { section: "campaigns", label: "活动" },
+];
+
 const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
   const { authed } = usePlatformAdminAuth();
   const access = usePlatformOperatorAccess();
@@ -42,7 +48,6 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
   const {
     createPartner,
     deletePartner,
-    updatePartnerCapabilities,
     addPlatformStaff,
     updatePlatformStaffProfile,
     removePlatformStaff,
@@ -59,9 +64,11 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
   const [staffPassword, setStaffPassword] = useState("");
   const [staffRole, setStaffRole] = useState<(typeof STAFF_ROLES)[number]>("admin");
   const [note, setNote] = useState<string | null>(null);
-  const [teamModalPartner, setTeamModalPartner] = useState<{ pid: number; name: string } | null>(
-    null
-  );
+  const [teamModalPartner, setTeamModalPartner] = useState<{
+    pid: number;
+    name: string;
+    campaignOps: boolean;
+  } | null>(null);
   const [baseSettingsModalPartner, setBaseSettingsModalPartner] = useState<{
     pid: number;
     name: string;
@@ -85,6 +92,11 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
   const [profileModalPartner, setProfileModalPartner] = useState<{
     pid: number;
     name: string;
+  } | null>(null);
+  const [campaignOpsModal, setCampaignOpsModal] = useState<{
+    pid: number;
+    name: string;
+    section: PartnerCampaignOpsView;
   } | null>(null);
   const [editingMember, setEditingMember] = useState<PlatformStaffEditMember | null>(null);
 
@@ -130,53 +142,8 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
       if (teamModalPartner?.pid === p.pid) setTeamModalPartner(null);
       if (portalModalPartner?.pid === p.pid) setPortalModalPartner(null);
       if (authModalPartner?.pid === p.pid) setAuthModalPartner(null);
+      if (campaignOpsModal?.pid === p.pid) setCampaignOpsModal(null);
       setNote(`${platformAdminSuccessMessage("partnerDeleted")} PID ${p.pid}。`);
-    } catch (e) {
-      setNote(platformAdminErrorMessage(e));
-    }
-  };
-
-  const onToggleCampaignOps = async (p: {
-    pid: number;
-    name: string;
-    slug?: string;
-    capabilities?: { portalGames?: boolean; campaignOps?: boolean } | null;
-  }) => {
-    if (!canManagePartners) {
-      setNote(platformAdminErrorMessage("forbidden"));
-      return;
-    }
-    const enabling = !p.capabilities?.campaignOps;
-    let nextSlug = p.slug?.trim() ?? "";
-    if (enabling && !nextSlug) {
-      const entered = window.prompt(
-        `为「${p.name}」开启 campaignOps，请输入 public slug（/cc/{slug}）：`,
-        p.name
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "")
-          .slice(0, 32) || "partner"
-      );
-      if (entered == null) return;
-      nextSlug = entered.trim();
-      if (!nextSlug) {
-        setNote("slug 不能为空。");
-        return;
-      }
-    }
-    try {
-      await updatePartnerCapabilities({
-        partnerId: p.pid,
-        portalGames: p.capabilities?.portalGames === true,
-        campaignOps: enabling,
-        ...(enabling ? { slug: nextSlug } : {}),
-      });
-      setNote(
-        enabling
-          ? `${platformAdminSuccessMessage("capabilitiesSaved")} 已开启 campaignOps（slug=${nextSlug}）。`
-          : `${platformAdminSuccessMessage("capabilitiesSaved")} 已关闭 campaignOps。`
-      );
     } catch (e) {
       setNote(platformAdminErrorMessage(e));
     }
@@ -233,8 +200,10 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
       <h1>平台运营</h1>
       <p className="merchant-note">
         使用 <strong>admin / admin</strong> 登录（Web 账号 + <code>platform_staff</code> 权限）。
-        资料、登录配置、品牌、基础设置、Game Lobby、商店等可在下方各 Partner 卡片内直接打开；Partner
-        侧控制台仍可用 <a href="/partner/admin">/partner/admin</a>。
+        下方各 Partner 可直接管理资料、登录、团队（含门店 / 店员）、品牌、Game Lobby、商店（含兑换券
+        SKU），以及开启 campaignOps 后的活动。Partner 侧仍可用{" "}
+        <a href="/partner/admin">/partner/admin</a>；门店核销台在{" "}
+        <a href="/partner/operation">/partner/operation</a>。
       </p>
 
       <>
@@ -272,7 +241,7 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                       checked={campaignOps}
                       onChange={(e) => setCampaignOps(e.target.checked)}
                     />
-                    campaignOps（活动 / 券 / 门店）
+                    campaignOps（活动；门店在团队；兑换券 SKU 在商店）
                   </label>
                 </fieldset>
                 {campaignOps ? (
@@ -330,7 +299,13 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                     <button
                       type="button"
                       className="merchant-link-btn"
-                      onClick={() => setTeamModalPartner({ pid: p.pid, name: p.name })}
+                      onClick={() =>
+                        setTeamModalPartner({
+                          pid: p.pid,
+                          name: p.name,
+                          campaignOps: p.capabilities?.campaignOps === true,
+                        })
+                      }
                     >
                       团队
                     </button>
@@ -368,14 +343,25 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                         </button>
                       </>
                     ) : null}
-                    {canManagePartners ? (
-                      <button
-                        type="button"
-                        className="merchant-link-btn"
-                        onClick={() => void onToggleCampaignOps(p)}
-                      >
-                        {p.capabilities?.campaignOps ? "关闭 campaignOps" : "开启 campaignOps"}
-                      </button>
+                    {p.capabilities?.campaignOps ? (
+                      <>
+                        {CAMPAIGN_OPS_NAV.map(({ section, label }) => (
+                          <button
+                            key={section}
+                            type="button"
+                            className="merchant-link-btn"
+                            onClick={() =>
+                              setCampaignOpsModal({
+                                pid: p.pid,
+                                name: p.name,
+                                section,
+                              })
+                            }
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </>
                     ) : null}
                     {canManagePartners && Number(p.pid) !== 0 ? (
                       <button
@@ -507,6 +493,7 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
         <PlatformPartnerTeamModal
           partnerId={teamModalPartner.pid}
           partnerName={teamModalPartner.name}
+          campaignOps={teamModalPartner.campaignOps}
           onClose={() => setTeamModalPartner(null)}
         />
       ) : null}
@@ -553,6 +540,17 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
           partnerId={profileModalPartner.pid}
           partnerName={profileModalPartner.name}
           onClose={() => setProfileModalPartner(null)}
+        />
+      ) : null}
+      {campaignOpsModal ? (
+        <PartnerAdminCampaignOpsModal
+          partnerId={campaignOpsModal.pid}
+          partnerName={campaignOpsModal.name}
+          section={campaignOpsModal.section}
+          onClose={() => setCampaignOpsModal(null)}
+          onSectionChange={(section) =>
+            setCampaignOpsModal((prev) => (prev ? { ...prev, section } : prev))
+          }
         />
       ) : null}
     </div>

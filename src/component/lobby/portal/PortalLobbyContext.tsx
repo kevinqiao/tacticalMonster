@@ -3,6 +3,8 @@ import React, { createContext, useContext } from "react";
 export type PortalLobbyOfferingView = {
   tournamentId: string;
   title: string;
+  /** Partner-custom title; when set, FE skips shared i18n keys. */
+  titleOverride?: string;
   gameType: string | null;
   matchType: string | null;
   sortOrder: number;

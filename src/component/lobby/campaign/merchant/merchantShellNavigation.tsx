@@ -83,8 +83,10 @@ export const MerchantShellBody: React.FC<MerchantShellBodyProps> = ({ current, e
     case "brand":
       return (
         <p className="merchant-note">
-          活动 / 券 / 品牌已迁至{" "}
-          <a href="/partner/admin">Partner 管理</a>（需 campaignOps）。本控制台仅支持核销与门店团队。
+          活动配置已迁至{" "}
+          <a href="/platform/admin">平台运营</a> 或{" "}
+          <a href="/partner/admin">Partner 管理</a>（需 campaignOps）；门店在「团队」，兑换券 SKU 在「商店」。
+          本控制台仅支持核销与门店团队。
         </p>
       );
     case "redeem":

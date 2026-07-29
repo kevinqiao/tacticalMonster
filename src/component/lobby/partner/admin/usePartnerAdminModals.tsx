@@ -17,6 +17,7 @@ export type PartnerAdminModalTarget = {
   section: PartnerAdminModalSection;
   partnerId: number;
   partnerName: string;
+  campaignOps?: boolean;
 };
 
 const BASE_SECTIONS: PartnerAdminModalSection[] = [
@@ -27,13 +28,7 @@ const BASE_SECTIONS: PartnerAdminModalSection[] = [
   "shop",
   "redeem",
 ];
-const CAMPAIGN_OPS_SECTIONS: PartnerCampaignOpsView[] = [
-  "campaigns",
-  "coupon-defs",
-  "coupons",
-  "stores",
-  "store-team",
-];
+const CAMPAIGN_OPS_SECTIONS: PartnerCampaignOpsView[] = ["campaigns"];
 const SECTIONS: PartnerAdminModalSection[] = [...BASE_SECTIONS, ...CAMPAIGN_OPS_SECTIONS];
 
 function isCampaignOpsSection(value: string): value is PartnerCampaignOpsView {
@@ -48,8 +43,18 @@ export function usePartnerAdminModals() {
   const [target, setTarget] = useState<PartnerAdminModalTarget | null>(null);
 
   const openPartnerModal = useCallback(
-    (section: PartnerAdminModalSection, partnerId: number, partnerName: string) => {
-      setTarget({ section, partnerId, partnerName });
+    (
+      section: PartnerAdminModalSection,
+      partnerId: number,
+      partnerName: string,
+      opts?: { campaignOps?: boolean }
+    ) => {
+      setTarget({
+        section,
+        partnerId,
+        partnerName,
+        campaignOps: opts?.campaignOps,
+      });
     },
     []
   );
@@ -78,6 +83,7 @@ export function usePartnerAdminModals() {
         <PartnerAdminTeamModal
           partnerId={target.partnerId}
           partnerName={target.partnerName}
+          campaignOps={target.campaignOps === true}
           onClose={closePartnerModal}
         />
       ) : null}

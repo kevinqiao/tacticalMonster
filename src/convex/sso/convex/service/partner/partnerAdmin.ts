@@ -398,8 +398,8 @@ export const getPartnerGames = query({
 });
 
 /**
- * merchantCampaign bridge: verify uid is partner_staff with campaignOps.
- * Used by HTTP POST /internal/assert-partner-staff.
+ * merchantCampaign bridge: verify uid is partner_staff with campaignOps
+ * (or a platform operator). Used by HTTP POST /internal/assert-partner-staff.
  */
 export const assertPartnerStaffInternal = internalQuery({
   args: {
@@ -419,6 +419,15 @@ export const assertPartnerStaffInternal = internalQuery({
     if (!partner) return { ok: false as const, error: "not_found" };
     if (!partnerHasCampaignOps(partner)) {
       return { ok: false as const, error: "campaign_ops_disabled", hasCampaignOps: false as const };
+    }
+    if (await isPlatformOperator(ctx, uid.trim())) {
+      return {
+        ok: true as const,
+        hasCampaignOps: true as const,
+        partnerId,
+        role: "owner" as PartnerRole,
+        slug: partner.slug ?? "",
+      };
     }
     const row = await getPartnerStaffRow(ctx, partnerId, uid.trim());
     const required = (minRole ?? "viewer") as PartnerRole;

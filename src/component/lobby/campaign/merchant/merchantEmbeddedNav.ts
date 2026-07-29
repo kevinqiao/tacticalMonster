@@ -137,17 +137,27 @@ export function merchantRouteHref(route: MerchantEmbeddedRoute): string {
       if (route.storeName) q.set("storeName", route.storeName);
       return partnerOperationHref(q);
     }
-    // Partner-scoped campaign ops → /partner/admin (not /partner/operation stub).
+    // Partner-scoped config → /partner/admin (not /partner/operation stub).
     case "campaigns":
+      return partnerAdminHref({
+        partnerId: route.partnerId,
+        section: "campaigns",
+      });
     case "coupon-defs":
+      return partnerAdminHref({
+        partnerId: route.partnerId,
+        section: "shop",
+      });
     case "coupons":
+      return partnerAdminHref({
+        partnerId: route.partnerId,
+        section: "campaigns",
+        ...(route.campaignId ? { campaignId: route.campaignId } : {}),
+      });
     case "brand":
       return partnerAdminHref({
         partnerId: route.partnerId,
-        section: route.view,
-        ...(route.view === "coupons" && route.campaignId
-          ? { campaignId: route.campaignId }
-          : {}),
+        section: "brand",
       });
   }
 }

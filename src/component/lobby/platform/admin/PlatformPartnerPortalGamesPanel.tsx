@@ -287,7 +287,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
             disabled={!canEdit}
             onChange={(e) => setCampaignOpsCap(e.target.checked)}
           />
-          campaignOps（活动 / 券 / 门店）
+          campaignOps（活动；门店在团队）
         </label>
         {campaignOpsCap && !partnerSlug.trim() && !isFirstParty ? (
           <p className="merchant-note">开启 campaignOps 时需填写下方 Partner slug。</p>

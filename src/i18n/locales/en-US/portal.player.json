@@ -224,18 +224,39 @@
       }
     }
   },
+  "tournaments": {
+    "portal_solo_p75_solitaire": { "title": "Solitaire · Solo Challenge" },
+    "portal_multi_solitaire": { "title": "Solitaire · Multiplayer" },
+    "portal_multi_coin_solitaire": { "title": "Solitaire · Coin Arena" },
+    "portal_solo_p75_block_blast": { "title": "Block Blast · Solo Challenge" },
+    "portal_multi_block_blast": { "title": "Block Blast · Multiplayer" },
+    "portal_multi_coin_block_blast": { "title": "Block Blast · Coin Arena" },
+    "portal_solo_p75_match_3": { "title": "Match-3 · Solo Challenge" },
+    "portal_multi_match_3": { "title": "Match-3 · Multiplayer" },
+    "portal_multi_coin_match_3": { "title": "Match-3 · Coin Arena" },
+    "portal_solo_p75_tower_arena": { "title": "Tower Arena · Solo Challenge" },
+    "portal_multi_tower_arena": { "title": "Tower Arena · Multiplayer" },
+    "portal_multi_coin_tower_arena": { "title": "Tower Arena · Coin Arena" },
+    "portal_solo_p75_yatz": { "title": "Yatz · Solo Challenge" },
+    "portal_multi_yatz": { "title": "Yatz · Multiplayer" },
+    "portal_multi_coin_yatz": { "title": "Yatz · Coin Arena" }
+  },
   "shopSkus": {
-    "portal_shop_replay_3": {
+    "portal_shop_ticket_3": {
       "title": "Tickets ×3",
-      "description": "Replay once after a run ends. Supported challenge modes only."
+      "description": "Get 3 tickets to keep playing."
     },
-    "portal_shop_replay_10": {
+    "portal_shop_ticket_10": {
       "title": "Tickets ×10",
-      "description": "Best value for frequent competitors."
+      "description": "Get 10 tickets to keep playing."
     },
     "gc_amazon_5_us": {
       "title": "Amazon gift card $5",
-      "description": "US Amazon.com e-gift card."
+      "description": "US Amazon.com e-gift card. Redeem via link after purchase."
+    },
+    "gc_amazon_5_ca": {
+      "title": "Amazon gift card CA$5",
+      "description": "Canada Amazon e-gift card. Redeem via link after purchase."
     }
   },
   "giftcard": {
