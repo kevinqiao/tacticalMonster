@@ -78,13 +78,29 @@ export function PortalGame3DOverlays({
     selectTournamentFromPicker,
   } = ctrl;
 
+  // Creating copy: solo/multi open-play bridge, or multi queue claiming. Multi join/wait → Matching.
   const creatingMatch =
-    joining != null || openingPlay || queueClaiming;
+    joining === "solo" ||
+    openingPlay === "solo" ||
+    openingPlay === "multi" ||
+    queueClaiming;
+  const multiMatching =
+    joining === "multi" ||
+    awaitingMatch != null ||
+    queueWaiting;
 
   return (
     <>
       <PortalTournamentPickerModal
-        open={tournamentPicker != null}
+        // Hide once Creating / Matching starts (solo or multi open-play bridge).
+        open={
+          tournamentPicker != null &&
+          joining == null &&
+          openingPlay == null &&
+          awaitingMatch == null &&
+          !queueWaiting &&
+          !queueClaiming
+        }
         mode={tournamentPicker?.mode ?? "solo"}
         offerings={tournamentPicker?.offerings ?? []}
         resolveEntry={(tournamentId) =>
@@ -92,6 +108,23 @@ export function PortalGame3DOverlays({
             tournamentId,
             tournamentPicker?.mode ?? "solo"
           )
+        }
+        dailyQuota={
+          (tournamentPicker?.mode ?? "solo") === "solo"
+            ? {
+                freeUsed: ctrl.soloLadderPlaysToday,
+                freeCap: ctrl.soloMaxPlaysPerDay,
+                adUsed: ctrl.portal.adEntryOffer?.solo.usedToday ?? 0,
+                adCap: ctrl.portal.adEntryOffer?.solo.cap ?? 0,
+                adEnabled: ctrl.portal.adEntryOffer?.solo.enabled === true,
+              }
+            : {
+                freeUsed: ctrl.multiLadderPlaysToday,
+                freeCap: ctrl.multiMaxPlaysPerDay,
+                adUsed: ctrl.portal.adEntryOffer?.multi.usedToday ?? 0,
+                adCap: ctrl.portal.adEntryOffer?.multi.cap ?? 0,
+                adEnabled: ctrl.portal.adEntryOffer?.multi.enabled === true,
+              }
         }
         onSelect={selectTournamentFromPicker}
         onClose={closeTournamentPicker}
@@ -101,21 +134,21 @@ export function PortalGame3DOverlays({
         open={
           visible !== 0 &&
           matchOverlayOpen &&
-          (creatingMatch || !hasOpenRun)
+          (creatingMatch || multiMatching || !hasOpenRun)
         }
         phase={creatingMatch ? "claiming" : "waiting"}
         waitingForPeer={
           creatingMatch
             ? false
-            : awaitingMatch != null && !queueWaiting && !queueClaiming
-              ? false
-              : (primaryQueueEntry?.waitingForPeer ?? false)
+            : multiMatching
+              ? (primaryQueueEntry?.waitingForPeer ?? true)
+              : false
         }
         tournamentTitle={primaryQueueTitle || undefined}
         leaving={leavingMatch}
         onLeave={
-          // Allow cancel for bot-fill queues too (eff=1 has waitingForPeer=false).
-          queueWaiting || queueClaiming
+          // Leave only while waiting in queue. Creating / claiming / open-play bridge: committed.
+          !creatingMatch && (awaitingMatch != null || queueWaiting)
             ? () => void handleLeaveMatchQueue()
             : undefined
         }

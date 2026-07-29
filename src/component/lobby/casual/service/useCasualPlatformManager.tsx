@@ -29,7 +29,7 @@ export interface CasualPlayerSummary {
 
 function isPortalPlayRoute(): boolean {
   if (typeof window === "undefined") return false;
-  return parsePortalPathFromPathname(window.location.pathname).gameType != null;
+  return parsePortalPathFromPathname(window.location.pathname).isLobbyPath;
 }
 
 export type UseCasualPlatformOptions = {

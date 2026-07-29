@@ -12,6 +12,13 @@ import {
 
 const PORTAL_BANNER_MIN_VIEW_MS = 5000;
 
+/**
+ * Side banners off for now: CrazyGames responsive-banner iframes spam
+ * `postMessage(..., "about:srcdoc")` errors and keep RAF/interval heartbeats alive.
+ * Flip back to true when CG inventory is stable.
+ */
+const PORTAL_SIDE_BANNERS_ENABLED = false;
+
 type DisplayAdProvider = {
   id: string;
   isSupported: () => boolean;
@@ -22,6 +29,7 @@ type DisplayAdProvider = {
 const PROVIDERS: DisplayAdProvider[] = [crazyGamesBannerProvider, devMockBannerProvider];
 
 function resolveDisplayProvider(): DisplayAdProvider | null {
+  if (!PORTAL_SIDE_BANNERS_ENABLED) return null;
   return PROVIDERS.find((p) => p.isSupported()) ?? null;
 }
 
@@ -35,6 +43,10 @@ export function usePortalSideBannerSlots(active: boolean) {
   useEffect(() => subscribePortalAdPhase(setPhase), []);
 
   useEffect(() => {
+    if (!PORTAL_SIDE_BANNERS_ENABLED) {
+      crazyGamesBannerProvider.clearAll();
+      return;
+    }
     if (!active) return;
     let cancelled = false;
     let attempts = 0;
@@ -97,7 +109,8 @@ export function usePortalSideBannerSlots(active: boolean) {
     leftId,
     rightId,
     phase,
-    hasProvider: sdkReady && resolveDisplayProvider() != null,
+    hasProvider:
+      PORTAL_SIDE_BANNERS_ENABLED && sdkReady && resolveDisplayProvider() != null,
   };
 }
 

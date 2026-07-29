@@ -308,11 +308,12 @@ http.route({
 });
 
 /**
- * Portal → SSO: resolve per-partner ad-replay daily cap.
- * Header `X-Sso-Bridge-Secret` must match `SSO_BRIDGE_SECRET`.
+ * Campaign → SSO: resolve partnerId by public partner slug.
+ * Brand stays on SSO for the FE — this bridge returns identity only.
+ * Header `X-Sso-Bridge-Secret` must match `SSO_BRIDGE_SECRET` (or CAMPAIGN_BRIDGE_SECRET).
  */
 http.route({
-  path: "/internal/partner-ad-replay-config",
+  path: "/internal/resolve-partner-by-slug",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const expected = ssoBridgeSecret();
@@ -332,27 +333,38 @@ http.route({
         headers: { "Content-Type": "application/json" },
       });
     }
-    const partnerIdRaw = (body as { partnerId?: unknown }).partnerId;
-    const partnerId =
-      typeof partnerIdRaw === "number" && Number.isFinite(partnerIdRaw)
-        ? Math.floor(partnerIdRaw)
-        : typeof partnerIdRaw === "string"
-          ? Number(partnerIdRaw)
-          : NaN;
-    if (!Number.isFinite(partnerId) || partnerId < 0) {
+    const partnerSlug =
+      typeof (body as { partnerSlug?: unknown }).partnerSlug === "string"
+        ? (body as { partnerSlug: string }).partnerSlug
+        : "";
+    if (!partnerSlug.trim()) {
       return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
-    const result = await ctx.runQuery(
-      internal.service.partner.partnerAdReplayConfigInternal.getPartnerAdReplayConfigInternal,
-      { partnerId }
+    const resolved = await ctx.runQuery(
+      internal.service.bridge.merchantCampaignResolve.resolvePartnerBySlugInternal,
+      { partnerSlug }
     );
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    if (!resolved) {
+      return new Response(JSON.stringify({ ok: false, error: "not_found" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        partnerId: resolved.partnerId,
+        partnerSlug: resolved.partnerSlug,
+        name: resolved.name,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }),
 });
 

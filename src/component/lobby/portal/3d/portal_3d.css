@@ -1293,14 +1293,15 @@
 .tierTopLine {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
 }
 
+/* Landscape: same top row as rank, immediately after it. */
 .tierCohortNo {
   color: #ffffff;
   font-family: "Fredoka", "Segoe UI Rounded", "Nunito", "Arial Black", Inter, var(--default-font-family);
-  font-size: 34px;
+  font-size: 28px;
   font-weight: 700;
   letter-spacing: 1px;
   white-space: nowrap;
@@ -1319,6 +1320,7 @@
   font-size: 28px;
   font-weight: 800;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .tierZoneBar {
@@ -1636,7 +1638,6 @@
 .modePlayBtn {
   flex-shrink: 0;
   align-self: center;
-  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1718,6 +1719,49 @@
     -1px  1px 0 #5c3b1e,
      1px  1px 0 #5c3b1e,
      0px  1px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Single-ticket home CTA: quota chips sit above the play button */
+.modePlayBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: auto;
+}
+
+.modePlayQuotaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.modePlayQuotaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", Inter, var(--default-font-family);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
+  color: #5b3a12;
+  background: rgba(255, 244, 214, 0.94);
+  border: 1.5px solid rgba(111, 67, 24, 0.35);
+  box-shadow: 0 1px 0 rgba(111, 67, 24, 0.12);
+}
+
+.modePlayQuotaChipAd svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
 }
 
 /* Portrait Mode Responsive Overrides */
@@ -1817,12 +1861,12 @@
 }
 
 .tierStripRowPortrait .tierDivision {
-  font-size: 72px;
+  font-size: 60px;
 }
 
 .tierStripRowPortrait .tierName {
   margin-top: 8px;
-  font-size: 56px;
+  font-size: 46px;
   letter-spacing: 2px;
 }
 
@@ -1835,7 +1879,7 @@
   display: inline-flex;
   align-items: center;
   gap: 14px;
-  font-size: 58px;
+  font-size: 48px;
 }
 
 .tierStripRowPortrait .tierZoneBar {

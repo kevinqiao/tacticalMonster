@@ -3,6 +3,7 @@ import React, { useId } from 'react';
 import { CasualAdReplayVideoIcon } from './CasualAdReplayVideoIcon';
 import {
   CASUAL_AD_REPLAY_BUTTON_LABEL,
+  formatCasualAdReplayQuotaBadge,
   type CasualGameScoreReportUI,
 } from './casualGameScoreReportUI';
 import { useReplayWindowCountdown } from './useReplayWindowCountdown';
@@ -18,8 +19,9 @@ export type CasualGameScoreReportOverlayProps = {
   onSecondary?: () => void;
   secondaryDisabled?: boolean;
   secondaryBusy?: boolean;
-  /** 广告再战：今日剩余次数（单独展示，避免加载态盖掉） */
+  /** 广告再战：今日剩余（与 cap 一起换算已用/上限，单独展示） */
   adReplayDailyRemaining?: number;
+  adReplayDailyCap?: number;
   /** epoch ms；再战窗口倒计时展示在副按钮上 */
   replayWindowEndsAt?: number;
   /** 再战失败时在按钮下方展示 */
@@ -37,7 +39,8 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   onSecondary,
   secondaryDisabled = false,
   secondaryBusy = false,
-  adReplayDailyRemaining: _adReplayDailyRemaining,
+  adReplayDailyRemaining,
+  adReplayDailyCap,
   replayWindowEndsAt,
   secondaryError,
 }) => {
@@ -49,6 +52,9 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   const isAdReplay =
     secondaryLabel === CASUAL_AD_REPLAY_BUTTON_LABEL ||
     (secondaryLabel?.includes('广告') ?? false);
+  const quotaBadge = isAdReplay
+    ? formatCasualAdReplayQuotaBadge(adReplayDailyRemaining, adReplayDailyCap)
+    : undefined;
   let secondaryText = secondaryLabel;
   if (secondaryText && secondaryBusy) {
     secondaryText = isAdReplay ? '广告加载中…' : '匹配中…';
@@ -60,6 +66,7 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   }
 
   const showSecondary = Boolean(secondaryLabel && onSecondary);
+  const buttonTitle = [secondaryLabel, quotaBadge].filter(Boolean).join(' ');
 
   return (
     <div className="msc-overlay" role="presentation">
@@ -147,10 +154,15 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
                 className="ssc__btn ssc__btn--secondary ssc__btn--replayCompact"
                 disabled={secondaryDisabled || secondaryBusy}
                 onClick={onSecondary}
-                title={secondaryLabel}
+                title={buttonTitle}
               >
                 {isAdReplay && !secondaryBusy ? <CasualAdReplayVideoIcon /> : null}
                 <span className="ssc__replayMain">{secondaryText ?? secondaryLabel}</span>
+                {quotaBadge ? (
+                  <span className="ssc__replayRemaining" aria-label={`今日已用 ${quotaBadge}`}>
+                    {quotaBadge}
+                  </span>
+                ) : null}
               </button>
             ) : null}
             <button

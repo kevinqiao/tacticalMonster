@@ -1,16 +1,15 @@
 /** Portal replay-ticket balance helpers (legacy token table removed). */
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
 import { CASUAL_NEAR_MISS_GAP_RATIO } from "../../../data/portalPlayerStrategyTypes";
+import { getPlayerWalletBalances } from "../../economy/portalWalletDao";
 
 export async function readPortalTicketBalance(
   ctx: QueryCtx | MutationCtx,
-  uid: string
+  uid: string,
+  scopeKey: string = "shared"
 ): Promise<number> {
-  const player = await ctx.db
-    .query("portal_players")
-    .withIndex("by_uid", (q) => q.eq("uid", uid))
-    .unique();
-  return Math.max(0, Math.floor(player?.tickets ?? 0));
+  const bal = await getPlayerWalletBalances(ctx, uid, scopeKey);
+  return bal.tickets;
 }
 
 /** @deprecated Use readPortalTicketBalance. */

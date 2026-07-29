@@ -1,55 +1,23 @@
-"use node";
+/**
+ * @deprecated Per-partner games allowlist removed.
+ * Campaign gameType is validated against the static PARTNER_GAME_TYPES catalog.
+ */
 
-import { ConvexHttpClient } from "convex/browser";
-import { makeFunctionReference } from "convex/server";
+import {
+  PARTNER_GAME_TYPES,
+  type PartnerCampaignGameType,
+} from "./campaignRuleValidation";
 
-const DEV_SSO_CONVEX_URL = "https://cool-salamander-393.convex.cloud";
-
-const getPartnerGamesRef = makeFunctionReference<"query">(
-  "service/partner/partnerAdmin:getPartnerGames"
-);
-
-function ssoConvexUrl(): string {
-  const raw =
-    process.env.SSO_CONVEX_URL ??
-    process.env.VITE_CONVEX_URL ??
-    process.env.CONVEX_URL_SSO;
-  if (typeof raw === "string" && raw.trim().length > 0) {
-    const t = raw.trim().replace(/\/+$/, "");
-    if (t.includes(".convex.site")) {
-      return t.replace(".convex.site", ".convex.cloud");
-    }
-    return t;
-  }
-  return DEV_SSO_CONVEX_URL;
+export async function fetchPartnerGamesFromSso(_partnerId: number): Promise<string[]> {
+  return [...PARTNER_GAME_TYPES];
 }
 
-let client: ConvexHttpClient | null = null;
-
-function getClient(): ConvexHttpClient {
-  if (!client) {
-    client = new ConvexHttpClient(ssoConvexUrl());
-  }
-  return client;
-}
-
-/** merchantCampaign → SSO: partner.games allowlist for campaign gameType. */
-export async function fetchPartnerGamesFromSso(partnerId: number): Promise<string[]> {
-  const row = (await getClient().query(getPartnerGamesRef, { partnerId })) as {
-    games: string[];
-  } | null;
-  if (!row?.games?.length) {
-    throw new Error("partner_games_unavailable");
-  }
-  return row.games;
-}
-
+/** @deprecated No per-partner gate — catalog membership is checked in assertCampaignConfig. */
 export async function assertGameTypeEnabledForPartner(
-  partnerId: number,
+  _partnerId: number,
   gameType: string
 ): Promise<void> {
-  const games = await fetchPartnerGamesFromSso(partnerId);
-  if (!games.includes(gameType)) {
-    throw new Error("game_not_enabled_for_partner");
+  if (!PARTNER_GAME_TYPES.includes(gameType as PartnerCampaignGameType)) {
+    throw new Error("portal_game_invalid");
   }
 }

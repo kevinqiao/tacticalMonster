@@ -56,6 +56,7 @@ import type * as service_bridge_casualSeedProvider from "../service/bridge/casua
 import type * as service_chest_casualFixedChestService from "../service/chest/casualFixedChestService.js";
 import type * as service_payout_casualPayoutDailyQueries from "../service/payout/casualPayoutDailyQueries.js";
 import type * as service_payout_casualPayoutDailyService from "../service/payout/casualPayoutDailyService.js";
+import type * as service_platformStatus from "../service/platformStatus.js";
 import type * as service_player_playerManager from "../service/player/playerManager.js";
 import type * as service_reward_casualRewardRegistry from "../service/reward/casualRewardRegistry.js";
 import type * as service_reward_casualRewardTypes from "../service/reward/casualRewardTypes.js";
@@ -199,6 +200,7 @@ declare const fullApi: ApiFromModules<{
   "service/chest/casualFixedChestService": typeof service_chest_casualFixedChestService;
   "service/payout/casualPayoutDailyQueries": typeof service_payout_casualPayoutDailyQueries;
   "service/payout/casualPayoutDailyService": typeof service_payout_casualPayoutDailyService;
+  "service/platformStatus": typeof service_platformStatus;
   "service/player/playerManager": typeof service_player_playerManager;
   "service/reward/casualRewardRegistry": typeof service_reward_casualRewardRegistry;
   "service/reward/casualRewardTypes": typeof service_reward_casualRewardTypes;

@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
-import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { httpAction } from "./_generated/server";
 import {
   MERCHANT_BRIDGE_HEADER,
   merchantBridgeSecret,
@@ -8,7 +8,10 @@ import {
 
 const http = httpRouter();
 
-/** Portal-only: campaign join authorization (uid from Portal authed ingest). */
+/**
+ * Portal-only: campaign join authorization (uid from Portal authed ingest).
+ * partnerId comes from the caller's platform session — no SSO slug resolve.
+ */
 http.route({
   path: "/internal/authorize-campaign-join",
   method: "POST",
@@ -32,9 +35,15 @@ http.route({
     }
     const b = body as Record<string, unknown>;
     const uid = typeof b.uid === "string" ? b.uid : "";
-    const partnerSlug = typeof b.partnerSlug === "string" ? b.partnerSlug : "";
+    const partnerIdRaw =
+      typeof b.partnerId === "number" ? b.partnerId : Number(b.partnerId);
     const campaignSlug = typeof b.campaignSlug === "string" ? b.campaignSlug : "";
-    if (!uid || !partnerSlug || !campaignSlug) {
+    if (
+      !uid ||
+      !campaignSlug ||
+      !Number.isFinite(partnerIdRaw) ||
+      partnerIdRaw < 0
+    ) {
       return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
@@ -42,7 +51,7 @@ http.route({
     }
     const result = await ctx.runQuery(
       internal.service.merchant.campaignJoinAuthorize.authorizeCampaignJoinInternal,
-      { uid, partnerSlug, campaignSlug }
+      { uid, partnerId: Math.floor(partnerIdRaw), campaignSlug }
     );
     return new Response(JSON.stringify(result), {
       status: 200,
@@ -148,55 +157,7 @@ http.route({
   }),
 });
 
-/** SSO → merchantCampaign: mirror partner.slug into partner_brands for public /campaign/{slug}. */
-http.route({
-  path: "/internal/upsert-partner-brand",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    const expected = merchantBridgeSecret();
-    const headerSecret = request.headers.get(MERCHANT_BRIDGE_HEADER);
-    if (headerSecret !== expected) {
-      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    const b = body as Record<string, unknown>;
-    const partnerId = typeof b.partnerId === "number" ? b.partnerId : Number(b.partnerId);
-    const slug = typeof b.slug === "string" ? b.slug.trim().toLowerCase() : "";
-    if (!Number.isFinite(partnerId) || partnerId < 0 || !slug) {
-      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    try {
-      const result = await ctx.runMutation(
-        internal.service.merchant.merchantCampaigns.upsertPartnerBrandCore,
-        { partnerId, slug }
-      );
-      return new Response(JSON.stringify({ ok: true, ...result }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "upsert_failed";
-      return new Response(JSON.stringify({ ok: false, error: message }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-  }),
-});
+// Brand is SSO-only (FE via PartnerManager). Campaign resolves partnerId only.
 
 function applePassAuthToken(request: Request): string | null {
   const h = request.headers.get("Authorization") ?? "";
@@ -355,6 +316,62 @@ http.route({
     }
 
     return new Response(null, { status: 404 });
+  }),
+});
+
+/** SSO → Campaign: replicate global platform maintenance status. */
+http.route({
+  path: "/internal/platform-status",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (request.headers.get(MERCHANT_BRIDGE_HEADER) !== merchantBridgeSecret()) {
+      return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+    }
+    let body: Record<string, unknown>;
+    try {
+      const parsed = await request.json();
+      if (!parsed || typeof parsed !== "object") {
+        return jsonResponse({ ok: false, error: "bad_body" }, 400);
+      }
+      body = parsed as Record<string, unknown>;
+    } catch {
+      return jsonResponse({ ok: false, error: "bad_json" }, 400);
+    }
+    const mode = body.mode;
+    if (mode !== "normal" && mode !== "pre_notice" && mode !== "maintenance") {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    const updatedAt =
+      typeof body.updatedAt === "number" && Number.isFinite(body.updatedAt)
+        ? body.updatedAt
+        : Date.now();
+    try {
+      await ctx.runMutation(internal.service.platformStatus.upsertFromBridgeInternal, {
+        mode,
+        title: typeof body.title === "string" ? body.title : undefined,
+        message: typeof body.message === "string" ? body.message : undefined,
+        plannedStartAt:
+          typeof body.plannedStartAt === "number"
+            ? body.plannedStartAt
+            : body.plannedStartAt === null
+              ? null
+              : undefined,
+        plannedEndAt:
+          typeof body.plannedEndAt === "number"
+            ? body.plannedEndAt
+            : body.plannedEndAt === null
+              ? null
+              : undefined,
+        updatedAt,
+        updatedBy: typeof body.updatedBy === "string" ? body.updatedBy : null,
+      });
+      return jsonResponse({ ok: true });
+    } catch (error) {
+      return jsonResponse(
+        { ok: false, error: error instanceof Error ? error.message : "operation_failed" },
+        400
+      );
+    }
   }),
 });
 

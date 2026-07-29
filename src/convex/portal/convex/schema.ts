@@ -34,6 +34,20 @@ export default defineSchema({
     .index("by_uid", ["uid"])
     .index("by_displayNameNormalized", ["displayNameNormalized"]),
 
+  /**
+   * Scoped wallets (SoT for balances). scopeKey = "shared" | `lobby:${lobbyId}`.
+   * portal_players keeps identity/profile; legacy coins/gems/tickets migrate to shared.
+   */
+  portal_player_wallets: defineTable({
+    uid: v.string(),
+    scopeKey: v.string(),
+    coins: v.optional(v.number()),
+    gems: v.optional(v.number()),
+    tickets: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_uid_scopeKey", ["uid", "scopeKey"]),
+
   /** 金币/钻/门票流水（周联赛领奖、商店、再战等） */
   portal_coin_ledger: defineTable({
     uid: v.string(),
@@ -43,8 +57,13 @@ export default defineSchema({
     reason: v.string(),
     gameType: v.optional(v.string()),
     sourceWeekKey: v.optional(v.string()),
+    /** Economy partition; omit on legacy rows (= shared). */
+    scopeKey: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
     createdAt: v.number(),
-  }).index("by_uid_created", ["uid", "createdAt"]),
+  })
+    .index("by_uid_created", ["uid", "createdAt"])
+    .index("by_uid_scopeKey_created", ["uid", "scopeKey", "createdAt"]),
 
   /** Portal 兑换商店 SKU（静态配表同步；独立于 casualPlatform） */
   portal_shop_skus: defineTable({
@@ -81,6 +100,8 @@ export default defineSchema({
   /** Portal-owned Partner shop assortment and effective catalog overrides. */
   portal_partner_shop_settings: defineTable({
     partnerId: v.number(),
+    /** Omit = partner base; set = lobby overlay when lobbyOpsMode=isolated. */
+    lobbyId: v.optional(v.id("portal_lobbies")),
     enabled: v.boolean(),
     giftCardsEnabled: v.boolean(),
     virtualEnabled: v.boolean(),
@@ -105,7 +126,9 @@ export default defineSchema({
       )
     ),
     updatedAt: v.number(),
-  }).index("by_partnerId", ["partnerId"]),
+  })
+    .index("by_partnerId", ["partnerId"])
+    .index("by_partnerId_lobbyId", ["partnerId", "lobbyId"]),
 
   /** Player-owned vouchers fulfilled by Portal shop and campaign rewards. */
   portal_backpack_items: defineTable({
@@ -145,7 +168,8 @@ export default defineSchema({
     .index("by_uid_createdAt", ["uid", "createdAt"])
     .index("by_code", ["code"])
     .index("by_partner_status", ["partnerId", "status"])
-    .index("by_campaignId_uid", ["campaignId", "uid"]),
+    .index("by_campaignId_uid", ["campaignId", "uid"])
+    .index("by_source", ["source"]),
 
   /** Tango 礼品卡兑换订单（金币扣减后异步履约） */
   portal_giftcard_orders: defineTable({
@@ -175,6 +199,9 @@ export default defineSchema({
     lastAttemptAt: v.optional(v.number()),
     createdAt: v.number(),
     fulfilledAt: v.optional(v.number()),
+    /** Economy partition used at purchase (for refunds). */
+    scopeKey: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
   })
     .index("by_orderId", ["orderId"])
     .index("by_uid_created", ["uid", "createdAt"])
@@ -187,9 +214,13 @@ export default defineSchema({
     weekKey: v.string(),
     count: v.number(),
     updatedAt: v.number(),
+    /** Economy partition; omit on legacy rows (= shared). */
+    scopeKey: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
   })
     .index("by_uid_sku_week", ["uid", "skuId", "weekKey"])
-    .index("by_uid_week", ["uid", "weekKey"]),
+    .index("by_uid_week", ["uid", "weekKey"])
+    .index("by_uid_scopeKey_sku_week", ["uid", "scopeKey", "skuId", "weekKey"]),
 
   portal_run_tournaments: defineTable({
     templateId: v.string(),
@@ -242,6 +273,34 @@ export default defineSchema({
     /** Legacy fields (prod rows); SSOT is portal_run_player_matches. */
     seedScoreThreshold: v.optional(v.number()),
     challengeSuccess: v.optional(v.boolean()),
+    /** Lobby the player joined from (per-player; may differ from run.lobbyId). */
+    joinLobbyId: v.optional(v.id("portal_lobbies")),
+    /** Snapshot of lobby offering rewardsOverride at join/open. */
+    rewardsOverrideSnapshot: v.optional(
+      v.object({
+        soloPoints: v.optional(
+          v.object({
+            success: v.number(),
+            fail: v.number(),
+          })
+        ),
+        rankPoints: v.optional(v.record(v.string(), v.number())),
+        coins: v.optional(
+          v.object({
+            soloSuccess: v.optional(v.number()),
+            soloFail: v.optional(v.number()),
+            rankCoins: v.optional(v.record(v.string(), v.number())),
+          })
+        ),
+      })
+    ),
+    /** Snapshot of entry cost at join (for per-player charge / audit). */
+    entrySnapshot: v.optional(
+      v.object({
+        kind: v.union(v.literal("none"), v.literal("coins"), v.literal("gems")),
+        amount: v.optional(v.number()),
+      })
+    ),
   })
     .index("by_tournament_uid", ["tournamentId", "uid"])
     .index("by_uid_template", ["uid", "templateId"])
@@ -406,6 +465,11 @@ export default defineSchema({
   portal_match_queue: defineTable({
     uid: v.string(),
     templateId: v.string(),
+    /**
+     * Partner-scoped match pool: `p:${partnerId}|t:${templateId}`.
+     * Lobbies share within a partner; never cross partners.
+     */
+    matchPartitionKey: v.optional(v.string()),
     effectiveHumans: v.optional(v.number()),
     effectiveMinHumans: v.optional(v.number()),
     matchedRuleId: v.optional(v.string()),
@@ -436,13 +500,49 @@ export default defineSchema({
     ),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
-    /** Copied onto portal_run_tournaments when the table opens. */
+    /**
+     * Set when join already consumed an ad/ticket grant. Open-table daily-limit
+     * rechecks must use this lane (not free). Cleared on match or refunded on
+     * abandon (leave queue / expire without open).
+     */
+    playEntryLane: v.optional(
+      v.union(v.literal("ad"), v.literal("ticket"))
+    ),
+    /** Ticket price charged at enqueue; used to refund if queue is abandoned. */
+    ticketEntryPriceTickets: v.optional(v.number()),
+    /** Player join lobby; copied to portal_run_player_tournaments.joinLobbyId. */
     lobbyId: v.optional(v.id("portal_lobbies")),
+    /** Snapshot of lobby offering rewardsOverride at enqueue. */
+    rewardsOverrideSnapshot: v.optional(
+      v.object({
+        soloPoints: v.optional(
+          v.object({
+            success: v.number(),
+            fail: v.number(),
+          })
+        ),
+        rankPoints: v.optional(v.record(v.string(), v.number())),
+        coins: v.optional(
+          v.object({
+            soloSuccess: v.optional(v.number()),
+            soloFail: v.optional(v.number()),
+            rankCoins: v.optional(v.record(v.string(), v.number())),
+          })
+        ),
+      })
+    ),
+    entrySnapshot: v.optional(
+      v.object({
+        kind: v.union(v.literal("none"), v.literal("coins"), v.literal("gems")),
+        amount: v.optional(v.number()),
+      })
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_template_status", ["templateId", "status"])
     .index("by_template_status_effective", ["templateId", "status", "effectiveHumans"])
+    .index("by_partition_status", ["matchPartitionKey", "status"])
     .index("by_uid", ["uid"])
     .index("by_uid_template_status", ["uid", "templateId", "status"]),
 
@@ -498,7 +598,7 @@ export default defineSchema({
     .index("by_partnerId_default", ["partnerId", "isDefault"]),
 
   /**
-   * Partner entry ladder: partner base (no lobbyId) ⊕ lobby ⊕ tournament overlays.
+   * Partner entry ladder SoT: partner base (no lobbyId) ⊕ lobby ⊕ tournament overlays.
    * Field-level overlay; more specific rows override set fields only.
    */
   portal_partner_play_entry_settings: defineTable({
@@ -636,6 +736,9 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
     clientProof: v.optional(v.string()),
+    /** Economy scope for grant (isolated lobby wallet). */
+    scopeKey: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
   })
     .index("by_sessionId", ["sessionId"])
     .index("by_uid", ["uid"])
@@ -650,6 +753,8 @@ export default defineSchema({
     coinsGranted: v.number(),
     clientProof: v.optional(v.string()),
     createdAt: v.number(),
+    scopeKey: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
   })
     .index("by_sessionId", ["sessionId"])
     .index("by_uid_dayKey", ["uid", "dayKey"]),
@@ -661,7 +766,11 @@ export default defineSchema({
     usedCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_uid_dayKey", ["uid", "dayKey"]),
+    scopeKey: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+  })
+    .index("by_uid_dayKey", ["uid", "dayKey"])
+    .index("by_uid_scopeKey_dayKey", ["uid", "scopeKey", "dayKey"]),
 
   portal_bot_personas: defineTable({
     botPersonaId: v.string(),
@@ -874,10 +983,25 @@ export default defineSchema({
     usedCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_uid_dayKey", ["uid", "dayKey"]),
+    /** Economy partition; omit on legacy rows (= shared / partner-wide). */
+    scopeKey: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+  })
+    .index("by_uid_dayKey", ["uid", "dayKey"])
+    .index("by_uid_scopeKey_dayKey", ["uid", "scopeKey", "dayKey"]),
 
   /**
-   * Per-partner replay ladder cache (SoT on SSO partner.data.replay / legacy flat keys).
+   * Partner lobbyOpsMode SoT (platform admin → Portal).
+   * isolated | shared — controls economy partition only, not matchmaking.
+   */
+  portal_partner_lobby_ops_settings: defineTable({
+    partnerId: v.number(),
+    lobbyOpsMode: v.union(v.literal("isolated"), v.literal("shared")),
+    updatedAt: v.number(),
+  }).index("by_partnerId", ["partnerId"]),
+
+  /**
+   * Per-partner replay ladder SoT (platform admin → Portal).
    * Replaces portal_partner_ad_settings (adReplayDailyCap-only).
    */
   portal_partner_replay_settings: defineTable({
@@ -1047,4 +1171,20 @@ export default defineSchema({
   })
     .index("by_token", ["token"])
     .index("by_uid", ["uid"]),
+
+  /** Replica of SSO platform_status (singleton). Synced via /internal/platform-status. */
+  platform_status: defineTable({
+    key: v.literal("global"),
+    mode: v.union(
+      v.literal("normal"),
+      v.literal("pre_notice"),
+      v.literal("maintenance")
+    ),
+    title: v.optional(v.string()),
+    message: v.optional(v.string()),
+    plannedStartAt: v.optional(v.number()),
+    plannedEndAt: v.optional(v.number()),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.string()),
+  }).index("by_key", ["key"]),
 });

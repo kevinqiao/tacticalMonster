@@ -632,15 +632,42 @@ http.route({
     if (!parsed.ok) return parsed.response;
     const partnerId = partnerIdFromBody(parsed.body);
     const operation = parsed.body.operation;
-    if (partnerId === null || (operation !== "get" && operation !== "upsert")) {
+    if (
+      partnerId === null ||
+      (operation !== "get" &&
+        operation !== "upsert" &&
+        operation !== "clear_lobby")
+    ) {
       return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
     }
+    const lobbyId =
+      typeof parsed.body.lobbyId === "string" && parsed.body.lobbyId.trim()
+        ? (parsed.body.lobbyId as any)
+        : undefined;
     if (operation === "get") {
       const settings = await ctx.runQuery(
         internal.service.shop.partnerShopSettings.getPartnerShopSettingsInternal,
-        { partnerId }
+        { partnerId, ...(lobbyId ? { lobbyId } : {}) }
       );
       return jsonResponse({ ok: true, settings });
+    }
+    if (operation === "clear_lobby") {
+      if (!lobbyId) {
+        return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+      }
+      try {
+        return jsonResponse(
+          await ctx.runMutation(
+            internal.service.shop.partnerShopSettings.clearPartnerLobbyShopOverlayInternal,
+            { partnerId, lobbyId }
+          )
+        );
+      } catch (error) {
+        return jsonResponse(
+          { ok: false, error: error instanceof Error ? error.message : "operation_failed" },
+          400
+        );
+      }
     }
     const b = parsed.body;
     if (
@@ -663,6 +690,7 @@ http.route({
           internal.service.shop.partnerShopSettings.upsertPartnerShopSettingsInternal,
           {
             partnerId,
+            ...(lobbyId ? { lobbyId } : {}),
             enabled: b.enabled,
             giftCardsEnabled: b.giftCardsEnabled,
             virtualEnabled: b.virtualEnabled,
@@ -755,14 +783,118 @@ http.route({
     const portalSkuId = typeof b.portalSkuId === "string" ? b.portalSkuId : "";
     const grantKey = typeof b.grantKey === "string" ? b.grantKey : "";
     const preferredCode = typeof b.preferredCode === "string" ? b.preferredCode : undefined;
+    const maxCouponsPerPlayer =
+      typeof b.maxCouponsPerPlayer === "number" ? b.maxCouponsPerPlayer : undefined;
     if (!uid || partnerId === null || !campaignId || !portalSkuId || !grantKey) {
       return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
     }
     const result = await ctx.runMutation(
       internal.service.backpack.grantCampaignVoucher.grantCampaignVoucher,
-      { uid, partnerId, campaignId, portalSkuId, grantKey, ...(preferredCode ? { preferredCode } : {}) }
+      {
+        uid,
+        partnerId,
+        campaignId,
+        portalSkuId,
+        grantKey,
+        ...(preferredCode ? { preferredCode } : {}),
+        ...(maxCouponsPerPlayer != null ? { maxCouponsPerPlayer } : {}),
+      }
     );
     return jsonResponse(result, result.ok ? 200 : 400);
+  }),
+});
+
+/** Campaign store ops: coupon-limit check before issuing a new campaign voucher. */
+http.route({
+  path: "/internal/count-campaign-vouchers",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const b = parsed.body;
+    const campaignId = typeof b.campaignId === "string" ? b.campaignId : "";
+    const uid = typeof b.uid === "string" ? b.uid : "";
+    if (!campaignId || !uid) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    const result = await ctx.runQuery(
+      internal.service.backpack.portalBackpackService.countCampaignVouchersForUid,
+      { campaignId, uid }
+    );
+    return jsonResponse({ ok: true, ...result });
+  }),
+});
+
+/** Campaign store ops: validate a scanned/entered campaign voucher code before redemption. */
+http.route({
+  path: "/internal/validate-campaign-voucher",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const b = parsed.body;
+    const partnerId = partnerIdFromBody(b);
+    const code = typeof b.code === "string" ? b.code : "";
+    if (partnerId === null || !code) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    const result = await ctx.runQuery(
+      internal.service.backpack.portalBackpackService.validateCampaignVoucherByCode,
+      { partnerId, code }
+    );
+    return jsonResponse(result, result.ok ? 200 : 400);
+  }),
+});
+
+/** Campaign store ops: redeem a campaign voucher at a physical store, recording staff/store audit fields. */
+http.route({
+  path: "/internal/redeem-campaign-voucher-store",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const b = parsed.body;
+    const partnerId = partnerIdFromBody(b);
+    const code = typeof b.code === "string" ? b.code : "";
+    const storeId = typeof b.storeId === "string" ? b.storeId : "";
+    const staffUid = typeof b.staffUid === "string" ? b.staffUid : "";
+    const staffNote = typeof b.staffNote === "string" ? b.staffNote : undefined;
+    if (partnerId === null || !code || !storeId || !staffUid) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    const result = await ctx.runMutation(
+      internal.service.backpack.portalBackpackService.redeemCampaignVoucherByCodeForStore,
+      { partnerId, code, storeId, staffUid, ...(staffNote ? { staffNote } : {}) }
+    );
+    return jsonResponse(result, result.ok ? 200 : 400);
+  }),
+});
+
+/** Campaign admin ops: list issued campaign vouchers for a partner, optionally scoped to one campaign. */
+http.route({
+  path: "/internal/list-campaign-vouchers",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const b = parsed.body;
+    const partnerId = partnerIdFromBody(b);
+    if (partnerId === null) return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    const campaignId = typeof b.campaignId === "string" ? b.campaignId : undefined;
+    const limit = typeof b.limit === "number" ? b.limit : undefined;
+    const items = await ctx.runQuery(
+      internal.service.backpack.portalBackpackService.listCampaignVouchersForPartner,
+      {
+        partnerId,
+        ...(campaignId ? { campaignId } : {}),
+        ...(limit != null ? { limit } : {}),
+      }
+    );
+    return jsonResponse({ ok: true, items });
   }),
 });
 
@@ -824,6 +956,70 @@ http.route({
           validityDays: sku.voucherValidityDays,
         })),
     });
+  }),
+});
+
+/** Campaign → Portal: player profile (portal_players is SoT; Campaign no longer stores players). */
+http.route({
+  path: "/internal/campaign-player-profile",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const uid = typeof parsed.body.uid === "string" ? parsed.body.uid.trim() : "";
+    if (!uid) return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    const profile = await ctx.runQuery(
+      internal.service.player.portalPlayerProfile.getPortalPlayerProfileForUidInternal,
+      { uid }
+    );
+    return jsonResponse({ ok: true, profile });
+  }),
+});
+
+http.route({
+  path: "/internal/campaign-player-display-name",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const uid = typeof parsed.body.uid === "string" ? parsed.body.uid.trim() : "";
+    const displayName =
+      typeof parsed.body.displayName === "string" ? parsed.body.displayName : "";
+    if (!uid || !displayName) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    const result = await ctx.runMutation(
+      internal.service.player.portalPlayerProfile.updatePortalDisplayNameForUidInternal,
+      { uid, displayName }
+    );
+    return jsonResponse(result, result.ok ? 200 : 400);
+  }),
+});
+
+http.route({
+  path: "/internal/campaign-player-contact",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!assertMerchantBridgeSecret(request)) return merchantBridgeUnauthorized();
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const uid = typeof parsed.body.uid === "string" ? parsed.body.uid.trim() : "";
+    if (!uid) return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    const verifiedEmail =
+      typeof parsed.body.verifiedEmail === "string" ? parsed.body.verifiedEmail : undefined;
+    const verifiedPhone =
+      typeof parsed.body.verifiedPhone === "string" ? parsed.body.verifiedPhone : undefined;
+    const result = await ctx.runMutation(
+      internal.service.player.portalPlayerProfile.syncPortalContactForUidInternal,
+      {
+        uid,
+        ...(verifiedEmail ? { verifiedEmail } : {}),
+        ...(verifiedPhone ? { verifiedPhone } : {}),
+      }
+    );
+    return jsonResponse(result, result.ok ? 200 : 400);
   }),
 });
 
@@ -937,150 +1133,139 @@ http.route({
 });
 
 /**
- * SSO → Portal: upsert per-partner ad-replay daily cap cache.
- * Header `X-Portal-Bridge-Secret` must match `portalGameBridgeSecret()`.
+ * SSO platform admin / bootstrap ↔ Portal GC ops SoT (replay / play-entry / lobbyOps).
+ * Body: `{ operation: "get"|"upsert", partnerId, ...fields }`.
  */
 http.route({
-  path: "/internal/upsert-partner-ad-replay-cap",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    const expected = portalGameBridgeSecret();
-    const headerSecret = request.headers.get("X-Portal-Bridge-Secret");
-    if (headerSecret !== expected) {
-      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    const b = body as {
-      partnerId?: unknown;
-      adReplayDailyCap?: unknown;
-      maxReplaysPerMatch?: unknown;
-      adReplayEnabled?: unknown;
-      ticketReplayEnabled?: unknown;
-      ticketReplayPriceTickets?: unknown;
-      coinReplayEnabled?: unknown;
-      coinReplayPriceCoins?: unknown;
-      coinReplayDailyCap?: unknown;
-    };
-    const partnerIdRaw = b.partnerId;
-    const capRaw = b.adReplayDailyCap;
-    const partnerId =
-      typeof partnerIdRaw === "number" && Number.isFinite(partnerIdRaw)
-        ? Math.floor(partnerIdRaw)
-        : typeof partnerIdRaw === "string"
-          ? Number(partnerIdRaw)
-          : NaN;
-    const adReplayDailyCap =
-      typeof capRaw === "number" && Number.isFinite(capRaw)
-        ? Math.floor(capRaw)
-        : NaN;
-    if (!Number.isFinite(partnerId) || partnerId < 0 || !Number.isFinite(adReplayDailyCap)) {
-      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    const result = await ctx.runMutation(
-      internal.service.ads.partnerAdReplayConfig.upsertPartnerAdReplayCapInternal,
-      {
-        partnerId,
-        adReplayDailyCap,
-        ...(typeof b.maxReplaysPerMatch === "number"
-          ? { maxReplaysPerMatch: Math.floor(b.maxReplaysPerMatch) }
-          : {}),
-        ...(typeof b.adReplayEnabled === "boolean"
-          ? { adReplayEnabled: b.adReplayEnabled }
-          : {}),
-        ...(typeof b.ticketReplayEnabled === "boolean"
-          ? { ticketReplayEnabled: b.ticketReplayEnabled }
-          : {}),
-        ...(typeof b.ticketReplayPriceTickets === "number"
-          ? { ticketReplayPriceTickets: Math.floor(b.ticketReplayPriceTickets) }
-          : {}),
-        ...(typeof b.coinReplayEnabled === "boolean"
-          ? { coinReplayEnabled: b.coinReplayEnabled }
-          : {}),
-        ...(typeof b.coinReplayPriceCoins === "number"
-          ? { coinReplayPriceCoins: Math.floor(b.coinReplayPriceCoins) }
-          : {}),
-        ...(b.coinReplayDailyCap === null || typeof b.coinReplayDailyCap === "number"
-          ? { coinReplayDailyCap: b.coinReplayDailyCap as number | null }
-          : {}),
-      }
-    );
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  }),
-});
-
-/** SSO → Portal: partner free → ad → ticket entry ladder overrides. */
-http.route({
-  path: "/internal/upsert-partner-play-entry-settings",
+  path: "/internal/partner-gc-ops-settings",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     if (request.headers.get("X-Portal-Bridge-Secret") !== portalGameBridgeSecret()) {
-      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), { status: 401 });
+      return jsonResponse({ ok: false, error: "unauthorized" }, 401);
     }
     const body = await readMcpJsonBody(request);
-    const partnerId = typeof body?.partnerId === "number" ? Math.floor(body.partnerId) : NaN;
-    const numberKeys = [
-      "freePlaySoloDailyCap", "freePlayMultiDailyCap",
-      "adEntrySoloDailyCap", "adEntryMultiDailyCap",
-      "ticketEntrySoloPriceTickets", "ticketEntrySoloDailyCap",
-      "ticketEntryMultiPriceTickets", "ticketEntryMultiDailyCap",
-    ] as const;
-    if (!Number.isFinite(partnerId) || partnerId < 0 ||
-      numberKeys.some((key) => body?.[key] != null && (typeof body[key] !== "number" || !Number.isFinite(body[key] as number)))) {
+    const partnerId =
+      typeof body?.partnerId === "number" && Number.isFinite(body.partnerId)
+        ? Math.floor(body.partnerId)
+        : NaN;
+    if (!Number.isFinite(partnerId) || partnerId < 0) {
       return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
     }
-    if (body?.adEntryEnabled != null && typeof body.adEntryEnabled !== "boolean") {
-      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    const operation = body?.operation;
+    if (operation === "get") {
+      const result = await ctx.runQuery(
+        internal.service.partner.portalPartnerGcOpsAdmin.getPartnerGcOpsInternal,
+        { partnerId }
+      );
+      return jsonResponse(result);
     }
-    if (body?.ticketEntryEnabled != null && typeof body.ticketEntryEnabled !== "boolean") {
-      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    if (operation === "upsert") {
+      const result = await ctx.runMutation(
+        internal.service.partner.portalPartnerGcOpsAdmin.upsertPartnerGcOpsInternal,
+        {
+          partnerId,
+          ...(body?.adReplayDailyCap !== undefined
+            ? {
+                adReplayDailyCap:
+                  body.adReplayDailyCap === null
+                    ? null
+                    : typeof body.adReplayDailyCap === "number"
+                      ? body.adReplayDailyCap
+                      : undefined,
+              }
+            : {}),
+          ...(body?.maxReplaysPerMatch !== undefined
+            ? {
+                maxReplaysPerMatch:
+                  body.maxReplaysPerMatch === null
+                    ? null
+                    : typeof body.maxReplaysPerMatch === "number"
+                      ? body.maxReplaysPerMatch
+                      : undefined,
+              }
+            : {}),
+          ...(typeof body?.adReplayEnabled === "boolean"
+            ? { adReplayEnabled: body.adReplayEnabled }
+            : {}),
+          ...(typeof body?.ticketReplayEnabled === "boolean"
+            ? { ticketReplayEnabled: body.ticketReplayEnabled }
+            : {}),
+          ...(body?.ticketReplayPriceTickets !== undefined
+            ? {
+                ticketReplayPriceTickets:
+                  body.ticketReplayPriceTickets === null
+                    ? null
+                    : typeof body.ticketReplayPriceTickets === "number"
+                      ? body.ticketReplayPriceTickets
+                      : undefined,
+              }
+            : {}),
+          ...(body?.freePlaySoloDailyCap !== undefined
+            ? { freePlaySoloDailyCap: body.freePlaySoloDailyCap as number | null }
+            : {}),
+          ...(body?.freePlayMultiDailyCap !== undefined
+            ? { freePlayMultiDailyCap: body.freePlayMultiDailyCap as number | null }
+            : {}),
+          ...(body?.quotaScope !== undefined
+            ? {
+                quotaScope:
+                  body.quotaScope === null ||
+                  body.quotaScope === "mode" ||
+                  body.quotaScope === "lobby" ||
+                  body.quotaScope === "tournament"
+                    ? body.quotaScope
+                    : undefined,
+              }
+            : {}),
+          ...(body?.adEntryEnabled !== undefined
+            ? { adEntryEnabled: body.adEntryEnabled as boolean | null }
+            : {}),
+          ...(body?.adEntrySoloDailyCap !== undefined
+            ? { adEntrySoloDailyCap: body.adEntrySoloDailyCap as number | null }
+            : {}),
+          ...(body?.adEntryMultiDailyCap !== undefined
+            ? { adEntryMultiDailyCap: body.adEntryMultiDailyCap as number | null }
+            : {}),
+          ...(body?.ticketEntryEnabled !== undefined
+            ? { ticketEntryEnabled: body.ticketEntryEnabled as boolean | null }
+            : {}),
+          ...(body?.ticketEntrySoloPriceTickets !== undefined
+            ? {
+                ticketEntrySoloPriceTickets: body.ticketEntrySoloPriceTickets as
+                  | number
+                  | null,
+              }
+            : {}),
+          ...(body?.ticketEntrySoloDailyCap !== undefined
+            ? { ticketEntrySoloDailyCap: body.ticketEntrySoloDailyCap as number | null }
+            : {}),
+          ...(body?.ticketEntryMultiPriceTickets !== undefined
+            ? {
+                ticketEntryMultiPriceTickets: body.ticketEntryMultiPriceTickets as
+                  | number
+                  | null,
+              }
+            : {}),
+          ...(body?.ticketEntryMultiDailyCap !== undefined
+            ? {
+                ticketEntryMultiDailyCap: body.ticketEntryMultiDailyCap as number | null,
+              }
+            : {}),
+          ...(body?.lobbyOpsMode !== undefined
+            ? {
+                lobbyOpsMode:
+                  body.lobbyOpsMode === null ||
+                  body.lobbyOpsMode === "isolated" ||
+                  body.lobbyOpsMode === "shared"
+                    ? body.lobbyOpsMode
+                    : undefined,
+              }
+            : {}),
+        }
+      );
+      return jsonResponse(result);
     }
-    const quotaScope =
-      body?.quotaScope === null
-        ? null
-        : body?.quotaScope === "mode" ||
-            body?.quotaScope === "lobby" ||
-            body?.quotaScope === "tournament"
-          ? body.quotaScope
-          : undefined;
-    if (body?.quotaScope !== undefined && body?.quotaScope !== null && quotaScope == null) {
-      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
-    }
-    const result = await ctx.runMutation(
-      internal.service.ads.portalTicketEntryService.upsertPartnerPlayEntrySettingsInternal,
-      {
-        partnerId,
-        ...(quotaScope !== undefined ? { quotaScope } : {}),
-        ...Object.fromEntries(
-          numberKeys
-            .filter((key) => body?.[key] != null)
-            .map((key) => [key, Math.floor(body![key] as number)])
-        ),
-        ...(typeof body?.adEntryEnabled === "boolean"
-          ? { adEntryEnabled: body.adEntryEnabled }
-          : {}),
-        ...(typeof body?.ticketEntryEnabled === "boolean"
-          ? { ticketEntryEnabled: body.ticketEntryEnabled }
-          : {}),
-      }
-    );
-    return jsonResponse(result);
+    return jsonResponse({ ok: false, error: "invalid_operation" }, 400);
   }),
 });
 
@@ -1380,6 +1565,61 @@ http.route({
         return jsonResponse(result);
       }
       return jsonResponse({ ok: false, error: "unknown_operation" }, 400);
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : "operation_failed";
+      const cleaned = raw.replace(/^Uncaught Error:\s*/i, "").trim().split(/\s|\n/)[0] || raw;
+      return jsonResponse({ ok: false, error: cleaned }, 400);
+    }
+  }),
+});
+
+/** SSO → Portal: replicate global platform maintenance status. */
+http.route({
+  path: "/internal/platform-status",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (request.headers.get("X-Portal-Bridge-Secret") !== portalGameBridgeSecret()) {
+      return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+    }
+    let body: Record<string, unknown>;
+    try {
+      const parsed = await request.json();
+      if (!parsed || typeof parsed !== "object") {
+        return jsonResponse({ ok: false, error: "bad_body" }, 400);
+      }
+      body = parsed as Record<string, unknown>;
+    } catch {
+      return jsonResponse({ ok: false, error: "bad_json" }, 400);
+    }
+    const mode = body.mode;
+    if (mode !== "normal" && mode !== "pre_notice" && mode !== "maintenance") {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    const updatedAt =
+      typeof body.updatedAt === "number" && Number.isFinite(body.updatedAt)
+        ? body.updatedAt
+        : Date.now();
+    try {
+      await ctx.runMutation(internal.service.platformStatus.upsertFromBridgeInternal, {
+        mode,
+        title: typeof body.title === "string" ? body.title : undefined,
+        message: typeof body.message === "string" ? body.message : undefined,
+        plannedStartAt:
+          typeof body.plannedStartAt === "number"
+            ? body.plannedStartAt
+            : body.plannedStartAt === null
+              ? null
+              : undefined,
+        plannedEndAt:
+          typeof body.plannedEndAt === "number"
+            ? body.plannedEndAt
+            : body.plannedEndAt === null
+              ? null
+              : undefined,
+        updatedAt,
+        updatedBy: typeof body.updatedBy === "string" ? body.updatedBy : null,
+      });
+      return jsonResponse({ ok: true });
     } catch (error) {
       return jsonResponse(
         { ok: false, error: error instanceof Error ? error.message : "operation_failed" },

@@ -59,14 +59,10 @@ export interface PortalGame3DInnerProps {
   multiJoinBlocked?: boolean;
   soloOpenAssignment?: unknown;
   multiOpenAssignment?: unknown;
-  /** 今日已挑战次数（单人：含金币桌等全部对局；主页文案用） */
-  soloPlaysToday?: number;
   /** 免费/广告/门票阶梯今日次数（单人；开始按钮 used/cap 用） */
   soloLadderPlaysToday?: number;
   /** 免费每日上限（单人；按钮 used/cap 用） */
   soloMaxPlaysPerDay?: number;
-  /** 今日已挑战次数（多人：含金币桌等全部对局；主页文案用） */
-  multiPlaysToday?: number;
   /** 免费/广告/门票阶梯今日次数（多人；开始按钮 used/cap 用） */
   multiLadderPlaysToday?: number;
   /** 免费每日上限（多人；按钮 used/cap 用） */
@@ -78,6 +74,13 @@ export interface PortalGame3DInnerProps {
   /** 免费用尽后可看广告入场 */
   soloAdEntryAvailable?: boolean;
   multiAdEntryAvailable?: boolean;
+  /** 广告入场功能开启（用于展示广告配额，与选赛窗一致） */
+  soloAdEntryEnabled?: boolean;
+  multiAdEntryEnabled?: boolean;
+  soloAdEntryUsedToday?: number;
+  multiAdEntryUsedToday?: number;
+  soloAdEntryCap?: number;
+  multiAdEntryCap?: number;
   soloTicketEntryAvailable?: boolean;
   multiTicketEntryAvailable?: boolean;
   soloTicketEntryPrice?: number;
@@ -85,11 +88,11 @@ export interface PortalGame3DInnerProps {
   soloTicketEntryRemaining?: number;
   multiTicketEntryRemaining?: number;
   /**
-   * 该模式有多个 tournament：免费→广告 CTA 落在选择弹窗的每条记录上，
-   * 主页模式框只显示「开始 / 继续」。
+   * 该模式恰好只有一场免费→广告阶梯赛事（无选赛窗）：
+   * 主页显示与选赛窗相同的「免费 used/cap · 广告 used/cap」。
    */
-  soloHasMultipleOfferings?: boolean;
-  multiHasMultipleOfferings?: boolean;
+  soloShowHomeLadderCta?: boolean;
+  multiShowHomeLadderCta?: boolean;
   queueWaiting?: boolean;
   weekEndsAt?: number | null;
   bgUrl?: string;
@@ -128,24 +131,28 @@ export function PortalGame3DInner({
   multiJoinBlocked = false,
   soloOpenAssignment,
   multiOpenAssignment,
-  soloPlaysToday = 0,
   soloLadderPlaysToday = 0,
   soloMaxPlaysPerDay = 3,
-  multiPlaysToday = 0,
   multiLadderPlaysToday = 0,
   multiMaxPlaysPerDay = 10,
   soloDailyExhausted = false,
   multiDailyExhausted = false,
   soloAdEntryAvailable = false,
   multiAdEntryAvailable = false,
+  soloAdEntryEnabled = false,
+  multiAdEntryEnabled = false,
+  soloAdEntryUsedToday = 0,
+  multiAdEntryUsedToday = 0,
+  soloAdEntryCap = 0,
+  multiAdEntryCap = 0,
   soloTicketEntryAvailable = false,
   multiTicketEntryAvailable = false,
   soloTicketEntryPrice,
   multiTicketEntryPrice,
   soloTicketEntryRemaining,
   multiTicketEntryRemaining,
-  soloHasMultipleOfferings = false,
-  multiHasMultipleOfferings = false,
+  soloShowHomeLadderCta = false,
+  multiShowHomeLadderCta = false,
   queueWaiting = false,
   weekEndsAt,
   bgUrl,
@@ -174,9 +181,15 @@ export function PortalGame3DInner({
   const authRef = useRef<HTMLDivElement>(null);
   const [isPortrait, setIsPortrait] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (!pageActive) return;
     const wrapper = scaleWrapperRef.current;
     if (!wrapper) return;
+
+    // Tab hide / remount can briefly report tiny client sizes — retry those frames.
+    const MIN_VIEW_PX = 80;
+    let retryTimer: number | null = null;
+    const delayedTimers: number[] = [];
 
     function applyScale() {
       const container = containerRef.current;
@@ -184,13 +197,24 @@ export function PortalGame3DInner({
 
       const viewW = wrapper.clientWidth;
       const viewH = wrapper.clientHeight;
-      if (viewW <= 0 || viewH <= 0) return;
+      if (viewW < MIN_VIEW_PX || viewH < MIN_VIEW_PX) {
+        if (retryTimer != null) window.clearTimeout(retryTimer);
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null;
+          scheduleApply();
+        }, 50);
+        return;
+      }
 
       const portrait = viewW / viewH < 132 / 182;
-      setIsPortrait(portrait);
+      setIsPortrait((prev) => (prev === portrait ? prev : portrait));
 
       const designWidth = 1440;
       const designHeight = portrait ? 2560 : 1080;
+      // Keep the CSS box in lockstep with transform math (avoids one-frame
+      // mismatch when isPortrait state flips after tab restore).
+      container.style.width = `${designWidth}px`;
+      container.style.height = `${designHeight}px`;
 
       const scaleX = viewW / designWidth;
       const scaleY = viewH / designHeight;
@@ -221,15 +245,40 @@ export function PortalGame3DInner({
       }
     }
 
-    applyScale();
-    const observer = new ResizeObserver(() => applyScale());
+    const scheduleApply = () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(applyScale);
+      });
+    };
+
+    scheduleApply();
+    const observer = new ResizeObserver(() => scheduleApply());
     observer.observe(wrapper);
-    window.addEventListener("resize", applyScale);
+    window.addEventListener("resize", scheduleApply);
+    window.addEventListener("orientationchange", scheduleApply);
+    window.addEventListener("pageshow", scheduleApply);
+    window.addEventListener("focus", scheduleApply);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") scheduleApply();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    // Remount after in-app / browser tab return often needs a late pass once
+    // side-banner shell and fonts settle.
+    for (const ms of [0, 100, 300]) {
+      delayedTimers.push(window.setTimeout(scheduleApply, ms));
+    }
+
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", applyScale);
+      window.removeEventListener("resize", scheduleApply);
+      window.removeEventListener("orientationchange", scheduleApply);
+      window.removeEventListener("pageshow", scheduleApply);
+      window.removeEventListener("focus", scheduleApply);
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (retryTimer != null) window.clearTimeout(retryTimer);
+      for (const id of delayedTimers) window.clearTimeout(id);
     };
-  }, []);
+  }, [pageActive, isPortrait]);
 
   const soloJoinDisabled = !authed || joining != null || soloJoinBlocked;
   const multiJoinDisabled = !authed || joining != null || multiJoinBlocked;
@@ -238,31 +287,52 @@ export function PortalGame3DInner({
   const multiStartGrayed =
     authed && !multiOpenAssignment && !queueWaiting && multiJoinDisabled;
 
-  // 免费按钮展示（used/cap）；次数用尽且无广告/门票时灰掉，只显示「开始」
-  // 多 tournament 时入场 CTA 在选择弹窗里，主页模式框只显示「开始」
-  const soloFreeExhaustedNoAlt =
-    soloDailyExhausted && !soloAdEntryAvailable && !soloTicketEntryAvailable;
-  const multiFreeExhaustedNoAlt =
-    multiDailyExhausted && !multiAdEntryAvailable && !multiTicketEntryAvailable;
-  const soloFreePlayLabel = soloHasMultipleOfferings
-    ? t("lobby.play")
-    : soloFreeExhaustedNoAlt
-      ? t("lobby.play")
-      : t("lobby.playFree", {
-          used: Math.min(soloLadderPlaysToday, soloMaxPlaysPerDay),
-          cap: soloMaxPlaysPerDay,
-        });
-  const multiFreePlayLabel = multiHasMultipleOfferings
-    ? t("lobby.play")
-    : multiFreeExhaustedNoAlt
-      ? t("lobby.play")
-      : t("lobby.playFree", {
-          used: Math.min(multiLadderPlaysToday, multiMaxPlaysPerDay),
-          cap: multiMaxPlaysPerDay,
-        });
-  const adEntryLabel = t("lobby.playWatchAd");
-  const soloShowEntryCtaOnHome = !soloHasMultipleOfferings;
-  const multiShowEntryCtaOnHome = !multiHasMultipleOfferings;
+  /** Same copy as tournament picker quota chips (`pickQuotaFree` / `pickQuotaAd`). */
+  const renderHomeLadderQuota = (mode: "solo" | "multi") => {
+    const freeUsed = Math.min(
+      Math.max(0, mode === "solo" ? soloLadderPlaysToday : multiLadderPlaysToday),
+      Math.max(0, mode === "solo" ? soloMaxPlaysPerDay : multiMaxPlaysPerDay)
+    );
+    const freeCap = Math.max(
+      0,
+      mode === "solo" ? soloMaxPlaysPerDay : multiMaxPlaysPerDay
+    );
+    const adEnabled =
+      mode === "solo" ? soloAdEntryEnabled : multiAdEntryEnabled;
+    const adCap = Math.max(
+      0,
+      mode === "solo" ? soloAdEntryCap : multiAdEntryCap
+    );
+    const adUsed = Math.min(
+      Math.max(0, mode === "solo" ? soloAdEntryUsedToday : multiAdEntryUsedToday),
+      adCap
+    );
+    const showAd = adEnabled && adCap > 0;
+    if (freeCap <= 0) return null;
+    return (
+      <span
+        className={styles.modePlayQuotaRow}
+        aria-label={t("lobby.pickQuotaAria", {
+          freeUsed,
+          freeCap,
+          adUsed: showAd ? adUsed : 0,
+          adCap: showAd ? adCap : 0,
+        })}
+      >
+        <span className={styles.modePlayQuotaChip}>
+          {t("lobby.pickQuotaFree", { used: freeUsed, cap: freeCap })}
+        </span>
+        {showAd ? (
+          <span
+            className={`${styles.modePlayQuotaChip} ${styles.modePlayQuotaChipAd}`}
+          >
+            <CasualAdReplayVideoIcon />
+            {t("lobby.pickQuotaAd", { used: adUsed, cap: adCap })}
+          </span>
+        ) : null}
+      </span>
+    );
+  };
 
   const handleSoloClick = () => {
     if (!authed) {
@@ -439,7 +509,24 @@ export function PortalGame3DInner({
               </div>
               <div className={styles.tierCenter}>
                 <div className={styles.tierTopLine}>
-                  {/* Portrait: hide cohort id to free vertical space; keep ? next to rank */}
+                  <span
+                    className={styles.tierRankText}
+                    onClick={() => onOpenRules?.("tiers")}
+                    role="button"
+                    aria-label={t("lobby.rulesAria")}
+                  >
+                    {t("lobby.rankLabel", {
+                      rank: tier.rank != null ? `#${tier.rank}` : t("common.dash"),
+                    })}
+                    {/* Portrait: ? next to rank (cohort hidden). */}
+                    {isPortrait ? (
+                      <span
+                        className={styles.tierHelpBtn}
+                        aria-hidden
+                      />
+                    ) : null}
+                  </span>
+                  {/* Landscape: cohort immediately after rank on the same top row. */}
                   {!isPortrait ? (
                     <span className={styles.tierCohortNo}>
                       {tier.cohortNo != null
@@ -453,20 +540,6 @@ export function PortalGame3DInner({
                       />
                     </span>
                   ) : null}
-                  <span className={styles.tierRankText}>
-                    {t("lobby.rankLabel", {
-                      rank: tier.rank != null ? `#${tier.rank}` : t("common.dash"),
-                      size: cohortMemberCount,
-                    })}
-                    {isPortrait ? (
-                      <span
-                        className={styles.tierHelpBtn}
-                        onClick={() => onOpenRules?.("tiers")}
-                        role="button"
-                        aria-label={t("lobby.rulesAria")}
-                      />
-                    ) : null}
-                  </span>
                 </div>
                 <div className={styles.tierZoneBar}>
                   <div className={styles.tierZonePromote}>
@@ -562,82 +635,80 @@ export function PortalGame3DInner({
                 <div className={styles.modeIconSolo} />
                 <span className={styles.modeTitle}>{t("lobby.modes.challenge")}</span>
               </div>
-              {authed && soloPlaysToday > 0 ? (
-                <div className={styles.modeQuota}>
-                  {t("lobby.modes.playsToday", {
-                    playsToday: soloPlaysToday,
-                  })}
-                </div>
-              ) : null}
-              <div
-                className={`${styles.modePlayBtn} ${styles.modePlayBtnSolo}${
-                  soloStartGrayed ? ` ${styles.modePlayBtnDisabled}` : ""
-                }`}
-                onClick={handleSoloClick}
-                role="button"
-                aria-disabled={soloStartGrayed || undefined}
-                aria-label={
-                  joining === "solo"
-                    ? t("lobby.joining")
-                    : soloOpenAssignment
-                      ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
-                      : soloShowEntryCtaOnHome &&
-                          soloDailyExhausted &&
-                          soloAdEntryAvailable
-                        ? adEntryLabel
-                        : soloShowEntryCtaOnHome &&
+              <div className={styles.modePlayBlock}>
+                {soloShowHomeLadderCta &&
+                !soloOpenAssignment &&
+                joining !== "solo"
+                  ? renderHomeLadderQuota("solo")
+                  : null}
+                <div
+                  className={`${styles.modePlayBtn} ${styles.modePlayBtnSolo}${
+                    soloStartGrayed ? ` ${styles.modePlayBtnDisabled}` : ""
+                  }`}
+                  onClick={handleSoloClick}
+                  role="button"
+                  aria-disabled={soloStartGrayed || undefined}
+                  aria-label={
+                    joining === "solo"
+                      ? t("lobby.joining")
+                      : soloOpenAssignment
+                        ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
+                        : soloShowHomeLadderCta &&
                             soloDailyExhausted &&
-                            soloTicketEntryAvailable
-                          ? t("lobby.playWithTickets", {
-                              price: soloTicketEntryPrice ?? 1,
-                            })
-                          : soloFreePlayLabel
-                }
-                style={{
-                  cursor: !authed || !soloJoinDisabled ? "pointer" : "not-allowed",
-                }}
-              >
-                {joining === "solo" ? (
-                  <span className={styles.modePlayText}>{t("lobby.joining")}</span>
-                ) : soloOpenAssignment ? (
-                  <span className={styles.modePlayStack}>
-                    <span className={styles.modePlayText}>{t("lobby.continue")}</span>
-                    <span className={styles.modePlaySubtext}>
-                      {t("lobby.continueInProgress")}
+                            soloAdEntryAvailable
+                          ? t("lobby.playWatchAdPlain")
+                          : soloShowHomeLadderCta &&
+                              soloDailyExhausted &&
+                              soloTicketEntryAvailable
+                            ? t("lobby.playWithTickets", {
+                                price: soloTicketEntryPrice ?? 1,
+                              })
+                            : t("lobby.play")
+                  }
+                  style={{
+                    cursor: !authed || !soloJoinDisabled ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {joining === "solo" ? (
+                    <span className={styles.modePlayText}>{t("lobby.joining")}</span>
+                  ) : soloOpenAssignment ? (
+                    <span className={styles.modePlayStack}>
+                      <span className={styles.modePlayText}>{t("lobby.continue")}</span>
+                      <span className={styles.modePlaySubtext}>
+                        {t("lobby.continueInProgress")}
+                      </span>
                     </span>
-                  </span>
-                ) : soloShowEntryCtaOnHome &&
-                  soloDailyExhausted &&
-                  soloAdEntryAvailable ? (
-                  <span className={styles.modePlayStack}>
+                  ) : soloShowHomeLadderCta &&
+                    soloDailyExhausted &&
+                    soloAdEntryAvailable ? (
                     <span
                       className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}
                       style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
                     >
                       <CasualAdReplayVideoIcon />
-                      {adEntryLabel}
+                      {t("lobby.playWatchAdPlain")}
                     </span>
-                  </span>
-                ) : soloShowEntryCtaOnHome &&
-                  soloDailyExhausted &&
-                  soloTicketEntryAvailable ? (
-                  <span className={styles.modePlayStack}>
-                    <span className={styles.modePlayText}>
-                      {t("lobby.playWithTickets", {
-                        price: soloTicketEntryPrice ?? 1,
-                      })}
+                  ) : soloShowHomeLadderCta &&
+                    soloDailyExhausted &&
+                    soloTicketEntryAvailable ? (
+                    <span className={styles.modePlayStack}>
+                      <span className={styles.modePlayText}>
+                        {t("lobby.playWithTickets", {
+                          price: soloTicketEntryPrice ?? 1,
+                        })}
+                      </span>
+                      <span className={styles.modePlaySubtext}>
+                        {t("lobby.playWithTicketsSub", {
+                          remaining: soloTicketEntryRemaining ?? 0,
+                        })}
+                      </span>
                     </span>
-                    <span className={styles.modePlaySubtext}>
-                      {t("lobby.playWithTicketsSub", {
-                        remaining: soloTicketEntryRemaining ?? 0,
-                      })}
+                  ) : (
+                    <span className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}>
+                      {t("lobby.play")}
                     </span>
-                  </span>
-                ) : (
-                  <span className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}>
-                    {soloFreePlayLabel}
-                  </span>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -647,82 +718,81 @@ export function PortalGame3DInner({
                 <div className={styles.modeIconArena} />
                 <span className={styles.modeTitle}>{t("lobby.modes.arena")}</span>
               </div>
-              {authed && multiPlaysToday > 0 ? (
-                <div className={styles.modeQuota}>
-                  {t("lobby.modes.playsToday", {
-                    playsToday: multiPlaysToday,
-                  })}
-                </div>
-              ) : null}
-              <div
-                className={`${styles.modePlayBtn} ${styles.modePlayBtnArena}${
-                  multiStartGrayed ? ` ${styles.modePlayBtnDisabled}` : ""
-                }`}
-                onClick={handleMultiClick}
-                role="button"
-                aria-disabled={multiStartGrayed || undefined}
-                aria-label={
-                  joining === "multi" || queueWaiting
-                    ? t("lobby.matching")
-                    : multiOpenAssignment
-                      ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
-                      : multiShowEntryCtaOnHome &&
-                          multiDailyExhausted &&
-                          multiAdEntryAvailable
-                        ? adEntryLabel
-                        : multiShowEntryCtaOnHome &&
+              <div className={styles.modePlayBlock}>
+                {multiShowHomeLadderCta &&
+                !multiOpenAssignment &&
+                joining !== "multi" &&
+                !queueWaiting
+                  ? renderHomeLadderQuota("multi")
+                  : null}
+                <div
+                  className={`${styles.modePlayBtn} ${styles.modePlayBtnArena}${
+                    multiStartGrayed ? ` ${styles.modePlayBtnDisabled}` : ""
+                  }`}
+                  onClick={handleMultiClick}
+                  role="button"
+                  aria-disabled={multiStartGrayed || undefined}
+                  aria-label={
+                    joining === "multi" || queueWaiting
+                      ? t("lobby.matching")
+                      : multiOpenAssignment
+                        ? `${t("lobby.continue")} · ${t("lobby.continueInProgress")}`
+                        : multiShowHomeLadderCta &&
                             multiDailyExhausted &&
-                            multiTicketEntryAvailable
-                          ? t("lobby.playWithTickets", {
-                              price: multiTicketEntryPrice ?? 2,
-                            })
-                          : multiFreePlayLabel
-                }
-                style={{
-                  cursor: !authed || !multiJoinDisabled ? "pointer" : "not-allowed",
-                }}
-              >
-                {joining === "multi" || queueWaiting ? (
-                  <span className={styles.modePlayText}>{t("lobby.matching")}</span>
-                ) : multiOpenAssignment ? (
-                  <span className={styles.modePlayStack}>
-                    <span className={styles.modePlayText}>{t("lobby.continue")}</span>
-                    <span className={styles.modePlaySubtext}>
-                      {t("lobby.continueInProgress")}
+                            multiAdEntryAvailable
+                          ? t("lobby.playWatchAdPlain")
+                          : multiShowHomeLadderCta &&
+                              multiDailyExhausted &&
+                              multiTicketEntryAvailable
+                            ? t("lobby.playWithTickets", {
+                                price: multiTicketEntryPrice ?? 2,
+                              })
+                            : t("lobby.play")
+                  }
+                  style={{
+                    cursor: !authed || !multiJoinDisabled ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {joining === "multi" || queueWaiting ? (
+                    <span className={styles.modePlayText}>{t("lobby.matching")}</span>
+                  ) : multiOpenAssignment ? (
+                    <span className={styles.modePlayStack}>
+                      <span className={styles.modePlayText}>{t("lobby.continue")}</span>
+                      <span className={styles.modePlaySubtext}>
+                        {t("lobby.continueInProgress")}
+                      </span>
                     </span>
-                  </span>
-                ) : multiShowEntryCtaOnHome &&
-                  multiDailyExhausted &&
-                  multiAdEntryAvailable ? (
-                  <span className={styles.modePlayStack}>
+                  ) : multiShowHomeLadderCta &&
+                    multiDailyExhausted &&
+                    multiAdEntryAvailable ? (
                     <span
                       className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}
                       style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
                     >
                       <CasualAdReplayVideoIcon />
-                      {adEntryLabel}
+                      {t("lobby.playWatchAdPlain")}
                     </span>
-                  </span>
-                ) : multiShowEntryCtaOnHome &&
-                  multiDailyExhausted &&
-                  multiTicketEntryAvailable ? (
-                  <span className={styles.modePlayStack}>
-                    <span className={styles.modePlayText}>
-                      {t("lobby.playWithTickets", {
-                        price: multiTicketEntryPrice ?? 2,
-                      })}
+                  ) : multiShowHomeLadderCta &&
+                    multiDailyExhausted &&
+                    multiTicketEntryAvailable ? (
+                    <span className={styles.modePlayStack}>
+                      <span className={styles.modePlayText}>
+                        {t("lobby.playWithTickets", {
+                          price: multiTicketEntryPrice ?? 2,
+                        })}
+                      </span>
+                      <span className={styles.modePlaySubtext}>
+                        {t("lobby.playWithTicketsSub", {
+                          remaining: multiTicketEntryRemaining ?? 0,
+                        })}
+                      </span>
                     </span>
-                    <span className={styles.modePlaySubtext}>
-                      {t("lobby.playWithTicketsSub", {
-                        remaining: multiTicketEntryRemaining ?? 0,
-                      })}
+                  ) : (
+                    <span className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}>
+                      {t("lobby.play")}
                     </span>
-                  </span>
-                ) : (
-                  <span className={`${styles.modePlayText} ${styles.modePlayTextCompact}`}>
-                    {multiFreePlayLabel}
-                  </span>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>

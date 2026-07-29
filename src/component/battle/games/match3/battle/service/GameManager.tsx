@@ -19,6 +19,7 @@ import {
   buildMatch3ScoreReport,
   isCasualSoloP75ChallengeTemplate,
   shouldOpenCasualTableSummaryAfterScoreReport,
+  shouldRefreshPortalAdReplayQuota,
   type CasualGameScoreReportUI,
 } from '../../../shared/casualGameScoreReportUI';
 import {
@@ -134,6 +135,7 @@ interface IMatch3GameContext {
   postCasualReplayTokenCount: number;
   postCasualReplayWindowEndsAt?: number;
   postCasualAdReplayDailyRemaining?: number;
+  postCasualAdReplayDailyCap?: number;
   casualReplayBusy: boolean;
   replayCasualRun: () => Promise<void>;
   triathlonSessionActive: boolean;
@@ -208,6 +210,9 @@ export const Match3GameProvider: React.FC<Props> = ({
   const [postCasualAdReplayDailyRemaining, setPostCasualAdReplayDailyRemaining] = useState<
     number | undefined
   >(undefined);
+  const [postCasualAdReplayDailyCap, setPostCasualAdReplayDailyCap] = useState<
+    number | undefined
+  >(undefined);
   const [casualReplayBusy, setCasualReplayBusy] = useState(false);
   const [triathlonDeferTableSummary, setTriathlonDeferTableSummary] = useState(false);
   const [watchTarget, setWatchTarget] = useState<Match3WatchContext | null>(null);
@@ -263,6 +268,7 @@ export const Match3GameProvider: React.FC<Props> = ({
         setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
         setReplayMode: setPostCasualReplayMode,
         setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
       });
     },
   });
@@ -432,8 +438,11 @@ export const Match3GameProvider: React.FC<Props> = ({
           setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
           setReplayMode: setPostCasualReplayMode,
           setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+          setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
         });
-      } else {
+      }
+      // 多人竞技：Arena ingest 常缺 adReplayDailyCap；Portal query 带完整 N/M。
+      if (shouldRefreshPortalAdReplayQuota(casualTournamentId) || !settle.tableSummary) {
         try {
           const summary = await fetchCasualAsyncTableSummaryForGame({
             matchGameId: gid,
@@ -448,6 +457,7 @@ export const Match3GameProvider: React.FC<Props> = ({
               setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
               setReplayMode: setPostCasualReplayMode,
               setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+              setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
             });
           }
         } catch (e) {
@@ -994,6 +1004,7 @@ export const Match3GameProvider: React.FC<Props> = ({
     postCasualReplayTokenCount,
     postCasualReplayWindowEndsAt,
     postCasualAdReplayDailyRemaining,
+    postCasualAdReplayDailyCap,
     casualReplayBusy,
     replayCasualRun,
     triathlonSessionActive,

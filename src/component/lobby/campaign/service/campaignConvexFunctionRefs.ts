@@ -6,16 +6,24 @@ import { makeFunctionReference } from "convex/server";
  * Store CRUD / store_staff live in SSO; redeem validate/redeem/void stay here via storeId.
  */
 export const merchantCampaignFns = {
+  // Public campaign reads are plain **queries** that take an already-resolved
+  // `partnerId` — the FE resolves partnerSlug -> partnerId itself via
+  // `usePartnerManager()` (SSO `PartnerManager.findByPartnerSlug`), same
+  // pattern Portal uses for `/gc/{slug}`. No SSO HTTP round-trip happens in
+  // the Campaign backend for these. See service/merchant/merchantCampaigns.ts.
   getCampaignPublic: makeFunctionReference<"query">(
     "service/merchant/merchantCampaigns:getCampaignPublic"
   ),
 
-  resolvePartnerByPartnerSlug: makeFunctionReference<"query">(
-    "service/merchant/merchantCampaigns:resolvePartnerByPartnerSlug"
-  ),
-
   listPartnerCampaignsPublic: makeFunctionReference<"query">(
     "service/merchant/merchantCampaigns:listPartnerCampaignsPublic"
+  ),
+
+  // Slug-resolving action kept for non-FE / legacy callers only — the FE
+  // resolves partnerSlug -> partnerId via `usePartnerManager()` instead and
+  // does not call this. See merchantCampaignPublicActions.ts.
+  resolvePartnerByPartnerSlug: makeFunctionReference<"action">(
+    "service/merchant/merchantCampaignPublicActions:resolvePartnerByPartnerSlug"
   ),
 
   getMyCampaignCoupon: makeFunctionReference<"query">(
@@ -46,20 +54,20 @@ export const merchantCampaignFns = {
     "service/merchant/campaignSettleHook:listPlayerCouponsForPartner"
   ),
 
-  getCampaignPlayerProfile: makeFunctionReference<"query">(
+  getCampaignPlayerProfile: makeFunctionReference<"action">(
     "service/player/campaignPlayerProfile:getCampaignPlayerProfile"
   ),
 
-  updateCampaignDisplayName: makeFunctionReference<"mutation">(
+  updateCampaignDisplayName: makeFunctionReference<"action">(
     "service/player/campaignPlayerProfile:updateCampaignDisplayName"
   ),
 
-  syncCampaignContactProfile: makeFunctionReference<"mutation">(
+  syncCampaignContactProfile: makeFunctionReference<"action">(
     "service/player/campaignPlayerProfile:syncCampaignContactProfile"
   ),
 
-  listCampaignCouponsForStaff: makeFunctionReference<"query">(
-    "service/merchant/campaignSettleHook:listCampaignCouponsForStaff"
+  listCampaignCouponsForStaff: makeFunctionReference<"action">(
+    "service/merchant/campaignSettleHookActions:listCampaignCouponsForStaff"
   ),
 
   /** Partner-scoped campaign CRUD (actions). */
@@ -95,18 +103,6 @@ export const merchantCampaignFns = {
     "service/merchant/campaignPartnerGameActions:attachCampaignPoster"
   ),
 
-  updateMerchantBrandUrl: makeFunctionReference<"action">(
-    "service/merchant/campaignPartnerGameActions:updatePartnerBrandUrl"
-  ),
-
-  approveMerchantTheme: makeFunctionReference<"action">(
-    "service/merchant/campaignPartnerGameActions:approvePartnerTheme"
-  ),
-
-  syncThemeFromUrl: makeFunctionReference<"action">(
-    "service/merchant/merchantThemeSync:syncThemeFromUrl"
-  ),
-
   validateCouponCode: makeFunctionReference<"action">(
     "service/merchant/merchantRedeemActions:validateCouponCode"
   ),
@@ -117,6 +113,11 @@ export const merchantCampaignFns = {
 
   voidCoupon: makeFunctionReference<"action">(
     "service/merchant/merchantRedeemActions:voidCoupon"
+  ),
+
+  /** Partner-admin void by campaign + code (no storeId) — used by the merchant coupon list. */
+  voidCouponForStaff: makeFunctionReference<"action">(
+    "service/merchant/merchantRedeemActions:voidCouponForStaff"
   ),
 
   getCampaignReport: makeFunctionReference<"query">(
@@ -137,10 +138,6 @@ export const merchantCampaignFns = {
   ),
   archiveCouponDef: makeFunctionReference<"action">(
     "service/merchant/campaignPartnerGameActions:archiveCouponDef"
-  ),
-
-  upsertPartnerBrand: makeFunctionReference<"action">(
-    "service/merchant/campaignPartnerGameActions:upsertPartnerBrand"
   ),
 
   passkitAvailability: makeFunctionReference<"query">(

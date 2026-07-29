@@ -4,6 +4,7 @@ import type { Id } from "../../../_generated/dataModel";
 import type { QueryCtx } from "../../../_generated/server";
 import { internalQuery } from "../../../_generated/server";
 import { authedQuery } from "../../../custom/session";
+import { clampAdEntryDailyCap } from "../../../data/portalAdEntryConfig";
 import {
   getPortalDailyPlayLimits,
   type PortalDailyPlayLimits,
@@ -29,7 +30,11 @@ import { resolveFreePlayDailyCap } from "../../ads/portalTicketEntryService";
 import {
   quotaScopeFromSettings,
   resolvePlayEntrySettings,
+  ticketConfigFromSettings,
 } from "../../ads/resolvePlayEntrySettings";
+
+/** How this join pays the free→ad→ticket ladder. */
+export type PortalPlayEntryLane = "free" | "ad" | "ticket";
 
 export type PortalDailyPlayMode = "solo" | "multi";
 
@@ -207,6 +212,18 @@ export async function assertPortalDailyPlayLimit(
     nowMs?: number;
     dayTimezone?: string;
     limits?: PortalDailyPlayLimits;
+    /**
+     * Ad/ticket entries that will be consumed for this join but are not bumped
+     * yet (begin-ad / pre-consume checks). After consume, prefer entryLane.
+     */
+    pendingAdEntries?: number;
+    pendingTicketEntries?: number;
+    /**
+     * Join payment lane. After ad/ticket consume (usage already bumped, play row
+     * not inserted yet), pass "ad"/"ticket" so open-table rechecks use the hard
+     * ladder ceiling instead of treating the join as free.
+     */
+    entryLane?: PortalPlayEntryLane;
   }
 ): Promise<{ ok: true } | { ok: false; error: "daily_play_limit_reached" }> {
   const def = getPortalTournamentDefinition(args.templateId);
@@ -231,12 +248,21 @@ export async function assertPortalDailyPlayLimit(
   const freeCap = args.limits
     ? (mode === "solo" ? limits.solo : limits.multi)
     : await resolveFreePlayDailyCap(ctx, args.uid, mode, entryCtx);
+  const adCap = clampAdEntryDailyCap(
+    mode === "solo" ? settings.adEntrySoloDailyCap : settings.adEntryMultiDailyCap,
+    mode
+  );
+  const ticketCap = ticketConfigFromSettings(settings, mode).dailyCap;
   const dayKey = dailyPeriodKey(args.nowMs ?? Date.now());
   const [adUsed, ticketUsed] = await Promise.all([
     readAdEntryUsedToday(ctx, args.uid, dayKey, mode, entryCtx, quotaScope),
     readTicketEntryUsedToday(ctx, args.uid, dayKey, mode, entryCtx, quotaScope),
   ]);
-  const maxPlaysPerDay = freeCap + adUsed + ticketUsed;
+  const pendingAd = Math.max(0, Math.floor(args.pendingAdEntries ?? 0));
+  const pendingTicket = Math.max(0, Math.floor(args.pendingTicketEntries ?? 0));
+  const entryLane: PortalPlayEntryLane =
+    args.entryLane ??
+    (pendingAd > 0 ? "ad" : pendingTicket > 0 ? "ticket" : "free");
 
   const playsToday = await countPortalPlaysForQuotaScope(ctx, {
     uid: args.uid,
@@ -247,7 +273,30 @@ export async function assertPortalDailyPlayLimit(
     nowMs: args.nowMs,
     dayTimezone: args.dayTimezone,
   });
-  if (playsToday >= maxPlaysPerDay) {
+
+  // Absolute ladder ceiling (free + ad + ticket caps).
+  const hardMax = freeCap + adCap + ticketCap;
+  if (playsToday >= hardMax) {
+    return { ok: false, error: "daily_play_limit_reached" };
+  }
+
+  if (entryLane === "free") {
+    // Strict free lane: do not let prior ad/ticket usage unlock extra free joins.
+    if (playsToday >= freeCap) {
+      return { ok: false, error: "daily_play_limit_reached" };
+    }
+    return { ok: true };
+  }
+
+  // Ad/ticket lane (begin before consume, or open-table after consume).
+  if (entryLane === "ad") {
+    if (adUsed + pendingAd > adCap) {
+      return { ok: false, error: "daily_play_limit_reached" };
+    }
+    return { ok: true };
+  }
+
+  if (ticketUsed + pendingTicket > ticketCap) {
     return { ok: false, error: "daily_play_limit_reached" };
   }
   return { ok: true };
@@ -260,6 +309,11 @@ export const assertPortalDailyPlayLimitQuery = internalQuery({
     templateId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
     dayTimezone: v.optional(v.string()),
+    pendingAdEntries: v.optional(v.number()),
+    pendingTicketEntries: v.optional(v.number()),
+    entryLane: v.optional(
+      v.union(v.literal("free"), v.literal("ad"), v.literal("ticket"))
+    ),
   },
   handler: async (ctx, args) => {
     return await assertPortalDailyPlayLimit(ctx, args);

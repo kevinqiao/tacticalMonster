@@ -6,7 +6,8 @@ import {
   type OpenCasualRunAssignment,
 } from "./casualOpenRunAssignment";
 
-export const CASUAL_MATCH_OPEN_TIMEOUT_MS = 60_000;
+/** Align with portal_match_queue_TIMEOUT_MS (peer wait then solo open). */
+export const CASUAL_MATCH_OPEN_TIMEOUT_MS = 5_000;
 
 export type AwaitOpenCasualRunMatchWatch = {
   templateId: string;

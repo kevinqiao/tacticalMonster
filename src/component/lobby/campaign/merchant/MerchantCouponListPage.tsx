@@ -29,28 +29,66 @@ function paramsFromLocation(): { partnerId: number; campaignId: string } {
   };
 }
 
+/** Portal backpack item shape returned by `listCampaignCouponsForStaff`. */
+type PortalCouponItem = {
+  itemId: string;
+  code: string;
+  title?: string;
+  rewardText?: string;
+  campaignId: string;
+  uid: string;
+  status: string;
+  issuedAt: number;
+  expiresAt?: number | null;
+  redeemedAt?: number | null;
+  redeemedAtStoreId?: string | null;
+};
+
+/** Local display row — mapped from Portal's backpack status vocabulary. */
 type CouponRow = {
   couponId: string;
   code: string;
   campaignId: string;
   uid: string;
-  status: string;
+  status: "issued" | "redeemed" | "void" | "expired" | string;
   issuedAt: number;
-  activatesAt?: number;
+  activatesAt: number;
   expiresAt: number;
   redeemedAt?: number;
   redeemedAtStoreId?: string;
-  source?: "pass_run" | "campaign_settle";
-  runTournamentId?: string;
-  matchId?: string;
-  settlementId?: string;
   ruleId: string;
   rewardSnapshot?: { displayText?: string; itemLabel?: string };
 };
 
-/** DB may still say `issued` until redeem/void patches it — treat past expiresAt as expired. */
-function isCouponExpired(c: CouponRow, now = Date.now()): boolean {
-  return c.status === "expired" || (c.status === "issued" && now > c.expiresAt);
+/** Portal backpack status (owned/pending_use/redeemed/void/…) → merchant display status. */
+function couponRowFromPortalItem(item: PortalCouponItem, now = Date.now()): CouponRow {
+  const expiresAt = item.expiresAt ?? 0;
+  let status: CouponRow["status"];
+  if (item.status === "redeemed") {
+    status = "redeemed";
+  } else if (item.status === "void") {
+    status = "void";
+  } else if (expiresAt && now > expiresAt) {
+    status = "expired";
+  } else if (item.status === "owned" || item.status === "pending_use") {
+    status = "issued";
+  } else {
+    status = item.status;
+  }
+  return {
+    couponId: item.itemId,
+    code: item.code,
+    campaignId: item.campaignId,
+    uid: item.uid,
+    status,
+    issuedAt: item.issuedAt,
+    activatesAt: item.issuedAt,
+    expiresAt,
+    redeemedAt: item.redeemedAt ?? undefined,
+    redeemedAtStoreId: item.redeemedAtStoreId ?? undefined,
+    ruleId: "—",
+    rewardSnapshot: { displayText: item.rewardText, itemLabel: item.title },
+  };
 }
 
 function couponStatusMark(
@@ -68,14 +106,12 @@ function couponStatusMark(
     const label = t("coupons.redeemed");
     return { label, statusLabel: label };
   }
-  if (isCouponExpired(c)) {
+  if (c.status === "expired") {
     const label = t("coupons.expired");
     return { label, statusLabel: label };
   }
   return null;
 }
-
-
 
 export const MerchantCouponListInner: React.FC<{
   visible: number;
@@ -83,7 +119,6 @@ export const MerchantCouponListInner: React.FC<{
   campaignId: string;
   embedded?: boolean;
 }> = ({ visible, partnerId, campaignId, embedded }) => {
-
   const { t, i18n } = useTranslation("campaign.merchant");
 
   const { askAuth } = useUserManager();
@@ -122,80 +157,46 @@ export const MerchantCouponListInner: React.FC<{
   }, [authed, partnerId]);
 
   const refresh = useCallback(async () => {
-
     if (!http || !authed || !partnerId) {
-
       setRows([]);
-
       return;
-
     }
-
     setLoading(true);
-
     try {
-
-      const list = (await http.query(fns.listCampaignCouponsForStaff, {
-
+      const list = (await http.action(fns.listCampaignCouponsForStaff, {
         partnerId,
-
         campaignId: campaignId || undefined,
-
         limit: 200,
-
-      })) as CouponRow[];
-
-      setRows(list ?? []);
-
+      })) as PortalCouponItem[];
+      setRows((list ?? []).map((item) => couponRowFromPortalItem(item)));
     } finally {
-
       setLoading(false);
-
     }
-
   }, [http, authed, partnerId, campaignId, fns.listCampaignCouponsForStaff]);
 
-
-
   useEffect(() => {
-
     void refresh();
-
   }, [refresh]);
 
-
-
-  const voidCoupon = async (couponId: string) => {
-
+  const voidCoupon = async (c: CouponRow) => {
     if (!http || !authed || !partnerId) {
-
       askAuth({});
-
       return;
-
     }
-
     try {
-
-      await http.mutation(fns.voidCoupon, { partnerId, couponId });
-
+      await http.action(fns.voidCouponForStaff, {
+        partnerId,
+        campaignId: c.campaignId,
+        code: c.code,
+      });
       setNote(campaignSuccessMessage("voided"));
-
       await refresh();
-
     } catch (e) {
-
       setNote(campaignAdminErrorMessage(e));
-
     }
-
   };
 
-
-
   if (visible === 0) return null;
-
-
 
   const locale = i18n.language;
 
@@ -228,7 +229,7 @@ export const MerchantCouponListInner: React.FC<{
             <p className="merchant-note">
               {t("coupons.issuedAt", {
                 issuedAt: new Date(c.issuedAt).toLocaleString(locale),
-                activatesAt: new Date(c.activatesAt ?? c.issuedAt).toLocaleString(locale),
+                activatesAt: new Date(c.activatesAt).toLocaleString(locale),
                 expiresAt: new Date(c.expiresAt).toLocaleString(locale),
               })}
             </p>
@@ -239,20 +240,10 @@ export const MerchantCouponListInner: React.FC<{
                 })}
               </p>
             ) : null}
-            <p className="merchant-note">
-              {c.source === "campaign_settle"
-                ? t("coupons.metaSettle", {
-                    campaignId: c.campaignId,
-                    settlementId: c.settlementId ?? "—",
-                  })
-                : t("coupons.metaPassRun", {
-                    campaignId: c.campaignId,
-                    runTournamentId: c.runTournamentId ?? "—",
-                  })}
-            </p>
+            <p className="merchant-note">{t("coupons.meta", { campaignId: c.campaignId })}</p>
             {c.status === "issued" && !mark ? (
               <div className="merchant-nav">
-                <button type="button" className="merchant-btn" onClick={() => void voidCoupon(c.couponId)}>
+                <button type="button" className="merchant-btn" onClick={() => void voidCoupon(c)}>
                   {t("coupons.void")}
                 </button>
               </div>
@@ -291,8 +282,6 @@ export const MerchantCouponListInner: React.FC<{
   );
 };
 
-
-
 const MerchantCouponListPage: React.FC<PageProp> = ({ visible, data }) => {
   const fromLoc = paramsFromLocation();
   const fromData =
@@ -318,5 +307,3 @@ const MerchantCouponListPage: React.FC<PageProp> = ({ visible, data }) => {
 };
 
 export default MerchantCouponListPage;
-
-

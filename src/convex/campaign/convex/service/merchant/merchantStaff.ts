@@ -1,35 +1,23 @@
 import type { QueryCtx, MutationCtx } from "../../_generated/server";
 
-export async function getPartnerBrandBySlug(ctx: QueryCtx, slug: string) {
-  return await ctx.db
-    .query("partner_brands")
-    .withIndex("by_slug", (q) => q.eq("slug", slug.trim().toLowerCase()))
-    .unique();
-}
+// `partner_brands` removed — slug→partnerId now resolves only via SSO
+// `partner.slug` (see service/bridge/partnerSlugResolveBridge.ts). Callers
+// that used to resolve by partnerSlug now resolve partnerId via SSO first
+// (in an action) and then look up campaigns directly by partnerId here.
 
-export async function getPartnerBrandByPartnerId(ctx: QueryCtx, partnerId: number) {
-  return await ctx.db
-    .query("partner_brands")
-    .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerId))
-    .unique();
-}
-
-/** Public campaign resolve: partner_brands.slug → partnerId → campaign. */
-export async function getCampaignBySlugs(
+/** Resolve a campaign by (partnerId, campaignSlug) — partnerId already resolved via SSO. */
+export async function getCampaignByPartnerIdAndSlug(
   ctx: QueryCtx,
-  partnerSlug: string,
+  partnerId: number,
   campaignSlug: string
 ) {
-  const brand = await getPartnerBrandBySlug(ctx, partnerSlug);
-  if (!brand) return null;
   const campaign = await ctx.db
     .query("campaigns")
     .withIndex("by_partner_slug", (q) =>
-      q.eq("partnerId", brand.partnerId).eq("slug", campaignSlug.trim().toLowerCase())
+      q.eq("partnerId", partnerId).eq("slug", campaignSlug.trim().toLowerCase())
     )
     .unique();
-  if (!campaign) return null;
-  return { brand, campaign };
+  return campaign ?? null;
 }
 
 export function isCampaignLive(campaign: {

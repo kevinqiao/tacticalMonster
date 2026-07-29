@@ -8,7 +8,11 @@ import {
   platformAdminErrorMessage,
   platformAdminSuccessMessage,
 } from "./platformAdminHelpers";
+import PartnerAdminAuthChannelsModal from "../../partner/admin/PartnerAdminAuthChannelsModal";
+import PartnerAdminBrandModal from "../../partner/admin/PartnerAdminBrandModal";
+import PartnerAdminProfileModal from "../../partner/admin/PartnerAdminProfileModal";
 import PlatformAdminToolbar from "./PlatformAdminToolbar";
+import PlatformMaintenancePanel from "./PlatformMaintenancePanel";
 import PlatformPartnerBaseSettingsModal from "./PlatformPartnerBaseSettingsModal";
 import PlatformPartnerPortalGamesModal from "./PlatformPartnerPortalGamesModal";
 import PlatformPartnerShopModal from "./PlatformPartnerShopModal";
@@ -70,6 +74,18 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
     pid: number;
     name: string;
   } | null>(null);
+  const [authModalPartner, setAuthModalPartner] = useState<{
+    pid: number;
+    name: string;
+  } | null>(null);
+  const [brandModalPartner, setBrandModalPartner] = useState<{
+    pid: number;
+    name: string;
+  } | null>(null);
+  const [profileModalPartner, setProfileModalPartner] = useState<{
+    pid: number;
+    name: string;
+  } | null>(null);
   const [editingMember, setEditingMember] = useState<PlatformStaffEditMember | null>(null);
 
   const canManageTeam = access?.role === "owner";
@@ -113,6 +129,7 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
       await deletePartner({ pid: p.pid });
       if (teamModalPartner?.pid === p.pid) setTeamModalPartner(null);
       if (portalModalPartner?.pid === p.pid) setPortalModalPartner(null);
+      if (authModalPartner?.pid === p.pid) setAuthModalPartner(null);
       setNote(`${platformAdminSuccessMessage("partnerDeleted")} PID ${p.pid}。`);
     } catch (e) {
       setNote(platformAdminErrorMessage(e));
@@ -216,11 +233,13 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
       <h1>平台运营</h1>
       <p className="merchant-note">
         使用 <strong>admin / admin</strong> 登录（Web 账号 + <code>platform_staff</code> 权限）。
-        Partner 日常配置（资料、登录配置等）请使用 <a href="/partner/admin">/partner/admin</a>。
-        Portal 游戏激活权由平台在此管理。
+        资料、登录配置、品牌、基础设置、Game Lobby、商店等可在下方各 Partner 卡片内直接打开；Partner
+        侧控制台仍可用 <a href="/partner/admin">/partner/admin</a>。
       </p>
 
       <>
+          <PlatformMaintenancePanel canManage={canManagePartners} />
+
           <section>
             <h2>创建 Partner</h2>
             {canManagePartners ? (
@@ -230,11 +249,11 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                   <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Games" />
                 </label>
                 <label className="merchant-field">
-                  Host（可选）
+                  官网 URL（可选）
                   <input
                     value={host}
                     onChange={(e) => setHost(e.target.value)}
-                    placeholder="games.example.com"
+                    placeholder="https://example.com"
                   />
                 </label>
                 <fieldset className="merchant-field merchant-field--radio">
@@ -294,14 +313,33 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
                     {capabilityBadges(p.capabilities)}
                   </p>
                   <nav className="merchant-nav">
-                    <a href={`/partner/admin?partnerId=${p.pid}&section=profile`}>资料</a>
-                    <a href={`/partner/admin?partnerId=${p.pid}&section=auth`}>登录配置</a>
+                    <button
+                      type="button"
+                      className="merchant-link-btn"
+                      onClick={() => setProfileModalPartner({ pid: p.pid, name: p.name })}
+                    >
+                      资料
+                    </button>
+                    <button
+                      type="button"
+                      className="merchant-link-btn"
+                      onClick={() => setAuthModalPartner({ pid: p.pid, name: p.name })}
+                    >
+                      登录配置
+                    </button>
                     <button
                       type="button"
                       className="merchant-link-btn"
                       onClick={() => setTeamModalPartner({ pid: p.pid, name: p.name })}
                     >
                       团队
+                    </button>
+                    <button
+                      type="button"
+                      className="merchant-link-btn"
+                      onClick={() => setBrandModalPartner({ pid: p.pid, name: p.name })}
+                    >
+                      品牌
                     </button>
                     {p.capabilities?.portalGames || canManagePartners ? (
                       <>
@@ -494,6 +532,27 @@ const PlatformAdminHomePage: React.FC<PageProp> = ({ visible }) => {
           partnerName={shopModalPartner.name}
           canEdit={canManagePartners}
           onClose={() => setShopModalPartner(null)}
+        />
+      ) : null}
+      {authModalPartner ? (
+        <PartnerAdminAuthChannelsModal
+          partnerId={authModalPartner.pid}
+          partnerName={authModalPartner.name}
+          onClose={() => setAuthModalPartner(null)}
+        />
+      ) : null}
+      {brandModalPartner ? (
+        <PartnerAdminBrandModal
+          partnerId={brandModalPartner.pid}
+          partnerName={brandModalPartner.name}
+          onClose={() => setBrandModalPartner(null)}
+        />
+      ) : null}
+      {profileModalPartner ? (
+        <PartnerAdminProfileModal
+          partnerId={profileModalPartner.pid}
+          partnerName={profileModalPartner.name}
+          onClose={() => setProfileModalPartner(null)}
         />
       ) : null}
     </div>

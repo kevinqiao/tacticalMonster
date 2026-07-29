@@ -1,32 +1,42 @@
 import { describe, expect, it } from "vitest";
 
-import { PARTNER_GAME_TYPES } from "@/convex/portal/convex/data/partnerGameRegistry";
 import {
+  isLegacyFirstPartyGameSegment,
   parsePortalPathFromPathname,
   portalLaunchPath,
   portalLobbyPath,
 } from "@/host/util/portalPathParse";
 
 describe("parsePortalPathFromPathname", () => {
-  it("parses first-party /gc/{gameType}", () => {
-    expect(parsePortalPathFromPathname("/gc/block_blast")).toEqual({
+  it("parses /gc as first-party default lobby", () => {
+    expect(parsePortalPathFromPathname("/gc")).toEqual({
       partnerSlug: null,
       partnerKey: null,
       lobbySlug: null,
-      gameType: "block_blast",
       isFirstPartyPortal: true,
-      isLobbyPath: false,
+      isLobbyPath: true,
     });
   });
 
-  it("parses partner /gc/{partnerSlug}/{gameType}", () => {
+  it("treats former game deep links as partner-slug candidates", () => {
+    expect(parsePortalPathFromPathname("/gc/block_blast")).toEqual({
+      partnerSlug: "block_blast",
+      partnerKey: "block_blast",
+      lobbySlug: null,
+      isFirstPartyPortal: false,
+      isLobbyPath: true,
+    });
+    expect(isLegacyFirstPartyGameSegment("block_blast")).toBe(true);
+    expect(isLegacyFirstPartyGameSegment("blockblast")).toBe(true);
+  });
+
+  it("parses partner /gc/{partnerSlug}/{lobbySlug} even when slug matches a game id", () => {
     expect(parsePortalPathFromPathname("/gc/acme/solitaire")).toEqual({
       partnerSlug: "acme",
       partnerKey: "acme",
-      lobbySlug: null,
-      gameType: "solitaire",
+      lobbySlug: "solitaire",
       isFirstPartyPortal: false,
-      isLobbyPath: false,
+      isLobbyPath: true,
     });
   });
 
@@ -35,19 +45,24 @@ describe("parsePortalPathFromPathname", () => {
       partnerSlug: "acme",
       partnerKey: "acme",
       lobbySlug: "summer",
-      gameType: null,
       isFirstPartyPortal: false,
       isLobbyPath: true,
     });
   });
 
-  it("parses /gc as first-party default lobby", () => {
-    expect(parsePortalPathFromPathname("/gc")).toEqual({
-      partnerSlug: null,
-      partnerKey: null,
-      lobbySlug: null,
-      gameType: null,
-      isFirstPartyPortal: true,
+  it("treats exact game-type ids as lobby slugs under a partner", () => {
+    expect(parsePortalPathFromPathname("/gc/main/blockblast")).toEqual({
+      partnerSlug: "main",
+      partnerKey: "main",
+      lobbySlug: "blockblast",
+      isFirstPartyPortal: false,
+      isLobbyPath: true,
+    });
+    expect(parsePortalPathFromPathname("/gc/main/block_blast")).toEqual({
+      partnerSlug: "main",
+      partnerKey: "main",
+      lobbySlug: "block_blast",
+      isFirstPartyPortal: false,
       isLobbyPath: true,
     });
   });
@@ -61,7 +76,6 @@ describe("parsePortalPathFromPathname", () => {
       partnerSlug: null,
       partnerKey: null,
       lobbySlug: null,
-      gameType: null,
       isFirstPartyPortal: false,
       isLobbyPath: false,
     });
@@ -72,25 +86,16 @@ describe("parsePortalPathFromPathname", () => {
       partnerSlug: "acme",
       partnerKey: "acme",
       lobbySlug: null,
-      gameType: null,
       isFirstPartyPortal: false,
       isLobbyPath: true,
     });
   });
 
   it("builds launch and lobby paths", () => {
-    expect(portalLaunchPath(null, "match_3")).toBe("/gc/match_3");
-    expect(portalLaunchPath("acme", "tower_arena")).toBe("/gc/acme/tower_arena");
+    expect(portalLaunchPath(null, "match_3")).toBe("/gc");
+    expect(portalLaunchPath("acme", "tower_arena")).toBe("/gc/acme");
     expect(portalLobbyPath("acme")).toBe("/gc/acme");
     expect(portalLobbyPath("acme", "summer")).toBe("/gc/acme/summer");
     expect(portalLobbyPath(null)).toBe("/gc");
-  });
-
-  it("recognizes all registered game types in first-party URLs", () => {
-    for (const gameType of PARTNER_GAME_TYPES) {
-      const parsed = parsePortalPathFromPathname(`/gc/${gameType}`);
-      expect(parsed.isFirstPartyPortal).toBe(true);
-      expect(parsed.gameType).toBe(gameType);
-    }
   });
 });

@@ -14,11 +14,13 @@ import {
   loadRolloutSummariesForSeed,
   loadUsedSeedIdsForUids,
   matchesRolloutFilter,
+  pickDeterministicSeedAnyTier,
   pickDeterministicSeedForTier,
   recordPlayerSeedsForMatch,
   resolvePoolVersion,
   shuffleRolloutsByKey,
   type CatalogGameType,
+  type SeedPoolEntryDoc,
 } from "./seedPoolStore";
 import type { DatabaseReader } from "../../_generated/server";
 import { createIngestTiming } from "../tournament/submit/casualIngestTiming";
@@ -29,7 +31,7 @@ const scoreBand = v.object({
   count: v.optional(v.number()),
 });
 
-/** 首选档位 → 其余档位回退（避免 multi medium 空池时开桌失败） */
+/** 首选档位 → 其余档位回退（避免首选空池时开桌失败） */
 function uniqueSeedTiersToTry(
   preferred: "easy" | "medium" | "hard"
 ): Array<"easy" | "medium" | "hard"> {
@@ -37,10 +39,45 @@ function uniqueSeedTiersToTry(
   return [preferred, ...rest];
 }
 
+async function pickSeedWithOptionalTier(
+  db: DatabaseReader,
+  args: {
+    gameType: CatalogGameType;
+    version: string;
+    /** Omit / null = pick across all tiers. */
+    preferredTier: "easy" | "medium" | "hard" | null | undefined;
+    sessionKey: string;
+    excludeSeedIds: ReadonlySet<string>;
+  }
+): Promise<SeedPoolEntryDoc | null> {
+  if (args.preferredTier == null) {
+    return pickDeterministicSeedAnyTier(
+      db,
+      args.gameType,
+      args.version,
+      args.sessionKey,
+      args.excludeSeedIds
+    );
+  }
+  for (const tryTier of uniqueSeedTiersToTry(args.preferredTier)) {
+    const entry = await pickDeterministicSeedForTier(
+      db,
+      args.gameType,
+      args.version,
+      tryTier,
+      args.sessionKey,
+      args.excludeSeedIds
+    );
+    if (entry) return entry;
+  }
+  return null;
+}
+
 export const pickCasualMatchSeed = internalMutation({
   args: {
     gameType: catalogGameType,
     matchId: v.string(),
+    /** Omit for no preferred tier (whole-pool pick). */
     tier: v.optional(catalogSeedTier),
     poolVersion: v.optional(v.string()),
     sessionKey: v.string(),
@@ -48,7 +85,8 @@ export const pickCasualMatchSeed = internalMutation({
   },
   handler: async (ctx, args) => {
     const gameType = args.gameType as CatalogGameType;
-    const tier = args.tier ?? "easy";
+    // Keep explicit undefined: multi passes no tier; solo passes "easy".
+    const preferredTier = args.tier;
     const uids = [...new Set(args.uids.map((u) => u.trim()).filter(Boolean))];
     if (uids.length === 0) {
       return { ok: false as const, error: "missing_uids" as const };
@@ -72,31 +110,21 @@ export const pickCasualMatchSeed = internalMutation({
     }
 
     const usedSeedIds = await loadUsedSeedIdsForUids(ctx.db, gameType, version, uids);
-    const tierOrder = uniqueSeedTiersToTry(tier);
-    let entry = null as Awaited<ReturnType<typeof pickDeterministicSeedForTier>>;
-    for (const tryTier of tierOrder) {
-      entry = await pickDeterministicSeedForTier(
-        ctx.db,
+    let entry = await pickSeedWithOptionalTier(ctx.db, {
+      gameType,
+      version,
+      preferredTier,
+      sessionKey: args.sessionKey,
+      excludeSeedIds: usedSeedIds,
+    });
+    if (!entry) {
+      entry = await pickSeedWithOptionalTier(ctx.db, {
         gameType,
         version,
-        tryTier,
-        args.sessionKey,
-        usedSeedIds
-      );
-      if (entry) break;
-    }
-    if (!entry) {
-      for (const tryTier of tierOrder) {
-        entry = await pickDeterministicSeedForTier(
-          ctx.db,
-          gameType,
-          version,
-          tryTier,
-          `${args.sessionKey}|reuse`,
-          new Set()
-        );
-        if (entry) break;
-      }
+        preferredTier,
+        sessionKey: `${args.sessionKey}|reuse`,
+        excludeSeedIds: new Set(),
+      });
     }
     if (!entry) {
       return { ok: false as const, error: "no_unused_seed_for_tier" as const };

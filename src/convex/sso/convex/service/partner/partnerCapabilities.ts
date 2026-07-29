@@ -15,8 +15,8 @@ const DEFAULT_CAPABILITIES: PartnerCapabilities = {
 
 export function readPartnerCapabilities(partner: {
   capabilities?: { portalGames?: boolean; campaignOps?: boolean } | null;
-}): PartnerCapabilities {
-  const caps = partner.capabilities;
+} | null | undefined): PartnerCapabilities {
+  const caps = partner?.capabilities;
   if (!caps || typeof caps !== "object") {
     return { ...DEFAULT_CAPABILITIES };
   }
@@ -28,13 +28,13 @@ export function readPartnerCapabilities(partner: {
 
 export function partnerHasPortalGames(partner: {
   capabilities?: { portalGames?: boolean; campaignOps?: boolean } | null;
-}): boolean {
+} | null | undefined): boolean {
   return readPartnerCapabilities(partner).portalGames;
 }
 
 export function partnerHasCampaignOps(partner: {
   capabilities?: { portalGames?: boolean; campaignOps?: boolean } | null;
-}): boolean {
+} | null | undefined): boolean {
   return readPartnerCapabilities(partner).campaignOps;
 }
 
@@ -43,15 +43,6 @@ const SLUG_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 /** Reserved under `/cc/{slug}` and `/gc/{slug}` — must not be partner public slugs. */
 const RESERVED_PARTNER_SLUGS = new Set(["home", "merchant", "preview"]);
 
-/** Game-type path segments — partnerSlug must not collide (Portal path disambiguation). */
-const RESERVED_GAME_TYPE_SLUGS = new Set([
-  "solitaire",
-  "block_blast",
-  "match_3",
-  "tower_arena",
-  "yatz",
-]);
-
 export function normalizePartnerSlug(raw: string): string {
   return raw.trim().toLowerCase();
 }
@@ -59,6 +50,7 @@ export function normalizePartnerSlug(raw: string): string {
 /**
  * Validate public partner slug for Portal `/gc/{slug}` and Campaign `/cc/{slug}`.
  * empty → undefined (cleared) when `required` is false (default).
+ * Game-type ids (solitaire, …) are allowed — portal URLs are lobby-based.
  */
 export function validatePartnerSlug(
   raw: string | undefined,
@@ -75,7 +67,6 @@ export function validatePartnerSlug(
   }
   if (!SLUG_RE.test(normalized)) throw new Error("slug_invalid");
   if (RESERVED_PARTNER_SLUGS.has(normalized)) throw new Error("slug_reserved");
-  if (RESERVED_GAME_TYPE_SLUGS.has(normalized)) throw new Error("slug_conflicts_game_type");
   return normalized;
 }
 

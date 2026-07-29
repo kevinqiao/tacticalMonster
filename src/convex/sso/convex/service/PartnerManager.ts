@@ -15,10 +15,12 @@ import { readPartnerGames } from "./partner/portalPartnerConfig";
 function formatPartnerRow(partner: Record<string, unknown>) {
   const playerAuth = resolvePlayerAuth(partner as { playerAuth?: PlayerAuth; data?: unknown });
   const staffAuth = resolveStaffAuth(partner as { staffAuth?: StaffAuth });
+  // Drop legacy portal_key if still present on old documents.
+  const { portal_key: _legacyPortalKey, ...rest } = partner;
   return {
-    ...partner,
-    /** Effective allowlist from partner.games (unset → full registry). */
-    games: readPartnerGames(partner as { games?: string[] | null }),
+    ...rest,
+    /** Full static catalog (partners are not gated by a games allowlist). */
+    games: readPartnerGames(),
     playerAuth,
     staffAuth,
   };
@@ -38,10 +40,7 @@ export const findInternal = internalQuery({
   },
 });
 
-/**
- * Resolve partner by public partnerSlug (`partner.slug`).
- * Temporary fallback: historical `portal_key` when slug is missing / not yet migrated.
- */
+/** Resolve partner by public partnerSlug (`partner.slug`). */
 export const findByPartnerSlug = query({
   args: { partnerSlug: v.string() },
   handler: async (ctx, { partnerSlug }) => {
@@ -51,35 +50,8 @@ export const findByPartnerSlug = query({
       .query("partner")
       .withIndex("by_slug", (q) => q.eq("slug", key))
       .unique();
-    if (bySlug) return formatPartnerRow(bySlug);
-
-    // Migration fallback — remove after portal_key backfill is complete.
-    const byLegacyKey = await ctx.db
-      .query("partner")
-      .withIndex("by_portal_key", (q) => q.eq("portal_key", key))
-      .unique();
-    if (!byLegacyKey) return null;
-    return formatPartnerRow(byLegacyKey);
-  },
-});
-
-/** @deprecated Use findByPartnerSlug. */
-export const findByPortalKey = query({
-  args: { portalKey: v.string() },
-  handler: async (ctx, { portalKey }) => {
-    const key = portalKey.trim().toLowerCase();
-    if (!key) return null;
-    const bySlug = await ctx.db
-      .query("partner")
-      .withIndex("by_slug", (q) => q.eq("slug", key))
-      .unique();
-    if (bySlug) return formatPartnerRow(bySlug);
-    const partner = await ctx.db
-      .query("partner")
-      .withIndex("by_portal_key", (q) => q.eq("portal_key", key))
-      .unique();
-    if (!partner) return null;
-    return formatPartnerRow(partner);
+    if (!bySlug) return null;
+    return formatPartnerRow(bySlug);
   },
 });
 

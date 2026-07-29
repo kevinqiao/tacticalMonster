@@ -188,6 +188,12 @@
         ) {
           return;
         }
+        // Lock <base> to absolute CDN folder BEFORE replaceState. Pack uses
+        // href="./"; after history becomes /gc/..., relative assets would 404.
+        var assetBase = new URL(".", location.href).href;
+        window.__CG_ASSET_BASE__ = assetBase;
+        var baseEl = document.querySelector("base");
+        if (baseEl) baseEl.setAttribute("href", assetBase);
         var entry = "/gc/crazygames/solitaire";
         history.replaceState(history.state, "", entry + location.search + location.hash);
       } catch (e) { /* ignore */ }

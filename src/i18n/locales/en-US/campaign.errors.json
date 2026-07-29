@@ -41,6 +41,7 @@
     "invalid_period": "Invalid campaign period",
     "reward_rules_required": "Reward rules are required",
     "coupon_def_required": "Select a coupon definition",
+    "portal_sku_required": "Select a Portal voucher SKU as the reward",
     "name_required": "Name is required",
     "https_required": "HTTPS URL required",
     "fetch_failed": "Fetch failed",

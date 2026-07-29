@@ -41,6 +41,7 @@
     "invalid_period": "活动时间无效",
     "reward_rules_required": "请配置发券规则",
     "coupon_def_required": "请选择券定义",
+    "portal_sku_required": "请选择一个 Portal 券 SKU 作为奖励",
     "name_required": "请填写名称",
     "https_required": "请使用 HTTPS 链接",
     "fetch_failed": "抓取失败",

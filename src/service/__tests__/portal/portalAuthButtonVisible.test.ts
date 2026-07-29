@@ -8,8 +8,8 @@ import {
 
 describe("portal account chrome visibility", () => {
   it("shows auth menu actions on first-party portal", () => {
-    expect(shouldShowPortalAuthMenuActions("/gc/solitaire", "")).toBe(true);
-    expect(shouldShowPortalAuthButton("/gc/solitaire", "")).toBe(true);
+    expect(shouldShowPortalAuthMenuActions("/gc", "")).toBe(true);
+    expect(shouldShowPortalAuthButton("/gc", "")).toBe(true);
   });
 
   it("hides auth menu on partner portal", () => {
@@ -19,25 +19,19 @@ describe("portal account chrome visibility", () => {
   });
 
   it("hides auth menu with embed query", () => {
-    expect(shouldShowPortalAuthMenuActions("/gc/solitaire", "?embed=1")).toBe(
-      false
-    );
+    expect(shouldShowPortalAuthMenuActions("/gc", "?embed=1")).toBe(false);
   });
 
   it("shows account chrome on first-party even when logged out", () => {
-    expect(shouldShowPortalAccountChrome(false, "/gc/solitaire", "")).toBe(true);
+    expect(shouldShowPortalAccountChrome(false, "/gc", "")).toBe(true);
   });
 
   it("hides account chrome on embed when logged out", () => {
-    expect(
-      shouldShowPortalAccountChrome(false, "/gc/solitaire", "?embed=1")
-    ).toBe(false);
+    expect(shouldShowPortalAccountChrome(false, "/gc", "?embed=1")).toBe(false);
   });
 
   it("shows account chrome on embed when authed", () => {
-    expect(
-      shouldShowPortalAccountChrome(true, "/gc/solitaire", "?embed=1")
-    ).toBe(true);
+    expect(shouldShowPortalAccountChrome(true, "/gc", "?embed=1")).toBe(true);
   });
 
   it("shows account chrome on partner path when authed (no Sign Out)", () => {

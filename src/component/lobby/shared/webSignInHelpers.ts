@@ -26,6 +26,7 @@ const WEB_SIGN_IN_ERROR_MAP: Record<string, string> = {
   not_store_staff: "该账号未加入门店店员（store_staff），无法登录门店后台。",
   auth_channel_unavailable: "SSO 登录渠道不可用。",
   platform_operator_required: "当前账号不是平台运营，无法执行此操作。",
+  system_maintenance: "系统维护中，请稍后再试。",
   forbidden: "没有权限。",
   not_found: "找不到 Partner 或成员。",
   user_not_found: "找不到该 UID 对应的平台用户（auth_identities）。",
@@ -42,6 +43,17 @@ const WEB_SIGN_IN_ERROR_MAP: Record<string, string> = {
   staff_auth_invalid: "staffAuth 配置无效。",
   staff_auth_mode_invalid: "staffAuth.mode 无效（当前仅支持 web）。",
   default_partner_protected: "Default Partner（PID 0）是平台默认命名空间，不可删除。",
+  unauthenticated: "请重新登录后再试。",
+  unauthorized: "鉴权失败，请确认密钥/权限后重试。",
+  lobby_slug_required: "请填写 Lobby slug。",
+  lobby_slug_invalid: "Lobby slug 格式无效（小写字母/数字/下划线/连字符）。",
+  lobby_slug_reserved: "该 Lobby slug 为保留字。",
+  /** @deprecated game-type partner slugs are allowed */
+  slug_conflicts_game_type: "Partner slug 无效。",
+  lobby_tournament_invalid: "Offerings 含无效赛事 ID。",
+  lobby_slug_taken: "该 Lobby slug 已被占用。",
+  lobby_not_found: "Lobby 不存在或无权操作。",
+  lobby_default_undeletable: "默认 Lobby 不可删除。",
 };
 
 export function webSignInErrorMessage(error: unknown): string {
@@ -53,5 +65,7 @@ export function webSignInErrorMessage(error: unknown): string {
       return WEB_SIGN_IN_ERROR_MAP[key]!;
     }
   }
-  return "登录失败，请确认账号权限后重试。";
+  // Prefer surfacing a clean error code over a misleading "login failed" copy.
+  if (/^[a-z0-9_]+$/i.test(code)) return `操作失败（${code}）。`;
+  return "操作失败，请确认账号权限后重试。";
 }

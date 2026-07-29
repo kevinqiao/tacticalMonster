@@ -1,2 +1,0 @@
-import{r as o}from"./react-vendor-CrzCOU9b.js";import{L as a,g as i}from"./app-shell-DjjuQ6NM.js";import"./vendor-D9xM0_cR.js";import"./convex-vendor-B5P1QFoW.js";import"./gsap-vendor-DtRcpDEb.js";const m=({visible:r})=>(o.useEffect(()=>{if(r===0||typeof window>"u")return;const{pathname:t,search:e}=window.location;if(!t.startsWith(a))return;const n=i(e);window.location.replace(n)},[r]),null);export{m as default};
-//# sourceMappingURL=CampaignMerchantLegacyRedirectPage-CEXneXj4.js.map

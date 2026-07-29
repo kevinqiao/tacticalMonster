@@ -16,13 +16,7 @@ import {
   usesLeaderboard,
   type CouponSource,
 } from "./campaignRewardModel";
-import { resolveCouponSchedule } from "./couponValidity";
-import {
-  couponDefActivation,
-  couponDefValidity,
-  getCouponDefForPartner,
-} from "./merchantCouponDefs";
-import { generateCouponCode, newId } from "./merchantStaff";
+import { generateCouponCode } from "./merchantStaff";
 
 export {
   buildCouponIssueKey,
@@ -81,15 +75,22 @@ export type IssueCouponsForRulesArgs =
       settlementId: string;
     });
 
+/**
+ * Portal owns the player-facing voucher backpack. Campaign only schedules the
+ * grant (fire-and-forget action) and returns a locally-derived receipt; there
+ * is no local coupon row anymore.
+ */
 export async function issueCouponsForRules(
   ctx: MutationCtx,
   args: IssueCouponsForRulesArgs
 ): Promise<IssuedCouponResult[]> {
   const issued: IssuedCouponResult[] = [];
   const source: CouponSource = args.source;
-  const issuedAt = Date.now();
 
   for (const rule of args.rules) {
+    const portalSkuId = rule.portalSkuId?.trim();
+    if (!portalSkuId) continue;
+
     const issueKey = buildCouponIssueKey({
       source,
       campaignId: args.campaign.campaignId,
@@ -99,94 +100,42 @@ export async function issueCouponsForRules(
       settlementId: args.source === "campaign_settle" ? args.settlementId : undefined,
     });
 
-    const dup = await ctx.db
-      .query("coupons")
-      .withIndex("by_issueKey", (q) => q.eq("issueKey", issueKey))
-      .unique();
-    if (dup) {
-      issued.push({
-        couponId: dup.couponId,
-        code: dup.code,
-        ruleId: dup.ruleId,
-        rewardLabel: publicCouponRewardLabel(dup.rewardSnapshot),
-      });
-      continue;
-    }
-
-    const prior = await ctx.db
-      .query("coupons")
-      .withIndex("by_campaign_uid", (q) =>
-        q.eq("campaignId", args.campaign.campaignId).eq("uid", args.uid)
-      )
-      .collect();
-    const count = prior.filter((c) => c.status !== "void").length;
-    if (count >= args.campaign.playLimits.maxCouponsPerPlayer) {
-      continue;
-    }
-
-    const def = rule.couponDefId
-      ? await getCouponDefForPartner(ctx, {
-          partnerId: args.campaign.partnerId,
-          couponDefId: rule.couponDefId,
-        })
-      : null;
-    const { activatesAt, expiresAt } = resolveCouponSchedule(
-      issuedAt,
-      couponDefActivation(def),
-      couponDefValidity(def)
-    );
-    const usageRulesSnapshot = def?.usageRules?.trim() || undefined;
-
-    const couponId = newId("cpn");
-    const code = generateCouponCode();
+    const preferredCode = generateCouponCode();
     const rewardLabel = publicCouponRewardLabel(rule.reward);
-    await ctx.db.insert("coupons", {
-      couponId,
-      code,
-      partnerId: args.campaign.partnerId,
-      campaignId: args.campaign.campaignId,
-      uid: args.uid,
-      source,
-      issueKey,
-      runTournamentId: args.source === "pass_run" ? args.runTournamentId : undefined,
-      matchId: args.source === "pass_run" ? args.matchId : undefined,
-      settlementId: args.source === "campaign_settle" ? args.settlementId : undefined,
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.service.merchant.campaignVoucherGrantActions.grantIssuedCouponToPortalBackpack,
+      {
+        uid: args.uid,
+        partnerId: args.campaign.partnerId,
+        campaignId: args.campaign.campaignId,
+        portalSkuId,
+        issueKey,
+        preferredCode,
+        maxCouponsPerPlayer: args.campaign.playLimits.maxCouponsPerPlayer,
+      }
+    );
+
+    issued.push({
+      couponId: `portal:${issueKey}`,
+      code: preferredCode,
       ruleId: rule.ruleId,
-      couponDefId: rule.couponDefId,
-      rewardSnapshot: rule.reward,
-      ...(usageRulesSnapshot ? { usageRulesSnapshot } : {}),
-      status: "issued",
-      issuedAt,
-      activatesAt,
-      expiresAt,
+      rewardLabel,
     });
-    // Transitional dual-write: preserve Campaign coupons for existing wallet/redeem flows,
-    // while Portal owns the player-facing voucher backpack for new SKU-backed rules.
-    if (rule.portalSkuId?.trim()) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.service.merchant.campaignVoucherGrantActions.grantIssuedCouponToPortalBackpack,
-        {
-          uid: args.uid,
-          partnerId: args.campaign.partnerId,
-          campaignId: args.campaign.campaignId,
-          portalSkuId: rule.portalSkuId.trim(),
-          issueKey,
-          preferredCode: code,
-        }
-      );
-    }
-    issued.push({ couponId, code, ruleId: rule.ruleId, rewardLabel });
   }
 
   return issued;
 }
 
+/** Embedded on the campaign doc (replaces campaign_leaderboard_settlements). */
 export async function getSettlementRow(ctx: QueryCtx | MutationCtx, campaignId: string) {
-  return await ctx.db
-    .query("campaign_leaderboard_settlements")
+  const campaign = await ctx.db
+    .query("campaigns")
     .withIndex("by_campaignId", (q) => q.eq("campaignId", campaignId))
     .unique();
+  if (!campaign?.settlement) return null;
+  return { _id: campaign._id, ...campaign.settlement };
 }
 
 /**
@@ -209,26 +158,20 @@ export async function finalizeCampaignLeaderboardRewardsCore(
     return { ok: false, error: "campaign_not_ended" };
   }
 
-  const existing = await getSettlementRow(ctx, campaign.campaignId);
-  if (existing?.status === "done") {
+  if (campaign.settlement?.status === "done") {
     return {
       ok: true,
-      couponsIssued: existing.couponsIssued ?? 0,
-      winnerCount: existing.winnerCount ?? 0,
+      couponsIssued: campaign.settlement.couponsIssued ?? 0,
+      winnerCount: campaign.settlement.winnerCount ?? 0,
       alreadyDone: true,
     };
   }
 
-  const settlementDocId =
-    existing?._id ??
-    (await ctx.db.insert("campaign_leaderboard_settlements", {
-      campaignId: campaign.campaignId,
-      partnerId: campaign.partnerId,
-      status: "pending",
-      createdAt: now,
-      updatedAt: now,
-    }));
-  const settlementId = String(settlementDocId);
+  const settlementId = `settle:${campaign.campaignId}`;
+  await ctx.db.patch(campaign._id, {
+    settlement: { status: "pending", updatedAt: now },
+    updatedAt: now,
+  });
 
   try {
     const rules = campaign.rewardRules.filter(
@@ -257,31 +200,24 @@ export async function finalizeCampaignLeaderboardRewardsCore(
       couponsIssued += batch.length;
     }
 
-    await ctx.db.patch(settlementDocId, {
-      status: "done",
-      winnerCount,
-      couponsIssued,
-      settledAt: now,
+    await ctx.db.patch(campaign._id, {
+      settlement: {
+        status: "done",
+        winnerCount,
+        couponsIssued,
+        settledAt: now,
+        updatedAt: now,
+        error: undefined,
+      },
       updatedAt: now,
-      error: undefined,
+      ...(campaign.status === "live" ? { status: "ended" as const } : {}),
     });
-
-    if (campaign.status === "live") {
-      const campaignRow = await ctx.db
-        .query("campaigns")
-        .withIndex("by_campaignId", (q) => q.eq("campaignId", campaign.campaignId))
-        .unique();
-      if (campaignRow) {
-        await ctx.db.patch(campaignRow._id, { status: "ended", updatedAt: now });
-      }
-    }
 
     return { ok: true, couponsIssued, winnerCount };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    await ctx.db.patch(settlementDocId, {
-      status: "failed",
-      error: message,
+    await ctx.db.patch(campaign._id, {
+      settlement: { status: "failed", error: message, updatedAt: now },
       updatedAt: now,
     });
     return { ok: false, error: message };

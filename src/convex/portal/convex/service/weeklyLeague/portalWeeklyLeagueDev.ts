@@ -4,9 +4,11 @@
 import { v } from "convex/values";
 
 import { internal } from "../../_generated/api";
+import { resolvePortalShopSessionPartnerId } from "../../data/portalShopPartner";
 import { internalMutation, mutation } from "../../_generated/server";
 import { PORTAL_WEEKLY_LEAGUE_ENABLED } from "../../data/portalWeeklyLeagueConfig";
 import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
+import { resolveEconomyScope } from "../economy/resolveEconomyScope";
 import {
   ensurePortalWeeklyLeagueMember,
   findUnclaimedPortalWeeklyLeagueRewards,
@@ -224,6 +226,20 @@ export const devClaimPortalWeeklyLeagueRewardsForUid = mutation({
     const pr = member.pendingRewards;
     const now = Date.now();
     if ((pr.coins ?? 0) > 0) {
+      // Dev claim mirrors production: resolve isolated/shared wallet scope.
+      let scopeKey = "shared";
+      let lobbyIdForWallet = member.lobbyId ?? null;
+      try {
+        const econ = await resolveEconomyScope(ctx, {
+          partnerId: resolvePortalShopSessionPartnerId(uid) ?? 0,
+          lobbyId: lobbyIdForWallet,
+        });
+        scopeKey = econ.scopeKey;
+        lobbyIdForWallet = econ.lobbyId;
+      } catch {
+        scopeKey = "shared";
+        lobbyIdForWallet = null;
+      }
       const gr = await ctx.runMutation(
         internal.service.reward.casualRewardRegistry.grantCasualReward,
         {
@@ -233,6 +249,8 @@ export const devClaimPortalWeeklyLeagueRewardsForUid = mutation({
           reason: "weekly_league",
           gameType,
           sourceWeekKey: weekKey,
+          scopeKey,
+          ...(lobbyIdForWallet ? { lobbyId: lobbyIdForWallet } : {}),
         }
       );
       if (!gr.ok) {

@@ -12,13 +12,9 @@ const PARTNER_ADMIN_ERROR_MAP: Record<string, string> = {
   slug_required: "Partner slug is required.",
   slug_invalid: "Partner slug format is invalid (use lowercase letters, numbers, hyphens).",
   slug_reserved: "That partner slug is reserved.",
-  slug_conflicts_game_type: "Partner slug cannot match a registered game type.",
+  /** @deprecated game-type partner slugs are allowed */
+  slug_conflicts_game_type: "Invalid partner slug.",
   slug_taken: "That partner slug is already in use.",
-  /** @deprecated aliases — same messages as slug_* */
-  portal_key_required: "Partner slug is required.",
-  portal_key_invalid: "Partner slug format is invalid (use lowercase letters, numbers, hyphens).",
-  portal_key_conflicts_game_type: "Partner slug cannot match a registered game type.",
-  portal_key_taken: "That partner slug is already in use.",
   portal_context_required:
     "Portal Games capability must be enabled in /platform/admin before saving portal config.",
   portal_games_required: "Select at least one portal game.",

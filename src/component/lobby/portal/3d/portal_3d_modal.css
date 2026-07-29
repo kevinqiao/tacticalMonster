@@ -1324,6 +1324,11 @@
 /* ---- 匹配队列遮罩：Portal 3D 木质 Q 风 ---- */
 
 .portal-3d-match-overlay {
+  /*
+   * Above Portal center modals (picker ~1200), below host play modals (5500).
+   * Must not sit over the game — otherwise Creating match sticks after the board opens.
+   */
+  z-index: 5400;
   font-family: "Fredoka", "Nunito", "Segoe UI Rounded", "PingFang SC", "Microsoft YaHei",
     sans-serif;
 }
@@ -1756,6 +1761,41 @@
 }
 
 /* ---- Tournament picker tickets (multi-offering mode) ---- */
+
+.portal-tour-quota {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0 2px;
+}
+
+.portal-tour-quota-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  border: 1.5px solid rgba(111, 67, 24, 0.35);
+  background: rgba(255, 244, 214, 0.92);
+  color: #5b3a12;
+  box-shadow: 0 2px 0 rgba(111, 67, 24, 0.12);
+}
+
+.portal-tour-quota-chip--ad {
+  color: #6a3d16;
+}
+
+.portal-tour-quota-chip--ad svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
 
 .portal-modal-body .portal-tour-list {
   list-style: none;

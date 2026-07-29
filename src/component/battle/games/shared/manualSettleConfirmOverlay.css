@@ -164,7 +164,17 @@
 }
 
 .ssc__replayRemaining {
-  display: none;
+  flex: 0 0 auto;
+  margin-left: 2px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 1.25;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
 }
 
 .ssc__actions--withReplay .ssc__btn--continueWide {

@@ -45,7 +45,8 @@ export async function bridgePickSeed(
     matchId: string;
     templateId: string;
     uids: string[];
-    tier: PortalSeedTier;
+    /** Omit / null = pick across all tiers (multi_ranked). */
+    tier?: PortalSeedTier | null;
   }
 ): Promise<
   | { ok: true; seedBinding: SlimSeedBinding }
@@ -65,7 +66,7 @@ export async function bridgePickSeed(
       matchId: args.matchId,
       sessionKey,
       uids: args.uids,
-      tier: args.tier,
+      ...(args.tier != null ? { tier: args.tier } : {}),
     }
   );
   if (!picked.ok) return { ok: false, error: picked.error };

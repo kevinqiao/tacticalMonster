@@ -21,7 +21,7 @@ export function resolveEmbedAuthProvider(
   partner: PartnerEmbedContext,
   methodOverride?: EmbedAuthMethod
 ): EmbedAuthProvider | null {
-  const method = methodOverride ?? resolveEmbedMethod(partner.data);
+  const method = methodOverride ?? resolveEmbedMethod(partner);
   const provider = getEmbedAuthProvider(method);
   if (!provider) return null;
   if (!provider.supports(partner)) return null;

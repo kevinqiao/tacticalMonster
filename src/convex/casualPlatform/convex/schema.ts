@@ -707,4 +707,20 @@ export default defineSchema({
       "seedId",
     ])
     .index("by_matchId", ["matchId"]),
+
+  /** Replica of SSO platform_status (singleton). Synced via /internal/platform-status. */
+  platform_status: defineTable({
+    key: v.literal("global"),
+    mode: v.union(
+      v.literal("normal"),
+      v.literal("pre_notice"),
+      v.literal("maintenance")
+    ),
+    title: v.optional(v.string()),
+    message: v.optional(v.string()),
+    plannedStartAt: v.optional(v.number()),
+    plannedEndAt: v.optional(v.number()),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.string()),
+  }).index("by_key", ["key"]),
 });

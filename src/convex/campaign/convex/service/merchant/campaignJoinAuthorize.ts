@@ -1,24 +1,27 @@
 import { v } from "convex/values";
 import { internalQuery } from "../../_generated/server";
-import { getCampaignBySlugs, isCampaignLive } from "./merchantStaff";
+import { getCampaignByPartnerIdAndSlug, isCampaignLive } from "./merchantStaff";
 import { resolveExperienceType } from "./campaignExperienceType";
 import { resolveRewardModel, usesLeaderboard } from "./campaignLeaderboardSettlement";
 import { playLimitsDayTimezone } from "./campaignTimeZone";
 import { assertCampaignPartnerSession } from "./campaignPartnerSession";
+import { resolveCampaignTournament } from "./campaignTournament";
 
-/** Portal join 时校验活动是否可入局（替代 playToken issue+validate）。 */
+/**
+ * Portal join 时校验活动是否可入局。
+ * partnerId comes from the platform uid session (and must match campaign.partnerId).
+ */
 export const authorizeCampaignJoinInternal = internalQuery({
   args: {
     uid: v.string(),
-    partnerSlug: v.string(),
+    partnerId: v.number(),
     campaignSlug: v.string(),
   },
   handler: async (ctx, args) => {
-    const bundle = await getCampaignBySlugs(ctx, args.partnerSlug, args.campaignSlug);
-    if (!bundle) {
+    const campaign = await getCampaignByPartnerIdAndSlug(ctx, args.partnerId, args.campaignSlug);
+    if (!campaign) {
       return { ok: false as const, error: "not_found" as const };
     }
-    const { campaign } = bundle;
 
     const partnerCheck = assertCampaignPartnerSession({
       uid: args.uid,
@@ -35,32 +38,27 @@ export const authorizeCampaignJoinInternal = internalQuery({
       return { ok: false as const, error: "campaign_not_live" as const };
     }
 
-    const existingCoupons = await ctx.db
-      .query("coupons")
-      .withIndex("by_campaign_uid", (q) =>
-        q.eq("campaignId", campaign.campaignId).eq("uid", args.uid)
-      )
-      .collect();
-    const rewardModel = resolveRewardModel(campaign);
-    if (!usesLeaderboard(rewardModel)) {
-      const activeIssued = existingCoupons.filter(
-        (c) => c.status === "issued" || c.status === "redeemed"
-      );
-      if (activeIssued.length >= campaign.playLimits.maxCouponsPerPlayer) {
-        return { ok: false as const, error: "coupon_limit_reached" as const };
-      }
+    const play = resolveCampaignTournament(campaign);
+    if (!play) {
+      return { ok: false as const, error: "unknown_tournament" as const };
     }
 
-    const rewardMode = resolveRewardModel(campaign);
+    const rewardModel = resolveRewardModel(campaign);
+
+    // Coupon-limit enforcement now lives on Portal (backpack owns the vouchers):
+    // see casualTournamentActions.joinTournament's countCampaignVouchersForUid check
+    // for pass_per_run, and grantCampaignVoucher's own maxCouponsPerPlayer guard.
+
     const replaySettings = campaign.replaySettings;
     return {
       ok: true as const,
       campaignId: campaign.campaignId,
       partnerId: campaign.partnerId,
-      gameType: campaign.gameType,
-      mode: campaign.mode,
-      rewardMode,
-      dueTime: usesLeaderboard(rewardMode) ? campaign.endsAt : 0,
+      tournamentId: play.tournamentId,
+      gameType: play.gameType,
+      mode: play.mode,
+      rewardMode: rewardModel,
+      dueTime: usesLeaderboard(rewardModel) ? campaign.endsAt : 0,
       playLimits: {
         maxCouponsPerPlayer: campaign.playLimits.maxCouponsPerPlayer,
         dayTimezone: playLimitsDayTimezone(campaign.playLimits),

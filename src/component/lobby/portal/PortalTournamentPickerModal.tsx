@@ -25,6 +25,26 @@ export type PortalTournamentPickerEntryState = {
   joining: boolean;
   /** Another offering in this picker is joining — disable without showing "joining". */
   siblingJoining?: boolean;
+  /**
+   * Real-time joinability (wallet / daily ladder / open run / queue / closed).
+   * When false, enter button is grayed out.
+   */
+  playable?: boolean;
+  /**
+   * True when this ticket has its own free/ad caps (quotaScope=tournament).
+   * Then show used/cap on the row; otherwise rely on the picker header chips.
+   */
+  perTournamentQuota?: boolean;
+};
+
+/** Mode-level free + ad daily counters shown at the top of the picker. */
+export type PortalTournamentPickerDailyQuota = {
+  freeUsed: number;
+  freeCap: number;
+  adUsed: number;
+  adCap: number;
+  /** When false, hide the ad chip (feature off). */
+  adEnabled?: boolean;
 };
 
 type Props = {
@@ -37,6 +57,11 @@ type Props = {
    */
   entry?: PortalTournamentPickerEntryState;
   resolveEntry?: (tournamentId: string) => PortalTournamentPickerEntryState;
+  /**
+   * Mode/lobby-level free + ad summary for the picker header.
+   * Hidden when tickets use per-tournament quotas.
+   */
+  dailyQuota?: PortalTournamentPickerDailyQuota | null;
   onSelect: (tournamentId: string) => void;
   onClose: () => void;
 };
@@ -96,20 +121,22 @@ const PortalTournamentPickerModal: React.FC<Props> = ({
   offerings,
   entry,
   resolveEntry,
+  dailyQuota,
   onSelect,
   onClose,
 }) => {
   const { t } = useTranslation("portal.player");
-  const [cached, setCached] = useState({ mode, offerings });
+  const [cached, setCached] = useState({ mode, offerings, dailyQuota });
 
   useEffect(() => {
     if (open && offerings.length > 0) {
-      setCached({ mode, offerings });
+      setCached({ mode, offerings, dailyQuota });
     }
-  }, [open, mode, offerings]);
+  }, [open, mode, offerings, dailyQuota]);
 
   const activeMode = open ? mode : cached.mode;
   const activeOfferings = open && offerings.length > 0 ? offerings : cached.offerings;
+  const activeQuota = open ? dailyQuota : cached.dailyQuota;
 
   const sorted = useMemo(
     () => [...activeOfferings].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -129,11 +156,53 @@ const PortalTournamentPickerModal: React.FC<Props> = ({
       playsToday: 0,
       maxPlaysPerDay: 0,
       joining: false,
+      playable: true,
     };
   };
 
+  const showAdQuota =
+    activeQuota != null &&
+    activeQuota.adEnabled !== false &&
+    activeQuota.adCap > 0;
+  const freeUsed = activeQuota
+    ? Math.min(Math.max(0, activeQuota.freeUsed), Math.max(0, activeQuota.freeCap))
+    : 0;
+  const freeCap = activeQuota ? Math.max(0, activeQuota.freeCap) : 0;
+  const adUsed = activeQuota
+    ? Math.min(Math.max(0, activeQuota.adUsed), Math.max(0, activeQuota.adCap))
+    : 0;
+  const adCap = activeQuota ? Math.max(0, activeQuota.adCap) : 0;
+  // Header chips are for shared mode/lobby pools. Skip when any ticket is
+  // per-tournament (those rows show their own used/cap).
+  const anyPerTournamentQuota = sorted.some((o) => {
+    const st = entryFor(o.tournamentId);
+    return st.perTournamentQuota === true;
+  });
+  const showHeaderQuota = !anyPerTournamentQuota && activeQuota && freeCap > 0;
+
   return (
     <PortalCenterModal open={open} title={headTitle} onClose={onClose}>
+      {showHeaderQuota ? (
+        <div
+          className="portal-tour-quota"
+          aria-label={t("lobby.pickQuotaAria", {
+            freeUsed,
+            freeCap,
+            adUsed: showAdQuota ? adUsed : 0,
+            adCap: showAdQuota ? adCap : 0,
+          })}
+        >
+          <span className="portal-tour-quota-chip portal-tour-quota-chip--free">
+            {t("lobby.pickQuotaFree", { used: freeUsed, cap: freeCap })}
+          </span>
+          {showAdQuota ? (
+            <span className="portal-tour-quota-chip portal-tour-quota-chip--ad">
+              <CasualAdReplayVideoIcon />
+              {t("lobby.pickQuotaAd", { used: adUsed, cap: adCap })}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       <ul className="portal-tour-list" aria-label={headTitle}>
         {sorted.map((o) => {
           const def = getPortalTournamentDefinition(o.tournamentId);
@@ -150,34 +219,50 @@ const PortalTournamentPickerModal: React.FC<Props> = ({
           const playDisabled =
             activeEntry.joining ||
             activeEntry.siblingJoining === true ||
-            entryKind === "blocked";
+            entryKind === "blocked" ||
+            activeEntry.playable === false;
           const paidAmount =
             def && (def.entry.kind === "coins" || def.entry.kind === "gems")
               ? def.entry.amount
               : null;
+          const usesLadder =
+            def != null && portalTournamentUsesPlayEntryLadder(def);
 
+          // Ladder tables with ad entry: always label as Free+Ad (not only "Free" / "Ad"
+          // based on today's exhaustion). Play CTA still follows entryKind.
           const feeLabel =
-            entryKind === "ad"
-              ? t("lobby.entryAd")
-              : entryKind === "ticket"
-                ? t("lobby.playWithTickets", {
-                    price: activeEntry.ticketEntryPrice ?? (activeMode === "solo" ? 1 : 2),
-                  })
-                : entryKind === "coins"
-                  ? t("lobby.entryCoins", { amount: paidAmount ?? 0 })
-                  : entryKind === "gems"
-                    ? t("lobby.entryGems", { amount: paidAmount ?? 0 })
+            entryKind === "coins"
+              ? t("lobby.entryCoins", { amount: paidAmount ?? 0 })
+              : entryKind === "gems"
+                ? t("lobby.entryGems", { amount: paidAmount ?? 0 })
+                : entryKind === "ticket"
+                  ? t("lobby.playWithTickets", {
+                      price:
+                        activeEntry.ticketEntryPrice ??
+                        (activeMode === "solo" ? 1 : 2),
+                    })
+                  : usesLadder && showAdQuota
+                    ? t("lobby.entryFreeAndAd")
                     : t("lobby.entryFree");
 
+          // Shared free/ad counts live in the header — only repeat on the row
+          // when this tournament has its own quota (quotaScope=tournament).
           const feeSub =
-            entryKind === "free"
-              ? t("lobby.entryFreeQuota", {
-                  used: Math.min(activeEntry.playsToday, activeEntry.maxPlaysPerDay),
-                  cap: activeEntry.maxPlaysPerDay,
+            entryKind === "ticket"
+              ? t("lobby.playWithTicketsSub", {
+                  remaining: activeEntry.ticketEntryRemaining ?? 0,
                 })
-              : entryKind === "ticket"
-                ? t("lobby.playWithTicketsSub", {
-                    remaining: activeEntry.ticketEntryRemaining ?? 0,
+              : activeEntry.perTournamentQuota === true &&
+                  usesLadder &&
+                  (entryKind === "free" ||
+                    entryKind === "ad" ||
+                    entryKind === "blocked")
+                ? t("lobby.entryFreeQuota", {
+                    used: Math.min(
+                      activeEntry.playsToday,
+                      activeEntry.maxPlaysPerDay
+                    ),
+                    cap: activeEntry.maxPlaysPerDay,
                   })
                 : null;
 
@@ -185,7 +270,7 @@ const PortalTournamentPickerModal: React.FC<Props> = ({
             activeEntry.joining
               ? t("lobby.joining")
               : entryKind === "ad"
-                ? t("lobby.playWatchAd")
+                ? t("lobby.playWatchAdPlain")
                 : entryKind === "ticket"
                   ? t("lobby.playWithTickets", {
                       price: activeEntry.ticketEntryPrice ?? (activeMode === "solo" ? 1 : 2),

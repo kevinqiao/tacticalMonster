@@ -125,6 +125,7 @@ const Match3Player: React.FC = () => {
     postCasualReplayMode,
     postCasualReplayWindowEndsAt,
     postCasualAdReplayDailyRemaining,
+    postCasualAdReplayDailyCap,
     casualReplayBusy,
     replayCasualRun,
     triathlonSessionActive,
@@ -157,6 +158,7 @@ const Match3Player: React.FC = () => {
         replayMode: postCasualReplayMode,
         challengeSuccess: postCasualScoreReport?.challenge?.success,
         adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+        adReplayDailyCap: postCasualAdReplayDailyCap,
       }),
     [
       casualTournamentId,
@@ -165,6 +167,7 @@ const Match3Player: React.FC = () => {
       postCasualReplayMode,
       postCasualScoreReport?.challenge?.success,
       postCasualAdReplayDailyRemaining,
+      postCasualAdReplayDailyCap,
     ]
   );
   const showPostSettleSummary =
@@ -176,6 +179,7 @@ const Match3Player: React.FC = () => {
         canReplay: postCasualCanReplay,
         replayMode: postCasualReplayMode,
         adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+        adReplayDailyCap: postCasualAdReplayDailyCap,
         replayWindowEndsAt: postCasualReplayWindowEndsAt,
         customLabel: triathlonSessionActive ? '三局再战' : undefined,
       }),
@@ -184,6 +188,7 @@ const Match3Player: React.FC = () => {
       postCasualCanReplay,
       postCasualReplayMode,
       postCasualAdReplayDailyRemaining,
+      postCasualAdReplayDailyCap,
       postCasualReplayWindowEndsAt,
       triathlonSessionActive,
     ]
@@ -234,6 +239,17 @@ const Match3Player: React.FC = () => {
       vv.addEventListener('resize', onVv);
       vv.addEventListener('scroll', onVv);
     }
+    window.addEventListener('resize', onVv);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && !cancelled) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (!cancelled) runMeasure();
+          });
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       cancelled = true;
@@ -242,6 +258,8 @@ const Match3Player: React.FC = () => {
         vv.removeEventListener('resize', onVv);
         vv.removeEventListener('scroll', onVv);
       }
+      window.removeEventListener('resize', onVv);
+      document.removeEventListener('visibilitychange', onVisibility);
       ro.disconnect();
     };
   }, [boardMetricsRef, gameState?.gameId]);
@@ -546,6 +564,11 @@ const Match3Player: React.FC = () => {
             ? scoreReportActions.adReplayDailyRemaining
             : undefined
         }
+        adReplayDailyCap={
+          scoreReportActions.showReplaySecondary
+            ? scoreReportActions.adReplayDailyCap
+            : undefined
+        }
         replayWindowEndsAt={
           scoreReportActions.showReplaySecondary
             ? postCasualReplayWindowEndsAt
@@ -561,6 +584,7 @@ const Match3Player: React.FC = () => {
         replayAvailable={postSettleReplay.showReplay}
         replayMode={postCasualReplayMode}
         adReplayDailyRemaining={postSettleReplay.adReplayDailyRemaining}
+        adReplayDailyCap={postSettleReplay.adReplayDailyCap}
         replayWindowEndsAt={postCasualReplayWindowEndsAt}
         replayBusy={casualReplayBusy}
         onReplay={postSettleReplay.showReplay ? () => void replayCasualRun() : undefined}

@@ -4,7 +4,8 @@
   "purchase_default": "Redemption failed. Please try again later.",
   "flow": {
     "signInToChallenge": "Please sign in before starting a challenge.",
-    "alreadyInQueue": "You are already in the match queue. Leave the queue or wait for a table."
+    "alreadyInQueue": "You are already in the match queue. Leave the queue or wait for a table.",
+    "noTournamentsForGame": "This lobby has no tournaments for this game. Enable them in Game Lobby offerings."
   },
   "giftcard": {
     "linkOpened": "Redemption link opened",
@@ -37,6 +38,7 @@
     "daily_cap_reached": "Daily ad replay limit reached",
     "already_claimed": "Ad replay already used for this match",
     "match_not_open": "Replay did not apply. Try again or refresh the page.",
-    "match_not_replayable": "This match cannot be replayed"
+    "match_not_replayable": "This match cannot be replayed",
+    "system_maintenance": "System is under maintenance. Please try again later."
   }
 }

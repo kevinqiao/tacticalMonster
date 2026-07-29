@@ -3,13 +3,11 @@ import { v } from "convex/values";
 import { mutation } from "../../_generated/server";
 import type { PartnerCapabilities } from "./partnerCapabilities";
 import { requirePartnerSlug } from "./partnerCapabilities";
+import { readPartnerGames } from "./portalPartnerConfig";
 import {
-  PARTNER_GAME_TYPES,
-  sanitizePartnerGames,
-} from "./portalPartnerConfig";
-import {
-  applyAdReplayDailyCapToPartnerData,
-  effectivePartnerReplaySettings,
+  DEFAULT_AD_REPLAY_DAILY_CAP,
+  DEFAULT_MAX_REPLAYS_PER_MATCH,
+  DEFAULT_TICKET_REPLAY_PRICE,
   sanitizeAdReplayDailyCapInput,
 } from "./partnerAdReplayConfig";
 import { internal } from "../../_generated/api";
@@ -32,13 +30,11 @@ export const bootstrapDevPartnerEmbed = mutation({
     /** When true (default), enable portalGames capability for this partner. */
     portalGames: v.optional(v.boolean()),
     campaignOps: v.optional(v.boolean()),
-    /** URL segment for /gc/{partnerSlug}/{game} (e.g. crazygames). */
+    /** URL segment for /gc/{partnerSlug}/... (e.g. crazygames). */
     partnerSlug: v.optional(v.string()),
-    /** @deprecated Prefer partnerSlug */
-    portalKey: v.optional(v.string()),
-    /** Enabled game types; default = full partner registry when partnerSlug is set. */
+    /** @deprecated Ignored — games come from static catalog (full open). */
     games: v.optional(v.array(v.string())),
-    /** Optional Portal ad-replay daily cap override (0..100). */
+    /** Optional Portal ad-replay daily cap override (0..100). Written to Portal SoT. */
     adReplayDailyCap: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -56,17 +52,10 @@ export const bootstrapDevPartnerEmbed = mutation({
       campaignOps: args.campaignOps === true,
     };
 
-    const rawSlug = args.partnerSlug ?? args.portalKey;
     const partnerSlug =
-      rawSlug != null && rawSlug.trim() !== ""
-        ? requirePartnerSlug(rawSlug)
+      args.partnerSlug != null && args.partnerSlug.trim() !== ""
+        ? requirePartnerSlug(args.partnerSlug)
         : undefined;
-    const games =
-      args.games != null
-        ? sanitizePartnerGames(args.games)
-        : partnerSlug
-          ? [...PARTNER_GAME_TYPES]
-          : undefined;
 
     if (partnerSlug) {
       const conflict = await ctx.db
@@ -104,7 +93,27 @@ export const bootstrapDevPartnerEmbed = mutation({
 
     const portalFields = {
       ...(partnerSlug !== undefined ? { slug: partnerSlug } : {}),
-      ...(games !== undefined ? { games } : {}),
+    };
+
+    // Replay SoT is Portal — seed via GC ops bridge when bootstrap provides a cap.
+    const portalCap =
+      capInput === undefined
+        ? DEFAULT_AD_REPLAY_DAILY_CAP
+        : (capInput ?? DEFAULT_AD_REPLAY_DAILY_CAP);
+    const seedPortalReplay = async () => {
+      if (args.adReplayDailyCap === undefined) return;
+      await ctx.scheduler.runAfter(
+        0,
+        internal.service.bridge.portalGcOpsBridge.upsertPartnerGcOpsToPortal,
+        {
+          partnerId: pid,
+          adReplayDailyCap: portalCap,
+          maxReplaysPerMatch: DEFAULT_MAX_REPLAYS_PER_MATCH,
+          adReplayEnabled: true,
+          ticketReplayEnabled: true,
+          ticketReplayPriceTickets: DEFAULT_TICKET_REPLAY_PRICE,
+        }
+      );
     };
 
     if (existing) {
@@ -113,10 +122,7 @@ export const bootstrapDevPartnerEmbed = mutation({
           ? (existing.data as Record<string, unknown>)
           : {};
       const { enabledContexts: _drop, ...priorRest } = prior;
-      const merged = applyAdReplayDailyCapToPartnerData(
-        { ...priorRest, ...partnerDataBase },
-        capInput
-      );
+      const merged = { ...priorRest, ...partnerDataBase };
       await ctx.db.patch(existing._id, {
         name: args.name ?? existing.name ?? name,
         host: args.host ?? existing.host ?? host,
@@ -126,19 +132,7 @@ export const bootstrapDevPartnerEmbed = mutation({
         data: merged,
         ...portalFields,
       });
-      const effectiveReplay = effectivePartnerReplaySettings(merged);
-      await ctx.scheduler.runAfter(
-        0,
-        internal.service.bridge.portalAdReplayCapPush.pushPartnerAdReplayCapToPortal,
-        {
-          partnerId: pid,
-          adReplayDailyCap: effectiveReplay.adReplayDailyCap,
-          maxReplaysPerMatch: effectiveReplay.maxReplaysPerMatch,
-          adReplayEnabled: effectiveReplay.adReplayEnabled,
-          ticketReplayEnabled: effectiveReplay.ticketReplayEnabled,
-          ticketReplayPriceTickets: effectiveReplay.ticketReplayPriceTickets,
-        }
-      );
+      await seedPortalReplay();
       return {
         ok: true as const,
         pid,
@@ -146,15 +140,11 @@ export const bootstrapDevPartnerEmbed = mutation({
         jwtSecret,
         embedMethod,
         partnerSlug: partnerSlug ?? existing.slug,
-        games: games ?? existing.games,
-        adReplayDailyCap: effectiveReplay.adReplayDailyCap,
+        games: readPartnerGames(),
+        adReplayDailyCap: portalCap,
       };
     }
 
-    const insertData = applyAdReplayDailyCapToPartnerData(
-      { ...partnerDataBase },
-      capInput
-    );
     await ctx.db.insert("partner", {
       pid,
       name,
@@ -162,23 +152,11 @@ export const bootstrapDevPartnerEmbed = mutation({
       playerAuth,
       staffAuth,
       capabilities,
-      data: insertData,
+      data: { ...partnerDataBase },
       ...portalFields,
     });
 
-    const effectiveReplay = effectivePartnerReplaySettings(insertData);
-    await ctx.scheduler.runAfter(
-      0,
-      internal.service.bridge.portalAdReplayCapPush.pushPartnerAdReplayCapToPortal,
-      {
-        partnerId: pid,
-        adReplayDailyCap: effectiveReplay.adReplayDailyCap,
-        maxReplaysPerMatch: effectiveReplay.maxReplaysPerMatch,
-        adReplayEnabled: effectiveReplay.adReplayEnabled,
-        ticketReplayEnabled: effectiveReplay.ticketReplayEnabled,
-        ticketReplayPriceTickets: effectiveReplay.ticketReplayPriceTickets,
-      }
-    );
+    await seedPortalReplay();
 
     return {
       ok: true as const,
@@ -187,8 +165,8 @@ export const bootstrapDevPartnerEmbed = mutation({
       jwtSecret,
       embedMethod,
       partnerSlug,
-      games,
-      adReplayDailyCap: effectiveReplay.adReplayDailyCap,
+      games: readPartnerGames(),
+      adReplayDailyCap: portalCap,
     };
   },
 });

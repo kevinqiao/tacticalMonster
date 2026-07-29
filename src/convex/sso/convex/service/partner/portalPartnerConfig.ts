@@ -1,9 +1,7 @@
 /**
- * Partner portal/campaign game allowlist helpers.
- * Catalog: keep aligned with portal partnerGameRegistry PARTNER_GAME_TYPES.
- * DB: partner.games (top-level). Caps portal URLs and merchant campaign gameType.
- *
- * Public URL key is partner.slug (partnerSlug) — shared by /gc and /cc.
+ * Partner game catalog (static config).
+ * All partners are fully open — Campaign/Portal gates are tournament/offering based,
+ * not a per-partner games allowlist.
  */
 
 export const PARTNER_GAME_TYPES = [
@@ -28,32 +26,15 @@ export function isRegisteredPartnerGameType(value: string): value is PartnerGame
   return (PARTNER_GAME_TYPES as readonly string[]).includes(value);
 }
 
-export function sanitizePartnerGames(games: string[]): PartnerGameType[] {
-  const out: PartnerGameType[] = [];
-  for (const g of games) {
-    const trimmed = g.trim();
-    if (!trimmed) continue;
-    if (!isRegisteredPartnerGameType(trimmed)) throw new Error("portal_game_invalid");
-    if (!out.includes(trimmed)) out.push(trimmed);
-  }
-  if (out.length === 0) throw new Error("portal_games_required");
-  return out;
+/** Full catalog for every partner (config SoT; no DB allowlist). */
+export function readPartnerGames(_partner?: unknown): PartnerGameType[] {
+  return [...PARTNER_GAME_TYPES];
 }
 
-/** partner.games; unset/empty → full registry (all enabled). */
-export function readPartnerGames(partner: {
-  games?: string[] | null;
-}): PartnerGameType[] {
-  const games = partner.games;
-  if (!Array.isArray(games) || games.length === 0) return [...PARTNER_GAME_TYPES];
-  return games.filter(
-    (g): g is PartnerGameType => typeof g === "string" && isRegisteredPartnerGameType(g)
-  );
-}
-
+/** @deprecated Prefer isRegisteredPartnerGameType — partners are not gated by games. */
 export function isGameEnabledForPartner(
-  partner: { games?: string[] | null },
+  _partner: unknown,
   gameType: string
 ): boolean {
-  return readPartnerGames(partner).includes(gameType as PartnerGameType);
+  return isRegisteredPartnerGameType(gameType);
 }

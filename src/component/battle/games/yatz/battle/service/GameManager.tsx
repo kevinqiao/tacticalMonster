@@ -40,7 +40,10 @@ import {
 
 } from '../../../shared/casualAsyncTableSummaryUI';
 
-import type { CasualGameScoreReportUI } from '../../../shared/casualGameScoreReportUI';
+import {
+  shouldRefreshPortalAdReplayQuota,
+  type CasualGameScoreReportUI,
+} from '../../../shared/casualGameScoreReportUI';
 
 import { buildCasualPlatformRunActionArgs } from '../../../shared/casualPlatformActionArgs';
 
@@ -203,6 +206,7 @@ type YatzGameContextValue = {
   postCasualReplayWindowEndsAt?: number;
 
   postCasualAdReplayDailyRemaining?: number;
+  postCasualAdReplayDailyCap?: number;
 
   casualReplayBusy: boolean;
 
@@ -322,6 +326,12 @@ const YatzGameProvider: React.FC<Props> = ({
   >();
 
   const [postCasualAdReplayDailyRemaining, setPostCasualAdReplayDailyRemaining] = useState<
+
+    number | undefined
+
+  >();
+
+  const [postCasualAdReplayDailyCap, setPostCasualAdReplayDailyCap] = useState<
 
     number | undefined
 
@@ -532,9 +542,17 @@ const YatzGameProvider: React.FC<Props> = ({
 
           setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
 
+          setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
+
         });
 
-      } else if (gameIdForSummary) {
+      }
+
+      // 多人竞技：Arena ingest 常缺 adReplayDailyCap；Portal query 带完整 N/M。
+      if (
+        gameIdForSummary &&
+        (shouldRefreshPortalAdReplayQuota(casualTournamentId) || !res.tableSummary)
+      ) {
 
         try {
 
@@ -561,6 +579,8 @@ const YatzGameProvider: React.FC<Props> = ({
 
               setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
 
+              setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
+
             });
 
           }
@@ -575,7 +595,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     },
 
-    [casualPlatformBridge, targetScore]
+    [casualPlatformBridge, casualTournamentId, targetScore]
 
   );
 
@@ -1319,6 +1339,7 @@ const YatzGameProvider: React.FC<Props> = ({
         postCasualReplayWindowEndsAt,
 
         postCasualAdReplayDailyRemaining,
+        postCasualAdReplayDailyCap,
 
         casualReplayBusy,
 

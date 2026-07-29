@@ -65,6 +65,33 @@ export async function bumpAdEntryUsedToday(
   });
 }
 
+/** Undo one ad-entry usage bump (queue abandoned before table open). */
+export async function decrementAdEntryUsedToday(
+  ctx: MutationCtx,
+  args: {
+    uid: string;
+    dayKey: string;
+    mode: EntryMode;
+    now: number;
+    entryCtx?: PlayEntryContext | null;
+    quotaScope: PortalQuotaScope;
+  }
+): Promise<void> {
+  const bucket = entryUsageBucketForScope(args.quotaScope, args.entryCtx);
+  const rows = await ctx.db
+    .query("portal_ad_entry_daily_usage")
+    .withIndex("by_uid_dayKey_mode", (q) =>
+      q.eq("uid", args.uid).eq("dayKey", args.dayKey).eq("mode", args.mode)
+    )
+    .collect();
+  const usage = rows.find((r) => usageRowMatchesBucket(r, bucket));
+  if (!usage) return;
+  await ctx.db.patch(usage._id, {
+    usedCount: Math.max(0, usage.usedCount - 1),
+    updatedAt: args.now,
+  });
+}
+
 export async function readTicketEntryUsedToday(
   ctx: QueryCtx | MutationCtx,
   uid: string,
@@ -118,6 +145,33 @@ export async function bumpTicketEntryUsedToday(
     ...(bucket.tournamentId ? { tournamentId: bucket.tournamentId } : {}),
     usedCount: 1,
     createdAt: args.now,
+    updatedAt: args.now,
+  });
+}
+
+/** Undo one ticket-entry usage bump (queue abandoned before table open). */
+export async function decrementTicketEntryUsedToday(
+  ctx: MutationCtx,
+  args: {
+    uid: string;
+    dayKey: string;
+    mode: EntryMode;
+    now: number;
+    entryCtx?: PlayEntryContext | null;
+    quotaScope: PortalQuotaScope;
+  }
+): Promise<void> {
+  const bucket = entryUsageBucketForScope(args.quotaScope, args.entryCtx);
+  const rows = await ctx.db
+    .query("portal_ticket_entry_daily_usage")
+    .withIndex("by_uid_dayKey_mode", (q) =>
+      q.eq("uid", args.uid).eq("dayKey", args.dayKey).eq("mode", args.mode)
+    )
+    .collect();
+  const usage = rows.find((r) => usageRowMatchesBucket(r, bucket));
+  if (!usage) return;
+  await ctx.db.patch(usage._id, {
+    usedCount: Math.max(0, usage.usedCount - 1),
     updatedAt: args.now,
   });
 }

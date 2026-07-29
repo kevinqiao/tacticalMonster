@@ -103,6 +103,8 @@ export const failOrderAndRefund = internalMutation({
         uid: row.uid,
         amount: row.priceCoins,
         reason: `giftcard_refund:${orderId}`,
+        scopeKey: row.scopeKey ?? "shared",
+        ...(row.lobbyId ? { lobbyId: row.lobbyId } : {}),
       }
     );
 

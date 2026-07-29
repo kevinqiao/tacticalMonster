@@ -20,6 +20,7 @@ export const grantIssuedCouponToPortalBackpack = internalAction({
     portalSkuId: v.string(),
     issueKey: v.string(),
     preferredCode: v.string(),
+    maxCouponsPerPlayer: v.optional(v.number()),
   },
   handler: async (_ctx, args) => {
     const result = await grantPartnerVoucherFromCampaignViaHttp({
@@ -29,6 +30,9 @@ export const grantIssuedCouponToPortalBackpack = internalAction({
       portalSkuId: args.portalSkuId,
       grantKey: args.issueKey,
       preferredCode: args.preferredCode,
+      ...(args.maxCouponsPerPlayer != null
+        ? { maxCouponsPerPlayer: args.maxCouponsPerPlayer }
+        : {}),
     });
     if (!result.ok) {
       console.error("[merchantCampaign] Portal voucher grant failed", {

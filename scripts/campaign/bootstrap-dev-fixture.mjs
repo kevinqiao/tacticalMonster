@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Bootstrap a dev Campaign fixture (partner_brands + live campaign).
- * Stores / staff live in SSO — use setup-dev-env.mjs for the full stack.
+ * Bootstrap a dev Campaign fixture (live campaign for an SSO campaignOps partner).
+ * Assumes SSO `partner.slug` already exists for the partner (Campaign no longer
+ * keeps its own partner_brands mirror). Stores / staff live in SSO — use
+ * setup-dev-env.mjs for the full stack.
  *
  * Usage:
  *   node scripts/campaign/bootstrap-dev-fixture.mjs
@@ -154,7 +156,7 @@ function main() {
   printConfig(config);
 
   const before = runConvexCampaign(
-    "service/merchant/merchantCampaigns:getCampaignPublic",
+    "service/merchant/merchantCampaignPublicActions:getCampaignPublic",
     { partnerSlug: config.partnerSlug, campaignSlug: config.campaignSlug },
     config.convexArgs
   );
@@ -183,7 +185,7 @@ function main() {
   console.log("\n[apply] bootstrap result:", result);
 
   const after = runConvexCampaign(
-    "service/merchant/merchantCampaigns:getCampaignPublic",
+    "service/merchant/merchantCampaignPublicActions:getCampaignPublic",
     { partnerSlug: config.partnerSlug, campaignSlug: config.campaignSlug },
     config.convexArgs
   );

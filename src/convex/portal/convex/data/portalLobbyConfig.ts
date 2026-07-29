@@ -1,7 +1,4 @@
-import {
-  PARTNER_GAME_TYPES,
-  type RegisteredPartnerGameType,
-} from "./partnerGameRegistry";
+import { type RegisteredPartnerGameType } from "./partnerGameRegistry";
 import {
   getPortalTournamentDefinition,
   PORTAL_TOURNAMENT_DEFINITIONS,
@@ -34,9 +31,13 @@ export type PortalLobbyOffering = {
   enabled?: boolean;
 };
 
+/** Platform / multi-game lobby wordmark (4-game collection sticker). */
+export const BRAINWAR_PLATFORM_LOGO =
+  "/assets/portal/3d/logos/brainwar-hero.svg";
+
 /** Shared defaults (aligned with portalGame3DTheme fallbacks). */
 export const PORTAL_LOBBY_DEFAULT_BRANDING = {
-  logoUrl: "/assets/portal/solitaire/hero/hero-title.webp",
+  logoUrl: BRAINWAR_PLATFORM_LOGO,
   backgroundLandscapeUrl: "/assets/portal/solitaire/backgrounds/bg-16x9.webp",
   backgroundPortraitUrl: "/assets/portal/solitaire/backgrounds/bg-9x16.webp",
 } as const;
@@ -49,9 +50,7 @@ export function validateLobbySlug(raw: string): string {
   const slug = normalizeLobbySlug(raw);
   if (!slug) throw new Error("lobby_slug_required");
   if (!LOBBY_SLUG_RE.test(slug)) throw new Error("lobby_slug_invalid");
-  if ((PARTNER_GAME_TYPES as readonly string[]).includes(slug)) {
-    throw new Error("lobby_slug_conflicts_game_type");
-  }
+  // Game-type ids (solitaire, …) are allowed: partner URLs treat seg3 as lobby slug.
   if (slug === "preview") throw new Error("lobby_slug_reserved");
   return slug;
 }
@@ -65,15 +64,17 @@ export function resolveLobbyBranding(
   backgroundPortraitUrl: string;
 } {
   const logoFallback =
-    gameType === "block_blast"
-      ? "/assets/portal/3d/logos/block_blast-hero.svg"
-      : gameType === "match_3"
-        ? "/assets/portal/3d/logos/match_3-hero.svg"
-        : gameType === "tower_arena"
-          ? "/assets/portal/3d/logos/tower_arena-hero.svg"
-          : gameType === "yatz"
-            ? "/assets/portal/3d/logos/yatz-hero.svg"
-            : PORTAL_LOBBY_DEFAULT_BRANDING.logoUrl;
+    gameType === "solitaire"
+      ? "/assets/portal/solitaire/hero/hero-title.webp"
+      : gameType === "block_blast"
+        ? "/assets/portal/3d/logos/block_blast-hero.svg"
+        : gameType === "match_3"
+          ? "/assets/portal/3d/logos/match_3-hero.svg"
+          : gameType === "tower_arena"
+            ? "/assets/portal/3d/logos/tower_arena-hero.svg"
+            : gameType === "yatz"
+              ? "/assets/portal/3d/logos/yatz-hero.svg"
+              : PORTAL_LOBBY_DEFAULT_BRANDING.logoUrl;
 
   return {
     logoUrl: branding?.logoUrl?.trim() || logoFallback,

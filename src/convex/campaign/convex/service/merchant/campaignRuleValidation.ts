@@ -7,11 +7,19 @@ import {
   assertNonOverlappingRankTiers,
   rankRuleBounds,
 } from "./campaignRankRewardTiers";
+import {
+  requireCampaignTournament,
+  type CampaignPlayMode,
+} from "./campaignTournament";
 
 export function assertCampaignConfig(args: {
   experienceType?: Doc<"campaigns">["experienceType"];
-  gameType: string;
-  mode: "solo" | "multi";
+  /** Game campaigns: Portal tournament desk SoT. */
+  tournamentId?: string | null;
+  /** @deprecated Derived from tournamentId when omitted. */
+  gameType?: string;
+  /** @deprecated Derived from tournamentId when omitted. */
+  mode?: CampaignPlayMode;
   rewardModel?: Doc<"campaigns">["rewardModel"];
   startsAt: number;
   endsAt: number;
@@ -21,7 +29,7 @@ export function assertCampaignConfig(args: {
   posterLandscapeStorageId?: Id<"_storage"> | null;
   displayConfig?: Doc<"campaigns">["displayConfig"];
   requirePoster?: boolean;
-}): void {
+}): { tournamentId?: string; gameType?: string; mode?: CampaignPlayMode } {
   if (args.startsAt >= args.endsAt) {
     throw new Error("invalid_period");
   }
@@ -37,7 +45,7 @@ export function assertCampaignConfig(args: {
       displayConfig: args.displayConfig,
       requirePoster: args.requirePoster,
     });
-    return;
+    return {};
   }
 
   assertCampaignPosterRequired({
@@ -47,9 +55,13 @@ export function assertCampaignConfig(args: {
     requirePoster: args.requirePoster,
   });
 
-  if (!PARTNER_GAME_TYPES.includes(args.gameType as PartnerCampaignGameType)) {
-    throw new Error("unsupported_game_type");
+  if (!args.tournamentId?.trim()) {
+    throw new Error("tournament_required");
   }
+  const resolved = requireCampaignTournament(args.tournamentId);
+  const mode = resolved.mode;
+  const gameType = resolved.gameType;
+
   if (args.rewardRules.length === 0) {
     throw new Error("reward_rules_required");
   }
@@ -57,12 +69,12 @@ export function assertCampaignConfig(args: {
 
   const rewardModel = resolveRewardModel({
     rewardModel: args.rewardModel,
-    mode: args.mode,
+    mode,
     rewardRules: args.rewardRules,
   });
 
   if (rewardModel === "pass_per_run") {
-    if (args.mode === "solo") {
+    if (mode === "solo") {
       for (const rule of args.rewardRules) {
         if (
           rule.kind !== "solo_p75_success" &&
@@ -74,9 +86,8 @@ export function assertCampaignConfig(args: {
           throw new Error("score_threshold_requires_minScore");
         }
       }
-      return;
+      return { tournamentId: resolved.tournamentId, gameType, mode };
     }
-    // pass_per_run + multi: per-match place rewards
     for (const rule of args.rewardRules) {
       if (rule.kind !== "multi_rank_top_n") {
         throw new Error("reward_rule_model_mismatch");
@@ -87,7 +98,7 @@ export function assertCampaignConfig(args: {
       }
     }
     assertNonOverlappingRankTiers(args.rewardRules);
-    return;
+    return { tournamentId: resolved.tournamentId, gameType, mode };
   }
 
   for (const rule of args.rewardRules) {
@@ -100,9 +111,10 @@ export function assertCampaignConfig(args: {
     }
   }
   assertNonOverlappingRankTiers(args.rewardRules);
+  return { tournamentId: resolved.tournamentId, gameType, mode };
 }
 
-/** Must stay aligned with partnerGameRegistry PARTNER_GAME_TYPES. */
+/** Must stay aligned with partnerGameRegistry / portal tournament gameTypes. */
 export const PARTNER_GAME_TYPES = [
   "block_blast",
   "match_3",
@@ -118,6 +130,7 @@ export const PORTAL_CAMPAIGN_GAME_TYPES = PARTNER_GAME_TYPES;
 /** @deprecated use PartnerCampaignGameType */
 export type PortalCampaignGameType = PartnerCampaignGameType;
 
+/** @deprecated Prefer campaign.tournamentId. */
 export function portalTemplateIdForCampaign(
   gameType: string,
   mode: "solo" | "multi"
@@ -125,15 +138,13 @@ export function portalTemplateIdForCampaign(
   return mode === "solo" ? `portal_solo_p75_${gameType}` : `portal_multi_${gameType}`;
 }
 
-/** Staff-created campaigns must reference a Portal voucher SKU and/or coupon def. */
+/** Staff-created campaigns must reference a Portal voucher SKU (coupon_defs removed). */
 export function assertStaffCouponDefRefs(
   rewardRules: Doc<"campaigns">["rewardRules"]
 ): void {
   for (const rule of rewardRules) {
-    const hasPortal = Boolean(rule.portalSkuId?.trim());
-    const hasDef = Boolean(rule.couponDefId?.trim());
-    if (!hasPortal && !hasDef) {
-      throw new Error("coupon_def_required");
+    if (!rule.portalSkuId?.trim()) {
+      throw new Error("portal_sku_required");
     }
   }
 }

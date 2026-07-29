@@ -1,5 +1,6 @@
 /**
- * Partner-enabled game catalog (static). partner.games selects a subset.
+ * Partner game catalog (static config). All partners are fully open;
+ * lobby offerings / tournaments decide what appears in a given lobby.
  */
 
 export type PartnerSeedStrategy = "remote_http" | "catalog_internal";

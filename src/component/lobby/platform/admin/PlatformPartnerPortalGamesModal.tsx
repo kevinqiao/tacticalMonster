@@ -18,8 +18,8 @@ const PlatformPartnerPortalGamesModal: React.FC<Props> = ({
   canEdit,
   onClose,
 }) => {
-  const config = usePartnerPortalConfig(partnerId);
-  const partnerSlug = config?.partnerSlug ?? config?.portalKey ?? "";
+  const { config } = usePartnerPortalConfig(partnerId);
+  const partnerSlug = config?.partnerSlug ?? "";
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

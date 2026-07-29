@@ -4,7 +4,8 @@
   "purchase_default": "兑换失败，请稍后重试",
   "flow": {
     "signInToChallenge": "请先登录后再开始挑战。",
-    "alreadyInQueue": "已在匹配队列中，请先退出匹配或等待开桌。"
+    "alreadyInQueue": "已在匹配队列中，请先退出匹配或等待开桌。",
+    "noTournamentsForGame": "当前大厅未配置该游戏的赛事，请在 Game Lobby 中勾选对应 offerings。"
   },
   "giftcard": {
     "linkOpened": "已打开领取链接",
@@ -37,6 +38,7 @@
     "daily_cap_reached": "今日广告再战次数已用完",
     "already_claimed": "本局已使用过广告再战",
     "match_not_open": "再战未生效，请重试或刷新页面",
-    "match_not_replayable": "当前对局不可再战"
+    "match_not_replayable": "当前对局不可再战",
+    "system_maintenance": "系统维护中，请稍后再试"
   }
 }

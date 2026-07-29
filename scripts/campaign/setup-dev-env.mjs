@@ -66,7 +66,7 @@ function parseArgs(argv) {
     forceConfig: argv.includes("--force-config"),
     convexArgs: argv.filter((a) => a === "--prod"),
     partnerId: partnerIdRaw != null ? Number(partnerIdRaw) : undefined,
-    partnerSlug: get("--partner-slug") ?? get("--portal-key") ?? "demo-partner",
+    partnerSlug: get("--partner-slug") ?? "demo-partner",
     partnerName: get("--partner-name") ?? "Demo Partner",
     storeSlug: get("--store-slug") ?? "demo-cafe",
     storeName: get("--store-name") ?? "Demo Cafe",
@@ -273,7 +273,7 @@ function main() {
   console.log("  →", campaignOut);
 
   const pub = runConvexCampaign(
-    "service/merchant/merchantCampaigns:getCampaignPublic",
+    "service/merchant/merchantCampaignPublicActions:getCampaignPublic",
     {
       partnerSlug: config.partnerSlug,
       campaignSlug: config.campaignSlug,

@@ -12,6 +12,7 @@ import { MockRewardedAdOverlay } from "./ads/rewarded/MockRewardedAdOverlay";
 import { AudioProvider } from "./audio/AudioProvider";
 import { ModalProvider } from "./ModalManager";
 import { PageProvider } from "./PageManager";
+import { MaintenanceGate } from "./platformStatus/MaintenanceGate";
 import { SharedPageDataProvider } from "./SharedPageDataManager";
 import { UserProvider } from "./UserManager";
 /** Vite 使用 import.meta.env，同时支持 REACT_APP_ 前缀以保持兼容性 */
@@ -43,7 +44,9 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
                                         <AudioProvider>
                                             <BootLoadingOverlay />
                                             <MockRewardedAdOverlay />
-                                            <ModalProvider>{children}</ModalProvider>
+                                            <MaintenanceGate>
+                                              <ModalProvider>{children}</ModalProvider>
+                                            </MaintenanceGate>
                                         </AudioProvider>
                                     </PageProvider>
                                 </SharedPageDataProvider>

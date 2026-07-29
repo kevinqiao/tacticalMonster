@@ -7,10 +7,7 @@ import { markPortalBootPainted } from "@/host/bootHandoff";
 import { usePartnerManager } from "host/service/PartnerManager";
 import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
 import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
-import {
-  isGameEnabledForPartner,
-  isRegisteredPartnerGameType,
-} from "@/convex/sso/convex/service/partner/portalPartnerConfig";
+import { isRegisteredPartnerGameType } from "@/convex/sso/convex/service/partner/portalPartnerConfig";
 import { partnerHasPortalGames } from "@/convex/sso/convex/service/partner/partnerCapabilities";
 
 import PortalGame3DPage from "./3d/PortalGame3DPage";
@@ -38,11 +35,10 @@ function portalLobbyClient(): ConvexHttpClient {
 }
 
 /**
- * Portal entry gate:
- * - /gc/{gameType}                      → first-party game
- * - /gc/{partnerSlug}                   → default lobby
+ * Portal entry gate (lobby-only):
+ * - /gc                                 → first-party default lobby
+ * - /gc/{partnerSlug}                   → partner default lobby
  * - /gc/{partnerSlug}/{lobbySlug}       → named lobby
- * - /gc/{partnerSlug}/{gameType}        → game deep link
  */
 const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
   const { t } = useTranslation("portal.player");
@@ -57,7 +53,6 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
             partnerSlug: null,
             partnerKey: null,
             lobbySlug: null,
-            gameType: null,
             isFirstPartyPortal: false,
             isLobbyPath: false,
           },
@@ -66,10 +61,12 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
     [partnerResolveReady, portalPartnerSlug]
   );
 
-  const raw = data?.gameType ?? data?.params?.gameType ?? portalPath.gameType;
+  // Optional page data override only (no URL game deep links).
+  const raw = data?.gameType ?? data?.params?.gameType;
   const gameTypeRaw = typeof raw === "string" ? raw : "";
   const pathGameType = isValidPortalGameType(gameTypeRaw) ? gameTypeRaw : null;
-  const isLobbyPath = portalPath.isLobbyPath || (!pathGameType && (isFirstPartyPortal || Boolean(portalPartnerSlug)));
+  const isLobbyPath =
+    portalPath.isLobbyPath || isFirstPartyPortal || Boolean(portalPartnerSlug);
 
   const isPartnerSlugPath = Boolean(portalPartnerSlug) && !isFirstPartyPortal;
   const needsPartnerGate = isFirstPartyPortal || isPartnerSlugPath;
@@ -81,14 +78,6 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
     partnerResolveReady &&
     !!partner &&
     !partnerHasPortalGames(partner);
-
-  const gameNotAllowed =
-    needsPartnerGate &&
-    partnerResolveReady &&
-    !!partner &&
-    !!pathGameType &&
-    partnerHasPortalGames(partner) &&
-    !isGameEnabledForPartner(partner, pathGameType);
 
   const [lobby, setLobby] = useState<PortalLobbyView | null>(null);
   const [lobbyLoading, setLobbyLoading] = useState(false);
@@ -102,14 +91,10 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
     let cancelled = false;
     setLobbyLoading(true);
     setLobbyError(false);
-    const games =
-      partner?.games?.filter((g): g is string => typeof g === "string") ??
-      undefined;
     void portalLobbyClient()
       .mutation(portalTournamentFns.resolvePortalLobby, {
         partnerId: isFirstPartyPortal ? 0 : partnerPid,
         lobbySlug: portalPath.lobbySlug ?? undefined,
-        games,
       })
       .then((row) => {
         if (cancelled) return;
@@ -146,7 +131,7 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
   ]);
 
   const effectiveGameType: RegisteredPartnerGameType | null = useMemo(() => {
-    if (pathGameType && !gameNotAllowed) return pathGameType;
+    if (pathGameType) return pathGameType;
     if (!lobby) return null;
     const fromSolo = lobby.offerings.find((o) => o.matchType === "solo_p75")?.gameType;
     if (fromSolo && isValidPortalGameType(fromSolo)) return fromSolo;
@@ -156,22 +141,29 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
       return first as RegisteredPartnerGameType;
     }
     return null;
-  }, [pathGameType, gameNotAllowed, lobby]);
+  }, [pathGameType, lobby]);
 
   const gateBlocked =
     !resolving &&
     !lobbyLoading &&
     (partnerMissing ||
       portalCapabilityOff ||
-      gameNotAllowed ||
       lobbyError ||
       (!pathGameType && !isLobbyPath) ||
       (isLobbyPath && !lobby) ||
       (!effectiveGameType && !isLobbyPath));
 
+  const showLoading = resolving || lobbyLoading;
+
+  // Dismiss boot cover once lobby gate settles — do not wait for page `visible`
+  // (GSAP pageOpen). On CrazyGames, visible can lag while assets already failed
+  // under a retargeted <base>, leaving "Entering game lobby…" forever.
   useLayoutEffect(() => {
-    if (gateBlocked) markPortalBootPainted();
-  }, [gateBlocked]);
+    if (showLoading) return;
+    if (gateBlocked || lobby || effectiveGameType) {
+      markPortalBootPainted();
+    }
+  }, [showLoading, gateBlocked, lobby, effectiveGameType]);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -191,8 +183,6 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
     color: "#f5f5f5",
   };
 
-  const showLoading = resolving || lobbyLoading;
-
   return (
     <PortalDocumentStylesProvider>
       {showLoading ? (
@@ -206,10 +196,6 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
       ) : portalCapabilityOff ? (
         <p className="merchant-note" style={gateMessageStyle} role="alert">
           {t("gate.portalDisabled")}
-        </p>
-      ) : gameNotAllowed ? (
-        <p className="merchant-note" style={gateMessageStyle} role="alert">
-          {t("gate.gameNotOpen")}
         </p>
       ) : lobbyError || (isLobbyPath && !lobby) ? (
         <p className="merchant-note" style={gateMessageStyle} role="alert">

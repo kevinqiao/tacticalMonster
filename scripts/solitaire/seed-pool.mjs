@@ -74,7 +74,8 @@ Common options (before --):
   --batch-size <n>      load/append 批大小（默认 ${DEFAULT_BATCH_SIZE}，Windows 含 rollout 时建议 ≤2）
   --no-clear            load 时不先 clean catalog
   --local               clean 时同时删除本地 --out 目录
-  --resume              create 断点续跑（等同 generate --resume）
+  --resume              create 断点续跑（等同 generate --resume；优先读 checkpoint.json）
+  --checkpoint-every N  每 N 个 seed 原子写入 checkpoint.json（默认=progress-every）
   --index-only          不写 rolloutSummaries / 仅 metrics 导入
   --skip-solvability    create：跳过可解性搜索（透传 generate）
   --require-solvable    create：只接纳可解 seed（unknown/unsolvable 拒绝并继续扫描）
@@ -141,6 +142,8 @@ function parseCommon(flags, defaults) {
     clearFirst: true,
     local: false,
     resume: false,
+    /** null = let generate default (same as progress-every) */
+    checkpointEvery: null,
     indexOnly: false,
     updateExisting: false,
     skipSolvability: false,
@@ -169,6 +172,7 @@ function parseCommon(flags, defaults) {
     else if (a === "--no-clear") opts.clearFirst = false;
     else if (a === "--local") opts.local = true;
     else if (a === "--resume") opts.resume = true;
+    else if (a === "--checkpoint-every") opts.checkpointEvery = Number(next());
     else if (a === "--index-only") opts.indexOnly = true;
     else if (a === "--skip-solvability") opts.skipSolvability = true;
     else if (a === "--require-solvable") opts.requireSolvable = true;
@@ -242,6 +246,9 @@ function cmdCreate(opts, extra) {
   ];
   if (opts.rejectCollapsed) args.push("--reject-collapsed");
   if (opts.resume) args.push("--resume");
+  if (opts.checkpointEvery != null && Number.isFinite(opts.checkpointEvery)) {
+    args.push("--checkpoint-every", String(opts.checkpointEvery));
+  }
   if (opts.indexOnly) args.push("--index-only", "true");
   if (opts.requireSolvable) args.push("--require-solvable");
   else if (opts.skipSolvability) args.push("--skip-solvability");

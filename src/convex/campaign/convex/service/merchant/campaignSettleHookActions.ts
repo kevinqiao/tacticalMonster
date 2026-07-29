@@ -11,8 +11,11 @@ import {
   fetchCampaignLeagueHumansRankedViaHttp,
   fetchCampaignLeagueLeaderboardViaHttp,
 } from "../bridge/portalCampaignLeagueBridge";
+import { requirePartnerCampaignOpsViaHttp } from "../bridge/partnerStaffBridge";
+import { listCampaignVouchersViaHttp } from "../bridge/portalPartnerVoucherGrantBridge";
 import { resolveRewardModel, usesLeaderboard } from "./campaignRewardModel";
 import { maxLeaderboardRankFromRules } from "./campaignRankRewardTiers";
+import { resolveCampaignTournament } from "./campaignTournament";
 
 async function loadCampaign(
   ctx: ActionCtx,
@@ -35,7 +38,7 @@ export const getCampaignLeaderboard = action({
     const fetched = await fetchCampaignLeagueLeaderboardViaHttp({
       campaignId: args.campaignId,
       limit: args.limit ?? 20,
-      mode: campaign.mode,
+      mode: resolveCampaignTournament(campaign)?.mode,
     });
     if (!fetched.ok) {
       console.error("[merchantCampaign] getCampaignLeaderboard portal failed", fetched.error);
@@ -56,10 +59,11 @@ export const ensureCampaignBoardBotsForLeaderboard = action({
     if (!usesLeaderboard(resolveRewardModel(campaign))) {
       return { ok: true as const, seeded: false as const };
     }
+    const mode = resolveCampaignTournament(campaign)?.mode ?? "solo";
     const result = await ensureCampaignLeagueBotsViaHttp({
       campaignId: campaign.campaignId,
       partnerId: campaign.partnerId,
-      mode: campaign.mode,
+      mode,
       dueTime: campaign.endsAt,
       startsAt: campaign.startsAt,
     });
@@ -82,7 +86,7 @@ async function finalizeFromPortal(
   const ranked = await fetchCampaignLeagueHumansRankedViaHttp({
     campaignId: campaign.campaignId,
     limit: maxTopN,
-    mode: campaign.mode,
+    mode: resolveCampaignTournament(campaign)?.mode,
   });
   if (!ranked.ok) {
     return { ok: false as const, error: ranked.error };
@@ -124,5 +128,26 @@ export const finalizeCampaignLeaderboardRewardsStaff = authedAction({
       return { ok: false as const, error: "not_found" as const };
     }
     return await finalizeFromPortal(ctx, campaign);
+  },
+});
+
+/** Staff coupon list — proxied to Portal's backpack (source of truth). */
+export const listCampaignCouponsForStaff = authedAction({
+  args: {
+    partnerId: v.number(),
+    campaignId: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requirePartnerCampaignOpsViaHttp({
+      partnerId: args.partnerId,
+      uid: ctx.uid,
+    });
+    const result = await listCampaignVouchersViaHttp(args);
+    if (!result.ok) {
+      console.error("[merchantCampaign] listCampaignCouponsForStaff portal failed", result.error);
+      return [];
+    }
+    return result.items;
   },
 });

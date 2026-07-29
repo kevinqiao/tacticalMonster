@@ -55,7 +55,7 @@ export const crazyGamesEmbedAuthProvider: EmbedAuthProvider = {
   method: "crazygames_jwt",
 
   supports(partner) {
-    return resolveEmbedMethod(partner.data) === "crazygames_jwt";
+    return resolveEmbedMethod(partner) === "crazygames_jwt";
   },
 
   async verify(args: EmbedVerifyArgs) {

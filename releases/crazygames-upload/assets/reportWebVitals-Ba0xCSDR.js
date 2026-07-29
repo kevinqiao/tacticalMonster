@@ -1,0 +1,3 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./vendor-BX5UfeD-.js","./react-vendor-CrzCOU9b.js"])))=>i.map(i=>d[i]);
+import{_}from"./app-shell-Cgv5Qd0l.js";import"./react-vendor-CrzCOU9b.js";import"./vendor-BX5UfeD-.js";import"./convex-vendor-Bs2kGud2.js";import"./gsap-vendor-DtRcpDEb.js";const r=t=>{t&&t instanceof Function&&_(async()=>{const{getCLS:i,getFID:e,getFCP:a,getLCP:o,getTTFB:m}=await import("./vendor-BX5UfeD-.js").then(p=>p.w);return{getCLS:i,getFID:e,getFCP:a,getLCP:o,getTTFB:m}},__vite__mapDeps([0,1]),import.meta.url).then(({getCLS:i,getFID:e,getFCP:a,getLCP:o,getTTFB:m})=>{i(t),e(t),a(t),o(t),m(t)})};export{r as default};
+//# sourceMappingURL=reportWebVitals-Ba0xCSDR.js.map

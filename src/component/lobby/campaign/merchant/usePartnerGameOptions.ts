@@ -1,36 +1,27 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMemo } from "react";
 
-import { api } from "@/convex/sso/convex/_generated/api";
-import { ssoConvexClient } from "host/service/AppProviders";
+import {
+  PARTNER_GAME_LABELS,
+  PARTNER_GAME_TYPES,
+} from "@/convex/sso/convex/service/partner/portalPartnerConfig";
 
 export type PartnerGameOption = { value: string; label: string };
 
-/** Load partner.games options for merchant campaign pickers via SSO. */
-export function usePartnerGameOptions(partnerId: number | null) {
-  const [options, setOptions] = useState<PartnerGameOption[] | undefined>(undefined);
-  const [error, setError] = useState<string | null>(null);
+/** Static catalog options for merchant campaign pickers (all partners fully open). */
+export function usePartnerGameOptions(_partnerId: number | null) {
+  const options = useMemo<PartnerGameOption[]>(
+    () =>
+      PARTNER_GAME_TYPES.map((gameType) => ({
+        value: gameType,
+        label: PARTNER_GAME_LABELS[gameType],
+      })),
+    []
+  );
 
-  const refresh = useCallback(async () => {
-    if (partnerId == null || !Number.isFinite(partnerId) || partnerId < 0) {
-      setOptions(undefined);
-      return;
-    }
-    try {
-      const row = (await ssoConvexClient.query(api.service.partner.partnerAdmin.getPartnerGames, {
-        partnerId,
-      })) as { options: PartnerGameOption[] } | null;
-      setOptions(row?.options ?? []);
-      setError(null);
-    } catch (e) {
-      console.warn("[usePartnerGameOptions]", e);
-      setOptions([]);
-      setError("partner_games_unavailable");
-    }
-  }, [partnerId]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  return { options, error, refresh, loading: options === undefined && !error };
+  return {
+    options,
+    error: null as string | null,
+    refresh: async () => undefined,
+    loading: false,
+  };
 }

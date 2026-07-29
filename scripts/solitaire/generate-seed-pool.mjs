@@ -10,8 +10,12 @@
  * Friendly pool: use --min-score-p25 with --rollouts 40 for band diversity (v4 personas).
  * Incremental: re-run with --resume (same --out) to continue after the last scanned
  * seed index and merge into existing index.json / rejected.json.
+ *
+ * Mid-run durability: writes checkpoint.json (+ rejected.json) every
+ * --checkpoint-every scans (default = --progress-every). --resume reloads it.
+ * All JSON writes are atomic (tmp + rename) so a kill cannot leave 0-byte files.
  */
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -21,6 +25,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 
 const DEFAULT_TOTAL = 5000;
+const CHECKPOINT_FILE = "checkpoint.json";
 
 function parseArgs(argv) {
   const opts = {
@@ -34,6 +39,8 @@ function parseArgs(argv) {
     tierEasy: 0.3,
     tierMedium: 0.4,
     progressEvery: 100,
+    /** 0 = same as progressEvery; <0 disables checkpointing */
+    checkpointEvery: 0,
     resume: false,
     rebuildIndexOnly: false,
     minOpeningMoves: 0,
@@ -64,6 +71,7 @@ function parseArgs(argv) {
     else if (a === "--tier-easy") opts.tierEasy = Number(next());
     else if (a === "--tier-medium") opts.tierMedium = Number(next());
     else if (a === "--progress-every") opts.progressEvery = Number(next());
+    else if (a === "--checkpoint-every") opts.checkpointEvery = Number(next());
     else if (a === "--resume") opts.resume = true;
     else if (a === "--append") opts.resume = true;
     else if (a === "--rebuild-index-only") opts.rebuildIndexOnly = true;
@@ -90,7 +98,22 @@ function parseArgs(argv) {
     else if (a === "--max-scan") opts.maxScan = Number(next());
   }
   if (opts.requireSolvable) opts.checkSolvability = true;
+  if (!Number.isFinite(opts.checkpointEvery) || opts.checkpointEvery === 0) {
+    opts.checkpointEvery = opts.progressEvery;
+  }
   return opts;
+}
+
+/** Atomic JSON write so a kill mid-write cannot leave a 0-byte / corrupt file. */
+async function writeJsonAtomic(filePath, value) {
+  const tmp = `${filePath}.${process.pid}.tmp`;
+  await writeFile(tmp, JSON.stringify(value, null, 2), "utf8");
+  try {
+    await rename(tmp, filePath);
+  } catch {
+    await unlink(filePath).catch(() => {});
+    await rename(tmp, filePath);
+  }
 }
 
 function playerFriendlyOpts(opts) {
@@ -118,6 +141,7 @@ async function loadExistingIndex(outDir) {
   const indexPath = path.join(outDir, "index.json");
   try {
     const raw = await readFile(indexPath, "utf8");
+    if (!raw.trim()) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed.entries) ? parsed.entries : [];
   } catch {
@@ -129,11 +153,33 @@ async function loadExistingRejected(outDir) {
   const rejectedPath = path.join(outDir, "rejected.json");
   try {
     const raw = await readFile(rejectedPath, "utf8");
+    if (!raw.trim()) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
+}
+
+async function loadCheckpoint(outDir, poolVersion) {
+  const checkpointPath = path.join(outDir, CHECKPOINT_FILE);
+  try {
+    const raw = await readFile(checkpointPath, "utf8");
+    if (!raw.trim()) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.poolVersion !== poolVersion) return null;
+    if (!Array.isArray(parsed.batchCandidates) || !Array.isArray(parsed.batchRejected)) {
+      return null;
+    }
+    if (!Number.isFinite(parsed.lastScannedIndex)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function clearCheckpoint(outDir) {
+  await unlink(path.join(outDir, CHECKPOINT_FILE)).catch(() => {});
 }
 
 function parseSeedIndexFromSeedId(seedId, poolVersion) {
@@ -159,10 +205,6 @@ function fingerprintsFromRecords(records) {
     if (fp) seen.add(fp);
   }
   return seen;
-}
-
-function fingerprintsFromEntries(entries) {
-  return fingerprintsFromRecords(entries);
 }
 
 async function scanRolloutIndices(rolloutsDir, poolVersion) {
@@ -216,32 +258,47 @@ async function writePoolOutputs(opts, retiered, mergedRejected) {
   const tierCounts = { easy: 0, medium: 0, hard: 0 };
   for (const e of retiered) tierCounts[e.tier] += 1;
 
-  await writeFile(
-    path.join(opts.out, "index.json"),
-    JSON.stringify(
-      {
-        poolVersion: opts.version,
-        rolloutCount: opts.rollouts,
-        matchTimeLimitSec: opts.matchSeconds,
-        generatedAt,
-        entries: retiered,
-      },
-      null,
-      2
-    ),
-    "utf8"
-  );
-  await writeFile(
-    path.join(opts.out, "rejected.json"),
-    JSON.stringify(mergedRejected, null, 2),
-    "utf8"
-  );
-  await writeFile(
-    path.join(opts.out, "tier-index.json"),
-    JSON.stringify(tierIndex, null, 2),
-    "utf8"
-  );
+  await writeJsonAtomic(path.join(opts.out, "index.json"), {
+    poolVersion: opts.version,
+    rolloutCount: opts.rollouts,
+    matchTimeLimitSec: opts.matchSeconds,
+    generatedAt,
+    entries: retiered,
+  });
+  await writeJsonAtomic(path.join(opts.out, "rejected.json"), mergedRejected);
+  await writeJsonAtomic(path.join(opts.out, "tier-index.json"), tierIndex);
   return tierCounts;
+}
+
+async function writeRunCheckpoint(args) {
+  const {
+    outDir,
+    poolVersion,
+    lastScannedIndex,
+    targetAccepted,
+    candidateCount,
+    batchCandidates,
+    batchRejected,
+    existingRejected,
+    matchSeconds,
+    rollouts,
+  } = args;
+  await writeJsonAtomic(path.join(outDir, CHECKPOINT_FILE), {
+    poolVersion,
+    updatedAt: new Date().toISOString(),
+    lastScannedIndex,
+    targetAccepted,
+    candidateCount,
+    matchSeconds,
+    rollouts,
+    batchCandidates,
+    batchRejected,
+  });
+  // Persist rejects early so resume can advance seed index even if checkpoint is lost.
+  await writeJsonAtomic(path.join(outDir, "rejected.json"), [
+    ...existingRejected,
+    ...batchRejected,
+  ]);
 }
 
 async function main() {
@@ -277,7 +334,10 @@ async function main() {
     await mkdir(rolloutsDir, { recursive: true });
   }
 
+  /** In-progress batch restored from checkpoint.json (same create invocation). */
+  let restoredCheckpoint = null;
   if (opts.resume) {
+    restoredCheckpoint = await loadCheckpoint(opts.out, opts.version);
     const existingEntries = await loadExistingIndex(opts.out);
     const existingRejected = await loadExistingRejected(opts.out);
     let maxIdx = maxSeedIndexFromRecords(existingEntries, opts.version);
@@ -288,10 +348,21 @@ async function main() {
         maxIdx = Math.max(maxIdx, indices[indices.length - 1]);
       }
     }
-    opts.start = maxIdx + 1;
-    console.log(
-      `resume: existing accepted=${existingEntries.length} rejected=${existingRejected.length} continue from seed index ${opts.start}`
-    );
+    if (restoredCheckpoint) {
+      maxIdx = Math.max(maxIdx, restoredCheckpoint.lastScannedIndex);
+      opts.start = restoredCheckpoint.lastScannedIndex + 1;
+      console.log(
+        `resume checkpoint: lastScanned=${restoredCheckpoint.lastScannedIndex} ` +
+          `batchAccepted=${restoredCheckpoint.batchCandidates.length} ` +
+          `batchRejected=${restoredCheckpoint.batchRejected.length} ` +
+          `continue from seed index ${opts.start}`
+      );
+    } else {
+      opts.start = maxIdx + 1;
+      console.log(
+        `resume: existing accepted=${existingEntries.length} rejected=${existingRejected.length} continue from seed index ${opts.start}`
+      );
+    }
   }
 
   if (opts.rebuildIndexOnly) {
@@ -344,7 +415,8 @@ async function main() {
   console.log(
     `out=${opts.out} summaries=${opts.writeRolloutSummaries} rolloutFiles=${opts.writeRolloutFiles} ` +
       `solvability=${opts.checkSolvability} requireSolvable=${opts.requireSolvable} ` +
-      `solveMaxNodes=${opts.solveMaxNodes} solveTimeoutMs=${opts.solveTimeoutMs} maxScan=${maxScan}`
+      `solveMaxNodes=${opts.solveMaxNodes} solveTimeoutMs=${opts.solveTimeoutMs} maxScan=${maxScan} ` +
+      `checkpointEvery=${opts.checkpointEvery}`
   );
   if (
     opts.minOpeningMoves > 0 ||
@@ -360,12 +432,12 @@ async function main() {
     console.log(`oversampleFactor=${opts.oversampleFactor}`);
   }
 
-  const existingRejected =
+  let existingRejected =
     opts.resume || opts.start > 0 ? await loadExistingRejected(opts.out) : [];
 
   let existingEntries =
     opts.resume || opts.start > 0 ? await loadExistingIndex(opts.out) : [];
-  if (opts.start > 0 && existingEntries.length === 0) {
+  if (opts.start > 0 && existingEntries.length === 0 && !restoredCheckpoint) {
     console.log("rebuilding partial index from existing rollout files...");
     existingEntries = await rebuildCandidatesFromRollouts(
       rolloutsDir,
@@ -386,12 +458,26 @@ async function main() {
     await writePoolOutputs(opts, retiered, existingRejected);
   }
 
+  const batchCandidates = restoredCheckpoint
+    ? [...restoredCheckpoint.batchCandidates]
+    : [];
+  const batchRejected = restoredCheckpoint
+    ? [...restoredCheckpoint.batchRejected]
+    : [];
+
+  // Checkpoint also flushes rejected.json = prior + batch; strip batch ids so final merge
+  // does not double-count when --resume reloads both.
+  if (restoredCheckpoint && batchRejected.length > 0) {
+    const batchRejectIds = new Set(batchRejected.map((e) => e.seedId));
+    existingRejected = existingRejected.filter((e) => !batchRejectIds.has(e.seedId));
+  }
+
   const seenFingerprints = new Set([
     ...fingerprintsFromRecords(existingEntries),
     ...fingerprintsFromRecords(existingRejected),
+    ...fingerprintsFromRecords(batchCandidates),
+    ...fingerprintsFromRecords(batchRejected),
   ]);
-  const batchCandidates = [];
-  const batchRejected = [];
 
   const t0 = Date.now();
   const oneSeedOpts = {
@@ -411,13 +497,49 @@ async function main() {
   };
 
   // Fixed window by default; with --require-solvable keep scanning until enough accepted.
+  // Checkpoint-restored candidates already count toward the quota.
   const stopWhenAccepted = opts.requireSolvable ? candidateCount : Infinity;
+  let lastScannedIndex = restoredCheckpoint?.lastScannedIndex ?? opts.start - 1;
+  let checkpointWrites = 0;
+
+  const persistCheckpoint = async (reason) => {
+    if (opts.checkpointEvery < 0) return;
+    await writeRunCheckpoint({
+      outDir: opts.out,
+      poolVersion: opts.version,
+      lastScannedIndex,
+      targetAccepted,
+      candidateCount,
+      batchCandidates,
+      batchRejected,
+      existingRejected,
+      matchSeconds: opts.matchSeconds,
+      rollouts: opts.rollouts,
+    });
+    checkpointWrites += 1;
+    console.log(
+      `checkpoint[${reason}] lastScanned=${lastScannedIndex} ` +
+        `batchAccepted=${batchCandidates.length}/${candidateCount} ` +
+        `batchRejected=${batchRejected.length} → ${path.join(opts.out, CHECKPOINT_FILE)}`
+    );
+  };
+
+  const onSignal = (signal) => {
+    console.log(`\n${signal}: flushing checkpoint before exit...`);
+    void persistCheckpoint(signal)
+      .catch((e) => console.error("checkpoint flush failed", e))
+      .finally(() => process.exit(130));
+  };
+  process.once("SIGINT", () => onSignal("SIGINT"));
+  process.once("SIGTERM", () => onSignal("SIGTERM"));
+
   for (let i = opts.start; i < scanEnd; i++) {
     if (batchCandidates.length >= stopWhenAccepted) break;
 
     console.log = () => {};
     const result = processOneSeed(i, oneSeedOpts, seenFingerprints);
     console.log = log;
+    lastScannedIndex = i;
 
     if (result.kind === "rejected") {
       batchRejected.push(result.entry);
@@ -429,7 +551,7 @@ async function main() {
         };
         await mkdir(rolloutsDir, { recursive: true });
         const file = path.join(rolloutsDir, seedIdToFilename(seedId));
-        await writeFile(file, JSON.stringify({ seedId, rollouts }, null, 2), "utf8");
+        await writeJsonAtomic(file, { seedId, rollouts });
       }
       batchCandidates.push(result.candidate);
     }
@@ -437,10 +559,15 @@ async function main() {
     const done = i - opts.start + 1;
     if (opts.progressEvery > 0 && done % opts.progressEvery === 0) {
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-      const goal = opts.requireSolvable ? `${batchCandidates.length}/${candidateCount}` : `${done}/${candidateCount}`;
+      const goal = opts.requireSolvable
+        ? `${batchCandidates.length}/${candidateCount}`
+        : `${done}/${candidateCount}`;
       console.log(
         `progress scanned=${done}/${maxScan} accepted=${goal} rejected=${batchRejected.length} elapsed=${elapsed}s`
       );
+    }
+    if (opts.checkpointEvery > 0 && done % opts.checkpointEvery === 0) {
+      await persistCheckpoint("periodic");
     }
   }
 
@@ -482,6 +609,7 @@ async function main() {
     medium: opts.tierMedium,
   });
   const tierCounts = await writePoolOutputs(opts, retiered, mergedRejected);
+  await clearCheckpoint(opts.out);
 
   const rejectReasons = {};
   for (const e of mergedRejected) {
@@ -490,7 +618,9 @@ async function main() {
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
   console.log(`done in ${elapsed}s`);
-  console.log(`accepted=${retiered.length} rejected=${mergedRejected.length}`);
+  console.log(
+    `accepted=${retiered.length} rejected=${mergedRejected.length} checkpoints=${checkpointWrites}`
+  );
   if (mergedRejected.length > 0) {
     console.log(`reject reasons: ${JSON.stringify(rejectReasons)}`);
   }

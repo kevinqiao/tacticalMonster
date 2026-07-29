@@ -8,6 +8,16 @@
     "enteringPlatformAdmin": "正在加载平台管理…",
     "enteringPartnerAdmin": "正在加载 Partner 管理…",
     "enteringLobby": "正在进入游戏大厅…"
+  },
+  "maintenance": {
+    "kicker": "暂时无法使用",
+    "title": "系统维护中",
+    "message": "我们正在进行系统维护，请稍后再试。",
+    "eta": "预计恢复时间：{{time}}",
+    "retry": "刷新重试",
+    "opsEntry": "运营入口",
+    "noticeTitle": "维护预告",
+    "noticeWindow": "预计时间：{{window}}"
   }
 }
 

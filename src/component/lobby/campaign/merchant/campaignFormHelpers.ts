@@ -13,14 +13,16 @@ export type CampaignPassRewardKind = "solo_p75_success" | "score_threshold";
 export type CampaignRankRewardTier = {
   rankFrom: string;
   rankTo: string;
+  /** Selected reward product id — stores a Portal voucher `skuId` (preferred) or a legacy value. */
   couponDefId: string;
 };
 
+/** @deprecated coupon_defs is retired server-side; kept only for legacy label fallbacks (list is always empty). */
 export type MerchantCouponDefOption = {
   couponDefId: string;
   name: string;
   status: string;
-  reward: Doc<"coupon_defs">["reward"];
+  reward: Doc<"campaigns">["rewardRules"][number]["reward"];
   /** Usage rules copy; empty / omitted means none. */
   usageRules?: string;
   validity?: { kind: "duration_hours"; hours: number };
@@ -56,12 +58,17 @@ export type CampaignFormState = {
   ctaKind: DisplayCtaKind;
   ctaLabel: string;
   ctaUrl: string;
+  /** Portal tournament desk SoT. */
+  tournamentId: string;
+  /** Derived from tournamentId (UI reward branching). */
   gameType: string;
+  /** Derived from tournamentId (UI reward branching). */
   mode: "solo" | "multi";
   rewardModel: CampaignRewardModel;
   rewardKind: CampaignPassRewardKind;
   minScore: string;
   topN: string;
+  /** Selected reward product id — stores a Portal voucher `skuId` (preferred) or a legacy value. */
   couponDefId: string;
   rankRewardTiers: CampaignRankRewardTier[];
   maxCouponsPerPlayer: string;
@@ -162,6 +169,7 @@ export function defaultCampaignForm(now = Date.now()): CampaignFormState {
     ctaKind: "none",
     ctaLabel: "",
     ctaUrl: "",
+    tournamentId: "portal_solo_p75_block_blast",
     gameType: "block_blast",
     mode: "solo",
     rewardModel: "pass_per_run",
@@ -225,8 +233,9 @@ export function campaignFormFromDoc(campaign: Doc<"campaigns">): CampaignFormSta
       ctaKind: cta?.kind ?? "none",
       ctaLabel: cta?.label ?? "",
       ctaUrl: cta?.url ?? "",
-      gameType: campaign.gameType,
-      mode: campaign.mode,
+      tournamentId: "",
+      gameType: "",
+      mode: "solo",
       rewardModel: "pass_per_run",
       rewardKind: "solo_p75_success",
       minScore: "5000",
@@ -283,8 +292,14 @@ export function campaignFormFromDoc(campaign: Doc<"campaigns">): CampaignFormSta
     ctaKind: "none",
     ctaLabel: "",
     ctaUrl: "",
-    gameType: campaign.gameType,
-    mode: campaign.mode,
+    tournamentId:
+      typeof (campaign as { tournamentId?: string }).tournamentId === "string"
+        ? (campaign as { tournamentId: string }).tournamentId
+        : campaign.mode === "multi"
+          ? `portal_multi_${campaign.gameType}`
+          : `portal_solo_p75_${campaign.gameType}`,
+    gameType: campaign.gameType ?? "block_blast",
+    mode: campaign.mode === "multi" ? "multi" : "solo",
     rewardModel,
     rewardKind,
     minScore: String(passRule?.minScore ?? 5000),
@@ -337,20 +352,42 @@ export function portalVoucherSkuLabel(sku: PortalVoucherSkuOption | undefined): 
   return sku.rewardText.trim() ? `${sku.title} · ${sku.rewardText}` : sku.title;
 }
 
-function resolveCouponDefReward(
-  couponDefId: string,
-  couponDefs: MerchantCouponDefOption[]
-): Doc<"campaigns">["rewardRules"][number]["reward"] {
+/**
+ * Resolves the reward product for a rule/tier. Portal voucher SKUs are the
+ * source of truth: reward rules must always carry `portalSkuId` (never
+ * `couponDefId` alone). When the Portal SKU list is loaded but the selected
+ * id isn't in it, the staff pick is stale/invalid and must be reselected.
+ */
+function buildRewardProduct(
+  productId: string,
+  portalVoucherSkus: PortalVoucherSkuOption[]
+): { portalSkuId: string; reward: Doc<"campaigns">["rewardRules"][number]["reward"] } {
+  const trimmed = productId.trim();
+  const portalSku = portalVoucherSkus.find((sku) => sku.skuId === trimmed);
+  if (portalSku) {
+    return {
+      portalSkuId: portalSku.skuId,
+      reward: {
+        type: "free_item" as const,
+        itemLabel: portalSku.rewardText || portalSku.title,
+        displayText: portalSku.rewardText || portalSku.title,
+      },
+    };
+  }
+  if (portalVoucherSkus.length > 0) {
+    throw new Error("portal_sku_required");
+  }
+  // Portal SKU list unavailable (e.g. Portal shop not loaded yet); staff may
+  // have typed/kept a stale id — still emit portalSkuId per current schema.
   const fallbackLabel = i18n.t("rewardLabel.default", { ns: "campaign.merchant" });
-  const def = couponDefs.find((d) => d.couponDefId === couponDefId);
-  return (
-    def?.reward ??
-    ({
+  return {
+    portalSkuId: trimmed,
+    reward: {
       type: "free_item" as const,
       itemLabel: fallbackLabel,
       displayText: fallbackLabel,
-    } satisfies Doc<"campaigns">["rewardRules"][number]["reward"])
-  );
+    },
+  };
 }
 
 export function buildDisplayConfigFromForm(
@@ -415,22 +452,11 @@ export function experienceTypeLabel(experienceType: CampaignExperienceType): str
 
 export function buildRewardRulesFromForm(
   form: CampaignFormState,
-  couponDefs: MerchantCouponDefOption[],
+  /** @deprecated coupon_defs is retired server-side; kept only for call-site compat (always []). */
+  _couponDefs: MerchantCouponDefOption[],
   portalVoucherSkus: PortalVoucherSkuOption[] = []
 ): Doc<"campaigns">["rewardRules"] {
-  const buildProduct = (productId: string) => {
-    const portalSku = portalVoucherSkus.find((sku) => sku.skuId === productId);
-    return portalSku
-      ? {
-          portalSkuId: portalSku.skuId,
-          reward: {
-            type: "free_item" as const,
-            itemLabel: portalSku.rewardText || portalSku.title,
-            displayText: portalSku.rewardText || portalSku.title,
-          },
-        }
-      : { couponDefId: productId, reward: resolveCouponDefReward(productId, couponDefs) };
-  };
+  const buildProduct = (productId: string) => buildRewardProduct(productId, portalVoucherSkus);
   if (form.rewardModel === "competitive_leaderboard") {
     if (form.rankRewardTiers.length === 0) {
       throw new Error("reward_rules_required");
@@ -583,25 +609,23 @@ export function normalizeFormForRewardModel(form: CampaignFormState): CampaignFo
   return { ...form, rankRewardTiers };
 }
 
+/** @deprecated coupon_defs is retired server-side; the defs list is always empty now. */
 export function pickDefaultCouponDefId(defs: MerchantCouponDefOption[]): string {
   const active = defs.filter((d) => d.status === "active");
   return active[0]?.couponDefId ?? "";
 }
 
-/** Prefer Portal-backed rewards for new campaigns; retain legacy definitions as a fallback. */
-export function pickDefaultRewardProductId(
-  portalVoucherSkus: PortalVoucherSkuOption[],
-  couponDefs: MerchantCouponDefOption[]
-): string {
-  return portalVoucherSkus.find((sku) => sku.active)?.skuId ?? pickDefaultCouponDefId(couponDefs);
+/** Portal-only: pick the first active Portal voucher SKU as the default reward product. */
+export function pickDefaultRewardProductId(portalVoucherSkus: PortalVoucherSkuOption[]): string {
+  return portalVoucherSkus.find((sku) => sku.active)?.skuId ?? "";
 }
 
-/** Fill missing coupon def ids so legacy campaigns can be saved after admin adds defs. */
-export function ensureFormCouponDef(
+/** Fill missing reward product ids from active Portal voucher SKUs. */
+export function ensureFormRewardProduct(
   form: CampaignFormState,
-  couponDefs: MerchantCouponDefOption[]
+  portalVoucherSkus: PortalVoucherSkuOption[]
 ): CampaignFormState {
-  const defaultId = pickDefaultCouponDefId(couponDefs);
+  const defaultId = pickDefaultRewardProductId(portalVoucherSkus);
   if (!defaultId) return form;
 
   let couponDefId = form.couponDefId;

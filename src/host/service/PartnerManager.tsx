@@ -2,12 +2,14 @@
     parseCampaignPartnerSlugFromPathname,
     resolvePartnerPidFromSearch,
 } from "@/host/util/PageUtils";
-import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
+import {
+    isLegacyFirstPartyGameSegment,
+    parsePortalPathFromPathname,
+} from "@/host/util/portalPathParse";
 import { useConvex } from "convex/react";
 import { api } from "convex/sso/convex/_generated/api";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-import { resolvePartnerIdByPartnerSlug } from "./resolveMerchantPartner";
 import { useHistoryLocationKey } from "./useHistoryLocationKey";
 
 export interface Partner {
@@ -18,9 +20,42 @@ export interface Partner {
     slug?: string;
     /** Product flags: Portal vs Campaign Ops (SoT for those contexts). */
     capabilities?: { portalGames?: boolean; campaignOps?: boolean };
-    /** Enabled game types from partnerGameRegistry (portal + campaign scope). */
+    /** Static game catalog (full open; not a per-partner allowlist). */
     games?: string[];
     data?: Record<string, unknown>;
+    /**
+     * Cross-product visual brand SoT (Campaign / Game Center / future).
+     * Consumed by Campaign FE to overlay partner name/logo/theme onto the
+     * campaign-only public payload (Campaign backend no longer looks this up).
+     */
+    brand?: {
+      sourceUrl?: string;
+      themeVersion?: number;
+      theme?: {
+        version: number;
+        sourceUrl?: string;
+        mode: "light" | "dark";
+        brand: {
+          primary: string;
+          onPrimary: string;
+          background: string;
+          surface: string;
+          text: string;
+          textMuted: string;
+          fontFamily: string;
+          radiusMd: string;
+        };
+        shell: {
+          ctaBg: string;
+          ctaText: string;
+          headerBg: string;
+          posterFrameRadius: string;
+        };
+        assets?: { logoUrl?: string };
+      };
+      logoUrl?: string;
+      updatedAt?: number;
+    };
     /** Player login SoT. */
     playerAuth?: {
       mode: "clerk" | "embed" | "embed_then_clerk";
@@ -46,7 +81,7 @@ interface IPartnerContext {
     campaignPartnerSlug: string | null;
     /** Portal URL partner slug when on /gc/{slug}/... */
     portalPartnerSlug: string | null;
-    /** True on first-party /gc/{gameType} routes (no partner slug). */
+    /** True on first-party `/gc` (no partner slug), including legacy game-bookmark fallback. */
     isFirstPartyPortal: boolean;
 }
 const PartnerContext = createContext<IPartnerContext>({
@@ -95,12 +130,18 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
             let partnerRow: Partner | null = null;
 
             if (partnerSlug) {
-                const resolved = await resolvePartnerIdByPartnerSlug(partnerSlug);
-                if (cancelled) return;
-                pid = resolved?.partnerId ?? 0;
-                const row = await convex.query(api.service.PartnerManager.find, { pid });
+                // slug → partnerId resolves only via SSO `partner.slug` (PartnerManager
+                // is already backed by the SSO Convex client — no Campaign round-trip needed).
+                // Shared by both `/gc/{slug}` (Portal) and `/cc/{slug}` (Campaign):
+                // `partnerSlug` here is parsed generically from either URL shape, and
+                // both product FEs read `partnerPid` from this same provider to call
+                // their respective backends with an already-resolved partnerId.
+                const row = await convex.query(api.service.PartnerManager.findByPartnerSlug, {
+                    partnerSlug,
+                });
                 if (cancelled) return;
                 partnerRow = row ? (row as Partner) : null;
+                pid = partnerRow?.pid ?? 0;
             } else if (portalPath.isFirstPartyPortal) {
                 pid = 0;
                 const row = await convex.query(api.service.PartnerManager.find, { pid: 0 });
@@ -114,6 +155,14 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
                 if (row) {
                     partnerRow = row as Partner;
                     pid = partnerRow.pid;
+                } else if (isLegacyFirstPartyGameSegment(pathPartnerSlug)) {
+                    // Legacy `/gc/{gameType}` bookmarks → first-party default lobby.
+                    setIsFirstPartyPortal(true);
+                    setPortalPartnerSlug(null);
+                    pid = 0;
+                    const fp = await convex.query(api.service.PartnerManager.find, { pid: 0 });
+                    if (cancelled) return;
+                    partnerRow = fp ? (fp as Partner) : null;
                 } else {
                     partnerRow = null;
                     pid = 0;

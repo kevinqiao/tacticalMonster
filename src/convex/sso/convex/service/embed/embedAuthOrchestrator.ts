@@ -18,17 +18,19 @@ export async function performEmbedCredentialExchange(
   }
 ): Promise<User | null> {
   if (args.partnerSlug?.trim()) {
-    const { resolvePartnerIdByPartnerSlug } = await import("../bridge/merchantCampaignResolve");
     const { api } = await import("../../_generated/api");
     const slug = args.partnerSlug.trim();
-    const fromBrand = await resolvePartnerIdByPartnerSlug(slug);
+    const fromPartner = (await ctx.runQuery(
+      internal.service.bridge.merchantCampaignResolve.resolvePartnerBySlugInternal,
+      { partnerSlug: slug }
+    )) as { partnerId: number } | null;
     const storeRow =
-      fromBrand == null
+      fromPartner == null
         ? ((await ctx.runQuery(api.service.partner.storeAdmin.resolvePartnerByStoreSlug, {
             storeSlug: slug,
           })) as { partnerId: number } | null)
         : null;
-    const expected = fromBrand ?? storeRow?.partnerId ?? null;
+    const expected = fromPartner?.partnerId ?? storeRow?.partnerId ?? null;
     if (expected == null || expected !== args.pid) {
       return null;
     }

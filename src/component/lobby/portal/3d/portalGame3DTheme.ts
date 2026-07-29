@@ -33,9 +33,11 @@ export const PORTAL_3D_GAME_BG: Record<
   yatz: { ...PORTAL_3D_SHARED_BG_FALLBACK },
 };
 
-const DEFAULT_HERO_LOGO = "/assets/portal/solitaire/hero/hero-title.webp";
+/** Multi-game / unspecified lobby: BrainWar collection wordmark. */
+const DEFAULT_HERO_LOGO = "/assets/portal/3d/logos/brainwar-hero.svg";
 
-const HERO_LOGO_FALLBACK = DEFAULT_HERO_LOGO;
+/** Unknown gameType fallback keeps solitaire sticker (not platform mark). */
+const HERO_LOGO_FALLBACK = "/assets/portal/solitaire/hero/hero-title.webp";
 
 /** 仅 Hero Logo 按 gameType 区分（canonical: public/assets/portal/3d/logos/） */
 export const PORTAL_3D_HERO_LOGO: Record<RegisteredPartnerGameType, string> = {

@@ -660,9 +660,15 @@ export function useCampaignFlow(args: {
         await portal.refresh();
         setNote(null);
       }
+      // partnerId is taken from the platform uid on the server; optional FE hint
+      // from session (`user.partner`) for mismatch detection before the round-trip.
+      const sessionPartnerId =
+        typeof user?.partner === "number" && Number.isFinite(user.partner)
+          ? user.partner
+          : undefined;
       const outcome = await portal.joinTournament(mode, {
-        partnerSlug: args.partnerSlug,
         campaignSlug: args.campaignSlug,
+        ...(sessionPartnerId != null ? { partnerId: sessionPartnerId } : {}),
       });
       if (outcome.kind === "ready") {
         setNote(null);
@@ -708,7 +714,6 @@ export function useCampaignFlow(args: {
   }, [
     askAuth,
     args.campaignSlug,
-    args.partnerSlug,
     campaign,
     campaignEnded,
     campaignPlayable,

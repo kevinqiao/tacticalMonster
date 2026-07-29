@@ -183,6 +183,7 @@ const GamePlayer: React.FC = () => {
         replayMode: yatz.postCasualReplayMode,
         challengeSuccess: yatz.postCasualScoreReport?.challenge?.success,
         adReplayDailyRemaining: yatz.postCasualAdReplayDailyRemaining,
+        adReplayDailyCap: yatz.postCasualAdReplayDailyCap,
       }),
     [
       yatz.casualTournamentId,
@@ -191,6 +192,7 @@ const GamePlayer: React.FC = () => {
       yatz.postCasualReplayMode,
       yatz.postCasualScoreReport?.challenge?.success,
       yatz.postCasualAdReplayDailyRemaining,
+      yatz.postCasualAdReplayDailyCap,
     ]
   );
   const showPostSettleSummary =
@@ -203,6 +205,7 @@ const GamePlayer: React.FC = () => {
         canReplay: yatz.postCasualCanReplay,
         replayMode: yatz.postCasualReplayMode,
         adReplayDailyRemaining: yatz.postCasualAdReplayDailyRemaining,
+        adReplayDailyCap: yatz.postCasualAdReplayDailyCap,
         replayWindowEndsAt: yatz.postCasualReplayWindowEndsAt,
       }),
     [
@@ -210,6 +213,7 @@ const GamePlayer: React.FC = () => {
       yatz.postCasualCanReplay,
       yatz.postCasualReplayMode,
       yatz.postCasualAdReplayDailyRemaining,
+      yatz.postCasualAdReplayDailyCap,
       yatz.postCasualReplayWindowEndsAt,
     ]
   );
@@ -413,6 +417,11 @@ const GamePlayer: React.FC = () => {
             ? scoreReportActions.adReplayDailyRemaining
             : undefined
         }
+        adReplayDailyCap={
+          scoreReportActions.showReplaySecondary
+            ? scoreReportActions.adReplayDailyCap
+            : undefined
+        }
         replayWindowEndsAt={
           scoreReportActions.showReplaySecondary
             ? yatz.postCasualReplayWindowEndsAt
@@ -428,6 +437,7 @@ const GamePlayer: React.FC = () => {
         replayAvailable={postSettleReplay.showReplay}
         replayMode={yatz.postCasualReplayMode}
         adReplayDailyRemaining={postSettleReplay.adReplayDailyRemaining}
+        adReplayDailyCap={postSettleReplay.adReplayDailyCap}
         replayWindowEndsAt={yatz.postCasualReplayWindowEndsAt}
         replayBusy={yatz.casualReplayBusy}
         onReplay={postSettleReplay.showReplay ? () => void yatz.replayCasualRun() : undefined}

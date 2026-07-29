@@ -47,8 +47,8 @@ export function partnerEmbedMethod(partner: Partner | null | undefined) {
   ) {
     return fromPlayer;
   }
-  if (!partner?.data) return resolveEmbedMethod(undefined);
-  return resolveEmbedMethod(partner.data);
+  if (!partner) return resolveEmbedMethod(undefined);
+  return resolveEmbedMethod(partner);
 }
 
 export function isCrazyGamesDevFlag(search: string): boolean {

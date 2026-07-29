@@ -26,8 +26,10 @@ export type PortalAdCoinResult =
     }
   | { ok: false; error: string };
 
-/** Portal：begin → 激励广告 → complete → 发金币 */
-export async function requestPortalAdCoin(): Promise<PortalAdCoinResult> {
+/** Portal：begin → 激励广告 → complete → 发金币（isolated 时写入当前 lobby 钱包） */
+export async function requestPortalAdCoin(args?: {
+  lobbyId?: string | null;
+}): Promise<PortalAdCoinResult> {
   const channel = resolvePortalAdCoinChannel();
   if (!channel || channel === "crazygames") {
     return { ok: false, error: "ad_channel_unsupported" };
@@ -40,6 +42,10 @@ export async function requestPortalAdCoin(): Promise<PortalAdCoinResult> {
     return { ok: false, error: "ad_channel_unsupported" };
   }
 
+  const lobbyArg = args?.lobbyId
+    ? { lobbyId: args.lobbyId as never }
+    : {};
+
   const http = portalHttp();
   let begin: {
     ok?: boolean;
@@ -50,6 +56,7 @@ export async function requestPortalAdCoin(): Promise<PortalAdCoinResult> {
   try {
     begin = (await http.mutation(portalTournamentFns.beginAdCoinSession, {
       channel: sessionChannel,
+      ...lobbyArg,
     })) as typeof begin;
   } catch (e) {
     console.warn("[portal ad coin] begin threw", e);
@@ -76,6 +83,7 @@ export async function requestPortalAdCoin(): Promise<PortalAdCoinResult> {
     complete = (await http.mutation(portalTournamentFns.completeAdCoinSession, {
       sessionId: begin.sessionId,
       clientProof: ad.clientProof,
+      ...lobbyArg,
     })) as typeof complete;
   } catch (e) {
     console.warn("[portal ad coin] complete threw", e);

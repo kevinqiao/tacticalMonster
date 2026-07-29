@@ -11,12 +11,14 @@ describe("casualTableSummaryFromParsed", () => {
       replayMode: "ad",
       canReplay: true,
       adReplayDailyRemaining: 5,
+      adReplayDailyCap: 10,
       replayWindowEndsAt: Date.now() + 180_000,
     });
     expect(parsed?.replayOffered).toBe(true);
     expect(parsed?.replayMode).toBe("ad");
     expect(parsed?.canReplay).toBe(true);
     expect(parsed?.adReplayDailyRemaining).toBe(5);
+    expect(parsed?.adReplayDailyCap).toBe(10);
     expect(parsed?.replayWindowEndsAt).toBeGreaterThan(Date.now());
   });
 });

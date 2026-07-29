@@ -8,6 +8,7 @@ import {
   CASUAL_DEFAULT_QUEUE_EXPIRE,
   type QueueExpireAction,
 } from "../../../data/portalMatchmakingConfig";
+import { refundAbandonedQueuePlayEntry } from "../../ads/portalPlayEntryQueueRefund";
 
 export type QueueRow = Doc<"portal_match_queue">;
 
@@ -85,7 +86,11 @@ export async function purgeExtraCasualMatchQueueRows(
     if (row.status === "claiming") {
       await ctx.db.patch(row._id, { status: "waiting", updatedAt: now });
     }
-    await ctx.db.delete(row._id);
+    const fresh = await ctx.db.get(row._id);
+    if (!fresh) continue;
+    await refundAbandonedQueuePlayEntry(ctx, fresh);
+    const cur = await ctx.db.get(row._id);
+    if (cur) await ctx.db.delete(cur._id);
     removed++;
   }
   return removed;
@@ -134,7 +139,11 @@ export async function reconcileCasualMatchQueueForJoin(
     if (row.status === "claiming") {
       await ctx.db.patch(row._id, { status: "waiting", updatedAt: now });
     }
-    await ctx.db.delete(row._id);
+    const fresh = await ctx.db.get(row._id);
+    if (!fresh) continue;
+    await refundAbandonedQueuePlayEntry(ctx, fresh);
+    const cur = await ctx.db.get(row._id);
+    if (cur) await ctx.db.delete(cur._id);
   }
 
   return (await ctx.db.get(keep._id)) ?? keep;

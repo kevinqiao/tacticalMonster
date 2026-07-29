@@ -112,6 +112,7 @@ async function openCasualTableFromClaimHandler(
       templateId,
       uids: claim.uids,
       joinChargeByUid: claim.joinChargeByUid,
+      queueRowIds: claim.queueRowIds,
       ...(claim.lobbyId ? { lobbyId: claim.lobbyId } : {}),
       ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
       ...(claim.campaignId ? { campaignId: claim.campaignId } : {}),
@@ -259,6 +260,7 @@ export const openCasualSoloTable = internalAction({
     ),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
+    playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
   },
   handler: async (
     ctx,
@@ -273,6 +275,7 @@ export const openCasualSoloTable = internalAction({
       campaignReplaySettings,
       maxPlaysPerDay,
       dayTimezone,
+      playEntryLane,
     }
   ) => {
     const existingOpen = await ctx.runQuery(
@@ -301,6 +304,7 @@ export const openCasualSoloTable = internalAction({
           templateId,
           ...(lobbyId ? { lobbyId } : {}),
           ...(dayTimezone ? { dayTimezone } : {}),
+          ...(playEntryLane ? { entryLane: playEntryLane } : {}),
         }
       );
       if (!daily.ok) {

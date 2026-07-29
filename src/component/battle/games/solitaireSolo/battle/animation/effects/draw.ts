@@ -115,6 +115,7 @@ export const drawCard = ({ data, onComplete }: { data: any; onComplete?: () => v
             /*
              * 翻面嵌在飞行中段。talon 在右、waste 在左：应绕 Y 负向翻（朝落点一侧掀开）。
              * 结束态仍由 syncAllWasteZ 写成 180，与全局明牌约定一致（-180 与 180 同面）。
+             * 牌面由 handler 在 mutation 返回后 popCard（与飞行并行），通常赶在翻面中段前就绪。
              */
             tl.to(
                 drawn.ele,

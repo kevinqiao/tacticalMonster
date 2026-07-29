@@ -73,87 +73,48 @@ export const getCampaignDocInternal = internalQuery({
   },
 });
 
+/**
+ * @deprecated Coupons no longer live in Campaign; Portal's backpack owns the
+ * player-facing voucher state. Kept as a stub so old FE call sites do not
+ * hard-crash while they migrate to Portal's `listMyBackpackItems`.
+ */
 export const getMyCampaignCoupon = authedQuery({
   args: { campaignId: v.string() },
-  handler: async (ctx, args) => {
-    const uid = ctx.uid;
-    const rows = await ctx.db
-      .query("coupons")
-      .withIndex("by_campaign_uid", (q) =>
-        q.eq("campaignId", args.campaignId).eq("uid", uid)
-      )
-      .collect();
-    const sorted = rows
-      .filter((c) => c.status !== "void")
-      .sort((a, b) => b.issuedAt - a.issuedAt);
-    return sorted[0] ?? null;
+  handler: async () => {
+    return null;
   },
 });
 
+/** @deprecated see getMyCampaignCoupon. */
 export const listPlayerCoupons = authedQuery({
   args: { campaignId: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const uid = ctx.uid;
-    if (args.campaignId) {
-      return await ctx.db
-        .query("coupons")
-        .withIndex("by_campaign_uid", (q) =>
-          q.eq("campaignId", args.campaignId!).eq("uid", uid)
-        )
-        .collect();
-    }
-    const all = await ctx.db.query("coupons").collect();
-    return all.filter((c) => c.uid === uid);
+  handler: async () => {
+    return [] as Array<never>;
   },
 });
 
+/** @deprecated see getMyCampaignCoupon. */
 export const listPlayerCouponsForPartner = authedQuery({
   args: { partnerId: v.number() },
-  handler: async (ctx, args) => {
-    const uid = ctx.uid;
-    const rows = await ctx.db
-      .query("coupons")
-      .withIndex("by_partner_status", (q) => q.eq("partnerId", args.partnerId))
-      .collect();
-    return rows
-      .filter((c) => c.uid === uid)
-      .sort((a, b) => b.issuedAt - a.issuedAt);
+  handler: async () => {
+    return [] as Array<never>;
   },
 });
 
-export const listCampaignCouponsForStaff = authedQuery({
-  args: {
-    partnerId: v.number(),
-    campaignId: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const limit = args.limit ?? 100;
-
-    if (args.campaignId) {
-      const rows = await ctx.db
-        .query("coupons")
-        .withIndex("by_campaignId", (q) => q.eq("campaignId", args.campaignId!))
-        .collect();
-      return rows
-        .filter((c) => c.partnerId === args.partnerId)
-        .sort((a, b) => b.issuedAt - a.issuedAt)
-        .slice(0, limit);
-    }
-
-    const rows = await ctx.db
-      .query("coupons")
-      .withIndex("by_partner_status", (q) => q.eq("partnerId", args.partnerId))
-      .collect();
-    return rows.sort((a, b) => b.issuedAt - a.issuedAt).slice(0, limit);
-  },
-});
+// `listCampaignCouponsForStaff` moved to campaignSettleHookActions.ts — it now
+// proxies to Portal's backpack over HTTP, which requires the Node action
+// runtime ("use node") and cannot live alongside these V8 queries/mutations.
 
 export const getCampaignSettlementStatus = query({
   args: { campaignId: v.string() },
   handler: async (ctx, args) => getCampaignSettlementPublic(ctx, args.campaignId),
 });
 
+/**
+ * Coupon issuance/redemption counters now live on Portal's backpack; only
+ * the leaderboard settlement snapshot (embedded on the campaign doc) stays
+ * local. Use `listCampaignCouponsForStaff` for per-voucher detail.
+ */
 export const getCampaignReport = authedQuery({
   args: { partnerId: v.number(), campaignId: v.string() },
   handler: async (ctx, args) => {
@@ -161,6 +122,7 @@ export const getCampaignReport = authedQuery({
       .query("campaigns")
       .withIndex("by_campaignId", (q) => q.eq("campaignId", args.campaignId))
       .unique()) as Doc<"campaigns"> | null;
+    const settlement = await getCampaignSettlementPublic(ctx, args.campaignId);
     if (!campaign || campaign.partnerId !== args.partnerId) {
       return {
         rewardModel: null,
@@ -169,25 +131,16 @@ export const getCampaignReport = authedQuery({
         issued: 0,
         redeemed: 0,
         redemptionRate: 0,
-        settlement: await getCampaignSettlementPublic(ctx, args.campaignId),
+        settlement,
       };
     }
-    const coupons = await ctx.db
-      .query("coupons")
-      .withIndex("by_campaignId", (q) => q.eq("campaignId", args.campaignId))
-      .collect();
-    const issued = coupons.filter((c) => c.status === "issued" || c.status === "redeemed").length;
-    const redeemed = coupons.filter((c) => c.status === "redeemed").length;
-    const settlement = await getCampaignSettlementPublic(ctx, args.campaignId);
-    const uniqueUids = new Set(coupons.map((c) => c.uid));
     return {
       rewardModel: resolveRewardModel(campaign),
-      /** Leaderboard participants live on Portal; coupon-based approx for reports. */
-      participants: uniqueUids.size,
-      plays: coupons.length,
-      issued,
-      redeemed,
-      redemptionRate: issued > 0 ? redeemed / issued : 0,
+      participants: settlement.winnerCount ?? 0,
+      plays: 0,
+      issued: settlement.couponsIssued ?? 0,
+      redeemed: 0,
+      redemptionRate: 0,
       settlement,
     };
   },

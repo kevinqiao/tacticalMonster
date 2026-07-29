@@ -9,6 +9,7 @@ import { LazyPortalProvider } from "../service/LazyPortalProvider";
 import { isValidPortalGameType } from "../../portal/service/portalGameTypeGuards";
 
 import {
+  useCampaignPartnerGate,
   useCampaignPublicLive,
   isDisplayCampaign,
   type MerchantCampaignCarouselItem,
@@ -63,8 +64,14 @@ export const CampaignMerchantCarousel: React.FC<CampaignMerchantCarouselProps> =
     isSwitchBlocked,
   });
 
+  // Parent (`CampaignLandingPage`) already gates rendering on a resolved
+  // partner for this slug; re-deriving here (same underlying context, held
+  // "last good" across the slide-switch `history.replaceState` re-resolves)
+  // just gives this component `partnerPid` for its own live query.
+  const { partnerPid } = useCampaignPartnerGate(partnerSlug);
+
   const { campaignPublic: activePublic, isLoading: loadingActive } = useCampaignPublicLive(
-    partnerSlug,
+    partnerPid,
     carousel.activeSlug
   );
 

@@ -169,6 +169,26 @@
   font-weight: 600;
 }
 
+.merchant-brand-sync-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.merchant-brand-sync-row__field {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.merchant-brand-sync-row__btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-bottom: 0;
+  align-self: flex-end;
+}
+
 .merchant-field {
   display: flex;
   flex-direction: column;

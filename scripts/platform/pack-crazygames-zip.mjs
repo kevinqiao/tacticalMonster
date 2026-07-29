@@ -6,8 +6,9 @@
  * This pack builds with VITE_BASE=./ and rewrites remaining `/assets/` refs to `./assets/`.
  *
  * After copy, prunes static art not needed for the CG entry
- * `/gc/crazygames/solitaire` (keeps portal/solitaire + portal/3d/ui + hashed JS/CSS),
- * and drops PNG/SVG originals when a sibling `.webp` exists (from compress step).
+ * `/gc/crazygames/solitaire` (keeps portal/solitaire + portal/3d/ui + needed JS/CSS),
+ * drops PNG/SVG originals when a sibling `.webp` exists (from compress step),
+ * and strips audio/_src, other-game audio, marketing hashed images, unused lazy chunks.
  *
  * Upload: drag contents of releases/crazygames-upload/ (NOT the .zip).
  *
@@ -51,6 +52,7 @@ const CG_SOLITAIRE_PRUNE_PATHS = [
   "assets/portal/tower_arena",
   "assets/portal/yatz",
   "assets/portal/3d/logos",
+  "assets/portal/brainwar",
   // Unused portal root art (boot uses solitaire/backgrounds/*.webp)
   "assets/portal/portal_bg_16x9.png",
   "assets/portal/portal_bg_9x16.png",
@@ -84,6 +86,12 @@ const CG_SOLITAIRE_PRUNE_PATHS = [
   "assets/obstacle2.png",
   "assets/obstacle3.png",
   "assets/trophy.png",
+  // Audio: keep solitaire + common; drop sources and other games
+  "audio/_src",
+  "audio/blockblast",
+  "audio/match3",
+  // Avatar pack unused on CG solitaire entry
+  "avatars",
   // Dev / non-game public trees
   "doc",
   "www",
@@ -96,6 +104,37 @@ const CG_SOLITAIRE_PRUNE_PATHS = [
   "telegram_index.html",
   "promotion.txt",
 ];
+
+/**
+ * Vite hashed *media* under assets/ only (never prune JS/CSS by name —
+ * PortalGamePage statically imports some "Casual*" shared chunks).
+ */
+const CG_ASSETS_MEDIA_PRUNE_RES = [
+  /^casual_village/i,
+  /^bg-desktop-/i,
+  /^bg-mobile-/i,
+  /^arena_before-/i,
+  /^arena_after-/i,
+  /^arena-/i,
+  /^tournamentitem\./i,
+  /^poster-guide-/i,
+];
+
+/** ESM import/from targets. */
+const ASSET_IMPORT_RE =
+  /(?:from\s*|import\s*\(\s*|import\s*)["'](\.\/[^"']+)["']/g;
+/**
+ * Vite also lists lazy-chunk CSS/JS in `__vite__mapDeps` string arrays
+ * (not as import statements). Missing those CSS files →
+ * "Unable to preload CSS" and PortalGamePage never mounts.
+ */
+const ASSET_STRING_RE = /["'](\.\/[A-Za-z0-9_.@-]+\.(?:js|css|mjs))["']/g;
+/**
+ * `import x from "./foo.css?url"` compiles to
+ * `new URL("foo-HASH.css", import.meta.url)` — no `./` prefix.
+ */
+const ASSET_NEW_URL_RE =
+  /new URL\(\s*["']([^"']+\.(?:js|css|mjs))["']\s*,\s*import\.meta\.url\s*\)/g;
 
 function fail(msg) {
   console.error(msg);
@@ -141,6 +180,117 @@ function pathBytes(target) {
   return folderStats(target).mb * 1024 * 1024;
 }
 
+/** Drop Vite hashed marketing images/PDF only (not JS/CSS). */
+function pruneHashedMediaByName(dir) {
+  const assetsDir = path.join(dir, "assets");
+  let removedBytes = 0;
+  let removedEntries = 0;
+  if (!fs.existsSync(assetsDir)) return { removedBytes, removedEntries };
+  for (const entry of fs.readdirSync(assetsDir, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const base = entry.name;
+    if (!/\.(png|jpe?g|webp|gif|svg|pdf)$/i.test(base)) continue;
+    if (!CG_ASSETS_MEDIA_PRUNE_RES.some((re) => re.test(base))) continue;
+    const p = path.join(assetsDir, base);
+    removedBytes += pathBytes(p);
+    fs.unlinkSync(p);
+    removedEntries += 1;
+  }
+  return { removedBytes, removedEntries };
+}
+
+function collectAssetImportTargets(filePath) {
+  const text = fs.readFileSync(filePath, "utf8");
+  const out = new Set();
+  for (const re of [ASSET_IMPORT_RE, ASSET_STRING_RE, ASSET_NEW_URL_RE]) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      out.add(path.basename(m[1].split("?")[0]));
+    }
+  }
+  return [...out];
+}
+
+/** `Foo-abc123.js` → keep any on-disk `Foo-*.css` (Vite CSS code-split sibling). */
+function siblingCssNames(assetsDir, jsName) {
+  const m = jsName.match(/^(.+)-[A-Za-z0-9_-]+\.js$/);
+  if (!m) return [];
+  const prefix = `${m[1]}-`;
+  return fs
+    .readdirSync(assetsDir)
+    .filter((f) => f.startsWith(prefix) && f.endsWith(".css"));
+}
+
+/**
+ * Keep JS/CSS reachable from index.html entry graph; drop unused lazy chunks.
+ * Avoids name-based false positives (e.g. Casual* shared by Portal).
+ */
+function pruneUnreachableHashedModules(dir) {
+  const assetsDir = path.join(dir, "assets");
+  const indexPath = path.join(dir, "index.html");
+  let removedBytes = 0;
+  let removedEntries = 0;
+  if (!fs.existsSync(assetsDir) || !fs.existsSync(indexPath)) {
+    return { removedBytes, removedEntries };
+  }
+
+  const keep = new Set();
+  const queue = [];
+  const html = fs.readFileSync(indexPath, "utf8");
+  for (const m of html.matchAll(/(?:src|href)=["']\.\/assets\/([^"']+)["']/g)) {
+    const name = m[1].split("?")[0];
+    if (!keep.has(name)) {
+      keep.add(name);
+      queue.push(name);
+    }
+  }
+
+  while (queue.length > 0) {
+    const name = queue.pop();
+    if (!/\.(js|css|mjs)$/i.test(name)) continue;
+    const fp = path.join(assetsDir, name);
+    if (!fs.existsSync(fp)) continue;
+    for (const dep of collectAssetImportTargets(fp)) {
+      if (keep.has(dep)) continue;
+      keep.add(dep);
+      queue.push(dep);
+    }
+    if (/\.js$/i.test(name)) {
+      for (const css of siblingCssNames(assetsDir, name)) {
+        if (keep.has(css)) continue;
+        keep.add(css);
+        queue.push(css);
+      }
+    }
+  }
+
+  const missing = [];
+  for (const name of keep) {
+    if (!/\.(js|css|mjs)$/i.test(name)) continue;
+    if (!fs.existsSync(path.join(assetsDir, name))) missing.push(name);
+  }
+  if (missing.length) {
+    fail(
+      `CrazyGames pack closure missing ${missing.length} asset(s):\n  ` +
+        missing.slice(0, 30).join("\n  ")
+    );
+  }
+
+  for (const entry of fs.readdirSync(assetsDir, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const base = entry.name;
+    if (!/\.(js|css|mjs|map)$/i.test(base)) continue;
+    const bare = base.replace(/\.map$/i, "");
+    if (keep.has(base) || keep.has(bare)) continue;
+    const p = path.join(assetsDir, base);
+    removedBytes += pathBytes(p);
+    fs.unlinkSync(p);
+    removedEntries += 1;
+  }
+  return { removedBytes, removedEntries };
+}
+
 /** Strip static assets not required for /portal/crazygames/solitaire. */
 function pruneCrazyGamesSolitaireAssets(dir) {
   let removedBytes = 0;
@@ -152,6 +302,12 @@ function pruneCrazyGamesSolitaireAssets(dir) {
     rmrf(target);
     removedEntries += 1;
   }
+  const media = pruneHashedMediaByName(dir);
+  removedBytes += media.removedBytes;
+  removedEntries += media.removedEntries;
+  const unreachable = pruneUnreachableHashedModules(dir);
+  removedBytes += unreachable.removedBytes;
+  removedEntries += unreachable.removedEntries;
   const superseded = pruneSupersededPortalRasters(dir);
   removedBytes += superseded.removedBytes;
   removedEntries += superseded.removedEntries;
@@ -292,12 +448,8 @@ console.log(
   `  pruned solitaire-only: ${pruned.removedEntries} paths, −${pruned.removedMb.toFixed(2)} MB`
 );
 
-const rewritten = pruneOnly ? 0 : rewriteAbsoluteAssetPaths(uploadDir);
-if (!pruneOnly) {
-  assertRelativeEntry();
-} else if (!fs.existsSync(path.join(uploadDir, "index.html"))) {
-  fail("Missing index.html after prune");
-}
+const rewritten = rewriteAbsoluteAssetPaths(uploadDir);
+assertRelativeEntry();
 
 const stats = folderStats(uploadDir);
 console.log("  folder:", uploadDir);
@@ -334,8 +486,10 @@ HOW TO UPLOAD (CrazyGames rejects .zip and absolute /assets paths):
   3. Drag into the Developer Portal upload zone
   4. Confirm preview Network tab loads ./assets/*.js (not 404)
 
-Entry path: /portal/crazygames/solitaire
+Entry path: /gc/crazygames/solitaire
 Kept static art: assets/portal/solitaire/*.webp, assets/portal/3d/ui/*.webp
+Also pruned: audio/_src, other-game audio, brainwar art, marketing images,
+unreachable lazy JS/CSS (keeps PortalGamePage import closure)
 `);
 
 if (process.platform === "win32" && !pruneOnly) {

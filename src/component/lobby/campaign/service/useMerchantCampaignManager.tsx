@@ -11,6 +11,7 @@ import React, {
 } from "react";
 
 import { useUserManager } from "host/service/UserManager";
+import { usePartnerManager, type Partner } from "host/service/PartnerManager";
 import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 
@@ -119,11 +120,11 @@ export type MerchantCampaignCarouselItem = {
 type MerchantCampaignContextValue = {
   convexUrl: string;
   fetchCampaignPublic: (
-    partnerSlug: string,
+    partnerId: number,
     campaignSlug: string
   ) => Promise<CampaignPublicView | null>;
   fetchPartnerCampaignsPublic: (
-    partnerSlug: string
+    partnerId: number
   ) => Promise<MerchantCampaignCarouselItem[]>;
   fetchMyCoupon: (campaignId: string) => Promise<unknown | null>;
   fetchMyCoupons: (campaignId: string) => Promise<CampaignCouponView[]>;
@@ -166,12 +167,15 @@ export function MerchantCampaignContextProvider({ children }: { children: React.
   const userRef = useRef(user);
   userRef.current = user;
 
-  const fetchCampaignPublic = useCallback(async (partnerSlug: string, campaignSlug: string) => {
+  const fetchCampaignPublic = useCallback(async (partnerId: number, campaignSlug: string) => {
     const http = getHttp();
-    if (!http) return null;
+    if (!http || partnerId <= 0) return null;
     try {
+      // Query takes an already-resolved partnerId — no SSO HTTP round-trip here.
+      // Caller is responsible for overlaying SSO partner.brand (see
+      // `mergeSsoPartnerBrand` / `useCampaignPublicLive`).
       return (await http.query(merchantCampaignFns.getCampaignPublic, {
-        partnerSlug,
+        partnerId,
         campaignSlug,
       })) as CampaignPublicView | null;
     } catch (e) {
@@ -180,12 +184,12 @@ export function MerchantCampaignContextProvider({ children }: { children: React.
     }
   }, []);
 
-  const fetchPartnerCampaignsPublic = useCallback(async (partnerSlug: string) => {
+  const fetchPartnerCampaignsPublic = useCallback(async (partnerId: number) => {
     const http = getHttp();
-    if (!http) return [];
+    if (!http || partnerId <= 0) return [];
     try {
       const rows = (await http.query(merchantCampaignFns.listPartnerCampaignsPublic, {
-        partnerSlug,
+        partnerId,
       })) as MerchantCampaignCarouselItem[] | null;
       return rows ?? [];
     } catch (e) {
@@ -257,7 +261,7 @@ export function MerchantCampaignContextProvider({ children }: { children: React.
       return { ok: false as const, error: "no_auth" };
     }
     try {
-      const res = (await http.mutation(merchantCampaignFns.updateCampaignDisplayName, {
+      const res = (await http.action(merchantCampaignFns.updateCampaignDisplayName, {
         displayName,
       })) as { ok?: boolean; error?: string; displayName?: string };
       return {
@@ -278,7 +282,7 @@ export function MerchantCampaignContextProvider({ children }: { children: React.
         return { ok: false as const, error: "no_auth" };
       }
       try {
-        const res = (await http.mutation(merchantCampaignFns.syncCampaignContactProfile, args)) as {
+        const res = (await http.action(merchantCampaignFns.syncCampaignContactProfile, args)) as {
           ok?: boolean;
           error?: string;
         };
@@ -337,15 +341,53 @@ function MerchantCampaignConvexShell({ children }: { children: React.ReactNode }
 
 export { MerchantCampaignConvexShell as MerchantCampaignProvider };
 
+/**
+ * Resolves a Campaign `partnerSlug` -> `partnerId` via the shared
+ * `usePartnerManager()` (SSO `PartnerManager.findByPartnerSlug`) — the same
+ * FE resolve path Portal uses for `/gc/{slug}`. Campaign public reads then
+ * take the resolved `partnerId` directly (no SSO HTTP call in Campaign
+ * backend code for these page loads).
+ *
+ * Holds the last successfully-resolved partner across transient
+ * `partnerResolveReady` flips for the *same* slug (e.g. the campaign
+ * carousel calls `history.replaceState` on every slide switch, which
+ * re-triggers `usePartnerManager()`'s resolve effect) so the page doesn't
+ * flicker back to a loading state while swiping between slides.
+ */
+export function useCampaignPartnerGate(partnerSlug: string) {
+  const { partner, partnerPid, partnerResolveReady, campaignPartnerSlug } = usePartnerManager();
+  const matchesUrl = Boolean(partnerSlug) && campaignPartnerSlug === partnerSlug;
+  const readyForSlug = partnerResolveReady && matchesUrl;
+
+  const lastGoodRef = useRef<{ slug: string; pid: number; partner: Partner } | null>(null);
+  if (readyForSlug && partner) {
+    lastGoodRef.current = { slug: partnerSlug, pid: partnerPid, partner };
+  }
+  // Only trust the cached "last good" resolve while it matches the slug this
+  // hook is currently asked about — guards against briefly reusing a stale
+  // partnerId if the caller's `partnerSlug` itself changes (e.g. in-app nav
+  // straight from one merchant's campaign page to another's).
+  const lastGood =
+    lastGoodRef.current && lastGoodRef.current.slug === partnerSlug ? lastGoodRef.current : null;
+
+  return {
+    resolving: !lastGood && !readyForSlug,
+    partnerMissing: !lastGood && readyForSlug && !partner,
+    partnerPid: lastGood?.pid ?? 0,
+    partner: lastGood?.partner ?? null,
+  };
+}
+
 /** Live subscription to partner carousel slides (live / scheduled / ended). */
-export function usePartnerCampaignsPublicLive(partnerSlug: string) {
+export function usePartnerCampaignsPublicLive(partnerId: number) {
+  const enabled = partnerId > 0;
   const rows = useQuery(
     merchantCampaignFns.listPartnerCampaignsPublic,
-    partnerSlug ? { partnerSlug } : "skip"
+    enabled ? { partnerId } : "skip"
   );
   return {
     slides: rows as MerchantCampaignCarouselItem[] | undefined,
-    isLoading: rows === undefined && Boolean(partnerSlug),
+    isLoading: rows === undefined && enabled,
   };
 }
 
@@ -363,19 +405,64 @@ export function usePartnerPlayerCouponsLive(partnerId: number | null | undefined
   };
 }
 
-/** Live subscription to a single campaign public payload. */
+type RawSsoTheme = MerchantThemeJson & { assets?: { logoUrl?: string } };
+
+/**
+ * Overlays SSO `partner.brand` (name / logo / theme) onto a campaign-only
+ * public payload — the same enrichment Portal effectively gets from partner
+ * context, done here on the FE instead of server-side in a Campaign action.
+ * Per-campaign `theme` (campaign's own `themeOverride`) wins over the
+ * partner-level brand theme.
+ */
+function mergeSsoPartnerBrand(
+  view: CampaignPublicView,
+  ssoPartner: Partner | null,
+  fallbackSlug: string
+): CampaignPublicView {
+  const brand = ssoPartner?.brand;
+  const campaignTheme = (view.theme ?? null) as RawSsoTheme | null;
+  const ssoTheme = (brand?.theme ?? null) as RawSsoTheme | null;
+  const theme = campaignTheme ?? ssoTheme ?? null;
+  const ssoLogo = brand?.logoUrl?.trim() || undefined;
+  const logoUrl = theme?.assets?.logoUrl?.trim() || ssoLogo || null;
+  const slug = ssoPartner?.slug?.trim() || fallbackSlug;
+  const name = ssoPartner?.name?.trim() || slug;
+  return {
+    ...view,
+    partner: {
+      partnerId: ssoPartner?.pid ?? view.partner.partnerId,
+      slug,
+      name,
+      logoUrl,
+    },
+    theme,
+  };
+}
+
+/**
+ * Live subscription to a single campaign public payload. `partnerId` must
+ * already be resolved (see `useCampaignPartnerGate`); the query itself does
+ * not resolve slugs. Overlays SSO `partner.brand` (name/logo/theme) from
+ * `usePartnerManager()` onto the campaign-only backend payload.
+ */
 export function useCampaignPublicLive(
-  partnerSlug: string,
+  partnerId: number,
   campaignSlug: string | null | undefined
 ) {
-  const enabled = Boolean(partnerSlug && campaignSlug);
+  const { partner: ssoPartner, campaignPartnerSlug } = usePartnerManager();
+  const enabled = Boolean(partnerId > 0 && campaignSlug);
   const row = useQuery(
     merchantCampaignFns.getCampaignPublic,
-    enabled ? { partnerSlug, campaignSlug: campaignSlug! } : "skip"
-  );
+    enabled ? { partnerId, campaignSlug: campaignSlug! } : "skip"
+  ) as CampaignPublicView | null | undefined;
+
+  const campaignPublic = useMemo(() => {
+    if (!row) return row;
+    return mergeSsoPartnerBrand(row, ssoPartner, campaignPartnerSlug ?? "");
+  }, [row, ssoPartner, campaignPartnerSlug]);
+
   return {
-    campaignPublic:
-      row === undefined ? undefined : (row as CampaignPublicView | null),
+    campaignPublic,
     isLoading: row === undefined && enabled,
   };
 }
@@ -408,19 +495,17 @@ export function useMerchantCampaignAdmin(partnerId: number | null) {
   const [portalVoucherSkus, setPortalVoucherSkus] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(false);
 
+  /** coupon_defs is retired server-side (always []); Portal voucher SKUs are the only reward products now. */
   const refreshCouponDefs = useCallback(async () => {
     if (!http || !authed || partnerId == null) {
       setCouponDefs([]);
       setPortalVoucherSkus([]);
       return;
     }
-    const [defs, skus] = await Promise.all([
-      http.action(fns.listCouponDefsForStaff, { partnerId }),
-      http.action(fns.listPartnerVoucherSkusForStaff, { partnerId }),
-    ]);
-    setCouponDefs(defs ?? []);
+    const skus = await http.action(fns.listPartnerVoucherSkusForStaff, { partnerId });
+    setCouponDefs([]);
     setPortalVoucherSkus(skus ?? []);
-  }, [http, authed, partnerId, fns.listCouponDefsForStaff, fns.listPartnerVoucherSkusForStaff]);
+  }, [http, authed, partnerId, fns.listPartnerVoucherSkusForStaff]);
 
   const refresh = useCallback(async () => {
     if (!http || !authed || partnerId == null) {

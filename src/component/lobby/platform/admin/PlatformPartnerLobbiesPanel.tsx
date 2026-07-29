@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { PORTAL_TOURNAMENT_DEFINITIONS } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { defaultOfferingsForGames } from "@/convex/portal/convex/data/portalLobbyConfig";
+import { PARTNER_GAME_TYPES } from "@/convex/sso/convex/service/partner/portalPartnerConfig";
 import { portalLobbyPath } from "@/host/util/portalPathParse";
 
 import { platformAdminErrorMessage } from "./platformAdminHelpers";
@@ -10,7 +11,12 @@ const LOBBY_ERROR_MAP: Record<string, string> = {
   lobby_slug_taken: "该 Lobby slug 已被占用。请先点「编辑」，或换一个未使用的 slug。",
   lobby_not_found: "Lobby 不存在或无权操作。",
   lobby_tournament_invalid: "Offerings 含无效赛事 ID。",
-  lobby_slug_invalid: "Lobby slug 格式无效（小写字母、数字、连字符）。",
+  lobby_slug_required: "请填写 Lobby slug。",
+  lobby_slug_invalid: "Lobby slug 格式无效（小写字母/数字/下划线/连字符，且不能以下划线开头）。",
+  lobby_slug_reserved: "该 Lobby slug 为保留字（如 preview）。",
+  lobby_default_undeletable: "默认 Lobby 不可删除。",
+  unauthorized: "Portal 桥接鉴权失败，请检查 SSO/Portal 的 PORTAL_GAME_BRIDGE_SECRET。",
+  unauthenticated: "请重新登录后再试。",
 };
 
 function lobbyAdminErrorMessage(error: unknown): string {
@@ -26,7 +32,6 @@ function lobbyAdminErrorMessage(error: unknown): string {
   return platformAdminErrorMessage(error);
 }
 import {
-  usePartnerPortalConfig,
   usePlatformAdminAuth,
   usePlatformAdminMutations,
 } from "./usePlatformAdmin";
@@ -66,7 +71,6 @@ const PlatformPartnerLobbiesPanel: React.FC<Props> = ({
   partnerSlug,
 }) => {
   const { authed } = usePlatformAdminAuth();
-  const config = usePartnerPortalConfig(partnerId);
   const {
     listPlatformPartnerLobbies,
     upsertPlatformPartnerLobby,
@@ -97,11 +101,10 @@ const PlatformPartnerLobbiesPanel: React.FC<Props> = ({
     setBgLand("");
     setBgPort("");
     setQuotaScope("");
-    const games = config?.games?.length ? config.games : ["solitaire"];
     setSelectedTournamentIds(
-      defaultOfferingsForGames(games).map((o) => o.tournamentId)
+      defaultOfferingsForGames([...PARTNER_GAME_TYPES]).map((o) => o.tournamentId)
     );
-  }, [config?.games]);
+  }, []);
 
   const reload = useCallback(async () => {
     if (!authed) return;
@@ -217,7 +220,7 @@ const PlatformPartnerLobbiesPanel: React.FC<Props> = ({
     >
       <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>Lobbies（多命名大厅）</h3>
       <p style={{ opacity: 0.75, fontSize: 13, marginBottom: 12 }}>
-        主推入口：配置 offerings 后自动派生 <code>partner.games</code>。URL：
+        主推入口：配置 offerings（tournament）决定大厅可玩内容。URL：
         <code>/gc/{"{partnerSlug}"}</code> 或{" "}
         <code>/gc/{"{partnerSlug}"}/{"{lobbySlug}"}</code>
         。未配置背景/logo 时使用平台默认图。
@@ -305,7 +308,11 @@ const PlatformPartnerLobbiesPanel: React.FC<Props> = ({
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               disabled={!!editingId && isDefault}
+              placeholder="promo / event-a"
             />
+            <div style={{ opacity: 0.65, fontSize: 12, marginTop: 4 }}>
+              小写字母开头；可用 solitaire 等游戏名。保留字：preview。
+            </div>
           </label>
           <label style={{ display: "block", marginBottom: 8 }}>
             Title{" "}

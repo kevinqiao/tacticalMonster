@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import {
+  onDocumentVisible,
+  readSafeWindowViewportSize,
+  scheduleDoubleRaf,
+} from "./safeViewportSize";
+import {
   computePortalViewportLayout,
   type ViewportLayout,
 } from "./viewportLayout";
@@ -17,22 +22,22 @@ type PortalViewportShellProps = {
 };
 
 function useViewportLayout(portrait?: boolean): ViewportLayout {
-  const [layout, setLayout] = useState(() =>
-    typeof window !== "undefined"
-      ? computePortalViewportLayout({
-          windowWidth: window.innerWidth,
-          windowHeight: window.innerHeight,
-          portrait,
-        })
-      : computePortalViewportLayout({ windowWidth: 1440, windowHeight: 1080, portrait })
-  );
+  const [layout, setLayout] = useState(() => {
+    const { width, height } = readSafeWindowViewportSize();
+    return computePortalViewportLayout({
+      windowWidth: width,
+      windowHeight: height,
+      portrait,
+    });
+  });
 
   useEffect(() => {
     const onResize = () => {
+      const { width, height } = readSafeWindowViewportSize();
       setLayout(
         computePortalViewportLayout({
-          windowWidth: window.innerWidth,
-          windowHeight: window.innerHeight,
+          windowWidth: width,
+          windowHeight: height,
           portrait,
         })
       );
@@ -40,9 +45,14 @@ function useViewportLayout(portrait?: boolean): ViewportLayout {
     onResize();
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
+    // Tab return often does not fire resize; remeasure after the document is visible.
+    const offVisible = onDocumentVisible(() => {
+      scheduleDoubleRaf(onResize);
+    });
     return () => {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", onResize);
+      offVisible();
     };
   }, [portrait]);
 

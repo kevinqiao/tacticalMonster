@@ -1,4 +1,4 @@
-import type { Doc } from "../../_generated/dataModel";
+import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { CASUAL_REPLAY_REQUIRE_NEAR_MISS } from "../../data/portalPlayerStrategyTypes";
 import {
@@ -34,6 +34,34 @@ import {
   loadCampaignReplaySettingsForMatchGame,
   resolveReplayConfig,
 } from "./partnerAdReplayConfig";
+import { resolveEconomyScope } from "../economy/resolveEconomyScope";
+
+async function resolveAdReplayEconomyScope(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  matchId: string
+): Promise<{ scopeKey: string; lobbyId: Id<"portal_lobbies"> | null }> {
+  try {
+    const match = await ctx.db.get(matchId as Id<"portal_run_matches">);
+    const run = match
+      ? await ctx.db.get(match.tournamentId)
+      : null;
+    const pt = run
+      ? await ctx.db
+          .query("portal_run_player_tournaments")
+          .withIndex("by_tournament_uid", (q) =>
+            q.eq("tournamentId", run._id).eq("uid", uid)
+          )
+          .unique()
+      : null;
+    const lobbyId = pt?.joinLobbyId ?? run?.lobbyId ?? null;
+    const partnerId = run?.partnerId ?? 0;
+    const scope = await resolveEconomyScope(ctx, { partnerId, lobbyId });
+    return { scopeKey: scope.scopeKey, lobbyId: scope.lobbyId };
+  } catch {
+    return { scopeKey: "shared", lobbyId: null };
+  }
+}
 
 function randomHexSessionId(byteLength = 16): string {
   const bytes = new Uint8Array(byteLength);
@@ -76,21 +104,38 @@ export async function countAdReplayClaimsForDay(
 async function findAdReplayDailyUsageRow(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  dayKey: string
+  dayKey: string,
+  scopeKey?: string | null
 ) {
-  return await ctx.db
+  const key = scopeKey && scopeKey !== "shared" ? scopeKey : null;
+  if (key) {
+    const scoped = await ctx.db
+      .query("portal_ad_replay_daily_usage")
+      .withIndex("by_uid_scopeKey_dayKey", (q) =>
+        q.eq("uid", uid).eq("scopeKey", key).eq("dayKey", dayKey)
+      )
+      .unique();
+    if (scoped) return scoped;
+  }
+  // Legacy / shared: prefer rows without scopeKey, else any by_uid_dayKey.
+  const rows = await ctx.db
     .query("portal_ad_replay_daily_usage")
     .withIndex("by_uid_dayKey", (q) => q.eq("uid", uid).eq("dayKey", dayKey))
-    .unique();
+    .collect();
+  if (!key) {
+    return rows.find((r) => r.scopeKey == null || r.scopeKey === "shared") ?? rows[0] ?? null;
+  }
+  return null;
 }
 
 /** 今日已用次数：优先原子计数表，缺失时用 claims 回填。 */
 export async function readAdReplayUsedToday(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  dayKey: string
+  dayKey: string,
+  scopeKey?: string | null
 ): Promise<number> {
-  const row = await findAdReplayDailyUsageRow(ctx, uid, dayKey);
+  const row = await findAdReplayDailyUsageRow(ctx, uid, dayKey, scopeKey);
   if (row && typeof row.usedCount === "number" && Number.isFinite(row.usedCount)) {
     return Math.max(0, Math.floor(row.usedCount));
   }
@@ -103,13 +148,23 @@ export async function readAdReplayUsedToday(
  */
 export async function consumeAdReplayDailySlot(
   ctx: MutationCtx,
-  args: { uid: string; dayKey: string; now: number; cap: number }
+  args: {
+    uid: string;
+    dayKey: string;
+    now: number;
+    cap: number;
+    scopeKey?: string | null;
+    lobbyId?: Id<"portal_lobbies"> | null;
+  }
 ): Promise<{ ok: true; usedAfter: number } | { ok: false; error: "daily_cap_reached" }> {
   const cap = Math.max(0, Math.floor(args.cap));
-  const row = await findAdReplayDailyUsageRow(ctx, args.uid, args.dayKey);
+  const scopeKey = args.scopeKey ?? "shared";
+  const row = await findAdReplayDailyUsageRow(ctx, args.uid, args.dayKey, scopeKey);
   const used = row
     ? Math.max(0, Math.floor(row.usedCount))
-    : await countAdReplayClaimsForDay(ctx, args.uid, args.dayKey);
+    : scopeKey === "shared"
+      ? await countAdReplayClaimsForDay(ctx, args.uid, args.dayKey)
+      : 0;
   if (used >= cap) {
     return { ok: false, error: "daily_cap_reached" };
   }
@@ -123,6 +178,8 @@ export async function consumeAdReplayDailySlot(
       usedCount: usedAfter,
       createdAt: args.now,
       updatedAt: args.now,
+      scopeKey,
+      ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
     });
   }
   return { ok: true, usedAfter };
@@ -130,9 +187,14 @@ export async function consumeAdReplayDailySlot(
 
 export async function releaseAdReplayDailySlot(
   ctx: MutationCtx,
-  args: { uid: string; dayKey: string; now: number }
+  args: { uid: string; dayKey: string; now: number; scopeKey?: string | null }
 ): Promise<void> {
-  const row = await findAdReplayDailyUsageRow(ctx, args.uid, args.dayKey);
+  const row = await findAdReplayDailyUsageRow(
+    ctx,
+    args.uid,
+    args.dayKey,
+    args.scopeKey
+  );
   if (!row) return;
   const next = Math.max(0, Math.floor(row.usedCount) - 1);
   await ctx.db.patch(row._id, { usedCount: next, updatedAt: args.now });
@@ -305,6 +367,7 @@ export async function buildPortalAdReplayOffer(
   replayTokenCount: number;
   canReplay: boolean;
   adReplayDailyRemaining: number;
+  adReplayDailyCap: number;
   replayWindowEndsAt?: number;
 }> {
   const { uid, pm, now, tableSummary, matchGameId, def, challengeSuccess } = args;
@@ -314,6 +377,7 @@ export async function buildPortalAdReplayOffer(
     replayTokenCount: 0,
     canReplay: false,
     adReplayDailyRemaining: 0,
+    adReplayDailyCap: 0,
   };
 
   if (!isPortalAdReplayTemplate(pm.templateId)) {
@@ -377,6 +441,7 @@ export async function buildPortalAdReplayOffer(
     replayTokenCount,
     canReplay: adAvailable || ticketAvailable,
     adReplayDailyRemaining,
+    adReplayDailyCap: cap,
     ...(replayWindowEndsAt != null ? { replayWindowEndsAt } : {}),
   };
 }
@@ -434,7 +499,13 @@ export async function beginPortalAdReplaySessionCore(
 
   const dayKey = dailyPeriodKey(now);
   const cap = replayCfg.adReplayDailyCap;
-  const usedToday = await readAdReplayUsedToday(ctx, args.uid, dayKey);
+  const econ = await resolveAdReplayEconomyScope(ctx, args.uid, loaded.pm.matchId);
+  const usedToday = await readAdReplayUsedToday(
+    ctx,
+    args.uid,
+    dayKey,
+    econ.scopeKey
+  );
   if (usedToday >= cap) {
     return { ok: false as const, error: "daily_cap_reached" as const };
   }
@@ -574,11 +645,18 @@ export async function completePortalAdReplaySessionCore(
       await ctx.db.patch(session._id, { status: "cancelled", updatedAt: now });
       return { ok: false as const, error: "already_claimed" as const };
     }
+    const econ = await resolveAdReplayEconomyScope(
+      ctx,
+      args.uid,
+      session.matchId
+    );
     const slot = await consumeAdReplayDailySlot(ctx, {
       uid: args.uid,
       dayKey,
       now,
       cap,
+      scopeKey: econ.scopeKey,
+      lobbyId: econ.lobbyId,
     });
     if (!slot.ok) {
       await ctx.db.patch(session._id, { status: "cancelled", updatedAt: now });
@@ -599,7 +677,17 @@ export async function completePortalAdReplaySessionCore(
     insertedClaim = true;
   } else {
     // Idempotent complete: still block if the day is already over cap.
-    const usedToday = await readAdReplayUsedToday(ctx, args.uid, dayKey);
+    const econ = await resolveAdReplayEconomyScope(
+      ctx,
+      args.uid,
+      session.matchId
+    );
+    const usedToday = await readAdReplayUsedToday(
+      ctx,
+      args.uid,
+      dayKey,
+      econ.scopeKey
+    );
     if (usedToday >= cap) {
       return { ok: false as const, error: "daily_cap_reached" as const };
     }
@@ -616,7 +704,17 @@ export async function completePortalAdReplaySessionCore(
       await ctx.db.delete(claimId);
     }
     if (consumedDailySlot) {
-      await releaseAdReplayDailySlot(ctx, { uid: args.uid, dayKey, now });
+      const econRelease = await resolveAdReplayEconomyScope(
+        ctx,
+        args.uid,
+        session.matchId
+      );
+      await releaseAdReplayDailySlot(ctx, {
+        uid: args.uid,
+        dayKey,
+        now,
+        scopeKey: econRelease.scopeKey,
+      });
     }
     await ctx.db.patch(session._id, { status: "cancelled", updatedAt: now });
     return { ok: false as const, error: authorized.error };

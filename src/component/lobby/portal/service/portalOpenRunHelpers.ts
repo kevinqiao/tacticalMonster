@@ -3,7 +3,6 @@ import type { RegisteredPartnerGameType } from "@/convex/portal/convex/data/part
 import i18n from "@/i18n";
 
 import {
-  assignmentMatchesAwaitWatch,
   type CasualGameKind,
   type OpenCasualRunAssignment,
 } from "../../casual/service/casualOpenRunAssignment";
@@ -16,13 +15,38 @@ export type CampaignAwaitOpenRunWatch = {
 import { isOpenCasualRunExpired } from "../../casual/service/casualOpenRunReconcile";
 import type { PortalMatchQueueEntry } from "./usePortalManager";
 
+/** Template def is SSOT — do not trust a mismatched row.gameType alone. */
 export function portalAssignmentMatchesGameType(
   a: OpenCasualRunAssignment,
   gameType: RegisteredPartnerGameType
 ): boolean {
-  if (a.gameType === gameType) return true;
   const def = getPortalTournamentDefinition(a.templateId);
-  return def?.gameType === gameType;
+  const resolved = (def?.gameType ?? a.gameType) as string | undefined;
+  return resolved === gameType;
+}
+
+/** Infer playable kind for Portal open runs (portal templates, not casualPlatform ids). */
+export function inferPortalGameKindFromAssignment(
+  a: OpenCasualRunAssignment
+): CasualGameKind {
+  const def = getPortalTournamentDefinition(a.templateId);
+  const raw = def?.gameType ?? a.gameType;
+  if (raw === "block_blast") return "block_blast";
+  if (raw === "tower_arena") return "tower_arena";
+  if (raw === "match_3") return "match_3";
+  if (raw === "yatz") return "yatz";
+  return "solitaire";
+}
+
+export function portalAssignmentMatchesAwaitWatch(
+  a: OpenCasualRunAssignment,
+  watch: { templateId: string; gameKind: CasualGameKind }
+): boolean {
+  if (a.templateId !== watch.templateId) return false;
+  return portalAssignmentMatchesGameType(
+    a,
+    watch.gameKind as RegisteredPartnerGameType
+  );
 }
 
 export function pickPortalOpenAssignmentsForGameType(
@@ -109,7 +133,7 @@ export function findCampaignAwaitOpenAssignment(
   return assigns.find(
     (a) =>
       a.campaignId === watch.campaignId &&
-      assignmentMatchesAwaitWatch(a, watch)
+      portalAssignmentMatchesAwaitWatch(a, watch)
   );
 }
 

@@ -219,6 +219,7 @@ export const getCasualAsyncTableSummaryForGame = authedQuery({
         replayTokenCount: replay.replayTokenCount,
         canReplay: replay.canReplay,
         adReplayDailyRemaining: replay.adReplayDailyRemaining,
+        adReplayDailyCap: replay.adReplayDailyCap,
         ...(replay.replayWindowEndsAt != null ? { replayWindowEndsAt: replay.replayWindowEndsAt } : {}),
       };
     }
@@ -252,6 +253,7 @@ export const getCasualAsyncTableSummaryForGame = authedQuery({
       replayTokenCount: replay.replayTokenCount,
       canReplay: replay.canReplay,
       adReplayDailyRemaining: replay.adReplayDailyRemaining,
+      adReplayDailyCap: replay.adReplayDailyCap,
       ...(replay.replayWindowEndsAt != null ? { replayWindowEndsAt: replay.replayWindowEndsAt } : {}),
     };
   },

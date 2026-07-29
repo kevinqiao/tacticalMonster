@@ -28,6 +28,7 @@
   },
   "landing": {
     "invalidUrl": "请通过 /cc/商家/活动 访问落地页。",
+    "unknownMerchant": "未知商家：{{key}}",
     "loading": "加载活动中…",
     "noActiveCampaigns": "暂无活动。",
     "campaignNotFound": "未找到该活动。",

@@ -10,10 +10,8 @@ import {
   campaignRewardModelValidator,
   displayConfigValidator,
   rewardRuleValidator,
-  themeJsonValidator,
   couponDefStatusValidator,
 } from "./validators";
-import { assertGameTypeEnabledForPartner } from "./partnerGamesFromSso";
 import { listPartnerVoucherSkusViaHttp } from "../bridge/portalPartnerVoucherGrantBridge";
 
 const playLimitsValidator = v.object({
@@ -41,20 +39,10 @@ async function assertOps(partnerId: number, uid: string, minRole?: "viewer" | "a
   });
 }
 
-export const upsertPartnerBrand = authedAction({
-  args: { partnerId: v.number(), slug: v.string() },
-  handler: async (ctx, args) => {
-    await assertOps(args.partnerId, ctx.uid, "admin");
-    return await ctx.runMutation(
-      internal.service.merchant.merchantCampaigns.upsertPartnerBrandCore,
-      args
-    );
-  },
-});
+// `upsertPartnerBrand` removed — partner_brands table no longer exists;
+// slug→partnerId resolves only via SSO `partner.slug`.
 
-/**
- * Create campaign after verifying gameType ∈ SSO partner.games + campaignOps staff.
- */
+/** Create campaign (tournamentId = Portal desk SoT). */
 export const createCampaign = authedAction({
   args: {
     partnerId: v.number(),
@@ -68,8 +56,7 @@ export const createCampaign = authedAction({
     posterStorageId: v.optional(v.id("_storage")),
     posterPortraitStorageId: v.optional(v.id("_storage")),
     posterLandscapeStorageId: v.optional(v.id("_storage")),
-    gameType: v.optional(v.string()),
-    mode: v.optional(v.union(v.literal("solo"), v.literal("multi"))),
+    tournamentId: v.optional(v.string()),
     rewardModel: v.optional(campaignRewardModelValidator),
     playLimits: v.optional(playLimitsValidator),
     replaySettings: v.optional(replaySettingsValidator),
@@ -77,10 +64,6 @@ export const createCampaign = authedAction({
   },
   handler: async (ctx, args) => {
     await assertOps(args.partnerId, ctx.uid);
-    const experienceType = args.experienceType ?? "game";
-    if (experienceType === "game" && args.gameType) {
-      await assertGameTypeEnabledForPartner(args.partnerId, args.gameType);
-    }
     return await ctx.runMutation(
       internal.service.merchant.merchantCampaigns.createCampaignCore,
       { ...args, uid: ctx.uid }
@@ -104,8 +87,7 @@ export const updateCampaign = authedAction({
     posterStorageId: v.optional(v.id("_storage")),
     posterPortraitStorageId: v.optional(v.id("_storage")),
     posterLandscapeStorageId: v.optional(v.id("_storage")),
-    gameType: v.optional(v.string()),
-    mode: v.optional(v.union(v.literal("solo"), v.literal("multi"))),
+    tournamentId: v.optional(v.string()),
     rewardModel: v.optional(campaignRewardModelValidator),
     playLimits: v.optional(playLimitsValidator),
     replaySettings: v.optional(v.union(replaySettingsValidator, v.null())),
@@ -113,9 +95,6 @@ export const updateCampaign = authedAction({
   },
   handler: async (ctx, args) => {
     await assertOps(args.partnerId, ctx.uid);
-    if (args.gameType) {
-      await assertGameTypeEnabledForPartner(args.partnerId, args.gameType);
-    }
     return await ctx.runMutation(
       internal.service.merchant.merchantCampaigns.updateCampaignCore,
       args
@@ -187,28 +166,6 @@ export const attachCampaignPoster = authedAction({
     await assertOps(args.partnerId, ctx.uid);
     return await ctx.runMutation(
       internal.service.merchant.merchantCampaigns.attachCampaignPosterCore,
-      args
-    );
-  },
-});
-
-export const updatePartnerBrandUrl = authedAction({
-  args: { partnerId: v.number(), brandSourceUrl: v.string() },
-  handler: async (ctx, args) => {
-    await assertOps(args.partnerId, ctx.uid, "admin");
-    return await ctx.runMutation(
-      internal.service.merchant.merchantCampaigns.updatePartnerBrandUrlCore,
-      args
-    );
-  },
-});
-
-export const approvePartnerTheme = authedAction({
-  args: { partnerId: v.number(), themeJson: themeJsonValidator },
-  handler: async (ctx, args) => {
-    await assertOps(args.partnerId, ctx.uid, "admin");
-    return await ctx.runMutation(
-      internal.service.merchant.merchantCampaigns.approvePartnerThemeCore,
       args
     );
   },

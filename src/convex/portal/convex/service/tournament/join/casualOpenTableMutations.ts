@@ -38,6 +38,7 @@ import {
 import { assertNoGlobalOpenCasualMatch } from "./casualOpenTableGuard";
 import { assertCampaignDailyPlayLimit } from "./campaignDailyPlayLimit";
 import { assertPortalDailyPlayLimit } from "./portalDailyPlayLimit";
+import { refundAbandonedQueuePlayEntry } from "../../ads/portalPlayEntryQueueRefund";
 import {
   computeMultiTableBatchSize,
   purgeExtraCasualMatchQueueRows,
@@ -45,11 +46,18 @@ import {
   resolveQueueEffectiveHumans,
   type QueueRow,
 } from "./casualMatchmakingCore";
+import { resolveEconomyScope } from "../../economy/resolveEconomyScope";
+import {
+  entrySnapshotFromDef,
+  loadLobbyRewardsOverride,
+} from "../../lobby/lobbyOfferingRewards";
 
 export type JoinChargeMeta = {
   vouchersCharged?: number;
   coinsCharged?: number;
   gemsCharged?: number;
+  scopeKey?: string;
+  lobbyId?: Id<"portal_lobbies">;
 };
 
 export function joinChargeForStorage(
@@ -73,6 +81,8 @@ const joinChargeByUidValidator = v.record(
     vouchersCharged: v.optional(v.number()),
     coinsCharged: v.optional(v.number()),
     gemsCharged: v.optional(v.number()),
+    scopeKey: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
   })
 );
 
@@ -123,14 +133,35 @@ export const claimQueueAndCharge = internalMutation({
 
     for (const row of rows) {
       let ch: Awaited<ReturnType<typeof applyCasualJoinEntryChargeWithInstance>>;
+      let chargeScopeKey = "shared";
       try {
+        const partnerId = row.partnerId ?? 0;
+        let scopeKey = "shared";
+        let lobbyIdForCharge = row.lobbyId ?? null;
+        try {
+          const scope = await resolveEconomyScope(ctx, {
+            partnerId,
+            lobbyId: row.lobbyId ?? null,
+          });
+          scopeKey = scope.scopeKey;
+          lobbyIdForCharge = scope.lobbyId;
+        } catch {
+          // isolated without lobbyId: fall back to shared charge (legacy rows)
+          scopeKey = "shared";
+          lobbyIdForCharge = null;
+        }
+        chargeScopeKey = scopeKey;
         ch = await applyCasualJoinEntryChargeWithInstance(
           ctx,
           row.uid,
           templateId,
           def,
           instanceId,
-          { skipEntryCharge: row.skipEntryCharge === true }
+          {
+            skipEntryCharge: row.skipEntryCharge === true,
+            scopeKey,
+            lobbyId: lobbyIdForCharge,
+          }
         );
       } catch (err) {
         console.error("[casual] claimQueueAndCharge entry charge threw", {
@@ -146,7 +177,9 @@ export const claimQueueAndCharge = internalMutation({
           uid: row.uid,
           error: ch.error,
         });
-        await ctx.db.delete(row._id);
+        await refundAbandonedQueuePlayEntry(ctx, row);
+        const cur = await ctx.db.get(row._id);
+        if (cur) await ctx.db.delete(cur._id);
         continue;
       }
       if (!batchActivityIds && ch.activityIds?.length) {
@@ -156,6 +189,8 @@ export const claimQueueAndCharge = internalMutation({
         vouchersCharged: ch.vouchersCharged,
         coinsCharged: ch.coinsCharged,
         gemsCharged: ch.gemsCharged,
+        scopeKey: chargeScopeKey,
+        ...(row.lobbyId ? { lobbyId: row.lobbyId } : {}),
       };
       chargedRows.push(row);
     }
@@ -279,6 +314,8 @@ export const insertMatchShell = internalMutation({
     ),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
+    /** When present, copy per-player joinLobbyId / rewards snapshots from queue. */
+    queueRowIds: v.optional(v.array(v.id("portal_match_queue"))),
   },
   handler: async (ctx, args) => {
     const def = getPortalTournamentDefinition(args.templateId);
@@ -289,6 +326,14 @@ export const insertMatchShell = internalMutation({
     const uids = [...new Set(args.uids.map((u) => u.trim()).filter(Boolean))];
     if (uids.length === 0) {
       return { ok: false as const, error: "missing_uids" as const };
+    }
+
+    const queueByUid = new Map<string, Doc<"portal_match_queue">>();
+    if (args.queueRowIds?.length) {
+      for (const qid of args.queueRowIds) {
+        const qrow = await ctx.db.get(qid);
+        if (qrow) queueByUid.set(qrow.uid, qrow);
+      }
     }
 
     if (args.campaignId && args.maxPlaysPerDay != null && args.maxPlaysPerDay >= 1) {
@@ -305,11 +350,18 @@ export const insertMatchShell = internalMutation({
       }
     } else if (!args.campaignId) {
       for (const uid of uids) {
+        const queueRow = queueByUid.get(uid);
+        const joinLobby = queueRow?.lobbyId ?? args.lobbyId;
+        const entryLane =
+          queueRow?.playEntryLane === "ad" || queueRow?.playEntryLane === "ticket"
+            ? queueRow.playEntryLane
+            : undefined;
         const daily = await assertPortalDailyPlayLimit(ctx, {
           uid,
           templateId: args.templateId,
-          ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
+          ...(joinLobby ? { lobbyId: joinLobby } : {}),
           ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+          ...(entryLane ? { entryLane } : {}),
         });
         if (!daily.ok) {
           return { ok: false as const, error: daily.error };
@@ -335,7 +387,15 @@ export const insertMatchShell = internalMutation({
         : {}),
     });
 
+    const entrySnap = entrySnapshotFromDef(def);
     for (const uid of uids) {
+      const qrow = queueByUid.get(uid);
+      const joinLobbyId = qrow?.lobbyId ?? args.lobbyId;
+      const rewardsOverrideSnapshot =
+        qrow?.rewardsOverrideSnapshot ??
+        (joinLobbyId
+          ? await loadLobbyRewardsOverride(ctx, joinLobbyId, args.templateId)
+          : undefined);
       await ctx.db.insert("portal_run_player_tournaments", {
         uid,
         tournamentId: runTournamentId,
@@ -344,6 +404,9 @@ export const insertMatchShell = internalMutation({
         status: RUN_PLAYER_TOURNAMENT_OPEN,
         createdAt: now,
         updatedAt: now,
+        ...(joinLobbyId ? { joinLobbyId } : {}),
+        ...(rewardsOverrideSnapshot ? { rewardsOverrideSnapshot } : {}),
+        entrySnapshot: qrow?.entrySnapshot ?? entrySnap,
       });
     }
 
@@ -410,9 +473,12 @@ export const finalizeOpenTable = internalMutation({
       for (const qid of queueRowIds) {
         const row = await ctx.db.get(qid);
         if (row?.status === "claiming" || row?.status === "waiting") {
+          // Settle ladder payment with the opened run — do not refund on purge.
           await ctx.db.patch(qid, {
             status: "matched",
             matchedRunTournamentId: runId,
+            playEntryLane: undefined,
+            ticketEntryPriceTickets: undefined,
             updatedAt: now,
           });
         }
@@ -576,6 +642,12 @@ export const abortOpenTable = internalMutation({
   },
 });
 
+function queuePartitionKey(row: Doc<"portal_match_queue">, templateId: string): string {
+  if (row.matchPartitionKey) return row.matchPartitionKey;
+  const partnerId = row.partnerId ?? 0;
+  return `p:${partnerId}|t:${templateId}`;
+}
+
 /** 选出并 claim 下一个多人 batch（供 processQueue action 调用） */
 export const claimNextMultiBatch = internalMutation({
   args: { templateId: v.string() },
@@ -591,39 +663,50 @@ export const claimNextMultiBatch = internalMutation({
       .collect();
     waiting.sort((a, b) => a.createdAt - b.createdAt);
 
-    const multi = waiting.filter((r) => resolveQueueEffectiveHumans(r) >= 2);
-    const byEffective = new Map<number, QueueRow[]>();
-    for (const r of multi) {
-      const eff = resolveQueueEffectiveHumans(r);
-      const list = byEffective.get(eff) ?? [];
+    /** Never cross partners: group by matchPartitionKey (lobby-shared within partner). */
+    const byPartition = new Map<string, Doc<"portal_match_queue">[]>();
+    for (const r of waiting) {
+      const key = queuePartitionKey(r, templateId);
+      const list = byPartition.get(key) ?? [];
       list.push(r);
-      byEffective.set(eff, list);
+      byPartition.set(key, list);
     }
 
-    for (const [need, rows] of byEffective) {
-      if (rows.length < need) continue;
-      rows.sort((a, b) => a.createdAt - b.createdAt);
-      const batchSize = computeMultiTableBatchSize({
-        waitingLength: rows.length,
-        effectiveHumans: need,
-        maxPlayers: def.maxPlayers,
-      });
-      if (batchSize < need) continue;
-      const batchIds = rows.slice(0, batchSize).map((r) => r._id);
-      return await ctx.runMutation(
-        internal.service.tournament.join.casualOpenTableMutations.claimQueueAndCharge,
-        { templateId, queueRowIds: batchIds }
-      );
-    }
+    for (const partitionRows of byPartition.values()) {
+      const multi = partitionRows.filter((r) => resolveQueueEffectiveHumans(r) >= 2);
+      const byEffective = new Map<number, QueueRow[]>();
+      for (const r of multi) {
+        const eff = resolveQueueEffectiveHumans(r);
+        const list = byEffective.get(eff) ?? [];
+        list.push(r);
+        byEffective.set(eff, list);
+      }
 
-    /** eff=1：Bot 补位开桌（与 openSoloAsyncTableFromQueue 双保险） */
-    const soloFill = waiting.filter((r) => resolveQueueEffectiveHumans(r) === 1);
-    if (soloFill.length > 0) {
-      soloFill.sort((a, b) => a.createdAt - b.createdAt);
-      return await ctx.runMutation(
-        internal.service.tournament.join.casualOpenTableMutations.claimQueueAndCharge,
-        { templateId, queueRowIds: [soloFill[0]!._id] }
-      );
+      for (const [need, rows] of byEffective) {
+        if (rows.length < need) continue;
+        rows.sort((a, b) => a.createdAt - b.createdAt);
+        const batchSize = computeMultiTableBatchSize({
+          waitingLength: rows.length,
+          effectiveHumans: need,
+          maxPlayers: def.maxPlayers,
+        });
+        if (batchSize < need) continue;
+        const batchIds = rows.slice(0, batchSize).map((r) => r._id);
+        return await ctx.runMutation(
+          internal.service.tournament.join.casualOpenTableMutations.claimQueueAndCharge,
+          { templateId, queueRowIds: batchIds }
+        );
+      }
+
+      /** eff=1：Bot 补位开桌（与 openSoloAsyncTableFromQueue 双保险） */
+      const soloFill = partitionRows.filter((r) => resolveQueueEffectiveHumans(r) === 1);
+      if (soloFill.length > 0) {
+        soloFill.sort((a, b) => a.createdAt - b.createdAt);
+        return await ctx.runMutation(
+          internal.service.tournament.join.casualOpenTableMutations.claimQueueAndCharge,
+          { templateId, queueRowIds: [soloFill[0]!._id] }
+        );
+      }
     }
 
     return { ok: false as const, error: "no_batch" as const };

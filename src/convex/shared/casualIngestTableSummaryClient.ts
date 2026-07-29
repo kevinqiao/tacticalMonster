@@ -19,6 +19,7 @@ export type CasualTableSummaryClient = {
   replayTokenCount?: number;
   canReplay?: boolean;
   adReplayDailyRemaining?: number;
+  adReplayDailyCap?: number;
   replayWindowEndsAt?: number;
 };
 
@@ -30,6 +31,9 @@ function replayFieldsFromParsed(o: Record<string, unknown>): Partial<CasualTable
   if (typeof o.canReplay === "boolean") out.canReplay = o.canReplay;
   if (typeof o.adReplayDailyRemaining === "number") {
     out.adReplayDailyRemaining = o.adReplayDailyRemaining;
+  }
+  if (typeof o.adReplayDailyCap === "number") {
+    out.adReplayDailyCap = o.adReplayDailyCap;
   }
   if (typeof o.replayWindowEndsAt === "number" && Number.isFinite(o.replayWindowEndsAt)) {
     out.replayWindowEndsAt = o.replayWindowEndsAt;

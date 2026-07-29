@@ -1,8 +1,14 @@
 import { v } from "convex/values";
 
 import { internal } from "../../_generated/api";
+import { resolvePortalShopSessionPartnerId } from "../../data/portalShopPartner";
 import { authedMutation, authedQuery } from "../../custom/session";
 import { weeklyPeriodKey, weeklyWindowMsShanghai } from "../../utils/casualTaskPeriod";
+import {
+  applyWalletDelta,
+  getPlayerWalletBalances,
+} from "../economy/portalWalletDao";
+import { resolveEconomyScope } from "../economy/resolveEconomyScope";
 import {
   ensurePortalWeeklyLeagueMember,
   ensurePortalWeeklyLeagueMemberForLobby,
@@ -11,6 +17,7 @@ import {
   listPortalWeeklyLeagueCohortBoardScoped,
 } from "./portalWeeklyLeagueService";
 import type { Id } from "../../_generated/dataModel";
+import type { MutationCtx } from "../../_generated/server";
 
 type LeagueScope =
   | { lobbyId: Id<"portal_lobbies"> }
@@ -23,6 +30,128 @@ function resolveLeagueScope(args: {
   if (args.lobbyId) return { lobbyId: args.lobbyId };
   if (args.gameType) return { gameType: args.gameType };
   return null;
+}
+
+async function resolveWeeklyLeagueGrantWallet(
+  ctx: MutationCtx,
+  args: {
+    uid: string;
+    leagueScope: LeagueScope;
+    memberLobbyId?: Id<"portal_lobbies"> | null;
+  }
+): Promise<{ scopeKey: string; lobbyId: Id<"portal_lobbies"> | null }> {
+  const partnerId = resolvePortalShopSessionPartnerId(args.uid) ?? 0;
+  const lobbyIdForEconomy =
+    ("lobbyId" in args.leagueScope ? args.leagueScope.lobbyId : null) ??
+    args.memberLobbyId ??
+    null;
+  try {
+    const econ = await resolveEconomyScope(ctx, {
+      partnerId,
+      lobbyId: lobbyIdForEconomy,
+    });
+    return { scopeKey: econ.scopeKey, lobbyId: econ.lobbyId };
+  } catch {
+    return { scopeKey: "shared", lobbyId: null };
+  }
+}
+
+/**
+ * Coins granted before scope wiring landed on "shared" while the lobby UI reads
+ * isolated `lobby:{id}`. Move matching weekly_league ledger credits once.
+ */
+async function repairMisScopedWeeklyLeagueGrant(
+  ctx: MutationCtx,
+  args: {
+    uid: string;
+    weekKey: string;
+    coins: number;
+    gameType: string;
+    targetScopeKey: string;
+    targetLobbyId: Id<"portal_lobbies"> | null;
+  }
+): Promise<boolean> {
+  if (args.targetScopeKey === "shared" || args.coins <= 0) return false;
+
+  const alreadyOnTarget = await ctx.db
+    .query("portal_coin_ledger")
+    .withIndex("by_uid_scopeKey_created", (q) =>
+      q.eq("uid", args.uid).eq("scopeKey", args.targetScopeKey)
+    )
+    .collect();
+  if (
+    alreadyOnTarget.some(
+      (row) =>
+        row.reason === "weekly_league" &&
+        row.sourceWeekKey === args.weekKey &&
+        row.kind === "coins" &&
+        row.delta > 0
+    ) ||
+    alreadyOnTarget.some(
+      (row) =>
+        row.reason === "weekly_league_scope_repair" &&
+        row.sourceWeekKey === args.weekKey &&
+        row.kind === "coins" &&
+        row.delta > 0
+    )
+  ) {
+    return false;
+  }
+
+  const sharedRows = await ctx.db
+    .query("portal_coin_ledger")
+    .withIndex("by_uid_created", (q) => q.eq("uid", args.uid))
+    .collect();
+  const misScoped = sharedRows.filter(
+    (row) =>
+      row.kind === "coins" &&
+      row.reason === "weekly_league" &&
+      row.sourceWeekKey === args.weekKey &&
+      row.delta > 0 &&
+      (row.scopeKey == null || row.scopeKey === "shared")
+  );
+  const misScopedTotal = misScoped.reduce((sum, row) => sum + row.delta, 0);
+  const sharedBal = await getPlayerWalletBalances(ctx, args.uid, "shared");
+  const amount = Math.min(args.coins, misScopedTotal, sharedBal.coins);
+  if (amount <= 0) return false;
+
+  const debit = await applyWalletDelta(ctx, {
+    uid: args.uid,
+    scopeKey: "shared",
+    lobbyId: null,
+    kind: "coins",
+    delta: -amount,
+    reason: "weekly_league_scope_repair",
+    gameType: args.gameType,
+    sourceWeekKey: args.weekKey,
+  });
+  if (!debit.ok) return false;
+
+  const credit = await applyWalletDelta(ctx, {
+    uid: args.uid,
+    scopeKey: args.targetScopeKey,
+    lobbyId: args.targetLobbyId,
+    kind: "coins",
+    delta: amount,
+    reason: "weekly_league_scope_repair",
+    gameType: args.gameType,
+    sourceWeekKey: args.weekKey,
+  });
+  if (!credit.ok) {
+    // Best-effort rollback so shared wallet is not left short.
+    await applyWalletDelta(ctx, {
+      uid: args.uid,
+      scopeKey: "shared",
+      lobbyId: null,
+      kind: "coins",
+      delta: amount,
+      reason: "weekly_league_scope_repair_rollback",
+      gameType: args.gameType,
+      sourceWeekKey: args.weekKey,
+    });
+    return false;
+  }
+  return true;
 }
 
 /** 本周首次登录 Portal（已鉴权）时入 cohort。 Prefer lobbyId when provided. */
@@ -49,6 +178,46 @@ export const ensurePortalWeeklyLeagueMemberMutation = authedMutation({
     } else if (gameType) {
       memberId = await ensurePortalWeeklyLeagueMember(ctx, ctx.uid, gameType);
     }
+
+    // Auto-repair: weekly claims that credited "shared" while lobby UI is isolated.
+    const leagueScope = resolveLeagueScope({ lobbyId, gameType });
+    if (leagueScope) {
+      const claimedMembers =
+        "lobbyId" in leagueScope
+          ? await ctx.db
+              .query("portal_weekly_league_members")
+              .withIndex("by_uid_lobby", (q) =>
+                q.eq("uid", ctx.uid).eq("lobbyId", leagueScope.lobbyId)
+              )
+              .collect()
+          : await ctx.db
+              .query("portal_weekly_league_members")
+              .withIndex("by_uid_game", (q) =>
+                q.eq("uid", ctx.uid).eq("gameType", leagueScope.gameType)
+              )
+              .collect();
+      for (const m of claimedMembers) {
+        const coins = m.pendingRewards?.coins ?? 0;
+        if (!m.rewardsClaimedAt || coins <= 0) continue;
+        const wallet = await resolveWeeklyLeagueGrantWallet(ctx, {
+          uid: ctx.uid,
+          leagueScope,
+          memberLobbyId: m.lobbyId ?? null,
+        });
+        await repairMisScopedWeeklyLeagueGrant(ctx, {
+          uid: ctx.uid,
+          weekKey: m.weekKey,
+          coins,
+          gameType:
+            "gameType" in leagueScope
+              ? leagueScope.gameType
+              : (m.gameType ?? "lobby"),
+          targetScopeKey: wallet.scopeKey,
+          targetLobbyId: wallet.lobbyId,
+        });
+      }
+    }
+
     console.log("[portal] ensurePortalWeeklyLeagueMemberMutation done", {
       uid: ctx.uid,
       gameType,
@@ -124,7 +293,7 @@ export const claimPortalWeeklyLeagueRewards = authedMutation({
             )
             .unique();
 
-    if ((!member?.pendingRewards || member.rewardsClaimedAt) && !args.weekKey) {
+    if (!member?.pendingRewards || member.rewardsClaimedAt) {
       const unclaimed = await findUnclaimedPortalWeeklyLeagueRewards(ctx, uid, scope);
       if (unclaimed) {
         member =
@@ -151,12 +320,46 @@ export const claimPortalWeeklyLeagueRewards = authedMutation({
       }
     }
 
+    const gameTypeForGrant =
+      "gameType" in scope ? scope.gameType : (member?.gameType ?? "lobby");
+
+    // Already claimed but coins may sit on shared wallet under isolated ops.
+    if (member?.pendingRewards && member.rewardsClaimedAt) {
+      const wallet = await resolveWeeklyLeagueGrantWallet(ctx, {
+        uid,
+        leagueScope: scope,
+        memberLobbyId: member.lobbyId ?? null,
+      });
+      const repaired = await repairMisScopedWeeklyLeagueGrant(ctx, {
+        uid,
+        weekKey,
+        coins: member.pendingRewards.coins ?? 0,
+        gameType: gameTypeForGrant,
+        targetScopeKey: wallet.scopeKey,
+        targetLobbyId: wallet.lobbyId,
+      });
+      if (repaired) {
+        return {
+          ok: true as const,
+          granted: member.pendingRewards,
+          weekKey,
+          repaired: true as const,
+        };
+      }
+      return { ok: false as const, error: "nothing_to_claim" as const };
+    }
+
     if (!member?.pendingRewards || member.rewardsClaimedAt) {
       return { ok: false as const, error: "nothing_to_claim" as const };
     }
     const pr = member.pendingRewards;
     const now = Date.now();
     if ((pr.coins ?? 0) > 0) {
+      const wallet = await resolveWeeklyLeagueGrantWallet(ctx, {
+        uid,
+        leagueScope: scope,
+        memberLobbyId: member.lobbyId ?? null,
+      });
       const gr = await ctx.runMutation(
         internal.service.reward.casualRewardRegistry.grantCasualReward,
         {
@@ -164,8 +367,10 @@ export const claimPortalWeeklyLeagueRewards = authedMutation({
           kind: "coins",
           amount: pr.coins!,
           reason: "weekly_league",
-          gameType: "gameType" in scope ? scope.gameType : "lobby",
+          gameType: gameTypeForGrant,
           sourceWeekKey: weekKey,
+          scopeKey: wallet.scopeKey,
+          ...(wallet.lobbyId ? { lobbyId: wallet.lobbyId } : {}),
         }
       );
       if (!gr.ok) {

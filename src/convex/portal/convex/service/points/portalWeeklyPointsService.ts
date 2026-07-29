@@ -37,6 +37,17 @@ export async function applyPortalMatchPoints(
     seedScoreThreshold?: number;
     runTournamentId: Id<"portal_run_tournaments">;
     now?: number;
+    /** Prefer player join lobby over run.lobbyId (cross-lobby shared matchmaking). */
+    joinLobbyId?: Id<"portal_lobbies"> | null;
+    rewardsOverride?: {
+      soloPoints?: { success: number; fail: number };
+      rankPoints?: Record<string, number>;
+      coins?: {
+        soloSuccess?: number;
+        soloFail?: number;
+        rankCoins?: Record<string, number>;
+      };
+    } | null;
   }
 ): Promise<{ pointDelta: number; weeklyPointsAfter: number; weekKey: string }> {
   const now = args.now ?? Date.now();
@@ -45,13 +56,17 @@ export async function applyPortalMatchPoints(
   let reason = "multi_rank";
   let p75Success: boolean | undefined;
   if (args.def.matchType === "solo_p75") {
-    delta = portalSoloPointDelta(args.def, args.score, args.seedScoreThreshold);
+    delta = portalSoloPointDelta(
+      args.def,
+      args.score,
+      args.seedScoreThreshold,
+      args.rewardsOverride
+    );
     p75Success = isPortalP75Success(args.def, args.score, args.seedScoreThreshold);
     reason = p75Success ? "solo_p75_success" : "solo_p75_fail";
   } else {
     const rank = args.rank ?? 1;
-    // Free multi and coin multi both use def.rankPoints (same table).
-    delta = portalRankPointDelta(args.def, rank);
+    delta = portalRankPointDelta(args.def, rank, args.rewardsOverride);
     reason = `multi_rank_${rank}`;
   }
 
@@ -61,7 +76,7 @@ export async function applyPortalMatchPoints(
   let appliedDelta = weeklyPointsAfter;
 
   const runRow = await ctx.db.get(args.runTournamentId);
-  const lobbyId = runRow?.lobbyId;
+  const lobbyId = args.joinLobbyId ?? runRow?.lobbyId;
 
   if (PORTAL_WEEKLY_LEAGUE_ENABLED) {
     if (lobbyId) {

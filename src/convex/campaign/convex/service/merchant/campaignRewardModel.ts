@@ -1,6 +1,7 @@
 import type { Doc } from "../../_generated/dataModel";
 
 import { rankRuleBounds } from "./campaignRankRewardTiers";
+import { resolveCampaignTournament } from "./campaignTournament";
 
 export type CampaignRewardModel = "pass_per_run" | "competitive_leaderboard";
 
@@ -29,13 +30,17 @@ export function buildCouponIssueKey(args: {
   return `cs:${args.campaignId}:${args.uid}:${settlementId}:${args.ruleId}`;
 }
 
-/** Infer legacy rows missing `rewardModel`. */
+/** Infer legacy rows missing `rewardModel`. Prefer tournamentId-derived mode. */
 export function resolveRewardModel(campaign: {
   rewardModel?: CampaignRewardModel | string;
-  mode?: "solo" | "multi";
+  tournamentId?: string | null;
+  gameType?: string | null;
+  mode?: "solo" | "multi" | string | null;
   rewardRules?: Array<{ kind: string }>;
+  experienceType?: string | null;
 }): CampaignRewardModel {
-  const mode = campaign.mode ?? "solo";
+  const play = resolveCampaignTournament(campaign);
+  const mode = play?.mode ?? (campaign.mode === "multi" ? "multi" : "solo");
   const rewardRules = campaign.rewardRules ?? [];
   if (campaign.rewardModel === "pass_per_run" || campaign.rewardModel === "competitive_leaderboard") {
     return campaign.rewardModel;
@@ -46,11 +51,9 @@ export function resolveRewardModel(campaign: {
   if (hasLeaderboardRule) {
     return "competitive_leaderboard";
   }
-  // Per-match multi place rewards (pass_per_run + multi).
   if (rewardRules.some((r) => r.kind === "multi_rank_top_n")) {
     return "pass_per_run";
   }
-  // Legacy: multi without explicit model/rules defaulted to competitive.
   if (mode === "multi") {
     return "competitive_leaderboard";
   }
@@ -104,8 +107,13 @@ export function getPublicPassReward(
   rewardLabel: string;
 } | null {
   if (resolveRewardModel(campaign) !== "pass_per_run") return null;
+  type RewardRule = Doc<"campaigns">["rewardRules"][number];
   const rule = campaign.rewardRules.find(
-    (r) => r.kind === "solo_p75_success" || r.kind === "score_threshold"
+    (
+      r
+    ): r is Omit<RewardRule, "kind"> & {
+      kind: "solo_p75_success" | "score_threshold";
+    } => r.kind === "solo_p75_success" || r.kind === "score_threshold"
   );
   if (!rule) return null;
   return {

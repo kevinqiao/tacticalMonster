@@ -1,7 +1,12 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../../_generated/server";
 import { themeJsonValidator } from "./validators";
-import { getPartnerBrandByPartnerId } from "./merchantStaff";
+
+/**
+ * `theme_sync_jobs` no longer exists. Theme sync drafts are no longer
+ * persisted server-side; `syncThemeFromUrl` still returns the extracted
+ * draft directly to the caller, but nothing is saved for later review.
+ */
 
 export const saveSyncJob = internalMutation({
   args: {
@@ -10,33 +15,14 @@ export const saveSyncJob = internalMutation({
     rawExtract: v.string(),
     themeDraft: themeJsonValidator,
   },
-  handler: async (ctx, args) => {
-    await ctx.db.insert("theme_sync_jobs", {
-      partnerId: args.partnerId,
-      sourceUrl: args.sourceUrl,
-      status: "needs_review",
-      rawExtract: args.rawExtract,
-      themeDraft: args.themeDraft,
-      syncedAt: Date.now(),
-    });
-    const brand = await getPartnerBrandByPartnerId(ctx, args.partnerId);
-    if (brand) {
-      await ctx.db.patch(brand._id, {
-        brandSourceUrl: args.sourceUrl,
-        updatedAt: Date.now(),
-      });
-    }
+  handler: async () => {
+    return { ok: false as const, error: "not_supported" as const };
   },
 });
 
 export const getLatestSyncJob = internalQuery({
   args: { partnerId: v.number() },
-  handler: async (ctx, args) => {
-    const rows = await ctx.db
-      .query("theme_sync_jobs")
-      .withIndex("by_partner", (q) => q.eq("partnerId", args.partnerId))
-      .order("desc")
-      .take(1);
-    return rows[0] ?? null;
+  handler: async () => {
+    return null;
   },
 });

@@ -28,6 +28,8 @@ export type AuthorizeCampaignJoinResult =
       ok: true;
       campaignId: string;
       partnerId: number;
+      /** Portal tournament template id (desk SoT). */
+      tournamentId: string;
       gameType: string;
       mode: "solo" | "multi";
       rewardMode: "pass_per_run" | "competitive_leaderboard";
@@ -39,7 +41,8 @@ export type AuthorizeCampaignJoinResult =
 
 export async function authorizeCampaignJoinViaHttp(args: {
   uid: string;
-  partnerSlug: string;
+  /** From platform uid / FE PartnerManager — must match campaign.partnerId. */
+  partnerId: number;
   campaignSlug: string;
 }): Promise<AuthorizeCampaignJoinResult> {
   const base = merchantCampaignSiteUrl();
@@ -74,6 +77,13 @@ export async function authorizeCampaignJoinViaHttp(args: {
       ) {
         return { ok: false, error: "reward_mode_required" };
       }
+      const tournamentId =
+        typeof (parsed as { tournamentId?: unknown }).tournamentId === "string"
+          ? (parsed as { tournamentId: string }).tournamentId.trim()
+          : "";
+      if (!tournamentId) {
+        return { ok: false, error: "tournament_required" };
+      }
       const rewardMode = parsed.rewardMode;
       const dueTime =
         rewardMode === "competitive_leaderboard" &&
@@ -81,7 +91,7 @@ export async function authorizeCampaignJoinViaHttp(args: {
         Number.isFinite(parsed.dueTime)
           ? parsed.dueTime
           : 0;
-      return { ...parsed, rewardMode, dueTime };
+      return { ...parsed, tournamentId, rewardMode, dueTime };
     }
     return parsed;
   } catch {

@@ -3,21 +3,35 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getPortalDailyPlayLimits } from "@/convex/portal/convex/data/portalDailyPlayLimits";
 import {
   getPortalTournamentDefinition,
+  isJoinableCasualTournament,
   portalTournamentIdForMode,
   portalTournamentUsesPlayEntryLadder,
 } from "@/convex/portal/convex/data/portalTournamentConfigs";
-import { getPortalAdPhase, setPortalAdPhase } from "host/service/ads/display/portalAdPhase";
+import {
+  getPortalAdPhase,
+  setPortalAdPhase,
+  subscribePortalAdPhase,
+} from "host/service/ads/display/portalAdPhase";
 import { isPortalAdCoinClientSurfaceEnabled } from "host/service/ads/rewarded/portalAdCoinSurface";
 import { useModalManager } from "host/service/ModalManager";
 import { useUserManager } from "host/service/UserManager";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 
 import {
-  assignmentMatchesAwaitWatch,
   hasAnyOpenCasualRunAssignment,
   modalDataForOpenAssignment,
+  type CasualPlayModalName,
   type OpenCasualRunAssignment,
 } from "../../casual/service/casualOpenRunAssignment";
+
+const CASUAL_PLAY_MODAL_NAMES = new Set<CasualPlayModalName>([
+  "play_solitaire_solo",
+  "play_block_blast",
+  "play_tower_arena",
+  "play_match_3",
+  "play_yatz",
+  "play_casual_triathlon_session",
+]);
 import { joinEntryErrorMessage } from "../../casual/view/shared/casualEconomyUi";
 import {
   CASUAL_MATCH_OPEN_TIMEOUT_MS,
@@ -32,9 +46,11 @@ import {
 } from "../service/usePortalManager";
 import {
   pickActivePortalOpenAssignmentsForGameType,
+  inferPortalGameKindFromAssignment,
   pickPortalOpenAssignmentForMode,
   pickPortalOpenAssignmentsForGameType,
   pickPortalMatchQueueForGameType,
+  portalAssignmentMatchesAwaitWatch,
 } from "../service/portalOpenRunHelpers";
 import {
   usePortalLobby,
@@ -42,6 +58,29 @@ import {
 } from "../PortalLobbyContext";
 
 const getTournamentDef = getPortalTournamentDefinition;
+
+/**
+ * Lobby offerings for Solo/Arena.
+ * - Named lobby (`lobbySlug` set): all tickets of that mode in the lobby.
+ * - Default lobby without named slug: filter offerings to current `gameType` when set.
+ */
+function filterLobbyOfferingsForMode(
+  offerings: PortalLobbyOfferingView[] | undefined,
+  mode: "solo" | "multi",
+  gameType: string | null | undefined,
+  opts?: { namedLobby?: boolean }
+): PortalLobbyOfferingView[] {
+  const matchType = mode === "solo" ? "solo_p75" : "multi_ranked";
+  const filterByGame = !opts?.namedLobby && Boolean(gameType);
+  return (offerings ?? []).filter((o) => {
+    const def = getTournamentDef(o.tournamentId);
+    const resolvedMatch = def?.matchType ?? o.matchType;
+    if (resolvedMatch !== matchType) return false;
+    if (!filterByGame) return true;
+    const resolvedGame = def?.gameType ?? o.gameType;
+    return resolvedGame === gameType;
+  });
+}
 
 import {
   campaignFlowErrorMessage,
@@ -60,7 +99,9 @@ export type Portal3DPanelModal = "lb" | "history" | null;
 
 export function usePortalGame3DController({ visible }: { visible: number }) {
   const portal = usePortal();
-  const { lobby } = usePortalLobby();
+  const { lobby, lobbySlug } = usePortalLobby();
+  /** `/gc/{partner}/{lobbySlug}` — show that lobby's full ticket set, not one game slice. */
+  const namedLobby = Boolean(lobbySlug);
   const { user, askAuth, cancelAuth, logout } = useUserManager();
   const { openModal, modals } = useModalManager();
   const historyReport = usePortalHistoryReport();
@@ -87,10 +128,11 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     null
   );
   /**
-   * Keep the shared match overlay up after join returns `ready` until the play
-   * modal is registered — covers the Suspense/chunk gap solo used to flash through.
+   * Keep the shared match overlay up after join/`openAssignment` until the play
+   * modal mounts — covers Suspense/chunk gap for both solo and multi.
+   * Mode-tagged: multi open-play uses Creating (no Leave), not Matching.
    */
-  const [openingPlay, setOpeningPlay] = useState(false);
+  const [openingPlay, setOpeningPlay] = useState<"solo" | "multi" | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const showNote = useCallback((message: string | null) => {
     setNote(message);
@@ -164,32 +206,60 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
 
   const hasGlobalOpenRun = hasAnyOpenCasualRunAssignment(portal.openRunAssignments);
   const hasOpenRun = openAssignments.length > 0;
-  const playModalName = portal.gameType
-    ? portalPlayModalForGameType(portal.gameType)
-    : null;
-  const playModalOpen = Boolean(
-    playModalName && modals.some((m) => m.name === playModalName)
+  /** Any casual play surface — not only this lobby’s gameType (join may open a sibling kind). */
+  const playModalOpen = modals.some((m) =>
+    CASUAL_PLAY_MODAL_NAMES.has(m.name as CasualPlayModalName)
   );
-  /** Solo (and multi pre-queue) reuse the multi “Creating match” overlay. */
-  // Keep off while tournament picker is open — stacking its dim backdrop under the
-  // picker's semi-transparent mask briefly turns the screen black on failed joins.
+  /**
+   * Match overlay:
+   * - Solo: brief “Creating match” while joining / opening play (no Leave).
+   * - Multi:
+   *   1) join RTT → Matching, no Leave
+   *   2) queued waiting → Matching + Leave
+   *   3) claiming / openingPlay bridge → Creating, no Leave (committed)
+   * Keep `openingPlay` Creating on top even after the play modal mounts — modal open
+   * batches with setOpeningPlay, so `!playModalOpen` would skip Creating entirely.
+   * Clear when gameplay is ready (`markPortalGameplayReady`) or safety timeout.
+   * Ignore stale queue rows once the open run for that template already exists.
+   */
+  // Stale *waiting* rows after open run: ignore. Claiming still means Creating.
+  const queueWaitingWithoutOpenRun =
+    queueWaiting &&
+    !(
+      primaryQueueEntry != null &&
+      portal.openRunAssignments.some(
+        (a) => a.templateId === primaryQueueEntry.templateId
+      )
+    );
   const matchOverlayOpen =
-    tournamentPicker == null &&
-    (joining != null ||
-      openingPlay ||
-      awaitingMatch != null ||
-      queueWaiting ||
-      queueClaiming);
+    openingPlay != null ||
+    (!playModalOpen &&
+      (queueWaitingWithoutOpenRun ||
+        queueClaiming ||
+        awaitingMatch != null ||
+        joining === "multi" ||
+        joining === "solo"));
 
   useEffect(() => {
     if (!openingPlay) return;
-    if (playModalOpen) {
-      setOpeningPlay(false);
+    if (getPortalAdPhase() === "playing") {
+      setOpeningPlay(null);
       return;
     }
-    const t = window.setTimeout(() => setOpeningPlay(false), 10_000);
-    return () => window.clearTimeout(t);
-  }, [openingPlay, playModalOpen]);
+    const unsub = subscribePortalAdPhase((phase) => {
+      if (phase === "playing") setOpeningPlay(null);
+    });
+    const t = window.setTimeout(() => setOpeningPlay(null), 10_000);
+    return () => {
+      unsub();
+      window.clearTimeout(t);
+    };
+  }, [openingPlay]);
+
+  useEffect(() => {
+    if (!playModalOpen) return;
+    setTournamentPicker(null);
+  }, [playModalOpen]);
 
   useEffect(() => {
     if (visible === 0) return;
@@ -224,32 +294,15 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     entryLadderOnly: true,
   });
   /**
-   * 免费/广告/门票阶梯今日次数（不含金币桌）。
-   * 取服务端与战绩推算的较大值；服务端 0 时 `??` 不会回退，故用 Math.max。
+   * 免费阶梯今日次数（不含金币桌）。
+   * 必须以服务端为准：本地战绩 Math.max 会虚高，导致 UI 显示免费已满、
+   * 却去拉广告，服务端仍返回 free_quota_available。
+   * 配额尚未加载时再回退本地推算。
    */
-  const soloLadderPlaysToday = Math.max(
-    portal.dailyPlayQuota?.solo.playsToday ?? 0,
-    clientSoloLadderPlays
-  );
-  const multiLadderPlaysToday = Math.max(
-    portal.dailyPlayQuota?.multi.playsToday ?? 0,
-    clientMultiLadderPlays
-  );
-  /** 主页「今日已挑战 N」：含金币/宝石桌等全部对局。 */
-  const soloPlaysToday = countPortalModePlaysToday({
-    gameHistory: portal.gameHistory,
-    openAssignments: portal.openRunAssignments,
-    mode: "solo",
-    allModes: quotaScope === "lobby",
-    entryLadderOnly: false,
-  });
-  const multiPlaysToday = countPortalModePlaysToday({
-    gameHistory: portal.gameHistory,
-    openAssignments: portal.openRunAssignments,
-    mode: "multi",
-    allModes: quotaScope === "lobby",
-    entryLadderOnly: false,
-  });
+  const soloLadderPlaysToday =
+    portal.dailyPlayQuota?.solo.playsToday ?? clientSoloLadderPlays;
+  const multiLadderPlaysToday =
+    portal.dailyPlayQuota?.multi.playsToday ?? clientMultiLadderPlays;
   /** 免费档用尽 → 切到广告/门票入场 CTA（上限仍是免费 cap，与 assert 的 free 段一致） */
   const soloDailyExhausted = authed && soloLadderPlaysToday >= soloMaxPlaysPerDay;
   const multiDailyExhausted = authed && multiLadderPlaysToday >= multiMaxPlaysPerDay;
@@ -264,14 +317,18 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       if (quotaScope === "tournament" && templateId) {
         const max =
           mode === "solo" ? soloMaxPlaysPerDay : multiMaxPlaysPerDay;
-        const client = countPortalModePlaysToday({
-          gameHistory: portal.gameHistory,
-          openAssignments: portal.openRunAssignments,
-          mode,
-          templateId,
-          entryLadderOnly: true,
-        });
-        return client >= max;
+        const server =
+          portal.tournamentDailyPlayQuotas?.[templateId]?.playsToday;
+        const plays =
+          server ??
+          countPortalModePlaysToday({
+            gameHistory: portal.gameHistory,
+            openAssignments: portal.openRunAssignments,
+            mode,
+            templateId,
+            entryLadderOnly: true,
+          });
+        return plays >= max;
       }
       return mode === "solo" ? soloDailyExhausted : multiDailyExhausted;
     },
@@ -281,11 +338,15 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       multiMaxPlaysPerDay,
       portal.gameHistory,
       portal.openRunAssignments,
+      portal.tournamentDailyPlayQuotas,
       quotaScope,
       soloDailyExhausted,
       soloMaxPlaysPerDay,
     ]
   );
+  // Ad/ticket CTA follows server offer remaining only. Do not gate on client
+  // playsToday (Math.max with history can over-count and gray the lobby while
+  // ad remaining is still > 0). beginAdEntrySession enforces the hard ceiling.
   const soloAdEntryAvailable =
     portal.adEntryOffer?.solo.enabled === true &&
     ((portal.adEntryOffer.solo.remaining ?? 0) > 0 ||
@@ -301,12 +362,21 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     portal.ticketEntryOffer?.multi.enabled === true &&
     (portal.ticketEntryOffer.multi.remaining ?? 0) > 0;
 
-  const soloOfferingsForBlock = lobby?.offerings.filter(
-    (o) => o.matchType === "solo_p75"
+  const soloOfferingsForBlock = filterLobbyOfferingsForMode(
+    lobby?.offerings,
+    "solo",
+    portal.gameType,
+    { namedLobby }
   );
-  const multiOfferingsForBlock = lobby?.offerings.filter(
-    (o) => o.matchType === "multi_ranked"
+  const multiOfferingsForBlock = filterLobbyOfferingsForMode(
+    lobby?.offerings,
+    "multi",
+    portal.gameType,
+    { namedLobby }
   );
+  /** Multi-offering modes open a picker — home CTA stays clickable; gray only for single-ticket modes. */
+  const soloHasMultipleOfferings = (soloOfferingsForBlock?.length ?? 0) > 1;
+  const multiHasMultipleOfferings = (multiOfferingsForBlock?.length ?? 0) > 1;
   const modeHasPaidEntryOffering = (
     offerings: PortalLobbyOfferingView[] | undefined
   ) =>
@@ -314,6 +384,23 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       const def = getTournamentDef(o.tournamentId);
       return def != null && !portalTournamentUsesPlayEntryLadder(def);
     });
+  const modeLadderOfferingCount = (
+    offerings: PortalLobbyOfferingView[] | undefined
+  ) =>
+    (offerings ?? []).filter((o) => {
+      const def = getTournamentDef(o.tournamentId);
+      return def != null && portalTournamentUsesPlayEntryLadder(def);
+    }).length;
+  /**
+   * Home shows Play(n/m) / watch-ad(n/m) only when this mode has exactly one
+   * free→ad ladder ticket (no picker). Otherwise just 「开始」.
+   */
+  const soloShowHomeLadderCta =
+    (soloOfferingsForBlock?.length ?? 0) === 1 &&
+    modeLadderOfferingCount(soloOfferingsForBlock) === 1;
+  const multiShowHomeLadderCta =
+    (multiOfferingsForBlock?.length ?? 0) === 1 &&
+    modeLadderOfferingCount(multiOfferingsForBlock) === 1;
   // Paid coin/gem offerings stay joinable after free/ad/ticket ladder is spent.
   const soloDailyLadderBlocked =
     soloDailyExhausted &&
@@ -328,45 +415,68 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     multiOpenAssignment == null &&
     !modeHasPaidEntryOffering(multiOfferingsForBlock);
 
+  // Only gray for ladder exhaustion when this game actually has ladder tickets.
+  const soloHasLadderTickets = modeLadderOfferingCount(soloOfferingsForBlock) > 0;
+  const multiHasLadderTickets = modeLadderOfferingCount(multiOfferingsForBlock) > 0;
+  // No lobby tickets for this game → cannot start (do not fall back to a default template).
+  const soloNoOfferings =
+    (soloOfferingsForBlock?.length ?? 0) === 0 && soloOpenAssignment == null;
+  const multiNoOfferings =
+    (multiOfferingsForBlock?.length ?? 0) === 0 && multiOpenAssignment == null;
   const soloJoinBlocked =
     matchOverlayOpen ||
     (hasGlobalOpenRun && soloOpenAssignment == null) ||
-    soloDailyLadderBlocked;
+    soloNoOfferings ||
+    (!soloHasMultipleOfferings && soloHasLadderTickets && soloDailyLadderBlocked);
   const multiJoinBlocked =
     matchOverlayOpen ||
     (hasGlobalOpenRun && multiOpenAssignment == null) ||
-    multiDailyLadderBlocked;
+    multiNoOfferings ||
+    (!multiHasMultipleOfferings && multiHasLadderTickets && multiDailyLadderBlocked);
 
   const openAssignment = useCallback(
     (hit: OpenCasualRunAssignment) => {
       if (!portal.gameType) return;
       setPanelModal(null);
+      // Drop stale queue watch — open run is already playable.
+      setAwaitingMatch(null);
+      setNote(null);
+      const kind = inferPortalGameKindFromAssignment(hit);
+      const matchType = getPortalTournamentDefinition(hit.templateId)?.matchType;
+      setOpeningPlay(matchType === "multi_ranked" ? "multi" : "solo");
       openModal({
-        name: portalPlayModalForGameType(portal.gameType),
+        name: portalPlayModalForGameType(kind),
         data: modalDataForOpenAssignment(hit),
       });
     },
     [openModal, portal.gameType]
   );
 
+  // Allow a fresh auto-resume when navigating to another game deep link.
+  useEffect(() => {
+    autoResumeOpenRunRef.current = false;
+  }, [portal.gameType]);
+
   useEffect(() => {
     if (autoResumeOpenRunRef.current) return;
     if (visible === 0 || !authed || !portal.gameType) return;
-    // 排队/匹配中交给既有 await 流程；周结算弹窗打开时等关掉后再进
-    if (matchOverlayOpen || weeklyCloseModalOpen) return;
 
     if (playModalOpen) {
       autoResumeOpenRunRef.current = true;
       return;
     }
 
+    // Open run is already ready — do not wait for match overlay / weekly close.
+    // (Stale queue claiming + weekly modal used to block reload resume forever.)
     const resume =
       pickActivePortalOpenAssignmentsForGameType(
         portal.openRunAssignments,
         portal.gameType
       )[0] ??
       soloOpenAssignment ??
-      multiOpenAssignment;
+      multiOpenAssignment ??
+      // Named lobby may surface a primary gameType that is not the open run's game.
+      (namedLobby ? portal.openRunAssignments[0] : undefined);
     if (!resume) return;
 
     autoResumeOpenRunRef.current = true;
@@ -378,8 +488,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     portal.openRunAssignments,
     soloOpenAssignment,
     multiOpenAssignment,
-    matchOverlayOpen,
-    weeklyCloseModalOpen,
+    namedLobby,
     playModalOpen,
     openAssignment,
   ]);
@@ -418,11 +527,20 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
 
   useEffect(() => {
     if (visible === 0 || !league?.unreadCloseResult) return;
+    // Unfinished run first — show weekly close after the player returns to lobby.
+    if (hasGlobalOpenRun || playModalOpen) return;
     const key = league.closeWeekKey ?? league.weekKey;
     if (weeklyCloseShownRef.current === key) return;
     weeklyCloseShownRef.current = key;
     setWeeklyCloseModalOpen(true);
-  }, [visible, league?.unreadCloseResult, league?.closeWeekKey, league?.weekKey]);
+  }, [
+    visible,
+    league?.unreadCloseResult,
+    league?.closeWeekKey,
+    league?.weekKey,
+    hasGlobalOpenRun,
+    playModalOpen,
+  ]);
 
   useAwaitOpenCasualRunAssignment({
     watch: awaitingMatch,
@@ -459,6 +577,15 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     if (!portal.gameType) return;
     if (entry && (entry.status === "waiting" || entry.status === "claiming")) {
       if (suppressAwaitRearmRef.current) return;
+      // Table already open (or play modal up) — do not re-arm Matching overlay.
+      if (
+        playModalOpen ||
+        portal.openRunAssignments.some((a) => a.templateId === entry.templateId)
+      ) {
+        sawQueueForAwaitRef.current = false;
+        setAwaitingMatch(null);
+        return;
+      }
       sawQueueForAwaitRef.current = true;
       // Idempotent: avoid new object every render → infinite update loop.
       setAwaitingMatch((prev) => {
@@ -484,7 +611,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       !queueWaiting &&
       !queueClaiming &&
       !portal.openRunAssignments.some((a) =>
-        assignmentMatchesAwaitWatch(a, watch)
+        portalAssignmentMatchesAwaitWatch(a, watch)
       )
     ) {
       sawQueueForAwaitRef.current = false;
@@ -498,6 +625,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     primaryQueueEntry?.status,
     queueClaiming,
     queueWaiting,
+    playModalOpen,
   ]);
 
   useEffect(() => {
@@ -513,7 +641,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   useEffect(() => {
     if (!awaitingMatch || !portal.gameType) return;
     const hit = portal.openRunAssignments.find((a) =>
-      assignmentMatchesAwaitWatch(a, awaitingMatch)
+      portalAssignmentMatchesAwaitWatch(a, awaitingMatch)
     );
     if (!hit) return;
     setAwaitingMatch(null);
@@ -522,10 +650,14 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   }, [awaitingMatch, portal.gameType, portal.openRunAssignments, openAssignment]);
 
   const handleLeaveMatchQueue = useCallback(async () => {
-    if (leavingMatch || (!queueWaiting && !queueClaiming)) return;
+    const canLeave =
+      queueWaiting || queueClaiming || awaitingMatchRef.current != null;
+    if (leavingMatch || !canLeave) return;
     setLeavingMatch(true);
     try {
-      const res = await portal.leaveCasualMatchQueue(primaryQueueEntry?.templateId);
+      const tid =
+        primaryQueueEntry?.templateId ?? awaitingMatchRef.current?.templateId;
+      const res = await portal.leaveCasualMatchQueue(tid);
       setAwaitingMatch(null);
       if (res.ok) {
         setNote(null);
@@ -575,16 +707,22 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
         return "error";
       }
 
+      // When a lobby is loaded, only join tickets from its offerings (via override /
+      // handleJoin). Never fall back to a hard-coded default template — that skipped
+      // the multi-ticket picker and could open the wrong game.
       const templateId =
         tournamentIdOverride ??
         (lobby
-          ? mode === "solo"
-            ? lobby.soloTournamentId
-            : lobby.multiTournamentId
-          : null) ??
-        (portal.gameType ? portalTournamentIdForMode(portal.gameType, mode) : null);
+          ? null
+          : portal.gameType
+            ? portalTournamentIdForMode(portal.gameType, mode)
+            : null);
+      if (!templateId) {
+        setNote(portalFlowMessage("noTournamentsForGame"));
+        return "error";
+      }
 
-      const templateDef = templateId ? getTournamentDef(templateId) : null;
+      const templateDef = getTournamentDef(templateId);
       const usesPlayEntryLadder =
         !templateDef || portalTournamentUsesPlayEntryLadder(templateDef);
 
@@ -626,6 +764,13 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
             ? portal.adEntryOffer?.solo.hasReadyGrant === true
             : portal.adEntryOffer?.multi.hasReadyGrant === true;
 
+        // Paid coin tables may keep the mode card enabled; free-ladder templates
+        // must still stop when free is gone and no ad/ticket remains.
+        if (freeExhausted && !adAvailable && !ticketAvailable) {
+          setNote(joinEntryErrorMessage("daily_play_limit_reached"));
+          return "error";
+        }
+
         let adEntry = false;
         let ticketEntry = false;
         if (freeExhausted) {
@@ -641,11 +786,18 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
                 lobbyId: lobby?.lobbyId ?? null,
               });
               if (!ad.ok) {
-                setNote(joinEntryErrorMessage(ad.error));
-                return "error";
+                // Client thought free was gone; server still has free slots —
+                // join as free instead of surfacing free_quota_available.
+                if (ad.error !== "free_quota_available") {
+                  setNote(joinEntryErrorMessage(ad.error));
+                  return "error";
+                }
+              } else {
+                adEntry = true;
               }
+            } else {
+              adEntry = true;
             }
-            adEntry = true;
           } else if (ticketAvailable) {
             ticketEntry = true;
           }
@@ -657,7 +809,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
           ...(ticketEntry ? { ticketEntry: true } : {}),
         });
         if (outcome.kind === "ready") {
-          setOpeningPlay(true);
+          setOpeningPlay(mode);
           const modalGame =
             getTournamentDef(outcome.templateId)?.gameType ?? playGameType;
           openModal({
@@ -681,7 +833,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
           const fallback =
             mode === "solo" ? soloOpenAssignment : multiOpenAssignment;
           if (fallback) {
-            setOpeningPlay(true);
+            setOpeningPlay(mode);
             openAssignment(fallback);
             return "ok";
           }
@@ -728,8 +880,23 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
           : joining === mode;
       const siblingJoining =
         joining === mode && joiningTournamentId != null && !isJoiningThis;
+      const tournamentClosed = def != null && !isJoinableCasualTournament(def);
+      // New joins blocked while another run/queue is active (resume uses home CTA).
+      const globalBusy =
+        hasGlobalOpenRun || queueWaiting || queueClaiming;
+
       // Paid coin/gem tables: picker shows wallet fee, not free/ad/ticket ladder.
       if (def && !portalTournamentUsesPlayEntryLadder(def)) {
+        const wallet = portal.playerWallet;
+        const entryKind = def.entry.kind;
+        const amount =
+          entryKind === "coins" || entryKind === "gems" ? def.entry.amount : 0;
+        const canAfford =
+          wallet == null
+            ? true
+            : entryKind === "gems"
+              ? wallet.gems >= amount
+              : wallet.coins >= amount;
         return {
           dailyExhausted: false,
           adEntryAvailable: false,
@@ -738,20 +905,24 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
           maxPlaysPerDay: 0,
           joining: isJoiningThis,
           siblingJoining,
+          playable: !tournamentClosed && !globalBusy && canAfford,
+          perTournamentQuota: false,
         };
       }
+
+      const serverTournamentQuota =
+        portal.tournamentDailyPlayQuotas?.[tournamentId] ?? null;
       const maxPlaysPerDay =
-        mode === "solo" ? soloMaxPlaysPerDay : multiMaxPlaysPerDay;
+        quotaScope === "tournament" && serverTournamentQuota
+          ? serverTournamentQuota.maxPlaysPerDay
+          : mode === "solo"
+            ? soloMaxPlaysPerDay
+            : multiMaxPlaysPerDay;
       // Picker free-quota stub uses ladder-only counts (coin tables have their own fee UI).
+      // Prefer server plays — client history can over-count vs beginAdEntrySession.
       const playsToday =
-        quotaScope === "tournament"
-          ? countPortalModePlaysToday({
-              gameHistory: portal.gameHistory,
-              openAssignments: portal.openRunAssignments,
-              mode,
-              templateId: tournamentId,
-              entryLadderOnly: true,
-            })
+        quotaScope === "tournament" && serverTournamentQuota
+          ? serverTournamentQuota.playsToday
           : mode === "solo"
             ? soloLadderPlaysToday
             : multiLadderPlaysToday;
@@ -761,12 +932,16 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
           : mode === "solo"
             ? soloDailyExhausted
             : multiDailyExhausted;
+      const adEntryAvailable =
+        mode === "solo" ? soloAdEntryAvailable : multiAdEntryAvailable;
+      const ticketEntryAvailable =
+        mode === "solo" ? soloTicketEntryAvailable : multiTicketEntryAvailable;
+      const ladderBlocked =
+        dailyExhausted && !adEntryAvailable && !ticketEntryAvailable;
       return {
         dailyExhausted,
-        adEntryAvailable:
-          mode === "solo" ? soloAdEntryAvailable : multiAdEntryAvailable,
-        ticketEntryAvailable:
-          mode === "solo" ? soloTicketEntryAvailable : multiTicketEntryAvailable,
+        adEntryAvailable,
+        ticketEntryAvailable,
         ticketEntryPrice:
           mode === "solo"
             ? portal.ticketEntryOffer?.solo.priceTickets
@@ -779,9 +954,12 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
         maxPlaysPerDay,
         joining: isJoiningThis,
         siblingJoining,
+        playable: !tournamentClosed && !globalBusy && !ladderBlocked,
+        perTournamentQuota: quotaScope === "tournament",
       };
     },
     [
+      hasGlobalOpenRun,
       joining,
       joiningTournamentId,
       multiAdEntryAvailable,
@@ -789,12 +967,14 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       multiMaxPlaysPerDay,
       multiLadderPlaysToday,
       multiTicketEntryAvailable,
-      portal.gameHistory,
-      portal.openRunAssignments,
+      portal.playerWallet,
       portal.ticketEntryOffer?.multi.priceTickets,
       portal.ticketEntryOffer?.multi.remaining,
       portal.ticketEntryOffer?.solo.priceTickets,
       portal.ticketEntryOffer?.solo.remaining,
+      portal.tournamentDailyPlayQuotas,
+      queueClaiming,
+      queueWaiting,
       quotaScope,
       soloAdEntryAvailable,
       soloDailyExhausted,
@@ -805,15 +985,19 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   );
 
   const soloOfferings = useMemo(
-    () => lobby?.offerings.filter((o) => o.matchType === "solo_p75") ?? [],
-    [lobby?.offerings]
+    () =>
+      filterLobbyOfferingsForMode(lobby?.offerings, "solo", portal.gameType, {
+        namedLobby,
+      }),
+    [lobby?.offerings, namedLobby, portal.gameType]
   );
   const multiOfferings = useMemo(
-    () => lobby?.offerings.filter((o) => o.matchType === "multi_ranked") ?? [],
-    [lobby?.offerings]
+    () =>
+      filterLobbyOfferingsForMode(lobby?.offerings, "multi", portal.gameType, {
+        namedLobby,
+      }),
+    [lobby?.offerings, namedLobby, portal.gameType]
   );
-  const soloHasMultipleOfferings = soloOfferings.length > 1;
-  const multiHasMultipleOfferings = multiOfferings.length > 1;
 
   const handleJoin = useCallback(
     async (mode: "solo" | "multi") => {
@@ -824,13 +1008,17 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
         return;
       }
       const modeOfferings = mode === "solo" ? soloOfferings : multiOfferings;
+      // Always allow opening the picker when multiple tickets exist — per-row
+      // playable state is enforced inside the modal, not by graying the home CTA.
       if (modeOfferings.length > 1) {
         setTournamentPicker({ mode, offerings: modeOfferings });
         return;
       }
-      const onlyId =
-        modeOfferings.length === 1 ? modeOfferings[0]!.tournamentId : undefined;
-      await executeJoin(mode, onlyId);
+      if (modeOfferings.length === 1) {
+        await executeJoin(mode, modeOfferings[0]!.tournamentId);
+        return;
+      }
+      setNote(portalFlowMessage("noTournamentsForGame"));
     },
     [
       executeJoin,
@@ -878,9 +1066,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     multiOpenAssignment,
     soloJoinBlocked,
     multiJoinBlocked,
-    soloPlaysToday,
     soloLadderPlaysToday,
-    multiPlaysToday,
     multiLadderPlaysToday,
     soloMaxPlaysPerDay,
     multiMaxPlaysPerDay,
@@ -888,6 +1074,12 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     multiDailyExhausted,
     soloAdEntryAvailable,
     multiAdEntryAvailable,
+    soloAdEntryEnabled: portal.adEntryOffer?.solo.enabled === true,
+    multiAdEntryEnabled: portal.adEntryOffer?.multi.enabled === true,
+    soloAdEntryUsedToday: portal.adEntryOffer?.solo.usedToday ?? 0,
+    multiAdEntryUsedToday: portal.adEntryOffer?.multi.usedToday ?? 0,
+    soloAdEntryCap: portal.adEntryOffer?.solo.cap ?? 0,
+    multiAdEntryCap: portal.adEntryOffer?.multi.cap ?? 0,
     soloTicketEntryAvailable,
     multiTicketEntryAvailable,
     soloTicketEntryPrice: portal.ticketEntryOffer?.solo.priceTickets,
@@ -901,8 +1093,8 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     primaryQueueEntry,
     primaryQueueTitle,
     handleJoin,
-    soloHasMultipleOfferings,
-    multiHasMultipleOfferings,
+    soloShowHomeLadderCta,
+    multiShowHomeLadderCta,
     tournamentPicker,
     quotaScope,
     entryStateForTournament,
@@ -911,8 +1103,9 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       const mode = tournamentPicker?.mode;
       if (!mode) return;
       // Keep picker open on failures (e.g. insufficient_coins) so the user can pick again.
+      // Multi queued: keep picker until live queue overlay; Leave queue can reopen it.
       void executeJoin(mode, tournamentId).then((result) => {
-        if (result === "ok") setTournamentPicker(null);
+        if (result === "ok" && mode === "solo") setTournamentPicker(null);
       });
     },
     handleLeaveMatchQueue,

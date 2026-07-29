@@ -13,6 +13,7 @@ import { isValidPortalGameType } from "../../portal/service/portalGameTypeGuards
 
 import {
   MerchantCampaignProvider,
+  useCampaignPartnerGate,
   useCampaignPublicLive,
   usePartnerCampaignsPublicLive,
   isDisplayCampaign,
@@ -77,7 +78,12 @@ const CampaignLandingInner: React.FC<{
   const { t } = useTranslation("campaign.player");
   const { user, logout, cancelAuth, askAuth } = useUserManager();
 
-  const { slides, isLoading: slidesLoading } = usePartnerCampaignsPublicLive(partnerSlug);
+  // FE resolves partnerSlug -> partnerId via the shared PartnerManager SSO
+  // path (same `/gc` + `/cc` findByPartnerSlug resolve Portal uses); Campaign
+  // backend public reads take the resolved partnerId directly.
+  const { resolving, partnerMissing, partnerPid } = useCampaignPartnerGate(partnerSlug);
+
+  const { slides, isLoading: slidesLoading } = usePartnerCampaignsPublicLive(partnerPid);
 
   const carouselInitialSlug = useMemo(() => {
     if (!slides?.length) return campaignSlug;
@@ -88,7 +94,7 @@ const CampaignLandingInner: React.FC<{
   const useCarousel = Boolean(slides && slides.length >= 1);
 
   const { campaignPublic: fallbackPublic, isLoading: fallbackLoading } = useCampaignPublicLive(
-    partnerSlug,
+    partnerPid,
     useCarousel ? null : campaignSlug
   );
 
@@ -103,6 +109,26 @@ const CampaignLandingInner: React.FC<{
     return (
       <div className="campaign-page campaign-page--plain">
         <div className="campaign-error">{t("landing.invalidUrl")}</div>
+      </div>
+    );
+  }
+
+  // Partner gate mirrors PortalGamePage: wait for PartnerManager to resolve
+  // this slug before trusting partnerPid for live queries.
+  if (resolving) {
+    return (
+      <div className="campaign-page campaign-page--plain">
+        <div className="campaign-loading">{t("landing.loading")}</div>
+      </div>
+    );
+  }
+
+  if (partnerMissing) {
+    return (
+      <div className="campaign-page campaign-page--plain">
+        <div className="campaign-error" role="alert">
+          {t("landing.unknownMerchant", { key: partnerSlug })}
+        </div>
       </div>
     );
   }

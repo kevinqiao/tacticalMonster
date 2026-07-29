@@ -185,8 +185,15 @@
     "UTC": "UTC"
   },
   "couponDefs": {
-    "title": "券定义",
+    "title": "券 SKU",
     "intro": "在此维护文案券模板、使用规则与领取后有效时长；创建活动时选择券定义，发券时会快照奖励与过期时间到玩家兑换码。",
+    "skuIntro": "券 SKU 由 Partner/Platform 商城后台统一管理，此处仅供只读查看 — 可在此选择 SKU 作为活动奖励，SKU 的增删改请到商城后台操作。",
+    "skuIdLabel": "SKU：{{skuId}}",
+    "validityDaysLabel": "领取后 {{days}} 天内有效",
+    "validityDaysUnset": "无固定有效期",
+    "activeYes": "已启用",
+    "activeNo": "未启用",
+    "skuEmpty": "暂无券 SKU，请到 Partner/Platform 商城后台创建。",
     "newTitle": "新建券定义",
     "adminName": "管理名称",
     "adminNamePlaceholder": "例：中杯美式",
@@ -221,6 +228,7 @@
     "filterCampaign": "筛选活动：{{campaignId}}",
     "recent200": "显示本商户最近 200 张券",
     "issuedAt": "发放 {{issuedAt}} · 生效 {{activatesAt}} · 过期 {{expiresAt}}",
+    "meta": "活动 {{campaignId}}",
     "metaPassRun": "活动 {{campaignId}} · 局 {{runTournamentId}}",
     "metaSettle": "活动 {{campaignId}} · 结算 {{settlementId}}",
     "statusLine": "{{status}} · {{ruleId}} · uid {{uid}}…",
@@ -252,10 +260,11 @@
   },
   "brand": {
     "title": "品牌主题",
-    "brandUrl": "品牌官网 URL",
+    "brandUrl": "官网 URL",
     "brandUrlPlaceholder": "https://example.com",
-    "syncTheme": "同步主题",
-    "approve": "确认采用"
+    "syncTheme": "同步风格",
+    "primaryColor": "主色",
+    "approve": "发布风格"
   },
   "team": {
     "title": "团队成员",

@@ -123,7 +123,8 @@ export const cascadeClassicSimple = ({
   const gatherDur = 0.32;
   const gatherStagger = 0.02;
   ordered.forEach((item, i) => {
-    gsap.set(item.ele, { zIndex: 3000 + i });
+    // Timeline-scoped z — avoid immediate set wiping order before gather plays.
+    master.set(item.ele, { zIndex: 3000 + i }, i * gatherStagger);
     // 跟拍：每张汇聚一小下（throttle 在 catalog）
     master.call(() => AudioBus.emit("game.solitaire.score_delta"), undefined, i * gatherStagger);
     master.to(
@@ -149,6 +150,14 @@ export const cascadeClassicSimple = ({
   const openDur = 0.72;
   const mid = (n - 1) / 2;
 
+  // Peel from center: center cards must sit on top while edges stay under the stack.
+  // (Previously zIndex=5000+i left the last Ace glued on top of the whole fan.)
+  ordered.forEach((item, i) => {
+    const depthFromCenter = Math.abs(i - mid);
+    const peelZ = 6000 - Math.round(depthFromCenter * 2) + (i >= mid ? 1 : 0);
+    master.set(item.ele, { zIndex: peelZ }, fanAt);
+  });
+
   ordered.forEach((item, i) => {
     const t = n <= 1 ? 0.5 : i / (n - 1);
     const deg = fanStartDeg + t * fanSpanDeg;
@@ -160,7 +169,6 @@ export const cascadeClassicSimple = ({
     const delay = Math.abs(i - mid) * 0.014;
     const t0 = fanAt + delay;
 
-    gsap.set(item.ele, { zIndex: 5000 + i });
     if (i % 4 === 0) {
       master.call(() => AudioBus.emit("game.solitaire.flip"), undefined, t0);
     }
@@ -180,6 +188,11 @@ export const cascadeClassicSimple = ({
   });
 
   const fanOpenEnd = fanAt + mid * 0.014 + openDur;
+
+  // Settled fan: left → right ascending z (natural hand of cards).
+  ordered.forEach((item, i) => {
+    master.set(item.ele, { zIndex: 5000 + i }, fanOpenEnd);
+  });
 
   // —— 3) 扇面定格一瞬后整体淡出 ——
   const hold = 0.18;

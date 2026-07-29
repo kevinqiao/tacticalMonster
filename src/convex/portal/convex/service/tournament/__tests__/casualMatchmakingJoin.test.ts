@@ -49,7 +49,7 @@ describe("evaluateEffectiveHumans", () => {
     expect(result.queueExpireAction).toBe(CASUAL_DEFAULT_QUEUE_EXPIRE);
   });
 
-  it("consecutive loss streak ? effectiveHumans 2, expire solo", () => {
+  it("consecutive loss streak → effectiveHumans 2, expire solo", () => {
     const def = getPortalTournamentDefinition("casual_async_b_solitaire");
     const result = evaluateEffectiveHumans(
       baseProfile({ consecutiveLossStreak: CASUAL_CONSECUTIVE_LOSS_THRESHOLD }),
@@ -60,7 +60,7 @@ describe("evaluateEffectiveHumans", () => {
     expect(result.queueExpireAction).toBe("solo");
   });
 
-  it("returning player ? effectiveHumans 1, expire solo", () => {
+  it("returning player → effectiveHumans 2, expire solo", () => {
     const def = getPortalTournamentDefinition("casual_async_b_solitaire");
     const result = evaluateEffectiveHumans(
       baseProfile({ daysSinceLastMatch: 15 }),
@@ -71,7 +71,7 @@ describe("evaluateEffectiveHumans", () => {
     expect(result.queueExpireAction).toBe("solo");
   });
 
-  it("early game ? effectiveHumans 1, expire solo", () => {
+  it("early game → effectiveHumans 2, expire solo", () => {
     const def = getPortalTournamentDefinition("casual_async_b_solitaire");
     const result = evaluateEffectiveHumans(
       baseProfile({ completedMultiplayerMatches: 3, weeklyLeagueTier: "bronze" }),

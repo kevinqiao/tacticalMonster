@@ -8,6 +8,16 @@
     "enteringPlatformAdmin": "Loading platform admin…",
     "enteringPartnerAdmin": "Loading partner admin…",
     "enteringLobby": "Entering game lobby…"
+  },
+  "maintenance": {
+    "kicker": "Temporarily unavailable",
+    "title": "Under maintenance",
+    "message": "We're performing system maintenance. Please try again later.",
+    "eta": "Expected back by {{time}}",
+    "retry": "Refresh",
+    "opsEntry": "Ops entry",
+    "noticeTitle": "Maintenance notice",
+    "noticeWindow": "Window: {{window}}"
   }
 }
 

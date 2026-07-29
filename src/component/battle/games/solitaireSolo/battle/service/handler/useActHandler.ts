@@ -35,8 +35,8 @@ import { useSoloGameManager } from "../GameManager";
 import { autoCompleteLayoutGate } from "../../autoCompleteLayoutGate";
 import {
     buildSolitaireScoreReport,
-    isCasualSoloP75ChallengeTemplate,
     shouldOpenCasualTableSummaryAfterScoreReport,
+    shouldRefreshPortalAdReplayQuota,
     type CasualGameScoreReportUI,
 } from "../../../../shared/casualGameScoreReportUI";
 import type { CasualWatchContext } from "../../../../shared/casualAsyncTableSummaryUI";
@@ -121,7 +121,12 @@ function applyServerProgress(
     ) => void,
     gs: SoloGameState,
     p: ServerProgress,
-    opts?: { allowCompleted?: boolean; anchorZoneId?: string }
+    opts?: {
+        allowCompleted?: boolean;
+        anchorZoneId?: string;
+        /** 同步写入 ref，避免 setState 前仍按 PLAYING 走子打到 terminal */
+        gameStateRef?: { current: SoloGameState | null };
+    }
 ): SoloGameState {
     let gameStatus = p.gameStatus;
     // 默认不信任服务端 COMPLETED（旧 isGameWon / 空 zones 会误标）；仅 allowCompleted 时接受
@@ -144,6 +149,9 @@ function applyServerProgress(
         typeof gameStatus !== "number"
     ) {
         return gs;
+    }
+    if (opts?.gameStateRef) {
+        opts.gameStateRef.current = next;
     }
     syncReplayScore(next, { anchorZoneId: opts?.anchorZoneId });
     return next;
@@ -269,6 +277,9 @@ const useActHandler = () => {
     const [postCasualAdReplayDailyRemaining, setPostCasualAdReplayDailyRemaining] = useState<
         number | undefined
     >(undefined);
+    const [postCasualAdReplayDailyCap, setPostCasualAdReplayDailyCap] = useState<
+        number | undefined
+    >(undefined);
     const [casualReplayBusy, setCasualReplayBusy] = useState(false);
     const [casualReplayError, setCasualReplayError] = useState<string | null>(null);
     const [triathlonDeferTableSummary, setTriathlonDeferTableSummary] = useState(false);
@@ -282,6 +293,15 @@ const useActHandler = () => {
     const interactionPhaseRef = useRef<GameInteractionPhase>(GameInteractionPhase.idle);
     /** 自动清盘进行中：阻止 React 用旧 state 覆盖已推进的 ref */
     const autoCompleteRunningRef = useRef(false);
+    /** 结算/再战期间禁止走子（避免服务端已 terminal、客户端仍 PLAYING） */
+    const inputLockedRef = useRef(false);
+    inputLockedRef.current =
+        casualRunSubmittedRef.current ||
+        casualReplayBusy ||
+        settleConfirmOpen ||
+        postCasualScoreReportOpen ||
+        postCasualSummaryOpen ||
+        settleInFlightRef.current;
 
     const fetchTableSummaryForGame = useCallback(
         (matchGameId: string) =>
@@ -310,6 +330,7 @@ const useActHandler = () => {
                 setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
                 setReplayMode: setPostCasualReplayMode,
                 setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
             });
         },
     });
@@ -520,6 +541,7 @@ const useActHandler = () => {
         setPostCasualReplayMode("token");
         setPostCasualReplayWindowEndsAt(undefined);
         setPostCasualAdReplayDailyRemaining(undefined);
+            setPostCasualAdReplayDailyCap(undefined);
         setCasualReplayBusy(false);
         setWatchTarget(null);
         setWatchTargetLabel("");
@@ -620,6 +642,7 @@ const useActHandler = () => {
                 setPostCasualCanReplay(false);
                 setPostCasualReplayWindowEndsAt(undefined);
                 setPostCasualAdReplayDailyRemaining(undefined);
+            setPostCasualAdReplayDailyCap(undefined);
                 setPostCasualScoreReportOpen(true);
             }
 
@@ -655,6 +678,7 @@ const useActHandler = () => {
             setPostCasualCanReplay(false);
             setPostCasualReplayWindowEndsAt(undefined);
             setPostCasualAdReplayDailyRemaining(undefined);
+            setPostCasualAdReplayDailyCap(undefined);
             setPostCasualScoreReportOpen(true);
 
             if (deferTableSummary) {
@@ -670,13 +694,15 @@ const useActHandler = () => {
                     setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
                     setReplayMode: setPostCasualReplayMode,
                     setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
                 });
             }
 
-            const shouldRefreshSoloPortalReplay =
-                isCasualSoloP75ChallengeTemplate(casualTournamentId) &&
-                casualTournamentId?.startsWith("portal_");
-            if (shouldRefreshSoloPortalReplay || !settle.tableSummary) {
+            // 多人竞技同样需要：Arena ingest 常缺 adReplayDailyCap，Portal query 才有完整 N/M。
+            if (
+                shouldRefreshPortalAdReplayQuota(casualTournamentId) ||
+                !settle.tableSummary
+            ) {
                 try {
                     const summary = await fetchTableSummaryForGame(gameId);
                     if (summary) {
@@ -688,6 +714,7 @@ const useActHandler = () => {
                             setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
                             setReplayMode: setPostCasualReplayMode,
                             setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
                         });
                     }
                 } catch (e) {
@@ -739,7 +766,34 @@ const useActHandler = () => {
                     setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
                     setReplayMode: setPostCasualReplayMode,
                     setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                    setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
                 });
+            }
+            if (shouldRefreshPortalAdReplayQuota(casualTournamentId)) {
+                const gs = gameStateRef.current;
+                const matchGameId =
+                    typeof gs?.gameId === "string" && gs.gameId.startsWith("game_")
+                        ? gs.gameId
+                        : undefined;
+                if (matchGameId) {
+                    void fetchTableSummaryForGame(matchGameId)
+                        .then((summary) => {
+                            if (!summary) return;
+                            applyCasualTableSummaryFromQuery(summary, {
+                                setTableSummary: setPostCasualTableSummary,
+                                setReplayOffered: setPostCasualReplayOffered,
+                                setReplayTokenCount: setPostCasualReplayTokenCount,
+                                setCanReplay: setPostCasualCanReplay,
+                                setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                                setReplayMode: setPostCasualReplayMode,
+                                setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
+                            });
+                        })
+                        .catch(() => {
+                            /* ignore */
+                        });
+                }
             }
             if (settled.pendingOthers) {
                 setPostCasualWaitingForPeers(true);
@@ -748,7 +802,7 @@ const useActHandler = () => {
                 setPostCasualWeeklyLeagueSettle(settled.weeklyLeagueSettle);
             }
         },
-        [targetScore]
+        [targetScore, casualTournamentId, fetchTableSummaryForGame]
     );
 
     const mapCasualPlatformRunActionResult = (
@@ -906,7 +960,12 @@ const useActHandler = () => {
                     casualRunSubmittedRef.current = false;
                     return { ok: false, error: cr.error };
                 }
-                applyServerProgress(syncReplayScore, gs, { gameStatus: SoloGameStatus.CANCELLED });
+                applyServerProgress(
+                    syncReplayScore,
+                    gs,
+                    { gameStatus: SoloGameStatus.CANCELLED },
+                    { gameStateRef }
+                );
                 const score = Math.max(0, Math.floor(gs.score ?? 0));
                 return mapCasualPlatformRunActionResult(cr, deferHost, score, gs.gameId);
             } catch (e) {
@@ -936,7 +995,12 @@ const useActHandler = () => {
             if (!timeoutUiShownRef.current) {
                 timeoutUiShownRef.current = true;
                 AudioBus.emit("game.solitaire.lose");
-                applyServerProgress(syncReplayScore, gs, { gameStatus: SoloGameStatus.CANCELLED });
+                applyServerProgress(
+                    syncReplayScore,
+                    gs,
+                    { gameStatus: SoloGameStatus.CANCELLED },
+                    { gameStateRef }
+                );
                 await beginCasualPostSettleFlow(matchGameId, score, {});
             }
 
@@ -961,6 +1025,7 @@ const useActHandler = () => {
                     setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
                     setReplayMode: setPostCasualReplayMode,
                     setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
                 });
             }
         } catch (e) {
@@ -1360,6 +1425,8 @@ const useActHandler = () => {
                 console.warn("[Solitaire] replayCasualRun reloadCasualRun failed");
                 return;
             }
+            // 立刻对齐 ref，避免 React effect 前仍用旧局走子 → move_failed:terminal
+            gameStateRef.current = reloaded;
             // 再战可能连点：确保后续一帧仍接受 moves 归零的新局
             acceptReloadedGameStateRef.current = true;
             holdGameStateRefSync.current = false;
@@ -1377,6 +1444,7 @@ const useActHandler = () => {
             setPostCasualReplayMode("token");
             setPostCasualReplayWindowEndsAt(undefined);
             setPostCasualAdReplayDailyRemaining(undefined);
+            setPostCasualAdReplayDailyCap(undefined);
             setPostCasualScoreReportOpen(false);
             setPostCasualScoreReport(null);
             setCasualReplayError(null);
@@ -1481,11 +1549,16 @@ const useActHandler = () => {
                       if (!res?.ok) {
                           throw new Error("认输失败，请重试");
                       }
-                      const nextGs = applyServerProgress(syncReplayScore, gs, {
-                          score: res.score,
-                          moves: res.moves,
-                          gameStatus: res.gameStatus,
-                      });
+                      const nextGs = applyServerProgress(
+                          syncReplayScore,
+                          gs,
+                          {
+                              score: res.score,
+                              moves: res.moves,
+                              gameStatus: res.gameStatus,
+                          },
+                          { gameStateRef }
+                      );
                       const score = Math.max(0, Math.floor(nextGs.score ?? 0));
                       return runSolitaireSettlement(score, { deferHostNotify: true });
                   })();
@@ -1595,60 +1668,104 @@ const useActHandler = () => {
         // 必须用 ref：自动清盘循环会长时间持有旧的 callback 闭包
         const gs = gameStateRef.current;
         if (!gs || !card) return;
-        if (isTerminalSoloStatus(gs.status)) return;
-        if (!SoloGameEngine.planDrawCard(gs, card.id).ok) return;
+        if (inputLockedRef.current || isTerminalSoloStatus(gs.status)) return;
+        const plan = SoloGameEngine.planDrawCard(gs, card.id);
+        if (!plan.ok || !plan.data?.draw?.length) return;
 
         setInteractionPhase(GameInteractionPhase.animating);
         let updateCards: SoloCard[] = [];
         let serverSnap: ServerProgress = {};
-        try {
-            const result = (await convex.mutation(api.service.gameManager.draw, {
-                gameId: gs.gameId,
-                cardId: card.id,
-            })) as ActionResult & ServerProgress;
+        // Local plan has waste targets; faces stay redacted until the mutation returns.
+        // Start flight immediately (same pattern as move/recycle) so stock clicks aren't gated on RTT.
+        const animCards = (plan.data.draw as SoloCard[]).map((c) => {
+            const dom = gs.cards.find((gc) => gc.id === c.id);
+            return { ...c, ele: dom?.ele } as SoloCard;
+        });
 
-            if (!result.ok || !result.data?.draw?.length) {
-                throw new Error("draw_failed");
-            }
-
-            updateCards = result.data.draw as SoloCard[];
-            serverSnap = {
-                score: result.score,
-                moves: result.moves,
-                gameStatus: result.gameStatus,
-            };
-
+        const applyServerFaces = (patches: SoloCard[]) => {
             const baseGs = gameStateRef.current ?? gs;
-            const drawnWithEle = updateCards.map((c) =>
-                mergeServerFaceOntoDomCard(
-                    baseGs.cards.find((gc) => gc.id === c.id),
-                    c
-                )
-            );
-            for (const drawn of drawnWithEle) {
-                if (drawn.ele && drawn.rank) {
-                    popCard(drawn);
+            for (const patch of patches) {
+                const faceCard = mergeServerFaceOntoDomCard(
+                    baseGs.cards.find((gc) => gc.id === patch.id) ??
+                        animCards.find((a) => a.id === patch.id),
+                    patch
+                );
+                if (faceCard.ele && faceCard.rank) {
+                    popCard(faceCard);
                 }
             }
+        };
 
-            await new Promise<void>((resolve) => {
+        try {
+            const mutationPromise = convex
+                .mutation(api.service.gameManager.draw, {
+                    gameId: gs.gameId,
+                    cardId: card.id,
+                })
+                .then((result: ActionResult & ServerProgress) => {
+                    if (!result.ok || !result.data?.draw?.length) {
+                        throw new Error("draw_failed");
+                    }
+                    updateCards = result.data.draw as SoloCard[];
+                    serverSnap = {
+                        score: result.score,
+                        moves: result.moves,
+                        gameStatus: result.gameStatus,
+                    };
+                    // Paint faces as soon as identity arrives (often mid-flight, before flip).
+                    applyServerFaces(updateCards);
+                    return result;
+                });
+
+            const animPromise = new Promise<void>((resolve) => {
                 PlayEffects.drawCard({
-                    data: { cards: drawnWithEle, boardDimensionRef, gameState: baseGs },
+                    data: {
+                        cards: animCards,
+                        boardDimensionRef,
+                        gameState: gs,
+                    },
                     onComplete: () => resolve(),
                 });
             });
+
+            await Promise.all([mutationPromise, animPromise]);
+
+            const baseGs = gameStateRef.current ?? gs;
+            // Re-apply in case the mutation resolved after the flip window.
+            applyServerFaces(updateCards);
 
             saveUpdate(updateCards);
             const nextGs = mergeCardPatches(
                 applyServerProgress(syncReplayScore, baseGs, serverSnap, {
                     anchorZoneId: "waste",
+                    gameStateRef,
                 }),
                 updateCards
             );
             gameStateRef.current = nextGs;
             void completeCasualSolitaireRun(nextGs);
         } catch (e) {
-            console.error("drawCard failed:", e);
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg.includes("terminal")) {
+                const cur = gameStateRef.current ?? gs;
+                applyServerProgress(
+                    syncReplayScore,
+                    cur,
+                    { gameStatus: SoloGameStatus.CANCELLED },
+                    { gameStateRef }
+                );
+                console.warn("[Solitaire] draw ignored: server already terminal");
+            } else {
+                console.error("drawCard failed:", e);
+            }
+            const dim = boardDimensionRef.current;
+            if (dim) {
+                for (const c of gs.cards) {
+                    if (c.ele) gsap.killTweensOf(c.ele);
+                }
+                // Snap board back to pre-draw model (talon + waste fan).
+                layoutAllSoloCardsFromModel(gs, dim, boardDimensionRef);
+            }
         } finally {
             setInteractionPhase(GameInteractionPhase.idle);
         }
@@ -1666,7 +1783,7 @@ const useActHandler = () => {
         // 必须用 ref：自动清盘循环持有的 moveCard 闭包里的 gameState 会停在触发瞬间
         const gs = gameStateRef.current;
         if (!gs || !card || !dropTarget) return false;
-        if (isTerminalSoloStatus(gs.status)) return false;
+        if (inputLockedRef.current || isTerminalSoloStatus(gs.status)) return false;
 
         const liveCard =
             (gs.cards.find((c) => c.id === card.id) as SoloCard | undefined) ?? (card as SoloCard);
@@ -1772,6 +1889,7 @@ const useActHandler = () => {
             let nextGs = mergeCardPatches(
                 applyServerProgress(syncReplayScore, baseGs, serverSnap, {
                     anchorZoneId: dropTarget.zoneId,
+                    gameStateRef,
                 }),
                 updateCards
             );
@@ -1797,7 +1915,30 @@ const useActHandler = () => {
             void completeCasualSolitaireRun(nextGs);
             return true;
         } catch (e) {
-            console.error("moveCard failed:", e);
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg.includes("move_failed:terminal")) {
+                // 服务端已终局而本地仍 PLAYING（结算竞态 / 再战前旧档）：对齐本地，勿当异常刷屏
+                const cur = gameStateRef.current ?? gs;
+                const terminalStatus = isAllCardsOnFoundation(cur)
+                    ? SoloGameStatus.COMPLETED
+                    : SoloGameStatus.CANCELLED;
+                applyServerProgress(
+                    syncReplayScore,
+                    cur,
+                    { gameStatus: terminalStatus },
+                    {
+                        allowCompleted: terminalStatus === SoloGameStatus.COMPLETED,
+                        gameStateRef,
+                    }
+                );
+                console.warn("[Solitaire] move ignored: server already terminal", {
+                    gameId: gs.gameId,
+                    localStatus: gs.status,
+                    terminalStatus,
+                });
+            } else {
+                console.error("moveCard failed:", e);
+            }
             if (flipSession) {
                 await new Promise<void>((resolve) => flipSession!.cancel(resolve));
             }
@@ -1820,7 +1961,10 @@ const useActHandler = () => {
             setInteractionPhase(GameInteractionPhase.idle);
             return;
         }
-        if (isTerminalSoloStatus(gameState.status)) {
+        if (
+            inputLockedRef.current ||
+            isTerminalSoloStatus(gameStateRef.current?.status ?? gameState.status)
+        ) {
             setInteractionPhase(GameInteractionPhase.idle);
             return;
         }
@@ -1846,7 +1990,12 @@ const useActHandler = () => {
 
     const onClickOrTouch = useCallback((data: SoloActionData) => {
         if (!ruleManager || !gameState) return;
-        if (isTerminalSoloStatus(gameState.status)) return;
+        if (
+            inputLockedRef.current ||
+            isTerminalSoloStatus(gameStateRef.current?.status ?? gameState.status)
+        ) {
+            return;
+        }
         const { card, cards, actModes, maxDragFromStart } = data;
         if (!card) {
             setInteractionPhase(GameInteractionPhase.idle);
@@ -2297,6 +2446,7 @@ const useActHandler = () => {
         postCasualReplayMode,
         postCasualReplayWindowEndsAt,
         postCasualAdReplayDailyRemaining,
+        postCasualAdReplayDailyCap,
         casualReplayBusy,
         casualReplayError,
         replayCasualRun,

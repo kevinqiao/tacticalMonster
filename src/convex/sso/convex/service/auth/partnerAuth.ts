@@ -62,8 +62,10 @@ export const DEFAULT_EMBED_PLAYER_AUTH: PlayerAuth = {
 export type PartnerAuthRow = {
   playerAuth?: PlayerAuth | null;
   staffAuth?: StaffAuth | null;
-  /** Runtime config bag (embed JWT secret, branding, allowedOrigins, ...). */
+  /** @deprecated Prefer partner.embed / partner.brand. GC ops SoT is Portal. */
   data?: unknown;
+  embed?: unknown;
+  brand?: unknown;
 };
 
 function isPlayerAuthMode(raw: unknown): raw is PlayerAuthMode {

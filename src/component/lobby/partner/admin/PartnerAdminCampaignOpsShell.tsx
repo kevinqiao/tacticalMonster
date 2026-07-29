@@ -4,7 +4,6 @@ import { ConvexProvider } from "convex/react";
 import { ssoConvexClient } from "host/service/AppProviders";
 import { MerchantEmbeddedNavProvider } from "../../campaign/merchant/MerchantEmbeddedNavContext";
 import type { MerchantEmbeddedRoute } from "../../campaign/merchant/merchantEmbeddedNav";
-import { MerchantBrandSettingsInner } from "../../campaign/merchant/MerchantBrandSettingsPage";
 import { MerchantCampaignListInner } from "../../campaign/merchant/MerchantCampaignListPage";
 import { MerchantCouponDefListInner } from "../../campaign/merchant/MerchantCouponDefListPage";
 import { MerchantCouponListInner } from "../../campaign/merchant/MerchantCouponListPage";
@@ -32,11 +31,11 @@ const CAMPAIGN_OPS_VIEWS = new Set<string>([
   "campaigns",
   "coupon-defs",
   "coupons",
-  "brand",
   "stores",
   "store-team",
 ]);
 
+/** Stores/team use SSO (not Campaign Convex). Brand is a first-level Partner Admin section. */
 const SSO_SECTIONS = new Set<PartnerCampaignOpsView>(["stores", "store-team"]);
 
 /**
@@ -132,10 +131,6 @@ const PartnerAdminCampaignOpsShell: React.FC<Props> = ({
             embedded
           />
         );
-      case "brand":
-        return (
-          <MerchantBrandSettingsInner visible={1} partnerId={partnerId} embedded />
-        );
       case "stores":
         return (
           <PartnerStoresInner
@@ -184,7 +179,6 @@ const PartnerAdminCampaignOpsShell: React.FC<Props> = ({
                   ["campaigns", "活动"],
                   ["coupon-defs", "券定义"],
                   ["coupons", "券实例"],
-                  ["brand", "品牌"],
                   ["stores", "门店"],
                 ] as const
               ).map(([view, label]) => (

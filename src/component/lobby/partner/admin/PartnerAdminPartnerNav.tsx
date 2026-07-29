@@ -4,12 +4,12 @@ export type PartnerAdminSection =
   | "profile"
   | "auth"
   | "team"
+  | "brand"
   | "shop"
   | "redeem"
   | "campaigns"
   | "coupon-defs"
   | "coupons"
-  | "brand"
   | "stores";
 
 type PartnerAdminPartnerNavProps = {
@@ -49,6 +49,13 @@ const PartnerAdminPartnerNav: React.FC<PartnerAdminPartnerNavProps> = ({
       onClick={() => onSectionClick("team", partnerId)}
     >
       团队
+    </button>
+    <button
+      type="button"
+      className="merchant-link-btn"
+      onClick={() => onSectionClick("brand", partnerId)}
+    >
+      品牌
     </button>
     {portalGames ? (
       <button
@@ -90,13 +97,6 @@ const PartnerAdminPartnerNav: React.FC<PartnerAdminPartnerNavProps> = ({
           onClick={() => onSectionClick("coupons", partnerId)}
         >
           券实例
-        </button>
-        <button
-          type="button"
-          className="merchant-link-btn"
-          onClick={() => onSectionClick("brand", partnerId)}
-        >
-          品牌
         </button>
         <button
           type="button"

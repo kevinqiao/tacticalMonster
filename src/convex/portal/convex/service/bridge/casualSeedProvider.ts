@@ -34,7 +34,7 @@ export async function pickCasualMatchSeedBinding(
     matchId,
     templateId,
     uids,
-    tier,
+    ...(tier != null ? { tier } : {}),
   });
   if (!picked.ok) {
     return picked;

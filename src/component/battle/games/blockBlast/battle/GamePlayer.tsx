@@ -61,6 +61,7 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
         postCasualReplayMode,
         postCasualReplayWindowEndsAt,
         postCasualAdReplayDailyRemaining,
+        postCasualAdReplayDailyCap,
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,
@@ -88,6 +89,7 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
                 replayMode: postCasualReplayMode,
                 challengeSuccess: postCasualScoreReport?.challenge?.success,
                 adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+                adReplayDailyCap: postCasualAdReplayDailyCap,
             }),
         [
             casualTournamentId,
@@ -96,6 +98,7 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
             postCasualReplayMode,
             postCasualScoreReport?.challenge?.success,
             postCasualAdReplayDailyRemaining,
+            postCasualAdReplayDailyCap,
         ]
     );
     const showPostSettleSummary =
@@ -107,6 +110,7 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
                 canReplay: postCasualCanReplay,
                 replayMode: postCasualReplayMode,
                 adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+                adReplayDailyCap: postCasualAdReplayDailyCap,
                 replayWindowEndsAt: postCasualReplayWindowEndsAt,
             }),
         [
@@ -114,6 +118,7 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
             postCasualCanReplay,
             postCasualReplayMode,
             postCasualAdReplayDailyRemaining,
+            postCasualAdReplayDailyCap,
             postCasualReplayWindowEndsAt,
         ]
     );
@@ -282,6 +287,10 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
         const onVv = () => run();
         vv?.addEventListener('resize', onVv);
         vv?.addEventListener('scroll', onVv);
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') run();
+        };
+        document.addEventListener('visibilitychange', onVisibility);
         return () => {
             cancelled = true;
             cancelAnimationFrame(rafOuter);
@@ -290,6 +299,7 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
             window.removeEventListener('resize', run);
             vv?.removeEventListener('resize', onVv);
             vv?.removeEventListener('scroll', onVv);
+            document.removeEventListener('visibilitychange', onVisibility);
         };
     }, [calculateBoardDimension, updateBoardDimension, gameState?.gameId, gridDimension]);
 
@@ -365,6 +375,11 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
                                 ? scoreReportActions.adReplayDailyRemaining
                                 : undefined
                         }
+                        adReplayDailyCap={
+                            scoreReportActions.showReplaySecondary
+                                ? scoreReportActions.adReplayDailyCap
+                                : undefined
+                        }
                         replayWindowEndsAt={
                             scoreReportActions.showReplaySecondary
                                 ? postCasualReplayWindowEndsAt
@@ -379,6 +394,7 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
                         replayAvailable={postSettleReplay.showReplay}
                         replayMode={postCasualReplayMode}
                         adReplayDailyRemaining={postSettleReplay.adReplayDailyRemaining}
+                        adReplayDailyCap={postSettleReplay.adReplayDailyCap}
                         replayBusy={casualReplayBusy}
                         replayWindowEndsAt={postCasualReplayWindowEndsAt}
                         onReplay={postSettleReplay.showReplay ? () => void replayCasualRun() : undefined}

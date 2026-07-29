@@ -68,11 +68,7 @@ async function loadPartnerView(ctx: QueryCtx, partnerId: number) {
     capabilities,
     playerAuth,
     staffAuth,
-    data: (partner.data ?? {}) as {
-      allowedOrigins?: string[];
-      defaultLandingPath?: string;
-      branding?: { logoUrl?: string; primaryColor?: string };
-    },
+    brand: partner.brand ?? null,
   };
 }
 
@@ -153,11 +149,6 @@ export const updatePartnerProfile = authedMutation({
   args: {
     partnerId: v.number(),
     name: v.string(),
-    host: v.optional(v.string()),
-    allowedOrigins: v.optional(v.array(v.string())),
-    defaultLandingPath: v.optional(v.string()),
-    logoUrl: v.optional(v.string()),
-    primaryColor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requirePartnerAdmin(ctx, args.partnerId, "admin");
@@ -165,32 +156,17 @@ export const updatePartnerProfile = authedMutation({
     if (!partner) throw new Error("not_found");
 
     const prevData = (partner.data ?? {}) as Record<string, unknown>;
-    const { enabledContexts: _drop, ...dataRest } = prevData;
-    const branding = {
-      ...((dataRest.branding as object) ?? {}),
-      ...(args.logoUrl !== undefined ? { logoUrl: args.logoUrl.trim() || undefined } : {}),
-      ...(args.primaryColor !== undefined
-        ? { primaryColor: args.primaryColor.trim() || undefined }
-        : {}),
-    };
+    const {
+      enabledContexts: _drop,
+      defaultLandingPath: _legacyLanding,
+      websiteUrl: _legacyWebsite,
+      branding: _legacyBranding,
+      ...dataRest
+    } = prevData;
 
     await ctx.db.patch(partner._id, {
       name: args.name.trim(),
-      host: args.host?.trim() || undefined,
-      data: {
-        ...dataRest,
-        ...(args.allowedOrigins !== undefined
-          ? {
-              allowedOrigins: args.allowedOrigins
-                .map((s) => s.trim())
-                .filter(Boolean),
-            }
-          : {}),
-        ...(args.defaultLandingPath !== undefined
-          ? { defaultLandingPath: args.defaultLandingPath.trim() || undefined }
-          : {}),
-        branding,
-      },
+      data: Object.keys(dataRest).length > 0 ? dataRest : undefined,
     });
     return { ok: true as const };
   },
@@ -403,13 +379,13 @@ export const removePartnerStaff = authedMutation({
   },
 });
 
-/** Partner-enabled games for portal + merchant campaign pickers (public allowlist). */
+/** Static game catalog (all partners fully open). Kept for older clients. */
 export const getPartnerGames = query({
   args: { partnerId: v.number() },
   handler: async (ctx, { partnerId }) => {
     const partner = await getPartnerByPid(ctx, partnerId);
     if (!partner && partnerId !== 0) return null;
-    const games = readPartnerGames(partner ?? { games: undefined });
+    const games = readPartnerGames();
     return {
       partnerId,
       games,

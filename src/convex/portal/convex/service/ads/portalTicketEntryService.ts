@@ -108,7 +108,9 @@ export async function useTicketEntryForJoin(
     lobbyId?: Id<"portal_lobbies"> | null;
     now?: number;
   }
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<
+  { ok: true; priceTickets: number } | { ok: false; error: string }
+> {
   const now = args.now ?? Date.now();
   const def = getPortalTournamentDefinition(args.templateId);
   if (def && !portalTournamentUsesPlayEntryLadder(def)) {
@@ -152,7 +154,7 @@ export async function useTicketEntryForJoin(
     entryCtx,
     quotaScope: cfg.quotaScope,
   });
-  return { ok: true };
+  return { ok: true, priceTickets: cfg.priceTickets };
 }
 
 export { PORTAL_TICKET_ENTRY_DEFAULTS };
@@ -184,6 +186,22 @@ export const consumeTicketEntryForJoin = internalMutation({
   },
 });
 
+const PLAY_ENTRY_CLEARABLE_NUMBER_KEYS = [
+  "freePlaySoloDailyCap",
+  "freePlayMultiDailyCap",
+  "ticketEntrySoloPriceTickets",
+  "ticketEntrySoloDailyCap",
+  "ticketEntryMultiPriceTickets",
+  "ticketEntryMultiDailyCap",
+  "adEntrySoloDailyCap",
+  "adEntryMultiDailyCap",
+] as const;
+
+const PLAY_ENTRY_CLEARABLE_BOOL_KEYS = [
+  "adEntryEnabled",
+  "ticketEntryEnabled",
+] as const;
+
 /** SSO bridge write for partner free-play and ticket-entry overrides. */
 export const upsertPartnerPlayEntrySettingsInternal = internalMutation({
   args: {
@@ -196,16 +214,16 @@ export const upsertPartnerPlayEntrySettingsInternal = internalMutation({
         v.null()
       )
     ),
-    freePlaySoloDailyCap: v.optional(v.number()),
-    freePlayMultiDailyCap: v.optional(v.number()),
-    ticketEntryEnabled: v.optional(v.boolean()),
-    ticketEntrySoloPriceTickets: v.optional(v.number()),
-    ticketEntrySoloDailyCap: v.optional(v.number()),
-    ticketEntryMultiPriceTickets: v.optional(v.number()),
-    ticketEntryMultiDailyCap: v.optional(v.number()),
-    adEntryEnabled: v.optional(v.boolean()),
-    adEntrySoloDailyCap: v.optional(v.number()),
-    adEntryMultiDailyCap: v.optional(v.number()),
+    freePlaySoloDailyCap: v.optional(v.union(v.number(), v.null())),
+    freePlayMultiDailyCap: v.optional(v.union(v.number(), v.null())),
+    ticketEntryEnabled: v.optional(v.union(v.boolean(), v.null())),
+    ticketEntrySoloPriceTickets: v.optional(v.union(v.number(), v.null())),
+    ticketEntrySoloDailyCap: v.optional(v.union(v.number(), v.null())),
+    ticketEntryMultiPriceTickets: v.optional(v.union(v.number(), v.null())),
+    ticketEntryMultiDailyCap: v.optional(v.union(v.number(), v.null())),
+    adEntryEnabled: v.optional(v.union(v.boolean(), v.null())),
+    adEntrySoloDailyCap: v.optional(v.union(v.number(), v.null())),
+    adEntryMultiDailyCap: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     const partnerId = Math.floor(args.partnerId);
@@ -222,22 +240,41 @@ export const upsertPartnerPlayEntrySettingsInternal = internalMutation({
     const overlayRows = rows.filter((r) => !baseRows.includes(r));
     const { partnerId: _p, quotaScope, ...rest } = args;
     void _p;
-    const patch: Record<string, unknown> = { ...rest, updatedAt: Date.now() };
+
+    const clearKeys: string[] = [];
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    for (const key of PLAY_ENTRY_CLEARABLE_NUMBER_KEYS) {
+      const value = rest[key];
+      if (value === undefined) continue;
+      if (value === null) clearKeys.push(key);
+      else patch[key] = value;
+    }
+    for (const key of PLAY_ENTRY_CLEARABLE_BOOL_KEYS) {
+      const value = rest[key];
+      if (value === undefined) continue;
+      if (value === null) clearKeys.push(key);
+      else patch[key] = value;
+    }
     if (quotaScope === "mode" || quotaScope === "lobby" || quotaScope === "tournament") {
       patch.quotaScope = quotaScope;
+    } else if (quotaScope === null) {
+      clearKeys.push("quotaScope");
     }
+
+    const needsReplace = clearKeys.length > 0;
     if (baseRows[0]) {
-      if (quotaScope === null) {
+      if (needsReplace) {
         const prev = baseRows[0];
         const {
           _id: _idDrop,
           _creationTime: _ct,
-          quotaScope: _qs,
           ...keep
-        } = prev as typeof prev & { quotaScope?: string };
+        } = prev as typeof prev & Record<string, unknown>;
         void _idDrop;
         void _ct;
-        void _qs;
+        for (const key of clearKeys) {
+          delete (keep as Record<string, unknown>)[key];
+        }
         await ctx.db.replace(prev._id, {
           ...keep,
           ...patch,
@@ -249,10 +286,14 @@ export const upsertPartnerPlayEntrySettingsInternal = internalMutation({
       }
       for (const duplicate of baseRows.slice(1)) await ctx.db.delete(duplicate._id);
     } else {
-      await ctx.db.insert("portal_partner_play_entry_settings", {
-        partnerId,
-        ...patch,
-      } as never);
+      const insertDoc: Record<string, unknown> = { partnerId, ...patch };
+      const meaningful = Object.keys(insertDoc).filter(
+        (k) => k !== "partnerId" && k !== "updatedAt"
+      );
+      // Skip insert when the only intent was clearing fields on a missing row.
+      if (meaningful.length > 0) {
+        await ctx.db.insert("portal_partner_play_entry_settings", insertDoc as never);
+      }
     }
     void overlayRows;
     return { ok: true as const };

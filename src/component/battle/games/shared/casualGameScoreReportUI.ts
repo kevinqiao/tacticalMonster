@@ -13,6 +13,16 @@ export function isCasualSoloP75ChallengeTemplate(templateId: string | undefined)
   return getPortalTournamentDefinition(templateId)?.matchType === 'solo_p75';
 }
 
+/**
+ * Portal 模板结算后应再拉一次同桌榜/再战 offer。
+ * Arena ingest 代理可能丢掉 `adReplayDailyCap`；Portal query 带完整 N/M 数据。
+ */
+export function shouldRefreshPortalAdReplayQuota(
+  templateId: string | undefined
+): boolean {
+  return Boolean(templateId?.startsWith('portal_'));
+}
+
 export type CasualGameScoreReportLine = {
   label: string;
   value: number;
@@ -124,12 +134,42 @@ export function normalizeAdReplayDailyRemaining(
   return Math.max(0, Math.floor(adReplayDailyRemaining));
 }
 
-/** 广告再战按钮主文案（不展示日剩次数）。 */
-export function formatCasualAdReplayButtonLabel(_adReplayDailyRemaining?: number): string {
-  return '看广告重玩';
+export const CASUAL_AD_REPLAY_BUTTON_LABEL = '看广告重玩';
+
+/** Finite daily caps are 0–100; larger values are the unlimited sentinel. */
+export function normalizeAdReplayDailyCap(
+  adReplayDailyCap?: number
+): number | undefined {
+  if (typeof adReplayDailyCap !== 'number' || !Number.isFinite(adReplayDailyCap)) {
+    return undefined;
+  }
+  const n = Math.floor(adReplayDailyCap);
+  if (n < 0 || n > 100) return undefined;
+  return n;
 }
 
-export const CASUAL_AD_REPLAY_BUTTON_LABEL = '看广告重玩';
+/**
+ * 有限日额度时返回已用/上限 `N/M`；无限或不完整数据时返回 undefined。
+ * 须单独渲染（勿塞进主文案），否则窄按钮 ellipsis /「广告加载中」会盖掉数字。
+ */
+export function formatCasualAdReplayQuotaBadge(
+  adReplayDailyRemaining?: number,
+  adReplayDailyCap?: number
+): string | undefined {
+  const remaining = normalizeAdReplayDailyRemaining(adReplayDailyRemaining);
+  const cap = normalizeAdReplayDailyCap(adReplayDailyCap);
+  if (remaining == null || cap == null) return undefined;
+  const used = Math.min(cap, Math.max(0, cap - remaining));
+  return `${used}/${cap}`;
+}
+
+/** 广告再战主文案（不含额度；额度见 formatCasualAdReplayQuotaBadge）。 */
+export function formatCasualAdReplayButtonLabel(
+  _adReplayDailyRemaining?: number,
+  _adReplayDailyCap?: number
+): string {
+  return CASUAL_AD_REPLAY_BUTTON_LABEL;
+}
 
 /** 同桌结算层 / 多人竞技：与单人 P75 一致，不可战时不展示按钮。 */
 export function resolveCasualPostSettleReplayPresentation(opts: {
@@ -137,12 +177,14 @@ export function resolveCasualPostSettleReplayPresentation(opts: {
   canReplay: boolean;
   replayMode: 'ad' | 'token';
   adReplayDailyRemaining?: number;
+  adReplayDailyCap?: number;
   replayWindowEndsAt?: number;
   customLabel?: string;
 }): {
   showReplay: boolean;
   replayLabel: string;
   adReplayDailyRemaining?: number;
+  adReplayDailyCap?: number;
 } {
   const showReplay =
     opts.replayOffered &&
@@ -155,18 +197,24 @@ export function resolveCasualPostSettleReplayPresentation(opts: {
     opts.replayMode === 'ad'
       ? normalizeAdReplayDailyRemaining(opts.adReplayDailyRemaining)
       : undefined;
+  const cap =
+    opts.replayMode === 'ad'
+      ? normalizeAdReplayDailyCap(opts.adReplayDailyCap)
+      : undefined;
   if (opts.customLabel) {
     return {
       showReplay: true,
       replayLabel: opts.customLabel,
       ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
+      ...(cap != null ? { adReplayDailyCap: cap } : {}),
     };
   }
   if (opts.replayMode === 'ad') {
     return {
       showReplay: true,
-      replayLabel: CASUAL_AD_REPLAY_BUTTON_LABEL,
+      replayLabel: formatCasualAdReplayButtonLabel(remaining, cap),
       ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
+      ...(cap != null ? { adReplayDailyCap: cap } : {}),
     };
   }
   return { showReplay: true, replayLabel: '门票再战' };
@@ -179,8 +227,9 @@ export function resolveCasualScoreReportSecondaryAction(opts: {
   replayMode: 'ad' | 'token';
   /** 单人 P75：true=达标，false=未达标；未设置时不展示再战 */
   challengeSuccess?: boolean;
-  /** Portal 广告再战：今日剩余次数（展示在按钮文案） */
+  /** Portal 广告再战：今日剩余次数（与 cap 一起换算已用次数展示） */
   adReplayDailyRemaining?: number;
+  adReplayDailyCap?: number;
 }): {
   /** 单人挑战：得分页为最后一步 */
   soloChallengeFinalStep: boolean;
@@ -188,6 +237,7 @@ export function resolveCasualScoreReportSecondaryAction(opts: {
   showReplaySecondary: boolean;
   secondaryLabel?: string;
   adReplayDailyRemaining?: number;
+  adReplayDailyCap?: number;
 } {
   const solo = isCasualSoloP75ChallengeTemplate(opts.templateId);
   if (solo) {
@@ -197,14 +247,21 @@ export function resolveCasualScoreReportSecondaryAction(opts: {
       opts.replayMode === 'ad'
         ? normalizeAdReplayDailyRemaining(opts.adReplayDailyRemaining)
         : undefined;
+    const cap =
+      opts.replayMode === 'ad'
+        ? normalizeAdReplayDailyCap(opts.adReplayDailyCap)
+        : undefined;
     return {
       soloChallengeFinalStep: true,
       showReplaySecondary: showReplay,
       ...(showReplay
         ? {
             secondaryLabel:
-              opts.replayMode === 'token' ? '门票再战' : CASUAL_AD_REPLAY_BUTTON_LABEL,
+              opts.replayMode === 'token'
+                ? '门票再战'
+                : formatCasualAdReplayButtonLabel(remaining, cap),
             ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
+            ...(cap != null ? { adReplayDailyCap: cap } : {}),
           }
         : {}),
     };

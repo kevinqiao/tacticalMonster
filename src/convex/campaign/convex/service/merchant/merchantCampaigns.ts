@@ -1,16 +1,9 @@
 import { v } from "convex/values";
 import type { Doc } from "../../_generated/dataModel";
 import { internalMutation, internalQuery, query } from "../../_generated/server";
-import {
-  getCampaignBySlugs,
-  getPartnerBrandByPartnerId,
-  getPartnerBrandBySlug,
-  isCampaignLive,
-  newId,
-} from "./merchantStaff";
+import { getCampaignByPartnerIdAndSlug, isCampaignLive, newId } from "./merchantStaff";
 import {
   rewardRuleValidator,
-  themeJsonValidator,
   campaignRewardModelValidator,
   campaignExperienceTypeValidator,
   displayConfigValidator,
@@ -18,9 +11,9 @@ import {
 import {
   assertCampaignConfig,
   assertStaffCouponDefRefs,
-  portalTemplateIdForCampaign,
 } from "./campaignRuleValidation";
 import { displayCampaignDefaults, resolveExperienceType } from "./campaignExperienceType";
+import { resolveCampaignTournament } from "./campaignTournament";
 import { materializeCampaignRewardRules } from "./merchantCouponDefs";
 import {
   getCampaignSettlementPublic,
@@ -118,42 +111,10 @@ function assertValidSlug(slug: string) {
   if (!slug || !SLUG_RE.test(slug)) throw new Error("slug_invalid");
 }
 
-/** Ensure partner_brands row exists (slug required for public URLs). */
-export const upsertPartnerBrandCore = internalMutation({
-  args: {
-    partnerId: v.number(),
-    slug: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const slug = normalizeSlug(args.slug);
-    assertValidSlug(slug);
-    const bySlug = await getPartnerBrandBySlug(ctx, slug);
-    if (bySlug && bySlug.partnerId !== args.partnerId) {
-      throw new Error("slug_taken");
-    }
-    const existing = await getPartnerBrandByPartnerId(ctx, args.partnerId);
-    const now = Date.now();
-    if (existing) {
-      await ctx.db.patch(existing._id, { slug, updatedAt: now });
-      return { partnerId: args.partnerId, slug };
-    }
-    await ctx.db.insert("partner_brands", {
-      partnerId: args.partnerId,
-      slug,
-      updatedAt: now,
-    });
-    return { partnerId: args.partnerId, slug };
-  },
-});
+// `upsertPartnerBrandCore` / `getPartnerBrandInternal` removed — partner_brands
+// table no longer exists; slug→partnerId resolves only via SSO `partner.slug`.
 
-export const getPartnerBrandInternal = internalQuery({
-  args: { partnerId: v.number() },
-  handler: async (ctx, { partnerId }) => {
-    return await getPartnerBrandByPartnerId(ctx, partnerId);
-  },
-});
-
-/** Used by campaignPartnerGameActions after SSO partner.games check. */
+/** Used by campaignPartnerGameActions after campaignOps staff check. */
 export const createCampaignCore = internalMutation({
   args: {
     uid: v.string(),
@@ -168,8 +129,7 @@ export const createCampaignCore = internalMutation({
     posterStorageId: v.optional(v.id("_storage")),
     posterPortraitStorageId: v.optional(v.id("_storage")),
     posterLandscapeStorageId: v.optional(v.id("_storage")),
-    gameType: v.optional(v.string()),
-    mode: v.optional(v.union(v.literal("solo"), v.literal("multi"))),
+    tournamentId: v.optional(v.string()),
     rewardModel: v.optional(campaignRewardModelValidator),
     playLimits: v.optional(playLimitsValidator),
     replaySettings: v.optional(replaySettingsValidator),
@@ -195,8 +155,7 @@ async function createCampaignHandler(
     posterStorageId?: import("../../_generated/dataModel").Id<"_storage">;
     posterPortraitStorageId?: import("../../_generated/dataModel").Id<"_storage">;
     posterLandscapeStorageId?: import("../../_generated/dataModel").Id<"_storage">;
-    gameType?: string;
-    mode?: "solo" | "multi";
+    tournamentId?: string;
     rewardModel?: "pass_per_run" | "competitive_leaderboard";
     playLimits?: {
       maxCouponsPerPlayer: number;
@@ -216,9 +175,6 @@ async function createCampaignHandler(
     rewardRules?: Doc<"campaigns">["rewardRules"];
   }
 ) {
-  const brand = await getPartnerBrandByPartnerId(ctx, args.partnerId);
-  if (!brand) throw new Error("partner_brand_required");
-
   const slug = normalizeSlug(args.slug);
   assertValidSlug(slug);
   const dup = await ctx.db
@@ -267,13 +223,7 @@ async function createCampaignHandler(
     return { campaignId, slug };
   }
 
-  if (
-    !args.gameType ||
-    !args.mode ||
-    !args.rewardModel ||
-    !args.playLimits ||
-    !args.rewardRules
-  ) {
+  if (!args.tournamentId || !args.rewardModel || !args.playLimits || !args.rewardRules) {
     throw new Error("invalid_fields");
   }
   assertStaffCouponDefRefs(args.rewardRules as never);
@@ -282,10 +232,9 @@ async function createCampaignHandler(
     args.partnerId,
     args.rewardRules as never
   );
-  assertCampaignConfig({
+  const play = assertCampaignConfig({
     experienceType: "game",
-    gameType: args.gameType,
-    mode: args.mode,
+    tournamentId: args.tournamentId,
     rewardModel: args.rewardModel,
     startsAt: args.startsAt,
     endsAt: args.endsAt,
@@ -308,8 +257,7 @@ async function createCampaignHandler(
     posterStorageId: args.posterPortraitStorageId ?? args.posterStorageId,
     posterPortraitStorageId: args.posterPortraitStorageId,
     posterLandscapeStorageId: args.posterLandscapeStorageId,
-    gameType: args.gameType,
-    mode: args.mode,
+    tournamentId: play.tournamentId,
     rewardModel: args.rewardModel,
     playLimits: normalizePlayLimits(
       args.playLimits ?? { maxCouponsPerPlayer: 1 }
@@ -338,8 +286,7 @@ export const updateCampaignCore = internalMutation({
     posterStorageId: v.optional(v.id("_storage")),
     posterPortraitStorageId: v.optional(v.id("_storage")),
     posterLandscapeStorageId: v.optional(v.id("_storage")),
-    gameType: v.optional(v.string()),
-    mode: v.optional(v.union(v.literal("solo"), v.literal("multi"))),
+    tournamentId: v.optional(v.string()),
     rewardModel: v.optional(campaignRewardModelValidator),
     playLimits: v.optional(playLimitsValidator),
     replaySettings: v.optional(v.union(replaySettingsValidator, v.null())),
@@ -358,6 +305,7 @@ export const updateCampaignCore = internalMutation({
     }
 
     const experienceType = args.experienceType ?? resolveExperienceType(row);
+    const legacyPlay = resolveCampaignTournament(row);
 
     // null / empty partial clears the field (Convex patch treats undefined as unset).
     const nextReplay =
@@ -385,8 +333,8 @@ export const updateCampaignCore = internalMutation({
         args.posterLandscapeStorageId !== undefined
           ? args.posterLandscapeStorageId
           : row.posterLandscapeStorageId,
-      gameType: args.gameType ?? row.gameType,
-      mode: args.mode ?? row.mode,
+      tournamentId:
+        args.tournamentId ?? row.tournamentId ?? legacyPlay?.tournamentId,
       rewardModel: args.rewardModel ?? row.rewardModel,
       playLimits:
         args.playLimits != null ? normalizePlayLimits(args.playLimits) : row.playLimits,
@@ -400,8 +348,7 @@ export const updateCampaignCore = internalMutation({
         args.endsAt != null ||
         args.experienceType != null ||
         args.displayConfig != null ||
-        args.gameType != null ||
-        args.mode != null ||
+        args.tournamentId != null ||
         args.rewardModel != null ||
         args.rewardRules != null ||
         args.playLimits != null;
@@ -419,10 +366,9 @@ export const updateCampaignCore = internalMutation({
     }
     const resolved = { ...next, rewardRules };
 
-    assertCampaignConfig({
+    const play = assertCampaignConfig({
       experienceType: resolved.experienceType,
-      gameType: resolved.gameType,
-      mode: resolved.mode,
+      tournamentId: resolved.tournamentId,
       rewardModel: resolved.rewardModel,
       startsAt: resolved.startsAt,
       endsAt: resolved.endsAt,
@@ -439,6 +385,7 @@ export const updateCampaignCore = internalMutation({
       row.posterStorageId;
     await ctx.db.patch(row._id, {
       ...resolved,
+      tournamentId: play.tournamentId ?? resolved.tournamentId,
       posterStorageId,
       updatedAt: Date.now(),
     });
@@ -454,18 +401,21 @@ export const getCampaignForStaffInternal = internalQuery({
       .withIndex("by_campaignId", (q) => q.eq("campaignId", args.campaignId))
       .unique();
     if (!row || row.partnerId !== args.partnerId) return null;
-    const brand = await getPartnerBrandByPartnerId(ctx, args.partnerId);
     const posterUrls = await resolveCampaignPosterUrls(ctx, row);
+    const experienceType = resolveExperienceType(row);
+    const play = experienceType === "game" ? resolveCampaignTournament(row) : null;
     return {
       ...row,
-      partnerSlug: brand?.slug ?? "",
+      // Staff already have partnerId; SSO partner.slug is the SoT for FE display.
+      partnerSlug: "",
       ...posterUrls,
-      experienceType: resolveExperienceType(row),
-      rewardModel: resolveExperienceType(row) === "game" ? resolveRewardModel(row) : undefined,
-      portalTemplateId:
-        resolveExperienceType(row) === "game"
-          ? portalTemplateIdForCampaign(row.gameType, row.mode)
-          : null,
+      experienceType,
+      tournamentId: play?.tournamentId ?? row.tournamentId ?? null,
+      gameType: play?.gameType ?? null,
+      mode: play?.mode ?? null,
+      rewardModel:
+        experienceType === "game" ? resolveRewardModel(row) : undefined,
+      portalTemplateId: play?.tournamentId ?? null,
     };
   },
 });
@@ -492,10 +442,10 @@ export const updateCampaignStatusCore = internalMutation({
       if (settlement.status === "done") {
         throw new Error("campaign_settled_cannot_relive");
       }
+      const play = resolveCampaignTournament(row);
       assertCampaignConfig({
         experienceType: resolveExperienceType(row),
-        gameType: row.gameType,
-        mode: row.mode,
+        tournamentId: play?.tournamentId ?? row.tournamentId,
         rewardModel: row.rewardModel,
         startsAt: row.startsAt,
         endsAt: row.endsAt,
@@ -519,141 +469,120 @@ export const listCampaignsInternal = internalQuery({
       .withIndex("by_partnerId", (q) => q.eq("partnerId", args.partnerId))
       .collect();
     return await Promise.all(
-      rows.map(async (campaign) => ({
-        ...campaign,
-        settlement: await getCampaignSettlementPublic(ctx, campaign.campaignId),
-      }))
+      rows.map(async (campaign) => {
+        const experienceType = resolveExperienceType(campaign);
+        const play =
+          experienceType === "game" ? resolveCampaignTournament(campaign) : null;
+        return {
+          ...campaign,
+          experienceType,
+          tournamentId: play?.tournamentId ?? campaign.tournamentId ?? null,
+          gameType: play?.gameType ?? null,
+          mode: play?.mode ?? null,
+          settlement: await getCampaignSettlementPublic(ctx, campaign.campaignId),
+        };
+      })
     );
   },
 });
 
-function partnerPublicFields(
-  brand: {
-    partnerId: number;
-    slug: string;
-    logoStorageId?: string;
-  },
-  name: string,
-  logoUrl: string | null
+// Public campaign reads take an already-resolved `partnerId` (FE resolves
+// partnerSlug -> partnerId via SSO `PartnerManager.findByPartnerSlug`, same
+// pattern Portal uses for `/gc/{slug}` — see `host/service/PartnerManager.tsx`
+// and `useCampaignPartnerGate` in the FE `useMerchantCampaignManager.tsx`).
+// No SSO HTTP round-trip happens inside these queries.
+//
+// `listPartnerCampaignsPublicInternal` / `getCampaignPublicInternal` remain
+// as internal aliases so `merchantCampaignPublicActions.ts` keeps working
+// unchanged for any non-FE / legacy slug-based callers.
+
+async function listPartnerCampaignsPublicCore(
+  ctx: import("../../_generated/server").QueryCtx,
+  partnerId: number
 ) {
-  return {
-    partnerId: brand.partnerId,
-    slug: brand.slug,
-    name,
-    logoUrl,
+  const rows = await ctx.db
+    .query("campaigns")
+    .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerId))
+    .collect();
+
+  // ended 仍可浏览榜/战绩/券；draft 等不对玩家公开
+  const visible = rows.filter(
+    (c) => c.status === "live" || c.status === "scheduled" || c.status === "ended"
+  );
+
+  const statusRank = (status: string): number => {
+    if (status === "live") return 0;
+    if (status === "scheduled") return 1;
+    if (status === "ended") return 2;
+    return 9;
   };
+
+  visible.sort((a, b) => {
+    const byStatus = statusRank(a.status) - statusRank(b.status);
+    if (byStatus !== 0) return byStatus;
+    // 进行中/未开始：即将开始靠前；已结束：刚结束靠前
+    if (a.status === "ended") return b.endsAt - a.endsAt;
+    return a.startsAt - b.startsAt;
+  });
+
+  const out = [];
+  for (const campaign of visible) {
+    const posterUrls = await resolveCampaignPosterUrls(ctx, campaign);
+    const experienceType = resolveExperienceType(campaign);
+    const play = experienceType === "game" ? resolveCampaignTournament(campaign) : null;
+    out.push({
+      slug: campaign.slug,
+      title: campaign.title,
+      status: campaign.status,
+      startsAt: campaign.startsAt,
+      endsAt: campaign.endsAt,
+      experienceType,
+      tournamentId: play?.tournamentId ?? null,
+      gameType: play?.gameType ?? null,
+      ...posterUrls,
+      ctaLabel:
+        campaign.displayConfig?.cta?.kind && campaign.displayConfig.cta.kind !== "none"
+          ? campaign.displayConfig.cta.label
+          : undefined,
+    });
+  }
+  return out;
 }
 
-/** Resolve partnerId from public partner slug (partner_brands). */
-export const resolvePartnerByPartnerSlug = query({
-  args: { partnerSlug: v.string() },
-  handler: async (ctx, args) => {
-    const brand = await getPartnerBrandBySlug(ctx, args.partnerSlug.trim().toLowerCase());
-    if (!brand) return null;
-    return {
-      partnerId: brand.partnerId,
-      partnerSlug: brand.slug,
-    };
-  },
+/** Internal: list public campaigns for an already-resolved partnerId. */
+export const listPartnerCampaignsPublicInternal = internalQuery({
+  args: { partnerId: v.number() },
+  handler: async (ctx, args) => listPartnerCampaignsPublicCore(ctx, args.partnerId),
 });
 
+/**
+ * Public: list public campaigns for a partnerId already resolved on the FE
+ * via `PartnerManager.findByPartnerSlug` (SSO). No SSO HTTP call happens here.
+ */
 export const listPartnerCampaignsPublic = query({
-  args: { partnerSlug: v.string() },
-  handler: async (ctx, args) => {
-    const brand = await getPartnerBrandBySlug(ctx, args.partnerSlug.trim().toLowerCase());
-    if (!brand) return [];
-
-    const rows = await ctx.db
-      .query("campaigns")
-      .withIndex("by_partnerId", (q) => q.eq("partnerId", brand.partnerId))
-      .collect();
-
-    // ended 仍可浏览榜/战绩/券；draft 等不对玩家公开
-    const visible = rows.filter(
-      (c) =>
-        c.status === "live" || c.status === "scheduled" || c.status === "ended"
-    );
-
-    const statusRank = (status: string): number => {
-      if (status === "live") return 0;
-      if (status === "scheduled") return 1;
-      if (status === "ended") return 2;
-      return 9;
-    };
-
-    visible.sort((a, b) => {
-      const byStatus = statusRank(a.status) - statusRank(b.status);
-      if (byStatus !== 0) return byStatus;
-      // 进行中/未开始：即将开始靠前；已结束：刚结束靠前
-      if (a.status === "ended") return b.endsAt - a.endsAt;
-      return a.startsAt - b.startsAt;
-    });
-
-    const out = [];
-    for (const campaign of visible) {
-      const posterUrls = await resolveCampaignPosterUrls(ctx, campaign);
-      out.push({
-        slug: campaign.slug,
-        title: campaign.title,
-        status: campaign.status,
-        startsAt: campaign.startsAt,
-        endsAt: campaign.endsAt,
-        experienceType: resolveExperienceType(campaign),
-        gameType: campaign.gameType,
-        ...posterUrls,
-        ctaLabel:
-          campaign.displayConfig?.cta?.kind && campaign.displayConfig.cta.kind !== "none"
-            ? campaign.displayConfig.cta.label
-            : undefined,
-      });
-    }
-    return out;
-  },
+  args: { partnerId: v.number() },
+  handler: async (ctx, args) => listPartnerCampaignsPublicCore(ctx, args.partnerId),
 });
 
-export const getCampaignPublic = query({
-  args: {
-    partnerSlug: v.string(),
-    campaignSlug: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const bundle = await getCampaignBySlugs(ctx, args.partnerSlug, args.campaignSlug);
-    if (!bundle) return null;
-    const { brand, campaign } = bundle;
-    const posterUrls = await resolveCampaignPosterUrls(ctx, campaign);
-    let logoUrl: string | null = null;
-    if (brand.logoStorageId) {
-      logoUrl = await ctx.storage.getUrl(brand.logoStorageId);
-    }
-    const theme = campaign.themeOverride ?? brand.themeJson ?? null;
-    const experienceType = resolveExperienceType(campaign);
-    const partnerName = brand.slug;
+/**
+ * Campaign + poster/reward fields for an already-resolved partnerId.
+ * Does NOT include partner name/logo/theme — the FE enriches those from
+ * `usePartnerManager()` (SSO `partner.brand` / `partner.name`), same as the
+ * campaign-only `themeOverride` this returns can be overlaid on top of.
+ */
+async function getCampaignPublicCore(
+  ctx: import("../../_generated/server").QueryCtx,
+  partnerId: number,
+  campaignSlug: string
+) {
+  const campaign = await getCampaignByPartnerIdAndSlug(ctx, partnerId, campaignSlug);
+  if (!campaign) return null;
+  const posterUrls = await resolveCampaignPosterUrls(ctx, campaign);
+  const themeOverride = campaign.themeOverride ?? null;
+  const experienceType = resolveExperienceType(campaign);
 
-    if (experienceType === "display") {
-      return {
-        partner: partnerPublicFields(brand, partnerName, logoUrl),
-        campaign: {
-          campaignId: campaign.campaignId,
-          slug: campaign.slug,
-          status: campaign.status,
-          title: campaign.title,
-          rulesText: campaign.rulesText,
-          startsAt: campaign.startsAt,
-          endsAt: campaign.endsAt,
-          experienceType: "display" as const,
-          displayConfig: campaign.displayConfig ?? null,
-          ...posterUrls,
-          live: isCampaignLive(campaign),
-          highlightText: campaign.displayConfig?.highlightText ?? null,
-        },
-        theme,
-      };
-    }
-
-    const rewardModel = resolveRewardModel(campaign);
-    const settlement = await getCampaignSettlementPublic(ctx, campaign.campaignId);
+  if (experienceType === "display") {
     return {
-      partner: partnerPublicFields(brand, partnerName, logoUrl),
       campaign: {
         campaignId: campaign.campaignId,
         slug: campaign.slug,
@@ -662,19 +591,75 @@ export const getCampaignPublic = query({
         rulesText: campaign.rulesText,
         startsAt: campaign.startsAt,
         endsAt: campaign.endsAt,
-        experienceType: "game" as const,
-        gameType: campaign.gameType,
-        mode: campaign.mode,
-        rewardModel,
-        hasLeaderboard: usesLeaderboard(rewardModel),
+        experienceType: "display" as const,
+        displayConfig: campaign.displayConfig ?? null,
         ...posterUrls,
         live: isCampaignLive(campaign),
-        settlement,
-        playLimits: campaign.playLimits,
-        leaderboardRankRewards: listPublicLeaderboardRankRewards(campaign),
-        passReward: getPublicPassReward(campaign),
+        highlightText: campaign.displayConfig?.highlightText ?? null,
       },
-      theme,
+      themeOverride,
+    };
+  }
+
+  const play = resolveCampaignTournament(campaign);
+  if (!play) return null;
+  const rewardModel = resolveRewardModel(campaign);
+  const settlement = await getCampaignSettlementPublic(ctx, campaign.campaignId);
+  return {
+    campaign: {
+      campaignId: campaign.campaignId,
+      slug: campaign.slug,
+      status: campaign.status,
+      title: campaign.title,
+      rulesText: campaign.rulesText,
+      startsAt: campaign.startsAt,
+      endsAt: campaign.endsAt,
+      experienceType: "game" as const,
+      tournamentId: play.tournamentId,
+      gameType: play.gameType,
+      mode: play.mode,
+      rewardModel,
+      hasLeaderboard: usesLeaderboard(rewardModel),
+      ...posterUrls,
+      live: isCampaignLive(campaign),
+      settlement,
+      playLimits: campaign.playLimits,
+      leaderboardRankRewards: listPublicLeaderboardRankRewards(campaign),
+      passReward: getPublicPassReward(campaign),
+    },
+    themeOverride,
+  };
+}
+
+/** Internal: `{ campaign, themeOverride }` bundle for an already-resolved partnerId. */
+export const getCampaignPublicInternal = internalQuery({
+  args: {
+    partnerId: v.number(),
+    campaignSlug: v.string(),
+  },
+  handler: async (ctx, args) => getCampaignPublicCore(ctx, args.partnerId, args.campaignSlug),
+});
+
+/**
+ * Public: campaign public view for a partnerId already resolved on the FE
+ * via `PartnerManager.findByPartnerSlug` (SSO) — no SSO HTTP call happens
+ * here. Returns a `CampaignPublicView`-shaped payload with a partner stub;
+ * the FE overlays `partner.name` / `partner.slug` / `partner.logoUrl` and
+ * theme from `usePartnerManager()`.
+ */
+export const getCampaignPublic = query({
+  args: {
+    partnerId: v.number(),
+    campaignSlug: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const bundle = await getCampaignPublicCore(ctx, args.partnerId, args.campaignSlug);
+    if (!bundle) return null;
+    return {
+      // FE fills name/slug/logoUrl from `usePartnerManager()` (SSO partner row).
+      partner: { partnerId: args.partnerId, slug: "", name: "", logoUrl: null as string | null },
+      campaign: bundle.campaign,
+      theme: bundle.themeOverride,
     };
   },
 });
@@ -712,36 +697,3 @@ export const attachCampaignPosterCore = internalMutation({
   },
 });
 
-export const updatePartnerBrandUrlCore = internalMutation({
-  args: {
-    partnerId: v.number(),
-    brandSourceUrl: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const row = await getPartnerBrandByPartnerId(ctx, args.partnerId);
-    if (!row) throw new Error("not_found");
-    await ctx.db.patch(row._id, {
-      brandSourceUrl: args.brandSourceUrl.trim(),
-      updatedAt: Date.now(),
-    });
-    return { ok: true as const };
-  },
-});
-
-export const approvePartnerThemeCore = internalMutation({
-  args: {
-    partnerId: v.number(),
-    themeJson: themeJsonValidator,
-  },
-  handler: async (ctx, args) => {
-    const row = await getPartnerBrandByPartnerId(ctx, args.partnerId);
-    if (!row) throw new Error("not_found");
-    const nextVersion = (row.themeVersion ?? 0) + 1;
-    await ctx.db.patch(row._id, {
-      themeJson: { ...args.themeJson, version: nextVersion },
-      themeVersion: nextVersion,
-      updatedAt: Date.now(),
-    });
-    return { themeVersion: nextVersion };
-  },
-});

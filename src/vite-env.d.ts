@@ -31,6 +31,8 @@ interface ImportMetaEnv {
   readonly VITE_AD_REPLAY_MOCK_DURATION_MS?: string;
   /** Dev: mock side banners. */
   readonly VITE_AD_DISPLAY_MOCK?: string;
+  /** CrazyGames midgame break ads: `0` disable, `1` enable (default on). */
+  readonly VITE_AD_MIDGAME?: string;
 }
 
 interface ImportMeta {

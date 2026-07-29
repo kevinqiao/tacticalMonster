@@ -7,8 +7,8 @@ import { embedJwtAudience, partnerJwtSecret } from "../partnerEmbedConfig";
 
 function verifyPartnerJwtLocally(args: EmbedVerifyArgs): EmbedIdentity | null {
   const { pid, credential, partner } = args;
-  const secret = partnerJwtSecret(pid, partner.data);
-  const audience = embedJwtAudience(partner.data);
+  const secret = partnerJwtSecret(pid, partner);
+  const audience = embedJwtAudience(partner);
 
   let payload: jwt.JwtPayload;
   try {

@@ -1,4 +1,5 @@
 import { internal } from "../../_generated/api";
+import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import {
   isPortalAdCoinChannel,
@@ -13,6 +14,7 @@ import { isPartnerShopAdCoinEnabled } from "../../data/portalPartnerShopSettings
 import { resolvePortalShopSessionPartnerId } from "../../data/portalShopPartner";
 import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
 import { loadPartnerShopSettings } from "../shop/partnerShopSettings";
+import { resolveEconomyScope } from "../economy/resolveEconomyScope";
 
 function randomHexSessionId(byteLength = 16): string {
   const bytes = new Uint8Array(byteLength);
@@ -20,45 +22,84 @@ function randomHexSessionId(byteLength = 16): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export type AdCoinSessionError =
-  | "disabled"
-  | "invalid_channel"
-  | "daily_cap_reached"
-  | "session_not_found"
-  | "session_expired"
-  | "session_not_pending"
-  | "forbidden"
-  | "grant_failed"
-  | "pending_exists";
+type AdCoinEconomy = {
+  partnerId: number;
+  scopeKey: string;
+  lobbyId: Id<"portal_lobbies"> | null;
+  settingsLobbyId: Id<"portal_lobbies"> | null;
+};
 
-/** Watch-ad-for-coins requires the feature flag AND the partner shop to allow it. */
+async function resolveAdCoinEconomy(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  lobbyId?: Id<"portal_lobbies"> | null
+): Promise<AdCoinEconomy | { error: "lobby_required_for_isolated_economy" }> {
+  const partnerId = resolvePortalShopSessionPartnerId(uid) ?? 0;
+  try {
+    const scope = await resolveEconomyScope(ctx, {
+      partnerId,
+      lobbyId: lobbyId ?? null,
+    });
+    return {
+      partnerId,
+      scopeKey: scope.scopeKey,
+      lobbyId: scope.lobbyId,
+      settingsLobbyId: scope.mode === "isolated" ? scope.lobbyId : null,
+    };
+  } catch {
+    return { error: "lobby_required_for_isolated_economy" };
+  }
+}
+
+/** Watch-ad-for-coins requires the feature flag AND the partner/lobby shop to allow it. */
 async function partnerAllowsAdCoin(
   ctx: QueryCtx | MutationCtx,
-  uid: string
+  uid: string,
+  settingsLobbyId?: Id<"portal_lobbies"> | null
 ): Promise<boolean> {
   if (!PORTAL_AD_COIN_ENABLED) return false;
   const partnerId = resolvePortalShopSessionPartnerId(uid);
-  const settings = await loadPartnerShopSettings(ctx, partnerId);
+  const settings = await loadPartnerShopSettings(
+    ctx,
+    partnerId,
+    settingsLobbyId ?? null
+  );
   return isPartnerShopAdCoinEnabled(settings);
 }
 
 async function findAdCoinDailyUsageRow(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  dayKey: string
+  dayKey: string,
+  scopeKey?: string | null
 ) {
-  return await ctx.db
+  const key = scopeKey && scopeKey !== "shared" ? scopeKey : null;
+  if (key) {
+    const scoped = await ctx.db
+      .query("portal_ad_coin_daily_usage")
+      .withIndex("by_uid_scopeKey_dayKey", (q) =>
+        q.eq("uid", uid).eq("scopeKey", key).eq("dayKey", dayKey)
+      )
+      .unique();
+    if (scoped) return scoped;
+  }
+  const rows = await ctx.db
     .query("portal_ad_coin_daily_usage")
     .withIndex("by_uid_dayKey", (q) => q.eq("uid", uid).eq("dayKey", dayKey))
-    .unique();
+    .collect();
+  if (!key) {
+    return rows.find((r) => r.scopeKey == null || r.scopeKey === "shared") ?? rows[0] ?? null;
+  }
+  return null;
 }
 
 export async function readAdCoinUsedToday(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  dayKey: string
+  dayKey: string,
+  scopeKey?: string | null
 ): Promise<number> {
-  const row = await findAdCoinDailyUsageRow(ctx, uid, dayKey);
+  const row = await findAdCoinDailyUsageRow(ctx, uid, dayKey, scopeKey);
   if (row && typeof row.usedCount === "number" && Number.isFinite(row.usedCount)) {
     return Math.max(0, Math.floor(row.usedCount));
   }
@@ -66,18 +107,30 @@ export async function readAdCoinUsedToday(
     .query("portal_ad_coin_claims")
     .withIndex("by_uid_dayKey", (q) => q.eq("uid", uid).eq("dayKey", dayKey))
     .collect();
-  return claims.length;
+  const key = scopeKey ?? "shared";
+  if (key === "shared") {
+    return claims.filter((c) => c.scopeKey == null || c.scopeKey === "shared").length;
+  }
+  return claims.filter((c) => c.scopeKey === key).length;
 }
 
 async function consumeAdCoinDailySlot(
   ctx: MutationCtx,
-  args: { uid: string; dayKey: string; now: number; cap: number }
+  args: {
+    uid: string;
+    dayKey: string;
+    now: number;
+    cap: number;
+    scopeKey?: string | null;
+    lobbyId?: Id<"portal_lobbies"> | null;
+  }
 ): Promise<{ ok: true; usedAfter: number } | { ok: false; error: "daily_cap_reached" }> {
   const cap = Math.max(0, Math.floor(args.cap));
-  const row = await findAdCoinDailyUsageRow(ctx, args.uid, args.dayKey);
+  const scopeKey = args.scopeKey ?? "shared";
+  const row = await findAdCoinDailyUsageRow(ctx, args.uid, args.dayKey, scopeKey);
   const used = row
     ? Math.max(0, Math.floor(row.usedCount))
-    : await readAdCoinUsedToday(ctx, args.uid, args.dayKey);
+    : await readAdCoinUsedToday(ctx, args.uid, args.dayKey, scopeKey);
   if (used >= cap) {
     return { ok: false, error: "daily_cap_reached" };
   }
@@ -91,6 +144,8 @@ async function consumeAdCoinDailySlot(
       usedCount: usedAfter,
       createdAt: args.now,
       updatedAt: args.now,
+      scopeKey,
+      ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
     });
   }
   return { ok: true, usedAfter };
@@ -113,11 +168,22 @@ async function cancelPendingAdCoinSessionsForUid(
 export async function getPortalAdCoinOfferCore(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  now = Date.now()
+  now = Date.now(),
+  lobbyId?: Id<"portal_lobbies"> | null
 ) {
   const cap = PORTAL_AD_COIN_DAILY_CAP;
   const rewardAmount = PORTAL_AD_COIN_REWARD_AMOUNT;
-  if (!(await partnerAllowsAdCoin(ctx, uid))) {
+  const econ = await resolveAdCoinEconomy(ctx, uid, lobbyId ?? null);
+  if ("error" in econ) {
+    return {
+      enabled: false as const,
+      remaining: 0,
+      cap,
+      rewardAmount,
+      watchedToday: 0,
+    };
+  }
+  if (!(await partnerAllowsAdCoin(ctx, uid, econ.settingsLobbyId))) {
     return {
       enabled: false as const,
       remaining: 0,
@@ -127,7 +193,7 @@ export async function getPortalAdCoinOfferCore(
     };
   }
   const dayKey = dailyPeriodKey(now);
-  const used = await readAdCoinUsedToday(ctx, uid, dayKey);
+  const used = await readAdCoinUsedToday(ctx, uid, dayKey, econ.scopeKey);
   return {
     enabled: true as const,
     remaining: Math.max(0, cap - used),
@@ -139,10 +205,19 @@ export async function getPortalAdCoinOfferCore(
 
 export async function beginPortalAdCoinSessionCore(
   ctx: MutationCtx,
-  args: { uid: string; channel: string; now?: number }
+  args: {
+    uid: string;
+    channel: string;
+    now?: number;
+    lobbyId?: Id<"portal_lobbies"> | null;
+  }
 ) {
   const now = args.now ?? Date.now();
-  if (!(await partnerAllowsAdCoin(ctx, args.uid))) {
+  const econ = await resolveAdCoinEconomy(ctx, args.uid, args.lobbyId ?? null);
+  if ("error" in econ) {
+    return { ok: false as const, error: econ.error };
+  }
+  if (!(await partnerAllowsAdCoin(ctx, args.uid, econ.settingsLobbyId))) {
     return { ok: false as const, error: "disabled" as const };
   }
   if (!isPortalAdCoinChannel(args.channel)) {
@@ -154,7 +229,12 @@ export async function beginPortalAdCoinSessionCore(
 
   const dayKey = dailyPeriodKey(now);
   const cap = PORTAL_AD_COIN_DAILY_CAP;
-  const usedToday = await readAdCoinUsedToday(ctx, args.uid, dayKey);
+  const usedToday = await readAdCoinUsedToday(
+    ctx,
+    args.uid,
+    dayKey,
+    econ.scopeKey
+  );
   if (usedToday >= cap) {
     return { ok: false as const, error: "daily_cap_reached" as const };
   }
@@ -170,6 +250,8 @@ export async function beginPortalAdCoinSessionCore(
     status: "pending",
     createdAt: now,
     expiresAt,
+    scopeKey: econ.scopeKey,
+    ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
   });
 
   return {
@@ -188,12 +270,10 @@ export async function completePortalAdCoinSessionCore(
     sessionId: string;
     clientProof?: string;
     now?: number;
+    lobbyId?: Id<"portal_lobbies"> | null;
   }
 ) {
   const now = args.now ?? Date.now();
-  if (!(await partnerAllowsAdCoin(ctx, args.uid))) {
-    return { ok: false as const, error: "disabled" as const };
-  }
 
   const session = await ctx.db
     .query("portal_ad_coin_sessions")
@@ -206,13 +286,27 @@ export async function completePortalAdCoinSessionCore(
   if (session.uid !== args.uid) {
     return { ok: false as const, error: "forbidden" as const };
   }
+
+  const lobbyId = session.lobbyId ?? args.lobbyId ?? null;
+  const econ = await resolveAdCoinEconomy(ctx, args.uid, lobbyId);
+  if ("error" in econ) {
+    return { ok: false as const, error: econ.error };
+  }
+  // Prefer session-stamped scope (set at begin) so grant matches the offer the user saw.
+  const scopeKey = session.scopeKey ?? econ.scopeKey;
+  const grantLobbyId = session.lobbyId ?? econ.lobbyId;
+
+  if (!(await partnerAllowsAdCoin(ctx, args.uid, econ.settingsLobbyId))) {
+    return { ok: false as const, error: "disabled" as const };
+  }
+
   if (session.status === "completed") {
     const existing = await ctx.db
       .query("portal_ad_coin_claims")
       .withIndex("by_sessionId", (q) => q.eq("sessionId", session.sessionId))
       .unique();
     if (existing) {
-      const offer = await getPortalAdCoinOfferCore(ctx, args.uid, now);
+      const offer = await getPortalAdCoinOfferCore(ctx, args.uid, now, lobbyId);
       return {
         ok: true as const,
         coinsGranted: existing.coinsGranted,
@@ -238,6 +332,8 @@ export async function completePortalAdCoinSessionCore(
     dayKey,
     now,
     cap: PORTAL_AD_COIN_DAILY_CAP,
+    scopeKey,
+    lobbyId: grantLobbyId,
   });
   if (!slot.ok) {
     await ctx.db.patch(session._id, { status: "cancelled", updatedAt: now });
@@ -250,9 +346,11 @@ export async function completePortalAdCoinSessionCore(
     kind: "coins",
     amount: coinsGranted,
     reason: "ad_watch_coins",
+    scopeKey,
+    ...(grantLobbyId ? { lobbyId: grantLobbyId } : {}),
   });
   if (!grant.ok) {
-    const usage = await findAdCoinDailyUsageRow(ctx, args.uid, dayKey);
+    const usage = await findAdCoinDailyUsageRow(ctx, args.uid, dayKey, scopeKey);
     if (usage) {
       await ctx.db.patch(usage._id, {
         usedCount: Math.max(0, Math.floor(usage.usedCount) - 1),
@@ -271,6 +369,8 @@ export async function completePortalAdCoinSessionCore(
     coinsGranted,
     clientProof: args.clientProof,
     createdAt: now,
+    scopeKey,
+    ...(grantLobbyId ? { lobbyId: grantLobbyId } : {}),
   });
   await ctx.db.patch(session._id, {
     status: "completed",

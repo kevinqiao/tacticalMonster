@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 
-import { internal } from "../../_generated/api";
 import { mutation } from "../../_generated/server";
 import {
   PLATFORM_ADMIN_EMAIL,
@@ -25,7 +24,7 @@ import {
   validatePartnerSlug,
   type PartnerCapabilities,
 } from "./partnerCapabilities";
-import { sanitizePartnerGames } from "./portalPartnerConfig";
+import { readPartnerGames } from "./portalPartnerConfig";
 import {
   assertValidStoreSlug,
   getStoreBySlug,
@@ -437,19 +436,18 @@ export const ensureCampaignOpsDevPartner = mutation({
     partnerId: v.optional(v.number()),
     partnerSlug: v.optional(v.string()),
     partnerName: v.optional(v.string()),
-    /** @deprecated Prefer partnerSlug */
-    portalKey: v.optional(v.string()),
+    /** @deprecated Ignored — games come from static catalog (full open). */
     games: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     assertBootstrapSecret(args.bootstrapSecret);
 
     const partnerSlug = validatePartnerSlug(
-      args.partnerSlug ?? args.portalKey ?? "demo-partner"
+      args.partnerSlug ?? "demo-partner"
     );
     if (!partnerSlug) throw new Error("slug_required");
     const partnerName = (args.partnerName ?? "Demo Partner").trim() || "Demo Partner";
-    const games = sanitizePartnerGames(args.games ?? ["block_blast"]);
+    const games = readPartnerGames();
 
     let created = false;
     let partner =
@@ -484,7 +482,6 @@ export const ensureCampaignOpsDevPartner = mutation({
         staffAuth: DEFAULT_STAFF_AUTH,
         capabilities,
         slug: partnerSlug,
-        games,
       });
       partner = await getPartnerByPid(ctx, pid);
       created = true;
@@ -506,15 +503,10 @@ export const ensureCampaignOpsDevPartner = mutation({
       name: partnerName,
       capabilities,
       slug: partnerSlug,
-      games,
       data: dataRest,
     });
 
-    await ctx.scheduler.runAfter(
-      0,
-      internal.service.partner.platformAdminBrandSync.syncPartnerBrandSlug,
-      { partnerId: partner.pid, slug: partnerSlug }
-    );
+    // No Campaign brand sync — slug→partnerId resolves only via SSO `partner.slug`.
 
     return {
       ok: true as const,

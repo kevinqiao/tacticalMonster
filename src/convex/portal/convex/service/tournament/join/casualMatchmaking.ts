@@ -34,6 +34,12 @@ import {
   type JoinCasualRunQueuedResult,
   type JoinCasualRunResult,
 } from "../shared/casualTournamentTypes";
+import { matchPartitionKey } from "../../economy/resolveEconomyScope";
+import {
+  entrySnapshotFromDef,
+  loadLobbyRewardsOverride,
+} from "../../lobby/lobbyOfferingRewards";
+import { refundAbandonedQueuePlayEntry } from "../../ads/portalPlayEntryQueueRefund";
 
 export {
   computeMultiTableBatchSize,
@@ -76,11 +82,20 @@ export const getQueueRowForExpire = internalQuery({
 });
 
 export const deleteQueueRow = internalMutation({
-  args: { queueRowId: v.id("portal_match_queue") },
-  handler: async (ctx, { queueRowId }) => {
+  args: {
+    queueRowId: v.id("portal_match_queue"),
+    /** When true, skip ad/ticket refund (row already settled into a match). */
+    skipEntryRefund: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { queueRowId, skipEntryRefund }) => {
     const row = await ctx.db.get(queueRowId);
-    if (row) await ctx.db.delete(queueRowId);
-    return { ok: true as const };
+    if (!row) return { ok: true as const, refunded: false as const };
+    if (!skipEntryRefund) {
+      await refundAbandonedQueuePlayEntry(ctx, row);
+    }
+    const cur = await ctx.db.get(queueRowId);
+    if (cur) await ctx.db.delete(queueRowId);
+    return { ok: true as const, refunded: true as const };
   },
 });
 
@@ -132,6 +147,10 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
     ),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
+    /** After ad/ticket grant consume — open-table rechecks use this lane. */
+    playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
+    /** Snapshot of tickets spent; refunded if queue is abandoned. */
+    ticketEntryPriceTickets: v.optional(v.number()),
     /**
      * When true, skip scheduler; caller (joinTournament action) will open
      * eff=1 tables synchronously and return ready/error to the client.
@@ -151,6 +170,8 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       campaignReplaySettings,
       maxPlaysPerDay,
       dayTimezone,
+      playEntryLane,
+      ticketEntryPriceTickets,
       deferOpenToCaller,
     }
   ): Promise<JoinCasualRunResult> => {
@@ -202,6 +223,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         templateId: tournamentId,
         ...(lobbyId ? { lobbyId } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
+        ...(playEntryLane ? { entryLane: playEntryLane } : {}),
       });
       if (!daily.ok) {
         return { ok: false as const, error: daily.error };
@@ -226,6 +248,12 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
     const expiresAt = effectiveHumans > 1 ? now + portal_match_queue_TIMEOUT_MS : undefined;
 
     const reconciled = await reconcileCasualMatchQueueForJoin(ctx, uid, tournamentId, now);
+    const resolvedPartnerId = partnerId ?? 0;
+    const partitionKey = matchPartitionKey(resolvedPartnerId, tournamentId);
+    const rewardsOverrideSnapshot = lobbyId
+      ? await loadLobbyRewardsOverride(ctx, lobbyId, tournamentId)
+      : undefined;
+    const entrySnapshot = entrySnapshotFromDef(def);
 
     let queueRowId: Id<"portal_match_queue">;
     if (reconciled) {
@@ -236,14 +264,20 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         expiresAt,
         skipEntryCharge: reconciled.skipEntryCharge,
         updatedAt: now,
+        matchPartitionKey: partitionKey,
+        partnerId: resolvedPartnerId,
+        entrySnapshot,
+        ...(rewardsOverrideSnapshot ? { rewardsOverrideSnapshot } : {}),
         ...(lobbyId ? { lobbyId } : {}),
         ...(campaignId ? { campaignId } : {}),
-        ...(partnerId != null ? { partnerId } : {}),
         ...(campaignRewardMode ? { campaignRewardMode } : {}),
         ...(campaignDueTime != null ? { campaignDueTime } : {}),
         ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
+        playEntryLane: playEntryLane,
+        ticketEntryPriceTickets:
+          playEntryLane === "ticket" ? ticketEntryPriceTickets : undefined,
         ...(reconciled.status === "claiming"
           ? { status: "waiting" as const }
           : {}),
@@ -253,6 +287,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       queueRowId = await ctx.db.insert("portal_match_queue", {
         uid,
         templateId: tournamentId,
+        matchPartitionKey: partitionKey,
         effectiveHumans,
         matchedRuleId: matchedRuleId ?? undefined,
         queueExpireAction: effectiveHumans > 1 ? queueExpireAction : undefined,
@@ -261,14 +296,20 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         status: "waiting",
         createdAt: now,
         updatedAt: now,
+        partnerId: resolvedPartnerId,
+        entrySnapshot,
+        ...(rewardsOverrideSnapshot ? { rewardsOverrideSnapshot } : {}),
         ...(lobbyId ? { lobbyId } : {}),
         ...(campaignId ? { campaignId } : {}),
-        ...(partnerId != null ? { partnerId } : {}),
         ...(campaignRewardMode ? { campaignRewardMode } : {}),
         ...(campaignDueTime != null ? { campaignDueTime } : {}),
         ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
+        ...(playEntryLane ? { playEntryLane } : {}),
+        ...(playEntryLane === "ticket" && ticketEntryPriceTickets != null
+          ? { ticketEntryPriceTickets }
+          : {}),
       });
     }
 
@@ -385,7 +426,9 @@ export const leaveCasualMatchQueue = authedMutation({
       const allStale = claimingFresh.every((r) => now - r.updatedAt > 15_000);
       if (allStale) {
         for (const row of claimingFresh) {
-          await ctx.db.delete(row._id);
+          await refundAbandonedQueuePlayEntry(ctx, row);
+          const cur = await ctx.db.get(row._id);
+          if (cur) await ctx.db.delete(cur._id);
         }
         return { ok: true as const, removed: claimingFresh.length };
       }
@@ -396,7 +439,9 @@ export const leaveCasualMatchQueue = authedMutation({
     }
 
     for (const row of waitingFresh) {
-      await ctx.db.delete(row._id);
+      await refundAbandonedQueuePlayEntry(ctx, row);
+      const cur = await ctx.db.get(row._id);
+      if (cur) await ctx.db.delete(cur._id);
     }
     return { ok: true as const, removed: waitingFresh.length };
   },

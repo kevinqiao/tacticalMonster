@@ -1,7 +1,5 @@
 import { useMemo, useSyncExternalStore } from "react";
 
-import { parsePortalPathFromPathname } from "@/host/util/portalPathParse";
-
 import { isValidPortalGameType } from "./portalGameTypeGuards";
 import type { RegisteredPartnerGameType } from "@/convex/portal/convex/data/partnerGameRegistry";
 
@@ -25,14 +23,8 @@ export function resolvePortalRouteGameType(
   if (typeof dataGameType === "string" && isValidPortalGameType(dataGameType)) {
     return dataGameType;
   }
-
-  const parsed = parsePortalPathFromPathname(pathname).gameType;
-  if (parsed) return parsed;
-
-  const segments = pathname.split("/").filter(Boolean);
-  const last = segments[segments.length - 1]?.toLowerCase();
-  if (last && isValidPortalGameType(last)) return last;
-
+  // Portal URLs are lobby-only; game type is not taken from the path.
+  void pathname;
   return null;
 }
 

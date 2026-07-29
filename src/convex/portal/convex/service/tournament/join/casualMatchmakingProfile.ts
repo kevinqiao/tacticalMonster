@@ -23,6 +23,7 @@ import {
   type BotStrategyPlayerContext,
 } from "../../../data/portalPlayerStrategyTypes";
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
+import { getPlayerWalletBalances } from "../../economy/portalWalletDao";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "./casualTournamentJoinCore";
 import { isCasualAsyncVirtualOpponentUid } from "../settle/async/casualAsyncTypes";
 
@@ -141,7 +142,7 @@ export async function resolvePlayerBotStrategyContext(
     maxPlayers: def.maxPlayers,
     weeklyLeagueTier,
     completedMultiplayerMatches,
-    coinsBalance: player?.coins ?? 0,
+    coinsBalance: (await getPlayerWalletBalances(ctx, uid, "shared")).coins,
     daysSinceLastMatch,
     passLevel,
     passTrack,

@@ -4,6 +4,7 @@ import {
   type RegisteredPartnerGameType,
 } from "@/convex/portal/convex/data/partnerGameRegistry";
 import {
+  listPortalTournamentsForGame,
   portalTournamentIdForMode,
 } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
@@ -227,6 +228,18 @@ export type PortalDailyPlayQuota = {
   dayTimezone: string;
 };
 
+/** Per-tournament free quota (quotaScope=tournament picker tickets). */
+export type PortalTournamentDailyPlayQuotaRow = {
+  mode: "solo" | "multi";
+  playsToday: number;
+  maxPlaysPerDay: number;
+};
+
+export type PortalTournamentDailyPlayQuotas = Record<
+  string,
+  PortalTournamentDailyPlayQuotaRow
+>;
+
 export type PortalTicketEntryOffer = {
   enabled: boolean;
   remaining: number;
@@ -265,6 +278,7 @@ type PortalDataSnapshot = {
   openRunAssignments: OpenCasualRunAssignment[];
   matchQueueEntries: PortalMatchQueueEntry[];
   dailyPlayQuota: PortalDailyPlayQuota | null;
+  tournamentDailyPlayQuotas: PortalTournamentDailyPlayQuotas | null;
   ticketEntryOffer: { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null;
   adEntryOffer: { solo: PortalAdEntryOffer; multi: PortalAdEntryOffer } | null;
   adCoinOffer: PortalAdCoinOffer | null;
@@ -285,6 +299,7 @@ const emptyData = (): PortalDataSnapshot => ({
   openRunAssignments: [],
   matchQueueEntries: [],
   dailyPlayQuota: null,
+  tournamentDailyPlayQuotas: null,
   ticketEntryOffer: null,
   adEntryOffer: null,
   adCoinOffer: null,
@@ -326,6 +341,7 @@ type PortalContextValue = {
   openRunAssignments: OpenCasualRunAssignment[];
   matchQueueEntries: PortalMatchQueueEntry[];
   dailyPlayQuota: PortalDailyPlayQuota | null;
+  tournamentDailyPlayQuotas: PortalTournamentDailyPlayQuotas | null;
   ticketEntryOffer: { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null;
   adEntryOffer: { solo: PortalAdEntryOffer; multi: PortalAdEntryOffer } | null;
   adCoinOffer: PortalAdCoinOffer | null;
@@ -337,10 +353,11 @@ type PortalContextValue = {
   joinTournament: (
     mode: "solo" | "multi",
     opts?: {
-      partnerSlug?: string;
+      partnerId?: number;
       campaignSlug?: string;
       adEntry?: boolean;
       ticketEntry?: boolean;
+      tournamentId?: string;
     }
   ) => Promise<ResolvedJoinTournamentOutcome>;
   leaveCasualMatchQueue: (
@@ -608,7 +625,9 @@ export const PortalProvider: React.FC<{
 
     sub(
       portalTournamentFns.getPortalPlayerWallet,
-      {},
+      {
+        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+      },
       (rows) => {
         patchData({ playerWallet: rows as PortalPlayerWallet | null });
       },
@@ -616,7 +635,9 @@ export const PortalProvider: React.FC<{
     );
     sub(
       portalTournamentFns.listPortalShopSkus,
-      {},
+      {
+        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+      },
       (rows) => {
         patchData({ shopCatalog: rows as PortalShopCatalogView | null });
       },
@@ -712,7 +733,9 @@ export const PortalProvider: React.FC<{
     );
     sub(
       portalTournamentFns.getAdCoinOffer,
-      {},
+      {
+        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+      },
       (rows) => {
         const r = rows as PortalAdCoinOffer | null;
         if (!r || r.enabled === false) {
@@ -748,6 +771,7 @@ export const PortalProvider: React.FC<{
         openRunAssignments: [],
         matchQueueEntries: [],
         dailyPlayQuota: null,
+        tournamentDailyPlayQuotas: null,
         weekEndsAt: null,
       });
       return;
@@ -771,6 +795,9 @@ export const PortalProvider: React.FC<{
     const leagueScope = lobbyId
       ? { lobbyId: lobbyId as never }
       : { gameType };
+    const gameTournamentIds = listPortalTournamentsForGame(gameType).map(
+      (d) => d.tournamentId
+    );
     sub(
       portalTournamentFns.getPortalWeeklyLeagueTierView,
       leagueScope,
@@ -842,6 +869,24 @@ export const PortalProvider: React.FC<{
       },
       "getPortalDailyPlayQuota"
     );
+    if (gameTournamentIds.length > 0) {
+      sub(
+        portalTournamentFns.getPortalTournamentDailyPlayQuotas,
+        {
+          tournamentIds: gameTournamentIds,
+          ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+        },
+        (rows) => {
+          patchData({
+            tournamentDailyPlayQuotas:
+              (rows as PortalTournamentDailyPlayQuotas | null) ?? null,
+          });
+        },
+        "getPortalTournamentDailyPlayQuotas"
+      );
+    } else {
+      patchData({ tournamentDailyPlayQuotas: null });
+    }
 
     return () => {
       for (const u of unsubs) u.unsubscribe();
@@ -1007,6 +1052,7 @@ export const PortalProvider: React.FC<{
       try {
         const res = (await http.mutation(portalTournamentFns.purchasePortalShopSku, {
           skuId,
+          ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
         })) as {
           ok?: boolean;
           error?: string;
@@ -1026,7 +1072,7 @@ export const PortalProvider: React.FC<{
         return { ok: false as const, error: "purchase_failed" };
       }
     },
-    [uid]
+    [uid, lobbyId]
   );
 
   const syncRedemptionProfile = useCallback(
@@ -1211,7 +1257,8 @@ export const PortalProvider: React.FC<{
     async (
       mode: "solo" | "multi",
       opts?: {
-        partnerSlug?: string;
+        /** Optional; server prefers partnerId from platform uid. */
+        partnerId?: number;
         campaignSlug?: string;
         adEntry?: boolean;
         ticketEntry?: boolean;
@@ -1223,7 +1270,7 @@ export const PortalProvider: React.FC<{
       if (!http || !uid || !isPlatformAuthed(user)) {
         return { kind: "failed", error: portalErrorMessage("not_logged_in_or_no_backend") };
       }
-      const isCampaignJoin = Boolean(opts?.partnerSlug && opts?.campaignSlug);
+      const isCampaignJoin = Boolean(opts?.campaignSlug);
       const tournamentId =
         opts?.tournamentId ??
         (isCampaignJoin || !gameType
@@ -1239,8 +1286,8 @@ export const PortalProvider: React.FC<{
           ...(lobbyId && !isCampaignJoin ? { lobbyId: lobbyId as never } : {}),
           ...(isCampaignJoin
             ? {
-                partnerSlug: opts!.partnerSlug,
                 campaignSlug: opts!.campaignSlug,
+                ...(opts?.partnerId != null ? { partnerId: opts.partnerId } : {}),
               }
             : {}),
           ...(opts?.adEntry ? { adEntry: true } : {}),
@@ -1330,8 +1377,8 @@ export const PortalProvider: React.FC<{
 
   const watchAdForCoins = useCallback(async () => {
     if (!uid) return { ok: false as const, error: "no_auth" };
-    return requestPortalAdCoin();
-  }, [uid]);
+    return requestPortalAdCoin({ lobbyId });
+  }, [uid, lobbyId]);
 
   const value = useMemo<PortalContextValue>(
     () => ({
@@ -1350,6 +1397,7 @@ export const PortalProvider: React.FC<{
       openRunAssignments: snapshot.openRunAssignments,
       matchQueueEntries: snapshot.matchQueueEntries,
       dailyPlayQuota: snapshot.dailyPlayQuota,
+      tournamentDailyPlayQuotas: snapshot.tournamentDailyPlayQuotas,
       ticketEntryOffer: snapshot.ticketEntryOffer,
       adEntryOffer: snapshot.adEntryOffer,
       adCoinOffer: snapshot.adCoinOffer,

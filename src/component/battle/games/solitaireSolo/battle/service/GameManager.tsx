@@ -158,7 +158,7 @@ interface ISoloGameContext {
     updateBoardDimension: (dimension: SoloBoardDimension) => void;
     loadGame: () => void;
     /** 平台 authorize 后同 gameId 清档重开 */
-    reloadCasualRun: () => Promise<boolean>;
+    reloadCasualRun: () => Promise<SoloGameState | null>;
     /** Skip in-progress opening deal (tap-to-skip). */
     skipOpeningDeal: () => void;
     /** True while the short opening deal timeline is running. */
@@ -193,7 +193,7 @@ const SoloGameContext = createContext<ISoloGameContext>({
     setInteractionPhase: () => { },
     updateBoardDimension: () => { },
     loadGame: () => { },
-    reloadCasualRun: async () => false,
+    reloadCasualRun: async () => null,
     skipOpeningDeal: () => { },
     openingDealActive: false,
     saveUpdate: () => { },
@@ -244,6 +244,11 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     );
     const [dealEvent, setDealEvent] = useState<OpeningDealEvent | null>(null);
     const [openingDealActive, setOpeningDealActive] = useState(false);
+    /**
+     * When true, hide Loading when the opening deal is about to start (not when it
+     * finishes) — otherwise Loading covers the whole deal and the board “pops” in.
+     */
+    const pendingLoadCompleteRef = useRef(false);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const [interactionPhase, setInteractionPhase] = useState<GameInteractionPhase>(GameInteractionPhase.idle);
     const [targetScore, setTargetScore] = useState<number | undefined>(undefined);
@@ -294,6 +299,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
 
     const loadGame = useCallback(async () => {
         if (!gameId) {
+            pendingLoadCompleteRef.current = false;
             onGameLoadComplete?.();
             return;
         }
@@ -311,6 +317,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         }
         if (!res.ok) {
             console.error('[SoloGameProvider] loadGame failed', (res as { error?: string }).error, res);
+            pendingLoadCompleteRef.current = false;
             onGameLoadComplete?.();
             return;
         }
@@ -326,15 +333,17 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         );
         openingDealStartedRef.current = false;
         if (opening) {
+            pendingLoadCompleteRef.current = true;
             setDealEvent(opening);
             setInteractionPhase(GameInteractionPhase.animating);
             setOpeningDealActive(true);
         } else {
+            pendingLoadCompleteRef.current = false;
             setDealEvent(null);
             setInteractionPhase(GameInteractionPhase.idle);
             setOpeningDealActive(false);
+            onGameLoadComplete?.();
         }
-        onGameLoadComplete?.();
         setGameState(game);
         const threshold = (res as { seedScoreThreshold?: number }).seedScoreThreshold;
         if (typeof threshold === "number" && Number.isFinite(threshold)) {
@@ -342,8 +351,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         }
     }, [convex, gameId, onGameLoadComplete, casualPlatformBridge]);
 
-    const reloadCasualRun = useCallback(async (): Promise<boolean> => {
-        if (!gameId || !gameId.startsWith("game_")) return false;
+    const reloadCasualRun = useCallback(async (): Promise<SoloGameState | null> => {
+        if (!gameId || !gameId.startsWith("game_")) return null;
         const res = await convex.action(api.proxy.controller.loadGame, {
             gameId,
             resetCasualRun: true,
@@ -351,7 +360,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         });
         if (!res.ok) {
             console.error("[SoloGameProvider] reloadCasualRun failed", (res as { error?: string }).error);
-            return false;
+            return null;
         }
         const raw = res.game as SoloGameState & { actionStatus?: string };
         const { actionStatus: _drop, ...rest } = raw;
@@ -365,10 +374,12 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         );
         openingDealStartedRef.current = false;
         if (opening) {
+            pendingLoadCompleteRef.current = true;
             setDealEvent(opening);
             setInteractionPhase(GameInteractionPhase.animating);
             setOpeningDealActive(true);
         } else {
+            pendingLoadCompleteRef.current = false;
             setDealEvent(null);
             setInteractionPhase(GameInteractionPhase.idle);
             setOpeningDealActive(false);
@@ -378,15 +389,23 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         if (typeof threshold === "number" && Number.isFinite(threshold)) {
             setTargetScore(threshold);
         }
-        return true;
+        return game;
     }, [convex, gameId, casualPlatformBridge]);
+
+    const revealBoardFromLoading = useCallback(() => {
+        if (!pendingLoadCompleteRef.current) return;
+        pendingLoadCompleteRef.current = false;
+        onGameLoadComplete?.();
+    }, [onGameLoadComplete]);
 
     const finishOpeningDeal = useCallback(() => {
         openingDealStartedRef.current = false;
         setDealEvent(null);
         setOpeningDealActive(false);
         setInteractionPhase(GameInteractionPhase.idle);
-    }, []);
+        // Timeout / skip before deal started still needs to drop Loading.
+        revealBoardFromLoading();
+    }, [revealBoardFromLoading]);
 
     const skipOpeningDeal = useCallback(() => {
         if (!openingDealActive && !dealEventRef.current) return;
@@ -590,6 +609,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             openingDealStartedRef.current = true;
             setOpeningDealActive(true);
             setInteractionPhase(GameInteractionPhase.animating);
+            // Drop Loading now so the deal is visible (not covered until onComplete).
+            revealBoardFromLoading();
 
             const st = Number(gameState.status);
             let animState = gameState;
@@ -624,7 +645,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             cancelled = true;
             window.cancelAnimationFrame(raf);
         };
-    }, [dealEvent, gameState, finishOpeningDeal]);
+    }, [dealEvent, gameState, finishOpeningDeal, revealBoardFromLoading]);
 
     // const isPlaying = useCallback((card: SoloCard) => {
     //     return Object.values(timelinesRef.current).some(tl => tl.timeline.isActive() && tl.cards.some(c => c.id === card.id));

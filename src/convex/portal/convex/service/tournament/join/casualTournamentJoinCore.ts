@@ -19,32 +19,12 @@ import { activeSeasonWindowForCtx, ensureInstancePlayerStateRow } from "../list/
 import { effectiveGameSequence } from "../../../data/portalTournamentConfigs";
 import { insertPlayerSessionForUid } from "../shared/casualSessionOpenCore";
 import type { CasualMatchSeedBinding } from "./casualMatchSeedBinding";
+import { applyWalletDelta, getPlayerWalletBalances } from "../../economy/portalWalletDao";
 
 export const RUN_TOURNAMENT_OPEN = 0;
 export const RUN_TOURNAMENT_COMPLETED = 1;
 export const RUN_PLAYER_TOURNAMENT_OPEN = 0;
 export const RUN_PLAYER_TOURNAMENT_COMPLETED = 1;
-
-function applyEntryCostToPlayerPatch(
-  row: { coins?: number; gems?: number },
-  cost: EntryCost
-): { ok: true; patch: Record<string, number> } | { ok: false; error: string } {
-  if (cost.kind === "none") return { ok: true, patch: {} };
-  if (cost.kind === "coins") {
-    const cur = row.coins ?? 0;
-    if (cur < cost.amount) return { ok: false, error: "insufficient_coins" };
-    return { ok: true, patch: { coins: cur - cost.amount } };
-  }
-  if (cost.kind === "gems") {
-    const cur = row.gems ?? 0;
-    if (cur < cost.amount) return { ok: false, error: "insufficient_gems" };
-    return { ok: true, patch: { gems: cur - cost.amount } };
-  }
-  if (cost.kind === "seasonVouchers") {
-    return { ok: false, error: "bad_entry_cost" };
-  }
-  return { ok: false, error: "bad_entry_cost" };
-}
 
 async function resolveJoinEntryCost(
   ctx: MutationCtx | QueryCtx,
@@ -100,7 +80,11 @@ export async function applyCasualJoinEntryCharge(
   uid: string,
   tournamentId: string,
   def: PortalTournamentDefinition,
-  opts?: { skipEntryCharge?: boolean }
+  opts?: {
+    skipEntryCharge?: boolean;
+    scopeKey?: string;
+    lobbyId?: Id<"portal_lobbies"> | null;
+  }
 ): Promise<
   | {
       ok: true;
@@ -123,6 +107,8 @@ export async function applyCasualJoinEntryCharge(
     return { ok: true as const, activityIds: modifiers.activityIds };
   }
   const entryCost = await resolveJoinEntryCost(ctx, tournamentId, def);
+  const scopeKey = opts?.scopeKey ?? "shared";
+  const lobbyId = opts?.lobbyId ?? null;
 
   if (entryCost.kind === "seasonVouchers") {
     const modifiers = await ctx.runQuery(
@@ -158,33 +144,26 @@ export async function applyCasualJoinEntryCharge(
   );
   const activityIds = modifiers.activityIds;
 
-  // Inline wallet writes (ctx.db) — avoid nested-mutation / args-validation footguns
-  // that abort claimQueueAndCharge and leave the user stuck in "creating match".
   if (entryCost.kind === "coins" || entryCost.kind === "gems") {
-    const costResult = applyEntryCostToPlayerPatch(player, entryCost);
-    if (!costResult.ok) {
-      return { ok: false as const, error: costResult.error };
-    }
-    const now = Date.now();
-    const playerRow = await ctx.db
-      .query("portal_players")
-      .withIndex("by_uid", (q) => q.eq("uid", uid))
-      .unique();
-    if (!playerRow) {
-      return { ok: false as const, error: "no_player" };
-    }
-    await ctx.db.patch(playerRow._id, { ...costResult.patch, updatedAt: now });
-    if (entryCost.kind === "coins") {
-      const balanceAfter = costResult.patch.coins as number;
-      await ctx.db.insert("portal_coin_ledger", {
-        uid,
-        kind: "coins",
-        delta: -entryCost.amount,
-        balanceAfter,
-        reason: `join_entry:${tournamentId}`,
-        gameType: def.gameType,
-        createdAt: now,
-      });
+    const result = await applyWalletDelta(ctx, {
+      uid,
+      scopeKey,
+      lobbyId,
+      kind: entryCost.kind,
+      delta: -entryCost.amount,
+      reason: `join_entry:${tournamentId}`,
+      gameType: def.gameType,
+    });
+    if (!result.ok) {
+      return {
+        ok: false as const,
+        error:
+          result.error === "no_player"
+            ? "no_player"
+            : entryCost.kind === "coins"
+              ? "insufficient_coins"
+              : "insufficient_gems",
+      };
     }
     return {
       ok: true as const,
@@ -213,7 +192,11 @@ export async function applyCasualJoinEntryChargeWithInstance(
   tournamentId: string,
   def: PortalTournamentDefinition,
   instanceId: Id<"portal_tournament_instances"> | null,
-  opts?: { skipEntryCharge?: boolean }
+  opts?: {
+    skipEntryCharge?: boolean;
+    scopeKey?: string;
+    lobbyId?: Id<"portal_lobbies"> | null;
+  }
 ): Promise<
   | {
       ok: true;
@@ -253,7 +236,7 @@ export async function applyCasualJoinEntryChargeWithInstance(
   return ch;
 }
 
-/** ??????:? `applyCasualJoinEntryCharge` ??(????? / ???) */
+/** Refund join entry charge into the same economy scope used at charge time. */
 export async function refundCasualJoinEntryCharge(
   ctx: MutationCtx,
   uid: string,
@@ -261,6 +244,8 @@ export async function refundCasualJoinEntryCharge(
     vouchersCharged?: number;
     coinsCharged?: number;
     gemsCharged?: number;
+    scopeKey?: string;
+    lobbyId?: Id<"portal_lobbies"> | null;
   }
 ): Promise<void> {
   if (meta.vouchersCharged && meta.vouchersCharged > 0) {
@@ -272,29 +257,28 @@ export async function refundCasualJoinEntryCharge(
   const coinsAdd = meta.coinsCharged ?? 0;
   const gemsAdd = meta.gemsCharged ?? 0;
   if (coinsAdd <= 0 && gemsAdd <= 0) return;
-  const playerRow = await ctx.db
-    .query("portal_players")
-    .withIndex("by_uid", (q) => q.eq("uid", uid))
-    .unique();
-  if (!playerRow) return;
-  const now = Date.now();
-  const patch: { coins?: number; gems?: number; updatedAt: number } = { updatedAt: now };
+  const scopeKey = meta.scopeKey ?? "shared";
+  const lobbyId = meta.lobbyId ?? null;
   if (coinsAdd > 0) {
-    const balanceAfter = (playerRow.coins ?? 0) + coinsAdd;
-    patch.coins = balanceAfter;
-    await ctx.db.insert("portal_coin_ledger", {
+    await applyWalletDelta(ctx, {
       uid,
+      scopeKey,
+      lobbyId,
       kind: "coins",
       delta: coinsAdd,
-      balanceAfter,
       reason: "join_entry_refund",
-      createdAt: now,
     });
   }
   if (gemsAdd > 0) {
-    patch.gems = (playerRow.gems ?? 0) + gemsAdd;
+    await applyWalletDelta(ctx, {
+      uid,
+      scopeKey,
+      lobbyId,
+      kind: "gems",
+      delta: gemsAdd,
+      reason: "join_entry_refund",
+    });
   }
-  await ctx.db.patch(playerRow._id, patch);
 }
 
 export async function insertCasualRunDocumentsForHumans(
@@ -525,7 +509,7 @@ export async function validateJoinEntryAffordable(
   ctx: MutationCtx | QueryCtx,
   uid: string,
   preview: Extract<JoinEntryChargePreview, { ok: true }>,
-  opts?: { skipEntryCharge?: boolean }
+  opts?: { skipEntryCharge?: boolean; scopeKey?: string }
 ): Promise<JoinEntryChargePreview> {
   if (opts?.skipEntryCharge || !preview.willChargeEntry) {
     return preview;
@@ -551,10 +535,11 @@ export async function validateJoinEntryAffordable(
     if (!player) {
       return { ok: false as const, error: "no_player" };
     }
-    if (preview.dueCoins > 0 && (player.coins ?? 0) < preview.dueCoins) {
+    const bal = await getPlayerWalletBalances(ctx, uid, opts?.scopeKey ?? "shared");
+    if (preview.dueCoins > 0 && bal.coins < preview.dueCoins) {
       return { ok: false as const, error: "insufficient_coins" };
     }
-    if (preview.dueGems > 0 && (player.gems ?? 0) < preview.dueGems) {
+    if (preview.dueGems > 0 && bal.gems < preview.dueGems) {
       return { ok: false as const, error: "insufficient_gems" };
     }
   }

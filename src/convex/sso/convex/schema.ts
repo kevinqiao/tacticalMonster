@@ -12,6 +12,7 @@ export default defineSchema({
 
         name: v.optional(v.string()),
 
+        /** Partner official website URL (e.g. https://example.com). */
         host: v.optional(v.string()),
 
         /**
@@ -46,17 +47,98 @@ export default defineSchema({
         ),
 
         /**
-         * Bag for runtime config: embed JWT secret, branding, allowedOrigins, defaultLandingPath.
-         * Player login mode lives on `playerAuth` (not here).
-         * Product gates (portal/campaign) live only on `capabilities`.
+         * Cross-product visual brand SoT (Campaign / Game Center / future).
+         * Do not store brand under `data`.
          */
-        data: v.optional(v.any()),
+        brand: v.optional(
+          v.object({
+            sourceUrl: v.optional(v.string()),
+            themeVersion: v.optional(v.number()),
+            theme: v.optional(
+              v.object({
+                version: v.number(),
+                sourceUrl: v.optional(v.string()),
+                mode: v.union(v.literal("light"), v.literal("dark")),
+                brand: v.object({
+                  primary: v.string(),
+                  onPrimary: v.string(),
+                  background: v.string(),
+                  surface: v.string(),
+                  text: v.string(),
+                  textMuted: v.string(),
+                  fontFamily: v.string(),
+                  radiusMd: v.string(),
+                }),
+                shell: v.object({
+                  ctaBg: v.string(),
+                  ctaText: v.string(),
+                  headerBg: v.string(),
+                  posterFrameRadius: v.string(),
+                }),
+                assets: v.optional(
+                  v.object({
+                    logoUrl: v.optional(v.string()),
+                  })
+                ),
+              })
+            ),
+            logoUrl: v.optional(v.string()),
+            updatedAt: v.optional(v.number()),
+          })
+        ),
+
+        /** Draft theme from website sync; publish promotes into `brand.theme`. */
+        brandDraft: v.optional(
+          v.object({
+            version: v.number(),
+            sourceUrl: v.optional(v.string()),
+            mode: v.union(v.literal("light"), v.literal("dark")),
+            brand: v.object({
+              primary: v.string(),
+              onPrimary: v.string(),
+              background: v.string(),
+              surface: v.string(),
+              text: v.string(),
+              textMuted: v.string(),
+              fontFamily: v.string(),
+              radiusMd: v.string(),
+            }),
+            shell: v.object({
+              ctaBg: v.string(),
+              ctaText: v.string(),
+              headerBg: v.string(),
+              posterFrameRadius: v.string(),
+            }),
+            assets: v.optional(
+              v.object({
+                logoUrl: v.optional(v.string()),
+              })
+            ),
+          })
+        ),
 
         /**
-         * Enabled game types from partnerGameRegistry (allowlist; unset/empty → full registry).
-         * Also caps merchant campaign gameType for merchants bound to this partner.
+         * Embed runtime secrets / origins (method lives on `playerAuth.embed`).
+         * Migrating off legacy `data.jwtSecret` / `data.embed` / `data.allowedOrigins`.
          */
-        games: v.optional(v.array(v.string())),
+        embed: v.optional(
+          v.object({
+            jwtSecret: v.optional(v.string()),
+            jwt: v.optional(
+              v.object({
+                audience: v.optional(v.string()),
+                secret: v.optional(v.string()),
+              })
+            ),
+            allowedOrigins: v.optional(v.array(v.string())),
+          })
+        ),
+
+        /**
+         * @deprecated Escape hatch only. Brand / embed must not be written here.
+         * Residual keys may remain during migration; prefer first-class fields.
+         */
+        data: v.optional(v.any()),
 
         /**
          * Product capability flags — sole source of truth for Portal vs Campaign Ops.
@@ -70,23 +152,29 @@ export default defineSchema({
         ),
 
         /**
+         * @deprecated Legacy GC ops blob on some prod rows. SoT is Portal;
+         * kept optional so schema push does not fail on existing documents.
+         */
+        gameCenter: v.optional(v.any()),
+
+        /**
+         * @deprecated Legacy allowlist; catalog is static via readPartnerGames().
+         * Kept optional for existing prod documents.
+         */
+        games: v.optional(v.array(v.string())),
+
+        /**
          * Public partnerSlug for Portal `/gc/{slug}/...` and Campaign `/cc/{slug}/...`.
-         * Deprecated alias: historical `portal_key` values were migrated into this field.
          */
         slug: v.optional(v.string()),
 
-        /**
-         * @deprecated Read-only fallback during migration. Prefer `slug` (partnerSlug).
-         * New writes must not set this field.
-         */
+        /** @deprecated Prefer `slug`. Kept optional so legacy prod docs still validate. */
         portal_key: v.optional(v.string()),
 
     })
         .index("by_pid", ["pid"])
         .index("by_name", ["name"])
-        .index("by_slug", ["slug"])
-        /** @deprecated Prefer by_slug; kept for findByPartnerSlug fallback. */
-        .index("by_portal_key", ["portal_key"]),
+        .index("by_slug", ["slug"]),
 
 
 
@@ -224,6 +312,25 @@ export default defineSchema({
         .index("by_provider_subject", ["provider", "subject"])
 
         .index("by_partner_subject", ["partnerId", "subject"]),
+
+    /**
+     * Global platform ops status (singleton key = "global").
+     * UI + SSO enforcement read this; peers receive a replica via bridge sync.
+     */
+    platform_status: defineTable({
+        key: v.literal("global"),
+        mode: v.union(
+            v.literal("normal"),
+            v.literal("pre_notice"),
+            v.literal("maintenance")
+        ),
+        title: v.optional(v.string()),
+        message: v.optional(v.string()),
+        plannedStartAt: v.optional(v.number()),
+        plannedEndAt: v.optional(v.number()),
+        updatedAt: v.number(),
+        updatedBy: v.optional(v.string()),
+    }).index("by_key", ["key"]),
 
 });
 

@@ -1,17 +1,17 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  inferCasualGameKindFromAssignment,
-  type OpenCasualRunAssignment,
-} from "../casual/service/casualOpenRunAssignment";
+import { type OpenCasualRunAssignment } from "../casual/service/casualOpenRunAssignment";
 import { canOpenPortalHistoryReport } from "./service/portalHistoryReport";
 import {
   isValidPortalGameType,
   portalGameDisplayName,
   type PortalGameHistoryRow,
 } from "./service/usePortalManager";
-import { portalMatchTypeLabel } from "./service/portalOpenRunHelpers";
+import {
+  inferPortalGameKindFromAssignment,
+  portalMatchTypeLabel,
+} from "./service/portalOpenRunHelpers";
 import { resolvePlayerDisplayName } from "@/convex/shared/displayName";
 
 function historyGameTypeLabel(gameType: string | undefined): string | null {
@@ -35,7 +35,7 @@ export const PortalHistoryList: React.FC<{
   return (
     <ul className="portal-history">
       {openAssignments.map((a) => {
-        const gameLabel = historyGameTypeLabel(inferCasualGameKindFromAssignment(a));
+        const gameLabel = historyGameTypeLabel(inferPortalGameKindFromAssignment(a));
         return (
         <li key={a.gameId}>
           <button

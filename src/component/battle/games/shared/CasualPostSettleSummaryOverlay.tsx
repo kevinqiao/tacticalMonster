@@ -13,7 +13,10 @@ import { formatWeeklyLeagueSettleLines } from './casualWeeklyLeagueScoreUI';
 import type { CasualAsyncTableSummaryUI, Match3WatchContext } from './casualAsyncTableSummaryUI';
 
 import { CasualAdReplayVideoIcon } from './CasualAdReplayVideoIcon';
-import { CASUAL_AD_REPLAY_BUTTON_LABEL } from './casualGameScoreReportUI';
+import {
+  CASUAL_AD_REPLAY_BUTTON_LABEL,
+  formatCasualAdReplayQuotaBadge,
+} from './casualGameScoreReportUI';
 import { CasualTableSummaryPanel } from './CasualTableSummaryPanel';
 
 import { useReplayWindowCountdown } from './useReplayWindowCountdown';
@@ -52,8 +55,10 @@ export type CasualPostSettleSummaryOverlayProps = {
 
   replayMode?: "ad" | "token";
 
-  /** 广告再战：今日剩余次数（单独展示，避免加载态盖掉） */
+  /** 广告再战：今日剩余（与 cap 一起换算已用/上限，单独展示） */
   adReplayDailyRemaining?: number;
+
+  adReplayDailyCap?: number;
 
   onReplay?: () => void;
 
@@ -113,7 +118,9 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
 
   replayMode = "token",
 
-  adReplayDailyRemaining: _adReplayDailyRemaining,
+  adReplayDailyRemaining,
+
+  adReplayDailyCap,
 
   onReplay,
 
@@ -181,6 +188,9 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
 
   const showReplayBtn = replayAvailable && Boolean(onReplay);
   const isAdReplay = replayMode === "ad";
+  const quotaBadge = isAdReplay
+    ? formatCasualAdReplayQuotaBadge(adReplayDailyRemaining, adReplayDailyCap)
+    : undefined;
 
   let replayBtnText = replayLabel;
 
@@ -193,6 +203,8 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
   if (countdown) {
     replayBtnText = `${replayBtnText} ${countdown}`;
   }
+
+  const replayButtonTitle = [replayLabel, quotaBadge].filter(Boolean).join(" ");
 
 
 
@@ -303,12 +315,17 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
                 className="ssc__btn ssc__btn--secondary ssc__btn--replayCompact"
                 disabled={(isAdReplay && !midgameReady) || replayBusy}
                 onClick={() => onReplay?.()}
-                title={replayLabel}
+                title={replayButtonTitle}
               >
                 {isAdReplay && midgameReady && !replayBusy ? (
                   <CasualAdReplayVideoIcon />
                 ) : null}
                 <span className="ssc__replayMain">{replayBtnText}</span>
+                {quotaBadge ? (
+                  <span className="ssc__replayRemaining" aria-label={`今日已用 ${quotaBadge}`}>
+                    {quotaBadge}
+                  </span>
+                ) : null}
               </button>
             ) : null}
             <button

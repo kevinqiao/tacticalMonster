@@ -10,33 +10,44 @@ export type ParsedPortalPath = {
   partnerSlug: string | null;
   /** @deprecated Use partnerSlug */
   partnerKey: string | null;
-  /** Lobby slug when path is `/gc/{partnerSlug}/{lobbySlug}` (not a gameType). */
+  /** Lobby slug when path is `/gc/{partnerSlug}/{lobbySlug}`. */
   lobbySlug: string | null;
-  gameType: RegisteredPartnerGameType | null;
   isFirstPartyPortal: boolean;
-  /** True when path is partner lobby root or named lobby (no gameType deep link). */
+  /** True for `/gc` and any `/gc/{partner}/…` lobby path. */
   isLobbyPath: boolean;
 };
 
-function isGameType(segment: string | undefined): segment is RegisteredPartnerGameType {
+/** Former first-party `/gc/{game}` segments — used only for bookmark fallback. */
+const LEGACY_FIRST_PARTY_GAME_SEGMENTS = new Set<string>([
+  ...PARTNER_GAME_TYPES,
+  "blockblast",
+  "block-blast",
+  "match3",
+  "match-3",
+  "towerarena",
+  "tower-arena",
+]);
+
+/** True when `/gc/{seg}` looks like an old game deep link (no partner with that slug). */
+export function isLegacyFirstPartyGameSegment(segment: string | null | undefined): boolean {
   if (!segment) return false;
-  return (PARTNER_GAME_TYPES as readonly string[]).includes(segment);
+  return LEGACY_FIRST_PARTY_GAME_SEGMENTS.has(segment.trim().toLowerCase());
 }
 
 /**
- * Parse portal URLs:
- * - /gc/{gameType}                         → first-party game
- * - /gc                                    → first-party default lobby
- * - /gc/{partnerSlug}                      → partner default lobby
- * - /gc/{partnerSlug}/{lobbySlug}          → named lobby (lobbySlug ∉ gameTypes)
- * - /gc/{partnerSlug}/{gameType}           → game deep link
+ * Parse portal URLs (lobby-only; no game deep links):
+ * - /gc                              → first-party default lobby
+ * - /gc/{partnerSlug}                → partner default lobby
+ * - /gc/{partnerSlug}/{lobbySlug}    → named lobby
+ *
+ * Legacy `/gc/{gameType}` bookmarks resolve as partnerSlug candidates; PartnerManager
+ * falls back to first-party `/gc` when no partner exists for that slug.
  */
 export function parsePortalPathFromPathname(pathname: string): ParsedPortalPath {
   const empty: ParsedPortalPath = {
     partnerSlug: null,
     partnerKey: null,
     lobbySlug: null,
-    gameType: null,
     isFirstPartyPortal: false,
     isLobbyPath: false,
   };
@@ -54,21 +65,8 @@ export function parsePortalPathFromPathname(pathname: string): ParsedPortalPath 
       partnerSlug: null,
       partnerKey: null,
       lobbySlug: null,
-      gameType: null,
       isFirstPartyPortal: true,
       isLobbyPath: true,
-    };
-  }
-
-  // /gc/{gameType} → first-party game deep link
-  if (isGameType(seg2) && !seg3) {
-    return {
-      partnerSlug: null,
-      partnerKey: null,
-      lobbySlug: null,
-      gameType: seg2,
-      isFirstPartyPortal: true,
-      isLobbyPath: false,
     };
   }
 
@@ -85,23 +83,8 @@ export function parsePortalPathFromPathname(pathname: string): ParsedPortalPath 
       partnerSlug,
       partnerKey: partnerSlug,
       lobbySlug: null,
-      gameType: null,
       isFirstPartyPortal: false,
       isLobbyPath: true,
-    };
-  }
-
-  const seg3Lower = seg3.toLowerCase();
-
-  // /gc/{partnerSlug}/{gameType} → game deep link
-  if (isGameType(seg3Lower)) {
-    return {
-      partnerSlug,
-      partnerKey: partnerSlug,
-      lobbySlug: null,
-      gameType: seg3Lower,
-      isFirstPartyPortal: false,
-      isLobbyPath: false,
     };
   }
 
@@ -109,8 +92,7 @@ export function parsePortalPathFromPathname(pathname: string): ParsedPortalPath 
   return {
     partnerSlug,
     partnerKey: partnerSlug,
-    lobbySlug: seg3Lower,
-    gameType: null,
+    lobbySlug: seg3.toLowerCase(),
     isFirstPartyPortal: false,
     isLobbyPath: true,
   };
@@ -130,12 +112,13 @@ export function portalLobbyPath(
   return `${PORTAL_URL_PREFIX}/${partnerSlug}`;
 }
 
+/** Lobby entry URL (game is chosen inside the lobby). */
 export function portalLaunchPath(
   partnerSlug: string | null,
-  gameType: RegisteredPartnerGameType
+  _gameType?: RegisteredPartnerGameType
 ): string {
-  if (partnerSlug) return `${PORTAL_URL_PREFIX}/${partnerSlug}/${gameType}`;
-  return `${PORTAL_URL_PREFIX}/${gameType}`;
+  if (partnerSlug) return `${PORTAL_URL_PREFIX}/${partnerSlug}`;
+  return PORTAL_URL_PREFIX;
 }
 
 export { PORTAL_URL_PREFIX, PORTAL_URL_SEGMENT };

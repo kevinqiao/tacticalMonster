@@ -63,38 +63,6 @@ async function authorizePlatformOperator(ctx: {
   if (!result.ok) throw new Error(result.error ?? "forbidden");
 }
 
-function collectDerivedGames(lobbies: unknown): string[] {
-  const out: string[] = [];
-  if (!Array.isArray(lobbies)) return out;
-  for (const lobby of lobbies) {
-    if (!lobby || typeof lobby !== "object") continue;
-    const derived = (lobby as { derivedGames?: unknown }).derivedGames;
-    if (!Array.isArray(derived)) continue;
-    for (const g of derived) {
-      if (typeof g === "string" && g && !out.includes(g)) out.push(g);
-    }
-  }
-  return out;
-}
-
-async function syncGamesFromPortalLobbies(
-  ctx: {
-    runMutation: (
-      ref: typeof internal.service.partner.platformAdmin.syncPartnerGamesFromLobbiesInternal,
-      args: { partnerId: number; games: string[] }
-    ) => Promise<unknown>;
-  },
-  partnerId: number
-) {
-  const listed = await request({ operation: "list", partnerId });
-  const games = collectDerivedGames(listed.lobbies);
-  await ctx.runMutation(
-    internal.service.partner.platformAdmin.syncPartnerGamesFromLobbiesInternal,
-    { partnerId, games }
-  );
-  return listed;
-}
-
 const offeringValidator = v.object({
   tournamentId: v.string(),
   sortOrder: v.number(),
@@ -118,7 +86,7 @@ export const listPlatformPartnerLobbies = authedAction({
   },
 });
 
-/** Create/update a lobby; sync partner.games from all lobby offerings. */
+/** Create/update a lobby (Portal SoT). */
 export const upsertPlatformPartnerLobby = authedAction({
   args: {
     partnerId: v.number(),
@@ -141,13 +109,11 @@ export const upsertPlatformPartnerLobby = authedAction({
   },
   handler: async (ctx, args) => {
     await authorizePlatformOperator(ctx);
-    const result = await request({ operation: "upsert", ...args });
-    const listed = await syncGamesFromPortalLobbies(ctx, args.partnerId);
-    return { ...result, lobbies: listed.lobbies };
+    return await request({ operation: "upsert", ...args });
   },
 });
 
-/** Delete a non-default lobby; sync partner.games. */
+/** Delete a non-default lobby. */
 export const deletePlatformPartnerLobby = authedAction({
   args: {
     partnerId: v.number(),
@@ -155,8 +121,6 @@ export const deletePlatformPartnerLobby = authedAction({
   },
   handler: async (ctx, { partnerId, lobbyId }) => {
     await authorizePlatformOperator(ctx);
-    const result = await request({ operation: "delete", partnerId, lobbyId });
-    const listed = await syncGamesFromPortalLobbies(ctx, partnerId);
-    return { ...result, lobbies: listed.lobbies };
+    return await request({ operation: "delete", partnerId, lobbyId });
   },
 });

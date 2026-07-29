@@ -107,7 +107,7 @@ const CASUAL_RANK_RATES_4 = [
   { rank: 4, odd: 15 },
 ] as const;
 
-/** 4 人金币竞技：入场 20，奖励 45 / 25 / 15 / 5 */
+/** 5 人金币竞技：入场 20，奖励 45 / 25 / 15 / 5（第 5 名无金币） */
 export const PORTAL_MULTI_COIN_ENTRY = 20;
 export const PORTAL_MULTI_COIN_RANK_REWARDS: Record<string, number> = {
   "1": 45,
@@ -155,11 +155,11 @@ function multiCoinDef(gameType: string, title: string): PortalTournamentDefiniti
     gameType,
     matchType: "multi_ranked",
     status: "open",
-    maxPlayers: 4,
+    maxPlayers: 5,
     entry: { kind: "coins", amount: PORTAL_MULTI_COIN_ENTRY },
     rankPoints: { ...PORTAL_MULTI_RANK_POINTS },
     coinRewards: { rankCoins: { ...PORTAL_MULTI_COIN_RANK_REWARDS } },
-    rankRates: [...CASUAL_RANK_RATES_4],
+    rankRates: [...CASUAL_RANK_RATES_5],
   };
 }
 
@@ -233,10 +233,14 @@ export function applyVoucherCost(base: number, _mult?: number, _delta?: number):
 
 export function portalRankPointDelta(
   def: PortalTournamentDefinition,
-  rank: number
+  rank: number,
+  rewardsOverride?: {
+    rankPoints?: Record<string, number>;
+  } | null
 ): number {
-  if (!def.rankPoints) return 0;
-  return def.rankPoints[rank] ?? 0;
+  const { rankPoints } = resolveEffectiveTournamentRewards(def, rewardsOverride);
+  if (!rankPoints) return 0;
+  return rankPoints[rank] ?? 0;
 }
 
 /** Multi coin table payout for a final rank (0 if none). */
@@ -266,9 +270,13 @@ export function isPortalP75Success(
 export function portalSoloPointDelta(
   def: PortalTournamentDefinition,
   score: number,
-  seedScoreThreshold?: number
+  seedScoreThreshold?: number,
+  rewardsOverride?: {
+    soloPoints?: PortalPointsConfig;
+  } | null
 ): number {
-  const pts = def.soloPoints ?? PORTAL_SOLO_POINTS;
+  const { soloPoints } = resolveEffectiveTournamentRewards(def, rewardsOverride);
+  const pts = soloPoints ?? PORTAL_SOLO_POINTS;
   return isPortalP75Success(def, score, seedScoreThreshold) ? pts.success : pts.fail;
 }
 

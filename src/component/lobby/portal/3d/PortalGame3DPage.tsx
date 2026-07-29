@@ -41,7 +41,7 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
   if (!portal.gameType) {
     return (
       <div style={{ padding: 24, color: "#fff" }}>
-        无效的游戏类型。请访问 /gc/block_blast 等有效路径。
+        无效的游戏类型。请从 Lobby 选择可用赛事。
       </div>
     );
   }
@@ -86,24 +86,28 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           multiJoinBlocked={ctrl.multiJoinBlocked}
           soloOpenAssignment={ctrl.soloOpenAssignment}
           multiOpenAssignment={ctrl.multiOpenAssignment}
-          soloPlaysToday={ctrl.soloPlaysToday}
           soloLadderPlaysToday={ctrl.soloLadderPlaysToday}
           soloMaxPlaysPerDay={ctrl.soloMaxPlaysPerDay}
-          multiPlaysToday={ctrl.multiPlaysToday}
           multiLadderPlaysToday={ctrl.multiLadderPlaysToday}
           multiMaxPlaysPerDay={ctrl.multiMaxPlaysPerDay}
           soloDailyExhausted={ctrl.soloDailyExhausted}
           multiDailyExhausted={ctrl.multiDailyExhausted}
           soloAdEntryAvailable={ctrl.soloAdEntryAvailable}
           multiAdEntryAvailable={ctrl.multiAdEntryAvailable}
+          soloAdEntryEnabled={ctrl.soloAdEntryEnabled}
+          multiAdEntryEnabled={ctrl.multiAdEntryEnabled}
+          soloAdEntryUsedToday={ctrl.soloAdEntryUsedToday}
+          multiAdEntryUsedToday={ctrl.multiAdEntryUsedToday}
+          soloAdEntryCap={ctrl.soloAdEntryCap}
+          multiAdEntryCap={ctrl.multiAdEntryCap}
           soloTicketEntryAvailable={ctrl.soloTicketEntryAvailable}
           multiTicketEntryAvailable={ctrl.multiTicketEntryAvailable}
           soloTicketEntryPrice={ctrl.soloTicketEntryPrice}
           multiTicketEntryPrice={ctrl.multiTicketEntryPrice}
           soloTicketEntryRemaining={ctrl.soloTicketEntryRemaining}
           multiTicketEntryRemaining={ctrl.multiTicketEntryRemaining}
-          soloHasMultipleOfferings={ctrl.soloHasMultipleOfferings}
-          multiHasMultipleOfferings={ctrl.multiHasMultipleOfferings}
+          soloShowHomeLadderCta={ctrl.soloShowHomeLadderCta}
+          multiShowHomeLadderCta={ctrl.multiShowHomeLadderCta}
           queueWaiting={ctrl.queueWaiting}
           weekEndsAt={portal.weekEndsAt}
           onJoin={(mode) => void ctrl.handleJoin(mode)}

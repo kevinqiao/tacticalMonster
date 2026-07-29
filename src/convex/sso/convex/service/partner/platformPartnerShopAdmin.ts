@@ -30,6 +30,8 @@ function portalBridgeSecret() {
 
 const settingsArgs = {
   partnerId: v.number(),
+  /** When set, upsert/get lobby overlay (isolated mode). Omit = partner base. */
+  lobbyId: v.optional(v.string()),
   enabled: v.boolean(),
   giftCardsEnabled: v.boolean(),
   virtualEnabled: v.boolean(),
@@ -87,10 +89,17 @@ async function authorizePlatformOperator(ctx: {
 }
 
 export const getPlatformPartnerShopSettings = authedAction({
-  args: { partnerId: v.number() },
-  handler: async (ctx, { partnerId }) => {
+  args: {
+    partnerId: v.number(),
+    lobbyId: v.optional(v.string()),
+  },
+  handler: async (ctx, { partnerId, lobbyId }) => {
     await authorizePlatformOperator(ctx);
-    return await request({ operation: "get", partnerId });
+    return await request({
+      operation: "get",
+      partnerId,
+      ...(lobbyId ? { lobbyId } : {}),
+    });
   },
 });
 
@@ -98,6 +107,26 @@ export const savePlatformPartnerShopSettings = authedAction({
   args: settingsArgs,
   handler: async (ctx, args) => {
     await authorizePlatformOperator(ctx);
-    return await request({ operation: "upsert", ...args });
+    return await request({
+      operation: "upsert",
+      ...args,
+      ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
+    });
+  },
+});
+
+/** Delete lobby shop overlay so the lobby inherits Partner base again. */
+export const clearPlatformPartnerLobbyShopOverlay = authedAction({
+  args: {
+    partnerId: v.number(),
+    lobbyId: v.string(),
+  },
+  handler: async (ctx, { partnerId, lobbyId }) => {
+    await authorizePlatformOperator(ctx);
+    return await request({
+      operation: "clear_lobby",
+      partnerId,
+      lobbyId,
+    });
   },
 });

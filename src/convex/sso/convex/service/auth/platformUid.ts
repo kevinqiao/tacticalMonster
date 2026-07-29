@@ -4,7 +4,7 @@ export const PLATFORM_NAMESPACE_PARTNER_ID = 0;
 /** Web auth channel cid. */
 export const WEB_AUTH_CHANNEL_CID = 0;
 
-/** First-party Default Partner (PID 0): `/gc/{game}` — no portal_key. */
+/** First-party Default Partner (PID 0): `/gc`; optional vanity slug also ok. */
 export function isFirstPartyPartnerId(partnerId: number): boolean {
   return Number(partnerId) === PLATFORM_NAMESPACE_PARTNER_ID;
 }

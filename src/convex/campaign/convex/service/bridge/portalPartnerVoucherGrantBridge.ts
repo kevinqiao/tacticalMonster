@@ -40,8 +40,9 @@ export async function grantPartnerVoucherFromCampaignViaHttp(args: {
   portalSkuId: string;
   grantKey: string;
   preferredCode: string;
+  maxCouponsPerPlayer?: number;
 }) {
-  return portalMerchantPost<{ itemId: string; deduped?: boolean }>(
+  return portalMerchantPost<{ itemId: string; code?: string; deduped?: boolean }>(
     "/internal/grant-partner-voucher-from-campaign",
     args
   );
@@ -74,4 +75,123 @@ export async function listPartnerVoucherSkusViaHttp(partnerId: number) {
   }>("/internal/campaign-voucher-skus", { partnerId });
   if (!result.ok) return result;
   return { ok: true as const, skus: result.data.skus ?? [] };
+}
+
+/** Coupon-limit check before issuing a new campaign voucher (join / issue guard). */
+export async function countCampaignVouchersViaHttp(args: {
+  campaignId: string;
+  uid: string;
+}): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const result = await portalMerchantPost<{ count: number }>(
+    "/internal/count-campaign-vouchers",
+    args
+  );
+  if (!result.ok) return result;
+  return { ok: true, count: result.data.count ?? 0 };
+}
+
+export type ValidatedCampaignVoucher = {
+  itemId: string;
+  code: string;
+  title: string;
+  rewardText: string;
+  campaignId: string;
+  expiresAt: number | null;
+  status: string;
+};
+
+/** Validate a scanned/entered campaign voucher code before redemption. */
+export async function validateCampaignVoucherViaHttp(args: {
+  partnerId: number;
+  code: string;
+}): Promise<
+  | { ok: true; voucher: ValidatedCampaignVoucher }
+  | { ok: false; error: string }
+> {
+  return portalMerchantPost<{ voucher: ValidatedCampaignVoucher }>(
+    "/internal/validate-campaign-voucher",
+    args
+  ).then((result) => (result.ok ? { ok: true, voucher: result.data.voucher } : result));
+}
+
+/** Redeem a campaign voucher at a physical store, recording staff/store audit fields. */
+export async function redeemCampaignVoucherStoreViaHttp(args: {
+  partnerId: number;
+  code: string;
+  storeId: string;
+  staffUid: string;
+  staffNote?: string;
+}) {
+  return portalMerchantPost<{ itemId: string; title: string }>(
+    "/internal/redeem-campaign-voucher-store",
+    args
+  );
+}
+
+export type CampaignVoucherListItem = {
+  itemId: string;
+  code: string;
+  title: string;
+  rewardText: string;
+  campaignId: string;
+  uid: string;
+  status: string;
+  issuedAt: number;
+  expiresAt: number | null;
+  redeemedAt: number | null;
+  redeemedAtStoreId: string | null;
+};
+
+/** List issued campaign vouchers for a partner, optionally scoped to one campaign. */
+export async function listCampaignVouchersViaHttp(args: {
+  partnerId: number;
+  campaignId?: string;
+  limit?: number;
+}): Promise<
+  | { ok: true; items: CampaignVoucherListItem[] }
+  | { ok: false; error: string }
+> {
+  const result = await portalMerchantPost<{ items: CampaignVoucherListItem[] }>(
+    "/internal/list-campaign-vouchers",
+    args
+  );
+  if (!result.ok) return result;
+  return { ok: true, items: result.data.items ?? [] };
+}
+
+export type PortalPlayerProfileBridge = {
+  displayName: string | null;
+  resolvedDisplayName: string;
+  verifiedEmail: string | null;
+  verifiedPhone: string | null;
+  displayNameUpdatedAt: number | null;
+};
+
+/** Campaign player profile → Portal portal_players. */
+export async function getPortalPlayerProfileViaHttp(uid: string) {
+  const result = await portalMerchantPost<{ profile: PortalPlayerProfileBridge }>(
+    "/internal/campaign-player-profile",
+    { uid }
+  );
+  if (!result.ok) return result;
+  return { ok: true as const, profile: result.data.profile };
+}
+
+export async function updatePortalDisplayNameViaHttp(args: {
+  uid: string;
+  displayName: string;
+}) {
+  return portalMerchantPost<{
+    displayName?: string;
+    unchanged?: boolean;
+    error?: string;
+  }>("/internal/campaign-player-display-name", args);
+}
+
+export async function syncPortalContactViaHttp(args: {
+  uid: string;
+  verifiedEmail?: string;
+  verifiedPhone?: string;
+}) {
+  return portalMerchantPost<{ error?: string }>("/internal/campaign-player-contact", args);
 }

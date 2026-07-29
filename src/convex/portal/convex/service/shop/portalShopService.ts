@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 
 import { internal } from "../../_generated/api";
-import type { Doc } from "../../_generated/dataModel";
+import type { Doc, Id } from "../../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { internalMutation, mutation } from "../../_generated/server";
 import { authedMutation, authedQuery } from "../../custom/session";
 import { formatFaceValueDisplay } from "../../data/portalGiftCardEconomy";
@@ -18,6 +19,9 @@ import { buildRedemptionProfileView } from "../giftcard/giftCardEligibility";
 import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
 import { defaultPortalPartnerShopSettings } from "../../data/portalPartnerShopSettings";
 import { findResolvedShopSku, resolvePortalShopCatalog } from "./shopCatalogResolve";
+import { getPlayerWalletBalances } from "../economy/portalWalletDao";
+import { resolveEconomyScope } from "../economy/resolveEconomyScope";
+import { loadPartnerShopSettings } from "./partnerShopSettings";
 
 function catalogSeedForSkuId(skuId: string): PortalShopSkuSeed | undefined {
   return PORTAL_SHOP_SKU_CATALOG.find((c) => c.skuId === skuId);
@@ -116,29 +120,106 @@ function masterSkus(rows: Doc<"portal_shop_skus">[]) {
   return [...shared, ...exclusive];
 }
 
+type ShopEconomyCtx = {
+  partnerId: number;
+  scopeKey: string;
+  lobbyId: Id<"portal_lobbies"> | null;
+  /** Lobby id used for assortment overlay (null = partner base only). */
+  settingsLobbyId: Id<"portal_lobbies"> | null;
+};
+
+async function resolveShopEconomy(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  lobbyId?: Id<"portal_lobbies"> | null
+): Promise<ShopEconomyCtx> {
+  const partnerId = resolvePortalShopSessionPartnerId(uid) ?? 0;
+  try {
+    const scope = await resolveEconomyScope(ctx, {
+      partnerId,
+      lobbyId: lobbyId ?? null,
+    });
+    return {
+      partnerId,
+      scopeKey: scope.scopeKey,
+      lobbyId: scope.lobbyId,
+      // Isolated: overlay by join lobby. Shared: partner-base assortment only.
+      settingsLobbyId: scope.mode === "isolated" ? scope.lobbyId : null,
+    };
+  } catch {
+    // isolated without lobbyId — keep partner base catalog; wallet stays shared fallback
+    // only for list; purchase should fail separately.
+    return {
+      partnerId,
+      scopeKey: "shared",
+      lobbyId: null,
+      settingsLobbyId: null,
+    };
+  }
+}
+
 async function resolveForPartner(
-  ctx: { db: { query: (table: "portal_partner_shop_settings") => any } },
+  ctx: QueryCtx | MutationCtx,
   partnerId: number | null,
-  rows: Doc<"portal_shop_skus">[]
+  rows: Doc<"portal_shop_skus">[],
+  settingsLobbyId?: Id<"portal_lobbies"> | null
 ) {
-  const settingRow =
-    partnerId == null
-      ? null
-      : await ctx.db
-          .query("portal_partner_shop_settings")
-          .withIndex("by_partnerId", (q: any) => q.eq("partnerId", partnerId))
-          .unique();
   const settings =
     partnerId == null
       ? defaultPortalPartnerShopSettings(-1)
-      : {
-          ...defaultPortalPartnerShopSettings(partnerId),
-          ...(settingRow ?? {}),
-          skuIds: settingRow?.skuIds ?? [],
-          excludeSkuIds: settingRow?.excludeSkuIds ?? [],
-          overrides: settingRow?.overrides ?? {},
-        };
-  return resolvePortalShopCatalog({ partnerId, masterSkus: masterSkus(rows), settings });
+      : ((await loadPartnerShopSettings(ctx, partnerId, settingsLobbyId ?? null)) ??
+        defaultPortalPartnerShopSettings(partnerId));
+  return resolvePortalShopCatalog({
+    partnerId,
+    masterSkus: masterSkus(rows),
+    settings,
+  });
+}
+
+async function findWeeklyPurchaseCounter(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  skuId: string,
+  weekKey: string,
+  scopeKey: string
+) {
+  if (scopeKey !== "shared") {
+    return await ctx.db
+      .query("portal_shop_weekly_purchase_counters")
+      .withIndex("by_uid_scopeKey_sku_week", (q) =>
+        q
+          .eq("uid", uid)
+          .eq("scopeKey", scopeKey)
+          .eq("skuId", skuId)
+          .eq("weekKey", weekKey)
+      )
+      .unique();
+  }
+  const rows = await ctx.db
+    .query("portal_shop_weekly_purchase_counters")
+    .withIndex("by_uid_sku_week", (q) =>
+      q.eq("uid", uid).eq("skuId", skuId).eq("weekKey", weekKey)
+    )
+    .collect();
+  return (
+    rows.find((r) => r.scopeKey == null || r.scopeKey === "shared") ?? null
+  );
+}
+
+async function listWeeklyCountersForUid(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  weekKey: string,
+  scopeKey: string
+) {
+  const rows = await ctx.db
+    .query("portal_shop_weekly_purchase_counters")
+    .withIndex("by_uid_week", (q) => q.eq("uid", uid).eq("weekKey", weekKey))
+    .collect();
+  if (scopeKey === "shared") {
+    return rows.filter((r) => r.scopeKey == null || r.scopeKey === "shared");
+  }
+  return rows.filter((r) => r.scopeKey === scopeKey);
 }
 
 export const syncPortalShopCatalog = internalMutation({
@@ -163,29 +244,40 @@ export const syncPortalShopCatalog = internalMutation({
 });
 
 export const listPortalShopSkus = authedQuery({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    lobbyId: v.optional(v.id("portal_lobbies")),
+  },
+  handler: async (ctx, { lobbyId }) => {
+    const econ = await resolveShopEconomy(ctx, ctx.uid, lobbyId ?? null);
     const rows = await ctx.db.query("portal_shop_skus").collect();
     const weekKey = weeklyPeriodKey(Date.now());
-    const counters = await ctx.db
-      .query("portal_shop_weekly_purchase_counters")
-      .withIndex("by_uid_week", (q) => q.eq("uid", ctx.uid).eq("weekKey", weekKey))
-      .collect();
+    const counters = await listWeeklyCountersForUid(
+      ctx,
+      ctx.uid,
+      weekKey,
+      econ.scopeKey
+    );
     const countBySku = new Map(counters.map((c) => [c.skuId, c.count]));
 
     const player = await ctx.db
       .query("portal_players")
       .withIndex("by_uid", (q) => q.eq("uid", ctx.uid))
       .unique();
+    const wallet = await getPlayerWalletBalances(ctx, ctx.uid, econ.scopeKey);
 
-    const catalogRows = await resolveForPartner(
-      ctx,
-      resolvePortalShopSessionPartnerId(ctx.uid),
-      rows
-    ).then((skus) => skus.map((sku) => mapPortalShopSkuRow(sku)));
+    const catalogRows = (
+      await resolveForPartner(
+        ctx,
+        econ.partnerId,
+        rows,
+        econ.settingsLobbyId
+      )
+    ).map((sku) => mapPortalShopSkuRow(sku));
 
     return {
-      coins: player?.coins ?? 0,
+      coins: wallet.coins,
+      scopeKey: econ.scopeKey,
+      lobbyId: econ.lobbyId,
       redemptionProfile: buildRedemptionProfileView(player, { ok: true }),
       skus: catalogRows.map((mapped) => {
         const bought = countBySku.get(mapped.skuId) ?? 0;
@@ -203,18 +295,15 @@ export const listPortalShopSkus = authedQuery({
 });
 
 async function recordWeeklyPurchase(
-  ctx: Parameters<typeof purchasePortalShopSku.handler>[0],
+  ctx: MutationCtx,
   uid: string,
   skuId: string,
-  now: number
+  now: number,
+  scopeKey: string,
+  lobbyId: Id<"portal_lobbies"> | null
 ) {
   const weekKey = weeklyPeriodKey(now);
-  const row = await ctx.db
-    .query("portal_shop_weekly_purchase_counters")
-    .withIndex("by_uid_sku_week", (q) =>
-      q.eq("uid", uid).eq("skuId", skuId).eq("weekKey", weekKey)
-    )
-    .unique();
+  const row = await findWeeklyPurchaseCounter(ctx, uid, skuId, weekKey, scopeKey);
   if (row) {
     await ctx.db.patch(row._id, { count: row.count + 1, updatedAt: now });
   } else {
@@ -224,18 +313,41 @@ async function recordWeeklyPurchase(
       weekKey,
       count: 1,
       updatedAt: now,
+      scopeKey,
+      ...(lobbyId ? { lobbyId } : {}),
     });
   }
 }
 
 export const purchasePortalShopSku = authedMutation({
-  args: { skuId: v.string() },
-  handler: async (ctx, { skuId }) => {
+  args: {
+    skuId: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+  },
+  handler: async (ctx, { skuId, lobbyId }) => {
+    const partnerId = resolvePortalShopSessionPartnerId(ctx.uid) ?? 0;
+    let econ: ShopEconomyCtx;
+    try {
+      const scope = await resolveEconomyScope(ctx, {
+        partnerId,
+        lobbyId: lobbyId ?? null,
+      });
+      econ = {
+        partnerId,
+        scopeKey: scope.scopeKey,
+        lobbyId: scope.lobbyId,
+        settingsLobbyId: scope.mode === "isolated" ? scope.lobbyId : null,
+      };
+    } catch {
+      return { ok: false as const, error: "lobby_required_for_isolated_economy" as const };
+    }
+
     const rows = await ctx.db.query("portal_shop_skus").collect();
     const effective = await resolveForPartner(
       ctx,
-      resolvePortalShopSessionPartnerId(ctx.uid),
-      rows
+      econ.partnerId,
+      rows,
+      econ.settingsLobbyId
     );
     const sku = findResolvedShopSku(effective, skuId);
     if (!sku) {
@@ -245,12 +357,13 @@ export const purchasePortalShopSku = authedMutation({
     const skuKind = sku.skuKind ?? "virtual";
     const now = Date.now();
     const weekKey = weeklyPeriodKey(now);
-    const counter = await ctx.db
-      .query("portal_shop_weekly_purchase_counters")
-      .withIndex("by_uid_sku_week", (q) =>
-        q.eq("uid", ctx.uid).eq("skuId", skuId).eq("weekKey", weekKey)
-      )
-      .unique();
+    const counter = await findWeeklyPurchaseCounter(
+      ctx,
+      ctx.uid,
+      skuId,
+      weekKey,
+      econ.scopeKey
+    );
     const bought = counter?.count ?? 0;
     if (sku.weeklyPurchaseLimit != null && bought >= sku.weeklyPurchaseLimit) {
       return { ok: false as const, error: "weekly_limit_reached" as const };
@@ -261,16 +374,22 @@ export const purchasePortalShopSku = authedMutation({
       .withIndex("by_uid", (q) => q.eq("uid", ctx.uid))
       .unique();
 
+    const spendArgs = {
+      uid: ctx.uid,
+      amount: sku.priceCoins,
+      scopeKey: econ.scopeKey,
+      ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
+    };
+
     if (skuKind === "giftcard") {
       if (!row.tangoUtid || row.faceValueLocal == null || !row.faceValueCurrency || !row.region) {
         return { ok: false as const, error: "sku_not_configured" as const };
       }
 
-      const spend = await ctx.runMutation(internal.service.reward.casualRewardRegistry.spendPortalCoins, {
-        uid: ctx.uid,
-        amount: sku.priceCoins,
-        reason: `giftcard:${skuId}`,
-      });
+      const spend = await ctx.runMutation(
+        internal.service.reward.casualRewardRegistry.spendPortalCoins,
+        { ...spendArgs, reason: `giftcard:${skuId}` }
+      );
       if (!spend.ok) {
         return spend;
       }
@@ -290,9 +409,18 @@ export const purchasePortalShopSku = authedMutation({
         deliveryEmail: player?.verifiedEmail,
         attemptCount: 0,
         createdAt: now,
+        scopeKey: econ.scopeKey,
+        ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
       });
 
-      await recordWeeklyPurchase(ctx, ctx.uid, skuId, now);
+      await recordWeeklyPurchase(
+        ctx,
+        ctx.uid,
+        skuId,
+        now,
+        econ.scopeKey,
+        econ.lobbyId
+      );
 
       await ctx.scheduler.runAfter(
         0,
@@ -311,11 +439,10 @@ export const purchasePortalShopSku = authedMutation({
     }
 
     if (skuKind === "voucher") {
-      const spend = await ctx.runMutation(internal.service.reward.casualRewardRegistry.spendPortalCoins, {
-        uid: ctx.uid,
-        amount: sku.priceCoins,
-        reason: `voucher:${skuId}`,
-      });
+      const spend = await ctx.runMutation(
+        internal.service.reward.casualRewardRegistry.spendPortalCoins,
+        { ...spendArgs, reason: `voucher:${skuId}` }
+      );
       if (!spend.ok) return spend;
       const expiresAt =
         sku.voucherValidityDays != null && sku.voucherValidityDays > 0
@@ -327,12 +454,17 @@ export const purchasePortalShopSku = authedMutation({
         title: sku.title,
         ...(sku.voucherRewardText ? { rewardText: sku.voucherRewardText } : {}),
         ...(expiresAt ? { expiresAt } : {}),
-        ...(resolvePortalShopSessionPartnerId(ctx.uid) != null
-          ? { partnerId: resolvePortalShopSessionPartnerId(ctx.uid)! }
-          : {}),
+        ...(econ.partnerId != null ? { partnerId: econ.partnerId } : {}),
         source: `shop:${ctx.uid}:${now}:${skuId}`,
       });
-      await recordWeeklyPurchase(ctx, ctx.uid, skuId, now);
+      await recordWeeklyPurchase(
+        ctx,
+        ctx.uid,
+        skuId,
+        now,
+        econ.scopeKey,
+        econ.lobbyId
+      );
       return {
         ok: true as const,
         skuKind: "voucher" as const,
@@ -341,11 +473,10 @@ export const purchasePortalShopSku = authedMutation({
       };
     }
 
-    const spend = await ctx.runMutation(internal.service.reward.casualRewardRegistry.spendPortalCoins, {
-      uid: ctx.uid,
-      amount: sku.priceCoins,
-      reason: `shop:${skuId}`,
-    });
+    const spend = await ctx.runMutation(
+      internal.service.reward.casualRewardRegistry.spendPortalCoins,
+      { ...spendArgs, reason: `shop:${skuId}` }
+    );
     if (!spend.ok) {
       return spend;
     }
@@ -357,13 +488,22 @@ export const purchasePortalShopSku = authedMutation({
           uid: ctx.uid,
           amount: sku.grantReplayTokenCount!,
           reason: `shop:${skuId}`,
+          scopeKey: econ.scopeKey,
+          ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
         }
       );
       if (!grant.ok) {
         return grant;
       }
     }
-    await recordWeeklyPurchase(ctx, ctx.uid, skuId, now);
+    await recordWeeklyPurchase(
+      ctx,
+      ctx.uid,
+      skuId,
+      now,
+      econ.scopeKey,
+      econ.lobbyId
+    );
 
     return {
       ok: true as const,

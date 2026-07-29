@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 
-import { internalMutation } from "../../_generated/server";
+import { internalMutation, internalQuery } from "../../_generated/server";
 import { authedMutation, authedQuery } from "../../custom/session";
 
 const backpackStatus = v.union(
@@ -311,3 +311,128 @@ export const redeemPartnerVoucher = internalMutation({
 });
 
 export const backpackItemStatusValidator = backpackStatus;
+
+/** Campaign bridge: coupon-limit check before issuing a new campaign voucher. */
+export const countCampaignVouchersForUid = internalQuery({
+  args: { campaignId: v.string(), uid: v.string() },
+  handler: async (ctx, { campaignId, uid }) => {
+    const rows = await ctx.db
+      .query("portal_backpack_items")
+      .withIndex("by_campaignId_uid", (q) => q.eq("campaignId", campaignId).eq("uid", uid))
+      .collect();
+    const count = rows.filter(
+      (row) =>
+        row.status === "owned" || row.status === "pending_use" || row.status === "redeemed"
+    ).length;
+    return { count };
+  },
+});
+
+/** Campaign store ops: validate a scanned/entered campaign voucher code before redemption. */
+export const validateCampaignVoucherByCode = internalQuery({
+  args: { partnerId: v.number(), code: v.string() },
+  handler: async (ctx, { partnerId, code }) => {
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) return { ok: false as const, error: "invalid_code" as const };
+    const item = await ctx.db
+      .query("portal_backpack_items")
+      .withIndex("by_code", (q) => q.eq("code", normalized))
+      .unique();
+    if (!item || item.partnerId !== partnerId) {
+      return { ok: false as const, error: "not_found" as const };
+    }
+    if (item.expiresAt != null && item.expiresAt <= Date.now()) {
+      return { ok: false as const, error: "expired" as const };
+    }
+    if (item.status !== "owned" && item.status !== "pending_use") {
+      return { ok: false as const, error: "not_available" as const };
+    }
+    return {
+      ok: true as const,
+      voucher: {
+        itemId: String(item._id),
+        code: item.code,
+        title: item.title,
+        rewardText: item.rewardText ?? "",
+        campaignId: item.campaignId ?? "",
+        expiresAt: item.expiresAt ?? null,
+        status: item.status,
+      },
+    };
+  },
+});
+
+/** Campaign store ops: redeem a campaign voucher at a physical store, recording staff/store audit fields. */
+export const redeemCampaignVoucherByCodeForStore = internalMutation({
+  args: {
+    partnerId: v.number(),
+    code: v.string(),
+    storeId: v.string(),
+    staffUid: v.string(),
+    staffNote: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const normalized = args.code.trim().toUpperCase();
+    if (!normalized) return { ok: false as const, error: "invalid_code" as const };
+    const item = await ctx.db
+      .query("portal_backpack_items")
+      .withIndex("by_code", (q) => q.eq("code", normalized))
+      .unique();
+    if (!item || item.partnerId !== args.partnerId) {
+      return { ok: false as const, error: "not_found" as const };
+    }
+    if (item.expiresAt != null && item.expiresAt <= Date.now()) {
+      await ctx.db.patch(item._id, { status: "expired", updatedAt: Date.now() });
+      return { ok: false as const, error: "expired" as const };
+    }
+    if (!["owned", "pending_use"].includes(item.status)) {
+      return { ok: false as const, error: "not_redeemable" as const };
+    }
+    const now = Date.now();
+    await ctx.db.patch(item._id, {
+      status: "redeemed",
+      redeemedAt: now,
+      redeemChannel: "store_staff",
+      redeemedAtStoreId: args.storeId,
+      redeemedByStaffUid: args.staffUid,
+      ...(args.staffNote ? { staffNote: args.staffNote } : {}),
+      updatedAt: now,
+    });
+    return { ok: true as const, itemId: String(item._id), title: item.title };
+  },
+});
+
+/** Campaign admin ops: list issued campaign vouchers for a partner, optionally scoped to one campaign. */
+export const listCampaignVouchersForPartner = internalQuery({
+  args: {
+    partnerId: v.number(),
+    campaignId: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit != null && args.limit > 0 ? Math.floor(args.limit) : 100;
+    const rows = await ctx.db
+      .query("portal_backpack_items")
+      .withIndex("by_partner_status", (q) => q.eq("partnerId", args.partnerId))
+      .collect();
+    const filtered = args.campaignId
+      ? rows.filter((row) => row.campaignId === args.campaignId)
+      : rows;
+    return filtered
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit)
+      .map((row) => ({
+        itemId: String(row._id),
+        code: row.code,
+        title: row.title,
+        rewardText: row.rewardText ?? "",
+        campaignId: row.campaignId ?? "",
+        uid: row.uid,
+        status: row.status,
+        issuedAt: row.createdAt,
+        expiresAt: row.expiresAt ?? null,
+        redeemedAt: row.redeemedAt ?? null,
+        redeemedAtStoreId: row.redeemedAtStoreId ?? null,
+      }));
+  },
+});

@@ -7,7 +7,6 @@
  *   node scripts/platform/bootstrap-partner-embed.mjs --apply
  *   node scripts/platform/bootstrap-partner-embed.mjs --apply --pid=100 --name=CrazyGames --host=https://www.crazygames.com --embed-method=crazygames_jwt --partner-slug=crazygames --prod
  *   node scripts/platform/bootstrap-partner-embed.mjs --apply --pid=100 --ad-replay-daily-cap=5 --prod
- *   (--portal-key is accepted as a deprecated alias for --partner-slug)
  *
  * Env (optional):
  *   PARTNER_EMBED_BOOTSTRAP_SECRET  (default dev-local-partner-embed-bootstrap)
@@ -47,7 +46,7 @@ function parseArgs(argv) {
     host: get("--host") ?? "http://localhost:3000",
     jwtSecret: get("--secret"),
     embedMethod: get("--embed-method") ?? "jwt_local",
-    partnerSlug: get("--partner-slug") ?? get("--portal-key"),
+    partnerSlug: get("--partner-slug"),
     games: gamesRaw
       ? gamesRaw
           .split(",")

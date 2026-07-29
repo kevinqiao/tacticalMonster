@@ -83,6 +83,7 @@ export type CasualReplayOffer = {
   replayTokenCount: number;
   canReplay: boolean;
   adReplayDailyRemaining?: number;
+  adReplayDailyCap?: number;
   replayWindowEndsAt?: number;
 };
 
@@ -206,6 +207,7 @@ export async function buildDeferredSoloPortalIngestResponse(
     replayTokenCount: replay.replayTokenCount,
     canReplay: replay.canReplay,
     adReplayDailyRemaining: replay.adReplayDailyRemaining,
+    adReplayDailyCap: replay.adReplayDailyCap,
     ...(replay.replayWindowEndsAt != null ? { replayWindowEndsAt: replay.replayWindowEndsAt } : {}),
   };
   return {
@@ -259,6 +261,7 @@ export async function enrichIngestTableSummaryWithReplay(
     replayTokenCount: replay.replayTokenCount,
     canReplay: replay.canReplay,
     adReplayDailyRemaining: replay.adReplayDailyRemaining,
+    adReplayDailyCap: replay.adReplayDailyCap,
     ...(replay.replayWindowEndsAt != null ? { replayWindowEndsAt: replay.replayWindowEndsAt } : {}),
   };
 }

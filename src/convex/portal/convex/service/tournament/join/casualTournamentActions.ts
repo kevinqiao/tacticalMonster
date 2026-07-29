@@ -7,10 +7,10 @@ import {
   getPortalTournamentDefinition,
   isDeprecatedDailySoloTournament,
   isJoinableCasualTournament,
-  portalTournamentIdForMode,
 } from "../../../data/portalTournamentConfigs";
 import { isCasualGameLobbyVisible } from "../../../data/partnerGameRegistry";
 import { authorizeCampaignJoinViaHttp } from "../../bridge/merchantCampaignBridge";
+import { sessionPartnerIdFromUid } from "../../../../../shared/platformAuth/parsePlatformUid";
 import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
 
 /**
@@ -19,7 +19,11 @@ import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
 export const joinTournament = authedAction({
   args: {
     tournamentId: v.optional(v.string()),
-    partnerSlug: v.optional(v.string()),
+    /**
+     * Campaign join: partner from platform session (uid) or FE PartnerManager.
+     * Prefer omitting — server derives from uid. If provided, must match session.
+     */
+    partnerId: v.optional(v.number()),
     campaignSlug: v.optional(v.string()),
     /** Portal lobby for weekly-league settle scope. */
     lobbyId: v.optional(v.id("portal_lobbies")),
@@ -30,7 +34,7 @@ export const joinTournament = authedAction({
   },
   handler: async (
     ctx,
-    { tournamentId, partnerSlug, campaignSlug, lobbyId, adEntry, ticketEntry }
+    { tournamentId, partnerId: partnerIdArg, campaignSlug, lobbyId, adEntry, ticketEntry }
   ): Promise<JoinCasualRunResult> => {
     const uid = ctx.uid;
     let resolvedTemplateId = tournamentId;
@@ -53,20 +57,30 @@ export const joinTournament = authedAction({
     let maxPlaysPerDay: number | undefined;
     let dayTimezone: string | undefined;
 
-    if (partnerSlug && campaignSlug) {
+    if (campaignSlug) {
+      // Trusted partner scope is the platform uid (`{cid}_{partnerId}_{…}`).
+      const sessionPartnerId = sessionPartnerIdFromUid(uid);
+      if (sessionPartnerId === null) {
+        return { ok: false as const, error: "partner_session_required" };
+      }
+      if (
+        partnerIdArg != null &&
+        Number.isFinite(partnerIdArg) &&
+        Math.floor(partnerIdArg) !== sessionPartnerId
+      ) {
+        return { ok: false as const, error: "partner_mismatch" };
+      }
+      const joinPartnerId = sessionPartnerId;
+
       const authorized = await authorizeCampaignJoinViaHttp({
         uid,
-        partnerSlug,
+        partnerId: joinPartnerId,
         campaignSlug,
       });
       if (!authorized.ok) {
         return { ok: false as const, error: authorized.error };
       }
-      const mapped = portalTournamentIdForMode(authorized.gameType, authorized.mode);
-      if (!mapped) {
-        return { ok: false as const, error: "unknown_tournament" };
-      }
-      resolvedTemplateId = mapped;
+      resolvedTemplateId = authorized.tournamentId;
       campaignId = authorized.campaignId;
       partnerId = authorized.partnerId;
       campaignRewardMode = authorized.rewardMode;
@@ -74,6 +88,22 @@ export const joinTournament = authedAction({
       campaignReplaySettings = authorized.replaySettings;
       maxPlaysPerDay = authorized.playLimits.maxPlaysPerDay;
       dayTimezone = authorized.playLimits.dayTimezone;
+
+      // Coupon-limit enforcement: Portal's backpack owns the vouchers, so the
+      // join-time check (avoid burning a play on an already-maxed-out player)
+      // has to happen here rather than in Campaign's authorize query.
+      if (authorized.rewardMode !== "competitive_leaderboard") {
+        const maxCouponsPerPlayer = authorized.playLimits.maxCouponsPerPlayer;
+        if (maxCouponsPerPlayer >= 1) {
+          const { count } = await ctx.runQuery(
+            internal.service.backpack.portalBackpackService.countCampaignVouchersForUid,
+            { campaignId, uid }
+          );
+          if (count >= maxCouponsPerPlayer) {
+            return { ok: false as const, error: "coupon_limit_reached" };
+          }
+        }
+      }
     }
 
     if (!resolvedTemplateId) {
@@ -96,6 +126,24 @@ export const joinTournament = authedAction({
     if (adEntry && ticketEntry) {
       return { ok: false as const, error: "invalid_entry_mode" };
     }
+    // Pre-check ladder ceiling before consuming ad/ticket grants (avoid burn-after-ad).
+    if (!campaignId && (adEntry || ticketEntry)) {
+      const daily = await ctx.runQuery(
+        internal.service.tournament.join.portalDailyPlayLimit
+          .assertPortalDailyPlayLimitQuery,
+        {
+          uid,
+          templateId: resolvedTemplateId,
+          ...(lobbyId ? { lobbyId } : {}),
+          ...(dayTimezone ? { dayTimezone } : {}),
+          ...(adEntry ? { pendingAdEntries: 1 } : {}),
+          ...(ticketEntry ? { pendingTicketEntries: 1 } : {}),
+        }
+      );
+      if (!daily.ok) {
+        return { ok: false as const, error: daily.error };
+      }
+    }
     if (adEntry) {
       const entry = await ctx.runMutation(
         internal.service.ads.portalAdEntryService.consumeAdEntryForJoin,
@@ -107,6 +155,7 @@ export const joinTournament = authedAction({
       );
       if (!entry.ok) return entry;
     }
+    let ticketEntryPriceTickets: number | undefined;
     if (ticketEntry) {
       const entry = await ctx.runMutation(
         internal.service.ads.portalTicketEntryService.consumeTicketEntryForJoin,
@@ -117,7 +166,12 @@ export const joinTournament = authedAction({
         }
       );
       if (!entry.ok) return entry;
+      if ("priceTickets" in entry && typeof entry.priceTickets === "number") {
+        ticketEntryPriceTickets = entry.priceTickets;
+      }
     }
+
+    const playEntryLane = adEntry ? "ad" : ticketEntry ? "ticket" : undefined;
 
     if (def.maxPlayers <= 1) {
       return await ctx.runAction(
@@ -133,6 +187,7 @@ export const joinTournament = authedAction({
           ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
           ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
           ...(dayTimezone ? { dayTimezone } : {}),
+          ...(playEntryLane ? { playEntryLane } : {}),
         }
       );
     }
@@ -150,6 +205,10 @@ export const joinTournament = authedAction({
         ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
+        ...(playEntryLane ? { playEntryLane } : {}),
+        ...(ticketEntryPriceTickets != null
+          ? { ticketEntryPriceTickets }
+          : {}),
         // Bot-fill (eff=1): open in this action so coin/free multi returns ready/error
         // instead of leaving the client stuck on "Creating match".
         deferOpenToCaller: true,

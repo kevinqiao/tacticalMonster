@@ -20,8 +20,6 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import { findPlayerGameByGameId } from "../tournament/shared/casualPlayerGameTypes";
 
 const AD_REPLAY_DAILY_CAP_OVERRIDE_MAX = 100;
-/** Re-pull from SSO when cache is older than this (covers manual SSO DB edits / failed push). */
-const CACHE_STALE_MS = 60_000;
 
 function sanitizeCachedCap(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -66,18 +64,6 @@ function rowToPartial(
   });
 }
 
-function isMutationCtx(ctx: QueryCtx | MutationCtx): ctx is MutationCtx {
-  return typeof (ctx as MutationCtx).scheduler?.runAfter === "function";
-}
-
-async function scheduleSsoCapSync(ctx: MutationCtx, partnerId: number) {
-  await ctx.scheduler.runAfter(
-    0,
-    internal.service.ads.partnerAdReplayConfigSync.syncPartnerAdReplayCapFromSso,
-    { partnerId }
-  );
-}
-
 function normalizePartnerRow(
   row: Doc<"portal_partner_replay_settings"> | null
 ): PortalReplaySettings {
@@ -97,7 +83,8 @@ function normalizePartnerRow(
 
 /**
  * Partner baseline + optional campaign stamp on the run.
- * Cache miss / stale → mutations schedule SSO pull.
+ * SoT is `portal_partner_replay_settings` (platform admin → Portal).
+ * Do not pull from SSO — that would overwrite Portal with stale partner.gameCenter.
  */
 export async function resolveReplayConfig(
   ctx: QueryCtx | MutationCtx,
@@ -108,19 +95,6 @@ export async function resolveReplayConfig(
 ): Promise<PortalReplaySettings> {
   const partnerId = partnerIdFromUid(args.uid);
   const cached = await findPartnerReplaySettings(ctx, partnerId);
-  const now = Date.now();
-
-  if (cached) {
-    if (
-      isMutationCtx(ctx) &&
-      (typeof cached.updatedAt !== "number" || now - cached.updatedAt >= CACHE_STALE_MS)
-    ) {
-      await scheduleSsoCapSync(ctx, partnerId);
-    }
-  } else if (isMutationCtx(ctx)) {
-    await scheduleSsoCapSync(ctx, partnerId);
-  }
-
   const partner = normalizePartnerRow(cached);
   return sparseMergeReplaySettings(partner, args.campaignReplaySettings ?? undefined);
 }
@@ -147,7 +121,7 @@ export async function loadCampaignReplaySettingsForMatchGame(
   return pickReplaySettingsPartial(run.campaignReplaySettings as Record<string, unknown>);
 }
 
-/** SSO → Portal push / sync upsert (full or partial settings). */
+/** Portal GC ops / internal upsert (full or partial settings). */
 export const upsertPartnerAdReplayCapInternal = internalMutation({
   args: {
     partnerId: v.number(),

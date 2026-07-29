@@ -28,6 +28,7 @@ import type * as data_portalDailyPlayLimits from "../data/portalDailyPlayLimits.
 import type * as data_portalGiftCardEconomy from "../data/portalGiftCardEconomy.js";
 import type * as data_portalInstanceWindow from "../data/portalInstanceWindow.js";
 import type * as data_portalLobbyConfig from "../data/portalLobbyConfig.js";
+import type * as data_portalLobbyOpsMode from "../data/portalLobbyOpsMode.js";
 import type * as data_portalMatchmakingConfig from "../data/portalMatchmakingConfig.js";
 import type * as data_portalPartnerReplaySettings from "../data/portalPartnerReplaySettings.js";
 import type * as data_portalPartnerShopSettings from "../data/portalPartnerShopSettings.js";
@@ -43,7 +44,6 @@ import type * as data_portalWeeklyLeagueConfig from "../data/portalWeeklyLeagueC
 import type * as http from "../http.js";
 import type * as service_activity_casualActivityService from "../service/activity/casualActivityService.js";
 import type * as service_ads_partnerAdReplayConfig from "../service/ads/partnerAdReplayConfig.js";
-import type * as service_ads_partnerAdReplayConfigSync from "../service/ads/partnerAdReplayConfigSync.js";
 import type * as service_ads_portalAdCoinMutations from "../service/ads/portalAdCoinMutations.js";
 import type * as service_ads_portalAdCoinQueries from "../service/ads/portalAdCoinQueries.js";
 import type * as service_ads_portalAdCoinService from "../service/ads/portalAdCoinService.js";
@@ -57,6 +57,7 @@ import type * as service_ads_portalAdReplayService from "../service/ads/portalAd
 import type * as service_ads_portalEntryDailyUsage from "../service/ads/portalEntryDailyUsage.js";
 import type * as service_ads_portalEntryUsageScope from "../service/ads/portalEntryUsageScope.js";
 import type * as service_ads_portalPlayEntryOverlayMutations from "../service/ads/portalPlayEntryOverlayMutations.js";
+import type * as service_ads_portalPlayEntryQueueRefund from "../service/ads/portalPlayEntryQueueRefund.js";
 import type * as service_ads_portalTicketEntryQueries from "../service/ads/portalTicketEntryQueries.js";
 import type * as service_ads_portalTicketEntryService from "../service/ads/portalTicketEntryService.js";
 import type * as service_ads_resolvePlayEntrySettings from "../service/ads/resolvePlayEntrySettings.js";
@@ -97,6 +98,9 @@ import type * as service_campaignLeague_campaignLeagueQueries from "../service/c
 import type * as service_campaignLeague_campaignLeagueUpsert from "../service/campaignLeague/campaignLeagueUpsert.js";
 import type * as service_campaignLeague_campaignMultiRankPoints from "../service/campaignLeague/campaignMultiRankPoints.js";
 import type * as service_campaignLeague_campaignSoloPoints from "../service/campaignLeague/campaignSoloPoints.js";
+import type * as service_economy_portalLobbyOpsMutations from "../service/economy/portalLobbyOpsMutations.js";
+import type * as service_economy_portalWalletDao from "../service/economy/portalWalletDao.js";
+import type * as service_economy_resolveEconomyScope from "../service/economy/resolveEconomyScope.js";
 import type * as service_giftcard_giftCardActions from "../service/giftcard/giftCardActions.js";
 import type * as service_giftcard_giftCardDevHarness from "../service/giftcard/giftCardDevHarness.js";
 import type * as service_giftcard_giftCardEligibility from "../service/giftcard/giftCardEligibility.js";
@@ -109,7 +113,10 @@ import type * as service_launch_portalLaunchActions from "../service/launch/port
 import type * as service_launch_portalLaunchAuth from "../service/launch/portalLaunchAuth.js";
 import type * as service_launch_portalLaunchMutations from "../service/launch/portalLaunchMutations.js";
 import type * as service_launch_portalLaunchTypes from "../service/launch/portalLaunchTypes.js";
+import type * as service_lobby_lobbyOfferingRewards from "../service/lobby/lobbyOfferingRewards.js";
 import type * as service_lobby_portalLobbyMutations from "../service/lobby/portalLobbyMutations.js";
+import type * as service_partner_portalPartnerGcOpsAdmin from "../service/partner/portalPartnerGcOpsAdmin.js";
+import type * as service_platformStatus from "../service/platformStatus.js";
 import type * as service_player_playerManager from "../service/player/playerManager.js";
 import type * as service_player_portalDisplayNameLookup from "../service/player/portalDisplayNameLookup.js";
 import type * as service_player_portalPlayerProfile from "../service/player/portalPlayerProfile.js";
@@ -238,6 +245,7 @@ declare const fullApi: ApiFromModules<{
   "data/portalGiftCardEconomy": typeof data_portalGiftCardEconomy;
   "data/portalInstanceWindow": typeof data_portalInstanceWindow;
   "data/portalLobbyConfig": typeof data_portalLobbyConfig;
+  "data/portalLobbyOpsMode": typeof data_portalLobbyOpsMode;
   "data/portalMatchmakingConfig": typeof data_portalMatchmakingConfig;
   "data/portalPartnerReplaySettings": typeof data_portalPartnerReplaySettings;
   "data/portalPartnerShopSettings": typeof data_portalPartnerShopSettings;
@@ -253,7 +261,6 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "service/activity/casualActivityService": typeof service_activity_casualActivityService;
   "service/ads/partnerAdReplayConfig": typeof service_ads_partnerAdReplayConfig;
-  "service/ads/partnerAdReplayConfigSync": typeof service_ads_partnerAdReplayConfigSync;
   "service/ads/portalAdCoinMutations": typeof service_ads_portalAdCoinMutations;
   "service/ads/portalAdCoinQueries": typeof service_ads_portalAdCoinQueries;
   "service/ads/portalAdCoinService": typeof service_ads_portalAdCoinService;
@@ -267,6 +274,7 @@ declare const fullApi: ApiFromModules<{
   "service/ads/portalEntryDailyUsage": typeof service_ads_portalEntryDailyUsage;
   "service/ads/portalEntryUsageScope": typeof service_ads_portalEntryUsageScope;
   "service/ads/portalPlayEntryOverlayMutations": typeof service_ads_portalPlayEntryOverlayMutations;
+  "service/ads/portalPlayEntryQueueRefund": typeof service_ads_portalPlayEntryQueueRefund;
   "service/ads/portalTicketEntryQueries": typeof service_ads_portalTicketEntryQueries;
   "service/ads/portalTicketEntryService": typeof service_ads_portalTicketEntryService;
   "service/ads/resolvePlayEntrySettings": typeof service_ads_resolvePlayEntrySettings;
@@ -307,6 +315,9 @@ declare const fullApi: ApiFromModules<{
   "service/campaignLeague/campaignLeagueUpsert": typeof service_campaignLeague_campaignLeagueUpsert;
   "service/campaignLeague/campaignMultiRankPoints": typeof service_campaignLeague_campaignMultiRankPoints;
   "service/campaignLeague/campaignSoloPoints": typeof service_campaignLeague_campaignSoloPoints;
+  "service/economy/portalLobbyOpsMutations": typeof service_economy_portalLobbyOpsMutations;
+  "service/economy/portalWalletDao": typeof service_economy_portalWalletDao;
+  "service/economy/resolveEconomyScope": typeof service_economy_resolveEconomyScope;
   "service/giftcard/giftCardActions": typeof service_giftcard_giftCardActions;
   "service/giftcard/giftCardDevHarness": typeof service_giftcard_giftCardDevHarness;
   "service/giftcard/giftCardEligibility": typeof service_giftcard_giftCardEligibility;
@@ -319,7 +330,10 @@ declare const fullApi: ApiFromModules<{
   "service/launch/portalLaunchAuth": typeof service_launch_portalLaunchAuth;
   "service/launch/portalLaunchMutations": typeof service_launch_portalLaunchMutations;
   "service/launch/portalLaunchTypes": typeof service_launch_portalLaunchTypes;
+  "service/lobby/lobbyOfferingRewards": typeof service_lobby_lobbyOfferingRewards;
   "service/lobby/portalLobbyMutations": typeof service_lobby_portalLobbyMutations;
+  "service/partner/portalPartnerGcOpsAdmin": typeof service_partner_portalPartnerGcOpsAdmin;
+  "service/platformStatus": typeof service_platformStatus;
   "service/player/playerManager": typeof service_player_playerManager;
   "service/player/portalDisplayNameLookup": typeof service_player_portalDisplayNameLookup;
   "service/player/portalPlayerProfile": typeof service_player_portalPlayerProfile;

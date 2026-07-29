@@ -1,0 +1,2 @@
+import{r,j as e}from"./react-vendor-CrzCOU9b.js";import{u as s}from"./FooterNavIsDesktop-B5AS5LEA.js";import{u as i}from"./useLobbySlideChildSwipe-Czj8wGnl.js";import"./app-shell-Cgv5Qd0l.js";import"./vendor-BX5UfeD-.js";import"./convex-vendor-Bs2kGud2.js";import"./gsap-vendor-DtRcpDEb.js";const f=()=>{const o=r.useRef(null),t=s();return i(o,{enabled:!t}),e.jsx("div",{ref:o,style:{width:"100%",height:"100%",backgroundColor:"green"}})};export{f as default};
+//# sourceMappingURL=Child3-B8guxbtX.js.map

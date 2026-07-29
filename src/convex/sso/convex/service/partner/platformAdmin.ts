@@ -17,31 +17,51 @@ import {
   requirePlatformStaff,
   type PlatformStaffRole,
 } from "./platformStaff";
-import {
-  PARTNER_GAME_TYPES,
-  readPartnerGames,
-  sanitizePartnerGames,
-} from "./portalPartnerConfig";
+import { PARTNER_GAME_TYPES, readPartnerGames } from "./portalPartnerConfig";
 import {
   readPartnerCapabilities,
   requirePartnerSlug,
   validatePartnerSlug,
   type PartnerCapabilities,
 } from "./partnerCapabilities";
-import {
-  applyPartnerReplayPartialToPartnerData,
-  DEFAULT_MAX_REPLAYS_PER_MATCH,
-  effectiveAdReplayDailyCap,
-  effectivePartnerReplaySettings,
-  readAdReplayDailyCapFromPartnerData,
-  sanitizeAdReplayDailyCapInput,
-  sanitizeMaxReplaysPerMatchInput,
-  sanitizeTicketReplayPriceInput,
-} from "./partnerAdReplayConfig";
+import { DEFAULT_NEW_PARTNER_LOBBY_OPS_MODE } from "./partnerLobbyOpsMode";
 
 function dataWithoutEnabledContexts(data: Record<string, unknown>): Record<string, unknown> {
   const { enabledContexts: _drop, ...rest } = data;
   return rest;
+}
+
+/** Drop GC ops leftovers from partner.data (SoT is Portal). */
+function stripLegacyGcOpsFromData(
+  data: Record<string, unknown>
+): Record<string, unknown> {
+  const next = { ...data };
+  for (const key of [
+    "replay",
+    "lobbyOpsMode",
+    "quotaScope",
+    "adEntryEnabled",
+    "ticketEntryEnabled",
+    "adReplayDailyCap",
+    "maxReplaysPerMatch",
+    "adReplayEnabled",
+    "ticketReplayEnabled",
+    "ticketReplayPriceTickets",
+    "coinReplayEnabled",
+    "coinReplayPriceCoins",
+    "coinReplayDailyCap",
+    "freePlaySoloDailyCap",
+    "freePlayMultiDailyCap",
+    "adEntrySoloDailyCap",
+    "adEntryMultiDailyCap",
+    "ticketEntrySoloPriceTickets",
+    "ticketEntrySoloDailyCap",
+    "ticketEntryMultiPriceTickets",
+    "ticketEntryMultiDailyCap",
+  ] as const) {
+    delete next[key];
+  }
+  return next;
 }
 
 const platformStaffRoleValidator = v.union(
@@ -72,26 +92,19 @@ export const assertPlatformOperatorInternal = internalQuery({
   },
 });
 
-/** Sync partner.games from Lobby-derived game types (allowlist for campaign/gates). */
-export const syncPartnerGamesFromLobbiesInternal = internalMutation({
+/** Role-gated check for Node actions (viewer / admin / owner). */
+export const assertPlatformStaffInternal = internalQuery({
   args: {
-    partnerId: v.number(),
-    games: v.array(v.string()),
+    uid: v.string(),
+    minRole: platformStaffRoleValidator,
   },
-  handler: async (ctx, { partnerId, games }) => {
-    const partner = await getPartnerByPid(ctx, partnerId);
-    if (!partner) throw new Error("not_found");
-    // Empty derived set: keep existing games (sanitizePartnerGames rejects []).
-    if (games.length === 0) {
-      return { ok: true as const, games: readPartnerGames(partner), skipped: true as const };
+  handler: async (ctx, { uid, minRole }) => {
+    try {
+      await requirePlatformStaff({ ...ctx, user: { uid: uid.trim() } }, minRole);
+      return { ok: true as const };
+    } catch {
+      return { ok: false as const, error: "forbidden" as const };
     }
-    const sanitized = sanitizePartnerGames(games);
-    const capabilities: PartnerCapabilities = {
-      ...readPartnerCapabilities(partner),
-      portalGames: true,
-    };
-    await ctx.db.patch(partner._id, { games: sanitized, capabilities });
-    return { ok: true as const, games: sanitized, skipped: false as const };
   },
 });
 
@@ -162,13 +175,13 @@ export const createPartner = authedMutation({
       capabilities,
       ...(slug ? { slug } : {}),
     });
-    if (slug) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.service.partner.platformAdminBrandSync.syncPartnerBrandSlug,
-        { partnerId: pid, slug }
-      );
-    }
+    // Seed Portal SoT (lobbyOps); do not store GC ops on SSO partner.gameCenter.
+    await ctx.scheduler.runAfter(
+      0,
+      internal.service.bridge.portalGcOpsBridge.upsertPartnerGcOpsToPortal,
+      { partnerId: pid, lobbyOpsMode: DEFAULT_NEW_PARTNER_LOBBY_OPS_MODE }
+    );
+    // No Campaign brand sync — slug→partnerId resolves only via SSO `partner.slug`.
     return { pid, capabilities, slug: slug ?? "" };
   },
 });
@@ -214,13 +227,7 @@ export const updatePartnerCapabilities = authedMutation({
       slug,
       data: dataWithoutEnabledContexts(prevData),
     });
-    if (capabilities.campaignOps && slug) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.service.partner.platformAdminBrandSync.syncPartnerBrandSlug,
-        { partnerId: args.partnerId, slug }
-      );
-    }
+    // No Campaign brand sync — slug→partnerId resolves only via SSO `partner.slug`.
     return { ok: true as const, capabilities, slug: slug ?? "" };
   },
 });
@@ -231,7 +238,7 @@ export const deletePartner = authedMutation({
   handler: async (ctx, { pid }) => {
     await requirePlatformStaff(ctx, "admin");
 
-    // pid 0 = platform namespace / synthetic "Default Partner" — never delete.
+    // pid 0 = platform namespace / synthetic "Default Partner" â€” never delete.
     if (isFirstPartyPartnerId(pid)) {
       throw new Error("default_partner_protected");
     }
@@ -395,137 +402,52 @@ export const removePlatformStaff = authedMutation({
   },
 });
 
-/** Platform-only: read partner slug (partnerSlug) + games activation. */
-export const getPartnerPortalConfig = authedQuery({
+/**
+ * SSO identity slice for platform admin (slug / capabilities).
+ * GC ops SoT lives on Portal — see platformPartnerGcOpsAdmin actions.
+ * Games = static catalog (full open).
+ */
+export const getPartnerPortalIdentityInternal = internalQuery({
   args: { partnerId: v.number() },
   handler: async (ctx, { partnerId }) => {
-    await requirePlatformStaff(ctx, "viewer");
     const partner = await getPartnerByPid(ctx, partnerId);
     const isFirstParty = isFirstPartyPartnerId(partnerId);
-    // PID 0 may be synthetic (no row yet) — still allow configuring games.
     if (!partner && !isFirstParty) return null;
-    const games = readPartnerGames(partner ?? { games: undefined });
+    const games = readPartnerGames();
     const partnerSlug =
-      (typeof partner?.slug === "string" && partner.slug.trim()
+      typeof partner?.slug === "string" && partner.slug.trim()
         ? partner.slug.trim().toLowerCase()
-        : "") ||
-      (typeof partner?.portal_key === "string" && partner.portal_key.trim()
-        ? partner.portal_key.trim().toLowerCase()
-        : "");
-    const data =
-      partner?.data && typeof partner.data === "object"
-        ? (partner.data as Record<string, unknown>)
-        : null;
-    const adReplayOverride = readAdReplayDailyCapFromPartnerData(data);
-    const replay = effectivePartnerReplaySettings(data);
-    const replayBag =
-      data?.replay && typeof data.replay === "object"
-        ? (data.replay as Record<string, unknown>)
-        : null;
+        : "";
+    const lobbyUrl = partnerSlug ? `/gc/${partnerSlug}` : "/gc";
     return {
       partnerId,
       partnerSlug,
-      /** @deprecated Use partnerSlug */
-      portalKey: partnerSlug,
       games,
       isFirstParty,
-      lobbyUrl: isFirstParty || !partnerSlug ? "/gc" : "/gc/" + partnerSlug,
-      launchUrls: games.map((gameType) =>
-        isFirstParty || !partnerSlug
-          ? "/gc/" + gameType
-          : "/gc/" + partnerSlug + "/" + gameType
-      ),
+      capabilities: readPartnerCapabilities(partner),
+      lobbyUrl,
+      launchUrls: [lobbyUrl],
       registryGames: [...PARTNER_GAME_TYPES],
-      adReplayDailyCap: adReplayOverride,
-      adReplayDailyCapEffective: effectiveAdReplayDailyCap(data),
-      /** null = unlimited (UI); numeric only for finite platform default docs. */
-      adReplayDailyCapDefault: null as number | null,
-      maxReplaysPerMatch:
-        typeof replayBag?.maxReplaysPerMatch === "number"
-          ? replayBag.maxReplaysPerMatch
-          : null,
-      maxReplaysPerMatchEffective: replay.maxReplaysPerMatch,
-      maxReplaysPerMatchDefault: DEFAULT_MAX_REPLAYS_PER_MATCH,
-      adReplayEnabled: replay.adReplayEnabled,
-      ticketReplayEnabled: replay.ticketReplayEnabled,
-      ticketReplayPriceTickets:
-        typeof replayBag?.ticketReplayPriceTickets === "number"
-          ? replayBag.ticketReplayPriceTickets
-          : null,
-      ticketReplayPriceTicketsEffective: replay.ticketReplayPriceTickets,
-      freePlaySoloDailyCap: data?.freePlaySoloDailyCap ?? null,
-      freePlayMultiDailyCap: data?.freePlayMultiDailyCap ?? null,
-      quotaScope:
-        data?.quotaScope === "mode" ||
-        data?.quotaScope === "lobby" ||
-        data?.quotaScope === "tournament"
-          ? data.quotaScope
-          : null,
-      adEntryEnabled:
-        typeof data?.adEntryEnabled === "boolean" ? data.adEntryEnabled : null,
-      adEntrySoloDailyCap: data?.adEntrySoloDailyCap ?? null,
-      adEntryMultiDailyCap: data?.adEntryMultiDailyCap ?? null,
-      ticketEntryEnabled:
-        typeof data?.ticketEntryEnabled === "boolean" ? data.ticketEntryEnabled : null,
-      ticketEntrySoloPriceTickets: data?.ticketEntrySoloPriceTickets ?? null,
-      ticketEntrySoloDailyCap: data?.ticketEntrySoloDailyCap ?? null,
-      ticketEntryMultiPriceTickets: data?.ticketEntryMultiPriceTickets ?? null,
-      ticketEntryMultiDailyCap: data?.ticketEntryMultiDailyCap ?? null,
     };
   },
 });
 
-/**
- * Platform-only: Partner base settings for Game Lobby (slug + economy/replay).
- * Enabled games are derived from Lobby offerings (see platformPartnerLobbyAdmin sync).
- * PID 0 (first-party) does not require partnerSlug — URLs are /gc/{gameType}.
- *
- * Optional `adReplayDailyCap`: omit = leave unchanged; null = clear override (default unlimited).
- * Optional `games`: omit = keep existing partner.games.
- */
-export const updatePartnerPortalConfig = authedMutation({
+/** Patch SSO partner identity (slug / capabilities). GC ops live on Portal. */
+export const patchPartnerPortalIdentityInternal = internalMutation({
   args: {
     partnerId: v.number(),
-    /** Omit / empty for first-party (PID 0). Required for other partners. */
     partnerSlug: v.optional(v.string()),
-    /** @deprecated Prefer partnerSlug */
-    portalKey: v.optional(v.string()),
-    /** Optional; omit to leave partner.games unchanged (Lobby-derived). */
-    games: v.optional(v.array(v.string())),
-    adReplayDailyCap: v.optional(v.union(v.number(), v.null())),
-    maxReplaysPerMatch: v.optional(v.union(v.number(), v.null())),
-    adReplayEnabled: v.optional(v.boolean()),
-    ticketReplayEnabled: v.optional(v.boolean()),
-    ticketReplayPriceTickets: v.optional(v.union(v.number(), v.null())),
-    freePlaySoloDailyCap: v.optional(v.union(v.number(), v.null())),
-    freePlayMultiDailyCap: v.optional(v.union(v.number(), v.null())),
-    /** mode | lobby | tournament; null clears to default (mode). */
-    quotaScope: v.optional(
-      v.union(
-        v.literal("mode"),
-        v.literal("lobby"),
-        v.literal("tournament"),
-        v.null()
-      )
-    ),
-    adEntryEnabled: v.optional(v.union(v.boolean(), v.null())),
-    adEntrySoloDailyCap: v.optional(v.union(v.number(), v.null())),
-    adEntryMultiDailyCap: v.optional(v.union(v.number(), v.null())),
-    ticketEntryEnabled: v.optional(v.union(v.boolean(), v.null())),
-    ticketEntrySoloPriceTickets: v.optional(v.union(v.number(), v.null())),
-    ticketEntrySoloDailyCap: v.optional(v.union(v.number(), v.null())),
-    ticketEntryMultiPriceTickets: v.optional(v.union(v.number(), v.null())),
-    ticketEntryMultiDailyCap: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
-    await requirePlatformStaff(ctx, "admin");
     const isFirstParty = isFirstPartyPartnerId(args.partnerId);
     let partner = await getPartnerByPid(ctx, args.partnerId);
 
     if (!partner) {
       if (!isFirstParty) throw new Error("not_found");
-      // Ensure Default Partner row exists so games can be persisted.
-      const bootstrapCaps: PartnerCapabilities = { portalGames: true, campaignOps: false };
+      const bootstrapCaps: PartnerCapabilities = {
+        portalGames: true,
+        campaignOps: false,
+      };
       await ctx.db.insert("partner", {
         pid: PLATFORM_NAMESPACE_PARTNER_ID,
         name: "Default Partner",
@@ -537,74 +459,9 @@ export const updatePartnerPortalConfig = authedMutation({
       if (!partner) throw new Error("not_found");
     }
 
-    let partnerSlug: string | undefined;
-    if (isFirstParty) {
-      // First-party uses /gc/{gameType}; never require partnerSlug.
-      partnerSlug = undefined;
-    } else {
-      partnerSlug = requirePartnerSlug(args.partnerSlug ?? args.portalKey ?? "");
-    }
-
-    const games =
-      args.games !== undefined
-        ? sanitizePartnerGames(args.games)
-        : readPartnerGames(partner);
-    const prevData = dataWithoutEnabledContexts(
-      (partner.data ?? {}) as Record<string, unknown>
-    );
-    const capInput = sanitizeAdReplayDailyCapInput(args.adReplayDailyCap);
-    const maxReplaysInput = sanitizeMaxReplaysPerMatchInput(args.maxReplaysPerMatch);
-    const ticketPriceInput = sanitizeTicketReplayPriceInput(args.ticketReplayPriceTickets);
-    let nextData = applyPartnerReplayPartialToPartnerData(prevData, {
-      adReplayDailyCap: capInput,
-      maxReplaysPerMatch: maxReplaysInput,
-      ...(args.adReplayEnabled !== undefined
-        ? { adReplayEnabled: args.adReplayEnabled }
-        : {}),
-      ...(args.ticketReplayEnabled !== undefined
-        ? { ticketReplayEnabled: args.ticketReplayEnabled }
-        : {}),
-      ticketReplayPriceTickets: ticketPriceInput,
-    });
-    if (args.adEntryEnabled !== undefined) {
-      if (args.adEntryEnabled === null) delete nextData.adEntryEnabled;
-      else nextData.adEntryEnabled = args.adEntryEnabled;
-    }
-    if (args.ticketEntryEnabled !== undefined) {
-      if (args.ticketEntryEnabled === null) delete nextData.ticketEntryEnabled;
-      else nextData.ticketEntryEnabled = args.ticketEntryEnabled;
-    }
-    if (args.quotaScope !== undefined) {
-      if (args.quotaScope === null) delete nextData.quotaScope;
-      else if (
-        args.quotaScope === "mode" ||
-        args.quotaScope === "lobby" ||
-        args.quotaScope === "tournament"
-      ) {
-        nextData.quotaScope = args.quotaScope;
-      } else {
-        throw new Error("play_entry_setting_invalid");
-      }
-    }
-    for (const key of [
-      "freePlaySoloDailyCap", "freePlayMultiDailyCap",
-      "adEntrySoloDailyCap", "adEntryMultiDailyCap",
-      "ticketEntrySoloPriceTickets", "ticketEntrySoloDailyCap",
-      "ticketEntryMultiPriceTickets", "ticketEntryMultiDailyCap",
-    ] as const) {
-      const value = args[key];
-      if (value === undefined) continue;
-      const max = key.includes("Price") ? 100 : 100;
-      if (value !== null && (!Number.isInteger(value) || value < 0 || value > max ||
-        (key.includes("Price") && value < 1))) throw new Error("play_entry_setting_invalid");
-      if (value === null) delete nextData[key];
-      else nextData[key] = value;
-    }
-    // Activating portal config implies portalGames capability.
-    const capabilities: PartnerCapabilities = {
-      ...readPartnerCapabilities(partner),
-      portalGames: true,
-    };
+    const partnerSlug = isFirstParty
+      ? validatePartnerSlug(args.partnerSlug ?? partner.slug ?? "")
+      : requirePartnerSlug(args.partnerSlug ?? partner.slug ?? "");
 
     if (partnerSlug) {
       const conflict = await ctx.db
@@ -612,77 +469,26 @@ export const updatePartnerPortalConfig = authedMutation({
         .withIndex("by_slug", (q) => q.eq("slug", partnerSlug))
         .unique();
       if (conflict && conflict.pid !== partner.pid) throw new Error("slug_taken");
-      const legacyConflict = await ctx.db
-        .query("partner")
-        .withIndex("by_portal_key", (q) => q.eq("portal_key", partnerSlug))
-        .unique();
-      if (
-        legacyConflict &&
-        legacyConflict.pid !== partner.pid &&
-        (legacyConflict.slug == null || legacyConflict.slug === "")
-      ) {
-        throw new Error("slug_taken");
-      }
     }
 
+    const capabilities: PartnerCapabilities = {
+      ...readPartnerCapabilities(partner),
+      portalGames: true,
+    };
+
+    const prevData = (partner.data ?? {}) as Record<string, unknown>;
+    const cleaned = stripLegacyGcOpsFromData(dataWithoutEnabledContexts(prevData));
+
     await ctx.db.patch(partner._id, {
-      ...(isFirstParty ? {} : { slug: partnerSlug }),
-      games,
+      slug: partnerSlug,
       capabilities,
-      data: nextData,
+      data: Object.keys(cleaned).length > 0 ? cleaned : undefined,
     });
-
-    const effectiveReplay = effectivePartnerReplaySettings(nextData);
-    await ctx.scheduler.runAfter(
-      0,
-      internal.service.bridge.portalAdReplayCapPush.pushPartnerAdReplayCapToPortal,
-      {
-        partnerId: args.partnerId,
-        adReplayDailyCap: effectiveReplay.adReplayDailyCap,
-        maxReplaysPerMatch: effectiveReplay.maxReplaysPerMatch,
-        adReplayEnabled: effectiveReplay.adReplayEnabled,
-        ticketReplayEnabled: effectiveReplay.ticketReplayEnabled,
-        ticketReplayPriceTickets: effectiveReplay.ticketReplayPriceTickets,
-        coinReplayEnabled: effectiveReplay.coinReplayEnabled,
-        coinReplayPriceCoins: effectiveReplay.coinReplayPriceCoins,
-        coinReplayDailyCap: effectiveReplay.coinReplayDailyCap,
-      }
-    );
-    await ctx.scheduler.runAfter(
-      0,
-      internal.service.bridge.portalAdReplayCapPush.pushPartnerPlayEntrySettingsToPortal,
-      {
-        partnerId: args.partnerId,
-        ...(args.quotaScope === null
-          ? { quotaScope: null }
-          : nextData.quotaScope === "mode" ||
-              nextData.quotaScope === "lobby" ||
-              nextData.quotaScope === "tournament"
-            ? { quotaScope: nextData.quotaScope as "mode" | "lobby" | "tournament" }
-            : {}),
-        ...(typeof nextData.freePlaySoloDailyCap === "number" ? { freePlaySoloDailyCap: nextData.freePlaySoloDailyCap } : {}),
-        ...(typeof nextData.freePlayMultiDailyCap === "number" ? { freePlayMultiDailyCap: nextData.freePlayMultiDailyCap } : {}),
-        ...(typeof nextData.adEntryEnabled === "boolean" ? { adEntryEnabled: nextData.adEntryEnabled } : {}),
-        ...(typeof nextData.adEntrySoloDailyCap === "number" ? { adEntrySoloDailyCap: nextData.adEntrySoloDailyCap } : {}),
-        ...(typeof nextData.adEntryMultiDailyCap === "number" ? { adEntryMultiDailyCap: nextData.adEntryMultiDailyCap } : {}),
-        ...(typeof nextData.ticketEntryEnabled === "boolean" ? { ticketEntryEnabled: nextData.ticketEntryEnabled } : {}),
-        ...(typeof nextData.ticketEntrySoloPriceTickets === "number" ? { ticketEntrySoloPriceTickets: nextData.ticketEntrySoloPriceTickets } : {}),
-        ...(typeof nextData.ticketEntrySoloDailyCap === "number" ? { ticketEntrySoloDailyCap: nextData.ticketEntrySoloDailyCap } : {}),
-        ...(typeof nextData.ticketEntryMultiPriceTickets === "number" ? { ticketEntryMultiPriceTickets: nextData.ticketEntryMultiPriceTickets } : {}),
-        ...(typeof nextData.ticketEntryMultiDailyCap === "number" ? { ticketEntryMultiDailyCap: nextData.ticketEntryMultiDailyCap } : {}),
-      }
-    );
-
     return {
       ok: true as const,
-      partnerSlug: isFirstParty ? "" : (partnerSlug as string),
-      /** @deprecated Use partnerSlug */
-      portalKey: isFirstParty ? "" : (partnerSlug as string),
-      games,
+      partnerSlug: partnerSlug ?? "",
+      games: readPartnerGames(),
       capabilities,
-      adReplayDailyCap: readAdReplayDailyCapFromPartnerData(nextData),
-      adReplayDailyCapEffective: effectiveReplay.adReplayDailyCap,
-      maxReplaysPerMatchEffective: effectiveReplay.maxReplaysPerMatch,
     };
   },
 });

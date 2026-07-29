@@ -55,6 +55,7 @@ export type CasualAsyncTableSummaryUI = {
   replayTokenCount?: number;
   canReplay?: boolean;
   adReplayDailyRemaining?: number;
+  adReplayDailyCap?: number;
   replayWindowEndsAt?: number;
 };
 
@@ -91,6 +92,7 @@ export type ManualSettleConfirmExtras = {
   replayTokenCount?: number;
   canReplay?: boolean;
   adReplayDailyRemaining?: number;
+  adReplayDailyCap?: number;
   /** epoch ms；再战窗口结束时刻，供同桌摘要倒计时 */
   replayWindowEndsAt?: number;
   /** solo_p75_challenge：目标分（P75） */
@@ -113,6 +115,7 @@ export function applyCasualTableSummaryFromQuery(
     setReplayWindowEndsAt: (v: number | undefined) => void;
     setReplayMode?: (v: "ad" | "token") => void;
     setAdReplayDailyRemaining?: (v: number | undefined) => void;
+    setAdReplayDailyCap?: (v: number | undefined) => void;
   }
 ) {
   const ticketCount =
@@ -134,6 +137,13 @@ export function applyCasualTableSummaryFromQuery(
     setters.setAdReplayDailyRemaining(
       typeof summary.adReplayDailyRemaining === 'number'
         ? summary.adReplayDailyRemaining
+        : undefined
+    );
+  }
+  if (setters.setAdReplayDailyCap) {
+    setters.setAdReplayDailyCap(
+      typeof summary.adReplayDailyCap === 'number'
+        ? summary.adReplayDailyCap
         : undefined
     );
   }

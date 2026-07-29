@@ -185,8 +185,15 @@
     "UTC": "UTC"
   },
   "couponDefs": {
-    "title": "Coupon definitions",
+    "title": "Voucher SKUs",
     "intro": "Maintain coupon templates, usage rules, and post-claim validity. Campaigns reference a definition; issued coupons snapshot reward copy and expiry.",
+    "skuIntro": "Voucher SKUs are managed in Partner/Platform shop admin. This list is read-only — pick a SKU as a campaign reward here, or manage SKUs in the shop admin.",
+    "skuIdLabel": "SKU: {{skuId}}",
+    "validityDaysLabel": "Valid {{days}} days after claim",
+    "validityDaysUnset": "No fixed validity",
+    "activeYes": "Active",
+    "activeNo": "Inactive",
+    "skuEmpty": "No voucher SKUs yet. Create SKUs in Partner/Platform shop admin.",
     "newTitle": "New coupon definition",
     "adminName": "Admin name",
     "adminNamePlaceholder": "e.g. Medium americano",
@@ -221,6 +228,7 @@
     "filterCampaign": "Filtered campaign: {{campaignId}}",
     "recent200": "Showing latest 200 coupons for this merchant",
     "issuedAt": "Issued {{issuedAt}} · active {{activatesAt}} · expires {{expiresAt}}",
+    "meta": "campaign {{campaignId}}",
     "metaPassRun": "campaign {{campaignId}} · run {{runTournamentId}}",
     "metaSettle": "campaign {{campaignId}} · settlement {{settlementId}}",
     "statusLine": "{{status}} · {{ruleId}} · uid {{uid}}…",
@@ -252,9 +260,10 @@
   },
   "brand": {
     "title": "Brand theme",
-    "brandUrl": "Brand website URL",
+    "brandUrl": "Official website URL",
     "brandUrlPlaceholder": "https://example.com",
-    "syncTheme": "Sync theme",
+    "syncTheme": "Sync Theme",
+    "primaryColor": "Primary color",
     "approve": "Publish theme"
   },
   "team": {

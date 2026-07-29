@@ -16,13 +16,10 @@ const PORTAL_ERROR_MAP: Record<string, string> = {
   slug_required: "Partner slug 必填（非第一方 Partner）。",
   slug_invalid: "Partner slug 格式无效（小写字母、数字、连字符）。",
   slug_reserved: "该 Partner slug 为保留字。",
-  slug_conflicts_game_type: "Partner slug 不能与游戏类型同名。",
+  /** @deprecated game-type slugs are allowed for partners now */
+  slug_conflicts_game_type: "Partner slug 无效。",
   slug_taken: "该 Partner slug 已被占用。",
   /** @deprecated aliases */
-  portal_key_required: "Partner slug 必填（非第一方 Partner）。",
-  portal_key_invalid: "Partner slug 格式无效（小写字母、数字、连字符）。",
-  portal_key_conflicts_game_type: "Partner slug 不能与游戏类型同名。",
-  portal_key_taken: "该 Partner slug 已被占用。",
   ad_replay_daily_cap_invalid: "每日广告再战次数须为 0–100 的整数（空=默认无限）。",
   max_replays_per_match_invalid: "同局最多再战次数须为 0–20 的整数（空=默认 1）。",
   ticket_replay_price_invalid: "门票再战价格须为 1–100 的整数（空=默认 1）。",
@@ -45,8 +42,12 @@ type Props = {
 
 /** Partner base settings: slug + entry ladder + replay (games come from Lobbies). */
 const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }) => {
-  const config = usePartnerPortalConfig(partnerId);
-  const { updatePartnerPortalConfig } = usePlatformAdminMutations();
+  const { config, reload } = usePartnerPortalConfig(partnerId);
+  const { updatePartnerPortalConfig, updatePartnerCapabilities } =
+    usePlatformAdminMutations();
+  const [portalGamesCap, setPortalGamesCap] = useState(false);
+  const [campaignOpsCap, setCampaignOpsCap] = useState(false);
+  const [savingCaps, setSavingCaps] = useState(false);
   const [partnerSlug, setPartnerSlug] = useState("");
   /** Empty string = use platform default (unlimited). */
   const [adReplayDailyCapInput, setAdReplayDailyCapInput] = useState("");
@@ -61,6 +62,10 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   const [quotaScope, setQuotaScope] = useState<"mode" | "lobby" | "tournament">(
     "mode"
   );
+  /** isolated | shared — economy partition across lobbies. */
+  const [lobbyOpsMode, setLobbyOpsMode] = useState<"isolated" | "shared">(
+    "shared"
+  );
   const [adEntryEnabled, setAdEntryEnabled] = useState(true);
   const [adEntrySoloCap, setAdEntrySoloCap] = useState("");
   const [adEntryMultiCap, setAdEntryMultiCap] = useState("");
@@ -72,20 +77,32 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   const [note, setNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const hydratedForPartner = useRef<number | null>(null);
+  const lastHydratedCapKey = useRef<string>("");
 
-  // Prefer pid check over query flag so PID 0 never blocks on partnerSlug.
   const isFirstParty =
     isFirstPartyPartnerId(partnerId) || config?.isFirstParty === true;
 
   useEffect(() => {
     hydratedForPartner.current = null;
+    lastHydratedCapKey.current = "";
   }, [partnerId]);
+
+  // Re-hydrate when server cap changes (e.g. after save), not only on first open.
+  const serverCapKey =
+    config == null
+      ? ""
+      : `${partnerId}:${String(config.adReplayDailyCap ?? "")}:${String(config.maxReplaysPerMatch ?? "")}:${String(config.ticketReplayPriceTickets ?? "")}`;
 
   useEffect(() => {
     if (!config) return;
-    if (hydratedForPartner.current === partnerId) return;
+    if (hydratedForPartner.current === partnerId && lastHydratedCapKey.current === serverCapKey) {
+      return;
+    }
     hydratedForPartner.current = partnerId;
-    setPartnerSlug(config.partnerSlug ?? config.portalKey ?? "");
+    lastHydratedCapKey.current = serverCapKey;
+    setPortalGamesCap(config.capabilities?.portalGames === true);
+    setCampaignOpsCap(config.capabilities?.campaignOps === true);
+    setPartnerSlug(config.partnerSlug ?? "");
     setAdReplayDailyCapInput(
       typeof config.adReplayDailyCap === "number"
         ? String(config.adReplayDailyCap)
@@ -110,6 +127,12 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         ? config.quotaScope
         : "mode"
     );
+    setLobbyOpsMode(
+      config.lobbyOpsModeEffective === "isolated" ||
+        config.lobbyOpsMode === "isolated"
+        ? "isolated"
+        : "shared"
+    );
     setAdEntryEnabled(config.adEntryEnabled !== false);
     setAdEntrySoloCap(
       config.adEntrySoloDailyCap == null ? "" : String(config.adEntrySoloDailyCap)
@@ -122,16 +145,38 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
     setTicketSoloCap(config.ticketEntrySoloDailyCap == null ? "" : String(config.ticketEntrySoloDailyCap));
     setTicketMultiPrice(config.ticketEntryMultiPriceTickets == null ? "" : String(config.ticketEntryMultiPriceTickets));
     setTicketMultiCap(config.ticketEntryMultiDailyCap == null ? "" : String(config.ticketEntryMultiDailyCap));
-  }, [config, partnerId]);
+  }, [config, partnerId, serverCapKey]);
 
   const trimmedSlug = partnerSlug.trim();
+
+  const onSaveCapabilities = async () => {
+    if (!canEdit) return;
+    setSavingCaps(true);
+    setNote(null);
+    try {
+      const trimmedSlug = partnerSlug.trim().toLowerCase();
+      await updatePartnerCapabilities({
+        partnerId,
+        portalGames: portalGamesCap,
+        campaignOps: campaignOpsCap,
+        ...(campaignOpsCap && trimmedSlug ? { slug: trimmedSlug } : {}),
+      });
+      hydratedForPartner.current = null;
+      reload();
+      setNote(platformAdminSuccessMessage("capabilitiesSaved"));
+    } catch (e) {
+      setNote(portalConfigErrorMessage(e));
+    } finally {
+      setSavingCaps(false);
+    }
+  };
 
   const onSave = async () => {
     if (!canEdit) {
       setNote(portalConfigErrorMessage(new Error("forbidden")));
       return;
     }
-    // Re-check by pid at save time (avoid stale closure / wrong flag).
+    // Non–first-party must have a slug; Default Partner slug is optional.
     const saveAsFirstParty = isFirstPartyPartnerId(partnerId);
     if (!saveAsFirstParty && !trimmedSlug) {
       setNote(portalConfigErrorMessage(new Error("slug_required")));
@@ -187,6 +232,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         freePlaySoloDailyCap: freeSolo === "" ? null : Number(freeSolo),
         freePlayMultiDailyCap: freeMulti === "" ? null : Number(freeMulti),
         quotaScope,
+        lobbyOpsMode,
         adEntryEnabled,
         adEntrySoloDailyCap: adEntrySoloCap === "" ? null : Number(adEntrySoloCap),
         adEntryMultiDailyCap: adEntryMultiCap === "" ? null : Number(adEntryMultiCap),
@@ -195,9 +241,11 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         ticketEntrySoloDailyCap: ticketSoloCap === "" ? null : Number(ticketSoloCap),
         ticketEntryMultiPriceTickets: ticketMultiPrice === "" ? null : Number(ticketMultiPrice),
         ticketEntryMultiDailyCap: ticketMultiCap === "" ? null : Number(ticketMultiCap),
-        ...(saveAsFirstParty ? {} : { partnerSlug: trimmedSlug }),
+        // Always send: first-party empty string clears vanity slug.
+        partnerSlug: trimmedSlug,
       });
       hydratedForPartner.current = null;
+      reload();
       setNote(platformAdminSuccessMessage("portalSaved"));
     } catch (e) {
       setNote(portalConfigErrorMessage(e));
@@ -218,31 +266,67 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   return (
     <section style={{ marginBottom: 28 }}>
       <h3 className="merchant-section-title">Partner 基础设置</h3>
+      <fieldset className="merchant-field merchant-field--radio">
+        <legend>产品能力</legend>
+        <p className="merchant-note" style={{ marginTop: 0 }}>
+          平台级开关：控制该 Partner 是否启用 Game Center（portal）与 Campaign Ops。
+        </p>
+        <label className="merchant-radio">
+          <input
+            type="checkbox"
+            checked={portalGamesCap}
+            disabled={!canEdit}
+            onChange={(e) => setPortalGamesCap(e.target.checked)}
+          />
+          portalGames（Game Center / Portal）
+        </label>
+        <label className="merchant-radio">
+          <input
+            type="checkbox"
+            checked={campaignOpsCap}
+            disabled={!canEdit}
+            onChange={(e) => setCampaignOpsCap(e.target.checked)}
+          />
+          campaignOps（活动 / 券 / 门店）
+        </label>
+        {campaignOpsCap && !partnerSlug.trim() && !isFirstParty ? (
+          <p className="merchant-note">开启 campaignOps 时需填写下方 Partner slug。</p>
+        ) : null}
+        {canEdit ? (
+          <button
+            type="button"
+            className="merchant-btn"
+            style={{ marginTop: 8 }}
+            disabled={savingCaps}
+            onClick={() => void onSaveCapabilities()}
+          >
+            {savingCaps ? "保存中…" : "保存产品能力"}
+          </button>
+        ) : null}
+      </fieldset>
       <p className="merchant-note">
         {isFirstParty ? (
           <>
-            第一方（PID 0）使用路径 <code>/gc/&#123;game&#125;</code> 或 Lobby URL，
-            <strong>不需要</strong> Partner slug。激活游戏由 Game Lobby 的 offerings 派生。
+            第一方（PID 0）入口为 <code>/gc</code>。可选 Partner slug（如 <code>main</code>
+            ）启用 <code>/gc/&#123;slug&#125;/...</code>。大厅上架由 Game Lobby offerings / tournament 决定。
           </>
         ) : (
           <>
-            Partner 级底配置：slug、入场阶梯与再战。激活游戏由 Game Lobby offerings 自动同步到{" "}
-            <code>partner.games</code>。
+            Partner 级底配置：slug、入场阶梯与再战。大厅上架游戏由 Game Lobby offerings /
+            tournament 决定（与 partner 级 games 无关）。
           </>
         )}
       </p>
-      {!isFirstParty ? (
-        <label className="merchant-field">
-          Partner slug
-          <input
-            value={partnerSlug}
-            onChange={(e) => setPartnerSlug(e.target.value)}
-            placeholder="my-partner"
-            autoComplete="off"
-            disabled={!canEdit}
-          />
-        </label>
-      ) : null}
+      <label className="merchant-field">
+        Partner slug{isFirstParty ? "（可选）" : ""}
+        <input
+          value={partnerSlug}
+          onChange={(e) => setPartnerSlug(e.target.value)}
+          placeholder={isFirstParty ? "main" : "my-partner"}
+          autoComplete="off"
+          disabled={!canEdit}
+        />
+      </label>
       {typeof config.lobbyUrl === "string" && config.lobbyUrl ? (
         <p className="merchant-note">
           默认 Lobby URL：<code>{config.lobbyUrl}</code>
@@ -337,6 +421,26 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         </label>
       </fieldset>
       <fieldset className="merchant-field merchant-field--radio">
+        <legend>Lobby 经济隔离</legend>
+        <label className="merchant-field">
+          运营模式
+          <select
+            value={lobbyOpsMode}
+            onChange={(e) =>
+              setLobbyOpsMode(e.target.value as "isolated" | "shared")
+            }
+            disabled={!canEdit}
+          >
+            <option value="isolated">隔离 — 钱包/商店/广告再战额度按 Lobby 分开</option>
+            <option value="shared">共享 — 同 Partner 下各 Lobby 共用经济</option>
+          </select>
+        </label>
+        <p className="merchant-note">
+          仅影响经济与广告用量。匹配池与种子履历始终按玩家身份（uid）在 Partner 内共享。
+          切换隔离时 shared 余额不会自动拆分；切回共享时需运维合并各 Lobby 钱包。
+        </p>
+      </fieldset>
+      <fieldset className="merchant-field merchant-field--radio">
         <legend>免费 → 广告 → 门票入场（Partner 底配置）</legend>
         <label className="merchant-field">
           入场次数共享范围
@@ -354,6 +458,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         </label>
         <p className="merchant-note">
           Lobby 可再覆盖此底配置。默认「按模式」：Solitaire / Block Blast 共用单人免费次数。
+          留空=平台默认（单人 3 / 多人 10）；保存后会同步到 Portal，否则大厅仍用代码默认值。
         </p>
         <div className="merchant-field-row">
           <label className="merchant-field">
@@ -390,7 +495,10 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
           />
           广告入场
         </label>
-        <p className="merchant-note">免费用尽后可看广告进入；填 0 关闭该模式广告入场日限档。</p>
+        <p className="merchant-note">
+          免费用尽后可看广告进入；填 0 关闭该模式广告入场日限档。留空=平台默认（单人 5 /
+          多人 10），保存后会同步清除 Portal 旧覆盖值。
+        </p>
         <div className="merchant-field-row">
           <label className="merchant-field">
             单人广告入场/日

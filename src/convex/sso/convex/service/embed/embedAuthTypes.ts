@@ -10,6 +10,7 @@ export type PartnerEmbedContext = {
   pid: number;
   name?: string;
   host?: string;
+  embed?: unknown;
   data?: unknown;
 };
 

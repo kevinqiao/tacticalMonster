@@ -98,6 +98,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         postCasualReplayMode,
         postCasualReplayWindowEndsAt,
         postCasualAdReplayDailyRemaining,
+        postCasualAdReplayDailyCap,
         casualReplayBusy,
         casualReplayError,
         replayCasualRun,
@@ -124,6 +125,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 replayMode: postCasualReplayMode,
                 challengeSuccess: postCasualScoreReport?.challenge?.success,
                 adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+                adReplayDailyCap: postCasualAdReplayDailyCap,
             }),
         [
             casualTournamentId,
@@ -132,6 +134,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             postCasualReplayMode,
             postCasualScoreReport?.challenge?.success,
             postCasualAdReplayDailyRemaining,
+            postCasualAdReplayDailyCap,
         ]
     );
 
@@ -154,6 +157,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 canReplay: postCasualCanReplay,
                 replayMode: postCasualReplayMode,
                 adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+                adReplayDailyCap: postCasualAdReplayDailyCap,
                 replayWindowEndsAt: postCasualReplayWindowEndsAt,
             }),
         [
@@ -161,6 +165,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             postCasualCanReplay,
             postCasualReplayMode,
             postCasualAdReplayDailyRemaining,
+            postCasualAdReplayDailyCap,
             postCasualReplayWindowEndsAt,
         ]
     );
@@ -174,6 +179,8 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         const board = boardSurfaceRef.current;
         const outer = containerRef.current;
         if (!board || !outer) return null;
+        // Hidden-tab RO can report tiny boxes; skip so we keep the last good card size.
+        if (board.clientWidth < 80 || board.clientHeight < 80) return null;
 
         const slots = foundationSlotRefs.current;
         const tabs = tableauColRefs.current;
@@ -407,6 +414,18 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             vv.addEventListener('resize', onVv);
             vv.addEventListener('scroll', onVv);
         }
+        window.addEventListener('resize', scheduleMeasure);
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                // Double-rAF: layout often settles one frame after tab show.
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (!cancelled) runMeasure();
+                    });
+                });
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
 
         return () => {
             cancelled = true;
@@ -416,6 +435,8 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 vv.removeEventListener('resize', onVv);
                 vv.removeEventListener('scroll', onVv);
             }
+            window.removeEventListener('resize', scheduleMeasure);
+            document.removeEventListener('visibilitychange', onVisibility);
             ro.disconnect();
         };
     }, [measureBoardDimension, updateBoardDimension, gameState?.gameId]);
@@ -684,6 +705,11 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                                 ? scoreReportActions.adReplayDailyRemaining
                                 : undefined
                         }
+                        adReplayDailyCap={
+                            scoreReportActions.showReplaySecondary
+                                ? scoreReportActions.adReplayDailyCap
+                                : undefined
+                        }
                         secondaryError={casualReplayError ?? undefined}
                         replayWindowEndsAt={
                             scoreReportActions.showReplaySecondary
@@ -699,6 +725,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                         replayAvailable={postSettleReplay.showReplay}
                         replayMode={postCasualReplayMode}
                         adReplayDailyRemaining={postSettleReplay.adReplayDailyRemaining}
+                        adReplayDailyCap={postSettleReplay.adReplayDailyCap}
                         replayBusy={casualReplayBusy}
                         replayWindowEndsAt={postCasualReplayWindowEndsAt}
                         onReplay={postSettleReplay.showReplay ? () => void replayCasualRun() : undefined}

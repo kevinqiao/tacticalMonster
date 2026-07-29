@@ -10,15 +10,27 @@ import {
 export const beginAdCoinSession = authedMutation({
   args: {
     channel: v.union(...PORTAL_AD_COIN_CHANNELS.map((c) => v.literal(c))),
+    lobbyId: v.optional(v.id("portal_lobbies")),
   },
-  handler: async (ctx, args) => beginPortalAdCoinSessionCore(ctx, { uid: ctx.uid, ...args }),
+  handler: async (ctx, args) =>
+    beginPortalAdCoinSessionCore(ctx, {
+      uid: ctx.uid,
+      channel: args.channel,
+      lobbyId: args.lobbyId ?? null,
+    }),
 });
 
 export const completeAdCoinSession = authedMutation({
   args: {
     sessionId: v.string(),
     clientProof: v.optional(v.string()),
+    lobbyId: v.optional(v.id("portal_lobbies")),
   },
   handler: async (ctx, args) =>
-    completePortalAdCoinSessionCore(ctx, { uid: ctx.uid, ...args }),
+    completePortalAdCoinSessionCore(ctx, {
+      uid: ctx.uid,
+      sessionId: args.sessionId,
+      clientProof: args.clientProof,
+      lobbyId: args.lobbyId ?? null,
+    }),
 });

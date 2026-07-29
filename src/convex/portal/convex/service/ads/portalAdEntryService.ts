@@ -18,6 +18,7 @@ import {
 } from "../../data/portalTournamentConfigs";
 import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
 import {
+  assertPortalDailyPlayLimit,
   countPortalPlaysForQuotaScope,
   portalDailyPlayModeFromDef,
 } from "../tournament/join/portalDailyPlayLimit";
@@ -188,6 +189,18 @@ export async function beginPortalAdEntrySessionCore(
   });
   if (playsToday < freeCap) {
     return { ok: false as const, error: "free_quota_available" as const };
+  }
+
+  // Reject before the rewarded ad if even one pending ad entry cannot open a slot.
+  const ladder = await assertPortalDailyPlayLimit(ctx, {
+    uid: args.uid,
+    templateId: args.templateId,
+    lobbyId: args.lobbyId,
+    nowMs: now,
+    pendingAdEntries: 1,
+  });
+  if (!ladder.ok) {
+    return { ok: false as const, error: "daily_play_limit_reached" as const };
   }
 
   const cfg = await resolveAdEntryConfig(ctx, args.uid, mode, entryCtx);

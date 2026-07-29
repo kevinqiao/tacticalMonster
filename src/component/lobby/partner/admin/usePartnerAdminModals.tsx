@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
 import PartnerAdminAuthChannelsModal from "./PartnerAdminAuthChannelsModal";
+import PartnerAdminBrandModal from "./PartnerAdminBrandModal";
 import PartnerAdminCampaignOpsModal from "./PartnerAdminCampaignOpsModal";
 import PartnerAdminProfileModal from "./PartnerAdminProfileModal";
 import PartnerAdminRedeemPanel from "./PartnerAdminRedeemPanel";
@@ -18,12 +19,18 @@ export type PartnerAdminModalTarget = {
   partnerName: string;
 };
 
-const BASE_SECTIONS: PartnerAdminModalSection[] = ["profile", "auth", "team", "shop", "redeem"];
+const BASE_SECTIONS: PartnerAdminModalSection[] = [
+  "profile",
+  "auth",
+  "team",
+  "brand",
+  "shop",
+  "redeem",
+];
 const CAMPAIGN_OPS_SECTIONS: PartnerCampaignOpsView[] = [
   "campaigns",
   "coupon-defs",
   "coupons",
-  "brand",
   "stores",
   "store-team",
 ];
@@ -69,6 +76,13 @@ export function usePartnerAdminModals() {
       ) : null}
       {target.section === "team" ? (
         <PartnerAdminTeamModal
+          partnerId={target.partnerId}
+          partnerName={target.partnerName}
+          onClose={closePartnerModal}
+        />
+      ) : null}
+      {target.section === "brand" ? (
+        <PartnerAdminBrandModal
           partnerId={target.partnerId}
           partnerName={target.partnerName}
           onClose={closePartnerModal}

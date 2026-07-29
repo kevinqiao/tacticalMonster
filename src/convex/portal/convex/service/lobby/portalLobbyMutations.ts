@@ -134,7 +134,7 @@ function serializeLobby(row: {
   const offerings = enabledOfferings(row.offerings ?? []);
   const solo = offeringsByMode(row.offerings ?? [], "solo");
   const multi = offeringsByMode(row.offerings ?? [], "multi");
-  const branding = resolveLobbyBranding(row.branding);
+  const branding = resolveLobbyBranding(row.branding, null);
   return {
     lobbyId: row._id,
     partnerId: row.partnerId,
@@ -262,7 +262,7 @@ export const listPortalLobbies = query({
   args: { partnerId: v.number() },
   handler: async (ctx, { partnerId }) => {
     const rows = await listLobbiesForPartner(ctx, partnerId);
-    return rows.map(serializeLobby);
+    return rows.map((row) => serializeLobby(row));
   },
 });
 

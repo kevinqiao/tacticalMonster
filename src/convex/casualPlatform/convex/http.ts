@@ -582,4 +582,79 @@ http.route({
   }),
 });
 
+/** SSO → Casual: replicate global platform maintenance status. */
+http.route({
+  path: "/internal/platform-status",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expected = casualGameBridgeSecret();
+    if (request.headers.get("X-Casual-Bridge-Secret") !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    let body: Record<string, unknown>;
+    try {
+      const parsed = await request.json();
+      if (!parsed || typeof parsed !== "object") {
+        return new Response(JSON.stringify({ ok: false, error: "bad_body" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      body = parsed as Record<string, unknown>;
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const mode = body.mode;
+    if (mode !== "normal" && mode !== "pre_notice" && mode !== "maintenance") {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const updatedAt =
+      typeof body.updatedAt === "number" && Number.isFinite(body.updatedAt)
+        ? body.updatedAt
+        : Date.now();
+    try {
+      await ctx.runMutation(internal.service.platformStatus.upsertFromBridgeInternal, {
+        mode,
+        title: typeof body.title === "string" ? body.title : undefined,
+        message: typeof body.message === "string" ? body.message : undefined,
+        plannedStartAt:
+          typeof body.plannedStartAt === "number"
+            ? body.plannedStartAt
+            : body.plannedStartAt === null
+              ? null
+              : undefined,
+        plannedEndAt:
+          typeof body.plannedEndAt === "number"
+            ? body.plannedEndAt
+            : body.plannedEndAt === null
+              ? null
+              : undefined,
+        updatedAt,
+        updatedBy: typeof body.updatedBy === "string" ? body.updatedBy : null,
+      });
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (error) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: error instanceof Error ? error.message : "operation_failed",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }),
+});
+
 export default http;

@@ -123,6 +123,21 @@ export async function loadUsedSeedIdsForUids(
   return used;
 }
 
+function pickDeterministicFromEntries(
+  rows: SeedPoolEntryDoc[],
+  sessionKey: string,
+  excludeSeedIds: ReadonlySet<string>
+): SeedPoolEntryDoc | null {
+  const available = rows.filter((r) => !excludeSeedIds.has(r.seedId));
+  if (available.length === 0) return null;
+  const sorted = [...available].sort((a, b) => a.seedId.localeCompare(b.seedId));
+  let hash = 0;
+  for (let i = 0; i < sessionKey.length; i++) {
+    hash = (hash * 31 + sessionKey.charCodeAt(i)) >>> 0;
+  }
+  return sorted[hash % sorted.length]!;
+}
+
 export async function pickDeterministicSeedForTier(
   db: DbReader,
   gameType: CatalogGameType,
@@ -137,14 +152,24 @@ export async function pickDeterministicSeedForTier(
       q.eq("gameType", gameType).eq("poolVersion", poolVersion).eq("tier", tier)
     )
     .collect();
-  const available = rows.filter((r) => !excludeSeedIds.has(r.seedId));
-  if (available.length === 0) return null;
-  const sorted = [...available].sort((a, b) => a.seedId.localeCompare(b.seedId));
-  let hash = 0;
-  for (let i = 0; i < sessionKey.length; i++) {
-    hash = (hash * 31 + sessionKey.charCodeAt(i)) >>> 0;
-  }
-  return sorted[hash % sorted.length]!;
+  return pickDeterministicFromEntries(rows, sessionKey, excludeSeedIds);
+}
+
+/** Pick across all tiers in the active pool (no preferred difficulty band). */
+export async function pickDeterministicSeedAnyTier(
+  db: DbReader,
+  gameType: CatalogGameType,
+  poolVersion: string,
+  sessionKey: string,
+  excludeSeedIds: ReadonlySet<string> = new Set()
+): Promise<SeedPoolEntryDoc | null> {
+  const rows = await db
+    .query("seed_pool_entries")
+    .withIndex("by_gameType_and_poolVersion", (q) =>
+      q.eq("gameType", gameType).eq("poolVersion", poolVersion)
+    )
+    .collect();
+  return pickDeterministicFromEntries(rows, sessionKey, excludeSeedIds);
 }
 
 export async function findMatchSeedPickByMatchId(

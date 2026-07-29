@@ -8,6 +8,8 @@ import {
   resolveEffectiveTournamentRewards,
 } from "../../../data/portalTournamentConfigs";
 import { applyPortalMatchPoints } from "../../points/portalWeeklyPointsService";
+import { resolveEconomyScope } from "../../economy/resolveEconomyScope";
+import { loadLobbyRewardsOverride } from "../../lobby/lobbyOfferingRewards";
 
 /** Portal 结算：周积分 + 模板金币奖励；campaign 对局跳过全球周榜 */
 export async function applyPortalTemplateScoreEffects(
@@ -34,6 +36,30 @@ export async function applyPortalTemplateScoreEffects(
     }
   }
   const runId = args.runTournamentId as Id<"portal_run_tournaments">;
+
+  const playerTournament = args.runTournamentId
+    ? await ctx.db
+        .query("portal_run_player_tournaments")
+        .withIndex("by_tournament_uid", (q) =>
+          q
+            .eq("tournamentId", args.runTournamentId as Id<"portal_run_tournaments">)
+            .eq("uid", args.uid)
+        )
+        .unique()
+    : null;
+
+  const runRow = args.runTournamentId
+    ? await ctx.db.get(args.runTournamentId as Id<"portal_run_tournaments">)
+    : null;
+
+  const joinLobbyId =
+    playerTournament?.joinLobbyId ?? runRow?.lobbyId ?? null;
+  let rewardsOverride =
+    playerTournament?.rewardsOverrideSnapshot ??
+    (joinLobbyId
+      ? await loadLobbyRewardsOverride(ctx, joinLobbyId, def.tournamentId)
+      : undefined);
+
   const points = await applyPortalMatchPoints(ctx, {
     uid: args.uid,
     def,
@@ -41,13 +67,15 @@ export async function applyPortalTemplateScoreEffects(
     rank: args.multiplayerFinalRank,
     seedScoreThreshold: args.seedScoreThreshold,
     runTournamentId: runId,
+    joinLobbyId: joinLobbyId ?? undefined,
+    rewardsOverride: rewardsOverride ?? undefined,
   });
 
   let coinsGranted = 0;
   if (def.matchType === "multi_ranked" && args.multiplayerFinalRank != null) {
-    coinsGranted = portalRankCoinReward(def, args.multiplayerFinalRank);
+    coinsGranted = portalRankCoinReward(def, args.multiplayerFinalRank, rewardsOverride);
   } else if (def.matchType === "solo_p75") {
-    const { coinRewards } = resolveEffectiveTournamentRewards(def);
+    const { coinRewards } = resolveEffectiveTournamentRewards(def, rewardsOverride);
     const ok =
       typeof args.seedScoreThreshold === "number" &&
       Number.isFinite(args.seedScoreThreshold) &&
@@ -58,24 +86,34 @@ export async function applyPortalTemplateScoreEffects(
     }
   }
   if (coinsGranted > 0) {
+    const partnerId = runRow?.partnerId ?? 0;
+    let scopeKey = "shared";
+    let lobbyIdForWallet = joinLobbyId;
+    try {
+      const scope = await resolveEconomyScope(ctx, {
+        partnerId,
+        lobbyId: joinLobbyId,
+      });
+      scopeKey = scope.scopeKey;
+      lobbyIdForWallet = scope.lobbyId;
+    } catch {
+      scopeKey = "shared";
+      lobbyIdForWallet = null;
+    }
     await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
       uid: args.uid,
       kind: "coins",
       amount: coinsGranted,
       reason: `tournament_reward:${def.tournamentId}`,
       gameType: def.gameType,
+      scopeKey,
+      ...(lobbyIdForWallet ? { lobbyId: lobbyIdForWallet } : {}),
     });
   }
 
   if (args.runTournamentId && (coinsGranted > 0 || def.entry.kind === "coins")) {
-    const pt = await ctx.db
-      .query("portal_run_player_tournaments")
-      .withIndex("by_tournament_uid", (q) =>
-        q.eq("tournamentId", args.runTournamentId as Id<"portal_run_tournaments">).eq("uid", args.uid)
-      )
-      .unique();
-    if (pt) {
-      await ctx.db.patch(pt._id, {
+    if (playerTournament) {
+      await ctx.db.patch(playerTournament._id, {
         coinsGranted,
         updatedAt: Date.now(),
       });

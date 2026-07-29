@@ -6,7 +6,6 @@ import {
     PORTAL_URL_PREFIX,
     PORTAL_URL_SEGMENT,
 } from "./appUrlSegments";
-import { parsePortalPathFromPathname } from "./portalPathParse";
 
 import { useMemo } from "react";
 import { PageContainer, PageItem } from "host/service/PageManager";
@@ -57,12 +56,6 @@ export const parseLocation = (): PageItem | undefined => {
     page.uri = window.location.pathname;
 
     const ps = window.location.pathname.split("/");
-    if (ps[1] === PORTAL_URL_SEGMENT) {
-        const portalPath = parsePortalPathFromPathname(window.location.pathname);
-        if (portalPath.gameType) {
-            page.data = { gameType: portalPath.gameType };
-        }
-    }
     if (ps[1] === CAMPAIGN_URL_SEGMENT && ps[2] && ps[2] !== "merchant" && ps[2] !== "home") {
         page.data = {
             partnerSlug: ps[2],

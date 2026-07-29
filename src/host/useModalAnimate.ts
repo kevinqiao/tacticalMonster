@@ -302,5 +302,23 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
     }
   }, [orientation, syncModalLayout]);
 
+  // Tab switch can freeze GSAP mid-tween (e.g. popCenter scale 0.5→1) or leave a
+  // stale transform; reset surface identity when the document becomes visible.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const surface = container.surfaceEle ?? container.ele;
+      if (!surface) return;
+      // Only reset open modals (shell visible).
+      const shellAlpha = Number(gsap.getProperty(container.ele ?? surface, "autoAlpha"));
+      if (shellAlpha === 0) return;
+      killModalTweens(container);
+      resetSurfaceIdentity(surface);
+      if (orientation) syncModalLayout(orientation);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [container, orientation, syncModalLayout]);
+
   return { playOpen, playClose };
 };

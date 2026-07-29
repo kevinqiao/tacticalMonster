@@ -38,6 +38,7 @@ import { createRolloutReplayState } from '../replay/blockBlastRolloutReplay';
 import {
     buildBlockBlastScoreReport,
     shouldOpenCasualTableSummaryAfterScoreReport,
+    shouldRefreshPortalAdReplayQuota,
     type CasualGameScoreReportUI,
 } from '../../../shared/casualGameScoreReportUI';
 import {
@@ -175,6 +176,7 @@ interface IBlockBlastGameContext {
     postCasualReplayMode: 'ad' | 'token';
     postCasualReplayWindowEndsAt?: number;
     postCasualAdReplayDailyRemaining?: number;
+    postCasualAdReplayDailyCap?: number;
     casualReplayBusy: boolean;
     replayCasualRun: () => Promise<void>;
     dismissPostCasualSummary: () => void;
@@ -219,6 +221,7 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     postCasualReplayMode: 'token',
     postCasualReplayWindowEndsAt: undefined,
     postCasualAdReplayDailyRemaining: undefined,
+    postCasualAdReplayDailyCap: undefined,
     casualReplayBusy: false,
     replayCasualRun: async () => {},
     dismissPostCasualSummary: () => { },
@@ -319,6 +322,9 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     const [postCasualAdReplayDailyRemaining, setPostCasualAdReplayDailyRemaining] = useState<
         number | undefined
     >(undefined);
+    const [postCasualAdReplayDailyCap, setPostCasualAdReplayDailyCap] = useState<
+        number | undefined
+    >(undefined);
     const [casualReplayBusy, setCasualReplayBusy] = useState(false);
     const [triathlonDeferTableSummary, setTriathlonDeferTableSummary] = useState(false);
 
@@ -347,6 +353,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
                 setReplayMode: setPostCasualReplayMode,
                 setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
             });
         },
     });
@@ -561,8 +568,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
                     setReplayMode: setPostCasualReplayMode,
                     setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                    setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
                 });
-            } else {
+            }
+            // 多人竞技：Arena ingest 常缺 adReplayDailyCap；Portal query 带完整 N/M。
+            if (shouldRefreshPortalAdReplayQuota(casualTournamentId) || !settle.tableSummary) {
                 try {
                     const summary = await fetchTableSummaryForGame(gameId);
                     if (summary?.rows?.length) {
@@ -572,8 +582,9 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                             setReplayTokenCount: setPostCasualReplayTokenCount,
                             setCanReplay: setPostCasualCanReplay,
                             setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
-                    setReplayMode: setPostCasualReplayMode,
-                    setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                            setReplayMode: setPostCasualReplayMode,
+                            setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                            setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
                         });
                     }
                 } catch (e) {
@@ -661,7 +672,34 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
                     setReplayMode: setPostCasualReplayMode,
                     setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                    setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
                 });
+            }
+            if (shouldRefreshPortalAdReplayQuota(casualTournamentId)) {
+                const gs = gameStateRef.current;
+                const matchGameId =
+                    typeof gs?.gameId === 'string' && gs.gameId.startsWith('game_')
+                        ? gs.gameId
+                        : undefined;
+                if (matchGameId) {
+                    void fetchTableSummaryForGame(matchGameId)
+                        .then((summary) => {
+                            if (!summary?.rows?.length) return;
+                            applyCasualTableSummaryFromQuery(summary, {
+                                setTableSummary: setPostCasualTableSummary,
+                                setReplayOffered: setPostCasualReplayOffered,
+                                setReplayTokenCount: setPostCasualReplayTokenCount,
+                                setCanReplay: setPostCasualCanReplay,
+                                setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                                setReplayMode: setPostCasualReplayMode,
+                                setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
+                            });
+                        })
+                        .catch(() => {
+                            /* ignore */
+                        });
+                }
             }
             if (settled.pendingOthers) {
                 setPostCasualWaitingForPeers(true);
@@ -670,7 +708,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 setPostCasualWeeklyLeagueSettle(settled.weeklyLeagueSettle);
             }
         },
-        []
+        [casualTournamentId, fetchTableSummaryForGame]
     );
 
     /** 强行结束：取消 timeout scheduler、服务端终局、ingest casual/portal */
@@ -889,6 +927,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
                     setReplayMode: setPostCasualReplayMode,
                     setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
                 });
                 tableSummary = fetched;
             }
@@ -1357,6 +1396,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
                     setReplayMode: setPostCasualReplayMode,
                     setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
                 });
             }
         } catch (e) {
@@ -1512,6 +1552,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         postCasualReplayMode,
         postCasualReplayWindowEndsAt,
         postCasualAdReplayDailyRemaining,
+        postCasualAdReplayDailyCap,
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,

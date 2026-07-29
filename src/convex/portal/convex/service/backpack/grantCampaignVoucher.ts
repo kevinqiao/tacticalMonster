@@ -23,15 +23,21 @@ export const grantCampaignVoucher = internalMutation({
     portalSkuId: v.string(),
     grantKey: v.string(),
     preferredCode: v.optional(v.string()),
+    maxCouponsPerPlayer: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const source = campaignVoucherGrantSource(args.grantKey);
     const existing = await ctx.db
       .query("portal_backpack_items")
-      .filter((q) => q.eq(q.field("source"), source))
+      .withIndex("by_source", (q) => q.eq("source", source))
       .first();
     if (existing) {
-      return { ok: true as const, itemId: String(existing._id), deduped: true as const };
+      return {
+        ok: true as const,
+        itemId: String(existing._id),
+        code: existing.code,
+        deduped: true as const,
+      };
     }
 
     const sku = await ctx.db
@@ -40,6 +46,22 @@ export const grantCampaignVoucher = internalMutation({
       .unique();
     if (!sku || sku.skuKind !== "voucher" || !sku.partnerIds?.includes(args.partnerId)) {
       return { ok: false as const, error: "voucher_sku_not_found" as const };
+    }
+
+    if (args.maxCouponsPerPlayer != null && args.maxCouponsPerPlayer >= 1) {
+      const rows = await ctx.db
+        .query("portal_backpack_items")
+        .withIndex("by_campaignId_uid", (q) =>
+          q.eq("campaignId", args.campaignId).eq("uid", args.uid)
+        )
+        .collect();
+      const count = rows.filter(
+        (row) =>
+          row.status === "owned" || row.status === "pending_use" || row.status === "redeemed"
+      ).length;
+      if (count >= args.maxCouponsPerPlayer) {
+        return { ok: false as const, error: "coupon_limit_reached" as const };
+      }
     }
 
     const preferredCode = campaignVoucherCode(args.preferredCode);
@@ -58,12 +80,15 @@ export const grantCampaignVoucher = internalMutation({
       sku.voucherValidityDays != null
         ? now + sku.voucherValidityDays * 24 * 60 * 60 * 1000
         : undefined;
+    const code =
+      preferredCode ??
+      `PV-${now.toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     const itemId = await ctx.db.insert("portal_backpack_items", {
       uid: args.uid,
       skuId: sku.skuId,
       title: sku.title,
       rewardText: sku.voucherRewardText,
-      code: preferredCode ?? `PV-${now.toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      code,
       status: "owned",
       partnerId: args.partnerId,
       campaignId: args.campaignId,
@@ -72,6 +97,6 @@ export const grantCampaignVoucher = internalMutation({
       createdAt: now,
       updatedAt: now,
     });
-    return { ok: true as const, itemId: String(itemId), deduped: false as const };
+    return { ok: true as const, itemId: String(itemId), code, deduped: false as const };
   },
 });

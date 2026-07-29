@@ -13,7 +13,7 @@ import { markPortalGameplayReady } from 'host/service/ads/display/portalAdPhase'
 import PlatformConvexProvider from 'host/service/platformAuth/PlatformConvexProvider';
 
 import gsap from 'gsap';
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useLayoutEffect, useRef } from 'react';
 import GamePlayer from './GamePlayer';
 
 import SoloGameProvider from './service/GameManager';
@@ -66,6 +66,12 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
 }) => {
     const loadingRef = useRef<HTMLDivElement | null>(null)
     const playerRef = useRef<HTMLDivElement | null>(null)
+    // Hide board until load/deal reveal — prevents a dealt flash under Loading.
+    useLayoutEffect(() => {
+        if (playerRef.current) {
+            gsap.set(playerRef.current, { autoAlpha: 0 });
+        }
+    }, []);
     const onGameLoadComplete = useCallback(() => {
         loadingRef.current?.classList.add('solo-game-loading--hidden');
         if (playerRef.current) {
