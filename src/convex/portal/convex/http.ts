@@ -1261,6 +1261,15 @@ http.route({
                     : undefined,
               }
             : {}),
+          ...(body?.seasonEpochWeekKey !== undefined
+            ? {
+                seasonEpochWeekKey:
+                  body.seasonEpochWeekKey === null ||
+                  typeof body.seasonEpochWeekKey === "string"
+                    ? body.seasonEpochWeekKey
+                    : undefined,
+              }
+            : {}),
         }
       );
       return jsonResponse(result);
@@ -1547,6 +1556,11 @@ http.route({
                   b.quotaScope === "tournament"
                 ? { quotaScope: b.quotaScope }
                 : {}),
+            ...(b.seasonHonorMode === null ||
+            b.seasonHonorMode === "join_now" ||
+            b.seasonHonorMode === "next_season"
+              ? { seasonHonorMode: b.seasonHonorMode }
+              : {}),
           }
         );
         return jsonResponse({ ok: true, ...result });
@@ -1569,6 +1583,41 @@ http.route({
       const raw = error instanceof Error ? error.message : "operation_failed";
       const cleaned = raw.replace(/^Uncaught Error:\s*/i, "").trim().split(/\s|\n/)[0] || raw;
       return jsonResponse({ ok: false, error: cleaned }, 400);
+    }
+  }),
+});
+
+/**
+ * Operation scripts → Portal: wipe partner-scoped config for clean relaunch.
+ * Body: `{ partnerId }`. Does not touch seed pools or player runtime tables.
+ */
+http.route({
+  path: "/internal/partner-wipe-config",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (request.headers.get("X-Portal-Bridge-Secret") !== portalGameBridgeSecret()) {
+      return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+    }
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const partnerId = partnerIdFromBody(parsed.body);
+    if (partnerId === null) {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    try {
+      const result = await ctx.runMutation(
+        internal.service.partner.portalPartnerWipe.wipePartnerConfigInternal,
+        { partnerId }
+      );
+      return jsonResponse(result);
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : "operation_failed";
+      const cleaned =
+        raw.replace(/^Uncaught Error:\s*/i, "").trim().split(/\s|\n/)[0] || raw;
+      return jsonResponse(
+        { ok: false, error: cleaned },
+        cleaned === "default_partner_protected" ? 403 : 400
+      );
     }
   }),
 });

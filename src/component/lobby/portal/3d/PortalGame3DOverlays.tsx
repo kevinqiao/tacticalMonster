@@ -19,6 +19,7 @@ import {
   resolvePortalShopSkus,
 } from "./portalShopCatalogFallback";
 import { PortalWeeklyLeagueClosePanel } from "./PortalWeeklyLeagueClosePanel";
+import { PortalSeasonMarksModal } from "./PortalSeasonMarksModal";
 import type { PortalTierId } from "./portalGame3DTheme";
 
 import type { usePortalGame3DController } from "./usePortalGame3DController";
@@ -52,9 +53,14 @@ export function PortalGame3DOverlays({
     setGiftCardOrdersModalOpen,
     accountModalOpen,
     setAccountModalOpen,
+    accountFocusBadges,
+    setAccountFocusBadges,
+    openAccountBadges,
     weeklyCloseModalOpen,
     setWeeklyCloseModalOpen,
     weeklyCloseDisplay,
+    seasonMarksModalOpen,
+    dismissSeasonMarksModal,
     showNote,
     signOut,
     openAssignments,
@@ -211,10 +217,33 @@ export function PortalGame3DOverlays({
 
       <PortalAccountSheet
         open={accountModalOpen}
-        onClose={() => setAccountModalOpen(false)}
+        onClose={() => {
+          setAccountModalOpen(false);
+          setAccountFocusBadges(false);
+        }}
         onFeedback={ctrl.showNote}
         onSignOut={signOut}
         showSignOut={showAuthMenuActions}
+        focusBadges={accountFocusBadges}
+      />
+
+      <PortalSeasonMarksModal
+        open={seasonMarksModalOpen}
+        seasonId={
+          portal.weeklyLeagueTierView?.unreadSeasonId ??
+          portal.weeklyLeagueTierView?.seasonId ??
+          "S0"
+        }
+        seasonLevel={
+          portal.weeklyLeagueTierView?.unreadSeasonLevel ??
+          portal.weeklyLeagueTierView?.seasonLevel ??
+          1
+        }
+        onViewBadges={() => {
+          void dismissSeasonMarksModal();
+          openAccountBadges();
+        }}
+        onDismiss={() => void dismissSeasonMarksModal()}
       />
 
       <PortalCenterModal
@@ -258,6 +287,8 @@ export function PortalGame3DOverlays({
       </PortalCenterModal>
 
       <PortalHistoryReportOverlays
+        scoreReport={historyReport.scoreReport}
+        scoreWatchContext={historyReport.scoreWatchContext}
         reportSummary={historyReport.reportSummary}
         reportTableMetaNote={historyReport.reportTableMetaNote}
         watchTarget={historyReport.watchTarget}
@@ -266,6 +297,7 @@ export function PortalGame3DOverlays({
         onCloseReport={historyReport.closeReport}
         onCloseWatch={historyReport.closeWatch}
         onWatchFromReport={historyReport.openWatchFromReport}
+        onWatchFromScoreReport={historyReport.openWatchFromScoreReport}
       />
 
       {import.meta.env.DEV ? (

@@ -64,6 +64,9 @@ export const getPartnerPortalConfig = authedAction({
       ticketEntryMultiDailyCap: gc.ticketEntryMultiDailyCap ?? null,
       lobbyOpsMode: gc.lobbyOpsMode ?? null,
       lobbyOpsModeEffective: gc.lobbyOpsModeEffective ?? "shared",
+      seasonEpochWeekKey: gc.seasonEpochWeekKey ?? null,
+      seasonEpochWeekKeyEffective:
+        gc.seasonEpochWeekKeyEffective ?? gc.seasonEpochWeekKey ?? null,
     };
   },
 });
@@ -98,6 +101,7 @@ export const updatePartnerPortalConfig = authedAction({
     lobbyOpsMode: v.optional(
       v.union(v.literal("isolated"), v.literal("shared"), v.null())
     ),
+    seasonEpochWeekKey: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
     await authorizePlatformStaff(ctx, "admin");
@@ -123,6 +127,7 @@ export const updatePartnerPortalConfig = authedAction({
       ticketEntryMultiPriceTickets: args.ticketEntryMultiPriceTickets,
       ticketEntryMultiDailyCap: args.ticketEntryMultiDailyCap,
       lobbyOpsMode: args.lobbyOpsMode,
+      seasonEpochWeekKey: args.seasonEpochWeekKey,
     });
 
     // 2) SSO identity only (slug / capabilities).

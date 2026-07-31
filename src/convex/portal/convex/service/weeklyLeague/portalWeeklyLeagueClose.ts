@@ -31,6 +31,8 @@ import { internalMutation, type MutationCtx } from "../../_generated/server";
 import { resolvePortalWeeklyLeagueBotPoints } from "./portalWeeklyLeagueBotPoints";
 
 import { isPortalWeeklyLeagueBotRevealed } from "./portalWeeklyLeagueBotReveal";
+import { checkAndUnlockBadgesCore } from "../badge/portalBadgeService";
+import { applySeasonXpOnWeekClose } from "../season/portalSeasonHonorService";
 
 
 
@@ -268,16 +270,35 @@ async function closeOnePortalCohort(
 
 
 
+    const promotions =
+      (profile.totalWeeklyPromotions ?? 0) + (zone === "promote" ? 1 : 0);
+
     await ctx.db.patch(profile._id, {
-
       weeklyLeagueTier: nextTier,
-
       peakLeagueTier: peak,
-
+      ...(zone === "promote" ? { totalWeeklyPromotions: promotions } : {}),
       updatedAt: now,
-
     });
 
+    await checkAndUnlockBadgesCore(ctx, {
+      uid: member.uid,
+      lobbyId: member.lobbyId ?? null,
+      event: {
+        kind: "week_close",
+        peakLeagueTier: peak,
+        weeklyPromoteCount: promotions,
+      },
+      now,
+    });
+
+    if (member.lobbyId && !member.isBot) {
+      await applySeasonXpOnWeekClose(ctx, {
+        uid: member.uid,
+        lobbyId: member.lobbyId,
+        promoted: zone === "promote",
+        now,
+      });
+    }
   }
 
 

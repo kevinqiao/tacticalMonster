@@ -48,8 +48,14 @@ describe("portalShopCatalog giftcard SKUs", () => {
     expect(row.requiresVerifiedContact).toBe(true);
   });
 
-  it("has no virtual replay SKUs in catalog", () => {
+  it("includes shared virtual ticket SKUs from economy SSOT", () => {
     const virtual = PORTAL_SHOP_SKU_CATALOG.filter((s) => s.skuKind === "virtual");
-    expect(virtual).toHaveLength(0);
+    expect(virtual.map((s) => s.skuId)).toEqual(
+      expect.arrayContaining(["portal_shop_ticket_3", "portal_shop_ticket_10"])
+    );
+    const t3 = virtual.find((s) => s.skuId === "portal_shop_ticket_3")!;
+    expect(t3.priceCoins).toBe(180);
+    expect(t3.grantReplayTokenCount).toBe(3);
   });
 });
+

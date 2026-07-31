@@ -1,4 +1,5 @@
 import { resolveRewardedAdChannel } from "host/service/ads/rewarded/registry";
+import i18n from "@/i18n";
 
 /** 休闲异步桌观战/复盘入口（match_3 · solitaire 等同形） */
 export type Match3WatchContext =
@@ -162,18 +163,22 @@ export function formatHistoryReportTableMetaNote(args: {
   settlementPending?: boolean;
 }): string {
   if (args.settlementPending) {
-    return '等待结算中';
+    return i18n.t("historyMeta.pending", { ns: "shared.casual" });
   }
   const parts: string[] = [];
   if (args.rank != null && args.rank >= 1) {
-    parts.push(`本局第 ${args.rank} 名`);
+    parts.push(
+      i18n.t("historyMeta.rank", { ns: "shared.casual", rank: args.rank })
+    );
   }
   if (args.pointDelta != null) {
-    const sign = args.pointDelta >= 0 ? '+' : '';
-    parts.push(`获得 ${sign}${args.pointDelta} 积分`);
+    const signed = `${args.pointDelta >= 0 ? "+" : ""}${args.pointDelta}`;
+    parts.push(
+      i18n.t("historyMeta.points", { ns: "shared.casual", signed })
+    );
   }
   if (parts.length === 0) {
-    return '名次与积分待结算';
+    return i18n.t("historyMeta.pendingRankPoints", { ns: "shared.casual" });
   }
-  return parts.join(' · ');
+  return parts.join(" · ");
 }

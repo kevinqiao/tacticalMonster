@@ -1,5 +1,7 @@
 /** 局内 / 结算页展示的周联赛 League XP 摘要 */
 
+import i18n from "@/i18n";
+
 export type WeeklyLeagueSettleUI = {
   leagueXpDelta: number;
   weeklyLeagueXpTotal: number;
@@ -22,7 +24,7 @@ export function formatWeeklyLeagueSettleLines(
   }
   if (settle.cohortRank > 0 && settle.cohortSize > 0) {
     rows.push({
-      label: "周赛排名",
+      label: i18n.t("weeklyLeagueSettle.rank", { ns: "shared.casual" }),
       value: `${settle.cohortRank} / ${settle.cohortSize}`,
     });
   }
@@ -33,5 +35,9 @@ export function weeklyLeagueSettleHeadline(
   settle: WeeklyLeagueSettleUI | null | undefined
 ): string | null {
   if (!settle || settle.leagueXpDelta <= 0) return null;
-  return `+${settle.leagueXpDelta} League XP（当周 ${settle.weeklyLeagueXpTotal}）`;
+  return i18n.t("weeklyLeagueSettle.xpHeadline", {
+    ns: "shared.casual",
+    delta: settle.leagueXpDelta,
+    total: settle.weeklyLeagueXpTotal,
+  });
 }

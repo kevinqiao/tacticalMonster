@@ -42,6 +42,7 @@ import {
 
 import {
   shouldRefreshPortalAdReplayQuota,
+  getCasualMatchScoreLineLabel,
   type CasualGameScoreReportUI,
 } from '../../../shared/casualGameScoreReportUI';
 
@@ -482,7 +483,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
         gameLabel: 'Yatz',
 
-        lines: [{ label: '本局总分', value: score }],
+        lines: [{ label: getCasualMatchScoreLineLabel(), value: score }],
 
         totalScore: score,
 

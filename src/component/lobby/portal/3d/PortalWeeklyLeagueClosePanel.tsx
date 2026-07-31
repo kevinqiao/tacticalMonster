@@ -85,6 +85,9 @@ export function PortalWeeklyLeagueClosePanel({
       ) : (
         <p className="portal-wl-close__empty">{t("weeklyLeague.noExtraReward")}</p>
       )}
+      <p className="portal-wl-close__season-xp" style={{ opacity: 0.85, fontSize: 14 }}>
+        {t("weeklyLeague.seasonXpUpdated")}
+      </p>
       <div className="portal-wl-close__actions">
         {canClaim ? (
           <button

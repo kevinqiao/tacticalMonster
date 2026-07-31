@@ -38,16 +38,9 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
     partner?.playerAuth
   );
 
-  if (!portal.gameType) {
-    return (
-      <div style={{ padding: 24, color: "#fff" }}>
-        无效的游戏类型。请从 Lobby 选择可用赛事。
-      </div>
-    );
-  }
-
   if (visible === 0) return null;
 
+  // Multi-game lobby may have null gameType until the player picks a ticket.
   const heroLogoUrl = resolvePortal3DHeroLogo(portal.gameType);
   const showShopCatalog = portalShopHasVisibleSkus(
     portal.shopCatalog?.skus,
@@ -124,6 +117,7 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           showAuthButton={showAuthButton}
           showAuthMenuActions={showAuthMenuActions}
           onOpenAccount={() => ctrl.setAccountModalOpen(true)}
+          onOpenBadges={ctrl.openAccountBadges}
           unclaimedRewards={ctrl.unclaimedRewards}
           onOpenUnclaimedRewards={ctrl.openWeeklyCloseModal}
           pageActive={visible > 0}

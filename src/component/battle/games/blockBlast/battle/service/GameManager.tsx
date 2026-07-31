@@ -37,6 +37,7 @@ import BlockBlastRuleManager from './BlockBlastRuleManager';
 import { createRolloutReplayState } from '../replay/blockBlastRolloutReplay';
 import {
     buildBlockBlastScoreReport,
+    getCasualMatchScoreLineLabel,
     shouldOpenCasualTableSummaryAfterScoreReport,
     shouldRefreshPortalAdReplayQuota,
     type CasualGameScoreReportUI,
@@ -476,7 +477,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             }
             return {
                 gameLabel: 'Block Blast',
-                lines: [{ label: '本局得分', value: fallbackScore }],
+                lines: [{ label: getCasualMatchScoreLineLabel(), value: fallbackScore }],
                 totalScore: fallbackScore,
             };
         },

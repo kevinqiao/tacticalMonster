@@ -1,5 +1,6 @@
 import { useCrazyGamesMidgameBreak } from 'host/service/ads/midgame/useCrazyGamesMidgameBreak';
 import React, { useEffect, useId, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { CasualGameScoreReportUI } from './casualGameScoreReportUI';
 import {
@@ -29,6 +30,7 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
   onContinue,
   autoAdvanceMs = TRIATHLON_BETWEEN_LEG_AUTO_MS,
 }) => {
+  const { t } = useTranslation('shared.casual');
   const titleId = useId();
   const onContinueRef = useRef(onContinue);
   const [progressPct, setProgressPct] = useState(0);
@@ -36,7 +38,6 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
   onContinueRef.current = onContinue;
 
   useEffect(() => {
-    // Wait for midgame break (CrazyGames) before starting the between-leg countdown.
     if (!open || !midgameReady || autoAdvanceMs <= 0) return;
 
     setProgressPct(0);
@@ -72,6 +73,8 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
   const completedLegNumber = nextGame.gameIndex;
   const challenge = scoreReport?.challenge;
   const detailLines = scoreReport?.lines ?? [];
+  const gameLabel =
+    scoreReport?.gameLabel ?? triathlonGameLabel(completedLeg.gameType);
 
   return (
     <div className="msc-overlay" role="presentation">
@@ -86,9 +89,9 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
           <h2 id={titleId} className="ssc__title msc-successTitle">
             {challenge
               ? challenge.success
-                ? '第 ' + completedLegNumber + ' 局 · 挑战成功'
-                : '第 ' + completedLegNumber + ' 局 · 未达成目标'
-              : `第 ${completedLegNumber} 局完成`}
+                ? t('triathlon.legChallengeSuccess', { n: completedLegNumber })
+                : t('triathlon.legChallengeFail', { n: completedLegNumber })
+              : t('triathlon.legComplete', { n: completedLegNumber })}
           </h2>
 
           {challenge ? (
@@ -101,17 +104,19 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
               role="status"
             >
               <span className="msc-challengeResult__badge">
-                {challenge.success ? '成功' : '未达成'}
+                {challenge.success
+                  ? t('scoreReport.successBadge')
+                  : t('scoreReport.failBadge')}
               </span>
               <div className="msc-challengeResult__rows">
                 <div className="msc-challengeResult__row">
-                  <span>目标分（P75）</span>
+                  <span>{t('scoreReport.targetP75')}</span>
                   <span className="msc-challengeResult__val">
                     {challenge.targetScore.toLocaleString()}
                   </span>
                 </div>
                 <div className="msc-challengeResult__row">
-                  <span>游戏分数</span>
+                  <span>{t('scoreReport.gameScore')}</span>
                   <span className="msc-challengeResult__val">
                     {challenge.achievedScore.toLocaleString()}
                   </span>
@@ -121,11 +126,11 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
           ) : null}
 
           <p className="ssc__body msc-scoreReportSub">
-            {scoreReport?.gameLabel ?? triathlonGameLabel(completedLeg.gameType)} · 本局得分明细
+            {t('triathlon.scoreDetail', { game: gameLabel })}
           </p>
 
           {detailLines.length > 0 ? (
-            <ul className="msc-scoreReportList" aria-label="得分明细">
+            <ul className="msc-scoreReportList" aria-label={t('scoreReport.linesAria')}>
               {detailLines.map((line) => (
                 <li key={line.label} className="msc-scoreReportList__row">
                   <span>{line.label}</span>
@@ -133,7 +138,7 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
                 </li>
               ))}
               <li className="msc-scoreReportList__row msc-scoreReportList__row--total">
-                <span>本局总分</span>
+                <span>{t('triathlon.legTotal')}</span>
                 <span className="msc-scoreReportList__val">
                   {(scoreReport?.totalScore ?? completedLeg.score).toLocaleString()}
                 </span>
@@ -141,14 +146,16 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
             </ul>
           ) : (
             <p className="ssc__body msc-scoreReportSub">
-              {triathlonGameLabel(completedLeg.gameType)} 本局{' '}
-              {completedLeg.score.toLocaleString()} 分
+              {t('triathlon.legScorePlain', {
+                game: triathlonGameLabel(completedLeg.gameType),
+                score: completedLeg.score.toLocaleString(),
+              })}
             </p>
           )}
 
           {legScores.length > 1 ? (
             <>
-              <p className="ssc__body msc-scoreReportSub">已完成各局</p>
+              <p className="ssc__body msc-scoreReportSub">{t('triathlon.completedLegs')}</p>
               <ul className="ssc__lines">
                 {legScores.map((row, idx) => (
                   <li key={`${row.gameType}-${idx}`} className="ssc__line">
@@ -161,9 +168,12 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
           ) : null}
 
           <p className="ssc__total">
-            当前累计 <strong>{runningTotal.toLocaleString()}</strong> 分
+            {t('triathlon.runningTotal')}{' '}
+            <strong>{runningTotal.toLocaleString()}</strong>
           </p>
-          <p className="ssc__body msc-scoreReportSub">下一局：{nextLabel}</p>
+          <p className="ssc__body msc-scoreReportSub">
+            {t('triathlon.nextLeg', { game: nextLabel })}
+          </p>
 
           <div
             className="msc-triathlonAutoBar"
@@ -171,14 +181,14 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(progressPct)}
-            aria-label="自动进入下一局"
+            aria-label={t('triathlon.autoNextAria')}
           >
             <div className="msc-triathlonAutoBar__fill" style={{ width: `${progressPct}%` }} />
           </div>
-          <p className="msc-triathlonAutoHint">即将自动进入下一局…</p>
+          <p className="msc-triathlonAutoHint">{t('triathlon.autoNext')}</p>
           <div className="msc-actions">
             <button type="button" className="msc-btn msc-btn--primary" onClick={onContinue}>
-              立即进入下一局
+              {t('triathlon.enterNextNow')}
             </button>
           </div>
         </div>

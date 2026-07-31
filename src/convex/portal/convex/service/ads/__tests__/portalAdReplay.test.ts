@@ -57,18 +57,32 @@ describe("portalAdReplayConfig", () => {
     expect(isPortalAdReplayChannel("unknown")).toBe(false);
   });
 
-  it("reads mock flag from env", () => {
+  it("reads rewarded ad mode from env", () => {
     const prevMock = process.env.PORTAL_AD_REPLAY_MOCK;
+    const prevMode = process.env.PORTAL_REWARDED_AD_MODE;
     const prevDeployment = process.env.CONVEX_DEPLOYMENT;
+    process.env.PORTAL_REWARDED_AD_MODE = "";
     process.env.PORTAL_AD_REPLAY_MOCK = "1";
     process.env.CONVEX_DEPLOYMENT = "prod:merry-skunk-952";
     expect(isPortalAdReplayMockEnabled()).toBe(true);
     process.env.PORTAL_AD_REPLAY_MOCK = "0";
     expect(isPortalAdReplayMockEnabled()).toBe(false);
     process.env.PORTAL_AD_REPLAY_MOCK = "";
+    process.env.PORTAL_REWARDED_AD_MODE = "idle";
+    expect(isPortalAdReplayMockEnabled()).toBe(true);
+    process.env.PORTAL_REWARDED_AD_MODE = "mock";
+    expect(isPortalAdReplayMockEnabled()).toBe(true);
+    process.env.PORTAL_REWARDED_AD_MODE = "crazygames";
+    expect(isPortalAdReplayMockEnabled()).toBe(false);
+    process.env.PORTAL_REWARDED_AD_MODE = "live";
+    expect(isPortalAdReplayMockEnabled()).toBe(false);
+    process.env.PORTAL_REWARDED_AD_MODE = "other";
+    expect(isPortalAdReplayMockEnabled()).toBe(false);
+    process.env.PORTAL_REWARDED_AD_MODE = "";
     process.env.CONVEX_DEPLOYMENT = "dev:local-team";
     expect(isPortalAdReplayMockEnabled()).toBe(true);
     process.env.PORTAL_AD_REPLAY_MOCK = prevMock;
+    process.env.PORTAL_REWARDED_AD_MODE = prevMode;
     process.env.CONVEX_DEPLOYMENT = prevDeployment;
   });
 

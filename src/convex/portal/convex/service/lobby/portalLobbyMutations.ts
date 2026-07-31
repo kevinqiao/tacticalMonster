@@ -14,10 +14,20 @@ import {
   normalizePortalQuotaScope,
   type PortalQuotaScope,
 } from "../../data/portalQuotaScope";
+import {
+  isValidPortalWeekKey,
+  portalNextSeasonStartWeekKey,
+} from "../../data/portalSeasonHonorConfig";
 import { getPortalTournamentDefinition } from "../../data/portalTournamentConfigs";
+import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
 import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
+import { readPartnerSeasonEpochWeekKey } from "../season/resolvePortalSeasonHonor";
+
+const seasonHonorModeValidator = v.optional(
+  v.union(v.literal("join_now"), v.literal("next_season"), v.null())
+);
 
 const quotaScopeValidator = v.optional(
   v.union(
@@ -130,6 +140,8 @@ function serializeLobby(row: {
     backgroundPortraitUrl?: string;
   };
   offerings: PortalLobbyOffering[];
+  seasonHonorMode?: "join_now" | "next_season";
+  seasonHonorStartsWeekKey?: string;
 }) {
   const offerings = enabledOfferings(row.offerings ?? []);
   const solo = offeringsByMode(row.offerings ?? [], "solo");
@@ -142,6 +154,8 @@ function serializeLobby(row: {
     title: row.title,
     isDefault: row.isDefault,
     enabled: row.enabled,
+    seasonHonorMode: row.seasonHonorMode ?? "join_now",
+    seasonHonorStartsWeekKey: row.seasonHonorStartsWeekKey ?? null,
     branding,
     offerings: offerings.map((o) => {
       const def = getPortalTournamentDefinition(o.tournamentId);
@@ -280,6 +294,7 @@ export const upsertPortalLobby = mutation({
     branding: v.optional(brandingValidator),
     offerings: v.array(offeringValidator),
     quotaScope: quotaScopeValidator,
+    seasonHonorMode: seasonHonorModeValidator,
   },
   handler: async (ctx, args) => upsertLobbyCore(ctx, args),
 });
@@ -311,6 +326,8 @@ async function upsertLobbyCore(
     offerings: PortalLobbyOffering[];
     /** null = clear lobby override (inherit partner). */
     quotaScope?: PortalQuotaScope | null;
+    /** null → join_now */
+    seasonHonorMode?: "join_now" | "next_season" | null;
   }
 ) {
   const slug = validateLobbySlug(args.slug);
@@ -362,20 +379,50 @@ async function upsertLobbyCore(
     }
   }
 
+  const honorPatch = await resolveSeasonHonorPatch(ctx, {
+    partnerId: args.partnerId,
+    seasonHonorMode: args.seasonHonorMode,
+    now,
+  });
+
   if (targetLobbyId) {
     const existing = await ctx.db.get(targetLobbyId);
     if (!existing || existing.partnerId !== args.partnerId) {
       throw new Error("lobby_not_found");
     }
-    await ctx.db.patch(targetLobbyId, {
+    const base = {
+      partnerId: existing.partnerId,
       slug,
       title: args.title.trim() || slug,
       isDefault: isDefault || existing.isDefault,
       enabled: args.enabled !== false,
-      branding: args.branding,
+      branding: args.branding ?? existing.branding,
       offerings: args.offerings,
+      createdAt: existing.createdAt,
       updatedAt: now,
-    });
+    };
+    if (honorPatch.clearStarts) {
+      await ctx.db.replace(targetLobbyId, {
+        ...base,
+        seasonHonorMode: "join_now" as const,
+      });
+    } else if (honorPatch.seasonHonorMode === "next_season") {
+      await ctx.db.replace(targetLobbyId, {
+        ...base,
+        seasonHonorMode: "next_season" as const,
+        seasonHonorStartsWeekKey: honorPatch.seasonHonorStartsWeekKey,
+      });
+    } else {
+      await ctx.db.replace(targetLobbyId, {
+        ...base,
+        ...(existing.seasonHonorMode
+          ? { seasonHonorMode: existing.seasonHonorMode }
+          : {}),
+        ...(existing.seasonHonorStartsWeekKey
+          ? { seasonHonorStartsWeekKey: existing.seasonHonorStartsWeekKey }
+          : {}),
+      });
+    }
     await writeLobbyQuotaScope(ctx, {
       partnerId: args.partnerId,
       lobbyId: targetLobbyId,
@@ -394,6 +441,14 @@ async function upsertLobbyCore(
     offerings: args.offerings,
     createdAt: now,
     updatedAt: now,
+    ...(honorPatch.seasonHonorMode === "next_season"
+      ? {
+          seasonHonorMode: "next_season" as const,
+          seasonHonorStartsWeekKey: honorPatch.seasonHonorStartsWeekKey,
+        }
+      : honorPatch.seasonHonorMode === "join_now"
+        ? { seasonHonorMode: "join_now" as const }
+        : {}),
   });
   await writeLobbyQuotaScope(ctx, {
     partnerId: args.partnerId,
@@ -401,6 +456,36 @@ async function upsertLobbyCore(
     quotaScope: args.quotaScope,
   });
   return { ok: true as const, lobbyId };
+}
+
+async function resolveSeasonHonorPatch(
+  ctx: MutationCtx,
+  args: {
+    partnerId: number;
+    seasonHonorMode?: "join_now" | "next_season" | null;
+    now: number;
+  }
+): Promise<{
+  seasonHonorMode?: "join_now" | "next_season";
+  seasonHonorStartsWeekKey?: string;
+  clearStarts?: boolean;
+}> {
+  if (args.seasonHonorMode === undefined) return {};
+  if (args.seasonHonorMode === null || args.seasonHonorMode === "join_now") {
+    return {
+      seasonHonorMode: "join_now",
+      clearStarts: true,
+    };
+  }
+  const epoch = await readPartnerSeasonEpochWeekKey(ctx, args.partnerId);
+  const starts = portalNextSeasonStartWeekKey(weeklyPeriodKey(args.now), epoch);
+  if (!isValidPortalWeekKey(starts)) {
+    throw new Error("season_honor_starts_invalid");
+  }
+  return {
+    seasonHonorMode: "next_season",
+    seasonHonorStartsWeekKey: starts,
+  };
 }
 
 async function deleteLobbyCore(
@@ -440,6 +525,7 @@ export const upsertPortalLobbyInternal = internalMutation({
     branding: v.optional(brandingValidator),
     offerings: v.array(offeringValidator),
     quotaScope: quotaScopeValidator,
+    seasonHonorMode: seasonHonorModeValidator,
   },
   handler: async (ctx, args) => upsertLobbyCore(ctx, args),
 });

@@ -590,6 +590,15 @@ export default defineSchema({
         enabled: v.optional(v.boolean()),
       })
     ),
+    /**
+     * 赛季荣誉参与：join_now（默认，中途入当前季）|
+     * next_season（等到 partner 日历下一季 W1 再开轨）。
+     */
+    seasonHonorMode: v.optional(
+      v.union(v.literal("join_now"), v.literal("next_season"))
+    ),
+    /** next_season 时生效的起始 weekKey（w:YYYY-MM-DD） */
+    seasonHonorStartsWeekKey: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -847,10 +856,50 @@ export default defineSchema({
     lobbyId: v.optional(v.id("portal_lobbies")),
     weeklyLeagueTier: v.string(),
     peakLeagueTier: v.string(),
+    /** 综合胜场：multi #1 或 Solo P75 成功（徽章） */
+    totalMatchWins: v.optional(v.number()),
+    /** 多人第一累计（徽章 Crowns） */
+    totalMultiplayerWins: v.optional(v.number()),
+    /** 周联赛晋级累计（徽章） */
+    totalWeeklyPromotions: v.optional(v.number()),
+    /** 季末纪念章未读弹层 */
+    unreadSeasonMarks: v.optional(v.boolean()),
+    unreadSeasonId: v.optional(v.string()),
+    unreadSeasonLevel: v.optional(v.number()),
     updatedAt: v.number(),
   })
     .index("by_uid_game", ["uid", "gameType"])
     .index("by_uid_lobby", ["uid", "lobbyId"]),
+
+  /** 永久徽章解锁记录（纯展示） */
+  portal_player_badges: defineTable({
+    uid: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+    badgeId: v.string(),
+    unlockedAt: v.number(),
+    metadataJson: v.optional(v.string()),
+  })
+    .index("by_uid", ["uid"])
+    .index("by_uid_badge", ["uid", "badgeId"])
+    .index("by_uid_lobby", ["uid", "lobbyId"]),
+
+  /** 赛季荣誉进度（Season Lv 1–30；每季重置） */
+  portal_season_honor_progress: defineTable({
+    uid: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+    seasonId: v.string(),
+    seasonXp: v.number(),
+    level: v.number(),
+    dailyWinXpKey: v.optional(v.string()),
+    dailyWinXp: v.optional(v.number()),
+    dailyPlayXpKey: v.optional(v.string()),
+    dailyPlayXp: v.optional(v.number()),
+    finalized: v.optional(v.boolean()),
+    finalizedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_uid_lobby_season", ["uid", "lobbyId", "seasonId"])
+    .index("by_uid_season", ["uid", "seasonId"]),
 
   /** 周联赛 cohort：同 week + lobby + 段位 下分组 */
   portal_weekly_league_cohorts: defineTable({
@@ -993,10 +1042,13 @@ export default defineSchema({
   /**
    * Partner lobbyOpsMode SoT (platform admin → Portal).
    * isolated | shared — controls economy partition only, not matchmaking.
+   * seasonEpochWeekKey — partner 共用赛季日历起点（缺省用全局常量）。
    */
   portal_partner_lobby_ops_settings: defineTable({
     partnerId: v.number(),
     lobbyOpsMode: v.union(v.literal("isolated"), v.literal("shared")),
+    /** Partner 赛季日历 epoch（w:YYYY-MM-DD）；omit → 全局缺省 */
+    seasonEpochWeekKey: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_partnerId", ["partnerId"]),
 

@@ -10,6 +10,7 @@ import {
   PORTAL_AD_COIN_SESSION_TTL_MS,
   type PortalAdCoinChannel,
 } from "../../data/portalAdCoinConfig";
+import { portalRewardedAdModeAllowsChannel } from "../../data/portalAdReplayConfig";
 import { isPartnerShopAdCoinEnabled } from "../../data/portalPartnerShopSettings";
 import { resolvePortalShopSessionPartnerId } from "../../data/portalShopPartner";
 import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
@@ -223,7 +224,10 @@ export async function beginPortalAdCoinSessionCore(
   if (!isPortalAdCoinChannel(args.channel)) {
     return { ok: false as const, error: "invalid_channel" as const };
   }
-  if (args.channel === "dev" && !isPortalAdCoinMockEnabled()) {
+  if (
+    (args.channel === "dev" && !isPortalAdCoinMockEnabled()) ||
+    (args.channel !== "dev" && !portalRewardedAdModeAllowsChannel(args.channel))
+  ) {
     return { ok: false as const, error: "invalid_channel" as const };
   }
 
@@ -322,7 +326,10 @@ export async function completePortalAdCoinSessionCore(
     await ctx.db.patch(session._id, { status: "expired", updatedAt: now });
     return { ok: false as const, error: "session_expired" as const };
   }
-  if (!isPortalAdCoinMockEnabled() && session.channel === "dev") {
+  if (
+    (session.channel === "dev" && !isPortalAdCoinMockEnabled()) ||
+    (session.channel !== "dev" && !portalRewardedAdModeAllowsChannel(session.channel))
+  ) {
     return { ok: false as const, error: "invalid_channel" as const };
   }
 

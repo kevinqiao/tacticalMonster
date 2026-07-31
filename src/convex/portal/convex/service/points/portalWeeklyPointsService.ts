@@ -18,6 +18,10 @@ import {
   getWeeklyLeagueMember,
   getWeeklyLeagueMemberByLobby,
 } from "../weeklyLeague/portalWeeklyLeagueService";
+import { ensureWeeklyLeagueProfileForLobby } from "../weeklyLeague/casualWeeklyLeagueProfile";
+import { checkAndUnlockBadgesCore } from "../badge/portalBadgeService";
+import { portalMatchWinDeltas } from "../badge/portalBadgeUnlockLogic";
+import { addSeasonHonorXp } from "../season/portalSeasonHonorService";
 import { persistPlayerMatchChallengeOutcome } from "../tournament/settle/playerMatchChallengeOutcome";
 
 export type PortalWeeklyMode = "solo" | "multi";
@@ -160,6 +164,54 @@ export async function applyPortalMatchPoints(
     challengeSuccess: p75Success,
     now,
   });
+
+  // Badges + season honor (lobby-scoped)
+  if (lobbyId) {
+    await ensureWeeklyLeagueProfileForLobby(ctx, args.uid, lobbyId, now);
+    const profile = await ctx.db
+      .query("portal_weekly_league_profile")
+      .withIndex("by_uid_lobby", (q) => q.eq("uid", args.uid).eq("lobbyId", lobbyId))
+      .unique();
+    if (profile) {
+      const { matchWin, multiWin } = portalMatchWinDeltas({
+        mode,
+        rank: args.rank,
+        p75Success,
+      });
+      let totalMatchWins = profile.totalMatchWins ?? 0;
+      let totalMultiplayerWins = profile.totalMultiplayerWins ?? 0;
+      if (multiWin) {
+        totalMatchWins += 1;
+        totalMultiplayerWins += 1;
+      } else if (matchWin) {
+        totalMatchWins += 1;
+      }
+      if (matchWin) {
+        await ctx.db.patch(profile._id, {
+          totalMatchWins,
+          totalMultiplayerWins,
+          updatedAt: now,
+        });
+      }
+      await checkAndUnlockBadgesCore(ctx, {
+        uid: args.uid,
+        lobbyId,
+        event: {
+          kind: "match_settled",
+          peakLeagueTier: profile.peakLeagueTier,
+          totalMatchWins,
+          totalMultiplayerWins,
+        },
+        now,
+      });
+      await addSeasonHonorXp(ctx, {
+        uid: args.uid,
+        lobbyId,
+        kind: matchWin ? "win" : "play",
+        now,
+      });
+    }
+  }
 
   return { pointDelta: appliedDelta, weeklyPointsAfter, weekKey };
 }

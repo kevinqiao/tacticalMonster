@@ -272,6 +272,44 @@ export const bootstrapPartnerStaffAccount = mutation({
   },
 });
 
+/**
+ * Wipe SSO partner row + partner_staff for test relaunch (secret-gated).
+ * Does not purge auth_identities / users / platform_staff. Never deletes pid=0.
+ * Portal config must be wiped separately (operation wipe-partner script).
+ */
+export const wipeDevPartnerAccount = mutation({
+  args: {
+    bootstrapSecret: v.string(),
+    partnerId: v.number(),
+  },
+  handler: async (ctx, args) => {
+    assertBootstrapSecret(args.bootstrapSecret);
+    const pid = Math.floor(args.partnerId);
+    if (!Number.isFinite(pid) || pid < 0) throw new Error("invalid_partner");
+    if (pid === 0) throw new Error("default_partner_protected");
+
+    const partner = await getPartnerByPid(ctx, pid);
+    if (!partner) {
+      return { ok: true as const, partnerId: pid, removed: false, removedStaff: 0 };
+    }
+
+    const staffRows = await ctx.db
+      .query("partner_staff")
+      .withIndex("by_partner", (q) => q.eq("partnerId", pid))
+      .collect();
+    for (const row of staffRows) {
+      await ctx.db.delete(row._id);
+    }
+    await ctx.db.delete(partner._id);
+    return {
+      ok: true as const,
+      partnerId: pid,
+      removed: true,
+      removedStaff: staffRows.length,
+    };
+  },
+});
+
 /** Ensure default partner row (pid=0) playerAuth / staffAuth. */
 export const bootstrapDefaultPartnerChannels = mutation({
   args: {

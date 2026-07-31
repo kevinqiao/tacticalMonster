@@ -2,6 +2,7 @@
  * Portal 周联赛：首次登录入组、组内排名、段位视图快照。
  */
 import {
+  DEFAULT_PORTAL_WEEKLY_LEAGUE_TIER,
   PORTAL_WEEKLY_LEAGUE_COHORT_SIZE,
   PORTAL_WEEKLY_LEAGUE_ENABLED,
   PORTAL_WEEKLY_LEAGUE_MATCHING_DURATION_MS,
@@ -32,6 +33,7 @@ import {
   readWeeklyLeagueTier,
   readWeeklyLeagueTierForLobby,
 } from "./casualWeeklyLeagueProfile";
+import { readSeasonHonorView } from "../season/portalSeasonHonorService";
 import {
   ensureUniqueDisplayNames,
   resolvePlayerDisplayName,
@@ -258,6 +260,8 @@ export type PortalWeeklyLeagueTierView = {
   weekEndsAt: number;
   enrolled: boolean;
   tierId: PortalWeeklyLeagueTierId;
+  /** 历史最高段位（跨周） */
+  peakLeagueTier: PortalWeeklyLeagueTierId;
   cohortNo: string | null;
   cohortRank: number | null;
   /** 设计容量（三区条 / 升降区文案，固定 30） */
@@ -275,6 +279,18 @@ export type PortalWeeklyLeagueTierView = {
   lastFinalRank?: number;
   /** 未领取的周联赛金币（与 unreadClose 独立，dismiss 后仍可见） */
   unclaimedRewards?: PortalWeeklyLeagueUnclaimedRewards;
+  /** 赛季荣誉（Lobby 细条） */
+  seasonId?: string;
+  seasonLevel?: number;
+  seasonXp?: number;
+  /** 本季第几周（1-based） */
+  seasonWeek?: number;
+  seasonWeeks?: number;
+  seasonXpIntoLevel?: number;
+  seasonXpForLevel?: number;
+  unreadSeasonMarks?: boolean;
+  unreadSeasonId?: string | null;
+  unreadSeasonLevel?: number | null;
 };
 
 export type PortalWeeklyLeagueUnclaimedRewards = {
@@ -362,6 +378,49 @@ export async function getPortalWeeklyLeagueTierViewForUidScoped(
       : await readWeeklyLeagueTier(ctx, uid, scope.gameType);
   const bands = PORTAL_WEEKLY_LEAGUE_ZONE_BANDS[tierId];
 
+  const profile =
+    "lobbyId" in scope
+      ? await ctx.db
+          .query("portal_weekly_league_profile")
+          .withIndex("by_uid_lobby", (q) =>
+            q.eq("uid", uid).eq("lobbyId", scope.lobbyId)
+          )
+          .unique()
+      : await ctx.db
+          .query("portal_weekly_league_profile")
+          .withIndex("by_uid_game", (q) =>
+            q.eq("uid", uid).eq("gameType", scope.gameType)
+          )
+          .unique();
+  const peakLeagueTier = (profile?.peakLeagueTier ??
+    DEFAULT_PORTAL_WEEKLY_LEAGUE_TIER) as PortalWeeklyLeagueTierId;
+
+  let seasonFields: Partial<PortalWeeklyLeagueTierView> = {};
+  if ("lobbyId" in scope) {
+    const season = await readSeasonHonorView(ctx, uid, scope.lobbyId, now);
+    if (season.active && season.seasonLevel != null) {
+      seasonFields = {
+        seasonId: season.seasonId ?? undefined,
+        seasonLevel: season.seasonLevel,
+        seasonXp: season.seasonXp,
+        seasonWeek: season.seasonWeek ?? undefined,
+        seasonWeeks: season.seasonWeeks ?? undefined,
+        seasonXpIntoLevel: season.xpIntoLevel,
+        seasonXpForLevel: season.xpForLevel,
+        unreadSeasonMarks: Boolean(profile?.unreadSeasonMarks),
+        unreadSeasonId: profile?.unreadSeasonId ?? null,
+        unreadSeasonLevel: profile?.unreadSeasonLevel ?? null,
+      };
+    } else {
+      // next_season 门控未到：不展示 Season 条；仍可弹已 finalize 的未读季末章
+      seasonFields = {
+        unreadSeasonMarks: Boolean(profile?.unreadSeasonMarks),
+        unreadSeasonId: profile?.unreadSeasonId ?? null,
+        unreadSeasonLevel: profile?.unreadSeasonLevel ?? null,
+      };
+    }
+  }
+
   const member =
     "lobbyId" in scope
       ? await getWeeklyLeagueMemberByLobby(ctx, { uid, lobbyId: scope.lobbyId, weekKey })
@@ -384,6 +443,7 @@ export async function getPortalWeeklyLeagueTierViewForUidScoped(
       weekEndsAt: window.endsAt,
       enrolled: false,
       tierId,
+      peakLeagueTier,
       cohortNo: null,
       cohortRank: null,
       cohortSize: PORTAL_WEEKLY_LEAGUE_COHORT_SIZE,
@@ -394,6 +454,7 @@ export async function getPortalWeeklyLeagueTierViewForUidScoped(
       projectedCoins: null,
       ...closeFields,
       ...unclaimedFields,
+      ...seasonFields,
     };
   }
 
@@ -410,6 +471,7 @@ export async function getPortalWeeklyLeagueTierViewForUidScoped(
     weekEndsAt: window.endsAt,
     enrolled: true,
     tierId: member.leagueTierId as PortalWeeklyLeagueTierId,
+    peakLeagueTier,
     cohortNo: cohort != null ? resolvePortalCohortDisplayCode(cohort) : null,
     cohortRank,
     cohortSize: PORTAL_WEEKLY_LEAGUE_COHORT_SIZE,
@@ -420,6 +482,7 @@ export async function getPortalWeeklyLeagueTierViewForUidScoped(
     projectedCoins,
     ...closeFields,
     ...unclaimedFields,
+    ...seasonFields,
   };
 }
 

@@ -2,6 +2,7 @@
  * Block Blast 状态栏：顶栏（右对齐计时+分数），仅竖向布局
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { BlockBlastGameState } from '../types/BlockBlastTypes';
 import { useBlockBlastGameManager } from '../service/GameManager';
 
@@ -41,6 +42,7 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
     onMatchTimeout,
     targetScore,
 }) => {
+    const { t } = useTranslation('shared.casual');
     const { boardDimension } = useBlockBlastGameManager();
     const cellSizeForChrome = boardDimension?.cellSize ?? 24;
     const portraitBarHeightPx = useMemo(
@@ -83,18 +85,18 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
     return (
         <header
             className="blockblast-status blockblast-status--portrait"
-            aria-label="对局状态"
+            aria-label={t('hud.matchStatusAria')}
             style={{ minHeight: portraitBarHeightPx, height: portraitBarHeightPx }}
         >
             <div className="blockblast-status__portrait-row">
                 {timerText != null ? (
-                    <time className="blockblast-status__timer" aria-label="剩余时间">
+                    <time className="blockblast-status__timer" aria-label={t('hud.remainingTimeAria')}>
                         {timerText}
                     </time>
                 ) : null}
                 {targetScore != null ? (
-                    <span className="blockblast-status__target" aria-label="目标分数">
-                        目标 {targetScore}
+                    <span className="blockblast-status__target" aria-label={t('hud.targetScoreAria')}>
+                        {t('hud.targetWithValue', { score: targetScore })}
                     </span>
                 ) : null}
                 <span className="blockblast-status__score-main">{gameState.score}</span>

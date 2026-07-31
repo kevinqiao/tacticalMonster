@@ -1,11 +1,19 @@
 /**
  * Portal 周联赛配置（与 casualPlatform 独立，不共享常量）。
+ * 经济相关（enabled / cohortSize / projectedCoins）← portalEconomyGenerated。
  */
 
-export const PORTAL_WEEKLY_LEAGUE_ENABLED = true;
+import {
+  PORTAL_WEEKLY_LEAGUE_ENABLED,
+  PORTAL_WEEKLY_LEAGUE_COHORT_SIZE,
+  PORTAL_WEEKLY_LEAGUE_PROJECTED_COINS,
+} from "./portalEconomyGenerated";
 
-/** cohort 设计容量（UI 三区条按 30 人） */
-export const PORTAL_WEEKLY_LEAGUE_COHORT_SIZE = 30;
+export {
+  PORTAL_WEEKLY_LEAGUE_ENABLED,
+  PORTAL_WEEKLY_LEAGUE_COHORT_SIZE,
+  PORTAL_WEEKLY_LEAGUE_PROJECTED_COINS,
+};
 
 /**
  * 创建分组时固定种入的 Bot 数（15 真人 + 15 Bot = 30）。
@@ -207,23 +215,14 @@ export function resolvePortalCohortDisplayCode(
 }
 
 /** 按当前组内名次预估结算金币（与 PortalRulesContent 矩阵对齐） */
-const PROJECTED_COINS: Record<
-  PortalWeeklyLeagueTierId,
-  { r1: number; r2_3: number; r4_8: number; r9_22: number }
-> = {
-  bronze: { r1: 200, r2_3: 120, r4_8: 60, r9_22: 20 },
-  silver: { r1: 300, r2_3: 180, r4_8: 90, r9_22: 30 },
-  gold: { r1: 500, r2_3: 300, r4_8: 150, r9_22: 50 },
-  platinum: { r1: 800, r2_3: 480, r4_8: 240, r9_22: 80 },
-  diamond: { r1: 1200, r2_3: 720, r4_8: 360, r9_22: 120 },
-};
-
 export function portalWeeklyLeagueProjectedCoins(
   tierId: PortalWeeklyLeagueTierId,
   rank: number
 ): number | null {
   if (rank <= 0 || rank > PORTAL_WEEKLY_LEAGUE_COHORT_SIZE) return null;
-  const row = PROJECTED_COINS[tierId] ?? PROJECTED_COINS.bronze;
+  const row =
+    PORTAL_WEEKLY_LEAGUE_PROJECTED_COINS[tierId] ??
+    PORTAL_WEEKLY_LEAGUE_PROJECTED_COINS.bronze;
   if (rank === 1) return row.r1;
   if (rank <= 3) return row.r2_3;
   if (rank <= 8) return row.r4_8;

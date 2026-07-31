@@ -109,6 +109,9 @@ export type PartnerPortalConfig = {
   ticketEntryMultiDailyCap: number | null;
   lobbyOpsMode: "isolated" | "shared" | null;
   lobbyOpsModeEffective: "isolated" | "shared";
+  /** Partner 赛季日历起点 w:YYYY-MM-DD；null=用全站缺省 */
+  seasonEpochWeekKey: string | null;
+  seasonEpochWeekKeyEffective: string | null;
 };
 
 /**

@@ -18,7 +18,7 @@ import {
     resolveCasualScoreReportSecondaryAction,
 } from '../../shared/casualGameScoreReportUI';
 import {
-    MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST,
+    getManualSettleDefaultMessage,
     ManualSettleConfirmOverlay,
 } from '../../shared/ManualSettleConfirmOverlay';
 import BlockBlastStatusBar, {
@@ -347,7 +347,7 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
                 <>
                     <ManualSettleConfirmOverlay
                         open={settleConfirmOpen}
-                        defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST}
+                        defaultMessage={getManualSettleDefaultMessage('blockBlast')}
                         onCancel={cancelSettleConfirm}
                         onConfirm={confirmSettleAndExit}
                         onSuccessClose={finishManualSettleSuccess}
@@ -388,7 +388,6 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
                     />
                     <CasualPostSettleSummaryOverlay
                         open={showPostSettleSummary && watchTarget == null}
-                        title="同桌成绩"
                         summary={postCasualTableSummary}
                         waitingForPeers={postCasualWaitingForPeers}
                         replayAvailable={postSettleReplay.showReplay}

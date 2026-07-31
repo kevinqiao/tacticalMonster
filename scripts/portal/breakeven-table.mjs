@@ -1,5 +1,19 @@
-const TARGET_COINS = 750; // $5 @ 150 coins/USD
-const GIFT_COST = { face: 5.0, b2b: 4.85 };
+/**
+ * Offline breakeven table for weekly league coins vs gift card.
+ * Reads coins / target from scripts/portal/economy/portal-economy.json.
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ECO_PATH = join(__dirname, "economy", "portal-economy.json");
+const eco = JSON.parse(readFileSync(ECO_PATH, "utf8"));
+
+const TARGET_COINS = Math.round(
+  (eco.giftcard.targetFaceUsd ?? 5) * eco.giftcard.coinsPerUsd
+);
+const GIFT_COST = { face: eco.giftcard.targetFaceUsd ?? 5.0, b2b: 4.85 };
 
 const TIERS = ["bronze", "silver", "gold", "platinum", "diamond"];
 const BANDS = [
@@ -9,13 +23,7 @@ const BANDS = [
   { label: "9–22名", key: "r9_22" },
 ];
 
-const COINS = {
-  bronze: { r1: 200, r2_3: 120, r4_8: 60, r9_22: 20 },
-  silver: { r1: 300, r2_3: 180, r4_8: 90, r9_22: 30 },
-  gold: { r1: 500, r2_3: 300, r4_8: 150, r9_22: 50 },
-  platinum: { r1: 800, r2_3: 480, r4_8: 240, r9_22: 80 },
-  diamond: { r1: 1200, r2_3: 720, r4_8: 360, r9_22: 120 },
-};
+const COINS = eco.weeklyLeague.projectedCoins;
 
 const PROFILES = {
   casual: { label: "轻度", rewardedPerDay: 1, sessionsPerDay: 1 },
@@ -65,7 +73,9 @@ for (const tier of TIERS) {
   }
 }
 
-console.log("=== Regular + Base scenario ===");
+console.log(
+  `=== Regular + Base scenario (target ${TARGET_COINS} coins = $${GIFT_COST.face} @ ${eco.giftcard.coinsPerUsd}/USD) ===`
+);
 for (const r of rows) {
   const ad = r.adRanges.regular.base;
   const margin = ad - GIFT_COST.b2b;

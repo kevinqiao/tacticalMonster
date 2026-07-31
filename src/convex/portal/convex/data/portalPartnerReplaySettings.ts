@@ -1,8 +1,16 @@
 /** Partner + campaign replay ladder settings (defaults / sanitize). */
 
-export const PORTAL_MAX_REPLAYS_PER_MATCH_DEFAULT = 1;
+import {
+  PORTAL_MAX_REPLAYS_PER_MATCH_DEFAULT,
+  PORTAL_TICKET_REPLAY_PRICE_DEFAULT,
+} from "./portalEconomyGenerated";
+
+export {
+  PORTAL_MAX_REPLAYS_PER_MATCH_DEFAULT,
+  PORTAL_TICKET_REPLAY_PRICE_DEFAULT,
+};
+
 export const PORTAL_MAX_REPLAYS_PER_MATCH_MAX = 20;
-export const PORTAL_TICKET_REPLAY_PRICE_DEFAULT = 1;
 /** Explicit override max; unlimited sentinel lives in portalAdReplayConfig. */
 export const PORTAL_AD_REPLAY_DAILY_CAP_OVERRIDE_MAX = 100;
 

@@ -2,13 +2,11 @@
  * Portal 兑换商店静态配表（与 casualPlatform 独立）。
  * title/description 为默认文案；玩家端按 skuId 走
  * `portal.player` → `shopSkus.{skuId}.{title|description}`（见 portalShopCatalogFallback）。
+ * Catalog 数字来自 portalEconomyGenerated（SSOT: scripts/portal/economy/portal-economy.json）。
  */
 
-import {
-  giftCardPriceCoins,
-  formatFaceValueDisplay,
-  PORTAL_GIFTCARD_DEFAULT_MIN_ACCOUNT_AGE_DAYS,
-} from "./portalGiftCardEconomy";
+import { formatFaceValueDisplay } from "./portalGiftCardEconomy";
+import { PORTAL_SHOP_SKU_CATALOG as GENERATED_CATALOG } from "./portalEconomyGenerated";
 
 export type PortalShopSkuKind = "virtual" | "giftcard" | "voucher";
 
@@ -40,62 +38,9 @@ export type PortalShopSkuSeed = {
   listInShop?: boolean;
 };
 
-export const PORTAL_SHOP_SKU_CATALOG: PortalShopSkuSeed[] = [
-  {
-    skuId: "portal_shop_ticket_3",
-    skuKind: "virtual",
-    title: "门票 ×3",
-    description: "获得 3 张门票，可用于继续游戏。",
-    priceCoins: 180,
-    grantReplayTokenCount: 3,
-    weeklyPurchaseLimit: 5,
-    sortOrder: 10,
-  },
-  {
-    skuId: "portal_shop_ticket_10",
-    skuKind: "virtual",
-    title: "门票 ×10",
-    description: "获得 10 张门票，可用于继续游戏。",
-    priceCoins: 500,
-    grantReplayTokenCount: 10,
-    weeklyPurchaseLimit: 3,
-    sortOrder: 20,
-  },
-  {
-    skuId: "gc_amazon_5_us",
-    skuKind: "giftcard",
-    title: "Amazon 礼品卡 $5",
-    description: "美国区 Amazon.com 电子礼品卡，兑换后通过链接领取。",
-    region: "US",
-    faceValueUsd: 5,
-    faceValueLocal: 5,
-    faceValueCurrency: "USD",
-    tangoUtid: "U163059",
-    brandName: "Amazon.com",
-    priceCoins: giftCardPriceCoins(5),
-    weeklyPurchaseLimit: 1,
-    minAccountAgeDays: PORTAL_GIFTCARD_DEFAULT_MIN_ACCOUNT_AGE_DAYS,
-    requiresVerifiedContact: true,
-    sortOrder: 100,
-  },
-  {
-    skuId: "gc_amazon_5_ca",
-    skuKind: "giftcard",
-    title: "Amazon 礼品卡 CA$5",
-    description: "加拿大区 Amazon 电子礼品卡，兑换后通过链接领取。",
-    region: "CA",
-    faceValueUsd: 3.7,
-    faceValueLocal: 5,
-    faceValueCurrency: "CAD",
-    tangoUtid: "U945313",
-    brandName: "Amazon.ca",
-    priceCoins: giftCardPriceCoins(3.7, 1.05),
-    weeklyPurchaseLimit: 1,
-    minAccountAgeDays: PORTAL_GIFTCARD_DEFAULT_MIN_ACCOUNT_AGE_DAYS,
-    requiresVerifiedContact: true,
-    sortOrder: 110,
-  },
-];
+export const PORTAL_SHOP_SKU_CATALOG: PortalShopSkuSeed[] = GENERATED_CATALOG.map(
+  (row) => ({ ...row })
+);
 
 export function mapPortalShopSkuRow(r: PortalShopSkuSeed) {
   const skuKind = r.skuKind ?? "virtual";

@@ -11,6 +11,14 @@ crons.hourly(
   {}
 );
 
+/** 季末 E 章兜底（懒结算为主；本 cron 扫长期未上线玩家） */
+crons.hourly(
+  "finalize expired portal season honor",
+  { minuteUTC: 10 },
+  internal.service.season.portalSeasonHonorService.finalizeExpiredPortalSeasonProgress,
+  {}
+);
+
 /** 每 5 分钟：结束超时匹配窗口并补 Bot */
 crons.interval(
   "close expired portal weekly league matching",

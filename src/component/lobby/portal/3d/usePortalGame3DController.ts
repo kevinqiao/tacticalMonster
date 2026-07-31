@@ -44,7 +44,9 @@ import {
   portalPlayModalForGameType,
   usePortal,
 } from "../service/usePortalManager";
+import { portalTournamentFns } from "../service/portalConvexFunctionRefs";
 import {
+  pickActivePortalOpenAssignment,
   pickActivePortalOpenAssignmentsForGameType,
   inferPortalGameKindFromAssignment,
   pickPortalOpenAssignmentForMode,
@@ -60,26 +62,16 @@ import { localizePortalTournamentTitle } from "../portalTournamentLocalize";
 
 const getTournamentDef = getPortalTournamentDefinition;
 
-/**
- * Lobby offerings for Solo/Arena.
- * - Named lobby (`lobbySlug` set): all tickets of that mode in the lobby.
- * - Default lobby without named slug: filter offerings to current `gameType` when set.
- */
+/** Lobby offerings for Solo/Arena — filter by matchType only (never invent a game slice). */
 function filterLobbyOfferingsForMode(
   offerings: PortalLobbyOfferingView[] | undefined,
-  mode: "solo" | "multi",
-  gameType: string | null | undefined,
-  opts?: { namedLobby?: boolean }
+  mode: "solo" | "multi"
 ): PortalLobbyOfferingView[] {
   const matchType = mode === "solo" ? "solo_p75" : "multi_ranked";
-  const filterByGame = !opts?.namedLobby && Boolean(gameType);
   return (offerings ?? []).filter((o) => {
     const def = getTournamentDef(o.tournamentId);
     const resolvedMatch = def?.matchType ?? o.matchType;
-    if (resolvedMatch !== matchType) return false;
-    if (!filterByGame) return true;
-    const resolvedGame = def?.gameType ?? o.gameType;
-    return resolvedGame === gameType;
+    return resolvedMatch === matchType;
   });
 }
 
@@ -100,9 +92,7 @@ export type Portal3DPanelModal = "lb" | "history" | null;
 
 export function usePortalGame3DController({ visible }: { visible: number }) {
   const portal = usePortal();
-  const { lobby, lobbySlug } = usePortalLobby();
-  /** `/gc/{partner}/{lobbySlug}` — show that lobby's full ticket set, not one game slice. */
-  const namedLobby = Boolean(lobbySlug);
+  const { lobby } = usePortalLobby();
   const { user, askAuth, cancelAuth, logout } = useUserManager();
   const { openModal, modals } = useModalManager();
   const historyReport = usePortalHistoryReport();
@@ -158,8 +148,12 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   const [shopModalOpen, setShopModalOpen] = useState(false);
   const [giftCardOrdersModalOpen, setGiftCardOrdersModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [accountFocusBadges, setAccountFocusBadges] = useState(false);
   const [weeklyCloseModalOpen, setWeeklyCloseModalOpen] = useState(false);
+  const [seasonMarksModalOpen, setSeasonMarksModalOpen] = useState(false);
   const weeklyCloseShownRef = useRef<string | null>(null);
+  const seasonMarksShownRef = useRef<string | null>(null);
+  const prevSeasonLevelRef = useRef<number | null>(null);
 
   useEffect(() => {
     portal.setCohortLeaderboardPolling(panelModal === "lb");
@@ -167,35 +161,45 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   }, [panelModal, portal]);
 
   const openAssignments = useMemo(() => {
-    if (!portal.gameType) return [];
+    if (!portal.gameType) {
+      return [...portal.openRunAssignments].sort(
+        (a, b) => b.createdAt - a.createdAt
+      );
+    }
     return pickPortalOpenAssignmentsForGameType(
       portal.openRunAssignments,
       portal.gameType
     );
   }, [portal.openRunAssignments, portal.gameType]);
 
-  const soloOpenAssignment = useMemo(() => {
-    if (!portal.gameType) return undefined;
-    return pickPortalOpenAssignmentForMode(
-      portal.openRunAssignments,
-      portal.gameType,
-      "solo"
-    );
-  }, [portal.gameType, portal.openRunAssignments]);
+  const soloOpenAssignment = useMemo(
+    () =>
+      pickPortalOpenAssignmentForMode(
+        portal.openRunAssignments,
+        portal.gameType,
+        "solo"
+      ),
+    [portal.gameType, portal.openRunAssignments]
+  );
 
-  const multiOpenAssignment = useMemo(() => {
-    if (!portal.gameType) return undefined;
-    return pickPortalOpenAssignmentForMode(
-      portal.openRunAssignments,
-      portal.gameType,
-      "multi"
-    );
-  }, [portal.gameType, portal.openRunAssignments]);
+  const multiOpenAssignment = useMemo(
+    () =>
+      pickPortalOpenAssignmentForMode(
+        portal.openRunAssignments,
+        portal.gameType,
+        "multi"
+      ),
+    [portal.gameType, portal.openRunAssignments]
+  );
 
-  const matchQueue = useMemo(() => {
-    if (!portal.gameType) return [];
-    return pickPortalMatchQueueForGameType(portal.matchQueueEntries, portal.gameType);
-  }, [portal.matchQueueEntries, portal.gameType]);
+  const matchQueue = useMemo(
+    () =>
+      pickPortalMatchQueueForGameType(
+        portal.matchQueueEntries,
+        portal.gameType
+      ),
+    [portal.matchQueueEntries, portal.gameType]
+  );
 
   const queueWaiting = matchQueue.some((e) => e.status === "waiting");
   const queueClaiming = matchQueue.some((e) => e.status === "claiming");
@@ -368,15 +372,11 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
 
   const soloOfferingsForBlock = filterLobbyOfferingsForMode(
     lobby?.offerings,
-    "solo",
-    portal.gameType,
-    { namedLobby }
+    "solo"
   );
   const multiOfferingsForBlock = filterLobbyOfferingsForMode(
     lobby?.offerings,
-    "multi",
-    portal.gameType,
-    { namedLobby }
+    "multi"
   );
   /** Multi-offering modes open a picker — home CTA stays clickable; gray only for single-ticket modes. */
   const soloHasMultipleOfferings = (soloOfferingsForBlock?.length ?? 0) > 1;
@@ -440,7 +440,6 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
 
   const openAssignment = useCallback(
     (hit: OpenCasualRunAssignment) => {
-      if (!portal.gameType) return;
       setPanelModal(null);
       // Drop stale queue watch — open run is already playable.
       setAwaitingMatch(null);
@@ -453,17 +452,17 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
         data: modalDataForOpenAssignment(hit),
       });
     },
-    [openModal, portal.gameType]
+    [openModal]
   );
 
-  // Allow a fresh auto-resume when navigating to another game deep link.
+  // Allow a fresh auto-resume when navigating to another game / lobby deep link.
   useEffect(() => {
     autoResumeOpenRunRef.current = false;
-  }, [portal.gameType]);
+  }, [portal.gameType, lobby?.lobbyId]);
 
   useEffect(() => {
     if (autoResumeOpenRunRef.current) return;
-    if (visible === 0 || !authed || !portal.gameType) return;
+    if (visible === 0 || !authed) return;
 
     if (playModalOpen) {
       autoResumeOpenRunRef.current = true;
@@ -472,15 +471,15 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
 
     // Open run is already ready — do not wait for match overlay / weekly close.
     // (Stale queue claiming + weekly modal used to block reload resume forever.)
-    const resume =
-      pickActivePortalOpenAssignmentsForGameType(
-        portal.openRunAssignments,
-        portal.gameType
-      )[0] ??
-      soloOpenAssignment ??
-      multiOpenAssignment ??
-      // Named lobby may surface a primary gameType that is not the open run's game.
-      (namedLobby ? portal.openRunAssignments[0] : undefined);
+    // Multi-game lobby (gameType null): resume newest active open run by assignment.
+    const resume = portal.gameType
+      ? pickActivePortalOpenAssignmentsForGameType(
+          portal.openRunAssignments,
+          portal.gameType
+        )[0]
+      : pickActivePortalOpenAssignment(portal.openRunAssignments) ??
+        soloOpenAssignment ??
+        multiOpenAssignment;
     if (!resume) return;
 
     autoResumeOpenRunRef.current = true;
@@ -492,7 +491,6 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     portal.openRunAssignments,
     soloOpenAssignment,
     multiOpenAssignment,
-    namedLobby,
     playModalOpen,
     openAssignment,
   ]);
@@ -508,6 +506,13 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
       tierId,
       tierLabel,
       division,
+      peakLeagueTier: (league?.peakLeagueTier as PortalTierId | undefined) ?? null,
+      seasonId: league?.seasonId ?? null,
+      seasonLevel: league?.seasonLevel ?? null,
+      seasonWeek: league?.seasonWeek ?? null,
+      seasonWeeks: league?.seasonWeeks ?? null,
+      seasonXpIntoLevel: league?.seasonXpIntoLevel ?? null,
+      seasonXpForLevel: league?.seasonXpForLevel ?? null,
       cohortNo: league?.cohortNo ?? null,
       rank: league?.cohortRank ?? null,
       cohortSize: league?.cohortSize ?? 30,
@@ -546,6 +551,59 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     playModalOpen,
   ]);
 
+  useEffect(() => {
+    if (visible === 0 || !league?.unreadSeasonMarks) return;
+    if (hasGlobalOpenRun || playModalOpen || weeklyCloseModalOpen) return;
+    if (league.unreadCloseResult) return;
+    const key = league.unreadSeasonId ?? league.seasonId ?? "season";
+    if (seasonMarksShownRef.current === key) return;
+    seasonMarksShownRef.current = key;
+    setSeasonMarksModalOpen(true);
+  }, [
+    visible,
+    league?.unreadSeasonMarks,
+    league?.unreadSeasonId,
+    league?.seasonId,
+    league?.unreadCloseResult,
+    hasGlobalOpenRun,
+    playModalOpen,
+    weeklyCloseModalOpen,
+  ]);
+
+  useEffect(() => {
+    const lv = league?.seasonLevel;
+    if (lv == null) return;
+    if (
+      prevSeasonLevelRef.current != null &&
+      lv > prevSeasonLevelRef.current
+    ) {
+      showNote(`Season level up · Lv ${lv}`);
+    }
+    prevSeasonLevelRef.current = lv;
+  }, [league?.seasonLevel, showNote]);
+
+  const openAccountBadges = useCallback(() => {
+    setAccountFocusBadges(true);
+    setAccountModalOpen(true);
+  }, []);
+
+  const dismissSeasonMarksModal = useCallback(async () => {
+    setSeasonMarksModalOpen(false);
+    const lobbyId = lobby?.lobbyId;
+    if (!lobbyId) return;
+    try {
+      const { getPortalHttpClient } = await import("../service/usePortalManager");
+      const http = getPortalHttpClient();
+      if (!http) return;
+      await http.mutation(portalTournamentFns.dismissPortalSeasonMarks, {
+        lobbyId: lobbyId as never,
+      });
+      portal.refresh();
+    } catch (e) {
+      console.warn("[Portal] dismissPortalSeasonMarks", e);
+    }
+  }, [lobby?.lobbyId, portal]);
+
   useAwaitOpenCasualRunAssignment({
     watch: awaitingMatch,
     enabled: visible !== 0 && awaitingMatch != null,
@@ -578,7 +636,6 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
 
   useEffect(() => {
     const entry = primaryQueueEntry;
-    if (!portal.gameType) return;
     if (entry && (entry.status === "waiting" || entry.status === "claiming")) {
       if (suppressAwaitRearmRef.current) return;
       // Table already open (or play modal up) — do not re-arm Matching overlay.
@@ -590,18 +647,25 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
         setAwaitingMatch(null);
         return;
       }
+      const entryGameKind =
+        (getTournamentDef(entry.templateId)?.gameType as
+          | typeof portal.gameType
+          | undefined) ??
+        portal.gameType ??
+        null;
+      if (!entryGameKind) return;
       sawQueueForAwaitRef.current = true;
       // Idempotent: avoid new object every render → infinite update loop.
       setAwaitingMatch((prev) => {
         if (
           prev?.templateId === entry.templateId &&
-          prev?.gameKind === portal.gameType
+          prev?.gameKind === entryGameKind
         ) {
           return prev;
         }
         return {
           templateId: entry.templateId,
-          gameKind: portal.gameType!,
+          gameKind: entryGameKind,
         };
       });
       return;
@@ -643,7 +707,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   }, [user?.uid, panelModal]);
 
   useEffect(() => {
-    if (!awaitingMatch || !portal.gameType) return;
+    if (!awaitingMatch) return;
     const hit = portal.openRunAssignments.find((a) =>
       portalAssignmentMatchesAwaitWatch(a, awaitingMatch)
     );
@@ -651,7 +715,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     setAwaitingMatch(null);
     setNote(null);
     openAssignment(hit);
-  }, [awaitingMatch, portal.gameType, portal.openRunAssignments, openAssignment]);
+  }, [awaitingMatch, portal.openRunAssignments, openAssignment]);
 
   const handleLeaveMatchQueue = useCallback(async () => {
     const canLeave =
@@ -989,18 +1053,12 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   );
 
   const soloOfferings = useMemo(
-    () =>
-      filterLobbyOfferingsForMode(lobby?.offerings, "solo", portal.gameType, {
-        namedLobby,
-      }),
-    [lobby?.offerings, namedLobby, portal.gameType]
+    () => filterLobbyOfferingsForMode(lobby?.offerings, "solo"),
+    [lobby?.offerings]
   );
   const multiOfferings = useMemo(
-    () =>
-      filterLobbyOfferingsForMode(lobby?.offerings, "multi", portal.gameType, {
-        namedLobby,
-      }),
-    [lobby?.offerings, namedLobby, portal.gameType]
+    () => filterLobbyOfferingsForMode(lobby?.offerings, "multi"),
+    [lobby?.offerings]
   );
 
   const handleJoin = useCallback(
@@ -1063,8 +1121,14 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     setGiftCardOrdersModalOpen,
     accountModalOpen,
     setAccountModalOpen,
+    accountFocusBadges,
+    setAccountFocusBadges,
+    openAccountBadges,
     weeklyCloseModalOpen,
     setWeeklyCloseModalOpen,
+    seasonMarksModalOpen,
+    setSeasonMarksModalOpen,
+    dismissSeasonMarksModal,
     openAssignments,
     soloOpenAssignment,
     multiOpenAssignment,

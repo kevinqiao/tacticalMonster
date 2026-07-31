@@ -35,6 +35,7 @@ import { useSoloGameManager } from "../GameManager";
 import { autoCompleteLayoutGate } from "../../autoCompleteLayoutGate";
 import {
     buildSolitaireScoreReport,
+    getCasualMatchScoreLineLabel,
     shouldOpenCasualTableSummaryAfterScoreReport,
     shouldRefreshPortalAdReplayQuota,
     type CasualGameScoreReportUI,
@@ -562,7 +563,7 @@ const useActHandler = () => {
             }
             return {
                 gameLabel: "Solitaire",
-                lines: [{ label: "本局得分", value: fallbackScore }],
+                lines: [{ label: getCasualMatchScoreLineLabel(), value: fallbackScore }],
                 totalScore: fallbackScore,
             };
         },
@@ -630,7 +631,7 @@ const useActHandler = () => {
                 // 通关路径：庆祝刚结束立刻盖层，避免裸桌
                 const provisional = attachChallenge({
                     gameLabel: "Solitaire",
-                    lines: [{ label: "本局得分", value: fallbackScore }],
+                    lines: [{ label: getCasualMatchScoreLineLabel(), value: fallbackScore }],
                     totalScore: fallbackScore,
                 });
                 setPostCasualScoreReport(provisional);
@@ -1187,7 +1188,7 @@ const useActHandler = () => {
             setInteractionPhase(GameInteractionPhase.idle);
             setPostCasualScoreReport({
                 gameLabel: "Solitaire",
-                lines: [{ label: "本局得分", value: score }],
+                lines: [{ label: getCasualMatchScoreLineLabel(), value: score }],
                 totalScore: score,
                 ...(typeof targetScore === "number"
                     ? {

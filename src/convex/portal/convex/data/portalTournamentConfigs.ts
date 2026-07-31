@@ -2,7 +2,16 @@
  * Portal 锦标配表：单人 P75 + 多人竞技（积分桌 / 金币桌）。
  * title 为默认文案；玩家端按 tournamentId 走
  * `portal.player` → `tournaments.{tournamentId}.title`（见 portalTournamentLocalize）。
+ * 共享奖励常数 ← portalEconomyGenerated（SSOT: portal-economy.json）。
  */
+
+import {
+  PORTAL_SOLO_POINTS as GENERATED_SOLO_POINTS,
+  PORTAL_MULTI_RANK_POINTS as GENERATED_MULTI_RANK_POINTS,
+  PORTAL_MULTI_COIN_ENTRY as GENERATED_MULTI_COIN_ENTRY,
+  PORTAL_MULTI_COIN_RANK_REWARDS as GENERATED_MULTI_COIN_RANK_REWARDS,
+  PORTAL_RANK_RATES_5,
+} from "./portalEconomyGenerated";
 
 export type EntryCost = { kind: "none" } | { kind: "coins"; amount: number } | { kind: "gems"; amount: number };
 
@@ -86,23 +95,17 @@ export function resolveEffectiveTournamentRewards(
   return { soloPoints, rankPoints, coinRewards };
 }
 
-export const PORTAL_SOLO_POINTS: PortalPointsConfig = { success: 3, fail: -1 };
-
-export const PORTAL_MULTI_RANK_POINTS: PortalRankPointsConfig = {
-  1: 5,
-  2: 3,
-  3: 1,
-  4: -1,
-  5: -2,
+/** 奖励常数 ← portalEconomyGenerated（SSOT: portal-economy.json） */
+export const PORTAL_SOLO_POINTS: PortalPointsConfig = {
+  success: GENERATED_SOLO_POINTS.success,
+  fail: GENERATED_SOLO_POINTS.fail,
 };
 
-const CASUAL_RANK_RATES_5 = [
-  { rank: 1, odd: 30 },
-  { rank: 2, odd: 25 },
-  { rank: 3, odd: 20 },
-  { rank: 4, odd: 15 },
-  { rank: 5, odd: 10 },
-] as const;
+export const PORTAL_MULTI_RANK_POINTS: PortalRankPointsConfig = {
+  ...GENERATED_MULTI_RANK_POINTS,
+};
+
+const CASUAL_RANK_RATES_5 = PORTAL_RANK_RATES_5;
 
 const CASUAL_RANK_RATES_4 = [
   { rank: 1, odd: 35 },
@@ -111,13 +114,10 @@ const CASUAL_RANK_RATES_4 = [
   { rank: 4, odd: 15 },
 ] as const;
 
-/** 5 人金币竞技：入场 20，奖励 45 / 25 / 15 / 5（第 5 名无金币） */
-export const PORTAL_MULTI_COIN_ENTRY = 20;
+/** 5 人金币竞技：入场 / 名次币 ← generated */
+export const PORTAL_MULTI_COIN_ENTRY = GENERATED_MULTI_COIN_ENTRY;
 export const PORTAL_MULTI_COIN_RANK_REWARDS: Record<string, number> = {
-  "1": 45,
-  "2": 25,
-  "3": 15,
-  "4": 5,
+  ...GENERATED_MULTI_COIN_RANK_REWARDS,
 };
 
 function soloDef(gameType: string, title: string): PortalTournamentDefinition {

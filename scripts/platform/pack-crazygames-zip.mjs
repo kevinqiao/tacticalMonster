@@ -412,10 +412,10 @@ if (pruneOnly) {
   });
 
   console.log(
-    "  building with VITE_BASE=./ (Clerk off, mock rewarded ads on)..."
+    "  building with VITE_BASE=./ (Clerk off; ads mode from Portal Convex)..."
   );
-  // CrazyGames: embed JWT only (no Clerk). Prefer mock rewarded ads while CG
-  // inventory is unreliable — backend must allow channel `dev` (PORTAL_AD_REPLAY_MOCK).
+  // CrazyGames: embed JWT only (no Clerk). Rewarded ads: idle|live from
+  // PORTAL_REWARDED_AD_MODE on Portal Convex (no rebuild to flip).
   execSync("npx vite build", {
     cwd: root,
     stdio: "inherit",
@@ -423,7 +423,6 @@ if (pruneOnly) {
       ...process.env,
       VITE_BASE: "./",
       VITE_DISABLE_CLERK: "1",
-      VITE_AD_REPLAY_MOCK: "1",
       VITE_CLERK_PUBLISHABLE_KEY: "",
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "",
       REACT_APP_CLERK_PUBLISHABLE_KEY: "",

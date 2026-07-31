@@ -2026,3 +2026,209 @@
     font-size: 24px;
   }
 }
+
+/* ---- Badges wall + season marks ---- */
+
+.portal-badges-wall {
+  margin-top: 18px;
+  padding-top: 8px;
+  border-top: 2px solid rgba(111, 67, 24, 0.2);
+}
+
+.portal-badges-wall__title {
+  margin: 0 0 12px;
+  font-size: 20px;
+  color: #5b3a12;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+.portal-badges-wall__group {
+  margin-bottom: 14px;
+}
+
+.portal-badges-wall__group-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #6f4318;
+}
+
+.portal-badges-wall__group-title span {
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+.portal-badges-wall__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.portal-badges-wall__item {
+  width: 88px;
+  padding: 8px 6px;
+  border: 3px solid #6f4318;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff4d6, #f0d59a);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #5b3a12;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+.portal-badges-wall__item--locked,
+.portal-badges-wall__item--locked .portal-badges-wall__icon {
+  filter: grayscale(1) opacity(0.5);
+}
+
+.portal-badges-wall__icon {
+  width: 48px;
+  height: 52px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  display: block;
+}
+
+.portal-badges-wall__name {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.portal-badge-detail {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(30, 18, 5, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.portal-badge-detail__card {
+  width: min(340px, 100%);
+  padding: 20px 18px;
+  border: 6px solid #6f4318;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f8e5b8, #eecb85);
+  color: #5b3a12;
+  text-align: center;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+.portal-badge-detail__icon {
+  margin: 0 auto 8px;
+}
+
+.portal-badge-detail__status {
+  font-weight: 700;
+  margin: 4px 0 8px;
+}
+
+.portal-badge-detail__desc {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.portal-badge-detail__progress {
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.portal-badge-detail__ok {
+  min-width: 120px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #5aae2a, #3f8f14);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portal-season-marks-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(30, 18, 5, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.portal-season-marks-modal__card {
+  width: min(380px, 100%);
+  padding: 22px 18px;
+  border: 6px solid #6f4318;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #f8e5b8, #eecb85);
+  color: #5b3a12;
+  text-align: center;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+.portal-season-marks-modal__sub {
+  margin: 6px 0 14px;
+  font-weight: 700;
+}
+
+.portal-season-marks-modal__marks {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.portal-season-marks-modal__mark {
+  width: 96px;
+  padding: 8px;
+  border: 3px solid #6f4318;
+  border-radius: 14px;
+  background: #fff4d6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.portal-season-marks-modal__mark--locked {
+  filter: grayscale(1) opacity(0.5);
+}
+
+.portal-season-marks-modal__note {
+  font-size: 13px;
+  margin: 0 0 14px;
+  line-height: 1.35;
+}
+
+.portal-season-marks-modal__primary {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f0c14b, #d4a017);
+  color: #5b3a12;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portal-season-marks-modal__secondary {
+  border: none;
+  background: transparent;
+  color: #6f4318;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}

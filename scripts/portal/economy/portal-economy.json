@@ -1,0 +1,255 @@
+{
+  "version": 1,
+  "giftcard": {
+    "coinsPerUsd": 150,
+    "targetFaceUsd": 5,
+    "regionLockMs": 2592000000,
+    "defaultMinAccountAgeDays": 7,
+    "rewardLinkCacheMs": 259200000,
+    "regions": [
+      "US",
+      "CA",
+      "GB",
+      "EU"
+    ]
+  },
+  "shopCatalog": {
+    "skus": [
+      {
+        "skuId": "portal_shop_ticket_3",
+        "skuKind": "virtual",
+        "title": "门票 ×3",
+        "description": "获得 3 张门票，可用于继续游戏。",
+        "priceCoins": 180,
+        "grantReplayTokenCount": 3,
+        "weeklyPurchaseLimit": 5,
+        "sortOrder": 10
+      },
+      {
+        "skuId": "portal_shop_ticket_10",
+        "skuKind": "virtual",
+        "title": "门票 ×10",
+        "description": "获得 10 张门票，可用于继续游戏。",
+        "priceCoins": 500,
+        "grantReplayTokenCount": 10,
+        "weeklyPurchaseLimit": 3,
+        "sortOrder": 20
+      },
+      {
+        "skuId": "gc_amazon_5_us",
+        "skuKind": "giftcard",
+        "title": "Amazon 礼品卡 $5",
+        "description": "美国区 Amazon.com 电子礼品卡，兑换后通过链接领取。",
+        "region": "US",
+        "faceValueUsd": 5,
+        "faceValueLocal": 5,
+        "faceValueCurrency": "USD",
+        "scarcityMultiplier": 1,
+        "tangoUtid": "U163059",
+        "brandName": "Amazon.com",
+        "weeklyPurchaseLimit": 1,
+        "requiresVerifiedContact": true,
+        "sortOrder": 100
+      },
+      {
+        "skuId": "gc_amazon_5_ca",
+        "skuKind": "giftcard",
+        "title": "Amazon 礼品卡 CA$5",
+        "description": "加拿大区 Amazon 电子礼品卡，兑换后通过链接领取。",
+        "region": "CA",
+        "faceValueUsd": 3.7,
+        "faceValueLocal": 5,
+        "faceValueCurrency": "CAD",
+        "scarcityMultiplier": 1.05,
+        "tangoUtid": "U945313",
+        "brandName": "Amazon.ca",
+        "weeklyPurchaseLimit": 1,
+        "requiresVerifiedContact": true,
+        "sortOrder": 110
+      }
+    ]
+  },
+  "tournamentRewards": {
+    "soloPoints": {
+      "success": 3,
+      "fail": -1
+    },
+    "multiRankPoints": {
+      "1": 5,
+      "2": 3,
+      "3": 1,
+      "4": -1,
+      "5": -2
+    },
+    "multiCoinEntry": 20,
+    "multiCoinRankRewards": {
+      "1": 45,
+      "2": 25,
+      "3": 15,
+      "4": 5
+    },
+    "rankRates5": [
+      {
+        "rank": 1,
+        "odd": 30
+      },
+      {
+        "rank": 2,
+        "odd": 25
+      },
+      {
+        "rank": 3,
+        "odd": 20
+      },
+      {
+        "rank": 4,
+        "odd": 15
+      },
+      {
+        "rank": 5,
+        "odd": 10
+      }
+    ]
+  },
+  "seasonHonor": {
+    "epochWeekKey": "w:2026-07-27",
+    "seasonWeeks": 5,
+    "maxLevel": 30,
+    "levelXp": [
+      0,
+      0,
+      8,
+      18,
+      30,
+      44,
+      60,
+      78,
+      98,
+      120,
+      144,
+      172,
+      204,
+      240,
+      280,
+      324,
+      372,
+      424,
+      480,
+      540,
+      604,
+      674,
+      750,
+      832,
+      920,
+      1014,
+      1114,
+      1220,
+      1332,
+      1450,
+      1574
+    ],
+    "xpWin": 4,
+    "xpPlay": 1,
+    "xpWeekSettle": 20,
+    "xpWeekPromote": 40,
+    "dailyWinXpCap": 24,
+    "dailyPlayXpCap": 10
+  },
+  "weeklyLeague": {
+    "enabled": true,
+    "cohortSize": 30,
+    "projectedCoins": {
+      "bronze": {
+        "r1": 200,
+        "r2_3": 120,
+        "r4_8": 60,
+        "r9_22": 20
+      },
+      "silver": {
+        "r1": 300,
+        "r2_3": 180,
+        "r4_8": 90,
+        "r9_22": 30
+      },
+      "gold": {
+        "r1": 500,
+        "r2_3": 300,
+        "r4_8": 150,
+        "r9_22": 50
+      },
+      "platinum": {
+        "r1": 800,
+        "r2_3": 480,
+        "r4_8": 240,
+        "r9_22": 80
+      },
+      "diamond": {
+        "r1": 1200,
+        "r2_3": 720,
+        "r4_8": 360,
+        "r9_22": 120
+      }
+    }
+  },
+  "adCoin": {
+    "enabled": true,
+    "rewardAmount": 30,
+    "dailyCap": 5,
+    "sessionTtlMs": 120000,
+    "channels": [
+      "partner",
+      "poki",
+      "dev",
+      "crazygames"
+    ]
+  },
+  "playDefaults": {
+    "freePlay": {
+      "solo": 3,
+      "multi": 6,
+      "capMax": 100
+    },
+    "adEntry": {
+      "solo": {
+        "enabled": true,
+        "dailyCap": 5
+      },
+      "multi": {
+        "enabled": true,
+        "dailyCap": 10
+      },
+      "dailyCapMax": 100,
+      "sessionTtlMs": 120000,
+      "grantTtlMs": 120000
+    },
+    "ticketEntry": {
+      "solo": {
+        "enabled": true,
+        "priceTickets": 1,
+        "dailyCap": 3
+      },
+      "multi": {
+        "enabled": true,
+        "priceTickets": 2,
+        "dailyCap": 5
+      },
+      "priceMin": 1,
+      "priceMax": 100,
+      "dailyCapMax": 100
+    },
+    "adReplay": {
+      "enabled": true,
+      "dailyCapUnlimited": true,
+      "dailyCapUnlimitedSentinel": 1000000000,
+      "sessionTtlMs": 120000,
+      "channels": [
+        "crazygames",
+        "poki",
+        "partner",
+        "dev"
+      ],
+      "maxReplaysPerMatchDefault": 1,
+      "ticketReplayPriceDefault": 1
+    }
+  }
+}

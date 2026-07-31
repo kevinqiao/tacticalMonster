@@ -53,6 +53,8 @@ type LobbyRow = {
   multiCount: number;
   /** Lobby overlay; null/undefined = inherit partner base. */
   quotaScope?: LobbyQuotaScope | null;
+  seasonHonorMode?: "join_now" | "next_season";
+  seasonHonorStartsWeekKey?: string | null;
 };
 
 type Props = {
@@ -88,6 +90,9 @@ const PlatformPartnerLobbiesPanel: React.FC<Props> = ({
   const [selectedTournamentIds, setSelectedTournamentIds] = useState<string[]>([]);
   /** "" = inherit partner base quotaScope. */
   const [quotaScope, setQuotaScope] = useState<"" | LobbyQuotaScope>("");
+  const [seasonHonorMode, setSeasonHonorMode] = useState<
+    "join_now" | "next_season"
+  >("join_now");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -101,6 +106,7 @@ const PlatformPartnerLobbiesPanel: React.FC<Props> = ({
     setBgLand("");
     setBgPort("");
     setQuotaScope("");
+    setSeasonHonorMode("join_now");
     setSelectedTournamentIds(
       defaultOfferingsForGames([...PARTNER_GAME_TYPES]).map((o) => o.tournamentId)
     );
@@ -163,6 +169,7 @@ const PlatformPartnerLobbiesPanel: React.FC<Props> = ({
         offerings,
         // Always send: "" → null clears lobby override; otherwise set mode/lobby/tournament.
         quotaScope: quotaScope === "" ? null : quotaScope,
+        seasonHonorMode,
       });
       setNote(editingId ? "Lobby 已更新" : "Lobby 已保存（同 slug 则更新）");
       resetForm();
@@ -189,6 +196,9 @@ const PlatformPartnerLobbiesPanel: React.FC<Props> = ({
         row.quotaScope === "tournament"
         ? row.quotaScope
         : ""
+    );
+    setSeasonHonorMode(
+      row.seasonHonorMode === "next_season" ? "next_season" : "join_now"
     );
   };
 
@@ -259,6 +269,15 @@ const PlatformPartnerLobbiesPanel: React.FC<Props> = ({
                       : row.quotaScope === "mode"
                         ? "按模式"
                         : "继承 Partner"}
+                  {" · "}
+                  赛季：
+                  {row.seasonHonorMode === "next_season"
+                    ? `等下季${
+                        row.seasonHonorStartsWeekKey
+                          ? `（${row.seasonHonorStartsWeekKey}）`
+                          : ""
+                      }`
+                    : "立即加入"}
                 </div>
                 <div style={{ fontSize: 13, opacity: 0.8 }}>
                   {portalLobbyPath(slugForUrl, row.isDefault ? null : row.slug)}
@@ -342,6 +361,23 @@ const PlatformPartnerLobbiesPanel: React.FC<Props> = ({
           </label>
           <p style={{ opacity: 0.7, fontSize: 12, marginTop: -4, marginBottom: 8 }}>
             覆盖 Partner「基础设置」里的共享范围；选「继承」则清除本 Lobby 覆盖。
+          </p>
+          <label style={{ display: "block", marginBottom: 8 }}>
+            赛季荣誉参与{" "}
+            <select
+              value={seasonHonorMode}
+              onChange={(e) =>
+                setSeasonHonorMode(
+                  e.target.value as "join_now" | "next_season"
+                )
+              }
+            >
+              <option value="join_now">立即加入当前季（默认）</option>
+              <option value="next_season">等 Partner 下一季 W1 再开</option>
+            </select>
+          </label>
+          <p style={{ opacity: 0.7, fontSize: 12, marginTop: -4, marginBottom: 8 }}>
+            日历由 Partner 统一；晚开大厅可选等到完整季再亮 Season 条与季末章。
           </p>
           <label style={{ display: "block", marginBottom: 8 }}>
             Logo URL{" "}

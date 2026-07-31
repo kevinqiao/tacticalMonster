@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   YATZ_CATEGORIES,
   YATZ_CATEGORY_LABELS,
@@ -8,7 +9,7 @@ import {
 import { useYatzGameManager } from './service/GameManager';
 import {
   ManualSettleConfirmOverlay,
-  MANUAL_SETTLE_DEFAULT_MESSAGE_YATZ,
+  getManualSettleDefaultMessage,
 } from '../../shared/ManualSettleConfirmOverlay';
 import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
 import { CasualPostSettleSummaryOverlay } from '../../shared/CasualPostSettleSummaryOverlay';
@@ -166,6 +167,7 @@ function ScoreSection({
 }
 
 const GamePlayer: React.FC = () => {
+  const { t } = useTranslation('shared.casual');
   const yatz = useYatzGameManager();
   const gs = yatz.gameState;
 
@@ -267,24 +269,24 @@ const GamePlayer: React.FC = () => {
         <header className="yatz-header">
           <div className="yatz-header-stats">
             <div className="yatz-stat">
-              <span className="yatz-stat-label">总分</span>
+              <span className="yatz-stat-label">{t('hud.totalScore')}</span>
               <span className="yatz-stat-value">{gs.score}</span>
             </div>
             {yatz.targetScore != null ? (
               <div className="yatz-stat">
-                <span className="yatz-stat-label">目标</span>
+                <span className="yatz-stat-label">{t('hud.target')}</span>
                 <span className="yatz-stat-value yatz-stat-value--target">{yatz.targetScore}</span>
               </div>
             ) : null}
             {gs.yahtzeeBonus > 0 ? (
               <div className="yatz-stat">
-                <span className="yatz-stat-label">奖励</span>
+                <span className="yatz-stat-label">{t('hud.bonus')}</span>
                 <span className="yatz-stat-value yatz-stat-value--accent">+{gs.yahtzeeBonus}</span>
               </div>
             ) : null}
             {dueRemainingSec != null ? (
               <div className="yatz-stat yatz-stat--timer">
-                <span className="yatz-stat-label">剩余</span>
+                <span className="yatz-stat-label">{t('hud.remaining')}</span>
                 <span className="yatz-stat-value yatz-stat-value--timer">
                   {formatMatchRemainingSec(dueRemainingSec)}
                 </span>
@@ -299,7 +301,7 @@ const GamePlayer: React.FC = () => {
                 disabled={yatz.busy}
                 onClick={() => void yatz.settleManuallyAndExit()}
               >
-                结束对局
+                {t('hud.end')}
               </button>
             </div>
           ) : null}
@@ -389,7 +391,7 @@ const GamePlayer: React.FC = () => {
 
       <ManualSettleConfirmOverlay
         open={yatz.settleConfirmOpen}
-        defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_YATZ}
+        defaultMessage={getManualSettleDefaultMessage('yatz')}
         onCancel={yatz.cancelSettleConfirm}
         onConfirm={yatz.confirmSettleAndExit}
         onSuccessClose={yatz.finishManualSettleSuccess}
@@ -430,7 +432,6 @@ const GamePlayer: React.FC = () => {
       />
       <CasualPostSettleSummaryOverlay
         open={showPostSettleSummary && yatz.watchTarget == null}
-        title="同桌成绩"
         summary={yatz.postCasualTableSummary}
         waitingForPeers={yatz.postCasualWaitingForPeers}
         onDismiss={yatz.dismissPostCasualSummary}

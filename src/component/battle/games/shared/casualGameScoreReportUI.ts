@@ -1,10 +1,14 @@
 import { getTournamentDefinition } from '@/convex/casualPlatform/convex/data/casualTournamentConfigs';
 import { getPortalTournamentDefinition } from '@/convex/portal/convex/data/portalTournamentConfigs';
+import i18n from '@/i18n';
 import type { GameReport as BlockBlastGameReport } from '../blockBlast/battle/types/BlockBlastTypes';
 import type { GameReport as Match3GameReport } from '../match3/battle/types/Match3Types';
 import type { GameReport as SolitaireGameReport } from '../solitaireSolo/battle/types/SoloTypes';
 import type { CasualAsyncTableSummaryUI } from './casualAsyncTableSummaryUI';
 import { isTriathlonFinalLeg } from './casualTriathlonSubmitFlow';
+
+const tc = (key: string, opts?: Record<string, unknown>) =>
+  i18n.t(key, { ns: 'shared.casual', ...opts });
 
 /** P75 单人挑战模板：单人无同桌，结算只展示是否成功 + 目标分 + 游戏分。 */
 export function isCasualSoloP75ChallengeTemplate(templateId: string | undefined): boolean {
@@ -46,13 +50,16 @@ export type CasualGameScoreReportUI = {
 
 export function buildSolitaireScoreReport(report: SolitaireGameReport): CasualGameScoreReportUI {
   const lines: CasualGameScoreReportLine[] = [
-    { label: '基础分', value: report.baseScore },
+    { label: tc('scoreReport.baseScore'), value: report.baseScore },
   ];
   if (typeof report.timeBonus === 'number' && report.timeBonus !== 0) {
-    lines.push({ label: '时间奖励', value: report.timeBonus });
+    lines.push({ label: tc('scoreReport.timeBonus'), value: report.timeBonus });
   }
   if (typeof report.completeBonus === 'number' && report.completeBonus !== 0) {
-    lines.push({ label: '完成奖励', value: report.completeBonus });
+    lines.push({
+      label: tc('scoreReport.completeBonus'),
+      value: report.completeBonus,
+    });
   }
   return {
     gameLabel: 'Solitaire',
@@ -64,7 +71,7 @@ export function buildSolitaireScoreReport(report: SolitaireGameReport): CasualGa
 export function buildBlockBlastScoreReport(report: BlockBlastGameReport): CasualGameScoreReportUI {
   return {
     gameLabel: 'Block Blast',
-    lines: [{ label: '本局得分', value: report.totalScore }],
+    lines: [{ label: tc('scoreReport.matchScore'), value: report.totalScore }],
     totalScore: report.totalScore,
   };
 }
@@ -72,7 +79,7 @@ export function buildBlockBlastScoreReport(report: BlockBlastGameReport): Casual
 export function buildMatch3ScoreReport(report: Match3GameReport): CasualGameScoreReportUI {
   return {
     gameLabel: 'Match-3',
-    lines: [{ label: '本局得分', value: report.totalScore }],
+    lines: [{ label: tc('scoreReport.matchScore'), value: report.totalScore }],
     totalScore: report.totalScore,
   };
 }
@@ -134,6 +141,15 @@ export function normalizeAdReplayDailyRemaining(
   return Math.max(0, Math.floor(adReplayDailyRemaining));
 }
 
+export function getCasualAdReplayButtonLabel(): string {
+  return tc('postSettle.adReplay');
+}
+
+export function getCasualMatchScoreLineLabel(): string {
+  return tc('scoreReport.matchScore');
+}
+
+/** @deprecated Prefer getCasualAdReplayButtonLabel(); kept for call-site equality checks. */
 export const CASUAL_AD_REPLAY_BUTTON_LABEL = '看广告重玩';
 
 /** Finite daily caps are 0–100; larger values are the unlimited sentinel. */
@@ -168,7 +184,7 @@ export function formatCasualAdReplayButtonLabel(
   _adReplayDailyRemaining?: number,
   _adReplayDailyCap?: number
 ): string {
-  return CASUAL_AD_REPLAY_BUTTON_LABEL;
+  return getCasualAdReplayButtonLabel();
 }
 
 /** 同桌结算层 / 多人竞技：与单人 P75 一致，不可战时不展示按钮。 */
@@ -217,7 +233,7 @@ export function resolveCasualPostSettleReplayPresentation(opts: {
       ...(cap != null ? { adReplayDailyCap: cap } : {}),
     };
   }
-  return { showReplay: true, replayLabel: '门票再战' };
+  return { showReplay: true, replayLabel: tc('postSettle.tokenReplay') };
 }
 
 export function resolveCasualScoreReportSecondaryAction(opts: {
@@ -258,7 +274,7 @@ export function resolveCasualScoreReportSecondaryAction(opts: {
         ? {
             secondaryLabel:
               opts.replayMode === 'token'
-                ? '门票再战'
+                ? tc('postSettle.tokenReplay')
                 : formatCasualAdReplayButtonLabel(remaining, cap),
             ...(remaining != null ? { adReplayDailyRemaining: remaining } : {}),
             ...(cap != null ? { adReplayDailyCap: cap } : {}),
@@ -277,7 +293,7 @@ export function resolveCasualPostSettleSummaryPresentation(
   tableSummary: CasualAsyncTableSummaryUI | null | undefined
 ): { title: string; summary: CasualAsyncTableSummaryUI | null } {
   if (isCasualSoloP75ChallengeTemplate(templateId)) {
-    return { title: '本局已结算', summary: null };
+    return { title: tc('postSettle.titleSettled'), summary: null };
   }
-  return { title: '同桌成绩', summary: tableSummary ?? null };
+  return { title: tc('postSettle.titleTable'), summary: tableSummary ?? null };
 }

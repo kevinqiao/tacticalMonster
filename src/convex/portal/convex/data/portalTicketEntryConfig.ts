@@ -1,4 +1,12 @@
-/** Portal ticket entry: after free plays and ad entry. */
+/** Portal ticket entry: after free plays and ad entry. Defaults ← portalEconomyGenerated. */
+
+import {
+  PORTAL_TICKET_ENTRY_DEFAULTS,
+  PORTAL_TICKET_ENTRY_PRICE_MIN,
+  PORTAL_TICKET_ENTRY_PRICE_MAX,
+  PORTAL_TICKET_ENTRY_DAILY_CAP_MAX,
+} from "./portalEconomyGenerated";
+
 export type PortalTicketEntryMode = "solo" | "multi";
 
 export type PortalTicketEntryModeConfig = {
@@ -7,18 +15,12 @@ export type PortalTicketEntryModeConfig = {
   dailyCap: number;
 };
 
-/** Missing partner overrides use these values. */
-export const PORTAL_TICKET_ENTRY_DEFAULTS: Record<
-  PortalTicketEntryMode,
-  PortalTicketEntryModeConfig
-> = {
-  solo: { enabled: true, priceTickets: 1, dailyCap: 3 },
-  multi: { enabled: true, priceTickets: 2, dailyCap: 5 },
+export {
+  PORTAL_TICKET_ENTRY_DEFAULTS,
+  PORTAL_TICKET_ENTRY_PRICE_MIN,
+  PORTAL_TICKET_ENTRY_PRICE_MAX,
+  PORTAL_TICKET_ENTRY_DAILY_CAP_MAX,
 };
-
-export const PORTAL_TICKET_ENTRY_PRICE_MIN = 1;
-export const PORTAL_TICKET_ENTRY_PRICE_MAX = 100;
-export const PORTAL_TICKET_ENTRY_DAILY_CAP_MAX = 100;
 
 export function clampTicketEntryPrice(
   value: unknown,

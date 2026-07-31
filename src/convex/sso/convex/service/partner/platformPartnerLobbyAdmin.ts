@@ -106,6 +106,9 @@ export const upsertPlatformPartnerLobby = authedAction({
         v.null()
       )
     ),
+    seasonHonorMode: v.optional(
+      v.union(v.literal("join_now"), v.literal("next_season"), v.null())
+    ),
   },
   handler: async (ctx, args) => {
     await authorizePlatformOperator(ctx);

@@ -15,6 +15,7 @@ import {
   PortalLobbyProvider,
   type PortalLobbyView,
 } from "./PortalLobbyContext";
+import { hydratePortalRewardedAdMode } from "@/host/service/ads/rewarded/portalRewardedAdMode";
 import { portalTournamentFns } from "./service/portalConvexFunctionRefs";
 import {
   isValidPortalGameType,
@@ -25,6 +26,7 @@ import {
 import { PortalDocumentStylesProvider } from "./usePortalDocumentStyles";
 
 let portalLobbyHttp: ConvexHttpClient | null = null;
+let rewardedAdModeHydrateStarted = false;
 
 function portalLobbyClient(): ConvexHttpClient {
   if (!portalLobbyHttp) {
@@ -32,6 +34,22 @@ function portalLobbyClient(): ConvexHttpClient {
     registerConvexAuthClient(portalLobbyHttp);
   }
   return portalLobbyHttp;
+}
+
+/** Pull idle|live — drives mock vs real ads without rebuild. Retries once on failure. */
+function ensureRewardedAdModeHydrated(): void {
+  if (rewardedAdModeHydrateStarted) return;
+  rewardedAdModeHydrateStarted = true;
+  const fetchMode = () =>
+    portalLobbyClient().query(portalTournamentFns.getPortalRewardedAdMode, {});
+  void hydratePortalRewardedAdMode(fetchMode).then((mode) => {
+    if (mode != null) return;
+    rewardedAdModeHydrateStarted = false;
+    window.setTimeout(() => {
+      if (rewardedAdModeHydrateStarted) return;
+      ensureRewardedAdModeHydrated();
+    }, 1500);
+  });
 }
 
 /**
@@ -84,9 +102,15 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
   const [lobbyError, setLobbyError] = useState(false);
 
   useEffect(() => {
+    ensureRewardedAdModeHydrated();
+  }, []);
+
+  useEffect(() => {
     if (resolving || partnerMissing || portalCapabilityOff) return;
     if (!needsPartnerGate && !isFirstPartyPortal) return;
     if (partnerResolveReady && needsPartnerGate && !partner && !isFirstPartyPortal) return;
+
+    ensureRewardedAdModeHydrated();
 
     let cancelled = false;
     setLobbyLoading(true);
@@ -130,28 +154,40 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
     portalPath.lobbySlug,
   ]);
 
+  /**
+   * Pin a gameType only for single-game lobbies (directPlayHome) or page override.
+   * Multi-game lobbies keep null — never invent from "first solo offering".
+   */
   const effectiveGameType: RegisteredPartnerGameType | null = useMemo(() => {
     if (pathGameType) return pathGameType;
     if (!lobby) return null;
-    const fromSolo = lobby.offerings.find((o) => o.matchType === "solo_p75")?.gameType;
-    if (fromSolo && isValidPortalGameType(fromSolo)) return fromSolo;
-    const first = lobby.derivedGames[0];
-    if (first && isValidPortalGameType(first)) return first;
-    if (first && isRegisteredPartnerGameType(first)) {
-      return first as RegisteredPartnerGameType;
+    if (lobby.directPlayHome && lobby.derivedGames.length === 1) {
+      const only = lobby.derivedGames[0];
+      if (only && isValidPortalGameType(only)) return only;
+      if (only && isRegisteredPartnerGameType(only)) {
+        return only as RegisteredPartnerGameType;
+      }
     }
     return null;
   }, [pathGameType, lobby]);
+
+  /** Empty / unresolvable lobby → same UX as not found (do not guess a game). */
+  const lobbyUnusable =
+    Boolean(lobby) &&
+    (lobby!.offerings.length === 0 ||
+      lobby!.derivedGames.length === 0 ||
+      (lobby!.directPlayHome && !effectiveGameType));
+
+  const lobbyNotFound =
+    lobbyError || (isLobbyPath && !lobby) || lobbyUnusable;
 
   const gateBlocked =
     !resolving &&
     !lobbyLoading &&
     (partnerMissing ||
       portalCapabilityOff ||
-      lobbyError ||
-      (!pathGameType && !isLobbyPath) ||
-      (isLobbyPath && !lobby) ||
-      (!effectiveGameType && !isLobbyPath));
+      lobbyNotFound ||
+      (!pathGameType && !isLobbyPath));
 
   const showLoading = resolving || lobbyLoading;
 
@@ -160,10 +196,10 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
   // under a retargeted <base>, leaving "Entering game lobby…" forever.
   useLayoutEffect(() => {
     if (showLoading) return;
-    if (gateBlocked || lobby || effectiveGameType) {
+    if (gateBlocked || (lobby && !lobbyUnusable)) {
       markPortalBootPainted();
     }
-  }, [showLoading, gateBlocked, lobby, effectiveGameType]);
+  }, [showLoading, gateBlocked, lobby, lobbyUnusable]);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -197,24 +233,27 @@ const PortalGamePage: React.FC<PageProp> = ({ visible, data }) => {
         <p className="merchant-note" style={gateMessageStyle} role="alert">
           {t("gate.portalDisabled")}
         </p>
-      ) : lobbyError || (isLobbyPath && !lobby) ? (
+      ) : lobbyNotFound ? (
         <p className="merchant-note" style={gateMessageStyle} role="alert">
           {t("gate.unknownLobby", { defaultValue: "Lobby not found." })}
         </p>
-      ) : !effectiveGameType && !lobby ? (
-        <p className="merchant-note" style={gateMessageStyle} role="alert">
-          {t("gate.unknownGame")}
-        </p>
-      ) : (
-        <PortalLobbyProvider lobby={lobby} lobbySlug={portalPath.lobbySlug}>
+      ) : lobby ? (
+        <PortalLobbyProvider
+          lobby={lobby}
+          lobbySlug={lobby.slug ?? portalPath.lobbySlug}
+        >
           <PortalProvider
             gameType={effectiveGameType}
-            lobbyId={lobby?.lobbyId ?? null}
-            lobbySlug={lobby?.slug ?? portalPath.lobbySlug}
+            lobbyId={lobby.lobbyId}
+            lobbySlug={lobby.slug ?? portalPath.lobbySlug}
           >
             <PortalGame3DPage visible={visible} />
           </PortalProvider>
         </PortalLobbyProvider>
+      ) : (
+        <p className="merchant-note" style={gateMessageStyle} role="alert">
+          {t("gate.unknownLobby", { defaultValue: "Lobby not found." })}
+        </p>
       )}
     </PortalDocumentStylesProvider>
   );

@@ -172,7 +172,8 @@
     "claim": "领取奖励",
     "claiming": "领取中…",
     "dismiss": "稍后再领",
-    "claimedToast": "已领取 {{coins}} 金币"
+    "claimedToast": "已领取 {{coins}} 金币",
+    "seasonXpUpdated": "本周结果已计入赛季经验。"
   },
   "shop": {
     "title": "兑换商店",

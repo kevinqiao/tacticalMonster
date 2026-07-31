@@ -16,6 +16,10 @@ import {
   getPortalWeeklyLeagueTierViewForUidScoped,
   listPortalWeeklyLeagueCohortBoardScoped,
 } from "./portalWeeklyLeagueService";
+import {
+  ensureSeasonHonorProgress,
+  finalizePreviousSeasonsIfNeeded,
+} from "../season/portalSeasonHonorService";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 
@@ -175,6 +179,8 @@ export const ensurePortalWeeklyLeagueMemberMutation = authedMutation({
         lobbyId,
         lobbySlug ?? "lobby"
       );
+      await finalizePreviousSeasonsIfNeeded(ctx, ctx.uid, lobbyId);
+      await ensureSeasonHonorProgress(ctx, ctx.uid, lobbyId);
     } else if (gameType) {
       memberId = await ensurePortalWeeklyLeagueMember(ctx, ctx.uid, gameType);
     }

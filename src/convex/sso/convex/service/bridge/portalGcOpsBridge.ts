@@ -96,6 +96,7 @@ export const upsertPartnerGcOpsToPortal = internalAction({
     ticketEntryMultiPriceTickets: nullableNumber,
     ticketEntryMultiDailyCap: nullableNumber,
     lobbyOpsMode: nullableLobbyOps,
+    seasonEpochWeekKey: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (_ctx, args) => {
     try {

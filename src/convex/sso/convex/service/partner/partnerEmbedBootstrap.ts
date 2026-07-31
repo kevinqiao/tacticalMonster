@@ -10,6 +10,11 @@ import {
   DEFAULT_TICKET_REPLAY_PRICE,
   sanitizeAdReplayDailyCapInput,
 } from "./partnerAdReplayConfig";
+import {
+  playerAuthValidator,
+  sanitizePlayerAuth,
+  type PlayerAuth,
+} from "../auth/partnerAuth";
 import { internal } from "../../_generated/api";
 
 const DEV_BOOTSTRAP_SECRET = "dev-local-partner-embed-bootstrap";
@@ -25,8 +30,26 @@ export const bootstrapDevPartnerEmbed = mutation({
     allowedOrigins: v.optional(v.array(v.string())),
     /** Default jwt_local; CrazyGames prod uses crazygames_jwt. */
     embedMethod: v.optional(
-      v.union(v.literal("jwt_local"), v.literal("crazygames_jwt"))
+      v.union(
+        v.literal("jwt_local"),
+        v.literal("crazygames_jwt"),
+        v.literal("code_exchange"),
+        v.literal("session_introspect")
+      )
     ),
+    /**
+     * Player login mode (SSO playerAuth). Default embed.
+     * Prefer full `playerAuth` when provided.
+     */
+    playerAuthMode: v.optional(
+      v.union(
+        v.literal("clerk"),
+        v.literal("embed"),
+        v.literal("embed_then_clerk")
+      )
+    ),
+    /** Full playerAuth object; wins over playerAuthMode + embedMethod. */
+    playerAuth: v.optional(playerAuthValidator),
     /** When true (default), enable portalGames capability for this partner. */
     portalGames: v.optional(v.boolean()),
     campaignOps: v.optional(v.boolean()),
@@ -83,10 +106,15 @@ export const bootstrapDevPartnerEmbed = mutation({
       .withIndex("by_pid", (q) => q.eq("pid", pid))
       .unique();
 
-    const playerAuth = {
-      mode: "embed" as const,
-      embed: { method: embedMethod },
-    };
+    const playerAuthInput: PlayerAuth =
+      args.playerAuth ??
+      (args.playerAuthMode === "clerk"
+        ? { mode: "clerk" }
+        : {
+            mode: args.playerAuthMode ?? "embed",
+            embed: { method: embedMethod },
+          });
+    const playerAuth = sanitizePlayerAuth(playerAuthInput, partnerDataBase);
     const staffAuth = { mode: "web" as const };
     const name = args.name ?? "Dev Partner Embed";
     const host = args.host ?? "http://localhost:3000";
@@ -139,6 +167,7 @@ export const bootstrapDevPartnerEmbed = mutation({
         created: false as const,
         jwtSecret,
         embedMethod,
+        playerAuth,
         partnerSlug: partnerSlug ?? existing.slug,
         games: readPartnerGames(),
         adReplayDailyCap: portalCap,
@@ -164,6 +193,7 @@ export const bootstrapDevPartnerEmbed = mutation({
       created: true as const,
       jwtSecret,
       embedMethod,
+      playerAuth,
       partnerSlug,
       games: readPartnerGames(),
       adReplayDailyCap: portalCap,

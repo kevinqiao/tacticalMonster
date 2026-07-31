@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 
+import {
+  calendarDateFromPortalWeekKey,
+  portalWeekKeyFromCalendarDate,
+} from "@/convex/portal/convex/data/portalSeasonHonorConfig";
 import { isFirstPartyPartnerId } from "@/convex/sso/convex/service/auth/platformUid";
 import { parseErrorCode } from "../../campaign/shared/campaignErrorMessage";
 
@@ -13,6 +17,8 @@ import {
 } from "./usePlatformAdmin";
 
 const PORTAL_ERROR_MAP: Record<string, string> = {
+  season_epoch_week_key_invalid:
+    "赛季起点无效：请选择日期（将吸附到运营周周一）。",
   slug_required: "Partner slug 必填（非第一方 Partner）。",
   slug_invalid: "Partner slug 格式无效（小写字母、数字、连字符）。",
   slug_reserved: "该 Partner slug 为保留字。",
@@ -66,6 +72,8 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   const [lobbyOpsMode, setLobbyOpsMode] = useState<"isolated" | "shared">(
     "shared"
   );
+  /** Partner 赛季日历 epoch；空=全站缺省 */
+  const [seasonEpochWeekKey, setSeasonEpochWeekKey] = useState("");
   const [adEntryEnabled, setAdEntryEnabled] = useState(true);
   const [adEntrySoloCap, setAdEntrySoloCap] = useState("");
   const [adEntryMultiCap, setAdEntryMultiCap] = useState("");
@@ -133,6 +141,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         ? "isolated"
         : "shared"
     );
+    setSeasonEpochWeekKey(config.seasonEpochWeekKey ?? "");
     setAdEntryEnabled(config.adEntryEnabled !== false);
     setAdEntrySoloCap(
       config.adEntrySoloDailyCap == null ? "" : String(config.adEntrySoloDailyCap)
@@ -233,6 +242,8 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         freePlayMultiDailyCap: freeMulti === "" ? null : Number(freeMulti),
         quotaScope,
         lobbyOpsMode,
+        seasonEpochWeekKey:
+          seasonEpochWeekKey.trim() === "" ? null : seasonEpochWeekKey.trim(),
         adEntryEnabled,
         adEntrySoloDailyCap: adEntrySoloCap === "" ? null : Number(adEntrySoloCap),
         adEntryMultiDailyCap: adEntryMultiCap === "" ? null : Number(adEntryMultiCap),
@@ -438,6 +449,62 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         <p className="merchant-note">
           仅影响经济与广告用量。匹配池与种子履历始终按玩家身份（uid）在 Partner 内共享。
           切换隔离时 shared 余额不会自动拆分；切回共享时需运维合并各 Lobby 钱包。
+        </p>
+      </fieldset>
+      <fieldset className="merchant-field merchant-field--radio">
+        <legend>赛季日历（Partner 共用）</legend>
+        <label className="merchant-field">
+          赛季起点（运营周）
+          <input
+            type="date"
+            value={
+              seasonEpochWeekKey
+                ? calendarDateFromPortalWeekKey(seasonEpochWeekKey)
+                : ""
+            }
+            onChange={(e) => {
+              const ymd = e.target.value;
+              if (!ymd) {
+                setSeasonEpochWeekKey("");
+                return;
+              }
+              const weekKey = portalWeekKeyFromCalendarDate(ymd);
+              if (weekKey) setSeasonEpochWeekKey(weekKey);
+            }}
+            disabled={!canEdit}
+          />
+        </label>
+        <p className="merchant-note">
+          任选一天会吸附到该运营周周一（Asia/Shanghai，与周联赛同周窗）。
+          {seasonEpochWeekKey ? (
+            <>
+              {" "}
+              已选：<code>{seasonEpochWeekKey}</code>
+              {canEdit ? (
+                <>
+                  {" · "}
+                  <button
+                    type="button"
+                    className="merchant-btn"
+                    style={{ padding: "2px 8px", fontSize: 12 }}
+                    onClick={() => setSeasonEpochWeekKey("")}
+                  >
+                    清除（用全站缺省）
+                  </button>
+                </>
+              ) : null}
+            </>
+          ) : (
+            <>
+              {" "}
+              未覆盖；生效：
+              {config.seasonEpochWeekKeyEffective ?? "全站缺省"}
+            </>
+          )}
+        </p>
+        <p className="merchant-note">
+          该 Partner 下所有 Lobby 共用一本赛季日历（5 周一季）。晚开 Lobby 默认中途加入当前季；
+          也可在 Lobby 设置里选「等下一季再开」。
         </p>
       </fieldset>
       <fieldset className="merchant-field merchant-field--radio">

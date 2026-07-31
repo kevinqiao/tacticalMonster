@@ -1,5 +1,11 @@
-/** Portal ad entry: after free plays, before ticket entry. */
+/** Portal ad entry: after free plays, before ticket entry. Defaults ← portalEconomyGenerated. */
 
+import {
+  PORTAL_AD_ENTRY_DEFAULTS,
+  PORTAL_AD_ENTRY_DAILY_CAP_MAX,
+  PORTAL_AD_ENTRY_SESSION_TTL_MS,
+  PORTAL_AD_ENTRY_GRANT_TTL_MS,
+} from "./portalEconomyGenerated";
 import {
   isPortalAdReplayChannel,
   PORTAL_AD_REPLAY_CHANNELS,
@@ -13,15 +19,12 @@ export type PortalAdEntryModeConfig = {
   dailyCap: number;
 };
 
-/** Missing partner overrides use these values. */
-export const PORTAL_AD_ENTRY_DEFAULTS: Record<PortalAdEntryMode, PortalAdEntryModeConfig> = {
-  solo: { enabled: true, dailyCap: 5 },
-  multi: { enabled: true, dailyCap: 10 },
+export {
+  PORTAL_AD_ENTRY_DEFAULTS,
+  PORTAL_AD_ENTRY_DAILY_CAP_MAX,
+  PORTAL_AD_ENTRY_SESSION_TTL_MS,
+  PORTAL_AD_ENTRY_GRANT_TTL_MS,
 };
-
-export const PORTAL_AD_ENTRY_DAILY_CAP_MAX = 100;
-export const PORTAL_AD_ENTRY_SESSION_TTL_MS = 120_000;
-export const PORTAL_AD_ENTRY_GRANT_TTL_MS = 120_000;
 
 export const PORTAL_AD_ENTRY_CHANNELS = PORTAL_AD_REPLAY_CHANNELS;
 export type PortalAdEntryChannel = PortalAdReplayChannel;

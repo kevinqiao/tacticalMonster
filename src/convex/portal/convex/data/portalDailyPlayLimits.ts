@@ -2,7 +2,14 @@
  * Portal 每日免费场次上限（单人挑战 / 多人竞技）。
  * Partner may override these through portal_partner_play_entry_settings.
  * Bot virtual tracks intentionally keep using the defaults.
+ * Defaults ← portalEconomyGenerated（SSOT: portal-economy.json）。
  */
+
+import {
+  PORTAL_DAILY_PLAY_LIMITS,
+  PORTAL_FREE_PLAY_DAILY_CAP_MAX,
+} from "./portalEconomyGenerated";
+
 export type PortalDailyPlayLimits = {
   solo: number;
   multi: number;
@@ -10,13 +17,7 @@ export type PortalDailyPlayLimits = {
 
 export type PortalDailyPlayMode = "solo" | "multi";
 
-/** 默认：单人每天 3 场，多人每天 10 场 */
-export const PORTAL_DAILY_PLAY_LIMITS: PortalDailyPlayLimits = {
-  solo: 3,
-  multi: 10,
-};
-
-export const PORTAL_FREE_PLAY_DAILY_CAP_MAX = 100;
+export { PORTAL_DAILY_PLAY_LIMITS, PORTAL_FREE_PLAY_DAILY_CAP_MAX };
 
 export function getPortalDailyPlayLimits(): PortalDailyPlayLimits {
   return {

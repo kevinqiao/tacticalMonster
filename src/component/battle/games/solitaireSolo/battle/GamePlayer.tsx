@@ -20,7 +20,7 @@ import {
     CasualPostSettleSummaryOverlay,
 } from '../../shared/CasualPostSettleSummaryOverlay';
 import {
-    MANUAL_SETTLE_DEFAULT_MESSAGE_SOLITAIRE,
+    getManualSettleDefaultMessage,
     ManualSettleConfirmOverlay,
 } from '../../shared/ManualSettleConfirmOverlay';
 import './style.css';
@@ -677,7 +677,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 <>
                     <ManualSettleConfirmOverlay
                         open={settleConfirmOpen && !postCasualScoreReportOpen}
-                        defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_SOLITAIRE}
+                        defaultMessage={getManualSettleDefaultMessage('solitaire')}
                         onCancel={cancelSettleConfirm}
                         onConfirm={confirmSettleAndExit}
                         onSuccessClose={finishManualSettleSuccess}

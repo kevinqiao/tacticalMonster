@@ -1,4 +1,5 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { flushSync } from 'react-dom';
 import { findValidMoves } from '@/convex/match3Arena/convex/service/Match3GameEngine';
 import { playInvalidSwapRevert } from './animation/effects/invalidSwapAnim';
@@ -25,7 +26,10 @@ import {
   resolveCasualScoreReportSecondaryAction,
 } from '../../shared/casualGameScoreReportUI';
 import Match3WatchOverlay from './replay/Match3WatchOverlay';
-import { ManualSettleConfirmOverlay, MANUAL_SETTLE_DEFAULT_MESSAGE_MATCH3 } from '../../shared/ManualSettleConfirmOverlay';
+import {
+  ManualSettleConfirmOverlay,
+  getManualSettleDefaultMessage,
+} from '../../shared/ManualSettleConfirmOverlay';
 
 const CANDY_EMOJI = ['🍎', '🍇', '🍋', '🍑', '🫐', '🍉'];
 const DRAG_SWAP_THRESHOLD_RATIO = 14 / 44;
@@ -101,6 +105,7 @@ function computeDragDelta(
 }
 
 const Match3Player: React.FC = () => {
+  const { t } = useTranslation('shared.casual');
   const {
     gameState,
     gridCellRefs,
@@ -469,10 +474,12 @@ const Match3Player: React.FC = () => {
   return (
     <div className="match3-game-container" ref={containerRef}>
       <header className="match3-header">
-        <div className="match3-score">Score: {gameState.score}</div>
+        <div className="match3-score">
+          {t('hud.scoreWithValue', { score: gameState.score })}
+        </div>
         {(targetScore ?? gameState.targetScore) != null ? (
-          <div className="match3-target" aria-label="目标分数">
-            目标 {targetScore ?? gameState.targetScore}
+          <div className="match3-target" aria-label={t('hud.targetScoreAria')}>
+            {t('hud.targetWithValue', { score: targetScore ?? gameState.targetScore })}
           </div>
         ) : null}
         {dueRemainingSec != null && <div className="match3-timer">{dueRemainingSec}s</div>}
@@ -483,7 +490,7 @@ const Match3Player: React.FC = () => {
             disabled={interactionPhase !== GameInteractionPhase.idle}
             onClick={() => void settleManuallyAndExit()}
           >
-            End
+            {t('hud.end')}
           </button>
         </div>
       </header>
@@ -536,7 +543,7 @@ const Match3Player: React.FC = () => {
 
       <ManualSettleConfirmOverlay
         open={settleConfirmOpen}
-        defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_MATCH3}
+        defaultMessage={getManualSettleDefaultMessage('match3')}
         onCancel={cancelSettleConfirm}
         onConfirm={confirmSettleAndExit}
         onSuccessClose={finishManualSettleSuccess}
@@ -577,7 +584,6 @@ const Match3Player: React.FC = () => {
       />
       <CasualPostSettleSummaryOverlay
         open={showPostSettleSummary && watchTarget == null}
-        title="同桌成绩"
         summary={postCasualTableSummary}
         waitingForPeers={postCasualWaitingForPeers}
         onDismiss={dismissPostCasualSummary}

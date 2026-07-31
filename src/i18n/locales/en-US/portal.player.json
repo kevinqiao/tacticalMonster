@@ -172,7 +172,8 @@
     "claim": "Claim reward",
     "claiming": "Claiming…",
     "dismiss": "Claim later",
-    "claimedToast": "Claimed {{coins}} coins"
+    "claimedToast": "Claimed {{coins}} coins",
+    "seasonXpUpdated": "Season XP updated from this week’s result."
   },
   "shop": {
     "title": "Redemption shop",

@@ -17,6 +17,7 @@ import React, {
 import { api } from '@/convex/match3Arena/convex/_generated/api';
 import {
   buildMatch3ScoreReport,
+  getCasualMatchScoreLineLabel,
   isCasualSoloP75ChallengeTemplate,
   shouldOpenCasualTableSummaryAfterScoreReport,
   shouldRefreshPortalAdReplayQuota,
@@ -365,7 +366,7 @@ export const Match3GameProvider: React.FC<Props> = ({
     ) => {
       let report: CasualGameScoreReportUI = {
         gameLabel: 'Match-3',
-        lines: [{ label: '本局得分', value: fallbackScore }],
+        lines: [{ label: getCasualMatchScoreLineLabel(), value: fallbackScore }],
         totalScore: fallbackScore,
       };
       try {

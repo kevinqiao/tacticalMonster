@@ -27,6 +27,16 @@ export interface Portal3DTierInfo {
   tierLabel: string;
   /** 叠加在盾牌上的段位数字，例："III" */
   division?: string;
+  /** 历史最高；高于当前段位时显示小号 Peak 盾 */
+  peakLeagueTier?: PortalTierId | null;
+  /** 赛季细条 */
+  seasonId?: string | null;
+  seasonLevel?: number | null;
+  /** 本季第几周 / 季长（文案 W2/5） */
+  seasonWeek?: number | null;
+  seasonWeeks?: number | null;
+  seasonXpIntoLevel?: number | null;
+  seasonXpForLevel?: number | null;
   /** 用户可见 8 位字母数字组号；null 表示分组未就绪 */
   cohortNo?: string | null;
   /** 组内名次（1-based） */
@@ -114,6 +124,8 @@ export interface PortalGame3DInnerProps {
   showAuthMenuActions?: boolean;
   /** Open My Account panel (authed avatar click). */
   onOpenAccount?: () => void;
+  /** Open account scrolled to badges (season bar tap). */
+  onOpenBadges?: () => void;
   /** 未领取的周联赛金币；有值时在段位条显示「待领」胶囊 */
   unclaimedRewards?: PortalWeeklyLeagueUnclaimedRewards | null;
   onOpenUnclaimedRewards?: () => void;
@@ -166,6 +178,7 @@ export function PortalGame3DInner({
   showAuthButton,
   showAuthMenuActions: showAuthMenuActionsProp,
   onOpenAccount,
+  onOpenBadges,
   unclaimedRewards,
   onOpenUnclaimedRewards,
   pageActive = true,
@@ -492,15 +505,36 @@ export function PortalGame3DInner({
           >
             <div className={styles.tierStrip}>
               <div className={styles.tierBadgeWrap}>
-                <div
-                  className={`${styles.tierBadge}${authed ? "" : ` ${styles.tierBadgeLocked}`}`}
-                  style={{
-                    backgroundImage: `url(${resolvePortal3DTierBadge(tier.tierId)})`,
-                  }}
-                  aria-hidden={!authed}
-                >
-                  {authed && tier.division ? (
-                    <span className={styles.tierDivision}>{tier.division}</span>
+                <div className={styles.tierBadgePair}>
+                  <div
+                    className={`${styles.tierBadge}${authed ? "" : ` ${styles.tierBadgeLocked}`}`}
+                    style={{
+                      backgroundImage: `url(${resolvePortal3DTierBadge(tier.tierId)})`,
+                    }}
+                    aria-hidden={!authed}
+                  >
+                    {authed && tier.division ? (
+                      <span className={styles.tierDivision}>{tier.division}</span>
+                    ) : null}
+                  </div>
+                  {authed &&
+                  tier.peakLeagueTier &&
+                  (["bronze", "silver", "gold", "platinum", "diamond"] as const).indexOf(
+                    tier.peakLeagueTier
+                  ) >
+                    (["bronze", "silver", "gold", "platinum", "diamond"] as const).indexOf(
+                      tier.tierId
+                    ) ? (
+                    <div className={styles.tierPeakWrap} title="All-time peak">
+                      <div
+                        className={styles.tierPeakBadge}
+                        style={{
+                          backgroundImage: `url(${resolvePortal3DTierBadge(tier.peakLeagueTier)})`,
+                        }}
+                        aria-hidden
+                      />
+                      <span className={styles.tierPeakLabel}>PEAK</span>
+                    </div>
                   ) : null}
                 </div>
                 {authed ? (
@@ -627,6 +661,46 @@ export function PortalGame3DInner({
               </div>
             </div>
           </div>
+        ) : null}
+        {authed && tier?.seasonLevel != null ? (
+          <button
+            type="button"
+            className={styles.seasonProgressBar}
+            onClick={() => onOpenBadges?.()}
+            aria-label="Season progress"
+          >
+            <span className={styles.seasonProgressLabel}>
+              Season{" "}
+              {String(tier.seasonId ?? "").replace(/^S/i, "") || "·"}
+              {tier.seasonWeek != null && tier.seasonWeeks != null
+                ? ` · W${tier.seasonWeek}/${tier.seasonWeeks}`
+                : ""}{" "}
+              · Lv {tier.seasonLevel}
+            </span>
+            <span className={styles.seasonProgressTrack}>
+              <span
+                className={styles.seasonProgressFill}
+                style={{
+                  width: `${
+                    tier.seasonXpForLevel && tier.seasonXpForLevel > 0
+                      ? Math.min(
+                          100,
+                          Math.round(
+                            ((tier.seasonXpIntoLevel ?? 0) / tier.seasonXpForLevel) *
+                              100
+                          )
+                        )
+                      : 100
+                  }%`,
+                }}
+              />
+            </span>
+            <span className={styles.seasonProgressXp}>
+              {tier.seasonXpForLevel && tier.seasonXpForLevel > 0
+                ? `${tier.seasonXpIntoLevel ?? 0}/${tier.seasonXpForLevel}`
+                : "MAX"}
+            </span>
+          </button>
         ) : null}
         <div className={isPortrait ? styles.flexRowBPortrait : styles.flexRowB}>
           <div className={styles.groups5}>

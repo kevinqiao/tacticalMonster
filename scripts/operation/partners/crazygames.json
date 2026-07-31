@@ -1,0 +1,70 @@
+{
+  "notes": "CrazyGames embed. Lobby slug `solitaire` is a named lobby (not a game-type URL segment). Entry /gc/crazygames/solitaire or /gc/crazygames (isDefault). Playable content = offerings → solitaire tournaments.",
+  "pid": 100,
+  "name": "CrazyGames",
+  "slug": "crazygames",
+  "host": "https://www.crazygames.com",
+  "capabilities": {
+    "portalGames": true,
+    "campaignOps": false
+  },
+  "embed": {
+    "method": "crazygames_jwt",
+    "allowedOrigins": [
+      "https://www.crazygames.com",
+      "https://games.crazygames.com"
+    ]
+  },
+  "playerAuth": {
+    "mode": "embed",
+    "embed": { "method": "crazygames_jwt" }
+  },
+  "portal": {
+    "lobbyOpsMode": "shared",
+    "adReplayDailyCap": 5,
+    "maxReplaysPerMatch": 1,
+    "adReplayEnabled": true,
+    "ticketReplayEnabled": true,
+    "ticketReplayPriceTickets": 1,
+    "quotaScope": "mode"
+  },
+  "lobbies": [
+    {
+      "slug": "solitaire",
+      "title": "Solitaire",
+      "isDefault": true,
+      "offerings": [
+        {
+          "tournamentId": "portal_solo_p75_solitaire",
+          "sortOrder": 0,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_solitaire",
+          "sortOrder": 1,
+          "enabled": true
+        }
+      ],
+      "seasonHonorMode": "join_now",
+      "branding": {
+        "logoUrl": "/assets/portal/solitaire/hero/hero-title.webp",
+        "backgroundLandscapeUrl": "/assets/portal/solitaire/backgrounds/bg-16x9.webp",
+        "backgroundPortraitUrl": "/assets/portal/solitaire/backgrounds/bg-9x16.webp"
+      }
+    }
+  ],
+  "shopSkus": [],
+  "shopSettings": {
+    "enabled": true,
+    "giftCardsEnabled": true,
+    "virtualEnabled": true,
+    "vouchersEnabled": true,
+    "adCoinEnabled": true,
+    "assortmentMode": "all_shared",
+    "skuIds": [],
+    "excludeSkuIds": [],
+    "overrides": {},
+    "lobbyOverlays": []
+  },
+  "staff": []
+}

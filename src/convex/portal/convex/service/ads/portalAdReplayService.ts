@@ -3,8 +3,8 @@ import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { CASUAL_REPLAY_REQUIRE_NEAR_MISS } from "../../data/portalPlayerStrategyTypes";
 import {
   isPortalAdReplayChannel,
-  isPortalAdReplayMockEnabled,
   isPortalAdReplayTemplate,
+  portalRewardedAdModeAllowsChannel,
   PORTAL_AD_REPLAY_ENABLED,
   PORTAL_AD_REPLAY_SESSION_TTL_MS,
   type PortalAdReplayChannel,
@@ -457,6 +457,9 @@ export async function beginPortalAdReplaySessionCore(
   if (!isPortalAdReplayChannel(args.channel)) {
     return { ok: false as const, error: "invalid_channel" as const };
   }
+  if (!portalRewardedAdModeAllowsChannel(args.channel)) {
+    return { ok: false as const, error: "invalid_channel" as const };
+  }
 
   const loaded = await loadReplayMatchContext(ctx, args.uid, args.matchGameId);
   if (!loaded.ok) return loaded;
@@ -625,7 +628,7 @@ export async function completePortalAdReplaySessionCore(
   }
   const cap = replayCfg.adReplayDailyCap;
 
-  if (!isPortalAdReplayMockEnabled() && session.channel === "dev") {
+  if (!portalRewardedAdModeAllowsChannel(session.channel)) {
     return { ok: false as const, error: "invalid_channel" as const };
   }
 

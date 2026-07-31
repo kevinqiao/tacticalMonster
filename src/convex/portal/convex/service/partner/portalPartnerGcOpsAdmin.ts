@@ -11,6 +11,10 @@ import {
   sparseMergeReplaySettings,
 } from "../../data/portalPartnerReplaySettings";
 import { normalizeLobbyOpsMode } from "../../data/portalLobbyOpsMode";
+import {
+  isValidPortalWeekKey,
+  PORTAL_SEASON_EPOCH_WEEK_KEY,
+} from "../../data/portalSeasonHonorConfig";
 import { internal } from "../../_generated/api";
 import { internalMutation, internalQuery } from "../../_generated/server";
 
@@ -103,6 +107,12 @@ export const getPartnerGcOpsInternal = internalQuery({
       ticketEntryMultiDailyCap: play?.ticketEntryMultiDailyCap ?? null,
       lobbyOpsMode: lobbyOpsRow ? lobbyOpsMode : null,
       lobbyOpsModeEffective: lobbyOpsMode,
+      seasonEpochWeekKey: lobbyOpsRow?.seasonEpochWeekKey ?? null,
+      seasonEpochWeekKeyEffective:
+        lobbyOpsRow?.seasonEpochWeekKey &&
+        isValidPortalWeekKey(lobbyOpsRow.seasonEpochWeekKey)
+          ? lobbyOpsRow.seasonEpochWeekKey
+          : PORTAL_SEASON_EPOCH_WEEK_KEY,
     };
   },
 });
@@ -140,6 +150,8 @@ export const upsertPartnerGcOpsInternal = internalMutation({
     lobbyOpsMode: v.optional(
       v.union(v.literal("isolated"), v.literal("shared"), v.null())
     ),
+    /** null → clear override（回落全局缺省 epoch） */
+    seasonEpochWeekKey: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
     const partnerId = Math.floor(args.partnerId);
@@ -261,17 +273,48 @@ export const upsertPartnerGcOpsInternal = internalMutation({
       }
     );
 
+    if (args.seasonEpochWeekKey !== undefined && args.seasonEpochWeekKey !== null) {
+      if (!isValidPortalWeekKey(args.seasonEpochWeekKey)) {
+        return {
+          ok: false as const,
+          error: "season_epoch_week_key_invalid" as const,
+        };
+      }
+    }
+
     if (args.lobbyOpsMode !== undefined && args.lobbyOpsMode !== null) {
       await ctx.runMutation(
         internal.service.economy.portalLobbyOpsMutations.upsertPartnerLobbyOpsModeInternal,
-        { partnerId, lobbyOpsMode: args.lobbyOpsMode }
+        {
+          partnerId,
+          lobbyOpsMode: args.lobbyOpsMode,
+          ...(args.seasonEpochWeekKey !== undefined
+            ? { seasonEpochWeekKey: args.seasonEpochWeekKey }
+            : {}),
+        }
       );
-    } else if (args.lobbyOpsMode === null) {
+    } else if (args.lobbyOpsMode === null && args.seasonEpochWeekKey === undefined) {
       const row = await ctx.db
         .query("portal_partner_lobby_ops_settings")
         .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerId))
         .unique();
       if (row) await ctx.db.delete(row._id);
+    } else if (args.seasonEpochWeekKey !== undefined) {
+      // 仅更新 epoch：保留现有 lobbyOpsMode，缺省 shared
+      const row = await ctx.db
+        .query("portal_partner_lobby_ops_settings")
+        .withIndex("by_partnerId", (q) => q.eq("partnerId", partnerId))
+        .unique();
+      const mode =
+        normalizeLobbyOpsMode(row?.lobbyOpsMode) ?? ("shared" as const);
+      await ctx.runMutation(
+        internal.service.economy.portalLobbyOpsMutations.upsertPartnerLobbyOpsModeInternal,
+        {
+          partnerId,
+          lobbyOpsMode: mode,
+          seasonEpochWeekKey: args.seasonEpochWeekKey,
+        }
+      );
     }
 
     return { ok: true as const, partnerId };

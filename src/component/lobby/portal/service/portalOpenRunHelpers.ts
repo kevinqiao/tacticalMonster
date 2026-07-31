@@ -68,6 +68,15 @@ export function pickActivePortalOpenAssignmentsForGameType(
   );
 }
 
+/** Multi-game lobby: newest non-expired open run across all game types. */
+export function pickActivePortalOpenAssignment(
+  assigns: OpenCasualRunAssignment[]
+): OpenCasualRunAssignment | undefined {
+  return [...assigns]
+    .filter((a) => !isOpenCasualRunExpired(a))
+    .sort((a, b) => b.createdAt - a.createdAt)[0];
+}
+
 export function portalMatchTypeLabel(templateId: string): string {
   const def = getPortalTournamentDefinition(templateId);
   if (def?.matchType === "solo_p75") {
@@ -101,11 +110,14 @@ export function portalHasOpenAssignmentForMode(
 
 export function pickPortalOpenAssignmentForMode(
   assigns: OpenCasualRunAssignment[],
-  gameType: RegisteredPartnerGameType,
+  gameType: RegisteredPartnerGameType | null | undefined,
   mode: "solo" | "multi"
 ): OpenCasualRunAssignment | undefined {
   const matchType = mode === "solo" ? "solo_p75" : "multi_ranked";
-  return pickPortalOpenAssignmentsForGameType(assigns, gameType).find(
+  const scoped = gameType
+    ? pickPortalOpenAssignmentsForGameType(assigns, gameType)
+    : [...assigns].sort((a, b) => b.createdAt - a.createdAt);
+  return scoped.find(
     (a) => getPortalTournamentDefinition(a.templateId)?.matchType === matchType
   );
 }
@@ -139,10 +151,12 @@ export function findCampaignAwaitOpenAssignment(
 
 export function pickPortalMatchQueueForGameType(
   entries: PortalMatchQueueEntry[],
-  gameType: RegisteredPartnerGameType
+  gameType: RegisteredPartnerGameType | null | undefined
 ): PortalMatchQueueEntry[] {
   return entries.filter((e) => {
     const def = getPortalTournamentDefinition(e.templateId);
-    return def?.gameType === gameType && def.matchType === "multi_ranked";
+    if (def?.matchType !== "multi_ranked") return false;
+    if (!gameType) return true;
+    return def.gameType === gameType;
   });
 }

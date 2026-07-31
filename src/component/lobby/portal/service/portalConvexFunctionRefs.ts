@@ -40,6 +40,12 @@ export const portalTournamentFns = {
   dismissPortalWeeklyLeagueClose: makeFunctionReference<"mutation">(
     "service/weeklyLeague/portalWeeklyLeagueQueries:dismissPortalWeeklyLeagueClose"
   ),
+  listPortalPlayerBadges: makeFunctionReference<"query">(
+    "service/badge/portalBadgeService:listPortalPlayerBadges"
+  ),
+  dismissPortalSeasonMarks: makeFunctionReference<"mutation">(
+    "service/badge/portalBadgeService:dismissPortalSeasonMarks"
+  ),
   getPortalPlayerWallet: makeFunctionReference<"query">(
     "service/player/playerManager:getPortalPlayerWallet"
   ),
@@ -141,5 +147,8 @@ export const portalTournamentFns = {
   ),
   completeAdCoinSession: makeFunctionReference<"mutation">(
     "service/ads/portalAdCoinMutations:completeAdCoinSession"
+  ),
+  getPortalRewardedAdMode: makeFunctionReference<"query">(
+    "service/ads/portalRewardedAdModeQuery:getPortalRewardedAdMode"
   ),
 } as const;

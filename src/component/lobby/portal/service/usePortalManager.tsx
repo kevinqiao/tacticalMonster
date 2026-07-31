@@ -103,6 +103,7 @@ export type PortalWeeklyLeagueTierView = {
   weekEndsAt: number;
   enrolled: boolean;
   tierId: string;
+  peakLeagueTier?: string;
   cohortNo: string | null;
   cohortRank: number | null;
   /** 设计容量（三区条） */
@@ -118,6 +119,14 @@ export type PortalWeeklyLeagueTierView = {
   lastOutcome?: "promote" | "safe" | "demote";
   lastFinalRank?: number;
   unclaimedRewards?: PortalWeeklyLeagueUnclaimedRewards;
+  seasonId?: string;
+  seasonLevel?: number;
+  seasonXp?: number;
+  seasonXpIntoLevel?: number;
+  seasonXpForLevel?: number;
+  unreadSeasonMarks?: boolean;
+  unreadSeasonId?: string | null;
+  unreadSeasonLevel?: number | null;
 };
 
 export type PortalWeeklyLeagueUnclaimedRewards = {
@@ -465,6 +474,11 @@ function getHttp(): ConvexHttpClient | null {
   return httpSingleton;
 }
 
+/** 已 register JWT 的 Portal HttpClient（勿 new 裸 client 调 authed*） */
+export function getPortalHttpClient(): ConvexHttpClient | null {
+  return getHttp();
+}
+
 function getLive(): ConvexClient | null {
   if (!PORTAL_CONVEX_URL) return null;
   if (!liveSingleton) {
@@ -760,10 +774,12 @@ export const PortalProvider: React.FC<{
     };
   }, [uid, lobbyId]);
 
-  // Game / league surface: requires gameType (Portal lobby / playable campaign slides).
+  // Game / league surface: gameType (single-game) and/or lobbyId (multi-game lobby).
+  // Multi-game lobbies pin gameType=null — still must subscribe open runs / match queue
+  // or join stays "queued" forever and the UI shows matchTimeout.
   useEffect(() => {
     const live = getLive();
-    if (!live || !uid || !gameType) {
+    if (!live || !uid || (!gameType && !lobbyId)) {
       patchData({
         weeklyLeagueTierView: null,
         cohortLeaderboard: [],
@@ -794,10 +810,10 @@ export const PortalProvider: React.FC<{
 
     const leagueScope = lobbyId
       ? { lobbyId: lobbyId as never }
-      : { gameType };
-    const gameTournamentIds = listPortalTournamentsForGame(gameType).map(
-      (d) => d.tournamentId
-    );
+      : { gameType: gameType! };
+    const gameTournamentIds = gameType
+      ? listPortalTournamentsForGame(gameType).map((d) => d.tournamentId)
+      : [];
     sub(
       portalTournamentFns.getPortalWeeklyLeagueTierView,
       leagueScope,
@@ -856,19 +872,22 @@ export const PortalProvider: React.FC<{
       },
       "listCasualMatchQueueForUid"
     );
-    sub(
-      portalTournamentFns.getPortalDailyPlayQuota,
-      {
-        gameType,
-        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
-      },
-      (rows) => {
-        patchData({
-          dailyPlayQuota: (rows as PortalDailyPlayQuota | null) ?? null,
-        });
-      },
-      "getPortalDailyPlayQuota"
-    );
+    // Handler scopes by lobbyId when present; gameType arg is unused for mode caps.
+    if (gameType || lobbyId) {
+      sub(
+        portalTournamentFns.getPortalDailyPlayQuota,
+        {
+          gameType: gameType ?? "solitaire",
+          ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+        },
+        (rows) => {
+          patchData({
+            dailyPlayQuota: (rows as PortalDailyPlayQuota | null) ?? null,
+          });
+        },
+        "getPortalDailyPlayQuota"
+      );
+    }
     if (gameTournamentIds.length > 0) {
       sub(
         portalTournamentFns.getPortalTournamentDailyPlayQuotas,
@@ -895,7 +914,7 @@ export const PortalProvider: React.FC<{
 
   /** 段位栏始终轮询；分组排行仅在弹层打开时轮询 */
   useEffect(() => {
-    if (!portalSessionReady || !uid || !gameType) return;
+    if (!portalSessionReady || !uid || (!gameType && !lobbyId)) return;
     const http = getHttp();
     if (!http) return;
 
@@ -903,7 +922,7 @@ export const PortalProvider: React.FC<{
     let cancelled = false;
     const leagueScope = lobbyId
       ? { lobbyId: lobbyId as never }
-      : { gameType };
+      : { gameType: gameType! };
 
     const pollWeeklyLeague = async () => {
       if (cancelled) return;
@@ -963,25 +982,26 @@ export const PortalProvider: React.FC<{
 
   useEffect(() => {
     const http = getHttp();
-    if (!http || !uid || !gameType) return;
-    const expired = snapshot.openRunAssignments.filter(
-      (a) =>
-        portalAssignmentMatchesGameType(a, gameType) && isOpenCasualRunExpired(a)
+    if (!http || !uid) return;
+    const expired = snapshot.openRunAssignments.filter((a) =>
+      gameType
+        ? portalAssignmentMatchesGameType(a, gameType) && isOpenCasualRunExpired(a)
+        : isOpenCasualRunExpired(a)
     );
     if (expired.length === 0) return;
-    const key = `${uid}:${gameType}`;
+    const key = `${uid}:${gameType ?? lobbyId ?? "lobby"}`;
     if (reconcileInFlightRef.current.has(key)) return;
     reconcileInFlightRef.current.add(key);
     void http
       .action(portalTournamentFns.reconcileExpiredOpenCasualRuns, {
-        gameType,
+        ...(gameType ? { gameType } : {}),
         limit: expired.length,
       })
       .catch((e) => console.warn("[Portal] reconcileExpiredOpenCasualRuns", e))
       .finally(() => {
         reconcileInFlightRef.current.delete(key);
       });
-  }, [uid, gameType, snapshot.openRunAssignments]);
+  }, [uid, gameType, lobbyId, snapshot.openRunAssignments]);
 
   const claimPortalWeeklyLeagueRewards = useCallback(async () => {
     const http = getHttp();

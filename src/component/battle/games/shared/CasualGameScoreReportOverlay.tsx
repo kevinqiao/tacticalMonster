@@ -1,9 +1,10 @@
 import React, { useId } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { CasualAdReplayVideoIcon } from './CasualAdReplayVideoIcon';
 import {
-  CASUAL_AD_REPLAY_BUTTON_LABEL,
   formatCasualAdReplayQuotaBadge,
+  getCasualAdReplayButtonLabel,
   type CasualGameScoreReportUI,
 } from './casualGameScoreReportUI';
 import { useReplayWindowCountdown } from './useReplayWindowCountdown';
@@ -33,8 +34,8 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   open,
   report,
   onConfirm,
-  title = '本局得分',
-  confirmLabel = '确定',
+  title,
+  confirmLabel,
   secondaryLabel,
   onSecondary,
   secondaryDisabled = false,
@@ -44,22 +45,24 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   replayWindowEndsAt,
   secondaryError,
 }) => {
+  const { t } = useTranslation('shared.casual');
   const titleId = useId();
   const replayCountdown = useReplayWindowCountdown(replayWindowEndsAt);
   if (!open || !report) return null;
 
   const challenge = report.challenge;
   const isAdReplay =
-    secondaryLabel === CASUAL_AD_REPLAY_BUTTON_LABEL ||
-    (secondaryLabel?.includes('广告') ?? false);
+    secondaryLabel === getCasualAdReplayButtonLabel() ||
+    adReplayDailyRemaining != null ||
+    adReplayDailyCap != null;
   const quotaBadge = isAdReplay
     ? formatCasualAdReplayQuotaBadge(adReplayDailyRemaining, adReplayDailyCap)
     : undefined;
   let secondaryText = secondaryLabel;
   if (secondaryText && secondaryBusy) {
-    secondaryText = isAdReplay ? '广告加载中…' : '匹配中…';
+    secondaryText = isAdReplay ? t('postSettle.adLoading') : t('postSettle.matching');
   } else if (secondaryText && secondaryDisabled) {
-    secondaryText = `${secondaryText}（不可用）`;
+    secondaryText = `${secondaryText}${t('postSettle.unavailableSuffix')}`;
   }
   if (secondaryText && replayCountdown) {
     secondaryText = `${secondaryText} ${replayCountdown}`;
@@ -67,13 +70,15 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
 
   const showSecondary = Boolean(secondaryLabel && onSecondary);
   const buttonTitle = [secondaryLabel, quotaBadge].filter(Boolean).join(' ');
+  const resolvedTitle = title ?? t('scoreReport.title');
+  const resolvedConfirm = confirmLabel ?? t('scoreReport.confirm');
 
   return (
     <div className="msc-overlay" role="presentation">
       <button
         type="button"
         className="msc-backdrop"
-        aria-label="关闭"
+        aria-label={t('postSettle.close')}
         onClick={onConfirm}
       />
       <div
@@ -86,7 +91,11 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
         <div className="ssc ssc--pinnedFooter">
           <div className="ssc__scroll">
             <h2 id={titleId} className="ssc__title msc-successTitle">
-              {challenge ? (challenge.success ? '挑战成功' : '未达成目标') : title}
+              {challenge
+                ? challenge.success
+                  ? t('scoreReport.challengeSuccessTitle')
+                  : t('scoreReport.challengeFailTitle')
+                : resolvedTitle}
             </h2>
             {challenge ? (
               <div
@@ -98,17 +107,19 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
                 role="status"
               >
                 <span className="msc-challengeResult__badge">
-                  {challenge.success ? '成功' : '未达成'}
+                  {challenge.success
+                    ? t('scoreReport.successBadge')
+                    : t('scoreReport.failBadge')}
                 </span>
                 <div className="msc-challengeResult__rows">
                   <div className="msc-challengeResult__row">
-                    <span>目标分（P75）</span>
+                    <span>{t('scoreReport.targetP75')}</span>
                     <span className="msc-challengeResult__val">
                       {challenge.targetScore.toLocaleString()}
                     </span>
                   </div>
                   <div className="msc-challengeResult__row">
-                    <span>游戏分数</span>
+                    <span>{t('scoreReport.gameScore')}</span>
                     <span className="msc-challengeResult__val">
                       {challenge.achievedScore.toLocaleString()}
                     </span>
@@ -117,20 +128,22 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
               </div>
             ) : null}
             <p className="ssc__body msc-scoreReportSub">
-              {report.gameLabel} · 以下为当局得分明细
+              {t('scoreReport.detailLead', { game: report.gameLabel })}
             </p>
-            <ul className="msc-scoreReportList" aria-label="得分明细">
+            <ul className="msc-scoreReportList" aria-label={t('scoreReport.linesAria')}>
               {report.lines.map((line) => (
                 <li key={line.label} className="msc-scoreReportList__row">
                   <span>{line.label}</span>
                   <span className="msc-scoreReportList__val">
-                    {line.value >= 0 ? line.value.toLocaleString() : line.value.toLocaleString()}
+                    {line.value.toLocaleString()}
                   </span>
                 </li>
               ))}
               <li className="msc-scoreReportList__row msc-scoreReportList__row--total">
-                <span>总分</span>
-                <span className="msc-scoreReportList__val">{report.totalScore.toLocaleString()}</span>
+                <span>{t('scoreReport.total')}</span>
+                <span className="msc-scoreReportList__val">
+                  {report.totalScore.toLocaleString()}
+                </span>
               </li>
             </ul>
             {secondaryError ? (
@@ -153,13 +166,18 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
                 type="button"
                 className="ssc__btn ssc__btn--secondary ssc__btn--replayCompact"
                 disabled={secondaryDisabled || secondaryBusy}
-                onClick={onSecondary}
+                onClick={() => onSecondary?.()}
                 title={buttonTitle}
               >
-                {isAdReplay && !secondaryBusy ? <CasualAdReplayVideoIcon /> : null}
-                <span className="ssc__replayMain">{secondaryText ?? secondaryLabel}</span>
+                {isAdReplay && !secondaryBusy && !secondaryDisabled ? (
+                  <CasualAdReplayVideoIcon />
+                ) : null}
+                <span className="ssc__replayMain">{secondaryText}</span>
                 {quotaBadge ? (
-                  <span className="ssc__replayRemaining" aria-label={`今日已用 ${quotaBadge}`}>
+                  <span
+                    className="ssc__replayRemaining"
+                    aria-label={t('postSettle.todayUsedAria', { quota: quotaBadge })}
+                  >
                     {quotaBadge}
                   </span>
                 ) : null}
@@ -170,7 +188,7 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
               className={`ssc__btn ssc__btn--primary${showSecondary ? ' ssc__btn--continueWide' : ''}`}
               onClick={onConfirm}
             >
-              {confirmLabel}
+              {resolvedConfirm}
             </button>
           </div>
         </div>

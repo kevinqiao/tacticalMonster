@@ -3,6 +3,7 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 function formatMatchRemainingSec(sec: number): string {
     const clamped = Math.max(0, Math.floor(sec));
@@ -29,6 +30,7 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
     targetScore,
     onMatchTimeout,
 }) => {
+    const { t } = useTranslation("shared.casual");
     const [remainingSec, setRemainingSec] = useState<number | null>(null);
     const matchTimeoutFiredRef = useRef(false);
     const prevScoreRef = useRef<number | null>(null);
@@ -67,17 +69,17 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
     }, [displayScore]);
 
     return (
-        <header className="solo-game-header" aria-label="对局信息">
+        <header className="solo-game-header" aria-label={t("hud.matchInfoAria")}>
             <div className="solo-game-header__stats">
                 <div className="solo-game-header__score-row">
                     {targetScore != null ? (
                         <div className="solo-game-header__stat">
-                            <span className="solo-game-header__stat-label">目标</span>
+                            <span className="solo-game-header__stat-label">{t("hud.target")}</span>
                             <span className="solo-game-header__stat-value">{targetScore}</span>
                         </div>
                     ) : null}
                     <div className="solo-game-header__stat solo-game-header__stat--score">
-                        <span className="solo-game-header__stat-label">分数</span>
+                        <span className="solo-game-header__stat-label">{t("hud.score")}</span>
                         <span
                             className={
                                 scorePulse
@@ -90,14 +92,14 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
                     </div>
                 </div>
                 <div className="solo-game-header__stat">
-                    <span className="solo-game-header__stat-label">步数</span>
+                    <span className="solo-game-header__stat-label">{t("hud.moves")}</span>
                     <span className="solo-game-header__stat-value">
                         {displayMoves == null ? "—" : displayMoves}
                     </span>
                 </div>
                 {remainingSec != null ? (
                     <div className="solo-game-header__stat">
-                        <span className="solo-game-header__stat-label">剩余</span>
+                        <span className="solo-game-header__stat-label">{t("hud.remaining")}</span>
                         <span className="solo-game-header__stat-value">
                             {formatMatchRemainingSec(remainingSec)}
                         </span>
