@@ -16,6 +16,7 @@ function settings(
     virtualEnabled: true,
     vouchersEnabled: true,
     adCoinEnabled: true,
+    iapEnabled: true,
     assortmentMode: "all_shared",
     skuIds: [],
     excludeSkuIds: [],
@@ -31,13 +32,17 @@ function sku(partial: Partial<ShopCatalogMasterSku> & { skuId: string }): ShopCa
     title: partial.title ?? partial.skuId,
     description: "",
     priceCoins: partial.priceCoins ?? 100,
-    grantReplayTokenCount: 0,
+    grantTicketCount: partial.grantTicketCount ?? 0,
+    grantCoinCount: partial.grantCoinCount,
     sortOrder: partial.sortOrder ?? 100,
     shopSection: partial.shopSection ?? "virtual",
     skuKind: partial.skuKind ?? "virtual",
     active: partial.active ?? true,
     partnerIds: partial.partnerIds,
     listInShop: partial.listInShop,
+    stripePriceId: partial.stripePriceId,
+    priceCents: partial.priceCents,
+    currency: partial.currency,
   };
 }
 
@@ -99,5 +104,25 @@ describe("resolvePortalShopCatalog", () => {
       settings: settings({ partnerId: 5 }),
     });
     expect(resolved).toEqual([]);
+  });
+
+  it("hides iap SKUs when iapEnabled is false", () => {
+    const pack = sku({
+      skuId: "portal_stripe_pack_t5_c100",
+      skuKind: "iap",
+      priceCoins: 0,
+      grantTicketCount: 5,
+      grantCoinCount: 100,
+      stripePriceId: "price_test",
+      priceCents: 299,
+      currency: "usd",
+    });
+    const ticket = sku({ skuId: "ticket_x3", skuKind: "virtual", grantTicketCount: 3 });
+    const resolved = resolvePortalShopCatalog({
+      partnerId: 5,
+      masterSkus: [pack, ticket],
+      settings: settings({ partnerId: 5, iapEnabled: false }),
+    });
+    expect(resolved.map((row) => row.skuId)).toEqual(["ticket_x3"]);
   });
 });

@@ -7,7 +7,7 @@ export type PortalShopSkuGroup = {
 };
 
 /** Fixed shop category order derived from skuKind. */
-export const PORTAL_SHOP_CATEGORY_ORDER = ["virtual", "giftcard"] as const;
+export const PORTAL_SHOP_CATEGORY_ORDER = ["iap", "virtual", "giftcard"] as const;
 
 export type PortalShopCategoryId = (typeof PORTAL_SHOP_CATEGORY_ORDER)[number];
 
@@ -22,7 +22,9 @@ export function sortPortalShopSkus(skus: PortalShopSkuRow[]): PortalShopSkuRow[]
 }
 
 export function portalShopCategoryId(sku: PortalShopSkuRow): PortalShopCategoryId {
-  return sku.skuKind === "giftcard" ? "giftcard" : "virtual";
+  if (sku.skuKind === "giftcard") return "giftcard";
+  if (sku.skuKind === "iap") return "iap";
+  return "virtual";
 }
 
 /** Groups SKUs under skuKind categories (道具 / 礼品卡). Empty categories are omitted. */

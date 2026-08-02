@@ -64,8 +64,10 @@ function main() {
   const flags = parseArgs(process.argv.slice(2));
   if (flags.help) {
     console.log(`Usage:
-  node scripts/operation/deploy.mjs [--apply] [--frontend] [--games=solitaire,block_blast]
-Order: sso → portal → arenas → (optional) build + netlify:deploy:prod`);
+  npm run op -- partner deploy [--apply] [--frontend] [--games=solitaire,block_blast]
+
+Order: sso → portal → arenas → (optional) build + netlify:deploy:prod
+Dry-run without --apply.`);
     process.exit(0);
   }
 

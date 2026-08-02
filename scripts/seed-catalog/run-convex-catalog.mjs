@@ -48,20 +48,37 @@ export function runConvexCatalog(functionRef, args, convexArgs = []) {
   return parseConvexStdout(result.stdout || "");
 }
 
+const SEED_POOL_QUERIES = "service/seedPool/seedPoolQueries";
+
+/** List poolVersions present in seed_pool_meta for a gameType. */
+export async function listPoolVersionsForGame(gameType, opts = {}) {
+  const convexArgs = opts.convexArgs ?? [];
+  return runConvexCatalog(
+    `${SEED_POOL_QUERIES}:listPoolVersionsForGame`,
+    { gameType },
+    convexArgs
+  );
+}
+
 /** Paginated clear — one Convex mutation batch per call (avoids 4096 read limit). */
 export async function clearSeedPoolFully(gameType, poolVersion, opts = {}) {
   const rolloutBatchSize = opts.rolloutBatchSize ?? 100;
   const entryBatchSize = opts.entryBatchSize ?? 100;
+  const convexArgs = opts.convexArgs ?? [];
   let rolloutDeleted = 0;
   let entryDeleted = 0;
 
   for (;;) {
-    const res = await runConvexCatalog(`${SEED_POOL_ADMIN}:clearSeedPoolVersion`, {
-      gameType,
-      poolVersion,
-      rolloutBatchSize,
-      entryBatchSize,
-    });
+    const res = await runConvexCatalog(
+      `${SEED_POOL_ADMIN}:clearSeedPoolVersion`,
+      {
+        gameType,
+        poolVersion,
+        rolloutBatchSize,
+        entryBatchSize,
+      },
+      convexArgs
+    );
     if (res.phase === "rollouts") {
       rolloutDeleted += res.deleted;
       if (rolloutDeleted % 1000 === 0 || res.deleted < rolloutBatchSize) {
@@ -78,6 +95,42 @@ export async function clearSeedPoolFully(gameType, poolVersion, opts = {}) {
     }
     return { ok: true, gameType, poolVersion, rolloutDeleted, entryDeleted, phase: "complete" };
   }
+}
+
+/**
+ * Clear one poolVersion, or all versions for gameType when poolVersion is empty/null.
+ */
+export async function clearSeedPoolsForGame(gameType, poolVersion, opts = {}) {
+  const convexArgs = opts.convexArgs ?? [];
+  const version =
+    poolVersion == null || String(poolVersion).trim() === ""
+      ? null
+      : String(poolVersion).trim();
+
+  if (version) {
+    console.log(`clearing ${gameType}/${version}…`);
+    return {
+      ok: true,
+      gameType,
+      cleared: [await clearSeedPoolFully(gameType, version, opts)],
+    };
+  }
+
+  const listed = await listPoolVersionsForGame(gameType, { convexArgs });
+  const versions = listed?.poolVersions ?? [];
+  if (versions.length === 0) {
+    console.log(`no seed_pool_meta for gameType=${gameType}`);
+    return { ok: true, gameType, cleared: [], poolVersions: [] };
+  }
+  console.log(
+    `clearing all poolVersions for ${gameType}: ${versions.join(", ")}`
+  );
+  const cleared = [];
+  for (const v of versions) {
+    console.log(`\n=== ${gameType}/${v} ===`);
+    cleared.push(await clearSeedPoolFully(gameType, v, opts));
+  }
+  return { ok: true, gameType, cleared, poolVersions: versions };
 }
 
 function parseConvexStdout(stdout) {

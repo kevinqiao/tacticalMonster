@@ -36,6 +36,8 @@ export const upsertPartnerShopSku = authedAction({
     title: v.string(),
     description: v.optional(v.string()),
     priceCoins: v.number(),
+    grantTicketCount: v.optional(v.number()),
+    /** @deprecated Prefer grantTicketCount. */
     grantReplayTokenCount: v.optional(v.number()),
     weeklyPurchaseLimit: optionalNullableNumber,
     sortOrder: v.optional(v.number()),
@@ -46,8 +48,10 @@ export const upsertPartnerShopSku = authedAction({
   },
   handler: async (ctx, args) => {
     await authorize(ctx, args.partnerId, "admin");
+    const grantTicketCount = args.grantTicketCount ?? args.grantReplayTokenCount;
     return await portalPartnerShopSkuRequest({
       ...args,
+      grantTicketCount,
       kind: args.kind as PortalPartnerShopSkuKind,
       operation: "upsert",
     });

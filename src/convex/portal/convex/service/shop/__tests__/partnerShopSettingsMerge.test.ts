@@ -64,5 +64,6 @@ describe("mergePartnerShopSettingsRows", () => {
     });
     expect(merged?.giftCardsEnabled).toBe(true);
     expect(merged?.virtualEnabled).toBe(true);
+    expect(merged?.iapEnabled).toBe(true);
   });
 });

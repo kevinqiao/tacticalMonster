@@ -8,17 +8,29 @@
 import { formatFaceValueDisplay } from "./portalGiftCardEconomy";
 import { PORTAL_SHOP_SKU_CATALOG as GENERATED_CATALOG } from "./portalEconomyGenerated";
 
-export type PortalShopSkuKind = "virtual" | "giftcard" | "voucher";
+export type PortalShopSkuKind = "virtual" | "giftcard" | "voucher" | "iap";
 
 export type PortalShopSkuSeed = {
   skuId: string;
   title: string;
   description?: string;
   priceCoins: number;
+  /** Tickets granted (entry + replay share the same wallet balance). */
+  grantTicketCount?: number;
+  /**
+   * @deprecated Prefer grantTicketCount. Read fallback for legacy DB / admin payloads.
+   */
   grantReplayTokenCount?: number;
+  /** Soft-currency pack bonus; used by iap (and optionally virtual) SKUs. */
+  grantCoinCount?: number;
   weeklyPurchaseLimit?: number;
   sortOrder: number;
   skuKind?: PortalShopSkuKind;
+  /** Stripe Price id for iap Checkout (server-side only). */
+  stripePriceId?: string;
+  /** Display fiat price in minor units (e.g. cents). */
+  priceCents?: number;
+  currency?: string;
   /** Optional UI section heading; omit for a flat catalog list. */
   shopSection?: string;
   /** Restrict SKU to these partner ids; omit or [] = all partners. */
@@ -38,6 +50,14 @@ export type PortalShopSkuSeed = {
   listInShop?: boolean;
 };
 
+/** Resolve ticket grant with legacy field fallback. */
+export function resolveGrantTicketCount(s: {
+  grantTicketCount?: number | null;
+  grantReplayTokenCount?: number | null;
+}): number {
+  return Math.max(0, Math.floor(s.grantTicketCount ?? s.grantReplayTokenCount ?? 0));
+}
+
 export const PORTAL_SHOP_SKU_CATALOG: PortalShopSkuSeed[] = GENERATED_CATALOG.map(
   (row) => ({ ...row })
 );
@@ -50,16 +70,22 @@ export function mapPortalShopSkuRow(r: PortalShopSkuSeed) {
     faceValueLocal != null && faceValueCurrency
       ? formatFaceValueDisplay(faceValueLocal, faceValueCurrency)
       : undefined;
+  const grantTicketCount = resolveGrantTicketCount(r);
   return {
     skuId: r.skuId,
     title: r.title,
     description: r.description ?? "",
     priceCoins: r.priceCoins,
-    grantReplayTokenCount: r.grantReplayTokenCount ?? 0,
+    grantTicketCount,
+    /** @deprecated Alias for older clients; same value as grantTicketCount. */
+    grantReplayTokenCount: grantTicketCount,
+    grantCoinCount: Math.max(0, Math.floor(r.grantCoinCount ?? 0)),
     weeklyPurchaseLimit: r.weeklyPurchaseLimit ?? null,
     sortOrder: r.sortOrder,
     skuKind,
     shopSection: r.shopSection,
+    priceCents: r.priceCents,
+    currency: r.currency,
     region: r.region,
     faceValueUsd: r.faceValueUsd,
     faceValueLocal,

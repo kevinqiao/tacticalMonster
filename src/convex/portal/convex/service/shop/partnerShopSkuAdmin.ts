@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 
 import { internalMutation, internalQuery } from "../../_generated/server";
+import { resolveGrantTicketCount } from "../../data/portalShopCatalog";
 
 const skuKind = v.union(v.literal("virtual"), v.literal("voucher"));
 
@@ -10,6 +11,8 @@ const skuInput = {
   title: v.string(),
   description: v.optional(v.string()),
   priceCoins: v.number(),
+  grantTicketCount: v.optional(v.number()),
+  /** @deprecated Prefer grantTicketCount. */
   grantReplayTokenCount: v.optional(v.number()),
   weeklyPurchaseLimit: v.optional(v.union(v.number(), v.null())),
   sortOrder: v.optional(v.number()),
@@ -28,6 +31,7 @@ function validateSku(args: {
   skuId: string;
   title: string;
   priceCoins: number;
+  grantTicketCount?: number;
   grantReplayTokenCount?: number;
   voucherValidityDays?: number | null;
 }) {
@@ -40,9 +44,9 @@ function validateSku(args: {
   if (!Number.isInteger(args.priceCoins) || args.priceCoins < 0 || args.priceCoins > 1_000_000) {
     throw new Error("invalid_price");
   }
-  if (args.grantReplayTokenCount != null &&
-      (!Number.isInteger(args.grantReplayTokenCount) || args.grantReplayTokenCount < 0)) {
-    throw new Error("invalid_grant");
+  const tickets = resolveGrantTicketCount(args);
+  if (args.grantTicketCount != null || args.grantReplayTokenCount != null) {
+    if (!Number.isInteger(tickets) || tickets < 0) throw new Error("invalid_grant");
   }
   if (args.voucherValidityDays != null &&
       (!Number.isInteger(args.voucherValidityDays) || args.voucherValidityDays <= 0)) {
@@ -57,20 +61,24 @@ export const listPartnerShopSkusInternal = internalQuery({
     return rows
       .filter((row) => row.partnerIds?.includes(partnerId) && (!kind || row.skuKind === kind))
       .sort((a, b) => a.sortOrder - b.sortOrder || a.skuId.localeCompare(b.skuId))
-      .map((row) => ({
-        skuId: row.skuId,
-        skuKind: row.skuKind ?? "virtual",
-        title: row.title,
-        description: row.description ?? "",
-        priceCoins: row.priceCoins,
-        grantReplayTokenCount: row.grantReplayTokenCount ?? 0,
-        weeklyPurchaseLimit: row.weeklyPurchaseLimit ?? null,
-        sortOrder: row.sortOrder,
-        active: row.active,
-        voucherRewardText: row.voucherRewardText ?? "",
-        voucherValidityDays: row.voucherValidityDays ?? null,
-        listInShop: row.listInShop !== false,
-      }));
+      .map((row) => {
+        const grantTicketCount = resolveGrantTicketCount(row);
+        return {
+          skuId: row.skuId,
+          skuKind: row.skuKind ?? "virtual",
+          title: row.title,
+          description: row.description ?? "",
+          priceCoins: row.priceCoins,
+          grantTicketCount,
+          grantReplayTokenCount: grantTicketCount,
+          weeklyPurchaseLimit: row.weeklyPurchaseLimit ?? null,
+          sortOrder: row.sortOrder,
+          active: row.active,
+          voucherRewardText: row.voucherRewardText ?? "",
+          voucherValidityDays: row.voucherValidityDays ?? null,
+          listInShop: row.listInShop !== false,
+        };
+      });
   },
 });
 
@@ -87,13 +95,15 @@ export const upsertPartnerShopSkuInternal = internalMutation({
       .unique();
     if (existing && !existing.partnerIds?.includes(args.partnerId)) throw new Error("sku_owned_by_other");
 
+    const grantTicketCount =
+      args.kind === "virtual" ? resolveGrantTicketCount(args) : undefined;
     const payload = {
       skuId: args.skuId,
       skuKind: args.kind,
       title: args.title.trim(),
       description: args.description?.trim() || undefined,
       priceCoins: args.priceCoins,
-      grantReplayTokenCount: args.kind === "virtual" ? (args.grantReplayTokenCount ?? 0) : undefined,
+      grantTicketCount,
       weeklyPurchaseLimit: args.weeklyPurchaseLimit ?? undefined,
       sortOrder: args.sortOrder ?? 1000,
       active: args.active ?? true,

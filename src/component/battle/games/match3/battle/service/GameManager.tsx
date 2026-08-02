@@ -425,7 +425,15 @@ export const Match3GameProvider: React.FC<Props> = ({
 
       setPostCasualScoreReport(report);
       setPostCasualTableSummary(deferTableSummary ? null : settle.tableSummary ?? null);
-      setPostCasualWaitingForPeers(deferTableSummary ? false : Boolean(settle.pendingOthers));
+      {
+        const hasRows = Boolean(settle.tableSummary?.rows?.length);
+        const multi = !isCasualSoloP75ChallengeTemplate(casualTournamentId);
+        setPostCasualWaitingForPeers(
+          deferTableSummary
+            ? false
+            : Boolean(settle.pendingOthers) || (multi && !hasRows)
+        );
+      }
       setPostCasualScoreReportOpen(true);
       if (deferTableSummary) {
         return;
@@ -891,7 +899,7 @@ export const Match3GameProvider: React.FC<Props> = ({
     [casual, casualTournamentId, casualPlatformBridge, user?.uid, clearPostCasualOverlays, onGameSubmit]
   );
 
-  const dismissPostCasualScoreReport = useCallback(() => {
+  const dismissPostCasualScoreReport = useCallback(async () => {
     const hadReplayOffer = postCasualReplayOffered;
     const pendingTriathlon = pendingTriathlonAdvanceRef.current;
     const gs = gameStateRef.current;
@@ -905,6 +913,47 @@ export const Match3GameProvider: React.FC<Props> = ({
     const legScore =
       postCasualScoreReport?.totalScore ?? Math.max(0, Math.floor(gs?.score ?? 0));
     const scoreReportSnapshot = postCasualScoreReport;
+    let tableSummary = postCasualTableSummary;
+    let waitingForPeers = postCasualWaitingForPeers;
+
+    if (
+      matchGameId &&
+      !isCasualSoloP75ChallengeTemplate(casualTournamentId) &&
+      !deferTableSummary &&
+      !tableSummary?.rows?.length
+    ) {
+      try {
+        const fetched = await fetchCasualAsyncTableSummaryForGame({
+          matchGameId,
+          platformBridge: casualPlatformBridge,
+        });
+        if (fetched?.rows?.length) {
+          applyCasualTableSummaryFromQuery(fetched, {
+            setTableSummary: setPostCasualTableSummary,
+            setReplayOffered: setPostCasualReplayOffered,
+            setReplayTokenCount: setPostCasualReplayTokenCount,
+            setCanReplay: setPostCasualCanReplay,
+            setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+            setReplayMode: setPostCasualReplayMode,
+            setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+            setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
+          });
+          tableSummary = fetched;
+          waitingForPeers = false;
+          setPostCasualWaitingForPeers(false);
+        } else if (!waitingForPeers) {
+          waitingForPeers = true;
+          setPostCasualWaitingForPeers(true);
+        }
+      } catch (e) {
+        console.warn('[match3] fetch table summary on score dismiss', e);
+        if (!waitingForPeers) {
+          waitingForPeers = true;
+          setPostCasualWaitingForPeers(true);
+        }
+      }
+    }
+
     setPostCasualScoreReportOpen(false);
     setPostCasualScoreReport(null);
     setTriathlonDeferTableSummary(false);
@@ -925,8 +974,8 @@ export const Match3GameProvider: React.FC<Props> = ({
     if (
       shouldOpenCasualTableSummaryAfterScoreReport(
         casualTournamentId,
-        postCasualTableSummary,
-        postCasualWaitingForPeers,
+        tableSummary,
+        waitingForPeers,
         {
           deferTriathlonTableSummary: deferTableSummary,
           triathlonSessionActive,
@@ -941,6 +990,7 @@ export const Match3GameProvider: React.FC<Props> = ({
     }
   }, [
     casualTournamentId,
+    casualPlatformBridge,
     postCasualTableSummary,
     postCasualWaitingForPeers,
     postCasualScoreReport,

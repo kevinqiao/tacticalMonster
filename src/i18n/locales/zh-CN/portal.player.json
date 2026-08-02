@@ -179,11 +179,13 @@
     "title": "兑换商店",
     "balance": "当前余额：",
     "region": "兑换地区：{{region}}",
-    "ordersToggle": "我的礼品卡订单",
-    "ordersModalTitle": "我的礼品卡订单",
+    "ordersToggle": "我的订单",
+    "ordersModalTitle": "我的订单",
     "badgeGiftCard": "礼品卡",
     "badgeVoucher": "兑换券",
+    "badgeIap": "礼包",
     "sections": {
+      "iap": "礼包",
       "virtual": "道具",
       "giftcard": "礼品卡",
       "featured": "精选",
@@ -193,9 +195,12 @@
     "empty": "暂无商品",
     "faceValue": "面值 {{value}}",
     "grantReplay": "获得门票 ×{{count}}",
+    "grantTickets": "获得门票 ×{{count}}",
+    "grantCoins": "获得金币 ×{{count}}",
     "voucherReward": "兑换内容：{{reward}}",
     "weeklyRemaining": "本周剩余 {{remaining}} / {{limit}}",
     "buying": "兑换中…",
+    "redirecting": "跳转支付…",
     "soldOut": "已售罄",
     "success": "兑换成功！",
     "giftCardProcessing": "兑换处理中，请在「我的礼品卡订单」查看",
@@ -243,6 +248,10 @@
     "portal_multi_coin_yatz": { "title": "Yatz · 金币竞技" }
   },
   "shopSkus": {
+    "portal_stripe_pack_t5_c100": {
+      "title": "畅玩礼包",
+      "description": "5 张门票 + 100 金币。"
+    },
     "portal_shop_ticket_3": {
       "title": "门票 ×3",
       "description": "获得 3 张门票，可用于继续游戏。"
@@ -260,8 +269,20 @@
       "description": "加拿大区 Amazon 电子礼品卡，兑换后通过链接领取。"
     }
   },
+  "orders": {
+    "empty": "暂无订单",
+    "coins": "金币",
+    "status": {
+      "pending": "待支付",
+      "processing": "处理中",
+      "fulfilled": "已完成",
+      "expired": "已取消",
+      "failed": "失败",
+      "refunded": "已退款"
+    }
+  },
   "giftcard": {
-    "empty": "暂无礼品卡订单",
+    "empty": "暂无订单",
     "status": {
       "pending": "排队中",
       "processing": "处理中",

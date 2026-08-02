@@ -3,6 +3,7 @@
  * Portal economy balance report (read-only).
  * Reads scripts/portal/economy/portal-economy.json — same SSOT as sync.
  *
+ *   npm run op -- economy balance
  *   npm run portal:economy:balance
  */
 
@@ -17,7 +18,25 @@ function giftCardPriceCoins(faceValueUsd, coinsPerUsd, scarcity = 1) {
   return Math.round(faceValueUsd * coinsPerUsd * scarcity);
 }
 
+function printHelp() {
+  console.log(`Usage:
+  npm run op -- economy balance
+  npm run portal:economy:balance
+
+Read-only balance report from scripts/portal/economy/portal-economy.json
+(shop sinks, play defaults, giftcard pricing). Does not write files.
+
+Related:
+  npm run op -- economy sync    # regenerate portalEconomyGenerated.ts
+  npm run op -- economy check   # fail if generated drifts from JSON`);
+}
+
 function main() {
+  const argv = process.argv.slice(2);
+  if (argv.some((a) => a === "help" || a === "-h" || a === "--help")) {
+    printHelp();
+    return;
+  }
   if (!existsSync(JSON_PATH)) {
     console.error(`missing ${JSON_PATH}`);
     process.exit(1);
@@ -43,12 +62,18 @@ function main() {
       );
     }
     const weeksAtDiamondR1 = Math.ceil(price / eco.weeklyLeague.projectedCoins.diamond.r1);
+    const tickets = s.grantTicketCount ?? s.grantReplayTokenCount;
+    const fiat =
+      s.skuKind === "iap" && s.priceCents != null
+        ? `  ($${(s.priceCents / 100).toFixed(2)} ${String(s.currency ?? "usd").toUpperCase()})`
+        : "";
     console.log(
       `  ${s.skuId.padEnd(28)} ${String(price).padStart(4)} coins` +
+        fiat +
         (s.skuKind === "giftcard"
           ? `  (~${weeksAtDiamondR1}w @ diamond #1)`
-          : s.grantReplayTokenCount
-            ? `  (+${s.grantReplayTokenCount} tickets)`
+          : tickets
+            ? `  (+${tickets} tickets${s.grantCoinCount ? ` +${s.grantCoinCount} coins` : ""})`
             : "")
     );
   }

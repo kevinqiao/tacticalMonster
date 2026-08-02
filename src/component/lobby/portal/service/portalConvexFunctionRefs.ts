@@ -55,6 +55,12 @@ export const portalTournamentFns = {
   purchasePortalShopSku: makeFunctionReference<"mutation">(
     "service/shop/portalShopService:purchasePortalShopSku"
   ),
+  createStripeCheckout: makeFunctionReference<"action">(
+    "service/shop/stripeCheckoutAction:createStripeCheckout"
+  ),
+  reconcileStripeCheckout: makeFunctionReference<"action">(
+    "service/shop/stripeCheckoutAction:reconcileStripeCheckout"
+  ),
   listMyBackpackItems: makeFunctionReference<"query">(
     "service/backpack/portalBackpackService:listMyBackpackItems"
   ),
@@ -75,6 +81,9 @@ export const portalTournamentFns = {
   ),
   listMyGiftCardOrders: makeFunctionReference<"query">(
     "service/giftcard/giftCardQueries:listMyGiftCardOrders"
+  ),
+  listMyShopOrders: makeFunctionReference<"query">(
+    "service/shop/shopOrdersQueries:listMyShopOrders"
   ),
   getGiftCardRedemption: makeFunctionReference<"query">(
     "service/giftcard/giftCardQueries:getGiftCardRedemption"

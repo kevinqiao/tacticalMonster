@@ -28,7 +28,7 @@ export const PORTAL_SHOP_FALLBACK_SKUS: PortalShopFallbackSku[] = [
     faceValueDisplay: "$5",
     brandName: "Amazon.com",
     priceCoins: 750,
-    grantReplayTokenCount: 0,
+    grantTicketCount: 0,
     weeklyPurchaseLimit: 1,
     purchasedThisWeek: 0,
     remainingThisWeek: 1,

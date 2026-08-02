@@ -179,11 +179,13 @@
     "title": "Redemption shop",
     "balance": "Balance:",
     "region": "Region: {{region}}",
-    "ordersToggle": "My gift card orders",
-    "ordersModalTitle": "My gift card orders",
+    "ordersToggle": "My orders",
+    "ordersModalTitle": "My orders",
     "badgeGiftCard": "Gift card",
     "badgeVoucher": "Voucher",
+    "badgeIap": "Pack",
     "sections": {
+      "iap": "Packs",
       "virtual": "Items",
       "giftcard": "Gift cards",
       "featured": "Featured",
@@ -193,9 +195,12 @@
     "empty": "No items available",
     "faceValue": "Face value {{value}}",
     "grantReplay": "Tickets ×{{count}}",
+    "grantTickets": "Tickets ×{{count}}",
+    "grantCoins": "Coins ×{{count}}",
     "voucherReward": "Reward: {{reward}}",
     "weeklyRemaining": "{{remaining}} / {{limit}} left this week",
     "buying": "Redeeming…",
+    "redirecting": "Redirecting…",
     "soldOut": "Sold out",
     "success": "Redeemed!",
     "giftCardProcessing": "Processing — check My gift card orders",
@@ -243,6 +248,10 @@
     "portal_multi_coin_yatz": { "title": "Yatz · Coin Arena" }
   },
   "shopSkus": {
+    "portal_stripe_pack_t5_c100": {
+      "title": "Play Pack",
+      "description": "5 tickets + 100 coins."
+    },
     "portal_shop_ticket_3": {
       "title": "Tickets ×3",
       "description": "Get 3 tickets to keep playing."
@@ -260,8 +269,20 @@
       "description": "Canada Amazon e-gift card. Redeem via link after purchase."
     }
   },
+  "orders": {
+    "empty": "No orders yet",
+    "coins": "coins",
+    "status": {
+      "pending": "Awaiting payment",
+      "processing": "Processing",
+      "fulfilled": "Completed",
+      "expired": "Canceled",
+      "failed": "Failed",
+      "refunded": "Refunded"
+    }
+  },
   "giftcard": {
-    "empty": "No gift card orders",
+    "empty": "No orders yet",
     "status": {
       "pending": "Queued",
       "processing": "Processing",

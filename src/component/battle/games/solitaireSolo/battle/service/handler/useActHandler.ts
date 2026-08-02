@@ -36,6 +36,7 @@ import { autoCompleteLayoutGate } from "../../autoCompleteLayoutGate";
 import {
     buildSolitaireScoreReport,
     getCasualMatchScoreLineLabel,
+    isCasualSoloP75ChallengeTemplate,
     shouldOpenCasualTableSummaryAfterScoreReport,
     shouldRefreshPortalAdReplayQuota,
     type CasualGameScoreReportUI,
@@ -592,12 +593,15 @@ const useActHandler = () => {
         ) => {
             postSettleLayoutFreezeRef.current = true;
 
-            const challengeThreshold =
-                typeof settle.seedScoreThreshold === "number"
+            // 仅单人 P75 挂 challenge；多人竞技即使有 seed 目标分也走同桌成绩，不挡后续结算。
+            const soloChallenge = isCasualSoloP75ChallengeTemplate(casualTournamentId);
+            const challengeThreshold = soloChallenge
+                ? typeof settle.seedScoreThreshold === "number"
                     ? settle.seedScoreThreshold
                     : typeof targetScore === "number"
                       ? targetScore
-                      : undefined;
+                      : undefined
+                : undefined;
 
             const attachChallenge = (report: CasualGameScoreReportUI): CasualGameScoreReportUI => {
                 if (challengeThreshold == null) return report;
@@ -627,6 +631,15 @@ const useActHandler = () => {
 
             const holdUntilReady = options?.holdUntilReady === true;
 
+            const isMultiCompetitive = !isCasualSoloP75ChallengeTemplate(casualTournamentId);
+            const resolveWaitingForPeers = (pendingOthers?: boolean, hasRows?: boolean) => {
+                if (deferTableSummary) return false;
+                if (pendingOthers) return true;
+                // 多人：同桌榜未就绪前保持 waiting，避免得分页确定后直接退出
+                if (isMultiCompetitive && !hasRows) return true;
+                return false;
+            };
+
             if (!holdUntilReady) {
                 // 通关路径：庆祝刚结束立刻盖层，避免裸桌
                 const provisional = attachChallenge({
@@ -637,7 +650,12 @@ const useActHandler = () => {
                 setPostCasualScoreReport(provisional);
                 setPostCasualTableSummary(deferTableSummary ? null : settle.tableSummary ?? null);
                 setPostCasualWeeklyLeagueSettle(settle.weeklyLeagueSettle ?? null);
-                setPostCasualWaitingForPeers(deferTableSummary ? false : Boolean(settle.pendingOthers));
+                setPostCasualWaitingForPeers(
+                    resolveWaitingForPeers(
+                        settle.pendingOthers,
+                        Boolean(settle.tableSummary?.rows?.length)
+                    )
+                );
                 setPostCasualReplayOffered(false);
                 setPostCasualReplayTokenCount(0);
                 setPostCasualCanReplay(false);
@@ -673,7 +691,12 @@ const useActHandler = () => {
             setPostCasualScoreReport(report);
             setPostCasualTableSummary(deferTableSummary ? null : settle.tableSummary ?? null);
             setPostCasualWeeklyLeagueSettle(settle.weeklyLeagueSettle ?? null);
-            setPostCasualWaitingForPeers(deferTableSummary ? false : Boolean(settle.pendingOthers));
+            setPostCasualWaitingForPeers(
+                resolveWaitingForPeers(
+                    settle.pendingOthers,
+                    Boolean(settle.tableSummary?.rows?.length)
+                )
+            );
             setPostCasualReplayOffered(false);
             setPostCasualReplayTokenCount(0);
             setPostCasualCanReplay(false);
@@ -717,6 +740,9 @@ const useActHandler = () => {
                             setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
                 setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
                         });
+                        if (summary.rows?.length) {
+                            setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
+                        }
                     }
                 } catch (e) {
                     console.warn("[Solitaire] fetchCasualTableSummaryForGame after submit", e);
@@ -729,34 +755,36 @@ const useActHandler = () => {
     const mergeCasualSettleIntoOpenOverlays = useCallback(
         (settled: Extract<CasualRunSubmitOutcome, { ok: true }>) => {
             if (settled.triathlonScoreReportOnly) return;
-            if (typeof settled.seedScoreThreshold === "number") {
-                setPostCasualScoreReport((prev) => {
-                    if (!prev) return prev;
-                    const success =
-                        typeof settled.success === "boolean"
-                            ? settled.success
-                            : prev.totalScore >= settled.seedScoreThreshold!;
-                    return {
-                        ...prev,
-                        challenge: {
-                            targetScore: settled.seedScoreThreshold!,
-                            achievedScore: prev.totalScore,
-                            success,
-                        },
-                    };
-                });
-            } else if (typeof targetScore === "number") {
-                setPostCasualScoreReport((prev) => {
-                    if (!prev) return prev;
-                    return {
-                        ...prev,
-                        challenge: {
-                            targetScore: targetScore,
-                            achievedScore: prev.totalScore,
-                            success: prev.totalScore >= targetScore,
-                        },
-                    };
-                });
+            if (isCasualSoloP75ChallengeTemplate(casualTournamentId)) {
+                if (typeof settled.seedScoreThreshold === "number") {
+                    setPostCasualScoreReport((prev) => {
+                        if (!prev) return prev;
+                        const success =
+                            typeof settled.success === "boolean"
+                                ? settled.success
+                                : prev.totalScore >= settled.seedScoreThreshold!;
+                        return {
+                            ...prev,
+                            challenge: {
+                                targetScore: settled.seedScoreThreshold!,
+                                achievedScore: prev.totalScore,
+                                success,
+                            },
+                        };
+                    });
+                } else if (typeof targetScore === "number") {
+                    setPostCasualScoreReport((prev) => {
+                        if (!prev) return prev;
+                        return {
+                            ...prev,
+                            challenge: {
+                                targetScore: targetScore,
+                                achievedScore: prev.totalScore,
+                                success: prev.totalScore >= targetScore,
+                            },
+                        };
+                    });
+                }
             }
             if (settled.tableSummary) {
                 applyCasualTableSummaryFromQuery(settled.tableSummary, {
@@ -1186,11 +1214,12 @@ const useActHandler = () => {
             // 庆祝结束立刻盖上得分遮罩（先于 settle 完成也可）
             postSettleLayoutFreezeRef.current = true;
             setInteractionPhase(GameInteractionPhase.idle);
+            const soloChallenge = isCasualSoloP75ChallengeTemplate(casualTournamentId);
             setPostCasualScoreReport({
                 gameLabel: "Solitaire",
                 lines: [{ label: getCasualMatchScoreLineLabel(), value: score }],
                 totalScore: score,
-                ...(typeof targetScore === "number"
+                ...(soloChallenge && typeof targetScore === "number"
                     ? {
                           challenge: {
                               targetScore,
@@ -1200,6 +1229,10 @@ const useActHandler = () => {
                       }
                     : {}),
             });
+            // 多人：settle 未返回前先标 waiting，避免用户点「确定」时无同桌数据而直接退出
+            if (!soloChallenge) {
+                setPostCasualWaitingForPeers(true);
+            }
             setPostCasualScoreReportOpen(true);
 
             let r = await settlePromise;
@@ -1301,7 +1334,7 @@ const useActHandler = () => {
         [casual, casualTournamentId, casualPlatformBridge, user?.uid, onGameSubmit]
     );
 
-    const dismissPostCasualScoreReport = useCallback(() => {
+    const dismissPostCasualScoreReport = useCallback(async () => {
         const hadReplayOffer = postCasualReplayOffered;
         const pendingTriathlon = pendingTriathlonAdvanceRef.current;
         const gs = gameStateRef.current;
@@ -1315,6 +1348,45 @@ const useActHandler = () => {
         const legScore =
             postCasualScoreReport?.totalScore ?? Math.max(0, Math.floor(gs?.score ?? 0));
         const scoreReportSnapshot = postCasualScoreReport;
+        let tableSummary = postCasualTableSummary;
+        let waitingForPeers = postCasualWaitingForPeers;
+
+        // 通关庆祝会先开得分页；用户可能在 settle/同桌拉取完成前点确定 —— 此处补拉。
+        if (
+            matchGameId &&
+            !isCasualSoloP75ChallengeTemplate(casualTournamentId) &&
+            !deferTableSummary &&
+            !tableSummary?.rows?.length
+        ) {
+            try {
+                const fetched = await fetchTableSummaryForGame(matchGameId);
+                if (fetched?.rows?.length) {
+                    applyCasualTableSummaryFromQuery(fetched, {
+                        setTableSummary: setPostCasualTableSummary,
+                        setReplayOffered: setPostCasualReplayOffered,
+                        setReplayTokenCount: setPostCasualReplayTokenCount,
+                        setCanReplay: setPostCasualCanReplay,
+                        setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                        setReplayMode: setPostCasualReplayMode,
+                        setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                        setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
+                    });
+                    tableSummary = fetched;
+                    waitingForPeers = false;
+                    setPostCasualWaitingForPeers(false);
+                } else if (!waitingForPeers) {
+                    waitingForPeers = true;
+                    setPostCasualWaitingForPeers(true);
+                }
+            } catch (e) {
+                console.warn("[Solitaire] fetch table summary on score dismiss", e);
+                if (!waitingForPeers) {
+                    waitingForPeers = true;
+                    setPostCasualWaitingForPeers(true);
+                }
+            }
+        }
+
         setTriathlonDeferTableSummary(false);
         if (
             tryAdvanceTriathlonMidSession({
@@ -1335,13 +1407,13 @@ const useActHandler = () => {
         if (
             shouldOpenCasualTableSummaryAfterScoreReport(
                 casualTournamentId,
-                postCasualTableSummary,
-                postCasualWaitingForPeers,
+                tableSummary,
+                waitingForPeers,
                 {
                     deferTriathlonTableSummary: deferTableSummary,
                     triathlonSessionActive,
                     triathlonGameId: matchGameId,
-                    replayOffered: postCasualReplayOffered,
+                    replayOffered: hadReplayOffer,
                 }
             )
         ) {
@@ -1363,6 +1435,7 @@ const useActHandler = () => {
         triathlonSessionActive,
         onTriathlonNextGame,
         exitCasualRunAfterSettle,
+        fetchTableSummaryForGame,
     ]);
 
     const dismissPostCasualSummary = useCallback(() => {

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { usePartnerManager } from "host/service/PartnerManager";
 import { useModalManager } from "host/service/ModalManager";
+import { isEmbedLikelyContext } from "@/host/service/platformAuth/embedSources/embedContextDetect";
 
 import CasualPlayMatchOverlay from "../../casual/view/play/CasualPlayMatchOverlay";
 import { PortalCenterModal } from "../PortalCenterModal";
@@ -12,7 +13,7 @@ import {
 } from "../PortalPanels";
 import { PortalHistoryReportOverlays } from "../PortalHistoryReportOverlays";
 import { PortalRulesContent } from "./PortalRulesContent";
-import { PortalGiftCardPanel } from "./PortalGiftCardPanel";
+import { PortalShopOrdersPanel } from "./PortalShopOrdersPanel";
 import { PortalShopPanel } from "./PortalShopPanel";
 import { PortalAccountSheet } from "./PortalAccountSheet";
 import {
@@ -259,11 +260,13 @@ export function PortalGame3DOverlays({
           }
           skus={resolvePortalShopSkus(portal.shopCatalog?.skus, partnerPid)}
           redemptionProfile={portal.shopCatalog?.redemptionProfile}
-          giftCardOrderCount={portal.giftCardOrders?.length ?? 0}
-          onOpenGiftCardOrders={() => setGiftCardOrdersModalOpen(true)}
+          orderCount={portal.shopOrders?.length ?? 0}
+          onOpenOrders={() => setGiftCardOrdersModalOpen(true)}
           verifiedEmail={ctrl.userEmail}
           verifiedPhone={ctrl.userPhone}
           onPurchase={portal.purchasePortalShopSku}
+          onStripeCheckout={portal.createStripeCheckout}
+          stripeCheckoutEnabled={!isEmbedLikelyContext()}
           onSyncProfile={portal.syncRedemptionProfile}
           onFeedback={ctrl.showNote}
           adCoinOffer={ctrl.adCoinClientEnabled ? portal.adCoinOffer : null}
@@ -278,8 +281,8 @@ export function PortalGame3DOverlays({
         title={t("shop.ordersModalTitle")}
         onClose={() => setGiftCardOrdersModalOpen(false)}
       >
-        <PortalGiftCardPanel
-          orders={portal.giftCardOrders ?? []}
+        <PortalShopOrdersPanel
+          orders={portal.shopOrders ?? []}
           onRedeem={portal.redeemGiftCard}
           onResendEmail={portal.resendGiftCardEmail}
           onFeedback={ctrl.showNote}

@@ -165,13 +165,18 @@ export type PortalShopSkuView = {
   title: string;
   description: string;
   priceCoins: number;
-  grantReplayTokenCount: number;
+  grantTicketCount: number;
+  /** @deprecated Alias of grantTicketCount for older UI. */
+  grantReplayTokenCount?: number;
+  grantCoinCount?: number;
   weeklyPurchaseLimit: number | null;
   purchasedThisWeek: number;
   remainingThisWeek: number | null;
   sortOrder?: number;
   shopSection?: string;
-  skuKind?: "virtual" | "giftcard" | "voucher";
+  skuKind?: "virtual" | "giftcard" | "voucher" | "iap";
+  priceCents?: number;
+  currency?: string;
   region?: string;
   faceValueDisplay?: string;
   brandName?: string;
@@ -190,21 +195,31 @@ export type PortalShopCatalogView = {
   redemptionProfile?: PortalRedemptionProfileView | null;
 };
 
-export type PortalGiftCardOrderRow = {
+export type PortalShopOrderRow = {
+  orderKind: "giftcard" | "iap";
   orderId: string;
   skuId: string;
   title: string;
-  brandName?: string;
-  faceValueDisplay: string;
-  priceCoins: number;
   status: string;
-  failureReason?: string;
   createdAt: number;
   fulfilledAt?: number;
-  canRedeem: boolean;
-  canResendEmail: boolean;
-  hasCachedLink: boolean;
+  failureReason?: string;
+  /** giftcard */
+  brandName?: string;
+  faceValueDisplay?: string;
+  priceCoins?: number;
+  canRedeem?: boolean;
+  canResendEmail?: boolean;
+  hasCachedLink?: boolean;
+  /** iap */
+  grantTicketCount?: number;
+  grantCoinCount?: number;
+  priceCents?: number;
+  currency?: string;
 };
+
+/** @deprecated Use PortalShopOrderRow */
+export type PortalGiftCardOrderRow = PortalShopOrderRow;
 
 export type PortalBackpackItem = {
   itemId: string;
@@ -278,7 +293,8 @@ type PortalDataSnapshot = {
   weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
   playerWallet: PortalPlayerWallet | null;
   shopCatalog: PortalShopCatalogView | null;
-  giftCardOrders: PortalGiftCardOrderRow[];
+  giftCardOrders: PortalShopOrderRow[];
+  shopOrders: PortalShopOrderRow[];
   backpackItems: PortalBackpackItem[];
   replayTokenCount: number;
   adReplayDailyRemaining: number | null;
@@ -300,6 +316,7 @@ const emptyData = (): PortalDataSnapshot => ({
   playerWallet: null,
   shopCatalog: null,
   giftCardOrders: [],
+  shopOrders: [],
   backpackItems: [],
   replayTokenCount: 0,
   adReplayDailyRemaining: null,
@@ -341,7 +358,8 @@ type PortalContextValue = {
   weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
   playerWallet: PortalPlayerWallet | null;
   shopCatalog: PortalShopCatalogView | null;
-  giftCardOrders: PortalGiftCardOrderRow[];
+  giftCardOrders: PortalShopOrderRow[];
+  shopOrders: PortalShopOrderRow[];
   backpackItems: PortalBackpackItem[];
   replayTokenCount: number;
   adReplayDailyRemaining: number | null;
@@ -382,6 +400,18 @@ type PortalContextValue = {
     skuId: string
   ) => Promise<
     | { ok: true; skuKind?: string; orderId?: string }
+    | { ok: false; error: string }
+  >;
+  createStripeCheckout: (
+    skuId: string
+  ) => Promise<
+    | { ok: true; url: string; sessionId?: string }
+    | { ok: false; error: string }
+  >;
+  reconcileStripeCheckout: (
+    sessionId: string
+  ) => Promise<
+    | { ok: true; duplicate?: boolean; ticketsGranted?: number; coinsGranted?: number }
     | { ok: false; error: string }
   >;
   syncRedemptionProfile: (args: {
@@ -611,6 +641,7 @@ export const PortalProvider: React.FC<{
         playerWallet: null,
         shopCatalog: null,
         giftCardOrders: [],
+        shopOrders: [],
         backpackItems: [],
         replayTokenCount: 0,
         adReplayDailyRemaining: null,
@@ -658,13 +689,14 @@ export const PortalProvider: React.FC<{
       "shopCatalog"
     );
     sub(
-      portalTournamentFns.listMyGiftCardOrders,
-      { limit: 20 },
+      portalTournamentFns.listMyShopOrders,
+      { limit: 30 },
       (rows) => {
-        const r = rows as { orders?: PortalGiftCardOrderRow[] };
-        patchData({ giftCardOrders: r.orders ?? [] });
+        const r = rows as { orders?: PortalShopOrderRow[] };
+        const orders = r.orders ?? [];
+        patchData({ shopOrders: orders, giftCardOrders: orders });
       },
-      "giftCardOrders"
+      "shopOrders"
     );
     sub(
       portalTournamentFns.listMyBackpackItems,
@@ -1095,6 +1127,112 @@ export const PortalProvider: React.FC<{
     [uid, lobbyId]
   );
 
+  const createStripeCheckout = useCallback(
+    async (skuId: string) => {
+      const http = getHttp();
+      if (!http || !uid) return { ok: false as const, error: "no_auth" };
+      try {
+        const origin =
+          typeof window !== "undefined" ? window.location.origin : "";
+        const pathname =
+          typeof window !== "undefined" ? window.location.pathname : "/";
+        // Strip prior stripe_shop / session_id so return URLs do not accumulate.
+        const params =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search)
+            : new URLSearchParams();
+        params.delete("stripe_shop");
+        params.delete("session_id");
+        const qs = params.toString();
+        const base = `${origin}${pathname}${qs ? `?${qs}` : ""}`;
+        const join = base.includes("?") ? "&" : "?";
+        const res = (await http.action(portalTournamentFns.createStripeCheckout, {
+          skuId,
+          ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+          successUrl: `${base}${join}stripe_shop=success`,
+          cancelUrl: `${base}${join}stripe_shop=cancel`,
+        })) as {
+          ok?: boolean;
+          error?: string;
+          url?: string;
+          sessionId?: string;
+        };
+        if (res?.ok && res.url) {
+          return {
+            ok: true as const,
+            url: res.url,
+            sessionId: res.sessionId,
+          };
+        }
+        return { ok: false as const, error: res?.error ?? "checkout_failed" };
+      } catch (e) {
+        console.error("[Portal] createStripeCheckout", e);
+        return { ok: false as const, error: "checkout_failed" };
+      }
+    },
+    [uid, lobbyId]
+  );
+
+  const reconcileStripeCheckout = useCallback(
+    async (sessionId: string) => {
+      const http = getHttp();
+      if (!http || !uid) return { ok: false as const, error: "no_auth" };
+      try {
+        const res = (await http.action(portalTournamentFns.reconcileStripeCheckout, {
+          sessionId,
+        })) as {
+          ok?: boolean;
+          error?: string;
+          duplicate?: boolean;
+          ticketsGranted?: number;
+          coinsGranted?: number;
+        };
+        if (res?.ok) {
+          return {
+            ok: true as const,
+            duplicate: res.duplicate,
+            ticketsGranted: res.ticketsGranted,
+            coinsGranted: res.coinsGranted,
+          };
+        }
+        return { ok: false as const, error: res?.error ?? "reconcile_failed" };
+      } catch (e) {
+        console.error("[Portal] reconcileStripeCheckout", e);
+        return { ok: false as const, error: "reconcile_failed" };
+      }
+    },
+    [uid]
+  );
+
+  // After Stripe Checkout return: fulfill if webhook was missed, then clean query params.
+  useEffect(() => {
+    if (!uid || !portalSessionReady) return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    const shopFlag = params.get("stripe_shop");
+    if (!sessionId && shopFlag !== "success") return;
+
+    let cancelled = false;
+    void (async () => {
+      if (sessionId) {
+        const r = await reconcileStripeCheckout(sessionId);
+        if (cancelled) return;
+        if (!r.ok) {
+          console.warn("[Portal] stripe reconcile", r.error);
+        }
+      }
+      params.delete("stripe_shop");
+      params.delete("session_id");
+      const qs = params.toString();
+      const next = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
+      window.history.replaceState({}, "", next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [uid, portalSessionReady, reconcileStripeCheckout]);
+
   const syncRedemptionProfile = useCallback(
     async (args: {
       verifiedEmail?: string;
@@ -1408,7 +1546,8 @@ export const PortalProvider: React.FC<{
       weeklyLeagueTierView: snapshot.weeklyLeagueTierView,
       playerWallet: snapshot.playerWallet,
       shopCatalog: snapshot.shopCatalog,
-      giftCardOrders: snapshot.giftCardOrders,
+      giftCardOrders: snapshot.shopOrders,
+      shopOrders: snapshot.shopOrders,
       backpackItems: snapshot.backpackItems,
       replayTokenCount: snapshot.replayTokenCount,
       adReplayDailyRemaining: snapshot.adReplayDailyRemaining,
@@ -1429,6 +1568,8 @@ export const PortalProvider: React.FC<{
       claimPortalWeeklyLeagueRewards,
       dismissPortalWeeklyLeagueClose,
       purchasePortalShopSku,
+      createStripeCheckout,
+      reconcileStripeCheckout,
       syncRedemptionProfile,
       updatePortalDisplayName,
       redeemGiftCard,
@@ -1452,6 +1593,8 @@ export const PortalProvider: React.FC<{
       claimPortalWeeklyLeagueRewards,
       dismissPortalWeeklyLeagueClose,
       purchasePortalShopSku,
+      createStripeCheckout,
+      reconcileStripeCheckout,
       syncRedemptionProfile,
       updatePortalDisplayName,
       redeemGiftCard,

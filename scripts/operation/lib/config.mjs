@@ -207,11 +207,11 @@ export function expandShopSku(raw, partnerId) {
   }
 
   if (kind === "virtual") {
-    const grant = Number(raw.grantReplayTokenCount ?? 0);
+    const grant = Number(raw.grantTicketCount ?? raw.grantReplayTokenCount ?? 0);
     if (!Number.isInteger(grant) || grant < 0) {
       throw new Error(`shop_sku_grant_invalid:${skuId}`);
     }
-    out.grantReplayTokenCount = grant;
+    out.grantTicketCount = grant;
   } else {
     if (typeof raw.voucherRewardText === "string") {
       out.voucherRewardText = raw.voucherRewardText;
@@ -335,6 +335,117 @@ function expandShopSettings(raw) {
       })
     : [];
   return { ...base, lobbyOverlays };
+}
+
+/** Known partner `portal.*` GC / play-entry keys (pass-through to Portal upsert). */
+export const PORTAL_GC_OPS_KEYS = new Set([
+  "lobbyOpsMode",
+  "quotaScope",
+  "seasonEpochWeekKey",
+  "adReplayDailyCap",
+  "maxReplaysPerMatch",
+  "adReplayEnabled",
+  "ticketReplayEnabled",
+  "ticketReplayPriceTickets",
+  "freePlaySoloDailyCap",
+  "freePlayMultiDailyCap",
+  "adEntryEnabled",
+  "adEntrySoloDailyCap",
+  "adEntryMultiDailyCap",
+  "ticketEntryEnabled",
+  "ticketEntrySoloPriceTickets",
+  "ticketEntrySoloDailyCap",
+  "ticketEntryMultiPriceTickets",
+  "ticketEntryMultiDailyCap",
+]);
+
+/**
+ * Patch partners/*.json in place.
+ * @param {string} filePath
+ * @param {{ portal?: Record<string, unknown>, lobbyPatches?: Array<{ slug: string, quotaScope?: string|null, seasonHonorMode?: string|null }> }} patch
+ */
+export function patchPartnerJson(filePath, patch) {
+  const raw = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  if (!raw.portal || typeof raw.portal !== "object") raw.portal = {};
+
+  if (patch.portal && typeof patch.portal === "object") {
+    for (const [key, value] of Object.entries(patch.portal)) {
+      if (value === undefined) continue;
+      if (!PORTAL_GC_OPS_KEYS.has(key)) {
+        console.warn(`[config] unknown portal key ignored: ${key}`);
+        continue;
+      }
+      raw.portal[key] = value;
+    }
+  }
+
+  if (Array.isArray(patch.lobbyPatches) && patch.lobbyPatches.length) {
+    if (!Array.isArray(raw.lobbies)) {
+      throw new Error("lobbies_missing_in_json");
+    }
+    for (const lp of patch.lobbyPatches) {
+      const slug = String(lp.slug ?? "").trim().toLowerCase();
+      const idx = raw.lobbies.findIndex(
+        (l) => String(l?.slug ?? "").trim().toLowerCase() === slug
+      );
+      if (idx < 0) throw new Error(`lobby_not_in_json:${slug}`);
+      if (lp.quotaScope !== undefined) {
+        if (lp.quotaScope === null) delete raw.lobbies[idx].quotaScope;
+        else raw.lobbies[idx].quotaScope = lp.quotaScope;
+      }
+      if (lp.seasonHonorMode !== undefined) {
+        if (lp.seasonHonorMode === null) delete raw.lobbies[idx].seasonHonorMode;
+        else raw.lobbies[idx].seasonHonorMode = lp.seasonHonorMode;
+      }
+    }
+  }
+
+  writePartnerConfig(filePath, raw);
+  return raw;
+}
+
+/** Write partner JSON with stable 2-space formatting. */
+export function writePartnerConfig(filePath, raw) {
+  fs.writeFileSync(filePath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
+}
+
+/**
+ * Scaffold a new partner JSON from `_template.json`.
+ */
+export function scaffoldPartnerConfig({
+  pid,
+  slug,
+  name,
+  host = "http://localhost:3000",
+}) {
+  const templatePath = path.join(PARTNERS_DIR, "_template.json");
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`template_missing: ${templatePath}`);
+  }
+  const raw = JSON.parse(fs.readFileSync(templatePath, "utf8"));
+  const key = String(slug).trim().toLowerCase();
+  raw.pid = Math.floor(Number(pid));
+  raw.slug = key;
+  raw.name = String(name ?? key).trim() || key;
+  raw.host = String(host).trim() || "http://localhost:3000";
+  if (raw.embed && typeof raw.embed === "object") {
+    raw.embed.allowedOrigins = [raw.host];
+  }
+  if (Array.isArray(raw.staff)) {
+    for (const s of raw.staff) {
+      if (s?.passwordEnv) {
+        s.passwordEnv = `PARTNER_STAFF_PASSWORD_${key
+          .toUpperCase()
+          .replace(/[^A-Z0-9]+/g, "_")}`;
+      }
+    }
+  }
+  const filePath = path.join(PARTNERS_DIR, `${key}.json`);
+  if (fs.existsSync(filePath)) {
+    throw new Error(`partner_config_exists: ${filePath}`);
+  }
+  writePartnerConfig(filePath, raw);
+  return filePath;
 }
 
 /**

@@ -36,6 +36,11 @@ type ClaimOk = {
   };
   maxPlaysPerDay?: number;
   dayTimezone?: string;
+  /**
+   * Solo open has no queue row — must carry ad/ticket lane into insertMatchShell
+   * or the free-cap assert fires after ad/ticket consume.
+   */
+  playEntryLane?: "ad" | "ticket";
 };
 
 const OPEN_TABLE_RETRY_ERRORS = new Set([
@@ -124,6 +129,7 @@ async function openCasualTableFromClaimHandler(
         : {}),
       ...(claim.maxPlaysPerDay != null ? { maxPlaysPerDay: claim.maxPlaysPerDay } : {}),
       ...(claim.dayTimezone ? { dayTimezone: claim.dayTimezone } : {}),
+      ...(claim.playEntryLane ? { playEntryLane: claim.playEntryLane } : {}),
     });
     if (!shell.ok) {
       await ctx.runMutation(internal.service.tournament.join.casualOpenTableMutations.abortOpenTable, {
@@ -335,6 +341,7 @@ export const openCasualSoloTable = internalAction({
       ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
       ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
       ...(dayTimezone ? { dayTimezone } : {}),
+      ...(playEntryLane ? { playEntryLane } : {}),
     };
 
     const opened = await openCasualTableFromClaimHandler(ctx, { templateId, claim });

@@ -316,6 +316,8 @@ export const insertMatchShell = internalMutation({
     dayTimezone: v.optional(v.string()),
     /** When present, copy per-player joinLobbyId / rewards snapshots from queue. */
     queueRowIds: v.optional(v.array(v.id("portal_match_queue"))),
+    /** Solo (no queue): ad/ticket lane after grant consume. */
+    playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
   },
   handler: async (ctx, args) => {
     const def = getPortalTournamentDefinition(args.templateId);
@@ -355,7 +357,9 @@ export const insertMatchShell = internalMutation({
         const entryLane =
           queueRow?.playEntryLane === "ad" || queueRow?.playEntryLane === "ticket"
             ? queueRow.playEntryLane
-            : undefined;
+            : args.playEntryLane === "ad" || args.playEntryLane === "ticket"
+              ? args.playEntryLane
+              : undefined;
         const daily = await assertPortalDailyPlayLimit(ctx, {
           uid,
           templateId: args.templateId,

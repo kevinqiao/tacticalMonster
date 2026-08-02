@@ -71,13 +71,25 @@ export default defineSchema({
     title: v.string(),
     description: v.optional(v.string()),
     priceCoins: v.number(),
+    /** Tickets granted (entry + replay). Prefer over grantReplayTokenCount. */
+    grantTicketCount: v.optional(v.number()),
+    /** @deprecated Legacy alias; readers use grantTicketCount ?? grantReplayTokenCount. */
     grantReplayTokenCount: v.optional(v.number()),
+    grantCoinCount: v.optional(v.number()),
     weeklyPurchaseLimit: v.optional(v.number()),
     active: v.boolean(),
     sortOrder: v.number(),
     skuKind: v.optional(
-      v.union(v.literal("virtual"), v.literal("giftcard"), v.literal("voucher"))
+      v.union(
+        v.literal("virtual"),
+        v.literal("giftcard"),
+        v.literal("voucher"),
+        v.literal("iap")
+      )
     ),
+    stripePriceId: v.optional(v.string()),
+    priceCents: v.optional(v.number()),
+    currency: v.optional(v.string()),
     region: v.optional(v.string()),
     faceValueUsd: v.optional(v.number()),
     faceValueLocal: v.optional(v.number()),
@@ -97,6 +109,31 @@ export default defineSchema({
     listInShop: v.optional(v.boolean()),
   }).index("by_skuId", ["skuId"]),
 
+  /**
+   * Fiat (Stripe) shop orders — keyed by Checkout Session id (paymentRef).
+   * pending: Checkout created (intent); fulfilled: paid + grants applied.
+   * Legacy rows may omit status/createdAt (treat as fulfilled).
+   */
+  portal_shop_iap_fulfillments: defineTable({
+    paymentRef: v.string(),
+    uid: v.string(),
+    skuId: v.string(),
+    scopeKey: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+    /** Expected (pending) or applied (fulfilled) grant amounts. */
+    ticketsGranted: v.number(),
+    coinsGranted: v.number(),
+    status: v.optional(
+      v.union(v.literal("pending"), v.literal("fulfilled"), v.literal("expired"))
+    ),
+    createdAt: v.optional(v.number()),
+    fulfilledAt: v.optional(v.number()),
+  })
+    .index("by_paymentRef", ["paymentRef"])
+    .index("by_uid_fulfilledAt", ["uid", "fulfilledAt"])
+    .index("by_uid_createdAt", ["uid", "createdAt"])
+    .index("by_uid_status", ["uid", "status"]),
+
   /** Portal-owned Partner shop assortment and effective catalog overrides. */
   portal_partner_shop_settings: defineTable({
     partnerId: v.number(),
@@ -109,6 +146,8 @@ export default defineSchema({
     vouchersEnabled: v.optional(v.boolean()),
     /** Optional for legacy rows written before ad-coin switch existed. */
     adCoinEnabled: v.optional(v.boolean()),
+    /** Stripe/fiat iap SKUs; omit = enabled (default true). */
+    iapEnabled: v.optional(v.boolean()),
     assortmentMode: v.union(v.literal("all_shared"), v.literal("allowlist")),
     skuIds: v.optional(v.array(v.string())),
     excludeSkuIds: v.optional(v.array(v.string())),

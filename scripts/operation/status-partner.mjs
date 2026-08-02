@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Read live Portal state for a partner config (GC ops + lobbies + shop + drift).
+ * Read live Portal (+ optional SSO) state for a partner config.
  *
  * Usage:
  *   npm run op:status -- --partner=crazygames
@@ -15,6 +15,7 @@ import {
   portalShopSettingsGet,
   resolvePortalTarget,
 } from "./lib/portalHttp.mjs";
+import { resolveEmbedBootstrapSecret, runSso } from "./lib/ssoOps.mjs";
 
 function summarizeSettings(settings) {
   if (!settings) return null;
@@ -33,9 +34,10 @@ function summarizeSettings(settings) {
 async function main() {
   const flags = parseCommonArgs(process.argv.slice(2));
   if (flags.help || !flags.partner) {
-    console.log(
-      "Usage: node scripts/operation/status-partner.mjs --partner=<slug> [--prod]"
-    );
+    console.log(`Usage:
+  npm run op -- partner status --partner=<slug> [--prod]
+
+Shows SSO peek, Portal GC ops (incl. entry caps), lobbies, shop SKUs/settings, drift.`);
     process.exit(flags.help ? 0 : 1);
   }
 
@@ -45,6 +47,21 @@ async function main() {
   console.log("== operation status-partner ==");
   console.log(`  config: pid=${cfg.pid} slug=${cfg.slug}`);
   console.log(`  portal: ${target.siteUrl} (${flags.prod ? "prod" : "dev"})`);
+
+  try {
+    const { secret } = resolveEmbedBootstrapSecret(flags.prod);
+    const ssoPeek = runSso(
+      "service/partner/partnerEmbedBootstrap:peekPartnerOps",
+      { bootstrapSecret: secret, pid: cfg.pid, partnerSlug: cfg.slug },
+      { prod: flags.prod }
+    );
+    if (ssoPeek && typeof ssoPeek === "object") {
+      console.log("\n[SSO peek]");
+      console.log(JSON.stringify(ssoPeek, null, 2));
+    }
+  } catch (e) {
+    console.log("\n[SSO peek] skipped:", e instanceof Error ? e.message : e);
+  }
 
   const gc = await portalGcOpsGet(target, cfg.pid);
   console.log("\n[GC ops]");
@@ -58,8 +75,17 @@ async function main() {
         maxReplaysPerMatch: gc.maxReplaysPerMatch,
         adReplayEnabled: gc.adReplayEnabled,
         ticketReplayEnabled: gc.ticketReplayEnabled,
+        ticketReplayPriceTickets: gc.ticketReplayPriceTickets ?? null,
         freePlaySoloDailyCap: gc.freePlaySoloDailyCap,
         freePlayMultiDailyCap: gc.freePlayMultiDailyCap,
+        adEntryEnabled: gc.adEntryEnabled ?? null,
+        adEntrySoloDailyCap: gc.adEntrySoloDailyCap ?? null,
+        adEntryMultiDailyCap: gc.adEntryMultiDailyCap ?? null,
+        ticketEntryEnabled: gc.ticketEntryEnabled ?? null,
+        ticketEntrySoloPriceTickets: gc.ticketEntrySoloPriceTickets ?? null,
+        ticketEntrySoloDailyCap: gc.ticketEntrySoloDailyCap ?? null,
+        ticketEntryMultiPriceTickets: gc.ticketEntryMultiPriceTickets ?? null,
+        ticketEntryMultiDailyCap: gc.ticketEntryMultiDailyCap ?? null,
         quotaScope: gc.quotaScope,
         seasonEpochWeekKey: gc.seasonEpochWeekKey,
       },
@@ -73,18 +99,30 @@ async function main() {
   console.log(`\n[Lobbies] ${lobbies.length}`);
   for (const l of lobbies) {
     const offerings = Array.isArray(l.offerings) ? l.offerings.length : "?";
+    const q =
+      l.quotaScope === "mode" ||
+      l.quotaScope === "lobby" ||
+      l.quotaScope === "tournament"
+        ? l.quotaScope
+        : "inherit";
     console.log(
-      `  - ${l.slug}  default=${l.isDefault === true}  enabled=${l.enabled !== false}  offerings=${offerings}  id=${l.lobbyId ?? l._id ?? "?"}`
+      `  - ${l.slug}  default=${l.isDefault === true}  enabled=${l.enabled !== false}  quota=${q}  offerings=${offerings}  id=${l.lobbyId ?? l._id ?? "?"}`
     );
   }
 
   const liveSlugs = new Set(lobbies.map((l) => l.slug));
   const missingLobbies = cfg.lobbies.filter((l) => !liveSlugs.has(l.slug));
+  const orphanLobbies = lobbies.filter((l) => !cfg.lobbies.some((c) => c.slug === l.slug));
   if (missingLobbies.length) {
     console.log("\n[Drift] config lobbies not in Portal:");
     for (const m of missingLobbies) console.log(`  - ${m.slug}`);
-  } else if (cfg.lobbies.length) {
-    console.log("\n[Drift] all config lobby slugs present in Portal");
+  }
+  if (orphanLobbies.length) {
+    console.log("\n[Drift] Portal lobbies not in config (use --prune on apply):");
+    for (const m of orphanLobbies) console.log(`  - ${m.slug}`);
+  }
+  if (!missingLobbies.length && !orphanLobbies.length && cfg.lobbies.length) {
+    console.log("\n[Drift] lobbies: in sync");
   }
 
   const skuListed = await portalShopSkusList(target, cfg.pid);
@@ -98,11 +136,17 @@ async function main() {
 
   const liveSkuIds = new Set(skus.map((s) => s.skuId));
   const missingSkus = cfg.shopSkus.filter((s) => !liveSkuIds.has(s.skuId));
+  const orphanSkus = skus.filter((s) => !cfg.shopSkus.some((c) => c.skuId === s.skuId));
   if (missingSkus.length) {
     console.log("\n[Drift] config shopSkus not in Portal:");
     for (const m of missingSkus) console.log(`  - ${m.skuId}`);
-  } else if (cfg.shopSkus.length) {
-    console.log("\n[Drift] all config shopSkus present in Portal");
+  }
+  if (orphanSkus.length) {
+    console.log("\n[Drift] Portal shopSkus not in config (use --prune on apply):");
+    for (const m of orphanSkus) console.log(`  - ${m.skuId}`);
+  }
+  if (!missingSkus.length && !orphanSkus.length && cfg.shopSkus.length) {
+    console.log("\n[Drift] shopSkus: in sync");
   }
 
   const shopGet = await portalShopSettingsGet(target, cfg.pid);
@@ -133,7 +177,7 @@ async function main() {
   }
 
   if (cfg.staff.length) {
-    console.log("\n[Staff] config only (SSO list not queried):");
+    console.log("\n[Staff] config:");
     for (const s of cfg.staff) {
       console.log(`  - ${s.account} role=${s.role}`);
     }

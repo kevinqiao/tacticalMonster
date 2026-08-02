@@ -11,9 +11,7 @@
  *   npm run op:apply -- --partner=demo-partner --apply --prod
  *   npm run op:apply -- --partner=demo-partner --apply --only-shop-settings
  */
-import { execSync } from "node:child_process";
-
-import { runConvexSso, SSO_CONVEX_PROJECT_DIR } from "../platform/run-convex-sso.mjs";
+import { runConvexSso } from "../platform/run-convex-sso.mjs";
 import { hashWebPassword } from "../platform/web-password.mjs";
 import { platformStaffUidForAccount } from "../platform/platform-uid.mjs";
 import {
@@ -30,35 +28,22 @@ import {
 import {
   portalGcOpsUpsert,
   portalLobbyUpsert,
+  portalLobbyDelete,
   portalLobbiesList,
   portalShopSkuUpsert,
+  portalShopSkuDelete,
+  portalShopSkusList,
   portalShopSettingsUpsert,
   resolvePortalTarget,
 } from "./lib/portalHttp.mjs";
-
-const DEV_EMBED_SECRET = "dev-local-partner-embed-bootstrap";
-const DEV_PLATFORM_SECRET = "dev-local-platform-bootstrap";
-
-function fetchSsoEnv(name) {
-  const out = execSync(`npx convex env get ${name} --prod`, {
-    cwd: SSO_CONVEX_PROJECT_DIR,
-    encoding: "utf8",
-    shell: true,
-    windowsHide: true,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  const secret = String(out).trim();
-  if (!secret) throw new Error(`${name} empty`);
-  return secret;
-}
+import {
+  DEV_EMBED_SECRET,
+  DEV_PLATFORM_SECRET,
+  resolveSsoSecret,
+} from "./lib/ssoOps.mjs";
 
 function resolveSecret(envName, prod, defaultValue) {
-  const fromEnv = process.env[envName]?.trim();
-  if (fromEnv) return { secret: fromEnv, source: "env" };
-  if (prod) {
-    return { secret: fetchSsoEnv(envName), source: "convex-prod-env" };
-  }
-  return { secret: defaultValue, source: "default" };
+  return resolveSsoSecret(envName, prod, defaultValue);
 }
 
 function resolveStaffPassword(row) {
@@ -119,6 +104,7 @@ function printPlan(cfg, flags, portalTarget) {
   }
   console.log(`  portal fields: ${Object.keys(cfg.portal).join(", ") || "(none)"}`);
   console.log(`  mode: ${flags.apply ? "APPLY" : "dry-run"}`);
+  console.log(`  prune: ${flags.prune ? "yes (delete live orphans)" : "no"}`);
   console.log(`  target: ${flags.prod ? "PROD" : "dev"}`);
   if (portalTarget) {
     console.log(`  portal site: ${portalTarget.siteUrl} (${portalTarget.siteSource})`);
@@ -181,11 +167,7 @@ async function applyPortalOps(cfg, target) {
   return out;
 }
 
-async function applyLobbies(cfg, target) {
-  if (cfg.lobbies.length === 0) {
-    console.log("\n[Lobbies] skip (none in config)");
-    return [];
-  }
+async function applyLobbies(cfg, target, { prune = false } = {}) {
   console.log(`\n[Lobbies] upsert ${cfg.lobbies.length}…`);
   const results = [];
   for (const lobby of cfg.lobbies) {
@@ -193,20 +175,36 @@ async function applyLobbies(cfg, target) {
     console.log(`  → ${lobby.slug}`, out.lobbyId ?? out);
     results.push(out);
   }
+  if (prune) {
+    const listed = await portalLobbiesList(target, cfg.pid);
+    const want = new Set(cfg.lobbies.map((l) => l.slug));
+    for (const live of listed.lobbies ?? []) {
+      if (want.has(live.slug)) continue;
+      const lobbyId = live.lobbyId ?? live._id;
+      if (!lobbyId) continue;
+      console.log(`  → prune delete ${live.slug} (${lobbyId})`);
+      await portalLobbyDelete(target, cfg.pid, lobbyId);
+    }
+  }
   return results;
 }
 
-async function applyShopSkus(cfg, target) {
-  if (cfg.shopSkus.length === 0) {
-    console.log("\n[Shop SKUs] skip (none in config)");
-    return [];
-  }
+async function applyShopSkus(cfg, target, { prune = false } = {}) {
   console.log(`\n[Shop SKUs] upsert ${cfg.shopSkus.length}…`);
   const results = [];
   for (const sku of cfg.shopSkus) {
     const out = await portalShopSkuUpsert(target, cfg.pid, sku);
     console.log(`  → ${sku.skuId}`, out.ok === true ? "ok" : out);
     results.push(out);
+  }
+  if (prune) {
+    const listed = await portalShopSkusList(target, cfg.pid);
+    const want = new Set(cfg.shopSkus.map((s) => s.skuId));
+    for (const live of listed.skus ?? []) {
+      if (want.has(live.skuId)) continue;
+      console.log(`  → prune delete ${live.skuId}`);
+      await portalShopSkuDelete(target, cfg.pid, live.skuId);
+    }
   }
   return results;
 }
@@ -277,11 +275,16 @@ async function main() {
   const flags = parseCommonArgs(process.argv.slice(2));
   if (flags.help || !flags.partner) {
     console.log(`Usage:
-  node scripts/operation/apply-partner.mjs --partner=<slug> [--apply] [--prod]
-  Flags: --skip-sso --skip-portal --skip-lobbies --skip-shop-skus
-         --skip-shop-settings --skip-staff
-         --only-sso --only-portal --only-lobbies --only-shop-skus
-         --only-shop-settings --only-staff`);
+  npm run op -- partner apply --partner=<slug> [--apply] [--prod] [--prune]
+
+Flags:
+  --skip-sso --skip-portal --skip-lobbies --skip-shop-skus
+  --skip-shop-settings --skip-staff
+  --only-sso --only-portal --only-lobbies --only-shop-skus
+  --only-shop-settings --only-staff
+  --prune  delete live lobbies/SKUs not present in JSON
+
+Dry-run without --apply. Syncs partners/<slug>.json → SSO + Portal.`);
     process.exit(flags.help ? 0 : 1);
   }
 
@@ -304,8 +307,16 @@ async function main() {
 
   await run("sso", () => applySso(cfg, flags), "SSO");
   await run("portal", () => applyPortalOps(cfg, portalTarget), "Portal GC ops");
-  await run("lobbies", () => applyLobbies(cfg, portalTarget), "Lobbies");
-  await run("shopSkus", () => applyShopSkus(cfg, portalTarget), "Shop SKUs");
+  await run(
+    "lobbies",
+    () => applyLobbies(cfg, portalTarget, { prune: flags.prune }),
+    "Lobbies"
+  );
+  await run(
+    "shopSkus",
+    () => applyShopSkus(cfg, portalTarget, { prune: flags.prune }),
+    "Shop SKUs"
+  );
   await run(
     "shopSettings",
     () => applyShopSettings(cfg, portalTarget),

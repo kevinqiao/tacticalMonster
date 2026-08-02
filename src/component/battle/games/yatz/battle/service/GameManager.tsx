@@ -43,6 +43,7 @@ import {
 import {
   shouldRefreshPortalAdReplayQuota,
   getCasualMatchScoreLineLabel,
+  isCasualSoloP75ChallengeTemplate,
   type CasualGameScoreReportUI,
 } from '../../../shared/casualGameScoreReportUI';
 
@@ -489,12 +490,14 @@ const YatzGameProvider: React.FC<Props> = ({
 
       };
 
-      const challengeThreshold =
-        typeof res.seedScoreThreshold === 'number'
+      const soloChallenge = isCasualSoloP75ChallengeTemplate(casualTournamentId);
+      const challengeThreshold = soloChallenge
+        ? typeof res.seedScoreThreshold === 'number'
           ? res.seedScoreThreshold
           : typeof targetScore === 'number'
             ? targetScore
-            : undefined;
+            : undefined
+        : undefined;
 
       if (challengeThreshold != null) {
         report.challenge = {
@@ -509,7 +512,12 @@ const YatzGameProvider: React.FC<Props> = ({
 
       setPostCasualTableSummary(res.tableSummary ?? null);
 
-      setPostCasualWaitingForPeers(Boolean(res.pendingOthers));
+      {
+        const hasRows = Boolean(res.tableSummary?.rows?.length);
+        setPostCasualWaitingForPeers(
+          Boolean(res.pendingOthers) || (!soloChallenge && !hasRows)
+        );
+      }
 
       setPostCasualReplayOffered(false);
 
@@ -1105,34 +1113,66 @@ const YatzGameProvider: React.FC<Props> = ({
 
 
 
-  const dismissPostCasualScoreReport = useCallback(() => {
-
+  const dismissPostCasualScoreReport = useCallback(async () => {
     const hadReplayOffer = postCasualReplayOffered;
+    let tableSummary = postCasualTableSummary;
+    let waitingForPeers = postCasualWaitingForPeers;
+    const gs = gameStateRef.current;
+    const matchGameId =
+      typeof gs?.gameId === "string" && gs.gameId.startsWith("game_") ? gs.gameId : undefined;
 
-    setPostCasualScoreReportOpen(false);
-
-    setPostCasualScoreReport(null);
-
-    if (postCasualTableSummary || postCasualWaitingForPeers) {
-
-      setPostCasualSummaryOpen(true);
-
-    } else {
-
-      void exitCasualRunAfterSettle({ hadReplayOffer });
-
+    if (
+      matchGameId &&
+      !isCasualSoloP75ChallengeTemplate(casualTournamentId) &&
+      !tableSummary?.rows?.length
+    ) {
+      try {
+        const fetched = await fetchCasualAsyncTableSummaryForGame({
+          matchGameId,
+          platformBridge: casualPlatformBridge,
+        });
+        if (fetched?.rows?.length) {
+          applyCasualTableSummaryFromQuery(fetched, {
+            setTableSummary: setPostCasualTableSummary,
+            setReplayOffered: setPostCasualReplayOffered,
+            setReplayTokenCount: setPostCasualReplayTokenCount,
+            setCanReplay: setPostCasualCanReplay,
+            setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+            setReplayMode: setPostCasualReplayMode,
+            setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+            setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
+          });
+          tableSummary = fetched;
+          waitingForPeers = false;
+          setPostCasualWaitingForPeers(false);
+        } else if (!waitingForPeers) {
+          waitingForPeers = true;
+          setPostCasualWaitingForPeers(true);
+        }
+      } catch (e) {
+        console.warn("[yatz] fetch table summary on score dismiss", e);
+        if (!waitingForPeers) {
+          waitingForPeers = true;
+          setPostCasualWaitingForPeers(true);
+        }
+      }
     }
 
+    setPostCasualScoreReportOpen(false);
+    setPostCasualScoreReport(null);
+
+    if (tableSummary?.rows?.length || waitingForPeers) {
+      setPostCasualSummaryOpen(true);
+    } else {
+      void exitCasualRunAfterSettle({ hadReplayOffer });
+    }
   }, [
-
+    casualTournamentId,
+    casualPlatformBridge,
     postCasualTableSummary,
-
     postCasualWaitingForPeers,
-
     postCasualReplayOffered,
-
     exitCasualRunAfterSettle,
-
   ]);
 
 

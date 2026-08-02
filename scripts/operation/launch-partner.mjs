@@ -46,8 +46,10 @@ function main() {
 
   if (flags.help || !flags.partner) {
     console.log(`Usage:
-  node scripts/operation/launch-partner.mjs --partner=<slug> [--apply] [--prod --allow-prod]
-  Flags: --skip-wipe --skip-platform-admin`);
+  npm run op -- partner launch --partner=<slug> [--apply] [--prod --allow-prod]
+  Flags: --skip-wipe --skip-platform-admin
+
+Sequence: wipe → platform admin bootstrap → partner apply.`);
     process.exit(flags.help ? 0 : 1);
   }
 

@@ -3,7 +3,17 @@
 import { v } from "convex/values";
 
 import { internal } from "../../_generated/api";
+import { action } from "../../_generated/server";
 import { authedAction } from "../../custom/session";
+
+const DEV_BOOTSTRAP_SECRET = "dev-local-platform-bootstrap";
+
+function assertBootstrapSecret(provided: string) {
+  const secret = process.env.PLATFORM_BOOTSTRAP_SECRET?.trim() || DEV_BOOTSTRAP_SECRET;
+  if (provided !== secret) {
+    throw new Error("forbidden");
+  }
+}
 
 function parseHexColor(input: string | undefined): string | null {
   if (!input) return null;
@@ -71,6 +81,51 @@ export const syncPartnerBrandFromUrl = authedAction({
       partnerId: args.partnerId,
       minRole: "admin",
     });
+
+    const url = args.sourceUrl.trim();
+    if (!isAllowedSourceUrl(url)) {
+      return { ok: false as const, error: "https_required" as const };
+    }
+
+    let html = "";
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "TacticalMonster-PartnerBrandSync/1.0" },
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!res.ok) {
+        return { ok: false as const, error: "fetch_failed" as const };
+      }
+      html = await res.text();
+    } catch {
+      return { ok: false as const, error: "fetch_failed" as const };
+    }
+
+    const themeColor = extractMetaThemeColor(html) ?? "#2563eb";
+    const fontFamily = extractFontFamily(html);
+    const draft = buildThemeFromExtract(url, themeColor);
+    draft.brand.fontFamily = fontFamily;
+    draft.shell.ctaBg = themeColor;
+
+    await ctx.runMutation(internal.service.partner.partnerBrandAdmin.savePartnerBrandDraft, {
+      partnerId: args.partnerId,
+      host: url,
+      themeDraft: draft,
+    });
+
+    return { ok: true as const, themeDraft: draft };
+  },
+});
+
+/** Ops CLI: brand sync with bootstrap secret (no interactive admin session). */
+export const syncPartnerBrandFromUrlOps = action({
+  args: {
+    bootstrapSecret: v.string(),
+    partnerId: v.number(),
+    sourceUrl: v.string(),
+  },
+  handler: async (ctx, args) => {
+    assertBootstrapSecret(args.bootstrapSecret);
 
     const url = args.sourceUrl.trim();
     if (!isAllowedSourceUrl(url)) {

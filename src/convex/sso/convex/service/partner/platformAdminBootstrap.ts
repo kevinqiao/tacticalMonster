@@ -1,11 +1,17 @@
 import { v } from "convex/values";
 
+import { internal } from "../../_generated/api";
 import { mutation } from "../../_generated/server";
 import {
   PLATFORM_ADMIN_EMAIL,
 } from "./platformAdminAccount";
-import { getPlatformStaffRow } from "./platformStaff";
+import { getPlatformStaffRow, listPlatformStaffRows } from "./platformStaff";
 import { getPartnerStaffRow, getPartnerByPid, nextPartnerId } from "./partnerStaff";
+import {
+  PLATFORM_STATUS_KEY,
+  toPlatformStatusSnapshot,
+  type PlatformStatusRow,
+} from "../../../../shared/platformStatus/platformStatusShared";
 import { dedupeAuthIdentitiesByUid } from "../../dao/authIdentityHelpers";
 import { normalizeWebAccountId } from "../../utils/webIdentity";
 import { provisionWebStaffAccount } from "./ensureStaffIdentity";
@@ -663,5 +669,102 @@ export const bootstrapCampaignOpsDevStoreStaff = mutation({
         storeOperationPath: "/partner/operation",
       },
     };
+  },
+});
+
+/** Ops CLI: list platform staff (bootstrap secret). */
+export const listPlatformTeamOps = mutation({
+  args: { bootstrapSecret: v.string() },
+  handler: async (ctx, { bootstrapSecret }) => {
+    assertBootstrapSecret(bootstrapSecret);
+    const rows = await listPlatformStaffRows(ctx);
+    const out = [];
+    for (const row of rows) {
+      const identity = await ctx.db
+        .query("auth_identities")
+        .withIndex("by_uid", (q) => q.eq("uid", row.uid))
+        .unique();
+      out.push({
+        uid: row.uid,
+        role: row.role,
+        email: identity?.email,
+        name: identity?.name,
+        createdAt: row.createdAt,
+      });
+    }
+    return {
+      ok: true as const,
+      staff: out.sort((a, b) => a.createdAt - b.createdAt),
+    };
+  },
+});
+
+/** Ops CLI: set platform maintenance status (bootstrap secret). */
+export const setPlatformStatusOps = mutation({
+  args: {
+    bootstrapSecret: v.string(),
+    mode: v.union(
+      v.literal("normal"),
+      v.literal("pre_notice"),
+      v.literal("maintenance")
+    ),
+    title: v.optional(v.string()),
+    message: v.optional(v.string()),
+    plannedStartAt: v.optional(v.union(v.number(), v.null())),
+    plannedEndAt: v.optional(v.union(v.number(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    assertBootstrapSecret(args.bootstrapSecret);
+    const now = Date.now();
+    const title =
+      typeof args.title === "string" ? args.title.trim().slice(0, 120) : "";
+    const message =
+      typeof args.message === "string" ? args.message.trim().slice(0, 500) : "";
+    const plannedStartAt =
+      typeof args.plannedStartAt === "number" && Number.isFinite(args.plannedStartAt)
+        ? Math.floor(args.plannedStartAt)
+        : undefined;
+    const plannedEndAt =
+      typeof args.plannedEndAt === "number" && Number.isFinite(args.plannedEndAt)
+        ? Math.floor(args.plannedEndAt)
+        : undefined;
+
+    const existing = await ctx.db
+      .query("platform_status")
+      .withIndex("by_key", (q) => q.eq("key", PLATFORM_STATUS_KEY))
+      .unique();
+
+    const patch: PlatformStatusRow = {
+      key: PLATFORM_STATUS_KEY,
+      mode: args.mode,
+      title: title || undefined,
+      message: message || undefined,
+      plannedStartAt,
+      plannedEndAt,
+      updatedAt: now,
+      updatedBy: "ops-cli",
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        mode: patch.mode,
+        title: patch.title,
+        message: patch.message,
+        plannedStartAt: patch.plannedStartAt,
+        plannedEndAt: patch.plannedEndAt,
+        updatedAt: patch.updatedAt,
+        updatedBy: patch.updatedBy,
+      });
+    } else {
+      await ctx.db.insert("platform_status", patch);
+    }
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.service.partner.platformStatusSync.syncPlatformStatusToPeers,
+      {}
+    );
+
+    return { ok: true as const, status: toPlatformStatusSnapshot(patch) };
   },
 });

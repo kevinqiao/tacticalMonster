@@ -684,6 +684,7 @@ http.route({
     ) {
       return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
     }
+    const iapEnabled = typeof b.iapEnabled === "boolean" ? b.iapEnabled : true;
     try {
       return jsonResponse(
         await ctx.runMutation(
@@ -696,6 +697,7 @@ http.route({
             virtualEnabled: b.virtualEnabled,
             vouchersEnabled: b.vouchersEnabled,
             adCoinEnabled: b.adCoinEnabled,
+            iapEnabled,
             assortmentMode: b.assortmentMode,
             skuIds: b.skuIds.filter((id): id is string => typeof id === "string"),
             excludeSkuIds: b.excludeSkuIds.filter((id): id is string => typeof id === "string"),
@@ -1332,9 +1334,11 @@ http.route({
             title: typeof body.title === "string" ? body.title : "",
             ...(typeof body.description === "string" ? { description: body.description } : {}),
             priceCoins: numberOrUndefined(body.priceCoins) ?? -1,
-            ...(numberOrUndefined(body.grantReplayTokenCount) != null
-              ? { grantReplayTokenCount: numberOrUndefined(body.grantReplayTokenCount) }
-              : {}),
+            ...(numberOrUndefined(body.grantTicketCount) != null
+              ? { grantTicketCount: numberOrUndefined(body.grantTicketCount) }
+              : numberOrUndefined(body.grantReplayTokenCount) != null
+                ? { grantTicketCount: numberOrUndefined(body.grantReplayTokenCount) }
+                : {}),
             ...(nullableNumber(body.weeklyPurchaseLimit) !== undefined
               ? { weeklyPurchaseLimit: nullableNumber(body.weeklyPurchaseLimit) }
               : {}),
@@ -1675,6 +1679,30 @@ http.route({
         400
       );
     }
+  }),
+});
+
+/** Stripe Checkout → fulfill iap shop packs (tickets + coins). */
+http.route({
+  path: "/stripe/webhook",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await request.text();
+    const signature = request.headers.get("stripe-signature") ?? "";
+    const result = await ctx.runAction(
+      internal.service.shop.stripeWebhookAction.handleStripeWebhook,
+      { body, signature }
+    );
+    if (!result.ok) {
+      return new Response(JSON.stringify({ ok: false, error: result.error }), {
+        status: "status" in result && typeof result.status === "number" ? result.status : 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }),
 });
 

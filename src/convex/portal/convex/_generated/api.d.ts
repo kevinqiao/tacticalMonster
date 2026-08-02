@@ -142,6 +142,9 @@ import type * as service_shop_partnerShopSettings from "../service/shop/partnerS
 import type * as service_shop_partnerShopSkuAdmin from "../service/shop/partnerShopSkuAdmin.js";
 import type * as service_shop_portalShopService from "../service/shop/portalShopService.js";
 import type * as service_shop_shopCatalogResolve from "../service/shop/shopCatalogResolve.js";
+import type * as service_shop_shopOrdersQueries from "../service/shop/shopOrdersQueries.js";
+import type * as service_shop_stripeCheckoutAction from "../service/shop/stripeCheckoutAction.js";
+import type * as service_shop_stripeWebhookAction from "../service/shop/stripeWebhookAction.js";
 import type * as service_task_casualTaskService from "../service/task/casualTaskService.js";
 import type * as service_tournament_casualTournamentService from "../service/tournament/casualTournamentService.js";
 import type * as service_tournament_join_campaignDailyPlayLimit from "../service/tournament/join/campaignDailyPlayLimit.js";
@@ -368,6 +371,9 @@ declare const fullApi: ApiFromModules<{
   "service/shop/partnerShopSkuAdmin": typeof service_shop_partnerShopSkuAdmin;
   "service/shop/portalShopService": typeof service_shop_portalShopService;
   "service/shop/shopCatalogResolve": typeof service_shop_shopCatalogResolve;
+  "service/shop/shopOrdersQueries": typeof service_shop_shopOrdersQueries;
+  "service/shop/stripeCheckoutAction": typeof service_shop_stripeCheckoutAction;
+  "service/shop/stripeWebhookAction": typeof service_shop_stripeWebhookAction;
   "service/task/casualTaskService": typeof service_task_casualTaskService;
   "service/tournament/casualTournamentService": typeof service_tournament_casualTournamentService;
   "service/tournament/join/campaignDailyPlayLimit": typeof service_tournament_join_campaignDailyPlayLimit;

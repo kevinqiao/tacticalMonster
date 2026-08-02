@@ -8,9 +8,14 @@ type VirtualSku = {
   skuId: string;
   title: string;
   priceCoins: number;
-  grantReplayTokenCount: number;
+  grantTicketCount?: number;
+  grantReplayTokenCount?: number;
   active: boolean;
 };
+
+function ticketGrant(row: VirtualSku): number {
+  return row.grantTicketCount ?? row.grantReplayTokenCount ?? 0;
+}
 
 type Props = { partnerId: number };
 
@@ -51,7 +56,7 @@ const PartnerAdminShopPanel: React.FC<Props> = ({ partnerId }) => {
         skuId: `partner_${partnerId}_virtual_${Date.now()}`,
         title,
         priceCoins: Number(priceCoins),
-        grantReplayTokenCount: Number(tokens),
+        grantTicketCount: Number(tokens),
       });
       setTitle("");
       setPriceCoins("0");
@@ -109,7 +114,7 @@ const PartnerAdminShopPanel: React.FC<Props> = ({ partnerId }) => {
           <article key={row.skuId} className="merchant-card">
             <strong>{row.title}</strong>
             <p className="merchant-note">
-              {row.priceCoins} 金币 · 门票 {row.grantReplayTokenCount} ·{" "}
+              {row.priceCoins} 金币 · 门票 {ticketGrant(row)} ·{" "}
               {row.active ? "启用" : "停用"}
             </p>
             <div className="merchant-inline-actions">

@@ -111,9 +111,11 @@ async function main() {
   const flags = parseWipeArgs(process.argv.slice(2));
   if (flags.help) {
     console.log(`Usage:
-  node scripts/operation/wipe-partner.mjs --partner=<slug> [--apply]
-  node scripts/operation/wipe-partner.mjs --all-configured [--apply]
-  Prod: --apply --prod --allow-prod (required together)`);
+  npm run op -- partner wipe --partner=<slug> [--apply]
+  npm run op -- partner wipe --all-configured [--apply]
+  Prod: --apply --prod --allow-prod (required together)
+
+Wipes Portal partner config + SSO partner/staff. Does NOT delete seed pools.`);
     process.exit(0);
   }
 

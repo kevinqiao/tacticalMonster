@@ -59,6 +59,21 @@ function validate(eco) {
     assert(s.skuId && s.skuKind, `sku missing id/kind: ${JSON.stringify(s?.skuId)}`);
     if (s.skuKind === "virtual") {
       assert(isPosInt(s.priceCoins), `virtual priceCoins: ${s.skuId}`);
+      const tickets = s.grantTicketCount ?? s.grantReplayTokenCount ?? 0;
+      assert(isPosInt(tickets), `virtual grantTicketCount: ${s.skuId}`);
+    } else if (s.skuKind === "iap") {
+      assert(isPosInt(s.priceCoins), `iap priceCoins: ${s.skuId}`);
+      assert(
+        typeof s.stripePriceId === "string" && s.stripePriceId.trim().length > 0,
+        `iap stripePriceId: ${s.skuId}`
+      );
+      assert(isPosInt(s.priceCents) && s.priceCents > 0, `iap priceCents: ${s.skuId}`);
+      assert(typeof s.currency === "string" && s.currency.trim(), `iap currency: ${s.skuId}`);
+      const tickets = s.grantTicketCount ?? s.grantReplayTokenCount ?? 0;
+      const coins = s.grantCoinCount ?? 0;
+      assert(isPosInt(tickets), `iap grantTicketCount: ${s.skuId}`);
+      assert(isPosInt(coins), `iap grantCoinCount: ${s.skuId}`);
+      assert(tickets > 0 || coins > 0, `iap must grant tickets or coins: ${s.skuId}`);
     } else if (s.skuKind === "giftcard") {
       assert(isPosNumber(s.faceValueUsd), `giftcard faceValueUsd: ${s.skuId}`);
       assert(
@@ -157,13 +172,29 @@ function buildShopCatalog(eco) {
         sortOrder: s.sortOrder,
       };
     }
+    if (s.skuKind === "iap") {
+      return {
+        skuId: s.skuId,
+        skuKind: "iap",
+        title: s.title,
+        description: s.description ?? "",
+        priceCoins: s.priceCoins ?? 0,
+        stripePriceId: s.stripePriceId,
+        priceCents: s.priceCents,
+        currency: s.currency,
+        grantTicketCount: s.grantTicketCount ?? s.grantReplayTokenCount ?? 0,
+        grantCoinCount: s.grantCoinCount ?? 0,
+        weeklyPurchaseLimit: s.weeklyPurchaseLimit,
+        sortOrder: s.sortOrder,
+      };
+    }
     return {
       skuId: s.skuId,
       skuKind: s.skuKind ?? "virtual",
       title: s.title,
       description: s.description ?? "",
       priceCoins: s.priceCoins,
-      grantReplayTokenCount: s.grantReplayTokenCount ?? 0,
+      grantTicketCount: s.grantTicketCount ?? s.grantReplayTokenCount ?? 0,
       weeklyPurchaseLimit: s.weeklyPurchaseLimit,
       sortOrder: s.sortOrder,
     };
@@ -178,7 +209,11 @@ function formatSku(sku) {
     "title",
     "description",
     "priceCoins",
-    "grantReplayTokenCount",
+    "stripePriceId",
+    "priceCents",
+    "currency",
+    "grantTicketCount",
+    "grantCoinCount",
     "weeklyPurchaseLimit",
     "sortOrder",
     "region",
@@ -337,9 +372,32 @@ export const PORTAL_TICKET_REPLAY_PRICE_DEFAULT = ${ar.ticketReplayPriceDefault}
   return header + body;
 }
 
+function printHelp() {
+  console.log(`Usage:
+  npm run op -- economy sync              # write portalEconomyGenerated.ts
+  npm run op -- economy check             # fail on drift
+  npm run portal:economy:sync
+  npm run portal:economy:sync:check
+
+Flags:
+  --check      compare generated file to portal-economy.json (no write)
+  --dry-run    print whether write would happen
+
+SSOT: scripts/portal/economy/portal-economy.json
+After sync: deploy / convex dev Portal.
+
+Partner overrides (caps, entry toggles) are NOT in this file —
+use: npm run op -- partner gc-ops|play-entry|apply`);
+}
+
 function main() {
-  const checkOnly = process.argv.includes("--check");
-  const dryRun = process.argv.includes("--dry-run");
+  const argv = process.argv.slice(2);
+  if (argv.some((a) => a === "help" || a === "-h" || a === "--help")) {
+    printHelp();
+    return;
+  }
+  const checkOnly = argv.includes("--check");
+  const dryRun = argv.includes("--dry-run");
 
   if (!existsSync(JSON_PATH)) fail(`missing ${JSON_PATH}`);
   const eco = JSON.parse(readFileSync(JSON_PATH, "utf8"));

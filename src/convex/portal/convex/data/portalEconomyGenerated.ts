@@ -23,7 +23,7 @@ export const PORTAL_SHOP_SKU_CATALOG = [
     title: "门票 ×3",
     description: "获得 3 张门票，可用于继续游戏。",
     priceCoins: 180,
-    grantReplayTokenCount: 3,
+    grantTicketCount: 3,
     weeklyPurchaseLimit: 5,
     sortOrder: 10,
   },
@@ -33,9 +33,23 @@ export const PORTAL_SHOP_SKU_CATALOG = [
     title: "门票 ×10",
     description: "获得 10 张门票，可用于继续游戏。",
     priceCoins: 500,
-    grantReplayTokenCount: 10,
+    grantTicketCount: 10,
     weeklyPurchaseLimit: 3,
     sortOrder: 20,
+  },
+  {
+    skuId: "portal_stripe_pack_t5_c100",
+    skuKind: "iap",
+    title: "畅玩礼包",
+    description: "5 张门票 + 100 金币。",
+    priceCoins: 0,
+    stripePriceId: "price_1TzncDCydxyHQL6sGtobkBYe",
+    priceCents: 299,
+    currency: "usd",
+    grantTicketCount: 5,
+    grantCoinCount: 100,
+    weeklyPurchaseLimit: 3,
+    sortOrder: 5,
   },
   {
     skuId: "gc_amazon_5_us",
@@ -139,7 +153,7 @@ export const PORTAL_AD_COIN_CHANNELS = ["partner", "poki", "dev", "crazygames"] 
 // --- play defaults: free ---
 export const PORTAL_DAILY_PLAY_LIMITS = {
   solo: 3,
-  multi: 6,
+  multi: 5,
 } as const;
 export const PORTAL_FREE_PLAY_DAILY_CAP_MAX = 100;
 

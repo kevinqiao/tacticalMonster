@@ -25,7 +25,9 @@
     "adReplayEnabled": true,
     "ticketReplayEnabled": true,
     "ticketReplayPriceTickets": 1,
-    "quotaScope": "mode"
+    "quotaScope": "mode",
+    "ticketEntryEnabled": false,
+    "adEntryEnabled": true
   },
   "lobbies": [
     {
@@ -33,16 +35,56 @@
       "title": "Game Center",
       "isDefault": true,
       "offerings": [
-        { "tournamentId": "portal_solo_p75_solitaire", "sortOrder": 0, "enabled": true },
-        { "tournamentId": "portal_multi_solitaire", "sortOrder": 1, "enabled": true },
-        { "tournamentId": "portal_solo_p75_block_blast", "sortOrder": 2, "enabled": true },
-        { "tournamentId": "portal_multi_block_blast", "sortOrder": 3, "enabled": true },
-        { "tournamentId": "portal_solo_p75_match_3", "sortOrder": 4, "enabled": true },
-        { "tournamentId": "portal_multi_match_3", "sortOrder": 5, "enabled": true },
-        { "tournamentId": "portal_solo_p75_tower_arena", "sortOrder": 6, "enabled": true },
-        { "tournamentId": "portal_multi_tower_arena", "sortOrder": 7, "enabled": true },
-        { "tournamentId": "portal_solo_p75_yatz", "sortOrder": 8, "enabled": true },
-        { "tournamentId": "portal_multi_yatz", "sortOrder": 9, "enabled": true }
+        {
+          "tournamentId": "portal_solo_p75_solitaire",
+          "sortOrder": 0,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_solitaire",
+          "sortOrder": 1,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_solo_p75_block_blast",
+          "sortOrder": 2,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_block_blast",
+          "sortOrder": 3,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_solo_p75_match_3",
+          "sortOrder": 4,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_match_3",
+          "sortOrder": 5,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_solo_p75_tower_arena",
+          "sortOrder": 6,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_tower_arena",
+          "sortOrder": 7,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_solo_p75_yatz",
+          "sortOrder": 8,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_yatz",
+          "sortOrder": 9,
+          "enabled": true
+        }
       ],
       "seasonHonorMode": "join_now"
     }
@@ -54,7 +96,7 @@
       "title": "门票 ×3",
       "description": "获得 3 张门票，可用于继续游戏。",
       "priceCoins": 180,
-      "grantReplayTokenCount": 3,
+      "grantTicketCount": 3,
       "weeklyPurchaseLimit": 5,
       "sortOrder": 10
     },

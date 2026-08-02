@@ -46,7 +46,7 @@
       "title": "门票 ×3",
       "description": "获得 3 张门票，可用于继续游戏。",
       "priceCoins": 180,
-      "grantReplayTokenCount": 3,
+      "grantTicketCount": 3,
       "weeklyPurchaseLimit": 5,
       "sortOrder": 10,
       "active": true

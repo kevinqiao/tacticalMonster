@@ -64,6 +64,7 @@ export function resolvePortalShopCatalog(args: {
       if (kind === "virtual" && !settings.virtualEnabled) return false;
       if (kind === "voucher" && !settings.vouchersEnabled) return false;
       if (kind === "voucher" && sku.listInShop === false) return false;
+      if (kind === "iap" && !settings.iapEnabled) return false;
       return true;
     })
     .map((sku) => applyOverride(sku, settings.overrides[sku.skuId]))

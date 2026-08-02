@@ -151,6 +151,14 @@ export async function portalLobbyUpsert(target, partnerId, lobby) {
   });
 }
 
+export async function portalLobbyDelete(target, partnerId, lobbyId) {
+  return postPortal(target, "/internal/partner-lobbies", {
+    operation: "delete",
+    partnerId,
+    lobbyId,
+  });
+}
+
 export async function portalShopSkusList(target, partnerId) {
   return postPortal(target, "/internal/partner-shop-skus", {
     operation: "list",
@@ -167,9 +175,11 @@ export async function portalShopSkuUpsert(target, partnerId, sku) {
     title: sku.title,
     priceCoins: sku.priceCoins,
     ...(sku.description !== undefined ? { description: sku.description } : {}),
-    ...(sku.grantReplayTokenCount !== undefined
-      ? { grantReplayTokenCount: sku.grantReplayTokenCount }
-      : {}),
+    ...(sku.grantTicketCount !== undefined
+      ? { grantTicketCount: sku.grantTicketCount }
+      : sku.grantReplayTokenCount !== undefined
+        ? { grantTicketCount: sku.grantReplayTokenCount }
+        : {}),
     ...(sku.weeklyPurchaseLimit !== undefined
       ? { weeklyPurchaseLimit: sku.weeklyPurchaseLimit }
       : {}),
@@ -182,6 +192,38 @@ export async function portalShopSkuUpsert(target, partnerId, sku) {
       ? { voucherValidityDays: sku.voucherValidityDays }
       : {}),
     ...(typeof sku.listInShop === "boolean" ? { listInShop: sku.listInShop } : {}),
+  });
+}
+
+export async function portalShopSkuSetActive(target, partnerId, skuId, active) {
+  return postPortal(target, "/internal/partner-shop-skus", {
+    operation: "setActive",
+    partnerId,
+    skuId,
+    active: Boolean(active),
+  });
+}
+
+export async function portalShopSkuDelete(target, partnerId, skuId) {
+  return postPortal(target, "/internal/partner-shop-skus", {
+    operation: "delete",
+    partnerId,
+    skuId,
+  });
+}
+
+export async function portalVouchersList(target, partnerId) {
+  return postPortal(target, "/internal/partner-vouchers", {
+    operation: "list",
+    partnerId,
+  });
+}
+
+export async function portalVoucherOp(target, partnerId, operation, fields = {}) {
+  return postPortal(target, "/internal/partner-vouchers", {
+    operation,
+    partnerId,
+    ...fields,
   });
 }
 

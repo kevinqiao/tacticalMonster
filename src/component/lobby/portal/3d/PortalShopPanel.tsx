@@ -17,11 +17,22 @@ type PortalShopPanelProps = {
   coins: number;
   skus: PortalShopSkuRow[];
   redemptionProfile?: PortalRedemptionProfileView | null;
+  /** Unified shop orders (giftcard + iap). */
+  orderCount?: number;
+  onOpenOrders?: () => void;
+  /** @deprecated Use orderCount */
   giftCardOrderCount?: number;
+  /** @deprecated Use onOpenOrders */
   onOpenGiftCardOrders?: () => void;
   onPurchase: (
     skuId: string
   ) => Promise<{ ok: boolean; error?: string; skuKind?: string; orderId?: string }>;
+  /** Stripe Checkout for iap SKUs; omitted in embed hosts. */
+  onStripeCheckout?: (
+    skuId: string
+  ) => Promise<{ ok: boolean; error?: string; url?: string }>;
+  /** When false, hide iap SKUs (CrazyGames / partner embed). Default true. */
+  stripeCheckoutEnabled?: boolean;
   onSyncProfile?: (args: {
     verifiedEmail?: string;
     verifiedPhone?: string;
@@ -58,13 +69,29 @@ function adCoinErrorMessage(
   return t("shop.adCoin.errors.generic");
 }
 
+function ticketGrant(sku: PortalShopSkuRow): number {
+  return sku.grantTicketCount ?? sku.grantReplayTokenCount ?? 0;
+}
+
+function formatFiatPrice(sku: PortalShopSkuRow): string {
+  const cents = sku.priceCents ?? 0;
+  const currency = (sku.currency ?? "usd").toUpperCase();
+  const amount = (cents / 100).toFixed(2);
+  if (currency === "USD") return `$${amount}`;
+  return `${amount} ${currency}`;
+}
+
 export function PortalShopPanel({
   coins,
   skus,
   redemptionProfile,
+  orderCount,
+  onOpenOrders,
   giftCardOrderCount = 0,
   onOpenGiftCardOrders,
   onPurchase,
+  onStripeCheckout,
+  stripeCheckoutEnabled = true,
   onSyncProfile,
   verifiedEmail,
   verifiedPhone,
@@ -97,18 +124,30 @@ export function PortalShopPanel({
     [t]
   );
 
+  const visibleSkus = useMemo(() => {
+    if (stripeCheckoutEnabled && onStripeCheckout) return skus;
+    return skus.filter((s) => s.skuKind !== "iap");
+  }, [onStripeCheckout, skus, stripeCheckoutEnabled]);
+
   const skuGroups = useMemo(
-    () => groupPortalShopSkus(skus, resolveSectionLabel),
-    [skus, resolveSectionLabel]
+    () => groupPortalShopSkus(visibleSkus, resolveSectionLabel),
+    [visibleSkus, resolveSectionLabel]
   );
 
+  const openOrders = onOpenOrders ?? onOpenGiftCardOrders;
+  const ordersCount = orderCount ?? giftCardOrderCount;
+
   const hasGiftCardCatalog = useMemo(
-    () => skus.some((s) => s.skuKind === "giftcard"),
-    [skus]
+    () => visibleSkus.some((s) => s.skuKind === "giftcard"),
+    [visibleSkus]
+  );
+  const hasIapCatalog = useMemo(
+    () => visibleSkus.some((s) => s.skuKind === "iap"),
+    [visibleSkus]
   );
 
   const showOrdersLink = Boolean(
-    onOpenGiftCardOrders && (hasGiftCardCatalog || giftCardOrderCount > 0)
+    openOrders && (hasGiftCardCatalog || hasIapCatalog || ordersCount > 0)
   );
 
   const showAdCoin =
@@ -141,7 +180,7 @@ export function PortalShopPanel({
             : t("shop.success")
           : portalPurchaseErrorMessage(r.error);
         if (r.ok && r.skuKind === "giftcard") {
-          onOpenGiftCardOrders?.();
+          openOrders?.();
         }
         if (onFeedback) {
           onFeedback(message);
@@ -152,14 +191,40 @@ export function PortalShopPanel({
         setBuying(null);
       }
     },
-    [coins, onFeedback, onOpenGiftCardOrders, onPurchase, t]
+    [coins, onFeedback, openOrders, onPurchase, t]
+  );
+
+  const executeStripeCheckout = useCallback(
+    async (skuId: string) => {
+      if (!onStripeCheckout) return;
+      setBuying(skuId);
+      setInlineNote(null);
+      onFeedback?.(null);
+      try {
+        const r = await onStripeCheckout(skuId);
+        if (r.ok && r.url) {
+          window.location.assign(r.url);
+          return;
+        }
+        const message = portalPurchaseErrorMessage(r.error);
+        if (onFeedback) onFeedback(message);
+        else setInlineNote(message);
+      } finally {
+        setBuying(null);
+      }
+    },
+    [onFeedback, onStripeCheckout]
   );
 
   const handleBuy = useCallback(
     async (sku: PortalShopSkuRow) => {
+      if (sku.skuKind === "iap") {
+        await executeStripeCheckout(sku.skuId);
+        return;
+      }
       await executeBuy(sku.skuId, sku.priceCoins);
     },
-    [executeBuy]
+    [executeBuy, executeStripeCheckout]
   );
 
   const handleWatchAd = useCallback(async () => {
@@ -202,18 +267,29 @@ export function PortalShopPanel({
       const skuId = pendingSkuId;
       setPendingSkuId(null);
       if (!skuId) return;
-      const sku = skus.find((s) => s.skuId === skuId);
+      const sku = visibleSkus.find((s) => s.skuId === skuId);
       if (sku) await executeBuy(skuId, sku.priceCoins);
     },
-    [onSyncProfile, verifiedEmail, verifiedPhone, pendingSkuId, skus, executeBuy, onFeedback]
+    [
+      onSyncProfile,
+      verifiedEmail,
+      verifiedPhone,
+      pendingSkuId,
+      visibleSkus,
+      executeBuy,
+      onFeedback,
+    ]
   );
 
   const hint = profileHint(redemptionProfile);
 
   const renderSkuItem = (sku: PortalShopSkuRow) => {
     const soldOut = sku.remainingThisWeek != null && sku.remainingThisWeek <= 0;
-    const canAfford = coins >= sku.priceCoins;
+    const isIap = sku.skuKind === "iap";
+    const canAfford = isIap ? true : coins >= sku.priceCoins;
     const locked = soldOut;
+    const tickets = ticketGrant(sku);
+    const coinsGranted = sku.grantCoinCount ?? 0;
 
     return (
       <li key={sku.skuId} className="portal-shop-panel__item">
@@ -226,6 +302,9 @@ export function PortalShopPanel({
             {sku.skuKind === "voucher" ? (
               <span className="portal-shop-panel__badge">{t("shop.badgeVoucher")}</span>
             ) : null}
+            {isIap ? (
+              <span className="portal-shop-panel__badge">{t("shop.badgeIap")}</span>
+            ) : null}
           </div>
           {sku.description ? <p className="portal-shop-panel__desc">{sku.description}</p> : null}
           {sku.faceValueDisplay ? (
@@ -233,10 +312,16 @@ export function PortalShopPanel({
               {t("shop.faceValue", { value: sku.faceValueDisplay })}
             </p>
           ) : null}
-          {sku.grantReplayTokenCount > 0 ? (
+          {tickets > 0 ? (
             <p className="portal-shop-panel__grant">
               <img src={ticketIcon} alt="" />
-              {t("shop.grantReplay", { count: sku.grantReplayTokenCount })}
+              {t("shop.grantTickets", { count: tickets })}
+            </p>
+          ) : null}
+          {coinsGranted > 0 ? (
+            <p className="portal-shop-panel__grant">
+              <img src={coinIcon} alt="" />
+              {t("shop.grantCoins", { count: coinsGranted })}
             </p>
           ) : null}
           {sku.skuKind === "voucher" && sku.voucherRewardText ? (
@@ -264,10 +349,19 @@ export function PortalShopPanel({
           onClick={() => void handleBuy(sku)}
         >
           {buying === sku.skuId
-            ? t("shop.buying")
+            ? isIap
+              ? t("shop.redirecting")
+              : t("shop.buying")
             : soldOut
               ? t("shop.soldOut")
-              : <><img src={coinIcon} alt="" />{sku.priceCoins}</>}
+              : isIap
+                ? formatFiatPrice(sku)
+                : (
+                    <>
+                      <img src={coinIcon} alt="" />
+                      {sku.priceCoins}
+                    </>
+                  )}
         </button>
       </li>
     );
@@ -284,11 +378,11 @@ export function PortalShopPanel({
           <button
             type="button"
             className="portal-shop-panel__ordersLink"
-            onClick={onOpenGiftCardOrders}
+            onClick={openOrders}
           >
             {t("shop.ordersToggle")}
-            {giftCardOrderCount > 0 ? (
-              <span className="portal-shop-panel__ordersCount">{giftCardOrderCount}</span>
+            {ordersCount > 0 ? (
+              <span className="portal-shop-panel__ordersCount">{ordersCount}</span>
             ) : null}
           </button>
         ) : null}

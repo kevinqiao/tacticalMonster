@@ -3,12 +3,13 @@ import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import { internalMutation, mutation } from "../../_generated/server";
+import { internalMutation, internalQuery, mutation } from "../../_generated/server";
 import { authedMutation, authedQuery } from "../../custom/session";
 import { formatFaceValueDisplay } from "../../data/portalGiftCardEconomy";
 import {
   mapPortalShopSkuRow,
   PORTAL_SHOP_SKU_CATALOG,
+  resolveGrantTicketCount,
   type PortalShopSkuSeed,
 } from "../../data/portalShopCatalog";
 import {
@@ -28,16 +29,21 @@ function catalogSeedForSkuId(skuId: string): PortalShopSkuSeed | undefined {
 }
 
 function shopSkuDbPayload(s: PortalShopSkuSeed) {
+  const grantTicketCount = resolveGrantTicketCount(s);
   return {
     skuId: s.skuId,
     title: s.title,
     description: s.description,
     priceCoins: s.priceCoins,
-    grantReplayTokenCount: s.grantReplayTokenCount,
+    grantTicketCount,
+    grantCoinCount: Math.max(0, Math.floor(s.grantCoinCount ?? 0)),
     weeklyPurchaseLimit: s.weeklyPurchaseLimit,
     active: true,
     sortOrder: s.sortOrder,
     skuKind: s.skuKind ?? "virtual",
+    stripePriceId: s.stripePriceId,
+    priceCents: s.priceCents,
+    currency: s.currency,
     region: s.region,
     faceValueUsd: s.faceValueUsd,
     faceValueLocal: s.faceValueLocal,
@@ -76,16 +82,24 @@ function shopSkuVisibleForUid(row: Doc<"portal_shop_skus">, uid: string): boolea
 /** Keep partnerIds / listInShop for catalog resolve (mapPortalShopSkuRow drops them). */
 function shopSkuSeedFromDbRow(r: Doc<"portal_shop_skus">): PortalShopSkuSeed {
   const cat = catalogSeedForSkuId(r.skuId);
+  const grantTicketCount = resolveGrantTicketCount({
+    grantTicketCount: r.grantTicketCount ?? cat?.grantTicketCount,
+    grantReplayTokenCount: r.grantReplayTokenCount ?? cat?.grantReplayTokenCount,
+  });
   return {
     skuId: r.skuId,
     // Shared catalog copy can be stale; the checked-in catalog owns its title.
     title: cat?.title ?? r.title,
     description: r.description ?? cat?.description,
     priceCoins: r.priceCoins,
-    grantReplayTokenCount: r.grantReplayTokenCount ?? cat?.grantReplayTokenCount,
+    grantTicketCount,
+    grantCoinCount: r.grantCoinCount ?? cat?.grantCoinCount ?? 0,
     weeklyPurchaseLimit: r.weeklyPurchaseLimit ?? cat?.weeklyPurchaseLimit,
     sortOrder: r.sortOrder,
     skuKind: r.skuKind ?? cat?.skuKind ?? "virtual",
+    stripePriceId: r.stripePriceId ?? cat?.stripePriceId,
+    priceCents: r.priceCents ?? cat?.priceCents,
+    currency: r.currency ?? cat?.currency,
     region: r.region ?? cat?.region,
     faceValueUsd: r.faceValueUsd ?? cat?.faceValueUsd,
     faceValueLocal: r.faceValueLocal ?? cat?.faceValueLocal,
@@ -355,6 +369,9 @@ export const purchasePortalShopSku = authedMutation({
     }
     const row = sku;
     const skuKind = sku.skuKind ?? "virtual";
+    if (skuKind === "iap") {
+      return { ok: false as const, error: "iap_use_payment_provider" as const };
+    }
     const now = Date.now();
     const weekKey = weeklyPeriodKey(now);
     const counter = await findWeeklyPurchaseCounter(
@@ -481,12 +498,13 @@ export const purchasePortalShopSku = authedMutation({
       return spend;
     }
 
-    if ((sku.grantReplayTokenCount ?? 0) > 0) {
+    const grantTicketCount = resolveGrantTicketCount(sku);
+    if (grantTicketCount > 0) {
       const grant = await ctx.runMutation(
         internal.service.reward.casualRewardRegistry.grantPortalTickets,
         {
           uid: ctx.uid,
-          amount: sku.grantReplayTokenCount!,
+          amount: grantTicketCount,
           reason: `shop:${skuId}`,
           scopeKey: econ.scopeKey,
           ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
@@ -510,7 +528,8 @@ export const purchasePortalShopSku = authedMutation({
       skuKind: "virtual" as const,
       skuId,
       spentCoins: sku.priceCoins,
-      grantReplayTokenCount: sku.grantReplayTokenCount ?? 0,
+      grantTicketCount,
+      grantReplayTokenCount: grantTicketCount,
     };
   },
 });
@@ -519,5 +538,265 @@ export const syncPortalShopCatalogMutation = mutation({
   args: {},
   handler: async (ctx) => {
     return await ctx.runMutation(internal.service.shop.portalShopService.syncPortalShopCatalog, {});
+  },
+});
+
+/** Checkout prep for Stripe — resolved iap SKU + economy scope for the authed buyer. */
+export const resolveIapCheckoutSkuInternal = internalQuery({
+  args: {
+    uid: v.string(),
+    skuId: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+  },
+  handler: async (ctx, { uid, skuId, lobbyId }) => {
+    const partnerId = resolvePortalShopSessionPartnerId(uid) ?? 0;
+    let econ: ShopEconomyCtx;
+    try {
+      const scope = await resolveEconomyScope(ctx, {
+        partnerId,
+        lobbyId: lobbyId ?? null,
+      });
+      econ = {
+        partnerId,
+        scopeKey: scope.scopeKey,
+        lobbyId: scope.lobbyId,
+        settingsLobbyId: scope.mode === "isolated" ? scope.lobbyId : null,
+      };
+    } catch {
+      return { ok: false as const, error: "lobby_required_for_isolated_economy" as const };
+    }
+
+    const rows = await ctx.db.query("portal_shop_skus").collect();
+    const effective = await resolveForPartner(
+      ctx,
+      econ.partnerId,
+      rows,
+      econ.settingsLobbyId
+    );
+    const sku = findResolvedShopSku(effective, skuId);
+    if (!sku || (sku.skuKind ?? "virtual") !== "iap") {
+      return { ok: false as const, error: "sku_not_found" as const };
+    }
+    const stripePriceId = sku.stripePriceId?.trim();
+    if (!stripePriceId) {
+      return { ok: false as const, error: "sku_not_configured" as const };
+    }
+
+    const now = Date.now();
+    const weekKey = weeklyPeriodKey(now);
+    const counter = await findWeeklyPurchaseCounter(
+      ctx,
+      uid,
+      skuId,
+      weekKey,
+      econ.scopeKey
+    );
+    const bought = counter?.count ?? 0;
+    if (sku.weeklyPurchaseLimit != null && bought >= sku.weeklyPurchaseLimit) {
+      return { ok: false as const, error: "weekly_limit_reached" as const };
+    }
+
+    return {
+      ok: true as const,
+      skuId: sku.skuId,
+      stripePriceId,
+      title: sku.title,
+      grantTicketCount: resolveGrantTicketCount(sku),
+      grantCoinCount: Math.max(0, Math.floor(sku.grantCoinCount ?? 0)),
+      scopeKey: econ.scopeKey,
+      lobbyId: econ.lobbyId,
+      partnerId: econ.partnerId,
+    };
+  },
+});
+
+function isIapOrderFulfilled(row: {
+  status?: "pending" | "fulfilled" | "expired";
+  fulfilledAt?: number;
+}): boolean {
+  if (row.status === "fulfilled") return true;
+  if (row.status === "pending" || row.status === "expired") return false;
+  // Legacy rows: no status, but fulfilledAt set.
+  return row.fulfilledAt != null;
+}
+
+/** Checkout Session created → pending intent row (for funnel / 我的订单). */
+export const recordPendingStripeCheckout = internalMutation({
+  args: {
+    paymentRef: v.string(),
+    uid: v.string(),
+    skuId: v.string(),
+    scopeKey: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+    ticketsGranted: v.number(),
+    coinsGranted: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const ref = args.paymentRef.trim();
+    if (!ref) {
+      return { ok: false as const, error: "iap_payment_ref_required" as const };
+    }
+    const existing = await ctx.db
+      .query("portal_shop_iap_fulfillments")
+      .withIndex("by_paymentRef", (q) => q.eq("paymentRef", ref))
+      .unique();
+    if (existing) {
+      return { ok: true as const, duplicate: true as const };
+    }
+    const now = Date.now();
+    await ctx.db.insert("portal_shop_iap_fulfillments", {
+      paymentRef: ref,
+      uid: args.uid,
+      skuId: args.skuId,
+      scopeKey: args.scopeKey,
+      ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
+      ticketsGranted: Math.max(0, Math.floor(args.ticketsGranted)),
+      coinsGranted: Math.max(0, Math.floor(args.coinsGranted)),
+      status: "pending",
+      createdAt: now,
+    });
+    return { ok: true as const, duplicate: false as const };
+  },
+});
+
+/** Mark a pending Checkout intent as expired (session timed out / abandoned). */
+export const expirePendingStripeCheckout = internalMutation({
+  args: { paymentRef: v.string() },
+  handler: async (ctx, { paymentRef }) => {
+    const ref = paymentRef.trim();
+    if (!ref) return { ok: false as const, error: "iap_payment_ref_required" as const };
+    const row = await ctx.db
+      .query("portal_shop_iap_fulfillments")
+      .withIndex("by_paymentRef", (q) => q.eq("paymentRef", ref))
+      .unique();
+    if (!row) return { ok: true as const, missing: true as const };
+    if (isIapOrderFulfilled(row)) {
+      return { ok: true as const, alreadyFulfilled: true as const };
+    }
+    await ctx.db.patch(row._id, { status: "expired" });
+    return { ok: true as const };
+  },
+});
+
+/**
+ * Stripe Checkout success → grant tickets + coins (no coin spend).
+ * Idempotent on paymentRef (Checkout Session id). Upgrades pending → fulfilled.
+ */
+export const fulfillStripeShopPurchase = internalMutation({
+  args: {
+    paymentRef: v.string(),
+    uid: v.string(),
+    skuId: v.string(),
+    scopeKey: v.string(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+  },
+  handler: async (ctx, { paymentRef, uid, skuId, scopeKey, lobbyId }) => {
+    const ref = paymentRef.trim();
+    if (!ref) {
+      return { ok: false as const, error: "iap_payment_ref_required" as const };
+    }
+
+    const existing = await ctx.db
+      .query("portal_shop_iap_fulfillments")
+      .withIndex("by_paymentRef", (q) => q.eq("paymentRef", ref))
+      .unique();
+    if (existing && isIapOrderFulfilled(existing)) {
+      return {
+        ok: true as const,
+        duplicate: true as const,
+        ticketsGranted: existing.ticketsGranted,
+        coinsGranted: existing.coinsGranted,
+      };
+    }
+    if (existing?.status === "expired") {
+      return { ok: false as const, error: "order_expired" as const };
+    }
+
+    const seed = catalogSeedForSkuId(skuId);
+    const dbRow = await ctx.db
+      .query("portal_shop_skus")
+      .withIndex("by_skuId", (q) => q.eq("skuId", skuId))
+      .unique();
+    const skuKind = dbRow?.skuKind ?? seed?.skuKind ?? "virtual";
+    if (skuKind !== "iap") {
+      return { ok: false as const, error: "iap_sku_only" as const };
+    }
+    if (dbRow && dbRow.active === false) {
+      return { ok: false as const, error: "sku_unavailable" as const };
+    }
+
+    const ticketsGranted = resolveGrantTicketCount({
+      grantTicketCount: dbRow?.grantTicketCount ?? seed?.grantTicketCount,
+      grantReplayTokenCount: dbRow?.grantReplayTokenCount ?? seed?.grantReplayTokenCount,
+    });
+    const coinsGranted = Math.max(
+      0,
+      Math.floor(dbRow?.grantCoinCount ?? seed?.grantCoinCount ?? 0)
+    );
+    if (ticketsGranted <= 0 && coinsGranted <= 0) {
+      return { ok: false as const, error: "iap_grant_zero" as const };
+    }
+
+    if (ticketsGranted > 0) {
+      const grant = await ctx.runMutation(
+        internal.service.reward.casualRewardRegistry.grantPortalTickets,
+        {
+          uid,
+          amount: ticketsGranted,
+          reason: `stripe:${skuId}`,
+          scopeKey,
+          ...(lobbyId ? { lobbyId } : {}),
+        }
+      );
+      if (!grant.ok) return grant;
+    }
+    if (coinsGranted > 0) {
+      const grant = await ctx.runMutation(
+        internal.service.reward.casualRewardRegistry.grantCasualReward,
+        {
+          uid,
+          kind: "coins" as const,
+          amount: coinsGranted,
+          reason: `stripe:${skuId}`,
+          scopeKey,
+          ...(lobbyId ? { lobbyId } : {}),
+        }
+      );
+      if (!grant.ok) return grant;
+    }
+
+    const now = Date.now();
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        status: "fulfilled",
+        ticketsGranted,
+        coinsGranted,
+        fulfilledAt: now,
+        createdAt: existing.createdAt ?? now,
+        scopeKey,
+        ...(lobbyId ? { lobbyId } : {}),
+      });
+    } else {
+      await ctx.db.insert("portal_shop_iap_fulfillments", {
+        paymentRef: ref,
+        uid,
+        skuId,
+        scopeKey,
+        ...(lobbyId ? { lobbyId } : {}),
+        ticketsGranted,
+        coinsGranted,
+        status: "fulfilled",
+        createdAt: now,
+        fulfilledAt: now,
+      });
+    }
+    await recordWeeklyPurchase(ctx, uid, skuId, now, scopeKey, lobbyId ?? null);
+
+    return {
+      ok: true as const,
+      duplicate: false as const,
+      ticketsGranted,
+      coinsGranted,
+    };
   },
 });

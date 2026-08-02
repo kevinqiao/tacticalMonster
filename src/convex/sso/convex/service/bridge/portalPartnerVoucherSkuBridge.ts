@@ -60,6 +60,8 @@ export async function portalPartnerShopSkuRequest(
     title?: string;
     description?: string;
     priceCoins?: number;
+    grantTicketCount?: number;
+    /** @deprecated Prefer grantTicketCount. */
     grantReplayTokenCount?: number;
     weeklyPurchaseLimit?: number | null;
     sortOrder?: number;

@@ -55,7 +55,7 @@ describe("portalShopCatalog giftcard SKUs", () => {
     );
     const t3 = virtual.find((s) => s.skuId === "portal_shop_ticket_3")!;
     expect(t3.priceCoins).toBe(180);
-    expect(t3.grantReplayTokenCount).toBe(3);
+    expect(t3.grantTicketCount).toBe(3);
   });
 });
 

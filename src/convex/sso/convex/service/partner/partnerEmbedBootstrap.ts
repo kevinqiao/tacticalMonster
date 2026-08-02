@@ -200,3 +200,56 @@ export const bootstrapDevPartnerEmbed = mutation({
     };
   },
 });
+
+/** Ops CLI: read partner row without upsert. */
+export const peekPartnerOps = mutation({
+  args: {
+    bootstrapSecret: v.string(),
+    pid: v.optional(v.number()),
+    partnerSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const secret =
+      process.env.PARTNER_EMBED_BOOTSTRAP_SECRET?.trim() || DEV_BOOTSTRAP_SECRET;
+    if (args.bootstrapSecret !== secret) {
+      throw new Error("forbidden");
+    }
+    let partner = null;
+    if (typeof args.pid === "number" && Number.isFinite(args.pid)) {
+      partner = await ctx.db
+        .query("partner")
+        .withIndex("by_pid", (q) => q.eq("pid", Math.floor(args.pid!)))
+        .unique();
+    }
+    if (!partner && args.partnerSlug) {
+      const slug = args.partnerSlug.trim().toLowerCase();
+      partner = await ctx.db
+        .query("partner")
+        .withIndex("by_slug", (q) => q.eq("slug", slug))
+        .unique();
+    }
+    if (!partner) {
+      return { ok: false as const, error: "not_found" as const };
+    }
+    const data =
+      partner.data && typeof partner.data === "object"
+        ? (partner.data as Record<string, unknown>)
+        : {};
+    const caps =
+      partner.capabilities && typeof partner.capabilities === "object"
+        ? (partner.capabilities as { portalGames?: boolean; campaignOps?: boolean })
+        : {};
+    return {
+      ok: true as const,
+      pid: partner.pid,
+      name: partner.name ?? null,
+      host: partner.host ?? null,
+      slug: partner.slug ?? null,
+      portalGames: caps.portalGames !== false,
+      campaignOps: caps.campaignOps === true,
+      playerAuth: partner.playerAuth ?? data.playerAuth ?? null,
+      embedMethod:
+        (data.embed as { method?: string } | undefined)?.method ?? null,
+    };
+  },
+});

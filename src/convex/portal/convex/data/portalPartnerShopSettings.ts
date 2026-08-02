@@ -14,6 +14,7 @@ export type PortalPartnerShopSettings = {
   virtualEnabled: boolean;
   vouchersEnabled: boolean;
   adCoinEnabled: boolean;
+  iapEnabled: boolean;
   assortmentMode: "all_shared" | "allowlist";
   skuIds: string[];
   excludeSkuIds: string[];
@@ -29,6 +30,7 @@ export function defaultPortalPartnerShopSettings(partnerId: number): PortalPartn
     virtualEnabled: true,
     vouchersEnabled: true,
     adCoinEnabled: true,
+    iapEnabled: true,
     assortmentMode: "all_shared",
     skuIds: [],
     excludeSkuIds: [],

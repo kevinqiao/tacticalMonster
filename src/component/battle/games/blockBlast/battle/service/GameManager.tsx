@@ -38,6 +38,7 @@ import { createRolloutReplayState } from '../replay/blockBlastRolloutReplay';
 import {
     buildBlockBlastScoreReport,
     getCasualMatchScoreLineLabel,
+    isCasualSoloP75ChallengeTemplate,
     shouldOpenCasualTableSummaryAfterScoreReport,
     shouldRefreshPortalAdReplayQuota,
     type CasualGameScoreReportUI,
@@ -549,7 +550,15 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             setPostCasualScoreReport(report);
             setPostCasualTableSummary(deferTableSummary ? null : settle.tableSummary ?? null);
             setPostCasualWeeklyLeagueSettle(settle.weeklyLeagueSettle ?? null);
-            setPostCasualWaitingForPeers(deferTableSummary ? false : Boolean(settle.pendingOthers));
+            {
+                const hasRows = Boolean(settle.tableSummary?.rows?.length);
+                const multi = !isCasualSoloP75ChallengeTemplate(casualTournamentId);
+                setPostCasualWaitingForPeers(
+                    deferTableSummary
+                        ? false
+                        : Boolean(settle.pendingOthers) || (multi && !hasRows)
+                );
+            }
             setPostCasualReplayOffered(false);
             setPostCasualReplayTokenCount(0);
             setPostCasualCanReplay(false);
@@ -912,25 +921,39 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         let tableSummary = postCasualTableSummary;
         let waitingForPeers = postCasualWaitingForPeers;
 
+        // 得分页可能早于 settle/同桌拉取；多人点确定时补拉，避免直接退出。
         if (
             matchGameId &&
+            !isCasualSoloP75ChallengeTemplate(casualTournamentId) &&
             !deferTableSummary &&
-            !tableSummary?.rows?.length &&
-            !waitingForPeers
+            !tableSummary?.rows?.length
         ) {
-            const fetched = await fetchTableSummaryForGame(matchGameId);
-            if (fetched?.rows?.length) {
-                applyCasualTableSummaryFromQuery(fetched, {
-                    setTableSummary: setPostCasualTableSummary,
-                    setReplayOffered: setPostCasualReplayOffered,
-                    setReplayTokenCount: setPostCasualReplayTokenCount,
-                    setCanReplay: setPostCasualCanReplay,
-                    setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
-                    setReplayMode: setPostCasualReplayMode,
-                    setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
-                setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
-                });
-                tableSummary = fetched;
+            try {
+                const fetched = await fetchTableSummaryForGame(matchGameId);
+                if (fetched?.rows?.length) {
+                    applyCasualTableSummaryFromQuery(fetched, {
+                        setTableSummary: setPostCasualTableSummary,
+                        setReplayOffered: setPostCasualReplayOffered,
+                        setReplayTokenCount: setPostCasualReplayTokenCount,
+                        setCanReplay: setPostCasualCanReplay,
+                        setReplayWindowEndsAt: setPostCasualReplayWindowEndsAt,
+                        setReplayMode: setPostCasualReplayMode,
+                        setAdReplayDailyRemaining: setPostCasualAdReplayDailyRemaining,
+                        setAdReplayDailyCap: setPostCasualAdReplayDailyCap,
+                    });
+                    tableSummary = fetched;
+                    waitingForPeers = false;
+                    setPostCasualWaitingForPeers(false);
+                } else if (!waitingForPeers) {
+                    waitingForPeers = true;
+                    setPostCasualWaitingForPeers(true);
+                }
+            } catch (e) {
+                console.warn('[blockBlast] fetch table summary on score dismiss', e);
+                if (!waitingForPeers) {
+                    waitingForPeers = true;
+                    setPostCasualWaitingForPeers(true);
+                }
             }
         }
 

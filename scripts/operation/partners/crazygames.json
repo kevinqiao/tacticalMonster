@@ -26,7 +26,8 @@
     "adReplayEnabled": true,
     "ticketReplayEnabled": true,
     "ticketReplayPriceTickets": 1,
-    "quotaScope": "mode"
+    "quotaScope": "mode",
+    "ticketEntryEnabled": false
   },
   "lobbies": [
     {

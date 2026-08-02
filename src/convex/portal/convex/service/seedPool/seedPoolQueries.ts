@@ -69,3 +69,33 @@ export const getActivePoolMetaQuery = internalQuery({
     return meta ?? null;
   },
 });
+
+/** All poolVersions for a game (from seed_pool_meta). Used by ops clear. */
+export const listPoolVersionsForGame = internalQuery({
+  args: {
+    gameType: catalogGameType,
+  },
+  handler: async (ctx, { gameType }) => {
+    const rows = await ctx.db
+      .query("seed_pool_meta")
+      .withIndex("by_gameType_and_isActive", (q) => q.eq("gameType", gameType))
+      .collect();
+    const versions = [
+      ...new Set(
+        rows
+          .map((r) => r.poolVersion)
+          .filter((v): v is string => typeof v === "string" && v.length > 0)
+      ),
+    ].sort();
+    return {
+      gameType,
+      poolVersions: versions,
+      pools: rows.map((r) => ({
+        poolVersion: r.poolVersion,
+        entryCount: r.entryCount,
+        isActive: r.isActive,
+        importStatus: r.importStatus ?? null,
+      })),
+    };
+  },
+});
