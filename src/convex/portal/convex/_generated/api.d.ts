@@ -25,6 +25,7 @@ import type * as data_portalAdEntryConfig from "../data/portalAdEntryConfig.js";
 import type * as data_portalAdReplayConfig from "../data/portalAdReplayConfig.js";
 import type * as data_portalAsyncLeaderboardRowState from "../data/portalAsyncLeaderboardRowState.js";
 import type * as data_portalBadgeTemplates from "../data/portalBadgeTemplates.js";
+import type * as data_portalDailyCheckinConfig from "../data/portalDailyCheckinConfig.js";
 import type * as data_portalDailyPlayLimits from "../data/portalDailyPlayLimits.js";
 import type * as data_portalEconomyGenerated from "../data/portalEconomyGenerated.js";
 import type * as data_portalGiftCardEconomy from "../data/portalGiftCardEconomy.js";
@@ -129,6 +130,9 @@ import type * as service_player_portalDisplayNameLookup from "../service/player/
 import type * as service_player_portalPlayerProfile from "../service/player/portalPlayerProfile.js";
 import type * as service_points_portalWeeklyPointsService from "../service/points/portalWeeklyPointsService.js";
 import type * as service_reward_casualRewardRegistry from "../service/reward/casualRewardRegistry.js";
+import type * as service_reward_portalDailyCheckinMutations from "../service/reward/portalDailyCheckinMutations.js";
+import type * as service_reward_portalDailyCheckinQueries from "../service/reward/portalDailyCheckinQueries.js";
+import type * as service_reward_portalDailyCheckinService from "../service/reward/portalDailyCheckinService.js";
 import type * as service_season_casualSeasonService from "../service/season/casualSeasonService.js";
 import type * as service_season_portalSeasonHonorService from "../service/season/portalSeasonHonorService.js";
 import type * as service_season_resolvePortalSeasonHonor from "../service/season/resolvePortalSeasonHonor.js";
@@ -254,6 +258,7 @@ declare const fullApi: ApiFromModules<{
   "data/portalAdReplayConfig": typeof data_portalAdReplayConfig;
   "data/portalAsyncLeaderboardRowState": typeof data_portalAsyncLeaderboardRowState;
   "data/portalBadgeTemplates": typeof data_portalBadgeTemplates;
+  "data/portalDailyCheckinConfig": typeof data_portalDailyCheckinConfig;
   "data/portalDailyPlayLimits": typeof data_portalDailyPlayLimits;
   "data/portalEconomyGenerated": typeof data_portalEconomyGenerated;
   "data/portalGiftCardEconomy": typeof data_portalGiftCardEconomy;
@@ -358,6 +363,9 @@ declare const fullApi: ApiFromModules<{
   "service/player/portalPlayerProfile": typeof service_player_portalPlayerProfile;
   "service/points/portalWeeklyPointsService": typeof service_points_portalWeeklyPointsService;
   "service/reward/casualRewardRegistry": typeof service_reward_casualRewardRegistry;
+  "service/reward/portalDailyCheckinMutations": typeof service_reward_portalDailyCheckinMutations;
+  "service/reward/portalDailyCheckinQueries": typeof service_reward_portalDailyCheckinQueries;
+  "service/reward/portalDailyCheckinService": typeof service_reward_portalDailyCheckinService;
   "service/season/casualSeasonService": typeof service_season_casualSeasonService;
   "service/season/portalSeasonHonorService": typeof service_season_portalSeasonHonorService;
   "service/season/resolvePortalSeasonHonor": typeof service_season_resolvePortalSeasonHonor;

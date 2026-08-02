@@ -228,6 +228,27 @@
         "grant_failed": "Couldn't grant coins. Try again.",
         "no_auth": "Please sign in first"
       }
+    },
+    "checkin": {
+      "title": "Daily check-in",
+      "hint": "Check in daily for tickets. Miss a day and the streak resets.",
+      "day": "Day {{day}}",
+      "streak": "{{streak}}-day streak",
+      "claimedToday": "Checked in today",
+      "claim": "Check in +{{tickets}} tickets",
+      "claiming": "Claiming…",
+      "claimed": "Checked in",
+      "alreadyClaimed": "Already claimed today's check-in",
+      "success": "Checked in — earned {{tickets}} tickets",
+      "errors": {
+        "generic": "Couldn't check in. Try again later.",
+        "disabled": "Daily check-in is unavailable",
+        "lobby_required_for_isolated_economy": "Enter a lobby to check in",
+        "no_player": "Player not ready. Try again.",
+        "grant_failed": "Couldn't grant tickets. Try again.",
+        "no_auth": "Please sign in first",
+        "claim_failed": "Couldn't check in. Try again."
+      }
     }
   },
   "tournaments": {

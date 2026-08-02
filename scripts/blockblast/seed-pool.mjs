@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
  * Block Blast seed pool 便捷 CLI（与 scripts/solitaire/seed-pool.mjs 对齐）。
- * v3 推荐参数与流程：scripts/blockblast/README.md
+ * v4 体验 KPI + 分段出块：scripts/blockblast/README.md
  *
  *   npx tsx scripts/blockblast/seed-pool.mjs clean
  *   npx tsx scripts/blockblast/seed-pool.mjs create
- *   npx tsx scripts/blockblast/seed-pool.mjs create --resume
+ *   npx tsx scripts/blockblast/seed-pool.mjs create --kpi-profile probe --count 50
+ *   npx tsx scripts/blockblast/seed-pool.mjs report
  *   npx tsx scripts/blockblast/seed-pool.mjs load
- *   npx tsx scripts/blockblast/seed-pool.mjs append
- *   npx tsx scripts/blockblast/seed-pool.mjs regen --seed blockblast-pool:v1:379 --sync
+ *   npx tsx scripts/blockblast/seed-pool.mjs regen --seed blockblast-pool:v4:0 --sync
  *   npx tsx scripts/blockblast/seed-pool.mjs help
  *
  * 透传底层参数：命令后加 `--`，例如
@@ -26,23 +26,32 @@ import { loadPoolDefaults } from "./blockblast-pool-defaults.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 
-const DEFAULT_COUNT = 5000;
+const DEFAULT_COUNT = 500;
 const DEFAULT_ROLLOUTS = 48;
 const DEFAULT_MATCH_SECONDS = 300;
-/** v3 推荐：挑战与易上瘾平衡（见 scripts/blockblast/README.md） */
-const DEFAULT_MIN_OPENING_MOVES = 32;
-/** 实测 blockblast-pool:v3:* 的 openingMoveCount 下限为 96，低于此值永远 0 接纳 */
-const DEFAULT_MAX_OPENING_MOVES = 96;
-const DEFAULT_MIN_SCORE_P25 = 40;
+/** v4 prod 默认（按仿真校准：opening≈100–175，thinkTimeScale≈3） */
+const DEFAULT_KPI_PROFILE = "prod";
+const DEFAULT_MIN_OPENING_MOVES = 100;
+const DEFAULT_MAX_OPENING_MOVES = 175;
+const DEFAULT_MIN_SCORE_P25 = 24;
 const DEFAULT_MIN_SCORE_SPREAD = 80;
-const DEFAULT_OVERSAMPLE_FACTOR = 30;
-/** v3：matchSeconds=300 下池均 timeUp≈15% 的推荐缩放 */
-const DEFAULT_THINK_TIME_SCALE = 1;
-/** 拒绝 stuckRate 高于此值的 seed（0.85 ≈ 至少 15% timeUp） */
-const DEFAULT_MAX_STUCK_RATE = 0.9;
+const DEFAULT_OVERSAMPLE_FACTOR = 15;
+const DEFAULT_THINK_TIME_SCALE = 3;
+const DEFAULT_MAX_STUCK_RATE = 0.92;
 const DEFAULT_MIN_ENTRIES = 0;
 const DEFAULT_BATCH_SIZE = process.platform === "win32" ? 2 : 8;
 const CATALOG_GAME_TYPE = CATALOG_GAME_TYPES.block_blast;
+
+const PROBE_DEFAULTS = {
+  minOpeningMoves: 96,
+  maxOpeningMoves: 180,
+  minScoreP25: 16,
+  minScoreSpread: 50,
+  maxStuckRate: 0.98,
+  oversampleFactor: 8,
+  rollouts: 24,
+  thinkTimeScale: 3,
+};
 
 function usage(defaults) {
   const { policyVersion, poolVersion, outDir } = defaults;
@@ -54,6 +63,7 @@ Usage:
 Commands:
   clean     清空 casualPlatform seed pool（可选清本地 output）
   create    离线生成/续跑 index.json（generate-seed-pool.mjs）
+  report    对 index 出体验 KPI 报告（report-kpi.mjs）
   load      全量导入 casualPlatform（默认先 clean 再 import）
   append    增量导入 platform seed pool（仅 DB 中不存在的 seedId）
   regen     仅重算 rolloutSummaries（+ metrics）写回 index；--sync 同步 catalog rollout 子表
@@ -61,24 +71,25 @@ Commands:
 
 Defaults (from BLOCK_BLAST_POLICY_VERSION=${policyVersion}):
   poolVersion=${poolVersion}  out=${outDir}  matchSeconds=${DEFAULT_MATCH_SECONDS}
+  kpiProfile=${DEFAULT_KPI_PROFILE}  rollouts=${DEFAULT_ROLLOUTS}
 
 Common options (before --):
   --out <dir>             输出目录（默认 pool-${poolVersion}）
   --index <path>          index.json 路径
   --pool-version <v>      池版本（默认 ${poolVersion}）
+  --kpi-profile <p>       create/report：off|probe|prod（默认 ${DEFAULT_KPI_PROFILE}）
   --count <n>             create：目标接纳条数（默认 ${DEFAULT_COUNT}）
-  --rollouts <n>          create：每 seed rollout 数（默认 ${DEFAULT_ROLLOUTS}）
+  --rollouts <n>          create：每 seed rollout 数（默认 ${DEFAULT_ROLLOUTS}；probe 建议 24）
   --match-seconds <n>     create/regen：对局时间上限秒（默认 ${DEFAULT_MATCH_SECONDS}）
   --min-score-p25 <n>     create：最低 score P25（默认 ${DEFAULT_MIN_SCORE_P25}）
   --min-score-spread <n>  create：最低分数 spread（默认 ${DEFAULT_MIN_SCORE_SPREAD}）
-  --min-opening-moves <n> create：最低 openingMoveCount（默认 ${DEFAULT_MIN_OPENING_MOVES}，透传 generate）
-  --max-opening-moves <n> create：最高 openingMoveCount（默认 ${DEFAULT_MAX_OPENING_MOVES}，透传 generate）
-  --oversample-factor <n> create：过采样倍数（默认 ${DEFAULT_OVERSAMPLE_FACTOR}）
+  --min-opening-moves <n> create：最低 openingMoveCount（默认 ${DEFAULT_MIN_OPENING_MOVES}）
+  --max-opening-moves <n> create：最高 openingMoveCount（默认 ${DEFAULT_MAX_OPENING_MOVES}）
+  --oversample-factor <n> create：过采样倍数（默认 ${DEFAULT_OVERSAMPLE_FACTOR}；按 experienceScore）
   --think-time-scale <n> create/regen：模拟思考时间缩放（默认 ${DEFAULT_THINK_TIME_SCALE}）
-  --max-stuck-rate <n>   create：拒绝 stuckRate 高于此值的 seed（默认 ${DEFAULT_MAX_STUCK_RATE}，0=关闭）
+  --max-stuck-rate <n>   create：拒绝 stuckRate 高于此值（默认 ${DEFAULT_MAX_STUCK_RATE}）
   --no-reject-collapsed   create：关闭 collapsed 布局拒绝
   --no-max-stuck-rate     create：关闭 stuckRate 过滤
-  Sim think time fallback: blockBlastSimTime.ts BLOCK_BLAST_SIM_THINK_TIME_SCALE
   --min-entries <n>       load：finalize 最少条数（默认 0=index 实际条数）
   --batch-size <n>        load/append 批大小（默认 ${DEFAULT_BATCH_SIZE}）
   --no-clear              load 时不先 clean catalog
@@ -90,11 +101,11 @@ Common options (before --):
   --all                   regen：index 内全部 seed（慎用，耗时长）
 
 Examples:
+  npm run blockblast:pool:create -- --kpi-profile probe --count 50
+  npm run blockblast:pool:report
   npm run blockblast:pool:create
-  npm run blockblast:pool:create -- --resume
   npm run blockblast:pool:load
-  npm run blockblast:pool:regen -- --seed blockblast-pool:v3:0 --sync
-  npm run blockblast:pool:create -- --count 30
+  npm run blockblast:pool:regen -- --seed blockblast-pool:v4:0 --sync
   文档: scripts/blockblast/README.md
 `);
 }
@@ -121,6 +132,7 @@ function parseCommon(flags, defaults) {
     oversampleFactor: DEFAULT_OVERSAMPLE_FACTOR,
     thinkTimeScale: DEFAULT_THINK_TIME_SCALE,
     maxStuckRate: DEFAULT_MAX_STUCK_RATE,
+    kpiProfile: DEFAULT_KPI_PROFILE,
     rejectCollapsed: true,
     minEntries: DEFAULT_MIN_ENTRIES,
     batchSize: DEFAULT_BATCH_SIZE,
@@ -134,6 +146,7 @@ function parseCommon(flags, defaults) {
     regenAll: false,
   };
   let indexFromFlag = false;
+  const touched = new Set();
   for (let i = 0; i < flags.length; i++) {
     const a = flags[i];
     const next = () => flags[++i];
@@ -142,18 +155,39 @@ function parseCommon(flags, defaults) {
       opts.index = path.resolve(next());
       indexFromFlag = true;
     } else if (a === "--pool-version") opts.poolVersion = next();
-    else if (a === "--count") opts.count = Number(next());
-    else if (a === "--rollouts") opts.rollouts = Number(next());
-    else if (a === "--match-seconds") opts.matchSeconds = Number(next());
-    else if (a === "--min-score-p25") opts.minScoreP25 = Number(next());
-    else if (a === "--min-score-spread") opts.minScoreSpread = Number(next());
-    else if (a === "--min-opening-moves") opts.minOpeningMoves = Number(next());
-    else if (a === "--max-opening-moves") opts.maxOpeningMoves = Number(next());
-    else if (a === "--oversample-factor") opts.oversampleFactor = Number(next());
-    else if (a === "--think-time-scale") opts.thinkTimeScale = Number(next());
-    else if (a === "--max-stuck-rate") opts.maxStuckRate = Number(next());
-    else if (a === "--no-max-stuck-rate") opts.maxStuckRate = 0;
-    else if (a === "--no-reject-collapsed") opts.rejectCollapsed = false;
+    else if (a === "--kpi-profile") {
+      opts.kpiProfile = next();
+      touched.add("kpiProfile");
+    } else if (a === "--count") opts.count = Number(next());
+    else if (a === "--rollouts") {
+      opts.rollouts = Number(next());
+      touched.add("rollouts");
+    } else if (a === "--match-seconds") opts.matchSeconds = Number(next());
+    else if (a === "--min-score-p25") {
+      opts.minScoreP25 = Number(next());
+      touched.add("minScoreP25");
+    } else if (a === "--min-score-spread") {
+      opts.minScoreSpread = Number(next());
+      touched.add("minScoreSpread");
+    } else if (a === "--min-opening-moves") {
+      opts.minOpeningMoves = Number(next());
+      touched.add("minOpeningMoves");
+    } else if (a === "--max-opening-moves") {
+      opts.maxOpeningMoves = Number(next());
+      touched.add("maxOpeningMoves");
+    } else if (a === "--oversample-factor") {
+      opts.oversampleFactor = Number(next());
+      touched.add("oversampleFactor");
+    }     else if (a === "--think-time-scale") {
+      opts.thinkTimeScale = Number(next());
+      touched.add("thinkTimeScale");
+    } else if (a === "--max-stuck-rate") {
+      opts.maxStuckRate = Number(next());
+      touched.add("maxStuckRate");
+    } else if (a === "--no-max-stuck-rate") {
+      opts.maxStuckRate = 0;
+      touched.add("maxStuckRate");
+    } else if (a === "--no-reject-collapsed") opts.rejectCollapsed = false;
     else if (a === "--min-entries") opts.minEntries = Number(next());
     else if (a === "--batch-size") opts.batchSize = Number(next());
     else if (a === "--no-clear") opts.clearFirst = false;
@@ -165,6 +199,19 @@ function parseCommon(flags, defaults) {
     else if (a === "--sync") opts.sync = true;
     else if (a === "--all") opts.regenAll = true;
   }
+
+  // probe：未显式覆盖的阈值改用宽松档
+  if (opts.kpiProfile === "probe") {
+    if (!touched.has("minOpeningMoves")) opts.minOpeningMoves = PROBE_DEFAULTS.minOpeningMoves;
+    if (!touched.has("maxOpeningMoves")) opts.maxOpeningMoves = PROBE_DEFAULTS.maxOpeningMoves;
+    if (!touched.has("minScoreP25")) opts.minScoreP25 = PROBE_DEFAULTS.minScoreP25;
+    if (!touched.has("minScoreSpread")) opts.minScoreSpread = PROBE_DEFAULTS.minScoreSpread;
+    if (!touched.has("maxStuckRate")) opts.maxStuckRate = PROBE_DEFAULTS.maxStuckRate;
+    if (!touched.has("oversampleFactor")) opts.oversampleFactor = PROBE_DEFAULTS.oversampleFactor;
+    if (!touched.has("rollouts")) opts.rollouts = PROBE_DEFAULTS.rollouts;
+    if (!touched.has("thinkTimeScale")) opts.thinkTimeScale = PROBE_DEFAULTS.thinkTimeScale;
+  }
+
   if (!indexFromFlag) {
     opts.index = path.join(opts.out, "index.json");
   }
@@ -209,7 +256,7 @@ async function cmdClean(opts) {
 
 function cmdCreate(opts, extra) {
   console.log(
-    `create poolVersion=${opts.poolVersion} (policy ${opts.policyVersion}) out=${opts.out} matchSeconds=${opts.matchSeconds} thinkTimeScale=${opts.thinkTimeScale} maxStuckRate=${opts.maxStuckRate || "off"}`
+    `create poolVersion=${opts.poolVersion} (policy ${opts.policyVersion}) out=${opts.out} matchSeconds=${opts.matchSeconds} thinkTimeScale=${opts.thinkTimeScale} maxStuckRate=${opts.maxStuckRate || "off"} kpiProfile=${opts.kpiProfile}`
   );
   const args = [
     "--version",
@@ -237,6 +284,8 @@ function cmdCreate(opts, extra) {
     String(opts.thinkTimeScale),
     "--max-stuck-rate",
     String(opts.maxStuckRate),
+    "--kpi-profile",
+    opts.kpiProfile,
   ];
   if (opts.rejectCollapsed) args.push("--reject-collapsed");
   if (opts.resume) args.push("--resume");
@@ -244,6 +293,13 @@ function cmdCreate(opts, extra) {
   args.push(...extra);
   console.log("create → generate-seed-pool.mjs", args.join(" "));
   runTsx("generate-seed-pool.mjs", args);
+}
+
+function cmdReport(opts, extra) {
+  const args = ["--in", opts.out, "--profile", opts.kpiProfile === "probe" ? "probe" : "prod"];
+  args.push(...extra);
+  console.log("report → report-kpi.mjs", args.join(" "));
+  runTsx("report-kpi.mjs", args);
 }
 
 function cmdRegen(opts, extra) {
@@ -306,6 +362,9 @@ async function main() {
       break;
     case "create":
       cmdCreate(opts, extra);
+      break;
+    case "report":
+      cmdReport(opts, extra);
       break;
     case "load":
       cmdLoad(opts, extra, { append: false });

@@ -4,6 +4,7 @@ import { AudioBus } from "host/service/audio";
 
 import type {
   PortalAdCoinOffer,
+  PortalDailyCheckinStatus,
   PortalRedemptionProfileView,
   PortalShopSkuRow,
 } from "../service/usePortalManager";
@@ -47,7 +48,36 @@ type PortalShopPanelProps = {
     | { ok: true; coinsGranted: number; remaining: number; rewardAmount: number }
     | { ok: false; error: string }
   >;
+  /** 每日签到发门票；null/undefined 时不展示 */
+  dailyCheckin?: PortalDailyCheckinStatus | null;
+  onClaimDailyCheckin?: () => Promise<
+    | {
+        ok: true;
+        ticketsGranted: number;
+        streakCount: number;
+        dayInCycle: number;
+        alreadyClaimed?: boolean;
+      }
+    | { ok: false; error: string }
+  >;
 };
+
+function checkinErrorMessage(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  error: string
+): string {
+  const key = `shop.checkin.errors.${error}`;
+  const translated = t(key, { defaultValue: "" });
+  if (translated) return translated;
+  return t("shop.checkin.errors.generic");
+}
+
+/** 周期内已点亮档位数（与 streakCount 取模一致）。 */
+function checkinFilledSlots(streakCount: number, cycleDays: number): number {
+  if (streakCount <= 0) return 0;
+  const r = streakCount % cycleDays;
+  return r === 0 ? cycleDays : r;
+}
 
 function profileHint(profile?: PortalRedemptionProfileView | null): string | null {
   if (!profile) return null;
@@ -98,12 +128,15 @@ export function PortalShopPanel({
   onFeedback,
   adCoinOffer = null,
   onWatchAdForCoins,
+  dailyCheckin = null,
+  onClaimDailyCheckin,
 }: PortalShopPanelProps) {
   const { t } = useTranslation("portal.player");
   const coinIcon = PORTAL_SHOP_COIN_ICON;
   const ticketIcon = PORTAL_SHOP_TICKET_ICON;
   const [buying, setBuying] = useState<string | null>(null);
   const [watchingAd, setWatchingAd] = useState(false);
+  const [claimingCheckin, setClaimingCheckin] = useState(false);
   const [inlineNote, setInlineNote] = useState<string | null>(null);
   const [regionModalOpen, setRegionModalOpen] = useState(false);
   const [pendingSkuId, setPendingSkuId] = useState<string | null>(null);
@@ -155,10 +188,27 @@ export function PortalShopPanel({
     typeof adCoinOffer?.rewardAmount === "number" &&
     Boolean(onWatchAdForCoins);
 
+  const showCheckin =
+    Boolean(dailyCheckin?.enabled) && Boolean(onClaimDailyCheckin);
+
   const adCap = adCoinOffer?.cap ?? 0;
   const adRemaining = adCoinOffer?.remaining ?? 0;
   const adReward = adCoinOffer?.rewardAmount ?? 0;
   const adExhausted = adRemaining <= 0;
+
+  const checkinClaimed = Boolean(dailyCheckin?.claimedToday);
+  const checkinCycleDays = dailyCheckin?.streakCycleDays ?? 7;
+  const checkinFilled = checkinFilledSlots(
+    dailyCheckin?.streakCount ?? 0,
+    checkinCycleDays
+  );
+  const checkinTodaySlot = checkinClaimed
+    ? null
+    : checkinFilled >= checkinCycleDays
+      ? 0
+      : checkinFilled;
+  const checkinReward = dailyCheckin?.rewardTickets ?? 0;
+  const checkinCycleRewards = dailyCheckin?.cycleRewards ?? [];
 
   const executeBuy = useCallback(
     async (skuId: string, priceCoins: number) => {
@@ -249,6 +299,37 @@ export function PortalShopPanel({
       setWatchingAd(false);
     }
   }, [adExhausted, onFeedback, onWatchAdForCoins, t, watchingAd]);
+
+  const handleClaimCheckin = useCallback(async () => {
+    if (!onClaimDailyCheckin || claimingCheckin || checkinClaimed) return;
+    setClaimingCheckin(true);
+    setInlineNote(null);
+    onFeedback?.(null);
+    try {
+      const r = await onClaimDailyCheckin();
+      if (r.ok) {
+        const message = r.alreadyClaimed
+          ? t("shop.checkin.alreadyClaimed")
+          : t("shop.checkin.success", {
+              tickets: r.ticketsGranted.toLocaleString(),
+            });
+        if (onFeedback) onFeedback(message);
+        else setInlineNote(message);
+      } else {
+        const message = checkinErrorMessage(t, r.error);
+        if (onFeedback) onFeedback(message);
+        else setInlineNote(message);
+      }
+    } finally {
+      setClaimingCheckin(false);
+    }
+  }, [
+    checkinClaimed,
+    claimingCheckin,
+    onClaimDailyCheckin,
+    onFeedback,
+    t,
+  ]);
 
   const handleRegionConfirm = useCallback(
     async (region: string) => {
@@ -345,7 +426,7 @@ export function PortalShopPanel({
               ? "portal-shop-panel__buy"
               : "portal-shop-panel__buy portal-shop-panel__buy--insufficient"
           }
-          disabled={buying != null || watchingAd || locked}
+          disabled={buying != null || watchingAd || claimingCheckin || locked}
           onClick={() => void handleBuy(sku)}
         >
           {buying === sku.skuId
@@ -397,6 +478,73 @@ export function PortalShopPanel({
         <p className="portal-shop-panel__note">{inlineNote}</p>
       ) : null}
 
+      {showCheckin ? (
+        <div
+          className="portal-shop-panel__checkin"
+          aria-label={t("shop.checkin.title")}
+        >
+          <div className="portal-shop-panel__item portal-shop-panel__item--checkin">
+            <div className="portal-shop-panel__itemMain">
+              <div className="portal-shop-panel__itemTitleRow">
+                <strong>{t("shop.checkin.title")}</strong>
+              </div>
+              <p className="portal-shop-panel__desc">{t("shop.checkin.hint")}</p>
+              <ol className="portal-shop-panel__checkinDays">
+                {Array.from({ length: checkinCycleDays }, (_, i) => {
+                  const filled = i < checkinFilled;
+                  const isToday = checkinTodaySlot === i;
+                  const tickets = checkinCycleRewards[i] ?? 1;
+                  return (
+                    <li
+                      key={i}
+                      className={[
+                        "portal-shop-panel__checkinDay",
+                        filled ? "portal-shop-panel__checkinDay--filled" : "",
+                        isToday ? "portal-shop-panel__checkinDay--today" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      <span className="portal-shop-panel__checkinDayLabel">
+                        {t("shop.checkin.day", { day: i + 1 })}
+                      </span>
+                      <span className="portal-shop-panel__checkinDayReward">
+                        <img src={ticketIcon} alt="" />×{tickets}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+              <p className="portal-shop-panel__limit">
+                {checkinClaimed
+                  ? t("shop.checkin.claimedToday")
+                  : t("shop.checkin.streak", {
+                      streak: dailyCheckin?.streakCount ?? 0,
+                    })}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="portal-shop-panel__buy"
+              disabled={
+                claimingCheckin ||
+                buying != null ||
+                watchingAd ||
+                checkinClaimed ||
+                !dailyCheckin?.canClaim
+              }
+              onClick={() => void handleClaimCheckin()}
+            >
+              {claimingCheckin
+                ? t("shop.checkin.claiming")
+                : checkinClaimed
+                  ? t("shop.checkin.claimed")
+                  : t("shop.checkin.claim", { tickets: checkinReward })}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {showAdCoin ? (
         <div className="portal-shop-panel__adCoin" aria-label={t("shop.adCoin.title")}>
           <div className="portal-shop-panel__item portal-shop-panel__item--adCoin">
@@ -415,7 +563,9 @@ export function PortalShopPanel({
             <button
               type="button"
               className="portal-shop-panel__buy"
-              disabled={watchingAd || buying != null || adExhausted}
+              disabled={
+                watchingAd || buying != null || claimingCheckin || adExhausted
+              }
               onClick={() => void handleWatchAd()}
             >
               {watchingAd
@@ -430,7 +580,7 @@ export function PortalShopPanel({
 
       <div className="portal-shop-panel__catalog">
         {skuGroups.length === 0 ? (
-          showAdCoin ? null : (
+          showAdCoin || showCheckin ? null : (
             <p className="portal-shop-panel__empty">{t("shop.empty")}</p>
           )
         ) : (

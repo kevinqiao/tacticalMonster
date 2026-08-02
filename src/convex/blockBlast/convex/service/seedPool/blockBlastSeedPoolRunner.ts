@@ -48,6 +48,7 @@ export const DEFAULT_PLAYER_FRIENDLY_OPTIONS: PlayerFriendlyOptions = {
   rejectCollapsed: false,
   quickScreenRollouts: DEFAULT_QUICK_SCREEN_ROLLOUTS,
   maxStuckRate: 0,
+  kpiProfile: "off",
 };
 
 export type GeneratePoolResult = {
@@ -72,6 +73,7 @@ export function toRolloutSummaries(rollouts: BlockBlastRolloutScript[]): Rollout
     terminalReason: r.terminalReason,
     elapsedSimSeconds: r.elapsedSimSeconds,
     opCount: r.ops.length,
+    experience: r.experience,
   }));
 }
 

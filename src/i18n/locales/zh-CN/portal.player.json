@@ -228,6 +228,27 @@
         "grant_failed": "发奖失败，请稍后再试",
         "no_auth": "请先登录"
       }
+    },
+    "checkin": {
+      "title": "每日签到",
+      "hint": "连续签到可获得更多门票，断签将重新开始",
+      "day": "第{{day}}天",
+      "streak": "当前连签 {{streak}} 天",
+      "claimedToday": "今日已签到",
+      "claim": "签到 +{{tickets}} 门票",
+      "claiming": "领取中…",
+      "claimed": "已签到",
+      "alreadyClaimed": "今日已领取签到奖励",
+      "success": "签到成功，获得 {{tickets}} 张门票",
+      "errors": {
+        "generic": "签到失败，请稍后再试",
+        "disabled": "签到暂未开放",
+        "lobby_required_for_isolated_economy": "请先进入大厅再签到",
+        "no_player": "玩家未就绪，请稍后再试",
+        "grant_failed": "发奖失败，请稍后再试",
+        "no_auth": "请先登录",
+        "claim_failed": "签到失败，请稍后再试"
+      }
     }
   },
   "tournaments": {

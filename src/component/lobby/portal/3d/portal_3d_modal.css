@@ -954,13 +954,65 @@
   color: #b45309;
 }
 
-.portal-shop-panel__adCoin {
+.portal-shop-panel__adCoin,
+.portal-shop-panel__checkin {
   margin: 0 0 14px;
   flex-shrink: 0;
 }
 
-.portal-shop-panel__item--adCoin {
+.portal-shop-panel__item--adCoin,
+.portal-shop-panel__item--checkin {
   margin: 0;
+}
+
+.portal-shop-panel__checkinDays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  list-style: none;
+  margin: 8px 0 6px;
+  padding: 0;
+}
+
+.portal-shop-panel__checkinDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid transparent;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.portal-shop-panel__checkinDay--filled {
+  background: rgba(120, 200, 140, 0.18);
+  border-color: rgba(120, 200, 140, 0.35);
+}
+
+.portal-shop-panel__checkinDay--today {
+  border-color: rgba(255, 210, 120, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 210, 120, 0.2);
+}
+
+.portal-shop-panel__checkinDayLabel {
+  opacity: 0.75;
+}
+
+.portal-shop-panel__checkinDayReward {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+}
+
+.portal-shop-panel__checkinDayReward img {
+  width: 0.95em;
+  height: 0.95em;
+  margin-right: 2px;
+  vertical-align: -0.15em;
 }
 
 .portal-shop-panel__balance img,

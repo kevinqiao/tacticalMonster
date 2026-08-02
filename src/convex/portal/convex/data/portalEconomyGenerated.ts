@@ -150,6 +150,12 @@ export const PORTAL_AD_COIN_DAILY_CAP = 5;
 export const PORTAL_AD_COIN_SESSION_TTL_MS = 120000;
 export const PORTAL_AD_COIN_CHANNELS = ["partner", "poki", "dev", "crazygames"] as const;
 
+// --- daily check-in (tickets) ---
+export const PORTAL_DAILY_CHECKIN_ENABLED = true;
+export const PORTAL_DAILY_CHECKIN_BASE_TICKETS = 1;
+export const PORTAL_DAILY_CHECKIN_STREAK_CYCLE_DAYS = 7;
+export const PORTAL_DAILY_CHECKIN_STREAK_BONUS_TICKETS = [0, 0, 1, 0, 0, 1, 2] as const;
+
 // --- play defaults: free ---
 export const PORTAL_DAILY_PLAY_LIMITS = {
   solo: 3,

@@ -10,7 +10,7 @@
  *
  * 增量：同 --out 重跑 --resume 从上次扫描的种子 index 之后继续并合并。
  */
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -44,6 +44,7 @@ function parseArgs(argv) {
     oversampleFactor: 1,
     thinkTimeScale: 0,
     maxStuckRate: 0,
+    kpiProfile: "off",
     writeRolloutSummaries: false,
     writeRolloutFiles: false,
   };
@@ -72,6 +73,7 @@ function parseArgs(argv) {
     else if (a === "--oversample-factor") opts.oversampleFactor = Number(next());
     else if (a === "--think-time-scale") opts.thinkTimeScale = Number(next());
     else if (a === "--max-stuck-rate") opts.maxStuckRate = Number(next());
+    else if (a === "--kpi-profile") opts.kpiProfile = next();
     else if (a === "--write-rollout-summaries") opts.writeRolloutSummaries = true;
     else if (a === "--write-rollout-files") {
       opts.writeRolloutSummaries = true;
@@ -96,6 +98,7 @@ function playerFriendlyOpts(opts) {
     rejectCollapsed: opts.rejectCollapsed,
     quickScreenRollouts: opts.quickScreenRollouts,
     maxStuckRate: opts.maxStuckRate,
+    kpiProfile: opts.kpiProfile === "probe" || opts.kpiProfile === "prod" ? opts.kpiProfile : "off",
   };
 }
 
@@ -196,6 +199,17 @@ async function rebuildCandidatesFromRollouts(rolloutsDir, poolVersion, matchSeco
   return candidates;
 }
 
+async function writeJsonAtomic(filePath, value) {
+  const tmp = `${filePath}.${process.pid}.tmp`;
+  await writeFile(tmp, JSON.stringify(value, null, 2), "utf8");
+  try {
+    await unlink(filePath);
+  } catch {
+    // missing target is fine
+  }
+  await rename(tmp, filePath);
+}
+
 async function writePoolOutputs(opts, retiered, mergedRejected) {
   const difficultyPath = path.join(
     repoRoot,
@@ -208,31 +222,15 @@ async function writePoolOutputs(opts, retiered, mergedRejected) {
   const tierCounts = { easy: 0, medium: 0, hard: 0 };
   for (const e of retiered) tierCounts[e.tier] += 1;
 
-  await writeFile(
-    path.join(opts.out, "index.json"),
-    JSON.stringify(
-      {
-        poolVersion: opts.version,
-        rolloutCount: opts.rollouts,
-        matchTimeLimitSec: opts.matchSeconds,
-        generatedAt,
-        entries: retiered,
-      },
-      null,
-      2
-    ),
-    "utf8"
-  );
-  await writeFile(
-    path.join(opts.out, "rejected.json"),
-    JSON.stringify(mergedRejected, null, 2),
-    "utf8"
-  );
-  await writeFile(
-    path.join(opts.out, "tier-index.json"),
-    JSON.stringify(tierIndex, null, 2),
-    "utf8"
-  );
+  await writeJsonAtomic(path.join(opts.out, "index.json"), {
+    poolVersion: opts.version,
+    rolloutCount: opts.rollouts,
+    matchTimeLimitSec: opts.matchSeconds,
+    generatedAt,
+    entries: retiered,
+  });
+  await writeJsonAtomic(path.join(opts.out, "rejected.json"), mergedRejected);
+  await writeJsonAtomic(path.join(opts.out, "tier-index.json"), tierIndex);
   return tierCounts;
 }
 
@@ -256,8 +254,14 @@ async function main() {
     repoRoot,
     "src/convex/blockBlast/convex/service/seedPool/blockBlastSeedDifficulty.ts"
   );
-  const { assignTiers, selectTopCandidatesByPlayerEase } = await import(
-    pathToFileURL(difficultyPath).href
+  const { assignTiers, selectTopCandidatesByPlayerEase, selectTopCandidatesByExperienceScore } =
+    await import(pathToFileURL(difficultyPath).href);
+  const kpiPath = path.join(
+    repoRoot,
+    "src/convex/blockBlast/convex/service/seedPool/blockBlastExperienceKpi.ts"
+  );
+  const { summarizePoolHealth, evaluateExperienceGates } = await import(
+    pathToFileURL(kpiPath).href
   );
 
   console.log = log;
@@ -325,7 +329,7 @@ async function main() {
 
   console.log("== Block Blast seed pool generate ==");
   console.log(
-    `version=${opts.version} start=${opts.start} target=${targetAccepted} candidates=${candidateCount} rollouts=${opts.rollouts} matchSeconds=${opts.matchSeconds} thinkTimeScale=${opts.thinkTimeScale || "default"}`
+    `version=${opts.version} start=${opts.start} target=${targetAccepted} candidates=${candidateCount} rollouts=${opts.rollouts} matchSeconds=${opts.matchSeconds} thinkTimeScale=${opts.thinkTimeScale || "default"} kpiProfile=${opts.kpiProfile}`
   );
   console.log(
     `out=${opts.out} summaries=${opts.writeRolloutSummaries} rolloutFiles=${opts.writeRolloutFiles}`
@@ -336,10 +340,11 @@ async function main() {
     opts.minScoreP25 > 0 ||
     opts.minScoreSpread > 0 ||
     opts.rejectCollapsed ||
-    opts.maxStuckRate > 0
+    opts.maxStuckRate > 0 ||
+    opts.kpiProfile !== "off"
   ) {
     console.log(
-      `playerFriendly: minOpening=${opts.minOpeningMoves} maxOpening=${opts.maxOpeningMoves} minP25=${opts.minScoreP25} minSpread=${opts.minScoreSpread} maxStuckRate=${opts.maxStuckRate || "off"} rejectCollapsed=${opts.rejectCollapsed} quickK=${opts.quickScreenRollouts}`
+      `playerFriendly: minOpening=${opts.minOpeningMoves} maxOpening=${opts.maxOpeningMoves} minP25=${opts.minScoreP25} minSpread=${opts.minScoreSpread} maxStuckRate=${opts.maxStuckRate || "off"} rejectCollapsed=${opts.rejectCollapsed} quickK=${opts.quickScreenRollouts} kpiProfile=${opts.kpiProfile}`
     );
   }
   if (opts.oversampleFactor > 1) {
@@ -378,6 +383,33 @@ async function main() {
   ]);
   const batchCandidates = [];
   const batchRejected = [];
+  const checkpointPath = path.join(opts.out, "create-checkpoint.json");
+
+  // 中断后续跑：恢复本批已扫过的 candidates
+  if (opts.resume) {
+    try {
+      const ck = JSON.parse(await readFile(checkpointPath, "utf8"));
+      if (
+        ck.poolVersion === opts.version &&
+        typeof ck.nextIndex === "number" &&
+        ck.nextIndex > opts.start &&
+        Array.isArray(ck.batchCandidates)
+      ) {
+        batchCandidates.push(...ck.batchCandidates);
+        if (Array.isArray(ck.batchRejected)) batchRejected.push(...ck.batchRejected);
+        for (const e of [...batchCandidates, ...batchRejected]) {
+          const fp = e.metrics?.layoutFingerprint;
+          if (fp) seenFingerprints.add(fp);
+        }
+        console.log(
+          `checkpoint: restore batch accepted=${batchCandidates.length} rejected=${batchRejected.length} continue from ${ck.nextIndex}`
+        );
+        opts.start = ck.nextIndex;
+      }
+    } catch {
+      // no checkpoint
+    }
+  }
 
   const t0 = Date.now();
   const oneSeedOpts = {
@@ -391,7 +423,12 @@ async function main() {
     writeRolloutFiles: opts.writeRolloutFiles,
   };
 
-  for (let i = opts.start; i < scanEnd; i++) {
+  // resume 后 start 可能已前移，重算扫描终点
+  const scanEndLive = opts.start + Math.max(0, candidateCount - batchCandidates.length - batchRejected.length);
+  // 若有 checkpoint，仍扫满剩余 candidate 配额
+  const effectiveScanEnd = Math.max(scanEnd, scanEndLive);
+
+  for (let i = opts.start; i < effectiveScanEnd; i++) {
     console.log = () => {};
     const result = processOneSeed(i, oneSeedOpts, seenFingerprints);
     console.log = log;
@@ -411,23 +448,40 @@ async function main() {
       batchCandidates.push(result.candidate);
     }
 
-    const done = i - opts.start + 1;
-    if (opts.progressEvery > 0 && done % opts.progressEvery === 0) {
+    if (opts.progressEvery > 0 && (i + 1) % opts.progressEvery === 0) {
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      const processed = batchCandidates.length + batchRejected.length;
       console.log(
-        `progress ${done}/${candidateCount} accepted=${batchCandidates.length} rejected=${batchRejected.length} elapsed=${elapsed}s`
+        `progress ${processed}/${candidateCount} accepted=${batchCandidates.length} rejected=${batchRejected.length} elapsed=${elapsed}s index=${i}`
       );
+    }
+    // 每 500 个写轻量 checkpoint（不含 rolloutSummaries，避免巨大 IO）
+    if ((i + 1) % 500 === 0) {
+      await writeJsonAtomic(checkpointPath, {
+        poolVersion: opts.version,
+        nextIndex: i + 1,
+        targetAccepted,
+        batchCandidates: batchCandidates.map((c) => ({
+          ...c,
+          rolloutSummaries: [],
+        })),
+        batchRejected,
+        savedAt: new Date().toISOString(),
+      });
     }
   }
 
+  const useExperienceOversample = opts.kpiProfile === "prod" || opts.kpiProfile === "probe";
   const trimmedBatch =
     opts.oversampleFactor > 1
-      ? selectTopCandidatesByPlayerEase(batchCandidates, targetAccepted)
+      ? useExperienceOversample
+        ? selectTopCandidatesByExperienceScore(batchCandidates, targetAccepted)
+        : selectTopCandidatesByPlayerEase(batchCandidates, targetAccepted)
       : batchCandidates;
 
   if (opts.oversampleFactor > 1 && batchCandidates.length > trimmedBatch.length) {
     console.log(
-      `oversample: kept ${trimmedBatch.length}/${batchCandidates.length} by playerEaseScore`
+      `oversample: kept ${trimmedBatch.length}/${batchCandidates.length} by ${useExperienceOversample ? "experienceScore" : "playerEaseScore"}`
     );
   }
 
@@ -448,6 +502,11 @@ async function main() {
     medium: opts.tierMedium,
   });
   const tierCounts = await writePoolOutputs(opts, retiered, mergedRejected);
+  try {
+    await unlink(checkpointPath);
+  } catch {
+    // no checkpoint
+  }
 
   const rejectReasons = {};
   for (const e of mergedRejected) {
@@ -468,6 +527,31 @@ async function main() {
   console.log(
     `tiers: easy=${tierCounts.easy} medium=${tierCounts.medium} hard=${tierCounts.hard}`
   );
+
+  if (opts.kpiProfile === "probe" || opts.kpiProfile === "prod") {
+    const health = summarizePoolHealth(retiered, opts.kpiProfile);
+    const warnCounts = {};
+    const failCounts = {};
+    for (const e of retiered) {
+      const { hardRejects, warnings } = evaluateExperienceGates(e.metrics, opts.kpiProfile);
+      for (const w of warnings) warnCounts[w.id] = (warnCounts[w.id] ?? 0) + 1;
+      for (const h of hardRejects) failCounts[h.id] = (failCounts[h.id] ?? 0) + 1;
+    }
+    const kpiReport = {
+      generatedAt: new Date().toISOString(),
+      poolVersion: opts.version,
+      profile: opts.kpiProfile,
+      health,
+      warnCounts,
+      failCounts,
+      rejectReasons,
+    };
+    const kpiPathOut = path.join(opts.out, "kpi-report.json");
+    await writeFile(kpiPathOut, JSON.stringify(kpiReport, null, 2), "utf8");
+    console.log(
+      `kpi[${opts.kpiProfile}]: gatePassRate=${health.gatePassRate.toFixed(3)} meanTimeUp=${health.meanTimeUpRate.toFixed(3)} meanMediumBurst=${health.meanMediumBurstRate.toFixed(3)} meanJackpot=${health.meanJackpotRate.toFixed(3)} meanLateReach=${health.meanLateGameReachRate.toFixed(3)} → ${kpiPathOut}`
+    );
+  }
 }
 
 main().catch((e) => {

@@ -11,6 +11,7 @@ import {
   PERFORMANCE_BAND_HIGH_CUMULATIVE_FRACTION,
   PERFORMANCE_BAND_LOW_FRACTION,
   percentileForBand,
+  selectTopCandidatesByExperienceScore,
   selectTopCandidatesByPlayerEase,
 } from "../blockBlastSeedDifficulty";
 import {
@@ -65,8 +66,19 @@ function mockMetrics(
     scoreSpread: 100,
     playerEaseScore: 80,
     layoutFingerprint: "fp:test",
-    policyVersion: "block-blast-stochastic-v3",
+    policyVersion: "block-blast-stochastic-v4",
     matchTimeLimitSec: 300,
+    mediumBurstRate: 0.4,
+    jackpotRate: 0.1,
+    lateGameReachRate: 0.5,
+    nearDeathRecoverRate: 0.15,
+    lateBurstRate: 0.25,
+    earlyClearRate: 0.7,
+    scoreAt60P50: 15,
+    scoreAt150P50: 40,
+    scoreAt240P50: 70,
+    softPPassCount: 4,
+    experienceScore: 0.45,
     ...overrides,
   };
 }
@@ -110,10 +122,12 @@ describe("blockBlastSeedPool", () => {
 
   it("bot reaches positive score with a valid terminal reason", () => {
     const r = simulateRollout("blockblast-pool:v1:21", 0);
-    expect(r.policyVersion).toBe("block-blast-stochastic-v3");
+    expect(r.policyVersion).toBe("block-blast-stochastic-v4");
     expect(r.finalScore).toBeGreaterThan(0);
     expect(["stuck", "time_up", "exited", "completed"]).toContain(r.terminalReason);
     expect(r.replayPacingMs?.length).toBe(r.ops.length);
+    expect(r.experience).toBeDefined();
+    expect(typeof r.experience?.maxStepClearedCells).toBe("number");
   });
 
   it("rollouts vary across seeds (distribution spreads out)", () => {
@@ -176,6 +190,9 @@ describe("blockBlastSeedPool", () => {
     expect(Object.values(metrics.scoreHistogram).reduce((a, b) => a + b, 0)).toBe(8);
     expect(metrics.scoreSpread).toBe(metrics.scoreMax - metrics.scoreMin);
     expect(typeof metrics.playerEaseScore).toBe("number");
+    expect(typeof metrics.experienceScore).toBe("number");
+    expect(typeof metrics.mediumBurstRate).toBe("number");
+    expect(typeof metrics.lateGameReachRate).toBe("number");
   });
 
   it("buildTierIndex groups entries by layout tier", () => {
@@ -246,6 +263,27 @@ describe("blockBlastSeedPool", () => {
     expect(top).toHaveLength(1);
     expect(top[0]!.seedId).toBe("b");
   });
+
+  it("selectTopCandidatesByExperienceScore keeps highest experience scores", () => {
+    const candidates = [
+      {
+        seedId: "low",
+        poolVersion: "v4",
+        difficultyScore: 80,
+        metrics: mockMetrics({ experienceScore: 0.1 }),
+        rolloutSummaries: [],
+      },
+      {
+        seedId: "high",
+        poolVersion: "v4",
+        difficultyScore: 90,
+        metrics: mockMetrics({ experienceScore: 0.8 }),
+        rolloutSummaries: [],
+      },
+    ];
+    const top = selectTopCandidatesByExperienceScore(candidates, 1);
+    expect(top[0]!.seedId).toBe("high");
+  });
 });
 
 describe("blockBlastSeedQuickScreen", () => {
@@ -281,20 +319,48 @@ describe("blockBlastSeedQuickScreen", () => {
 
   it("rejects when stuckRate exceeds maxStuckRate", () => {
     const reject = rejectPlayerFriendlyMetrics(
-      "blockblast-pool:v3:stuck-cap",
+      "blockblast-pool:v4:stuck-cap",
       mockMetrics({ stuckRate: 0.95, rolloutCount: 24 }),
-      { ...DEFAULT_PLAYER_FRIENDLY_OPTIONS, maxStuckRate: 0.85 }
+      { ...DEFAULT_PLAYER_FRIENDLY_OPTIONS, maxStuckRate: 0.85, kpiProfile: "off" }
     );
     expect(reject?.reason).toBe("stuck_rate_too_high");
   });
 
   it("passes when stuckRate within maxStuckRate", () => {
     const reject = rejectPlayerFriendlyMetrics(
-      "blockblast-pool:v3:stuck-ok",
+      "blockblast-pool:v4:stuck-ok",
       mockMetrics({ stuckRate: 0.8, rolloutCount: 24 }),
-      { ...DEFAULT_PLAYER_FRIENDLY_OPTIONS, maxStuckRate: 0.85 }
+      { ...DEFAULT_PLAYER_FRIENDLY_OPTIONS, maxStuckRate: 0.85, kpiProfile: "off" }
     );
     expect(reject).toBeNull();
+  });
+
+  it("prod kpi rejects low jackpotRate", () => {
+    const reject = rejectPlayerFriendlyMetrics(
+      "blockblast-pool:v4:jackpot-low",
+      mockMetrics({
+        jackpotRate: 0.01,
+        mediumBurstRate: 0.5,
+        lateGameReachRate: 0.5,
+        timeUpRate: 0.25,
+        stuckRate: 0.7,
+        openingMoveCount: 130,
+        scoreSpread: 100,
+        scoreQuantiles: {
+          p10: 40,
+          p25: 50,
+          p30: 60,
+          p33: 70,
+          p50: 120,
+          p66: 150,
+          p70: 160,
+          p75: 180,
+          p90: 200,
+        },
+      }),
+      { ...DEFAULT_PLAYER_FRIENDLY_OPTIONS, kpiProfile: "prod" }
+    );
+    expect(reject?.reason).toBe("jackpot_rate_too_low");
   });
 
   it("processOneSeed accepts a playable seed", () => {

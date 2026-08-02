@@ -157,6 +157,12 @@ export const portalTournamentFns = {
   completeAdCoinSession: makeFunctionReference<"mutation">(
     "service/ads/portalAdCoinMutations:completeAdCoinSession"
   ),
+  getDailyCheckinStatus: makeFunctionReference<"query">(
+    "service/reward/portalDailyCheckinQueries:getDailyCheckinStatus"
+  ),
+  claimDailyCheckin: makeFunctionReference<"mutation">(
+    "service/reward/portalDailyCheckinMutations:claimDailyCheckin"
+  ),
   getPortalRewardedAdMode: makeFunctionReference<"query">(
     "service/ads/portalRewardedAdModeQuery:getPortalRewardedAdMode"
   ),

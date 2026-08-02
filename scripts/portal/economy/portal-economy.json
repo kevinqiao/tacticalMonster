@@ -124,6 +124,12 @@
     "sessionTtlMs": 120000,
     "channels": ["partner", "poki", "dev", "crazygames"]
   },
+  "dailyCheckin": {
+    "enabled": true,
+    "baseTickets": 1,
+    "streakCycleDays": 7,
+    "streakBonusTickets": [0, 0, 1, 0, 0, 1, 2]
+  },
   "playDefaults": {
     "freePlay": {
       "solo": 3,

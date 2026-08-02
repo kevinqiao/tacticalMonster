@@ -14,6 +14,7 @@ import type {
   TierIndex,
 } from "./blockBlastRecordedOpTypes";
 import { BLOCK_BLAST_POLICY_VERSION as POLICY_VERSION } from "./blockBlastRecordedOpTypes";
+import { computeExperienceScore, countSoftPPasses } from "./blockBlastExperienceKpi";
 import { DEFAULT_MATCH_TIME_LIMIT_SEC } from "./blockBlastSimTime";
 
 function fnv1a(text: string): string {
@@ -145,6 +146,20 @@ export function computeDistributionMetrics(
   const quantiles = computeScoreQuantiles(scores);
   const bandThresholds = computeBandThresholds(scores);
 
+  const mediumBurstRate =
+    rollouts.filter((r) => (r.experience?.mediumBurstCount ?? 0) > 0).length / k;
+  const jackpotRate = rollouts.filter((r) => (r.experience?.jackpotCount ?? 0) > 0).length / k;
+  const lateGameReachRate = rollouts.filter((r) => r.experience?.reached180).length / k;
+  const nearDeathRecoverRate =
+    rollouts.filter((r) => (r.experience?.nearDeathRecoverCount ?? 0) > 0).length / k;
+  const lateBurstRate =
+    rollouts.filter((r) => (r.experience?.lateMediumBurstCount ?? 0) > 0).length / k;
+  const earlyClearRate = rollouts.filter((r) => r.experience?.earlyClear).length / k;
+
+  const scoreAt60Sorted = rollouts.map((r) => r.experience?.scoreAt60 ?? 0).sort((a, b) => a - b);
+  const scoreAt150Sorted = rollouts.map((r) => r.experience?.scoreAt150 ?? 0).sort((a, b) => a - b);
+  const scoreAt240Sorted = rollouts.map((r) => r.experience?.scoreAt240 ?? 0).sort((a, b) => a - b);
+
   const base = {
     rolloutCount: rollouts.length,
     scoreMin: scores[0] ?? 0,
@@ -165,13 +180,27 @@ export function computeDistributionMetrics(
     layoutFingerprint: layout.layoutFingerprint,
     policyVersion: POLICY_VERSION,
     matchTimeLimitSec: layout.matchTimeLimitSec,
+    mediumBurstRate,
+    jackpotRate,
+    lateGameReachRate,
+    nearDeathRecoverRate,
+    lateBurstRate,
+    earlyClearRate,
+    scoreAt60P50: percentile(scoreAt60Sorted, 0.5),
+    scoreAt150P50: percentile(scoreAt150Sorted, 0.5),
+    scoreAt240P50: percentile(scoreAt240Sorted, 0.5),
   };
 
   const layoutOutcome = deriveLayoutOutcome(base);
+  const withOutcome = { ...base, layoutOutcome };
+  const softPPassCount = countSoftPPasses(withOutcome, "prod");
+  const experienceScore = computeExperienceScore({ ...withOutcome, softPPassCount }, "prod");
+
   return {
-    ...base,
-    layoutOutcome,
-    playerEaseScore: computePlayerEaseScore({ ...base, layoutOutcome }),
+    ...withOutcome,
+    softPPassCount,
+    experienceScore,
+    playerEaseScore: computePlayerEaseScore(withOutcome),
   };
 }
 
@@ -236,6 +265,10 @@ function entryToTierReport(entry: SeedPoolEntry): SeedTierReportEntry {
     openingMoveCount: m.openingMoveCount,
     scoreSpread: m.scoreSpread,
     playerEaseScore: m.playerEaseScore,
+    experienceScore: m.experienceScore,
+    mediumBurstRate: m.mediumBurstRate,
+    jackpotRate: m.jackpotRate,
+    lateGameReachRate: m.lateGameReachRate,
     rolloutCount: m.rolloutCount,
   };
 }
@@ -255,7 +288,7 @@ export function buildTierIndex(
     tiers[entry.tier].push(entryToTierReport(entry));
   }
   for (const tier of ["easy", "medium", "hard"] as const) {
-    tiers[tier].sort((a, b) => b.playerEaseScore - a.playerEaseScore);
+    tiers[tier].sort((a, b) => b.experienceScore - a.experienceScore);
   }
   return {
     poolVersion,
@@ -280,6 +313,25 @@ export function selectTopCandidatesByPlayerEase(
   }
   return [...candidates]
     .sort((a, b) => {
+      const ease = b.metrics.playerEaseScore - a.metrics.playerEaseScore;
+      if (ease !== 0) return ease;
+      return a.seedId.localeCompare(b.seedId);
+    })
+    .slice(0, limit);
+}
+
+/** 生产 oversample：按体验分保留尖子 */
+export function selectTopCandidatesByExperienceScore(
+  candidates: TierCandidate[],
+  limit: number
+): TierCandidate[] {
+  if (limit <= 0 || candidates.length <= limit) {
+    return candidates;
+  }
+  return [...candidates]
+    .sort((a, b) => {
+      const exp = b.metrics.experienceScore - a.metrics.experienceScore;
+      if (exp !== 0) return exp;
       const ease = b.metrics.playerEaseScore - a.metrics.playerEaseScore;
       if (ease !== 0) return ease;
       return a.seedId.localeCompare(b.seedId);

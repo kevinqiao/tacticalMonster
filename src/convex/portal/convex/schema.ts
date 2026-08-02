@@ -820,6 +820,17 @@ export default defineSchema({
     .index("by_uid_dayKey", ["uid", "dayKey"])
     .index("by_uid_scopeKey_dayKey", ["uid", "scopeKey", "dayKey"]),
 
+  /** Portal daily check-in streak (tickets); scoped like wallets. */
+  portal_checkin_streaks: defineTable({
+    uid: v.string(),
+    scopeKey: v.string(),
+    streakCount: v.number(),
+    lastClaimPeriodKey: v.string(),
+    lastClaimTickets: v.optional(v.number()),
+    updatedAt: v.number(),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+  }).index("by_uid_scopeKey", ["uid", "scopeKey"]),
+
   portal_bot_personas: defineTable({
     botPersonaId: v.string(),
     poolIndex: v.number(),

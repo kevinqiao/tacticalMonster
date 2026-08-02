@@ -133,6 +133,7 @@
     "blockblast:pool:help": "tsx scripts/blockblast/seed-pool.mjs help",
     "blockblast:pool:clean": "tsx scripts/blockblast/seed-pool.mjs clean",
     "blockblast:pool:create": "tsx scripts/blockblast/seed-pool.mjs create",
+    "blockblast:pool:report": "tsx scripts/blockblast/seed-pool.mjs report",
     "blockblast:pool:load": "tsx scripts/blockblast/seed-pool.mjs load",
     "blockblast:pool:append": "tsx scripts/blockblast/seed-pool.mjs append",
     "blockblast:pool:regen": "tsx scripts/blockblast/seed-pool.mjs regen",

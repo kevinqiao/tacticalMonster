@@ -273,6 +273,8 @@ export function PortalGame3DOverlays({
           onWatchAdForCoins={
             ctrl.adCoinClientEnabled ? portal.watchAdForCoins : undefined
           }
+          dailyCheckin={portal.dailyCheckin}
+          onClaimDailyCheckin={portal.claimDailyCheckin}
         />
       </PortalCenterModal>
 

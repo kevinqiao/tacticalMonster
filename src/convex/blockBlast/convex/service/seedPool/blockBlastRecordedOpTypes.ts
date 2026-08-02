@@ -3,6 +3,9 @@
  * 一个 recorded op 即一次落子（按当前手牌槽位 slot + 行列），形状由 seed + shapeCounter 确定性复现。
  */
 
+/** 体验 KPI 档位：off=仅显式阈值；probe=体检警告；prod=硬拒 G 门 */
+export type KpiProfile = "off" | "probe" | "prod";
+
 /** 稳定可复现的落子 op —— 不含 shapeId（shapeId 由 seed 确定性生成） */
 export type BlockBlastRecordedOp =
   | { op: "place"; slot: number; row: number; col: number }
@@ -20,7 +23,25 @@ export function toBlockBlastRecordedOp(step: BlockBlastRecordedStep): BlockBlast
 
 export type RolloutTerminalReason = "completed" | "stuck" | "time_up" | "exited";
 
-export const BLOCK_BLAST_POLICY_VERSION = "block-blast-stochastic-v3" as const;
+/** v4：分段格数权重 + 手内弱约束（每手避免三块全 >3 格） */
+export const BLOCK_BLAST_POLICY_VERSION = "block-blast-stochastic-v4" as const;
+
+/** 单局仿真体验事件（summary 级） */
+export type RolloutExperienceStats = {
+  scoreAt60: number;
+  scoreAt150: number;
+  scoreAt240: number;
+  mediumBurstCount: number;
+  jackpotCount: number;
+  maxStepClearedCells: number;
+  firstMediumBurstAtSec: number | null;
+  lastBurstAtSec: number | null;
+  lateMediumBurstCount: number;
+  reached180: boolean;
+  reached240: boolean;
+  nearDeathRecoverCount: number;
+  earlyClear: boolean;
+};
 
 export type BlockBlastRolloutScript = {
   rolloutIndex: number;
@@ -33,6 +54,7 @@ export type BlockBlastRolloutScript = {
   completed: boolean;
   terminalReason: RolloutTerminalReason;
   elapsedSimSeconds: number;
+  experience?: RolloutExperienceStats;
 };
 
 export type SeedLayoutOutcome = "winnable" | "likely_dead" | "mixed";
@@ -79,12 +101,32 @@ export type RolloutDistributionMetrics = {
   layoutFingerprint: string;
   policyVersion: typeof BLOCK_BLAST_POLICY_VERSION;
   matchTimeLimitSec: number;
+  /** ≥1 次 medium burst (C>B) 的 rollout 比例 */
+  mediumBurstRate: number;
+  /** ≥1 次 jackpot (C>B+8) 的 rollout 比例 */
+  jackpotRate: number;
+  /** 存活到 180s 的 rollout 比例 */
+  lateGameReachRate: number;
+  /** ≥1 次濒死救场的 rollout 比例 */
+  nearDeathRecoverRate: number;
+  /** 180s 后出现 medium burst 的 rollout 比例 */
+  lateBurstRate: number;
+  /** 60s 内至少 1 次消行的比例 */
+  earlyClearRate: number;
+  scoreAt60P50: number;
+  scoreAt150P50: number;
+  scoreAt240P50: number;
+  softPPassCount: number;
+  experienceScore: number;
 };
 
 export type RolloutSummary = Pick<
   BlockBlastRolloutScript,
   "rolloutIndex" | "finalScore" | "moves" | "completed" | "terminalReason" | "elapsedSimSeconds"
-> & { opCount: number };
+> & {
+  opCount: number;
+  experience?: RolloutExperienceStats;
+};
 
 export type BlockBlastSeedTier = "easy" | "medium" | "hard";
 
@@ -107,6 +149,10 @@ export type SeedTierReportEntry = {
   openingMoveCount: number;
   scoreSpread: number;
   playerEaseScore: number;
+  experienceScore: number;
+  mediumBurstRate: number;
+  jackpotRate: number;
+  lateGameReachRate: number;
   rolloutCount: number;
 };
 
@@ -136,7 +182,11 @@ export type SeedPoolRejectReason =
   | "opening_too_easy"
   | "low_player_ceiling"
   | "collapsed_scores"
-  | "stuck_rate_too_high";
+  | "stuck_rate_too_high"
+  | "time_up_rate_too_low"
+  | "medium_burst_rate_too_low"
+  | "jackpot_rate_too_low"
+  | "late_game_reach_rate_too_low";
 
 export type SeedPoolRejectedEntry = {
   seedId: string;
@@ -155,6 +205,8 @@ export type PlayerFriendlyOptions = {
   quickScreenRollouts: number;
   /** 0=关闭；拒绝 metrics.stuckRate 高于此值的 seed（≈要求 timeUpRate ≥ 1−max） */
   maxStuckRate: number;
+  /** off=仅用上方显式阈值；probe/prod=叠加体验 Gate */
+  kpiProfile: KpiProfile;
 };
 
 export type SeedPoolTierQuotas = {

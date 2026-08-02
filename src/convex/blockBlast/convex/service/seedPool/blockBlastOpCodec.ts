@@ -9,6 +9,7 @@ import {
   type Shape,
 } from "../../types/BlockBlastTypes";
 import { canPlaceShape } from "../../utils/gameRules";
+import { countBlockBlastClearedCells } from "../blockBlastScoreModel";
 import { BlockBlastGameEngine } from "../BlockBlastGameEngine";
 import type { BlockBlastRecordedOp } from "./blockBlastRecordedOpTypes";
 
@@ -54,13 +55,13 @@ export function cloneSimState(state: BlockBlastSimState): BlockBlastSimState {
 }
 
 export type ApplyOpResult =
-  | { ok: true; conceded?: boolean }
+  | { ok: true; conceded?: boolean; clearedCells?: number }
   | { ok: false; reason: string };
 
 export function applyOp(state: BlockBlastSimState, op: BlockBlastRecordedOp): ApplyOpResult {
   if (op.op === "concede") {
     state.status = BlockBlastGameStatus.CANCELLED;
-    return { ok: true, conceded: true };
+    return { ok: true, conceded: true, clearedCells: 0 };
   }
 
   const shape = state.shapes[op.slot];
@@ -95,7 +96,12 @@ export function applyOp(state: BlockBlastSimState, op: BlockBlastRecordedOp): Ap
   state.moves = res.data.moves;
   state.status = res.data.status;
   state.shapeCounter = res.data.shapeCounter;
-  return { ok: true };
+  const clearedCells = countBlockBlastClearedCells(
+    res.data.cleared.rows,
+    res.data.cleared.cols,
+    state.gridSize
+  );
+  return { ok: true, clearedCells };
 }
 
 export type PlacementCandidate = {

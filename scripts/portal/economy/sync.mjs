@@ -109,6 +109,22 @@ function validate(eco) {
   assert(isPosInt(ac.dailyCap), "adCoin.dailyCap");
   assert(Array.isArray(ac.channels) && ac.channels.length > 0, "adCoin.channels");
 
+  const dc = eco.dailyCheckin;
+  assert(typeof dc?.enabled === "boolean", "dailyCheckin.enabled");
+  assert(isPosInt(dc.baseTickets) && dc.baseTickets > 0, "dailyCheckin.baseTickets");
+  assert(
+    isPosInt(dc.streakCycleDays) && dc.streakCycleDays > 0,
+    "dailyCheckin.streakCycleDays"
+  );
+  assert(
+    Array.isArray(dc.streakBonusTickets) &&
+      dc.streakBonusTickets.length === dc.streakCycleDays,
+    "dailyCheckin.streakBonusTickets length"
+  );
+  for (const n of dc.streakBonusTickets) {
+    assert(isPosInt(n), "dailyCheckin.streakBonusTickets entries");
+  }
+
   const pd = eco.playDefaults;
   assert(pd?.freePlay && isPosInt(pd.freePlay.solo), "playDefaults.freePlay");
   assert(pd?.adEntry?.solo && pd?.adEntry?.multi, "playDefaults.adEntry");
@@ -248,6 +264,7 @@ function generate(eco) {
   const sh = eco.seasonHonor;
   const wl = eco.weeklyLeague;
   const ac = eco.adCoin;
+  const dc = eco.dailyCheckin;
   const fp = eco.playDefaults.freePlay;
   const ae = eco.playDefaults.adEntry;
   const te = eco.playDefaults.ticketEntry;
@@ -325,6 +342,12 @@ export const PORTAL_AD_COIN_REWARD_AMOUNT = ${ac.rewardAmount};
 export const PORTAL_AD_COIN_DAILY_CAP = ${ac.dailyCap};
 export const PORTAL_AD_COIN_SESSION_TTL_MS = ${ac.sessionTtlMs};
 export const PORTAL_AD_COIN_CHANNELS = ${tsStringArray(ac.channels)} as const;
+
+// --- daily check-in (tickets) ---
+export const PORTAL_DAILY_CHECKIN_ENABLED = ${dc.enabled};
+export const PORTAL_DAILY_CHECKIN_BASE_TICKETS = ${dc.baseTickets};
+export const PORTAL_DAILY_CHECKIN_STREAK_CYCLE_DAYS = ${dc.streakCycleDays};
+export const PORTAL_DAILY_CHECKIN_STREAK_BONUS_TICKETS = ${tsNumberArray(dc.streakBonusTickets)} as const;
 
 // --- play defaults: free ---
 export const PORTAL_DAILY_PLAY_LIMITS = {

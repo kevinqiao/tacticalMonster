@@ -288,6 +288,20 @@ export type PortalAdCoinOffer = {
   watchedToday: number;
 };
 
+export type PortalDailyCheckinStatus = {
+  enabled: boolean;
+  claimedToday: boolean;
+  canClaim: boolean;
+  dayKey: string;
+  streakCount: number;
+  dayInCycle: number;
+  streakCycleDays: number;
+  rewardTickets: number;
+  cycleRewards: number[];
+  baseTickets: number;
+  streakBonusTickets: number[];
+};
+
 type PortalDataSnapshot = {
   cohortLeaderboard: PortalWeeklyLeaderboardRow[];
   weeklyLeagueTierView: PortalWeeklyLeagueTierView | null;
@@ -307,6 +321,7 @@ type PortalDataSnapshot = {
   ticketEntryOffer: { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null;
   adEntryOffer: { solo: PortalAdEntryOffer; multi: PortalAdEntryOffer } | null;
   adCoinOffer: PortalAdCoinOffer | null;
+  dailyCheckin: PortalDailyCheckinStatus | null;
   weekEndsAt: number | null;
 };
 
@@ -329,6 +344,7 @@ const emptyData = (): PortalDataSnapshot => ({
   ticketEntryOffer: null,
   adEntryOffer: null,
   adCoinOffer: null,
+  dailyCheckin: null,
   weekEndsAt: null,
 });
 
@@ -372,9 +388,20 @@ type PortalContextValue = {
   ticketEntryOffer: { solo: PortalTicketEntryOffer; multi: PortalTicketEntryOffer } | null;
   adEntryOffer: { solo: PortalAdEntryOffer; multi: PortalAdEntryOffer } | null;
   adCoinOffer: PortalAdCoinOffer | null;
+  dailyCheckin: PortalDailyCheckinStatus | null;
   weekEndsAt: number | null;
   watchAdForCoins: () => Promise<
     | { ok: true; coinsGranted: number; remaining: number; rewardAmount: number }
+    | { ok: false; error: string }
+  >;
+  claimDailyCheckin: () => Promise<
+    | {
+        ok: true;
+        ticketsGranted: number;
+        streakCount: number;
+        dayInCycle: number;
+        alreadyClaimed?: boolean;
+      }
     | { ok: false; error: string }
   >;
   joinTournament: (
@@ -649,6 +676,7 @@ export const PortalProvider: React.FC<{
         ticketEntryOffer: null,
         adEntryOffer: null,
         adCoinOffer: null,
+        dailyCheckin: null,
       });
       return;
     }
@@ -799,6 +827,39 @@ export const PortalProvider: React.FC<{
         });
       },
       "getAdCoinOffer"
+    );
+    sub(
+      portalTournamentFns.getDailyCheckinStatus,
+      {
+        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+      },
+      (rows) => {
+        const r = rows as PortalDailyCheckinStatus | null;
+        if (!r || r.enabled === false) {
+          patchData({ dailyCheckin: null });
+          return;
+        }
+        patchData({
+          dailyCheckin: {
+            enabled: true,
+            claimedToday: Boolean(r.claimedToday),
+            canClaim: Boolean(r.canClaim),
+            dayKey: typeof r.dayKey === "string" ? r.dayKey : "",
+            streakCount: Math.max(0, Math.floor(r.streakCount ?? 0)),
+            dayInCycle: Math.max(1, Math.floor(r.dayInCycle ?? 1)),
+            streakCycleDays: Math.max(1, Math.floor(r.streakCycleDays ?? 7)),
+            rewardTickets: Math.max(0, Math.floor(r.rewardTickets ?? 0)),
+            cycleRewards: Array.isArray(r.cycleRewards)
+              ? r.cycleRewards.map((n) => Math.max(0, Math.floor(n ?? 0)))
+              : [],
+            baseTickets: Math.max(0, Math.floor(r.baseTickets ?? 0)),
+            streakBonusTickets: Array.isArray(r.streakBonusTickets)
+              ? r.streakBonusTickets.map((n) => Math.max(0, Math.floor(n ?? 0)))
+              : [],
+          },
+        });
+      },
+      "getDailyCheckinStatus"
     );
 
     return () => {
@@ -1538,6 +1599,28 @@ export const PortalProvider: React.FC<{
     return requestPortalAdCoin({ lobbyId });
   }, [uid, lobbyId]);
 
+  const claimDailyCheckin = useCallback(async () => {
+    const http = getHttp();
+    if (!http || !uid) return { ok: false as const, error: "no_auth" };
+    try {
+      const r = (await http.mutation(portalTournamentFns.claimDailyCheckin, {
+        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+      })) as
+        | {
+            ok: true;
+            ticketsGranted: number;
+            streakCount: number;
+            dayInCycle: number;
+            alreadyClaimed?: boolean;
+          }
+        | { ok: false; error: string };
+      return r;
+    } catch (e) {
+      console.warn("[Portal] claimDailyCheckin", e);
+      return { ok: false as const, error: "claim_failed" };
+    }
+  }, [uid, lobbyId]);
+
   const value = useMemo<PortalContextValue>(
     () => ({
       convexUrl: PORTAL_CONVEX_URL,
@@ -1560,8 +1643,10 @@ export const PortalProvider: React.FC<{
       ticketEntryOffer: snapshot.ticketEntryOffer,
       adEntryOffer: snapshot.adEntryOffer,
       adCoinOffer: snapshot.adCoinOffer,
+      dailyCheckin: snapshot.dailyCheckin,
       weekEndsAt: snapshot.weekEndsAt,
       watchAdForCoins,
+      claimDailyCheckin,
       joinTournament,
       leaveCasualMatchQueue,
       reconcilePendingHistorySettlements,
@@ -1587,6 +1672,7 @@ export const PortalProvider: React.FC<{
       gameType,
       snapshot,
       watchAdForCoins,
+      claimDailyCheckin,
       joinTournament,
       leaveCasualMatchQueue,
       reconcilePendingHistorySettlements,

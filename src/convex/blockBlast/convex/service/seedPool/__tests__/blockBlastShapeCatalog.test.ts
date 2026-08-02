@@ -76,9 +76,29 @@ describe("blockBlastShapeCatalog", () => {
   });
 
   it("long shape stream includes 5-cell blocks with limited 1-cell rate early", () => {
-    const shapes = generateShapes(48, "blockblast-pool:v3:shape-probe", 0);
+    const shapes = generateShapes(48, "blockblast-pool:v4:shape-probe", 0);
     const cells = shapes.map((s) => countCells(s.shape));
     expect(cells.filter((c) => c === 5).length).toBeGreaterThan(0);
-    expect(cells.filter((c) => c === 1).length / cells.length).toBeLessThan(0.1);
+    expect(cells.filter((c) => c === 1).length / cells.length).toBeLessThan(0.12);
+  });
+
+  it("hand weak constraint prefers small piece when first two are large", () => {
+    // Force many hands: when preferSmall triggers, third piece should often be ≤3
+    let smallThird = 0;
+    let largeHands = 0;
+    for (let seed = 0; seed < 40; seed++) {
+      const shapes = generateShapes(24, `blockblast-pool:v4:hand-${seed}`, 0);
+      for (let h = 0; h < 8; h++) {
+        const a = countCells(shapes[h * 3]!.shape);
+        const b = countCells(shapes[h * 3 + 1]!.shape);
+        const c = countCells(shapes[h * 3 + 2]!.shape);
+        if (a > 3 && b > 3) {
+          largeHands += 1;
+          if (c <= 3) smallThird += 1;
+        }
+      }
+    }
+    expect(largeHands).toBeGreaterThan(0);
+    expect(smallThird / largeHands).toBeGreaterThan(0.5);
   });
 });

@@ -4,8 +4,11 @@ import {
   layoutFingerprint,
   percentile,
 } from "./blockBlastSeedDifficulty";
+import { evaluateExperienceGates } from "./blockBlastExperienceKpi";
 import type {
+  KpiProfile,
   PlayerFriendlyOptions,
+  RolloutDistributionMetrics,
   SeedPoolRejectReason,
   SeedPoolRejectedEntry,
 } from "./blockBlastRecordedOpTypes";
@@ -20,7 +23,9 @@ export function isPlayerFriendlyEnabled(opts: PlayerFriendlyOptions): boolean {
     opts.minScoreP25 > 0 ||
     opts.minScoreSpread > 0 ||
     opts.rejectCollapsed ||
-    opts.maxStuckRate > 0
+    opts.maxStuckRate > 0 ||
+    opts.kpiProfile === "probe" ||
+    opts.kpiProfile === "prod"
   );
 }
 
@@ -87,6 +92,28 @@ export function quickScreenSeed(
     );
   }
 
+  // Probe/prod：极端 opening 硬拒（空盘合法点常在 100–170）
+  if (opts.kpiProfile === "probe" || opts.kpiProfile === "prod") {
+    if (opens < 80) {
+      return rejectQuick(
+        seedId,
+        "no_opening_moves",
+        `openingMoveCount=${opens} hardMin=80`,
+        opens,
+        fp
+      );
+    }
+    if (opens > 200) {
+      return rejectQuick(
+        seedId,
+        "opening_too_easy",
+        `openingMoveCount=${opens} hardMax=200`,
+        opens,
+        fp
+      );
+    }
+  }
+
   const k = opts.quickScreenRollouts;
   if (k <= 0) {
     return { ok: true, openingMoveCount: opens, scoreP25: 0, scoreSpread: 0, layoutFingerprint: fp };
@@ -135,14 +162,7 @@ export function quickScreenSeed(
 
 export function rejectPlayerFriendlyMetrics(
   seedId: string,
-  metrics: {
-    scoreQuantiles: { p25: number };
-    scoreSpread: number;
-    scoreHistogram: Record<string, number>;
-    rolloutCount: number;
-    openingMoveCount: number;
-    stuckRate: number;
-  },
+  metrics: RolloutDistributionMetrics,
   opts: PlayerFriendlyOptions
 ): SeedPoolRejectedEntry | null {
   if (opts.minOpeningMoves > 0 && metrics.openingMoveCount < opts.minOpeningMoves) {
@@ -201,5 +221,20 @@ export function rejectPlayerFriendlyMetrics(
       metrics,
     };
   }
+
+  const profile: KpiProfile = opts.kpiProfile ?? "off";
+  if (profile === "probe" || profile === "prod") {
+    const { hardRejects } = evaluateExperienceGates(metrics, profile);
+    if (hardRejects.length > 0) {
+      const first = hardRejects[0]!;
+      return {
+        seedId,
+        reason: first.rejectReason ?? "low_player_ceiling",
+        detail: first.detail,
+        metrics,
+      };
+    }
+  }
+
   return null;
 }
