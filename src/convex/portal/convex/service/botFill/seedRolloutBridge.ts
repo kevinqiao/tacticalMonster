@@ -45,7 +45,7 @@ export async function bridgePickSeed(
     matchId: string;
     templateId: string;
     uids: string[];
-    /** Omit / null = pick across all tiers (multi_ranked). */
+    /** Preferred tier; omit / null = whole-pool pick (legacy). */
     tier?: PortalSeedTier | null;
   }
 ): Promise<

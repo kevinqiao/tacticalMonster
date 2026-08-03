@@ -51,6 +51,7 @@ export const BlockBlastWatchBoard: React.FC<Props> = ({
                 <span>
                     步数 {replayer.stepIndex}/{replayer.totalSteps}
                 </span>
+                {/* 多人竞技后端不挂 expectedScore；有则视为单人挑战目标 */}
                 {watchContext.kind === 'rollout' && watchContext.expectedScore != null ? (
                     <span>目标 {watchContext.expectedScore}</span>
                 ) : null}

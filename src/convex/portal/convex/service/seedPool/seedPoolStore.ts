@@ -123,13 +123,30 @@ export async function loadUsedSeedIdsForUids(
   return used;
 }
 
+/** Lower scoreP50 = harder for bot / players (tie-break seedId). */
+export function entryHardnessScore(entry: SeedPoolEntryDoc): number {
+  const p50 = entry.metrics?.scoreP50;
+  if (typeof p50 === "number" && Number.isFinite(p50)) return p50;
+  return entry.difficultyScore;
+}
+
 function pickDeterministicFromEntries(
   rows: SeedPoolEntryDoc[],
   sessionKey: string,
-  excludeSeedIds: ReadonlySet<string>
+  excludeSeedIds: ReadonlySet<string>,
+  opts?: { hardestFraction?: number }
 ): SeedPoolEntryDoc | null {
-  const available = rows.filter((r) => !excludeSeedIds.has(r.seedId));
+  let available = rows.filter((r) => !excludeSeedIds.has(r.seedId));
   if (available.length === 0) return null;
+  const frac = opts?.hardestFraction;
+  if (typeof frac === "number" && Number.isFinite(frac) && frac > 0 && frac < 1) {
+    const byHard = [...available].sort((a, b) => {
+      const d = entryHardnessScore(a) - entryHardnessScore(b);
+      return d !== 0 ? d : a.seedId.localeCompare(b.seedId);
+    });
+    const n = Math.max(1, Math.ceil(byHard.length * frac));
+    available = byHard.slice(0, n);
+  }
   const sorted = [...available].sort((a, b) => a.seedId.localeCompare(b.seedId));
   let hash = 0;
   for (let i = 0; i < sessionKey.length; i++) {
@@ -144,7 +161,8 @@ export async function pickDeterministicSeedForTier(
   poolVersion: string,
   tier: CatalogSeedTier,
   sessionKey: string,
-  excludeSeedIds: ReadonlySet<string> = new Set()
+  excludeSeedIds: ReadonlySet<string> = new Set(),
+  opts?: { hardestFraction?: number }
 ): Promise<SeedPoolEntryDoc | null> {
   const rows = await db
     .query("seed_pool_entries")
@@ -152,7 +170,7 @@ export async function pickDeterministicSeedForTier(
       q.eq("gameType", gameType).eq("poolVersion", poolVersion).eq("tier", tier)
     )
     .collect();
-  return pickDeterministicFromEntries(rows, sessionKey, excludeSeedIds);
+  return pickDeterministicFromEntries(rows, sessionKey, excludeSeedIds, opts);
 }
 
 /** Pick across all tiers in the active pool (no preferred difficulty band). */

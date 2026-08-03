@@ -58,7 +58,7 @@ export interface PortalTournamentDefinition {
   rankPoints?: PortalRankPointsConfig;
   /** Optional coin rewards (template defaults; lobby offering may override). */
   coinRewards?: PortalTournamentCoinRewards;
-  seedQuantileSuccess?: { quantile: "p75" };
+  seedQuantileSuccess?: { quantile: "p75" | "p90" };
   rankRates?: PortalRankRateEntry[];
   referenceScoreQuantiles?: PortalReferenceScoreQuantiles;
 }
@@ -130,7 +130,10 @@ function soloDef(gameType: string, title: string): PortalTournamentDefinition {
     maxPlayers: 1,
     entry: { kind: "none" },
     soloPoints: PORTAL_SOLO_POINTS,
-    seedQuantileSuccess: { quantile: "p75" },
+    // block_blast：抬高通关线到 p90
+    seedQuantileSuccess: {
+      quantile: gameType === "block_blast" ? "p90" : "p75",
+    },
   };
 }
 

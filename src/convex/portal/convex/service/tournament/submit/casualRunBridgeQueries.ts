@@ -41,13 +41,14 @@ export const findMatchByGameForBridge = internalQuery({
     const reg = getPartnerGameRegistration(pg.gameType)!;
 
     const templateDef = getPortalTournamentDefinition(pg.templateId);
-    const inlineP75 =
-      templateDef?.seedQuantileSuccess?.quantile === "p75"
-        ? pg.seedBinding?.scoreQuantiles?.p75
+    const successQ = templateDef?.seedQuantileSuccess?.quantile;
+    const inlineThreshold =
+      successQ === "p75" || successQ === "p90"
+        ? pg.seedBinding?.scoreQuantiles?.[successQ]
         : undefined;
     const seedScoreThreshold =
-      typeof inlineP75 === "number" && Number.isFinite(inlineP75)
-        ? Math.floor(inlineP75)
+      typeof inlineThreshold === "number" && Number.isFinite(inlineThreshold)
+        ? Math.floor(inlineThreshold)
         : undefined;
 
     if (reg.bridgeLoadGameSeed === "seed_binding_id") {

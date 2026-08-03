@@ -18,7 +18,7 @@ import {
     normalizeShapeMatrix,
     placeShapeOnGrid,
 } from '../utils/gameRules';
-import { countShapeCells, pickWeightedShapeTemplate } from './blockBlastShapeCatalog';
+import { pickWeightedShapeTemplate } from './blockBlastShapeCatalog';
 import {
     computeBlockBlastStepScoreFromClear,
 } from './blockBlastScoreModel';
@@ -99,20 +99,10 @@ export function generateShapes(count: number, seed?: string, startIndex: number 
         }
     }
 
-    const handCellCounts: number[] = [];
     for (let i = 0; i < count; i++) {
         const shapeIndex = startIndex + i;
-        const handPos = shapeIndex % 3;
-        if (handPos === 0) handCellCounts.length = 0;
-
-        const preferSmall =
-            handPos === 2 &&
-            handCellCounts.length >= 2 &&
-            handCellCounts[0]! > 3 &&
-            handCellCounts[1]! > 3;
-
-        const template = pickWeightedShapeTemplate(rng, shapeIndex, { preferSmall });
-        handCellCounts.push(countShapeCells(template));
+        // v6：关闭手内救场，全程按进度权重出块
+        const template = pickWeightedShapeTemplate(rng, shapeIndex);
         const color = Math.floor(rng() * 7) + 1;
         shapes.push(generateShape(template, color, shapeIndex, seed));
     }

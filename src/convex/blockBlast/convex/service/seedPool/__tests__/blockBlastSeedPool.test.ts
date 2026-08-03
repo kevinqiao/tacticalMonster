@@ -66,7 +66,7 @@ function mockMetrics(
     scoreSpread: 100,
     playerEaseScore: 80,
     layoutFingerprint: "fp:test",
-    policyVersion: "block-blast-stochastic-v4",
+    policyVersion: "block-blast-stochastic-v6",
     matchTimeLimitSec: 300,
     mediumBurstRate: 0.4,
     jackpotRate: 0.1,
@@ -122,7 +122,7 @@ describe("blockBlastSeedPool", () => {
 
   it("bot reaches positive score with a valid terminal reason", () => {
     const r = simulateRollout("blockblast-pool:v1:21", 0);
-    expect(r.policyVersion).toBe("block-blast-stochastic-v4");
+    expect(r.policyVersion).toBe("block-blast-stochastic-v6");
     expect(r.finalScore).toBeGreaterThan(0);
     expect(["stuck", "time_up", "exited", "completed"]).toContain(r.terminalReason);
     expect(r.replayPacingMs?.length).toBe(r.ops.length);
@@ -339,7 +339,7 @@ describe("blockBlastSeedQuickScreen", () => {
     const reject = rejectPlayerFriendlyMetrics(
       "blockblast-pool:v4:jackpot-low",
       mockMetrics({
-        jackpotRate: 0.01,
+        jackpotRate: 0.005,
         mediumBurstRate: 0.5,
         lateGameReachRate: 0.5,
         timeUpRate: 0.25,

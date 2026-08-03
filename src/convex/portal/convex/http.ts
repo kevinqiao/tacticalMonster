@@ -417,21 +417,25 @@ http.route({
       typeof match.seedScoreThreshold === "number" && Number.isFinite(match.seedScoreThreshold)
         ? match.seedScoreThreshold
         : undefined;
-    if (seedScoreThreshold == null && successQuantile === "p75" && match.seedBinding) {
-      const inline = match.seedBinding.scoreQuantiles?.p75;
+    if (
+      seedScoreThreshold == null &&
+      (successQuantile === "p75" || successQuantile === "p90") &&
+      match.seedBinding
+    ) {
+      const inline = match.seedBinding.scoreQuantiles?.[successQuantile];
       if (typeof inline === "number" && Number.isFinite(inline)) {
         seedScoreThreshold = Math.floor(inline);
       }
     }
     if (
       seedScoreThreshold == null &&
-      successQuantile === "p75" &&
+      (successQuantile === "p75" || successQuantile === "p90") &&
       match.seedBinding &&
       bridgeRow.gameType
     ) {
       try {
         const threshold = await resolvePlatformSeedScoreThreshold(ctx, {
-          successThresholdQuantile: "p75",
+          successThresholdQuantile: successQuantile,
           seedBinding: match.seedBinding,
           gameType: bridgeRow.gameType,
         });

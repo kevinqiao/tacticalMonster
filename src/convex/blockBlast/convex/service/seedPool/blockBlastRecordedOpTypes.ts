@@ -24,7 +24,7 @@ export function toBlockBlastRecordedOp(step: BlockBlastRecordedStep): BlockBlast
 export type RolloutTerminalReason = "completed" | "stuck" | "time_up" | "exited";
 
 /** v4：分段格数权重 + 手内弱约束（每手避免三块全 >3 格） */
-export const BLOCK_BLAST_POLICY_VERSION = "block-blast-stochastic-v4" as const;
+export const BLOCK_BLAST_POLICY_VERSION = "block-blast-stochastic-v6" as const;
 
 /** 单局仿真体验事件（summary 级） */
 export type RolloutExperienceStats = {

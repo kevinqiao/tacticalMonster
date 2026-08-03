@@ -39,6 +39,9 @@ function uniqueSeedTiersToTry(
   return [preferred, ...rest];
 }
 
+/** block_blast：在首选档内只抽最难切片（按 scoreP50 升序）。 */
+const BLOCK_BLAST_HARDEST_FRACTION = 0.35;
+
 async function pickSeedWithOptionalTier(
   db: DatabaseReader,
   args: {
@@ -50,6 +53,8 @@ async function pickSeedWithOptionalTier(
     excludeSeedIds: ReadonlySet<string>;
   }
 ): Promise<SeedPoolEntryDoc | null> {
+  const hardestFraction =
+    args.gameType === "block_blast" ? BLOCK_BLAST_HARDEST_FRACTION : undefined;
   if (args.preferredTier == null) {
     return pickDeterministicSeedAnyTier(
       db,
@@ -66,7 +71,8 @@ async function pickSeedWithOptionalTier(
       args.version,
       tryTier,
       args.sessionKey,
-      args.excludeSeedIds
+      args.excludeSeedIds,
+      hardestFraction != null ? { hardestFraction } : undefined
     );
     if (entry) return entry;
   }
@@ -85,7 +91,7 @@ export const pickCasualMatchSeed = internalMutation({
   },
   handler: async (ctx, args) => {
     const gameType = args.gameType as CatalogGameType;
-    // Keep explicit undefined: multi passes no tier; solo passes "easy".
+    // Preferred tier from portalSeedTierPolicy (block_blast → hard).
     const preferredTier = args.tier;
     const uids = [...new Set(args.uids.map((u) => u.trim()).filter(Boolean))];
     if (uids.length === 0) {

@@ -59,17 +59,18 @@ export const KPI_THRESHOLDS_PROBE: ExperienceGateThresholds = {
 };
 
 export const KPI_THRESHOLDS_PROD: ExperienceGateThresholds = {
-  minTimeUpRate: 0.12,
-  maxStuckRate: 0.92,
+  minTimeUpRate: 0.08,
+  // v6 出块更硬：再宽 stuck / 稀有 KPI，保可生成量
+  maxStuckRate: 0.96,
   minOpeningMoves: 100,
   maxOpeningMoves: 175,
   hardMinOpeningMoves: 80,
   hardMaxOpeningMoves: 200,
-  minScoreP25: 24,
-  minScoreSpread: 80,
-  minMediumBurstRate: 0.2,
-  minJackpotRate: 0.02,
-  minLateGameReachRate: 0.35,
+  minScoreP25: 16,
+  minScoreSpread: 60,
+  minMediumBurstRate: 0.12,
+  minJackpotRate: 0.008,
+  minLateGameReachRate: 0.22,
   collapsedBucketFraction: 0.85,
 };
 

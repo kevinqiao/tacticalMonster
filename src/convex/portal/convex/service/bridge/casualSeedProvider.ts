@@ -28,13 +28,14 @@ export async function pickCasualMatchSeedBinding(
     return { ok: false as const, error: "unregistered_game_type" };
   }
 
-  const tier = resolveSeedTierForTemplate(def);
+  const sessionKey = `casual_sess:${matchId}`;
+  const tier = resolveSeedTierForTemplate(def, sessionKey);
   const picked = await bridgePickSeed(ctx, {
     gameType,
     matchId,
     templateId,
     uids,
-    ...(tier != null ? { tier } : {}),
+    tier,
   });
   if (!picked.ok) {
     return picked;

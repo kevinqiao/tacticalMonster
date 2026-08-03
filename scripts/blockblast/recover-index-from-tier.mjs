@@ -23,7 +23,7 @@ async function writeJsonAtomic(filePath, value) {
 
 async function main() {
   const outDir = path.resolve(
-    process.argv[2] ?? path.join(repoRoot, "scripts/blockblast/output/pool-v4")
+    process.argv[2] ?? path.join(repoRoot, "scripts/blockblast/output/pool-v6")
   );
   const rollouts = Number(process.argv[3] ?? 48);
   const thinkTimeScale = Number(process.argv[4] ?? 3);
