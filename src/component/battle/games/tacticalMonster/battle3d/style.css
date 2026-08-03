@@ -1,0 +1,34 @@
+.action-btn {
+    width: 60px;
+    height: 26px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 12px;
+    margin-top: 5px;
+    background-color: rgba(250, 19, 85);
+    color: white
+}
+
+.action-control {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.action-panel-item {
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 70px;
+    height: 40px;
+    background-color: rgb(226, 43, 73);
+    color: white;
+    font-size: 12px;
+    margin: 2px;
+}
+
+.action-panel-item--selected {
+    border: 2px solid #fff;
+}

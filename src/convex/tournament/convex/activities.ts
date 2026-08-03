@@ -4,6 +4,7 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { authedMutation, authedQuery } from "./custom/session";
 import { ActivityIntegrationService } from "./service/activity/activityIntegrationService";
 import { ActivityService } from "./service/activity/activityService";
 import { ActivityTemplateService } from "./service/activity/activityTemplateService";
@@ -11,27 +12,24 @@ import { ActivityTemplateService } from "./service/activity/activityTemplateServ
 /**
  * 获取玩家活动列表
  */
-export const getPlayerActivities = query({
-    args: {
-        uid: v.string(),
-    },
-    handler: async (ctx, args) => {
-        return await ActivityService.getActiveActivities(ctx, args.uid);
+export const getPlayerActivities = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        return await ActivityService.getActiveActivities(ctx, ctx.uid);
     },
 });
 
 /**
  * 获取活动进度
  */
-export const getActivityProgress = query({
+export const getActivityProgress = authedQuery({
     args: {
-        uid: v.string(),
         activityId: v.string(),
     },
     handler: async (ctx, args) => {
         const progress = await ActivityService.getPlayerActivityProgress(
             ctx,
-            args.uid,
+            ctx.uid,
             args.activityId
         );
 
@@ -60,16 +58,15 @@ export const getActivityProgress = query({
 /**
  * 领取活动奖励
  */
-export const claimActivityReward = mutation({
+export const claimActivityReward = authedMutation({
     args: {
-        uid: v.string(),
         activityId: v.string(),
         milestone: v.string(),
     },
     handler: async (ctx, args) => {
         return await ActivityService.claimActivityReward(
             ctx,
-            args.uid,
+            ctx.uid,
             args.activityId,
             args.milestone
         );
@@ -79,9 +76,8 @@ export const claimActivityReward = mutation({
 /**
  * 处理活动事件（登录、进度更新等）
  */
-export const processActivityEvent = mutation({
+export const processActivityEvent = authedMutation({
     args: {
-        uid: v.string(),
         eventType: v.string(), // "login", "progress", "recharge"
         activityId: v.optional(v.string()),
         action: v.optional(v.string()),
@@ -89,7 +85,8 @@ export const processActivityEvent = mutation({
         amount: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        const { uid, eventType, activityId, action, actionData, amount } = args;
+        const { eventType, activityId, action, actionData, amount } = args;
+        const uid = ctx.uid;
 
         switch (eventType) {
             case "login":
@@ -244,13 +241,12 @@ export const getAllActivityTemplates = query({
 /**
  * 获取当前赛季的活动
  */
-export const getCurrentSeasonActivities = query({
+export const getCurrentSeasonActivities = authedQuery({
     args: {
-        uid: v.string(),
         seasonId: v.optional(v.string()), // 可选，默认使用当前赛季
     },
     handler: async (ctx, args) => {
-        return await ActivityService.getCurrentSeasonActivities(ctx, args.uid, args.seasonId);
+        return await ActivityService.getCurrentSeasonActivities(ctx, ctx.uid, args.seasonId);
     },
 });
 
@@ -258,9 +254,8 @@ export const getCurrentSeasonActivities = query({
  * 参与活动（明确动作）
  * 用于需要明确参与动作的场景，或手动触发参与
  */
-export const joinActivity = mutation({
+export const joinActivity = authedMutation({
     args: {
-        uid: v.string(),
         activityId: v.string(),
     },
     handler: async (ctx, args) => {
@@ -283,7 +278,7 @@ export const joinActivity = mutation({
 
         // 检查参与条件
         if (template.requirements) {
-            const canParticipate = await ActivityService.checkRequirements(ctx, args.uid, template.requirements);
+            const canParticipate = await ActivityService.checkRequirements(ctx, ctx.uid, template.requirements);
             if (!canParticipate) {
                 return {
                     success: false,
@@ -293,7 +288,7 @@ export const joinActivity = mutation({
         }
 
         // 检查是否已参与
-        const existingProgress = await ActivityService.getPlayerActivityProgress(ctx, args.uid, args.activityId);
+        const existingProgress = await ActivityService.getPlayerActivityProgress(ctx, ctx.uid, args.activityId);
         if (existingProgress) {
             return {
                 success: false,
@@ -305,14 +300,14 @@ export const joinActivity = mutation({
         // 创建进度记录
         const progress = await ActivityService.initializePlayerActivityProgress(
             ctx,
-            args.uid,
+            ctx.uid,
             args.activityId,
             template
         );
 
         // 发送活动开始通知
         try {
-            await ActivityIntegrationService.sendActivityNotification(ctx, args.uid, args.activityId, "started");
+            await ActivityIntegrationService.sendActivityNotification(ctx, ctx.uid, args.activityId, "started");
         } catch (error: any) {
             // 通知发送失败不影响参与
             console.error("发送活动开始通知失败:", error);
@@ -325,4 +320,3 @@ export const joinActivity = mutation({
         };
     },
 });
-

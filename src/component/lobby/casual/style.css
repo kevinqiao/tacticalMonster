@@ -1,0 +1,193 @@
+@import "./theme/casualUiThemes.css";
+
+.casual-lobby-strip {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  box-sizing: border-box;
+  height: clamp(52px, 9dvh, 100px);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background-color: rgba(20, 40, 80, 0.65);
+  color: #fff;
+  font-size: 14px;
+}
+
+.casual-lobby-strip--top {
+  top: 0;
+}
+
+.casual-lobby-strip--bottom {
+  bottom: 0;
+}
+
+.casual-lobby-strip__title {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.casual-lobby-child {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: clamp(60px, 12dvh, 120px) 16px;
+  overflow: auto;
+  background: var(--shell-bg-page, #f0f4fa);
+  color: var(--shell-ink, #1a1a2e);
+}
+
+/* 货币区与 tactical 共用 HeadNavControl.css（`head-nav-hud__currencies` / `__res`） */
+
+/* 通行证在货币区右侧；中间拉伸占位 */
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__stretch {
+  flex: 1 1 auto;
+  min-width: 8px;
+  min-height: 0;
+}
+
+/* 点头像打开个人资料 */
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-avatarTap {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-avatarTap:focus-visible {
+  outline: 2px solid rgba(255, 220, 160, 0.95);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-avatarTap:active .head-nav-hud__avatar-pic {
+  filter: brightness(0.92);
+}
+
+/* DEV：rollout 回放测试（通行证左侧，仅 import.meta.env.DEV） */
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-dev-rollout {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #e8e0ff;
+  cursor: pointer;
+  background: linear-gradient(145deg, rgba(72, 52, 120, 0.92), rgba(48, 36, 88, 0.98));
+  border: 1px solid rgba(180, 160, 255, 0.35);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-dev-rollout:hover {
+  filter: brightness(1.08);
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-dev-rollout:active {
+  filter: brightness(0.96);
+  transform: scale(0.98);
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-dev-rollout:focus-visible {
+  outline: 2px solid rgba(200, 180, 255, 0.95);
+  outline-offset: 2px;
+}
+
+/* 顶栏常驻：赛季通行证入口（横/竖屏） */
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 6px;
+  padding: 5px 11px 5px 7px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #f8fbff;
+  cursor: pointer;
+  background: linear-gradient(145deg, rgba(45, 108, 223, 0.95), rgba(30, 72, 150, 0.98));
+  border: 1px solid rgba(180, 210, 255, 0.45);
+  border-radius: 10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass:hover {
+  filter: brightness(1.08);
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass:active {
+  filter: brightness(0.96);
+  transform: scale(0.98);
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass:focus-visible {
+  outline: 2px solid rgba(255, 220, 160, 0.95);
+  outline-offset: 2px;
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass-accent {
+  display: flex;
+  gap: 2px;
+  height: 16px;
+  align-items: stretch;
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass-accent__a,
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass-accent__b,
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass-accent__c {
+  width: 4px;
+  border-radius: 2px;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass-accent__a {
+  background: linear-gradient(180deg, #9ccc65, #689f38);
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass-accent__b {
+  background: linear-gradient(180deg, #7b9ef7, #2d6cdf);
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass-accent__c {
+  background: linear-gradient(180deg, #e573f0, #8e24aa);
+}
+
+.head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass-text {
+  white-space: nowrap;
+}
+
+/* 竖屏触摸底栏：与 tactical 相同 5 列网格（`FooterNavControl.css`），勿覆盖为 3 列 */
+
+/* S1 顶栏货币条：与深夜星空主题对齐 */
+html[data-casual-ui-theme="s1-midnight-sky"] .head-nav-hud.head-nav-hud--casual .head-nav-hud__res-frame rect:first-of-type {
+  stroke: rgba(200, 216, 240, 0.42);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"] .head-nav-hud.head-nav-hud--casual .head-nav-hud__res-amount {
+  color: #e8f0fc;
+  text-shadow: 0 1px 2px rgba(4, 10, 28, 0.85);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"] .head-nav-hud.head-nav-hud--casual .head-nav-hud__res-add {
+  color: #ffd700;
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"] .head-nav-hud.head-nav-hud--casual .head-nav-hud__casual-pass {
+  background: linear-gradient(145deg, rgba(26, 42, 58, 0.95), rgba(15, 23, 42, 0.98));
+  border-color: rgba(255, 215, 0, 0.45);
+  color: #ffd700;
+}

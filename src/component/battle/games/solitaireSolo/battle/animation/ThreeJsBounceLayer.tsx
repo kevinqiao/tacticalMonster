@@ -494,11 +494,9 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
     //     };
     // }, [boardDimension]);
     useEffect(() => {
-        console.log('nonBlockEvent', nonBlockEvent);
-        if (nonBlockEvent && nonBlockEvent.name === 'gameOver' && nonBlockEvent.data && nonBlockEvent.data.cards) {
-            const cards = nonBlockEvent.data.cards;
-            const heartsCards = cards.filter((card: SoloCard) => card.suit === 'hearts');
-            startBounceAnimation(heartsCards);
+        // 胜利动画改走 DOM/GSAP classicSimple；不再叠 Three.js bounce
+        if (nonBlockEvent?.name === "gameOver") {
+            console.log("[Solitaire] ignore ThreeJs gameOver nonBlockEvent");
         }
     }, [nonBlockEvent]);
 

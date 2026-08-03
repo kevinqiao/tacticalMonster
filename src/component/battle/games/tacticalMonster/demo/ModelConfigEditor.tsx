@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AnimationExtractionConfig, AnimationSegment, ModelConfig, PositionOffsetConfig } from "../battle/config/modelConfig";
+import { AnimationExtractionConfig, AnimationSegment, ModelConfig } from "../config/modelConfig";
 import "./ModelConfigEditor.css";
 
 interface ModelConfigEditorProps {
@@ -116,27 +116,27 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
             if (!newConfig.animationSegments![clipName]) {
                 return newConfig;
             }
-            
+
             const clipConfig = { ...newConfig.animationSegments![clipName] };
             const segments = [...(clipConfig.segments || [])];
-            
+
             if (segments[segmentIndex]) {
                 segments[segmentIndex] = {
                     ...segments[segmentIndex],
                     [field]: Math.max(0, Math.min(value, clipConfig.duration))
                 };
-                
+
                 // 确保 start < end
                 if (field === 'start' && segments[segmentIndex].start >= segments[segmentIndex].end) {
                     segments[segmentIndex].start = Math.max(0, segments[segmentIndex].end - 0.1);
                 } else if (field === 'end' && segments[segmentIndex].end <= segments[segmentIndex].start) {
                     segments[segmentIndex].end = Math.min(clipConfig.duration, segments[segmentIndex].start + 0.1);
                 }
-                
+
                 clipConfig.segments = segments;
                 newConfig.animationSegments![clipName] = clipConfig;
             }
-            
+
             return newConfig;
         });
     }, []);
@@ -144,53 +144,53 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
     // 重置为初始配置值
     const handleReset = useCallback(() => {
         console.log('🔄 重置按钮被点击，重置配置为初始值');
-        
+
         // 如果有初始配置，使用初始配置；否则使用空配置（让模型使用配置文件中的默认值）
         const resetConfig: Partial<ModelConfig> = initialConfig ? { ...initialConfig } : {};
-        
+
         console.log('重置目标配置:', resetConfig);
         console.log('当前配置:', config);
-        
+
         // 立即清除防抖定时器
         if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
             debounceTimerRef.current = null;
         }
-        
+
         // 更新内部状态
         setConfig(resetConfig);
-        
+
         // 立即更新 refs，避免被 useEffect 覆盖
         const resetConfigString = JSON.stringify(resetConfig);
         lastNotifiedConfigRef.current = resetConfigString;
         lastExternalConfigRef.current = resetConfigString;
-        
+
         // 设置标志，防止 useEffect 覆盖
         isUpdatingFromExternalRef.current = true;
-        
+
         // 为了强制触发 Character3D 重新应用配置，即使配置字符串相同
         // 我们先传递一个临时值（带时间戳），然后再传递真正的配置
         // 这样可以确保 Character3D 检测到配置变化并重新应用
-        const tempConfig: Partial<ModelConfig> = { 
+        const tempConfig: Partial<ModelConfig> = {
             ...resetConfig,
             // 添加一个临时属性，确保配置字符串不同，触发重新应用
             __resetTrigger: Date.now()
         } as any;
-        
+
         // 先传递临时配置（带时间戳），触发重新应用
         onConfigChange(tempConfig);
-        
+
         // 然后立即传递真正的配置（不带时间戳）
         // 使用 setTimeout 确保临时配置先被处理
         setTimeout(() => {
             onConfigChange(resetConfig);
-            
+
             // 重置标志
             setTimeout(() => {
                 isUpdatingFromExternalRef.current = false;
             }, 0);
         }, 100); // 100ms 延迟，确保临时配置先被处理
-        
+
         console.log('✓ 重置完成，配置已恢复到初始值');
     }, [onConfigChange, initialConfig, config]);
 
@@ -220,9 +220,10 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
         if (config.positionOffset) {
             const pos = config.positionOffset;
             if (pos.horizontal !== undefined || pos.vertical !== undefined) {
-                configToExport.positionOffset = {};
-                if (pos.horizontal !== undefined) configToExport.positionOffset.horizontal = pos.horizontal;
-                if (pos.vertical !== undefined) configToExport.positionOffset.vertical = pos.vertical;
+                configToExport.positionOffset = {
+                    horizontal: pos.horizontal ?? 0.2,
+                    vertical: pos.vertical ?? -5.0
+                };
             }
         }
         if (config.camera) {
@@ -236,7 +237,7 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
         if (config.animationExtraction) {
             const anim = config.animationExtraction;
             const animationExtraction: Partial<AnimationExtractionConfig> = {};
-            
+
             if (anim.strategy !== undefined) {
                 animationExtraction.strategy = anim.strategy;
             }
@@ -249,34 +250,25 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
             if (anim.fps !== undefined) {
                 animationExtraction.fps = anim.fps;
             }
-            
+
             // 添加阈值参数（如果存在）
             if (anim.autoExtractionThresholds) {
                 const thresholds = anim.autoExtractionThresholds;
-                animationExtraction.autoExtractionThresholds = {};
-                if (thresholds.minDuration !== undefined) {
-                    animationExtraction.autoExtractionThresholds.minDuration = thresholds.minDuration;
-                }
-                if (thresholds.minTracks !== undefined) {
-                    animationExtraction.autoExtractionThresholds.minTracks = thresholds.minTracks;
-                }
-                if (thresholds.defaultStandEnd !== undefined) {
-                    animationExtraction.autoExtractionThresholds.defaultStandEnd = thresholds.defaultStandEnd;
-                }
-                if (thresholds.defaultStandEndPercent !== undefined) {
-                    animationExtraction.autoExtractionThresholds.defaultStandEndPercent = thresholds.defaultStandEndPercent;
-                }
-                if (thresholds.minFrameCount !== undefined) {
-                    animationExtraction.autoExtractionThresholds.minFrameCount = thresholds.minFrameCount;
-                }
+                animationExtraction.autoExtractionThresholds = {
+                    minDuration: thresholds.minDuration ?? 5.0,
+                    minTracks: thresholds.minTracks ?? 50,
+                    defaultStandEnd: thresholds.defaultStandEnd ?? 2.0,
+                    defaultStandEndPercent: thresholds.defaultStandEndPercent ?? 0.1,
+                    minFrameCount: thresholds.minFrameCount ?? 10
+                };
             }
-            
+
             // 如果至少有一个字段，就添加到配置中
             if (Object.keys(animationExtraction).length > 0) {
                 configToExport.animationExtraction = animationExtraction as any;
             }
         }
-        
+
         // 添加动画片段配置（如果存在）
         if (config.animationSegments && Object.keys(config.animationSegments).length > 0) {
             configToExport.animationSegments = config.animationSegments;
@@ -660,7 +652,7 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
                     {/* 自动提取阈值参数 */}
                     <div className="config-subsection">
                         <h5>自动提取阈值参数</h5>
-                        
+
                         <div className="config-item">
                             <label>
                                 <span>Min Duration (秒)</span>

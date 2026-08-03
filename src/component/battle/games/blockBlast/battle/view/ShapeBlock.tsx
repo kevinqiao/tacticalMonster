@@ -1,29 +1,32 @@
 /**
- * Block Blast 形状块组件
- * 可拖拽的形状块
+ * 可拖拽形状块：Pointer Events（对齐 solitaireSolo SoloDnDCard）
  */
-
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useBlockBlastDnDManager } from '../service/BlockBlastDnDProvider';
 import { useBlockBlastGameManager } from '../service/GameManager';
 import { Shape, SHAPE_COLORS } from '../types/BlockBlastTypes';
+import { getBlockTileSurfaceStyle } from '../utils/blockTileStyle';
 
 interface ShapeBlockProps {
     shape: Shape;
+    cellSize: number;
+    gridGap?: number;
     className?: string;
     style?: React.CSSProperties;
-    onClick?: (shape: Shape) => void;
+    draggable?: boolean;
 }
 
 const ShapeBlock: React.FC<ShapeBlockProps> = ({
     shape,
+    cellSize,
+    gridGap = 2,
     className = '',
     style,
-    onClick
+    draggable = true,
 }) => {
     const shapeRef = useRef<HTMLDivElement>(null);
-    const { onDragStart, onDragMove, onDragEnd, isTouchDevice } = useBlockBlastDnDManager();
-    const { gameState, isPlaying } = useBlockBlastGameManager();
+    const { onPointerDragStart } = useBlockBlastDnDManager();
+    const { gameState } = useBlockBlastGameManager();
 
     useEffect(() => {
         if (shapeRef.current && gameState) {
@@ -31,8 +34,13 @@ const ShapeBlock: React.FC<ShapeBlockProps> = ({
         }
     }, [shape, gameState]);
 
+    /** 拖曳异常退出时原件可能残留 visibility:hidden；commit 后会换新 shape 引用（可能同 id），靠引用触发恢复 */
+    useLayoutEffect(() => {
+        const el = shapeRef.current;
+        if (el) el.style.visibility = '';
+    }, [shape]);
+
     const shapeStyle = useMemo(() => {
-        const cellSize = 30;
         const shapeMatrix = shape.shape;
         const rows = shapeMatrix.length;
         const cols = shapeMatrix[0]?.length || 0;
@@ -41,91 +49,66 @@ const ShapeBlock: React.FC<ShapeBlockProps> = ({
             display: 'grid',
             gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
             gridTemplateRows: `repeat(${rows}, ${cellSize}px)`,
-            gap: '2px',
+            gap: `${gridGap}px`,
             backgroundColor: 'transparent',
-            cursor: 'grab',
+            cursor: draggable ? 'grab' : 'default',
+            touchAction: 'none' as const,
             ...style,
         };
-    }, [shape, style]);
+    }, [shape, style, cellSize, gridGap, draggable]);
 
-    const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onDragStart(shape, e);
-    }, [shape, onDragStart]);
-
-    const handleTouchStart = useCallback((e: React.TouchEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onDragStart(shape, e);
-    }, [shape, onDragStart]);
-
-    useEffect(() => {
-        if (isTouchDevice) {
-            const handleTouchMove = (e: TouchEvent) => {
-                onDragMove(e as any);
-            };
-            const handleTouchEnd = (e: TouchEvent) => {
-                onDragEnd(e as any);
-            };
-
-            window.addEventListener('touchmove', handleTouchMove);
-            window.addEventListener('touchend', handleTouchEnd);
-
-            return () => {
-                window.removeEventListener('touchmove', handleTouchMove);
-                window.removeEventListener('touchend', handleTouchEnd);
-            };
-        } else {
-            const handleMouseMove = (e: MouseEvent) => {
-                onDragMove(e as any);
-            };
-            const handleMouseUp = (e: MouseEvent) => {
-                onDragEnd(e as any);
-            };
-
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
-
-            return () => {
-                window.removeEventListener('mousemove', handleMouseMove);
-                window.removeEventListener('mouseup', handleMouseUp);
-            };
-        }
-    }, [isTouchDevice, onDragMove, onDragEnd]);
-
-    const isDragging = isPlaying(shape.id);
+    const handlePointerDown = useCallback(
+        (e: React.PointerEvent) => {
+            if (!draggable) return;
+            e.preventDefault();
+            e.stopPropagation();
+            onPointerDragStart(shape, e);
+        },
+        [shape, onPointerDragStart, draggable]
+    );
 
     return (
         <div
             ref={shapeRef}
-            className={`blockblast-shape ${className} ${isDragging ? 'dragging' : ''}`}
+            className={`blockblast-shape ${className}`}
             style={shapeStyle}
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-            onClick={() => onClick?.(shape)}
+            data-preview-cell-size={String(cellSize)}
+            data-preview-gap={String(gridGap)}
+            onPointerDown={handlePointerDown}
         >
             {shape.shape.map((row, rowIndex) =>
-                row.map((cell, colIndex) => (
+                row.map((cell, colIndex) =>
                     cell === 1 ? (
                         <div
                             key={`${rowIndex}-${colIndex}`}
+                            className="blockblast-tile"
+                            data-shape-row={String(rowIndex)}
+                            data-shape-col={String(colIndex)}
                             style={{
-                                width: '30px',
-                                height: '30px',
-                                backgroundColor: SHAPE_COLORS[shape.color - 1] || '#ccc',
-                                border: '1px solid #333',
-                                borderRadius: '4px',
+                                width: `${cellSize}px`,
+                                height: `${cellSize}px`,
+                                boxSizing: 'border-box',
+                                ...getBlockTileSurfaceStyle(
+                                    SHAPE_COLORS[shape.color - 1] || '#D6E2F0'
+                                ),
                             }}
                         />
                     ) : (
-                        <div key={`${rowIndex}-${colIndex}`} />
+                        <div
+                            key={`${rowIndex}-${colIndex}`}
+                            data-shape-row={String(rowIndex)}
+                            data-shape-col={String(colIndex)}
+                            style={{
+                                width: `${cellSize}px`,
+                                height: `${cellSize}px`,
+                            }}
+                            aria-hidden
+                        />
                     )
-                ))
+                )
             )}
         </div>
     );
 };
 
 export default ShapeBlock;
-

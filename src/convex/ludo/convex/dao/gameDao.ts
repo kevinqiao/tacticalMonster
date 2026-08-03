@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
 import { internalMutation, internalQuery } from "../_generated/server";
-import { sessionQuery } from "../custom/session";
+import { authedQuery } from "../custom/session";
 const query = async (ctx:any,gameId:string)=>{
       
         const id = gameId as Id<"game">;
@@ -14,7 +14,7 @@ const query = async (ctx:any,gameId:string)=>{
         } 
         return null
 }
-export const find = sessionQuery({
+export const find = authedQuery({
     args: { gameId: v.string()},
     handler: async (ctx, { gameId }) => {      
          return await query(ctx,gameId); 

@@ -1,0 +1,94 @@
+.casual-weekly-league {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  height: 100%;
+  box-sizing: border-box;
+  background: #0f1419;
+  color: #e8ecf0;
+}
+
+.casual-weekly-league__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.casual-weekly-league__title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.casual-weekly-league__sub {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.casual-weekly-league__peak {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.casual-weekly-league__close {
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.casual-weekly-league__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  flex: 1;
+}
+
+.casual-weekly-league__row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.casual-weekly-league__row--self {
+  background: rgba(80, 160, 255, 0.12);
+  border-radius: 8px;
+}
+
+.casual-weekly-league__rank {
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.casual-weekly-league__xp {
+  font-variant-numeric: tabular-nums;
+}
+
+.casual-weekly-league__loading,
+.casual-weekly-league__note {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.casual-weekly-league__note--err {
+  color: #ff8a80;
+}
+
+.casual-weekly-league__row--bot .casual-weekly-league__name {
+  opacity: 0.82;
+}
+
+.casual-weekly-league__matching {
+  margin: 8px 6px 0;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}

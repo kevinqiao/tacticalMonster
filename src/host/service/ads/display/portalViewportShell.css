@@ -1,0 +1,65 @@
+.portal-viewport-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: row;
+  /* Center letterboxed stage (stretch pinned a short landscape stage to the top on tall phones). */
+  align-items: center;
+  justify-content: center;
+  background: #0a0a12;
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* 接龙胜利扇子：临时取消裁剪，与 Victory Lab 一致 */
+.portal-viewport-shell:has([data-solo-victory="1"]),
+.portal-viewport-shell:has([data-solo-victory="1"]) .portal-viewport-shell__stage {
+  overflow: visible !important;
+}
+
+.portal-viewport-shell__gutter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  background: rgba(8, 10, 20, 0.92);
+  border-inline: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.portal-viewport-shell__gutter:empty {
+  border: none;
+  background: transparent;
+}
+
+.portal-viewport-shell__stage {
+  flex: 0 0 auto;
+  position: relative;
+  overflow: hidden;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.portal-viewport-shell[data-platform="mobile"] .portal-viewport-shell__gutter {
+  display: none;
+}
+
+.portal-display-ad-slot {
+  width: min(100%, 160px);
+  min-height: 250px;
+  max-height: 90%;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.portal-display-ad-slot--live {
+  border-style: solid;
+}

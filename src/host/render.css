@@ -1,0 +1,240 @@
+.modal-container {
+  /* display: flex;
+  justify-content: center;
+  align-items: center; */
+  position: absolute;
+  /* top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%); */
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+  opacity: 0;
+  overflow: hidden;
+}
+
+/* Open/close motion target; shell (`modal-container`) stays at rest layout. */
+.modal-surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.modal-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  visibility: hidden;
+  opacity: 0;
+  background-color: rgba(0, 0, 0, 0.72);
+}
+
+/* 弹层关闭钮：红色糖果圆钮，与卡通主题一致 */
+.modal-close {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+  border: 2.5px solid #8c2c10;
+  color: #ffffff;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 4px rgba(120, 30, 5, 0.35),
+    0 3px 0 rgba(90, 51, 17, 0.7),
+    0 4px 10px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  pointer-events: auto;
+  /* Lives inside `.modal-surface` — zooms/slides with the game UI as one unit. */
+  visibility: visible;
+  opacity: 1;
+  transition: none;
+}
+
+.modal-close:hover {
+  filter: brightness(1.08);
+}
+
+.modal-close:active {
+  filter: brightness(0.96);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 4px rgba(120, 30, 5, 0.35),
+    0 1px 0 rgba(90, 51, 17, 0.7),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.page_container {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  visibility: hidden;
+  opacity: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+
+}
+
+/** Long-form admin / landing pages inside fixed viewport shells. */
+.page_container.page_container--scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  pointer-events: auto;
+}
+
+/** Campaign merchant sub-routes (campaigns / redeem / …): fill shell, scroll in `.merchant-page`. */
+.merchant_child_shell {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.merchant_child_shell[data-active="true"] {
+  pointer-events: auto;
+}
+
+.children-group {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  height: 100%;
+  width: 100%;
+  pointer-events: none;
+  transform: none;
+}
+
+.child_container {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  opacity: 0;
+  visibility: hidden;
+  overflow: visible;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  /* background-color: red; */
+}
+
+.exit-menu {
+  position: absolute;
+  cursor: pointer;
+  right: 0px;
+  top: 0px;
+  width: 30px;
+  height: 30px;
+  /* opacity:0;
+  visibility:hidden; */
+  background-color: grey;
+  pointer-events: auto
+}
+
+
+.pop-right {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  height: auto;
+  width: auto;
+  /* width: 35%; */
+  z-index: 2000;
+  background-color: white;
+  /* opacity: 0;  
+  visibility: hidden; */
+  pointer-events: auto;
+  /* background-color: red; */
+}
+
+.pop-center-large {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 80%;
+  width: 80%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  /* background-color: yellow; */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: auto;
+  /* background-color: red; */
+}
+
+.pop-center-full {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 100%;
+  width: 100%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  /* background-color: yellow; */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: auto;
+  /* background-color: red; */
+}
+
+.pop-big {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 50%;
+  width: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 90000;
+  /* opacity: 0;
+  visibility: hidden; */
+  pointer-events: auto;
+  /* background-color: red; */
+}
+
+.pop-medium {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 50%;
+  width: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: auto;
+  /* background-color: red; */
+}
+
+.pop-small {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 35%;
+  width: 35%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: auto;
+  /* background-color: red; */
+}

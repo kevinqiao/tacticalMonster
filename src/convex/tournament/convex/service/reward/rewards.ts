@@ -1,11 +1,11 @@
 import { v } from "convex/values";
-import { mutation } from "../../_generated/server";
+import { internalMutation } from "../../_generated/server";
 import { RewardService } from "./rewardService";
 
 /**
  * 发放奖励（统一接口）
  */
-export const grantRewards = mutation({
+export const grantRewards = internalMutation({
     args: {
         uid: v.string(),
         rewards: v.object({

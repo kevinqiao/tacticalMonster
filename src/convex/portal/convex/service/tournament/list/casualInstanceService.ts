@@ -1,0 +1,32 @@
+import type { Id } from "../../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
+
+export async function getOrCreateOpenInstance(): Promise<undefined> {
+  return undefined;
+}
+
+export async function ensureInstancePlayerStateRow(): Promise<void> {
+  return;
+}
+
+export async function applyPeriodMatchScoreToInstanceState(): Promise<void> {
+  return;
+}
+
+export async function grantCasualScoreTierRewardsOnEachRunSettled(): Promise<void> {
+  return;
+}
+
+export async function activeSeasonWindowForCtx(): Promise<null> {
+  return null;
+}
+
+export async function computePeriodInstanceSelfStanding(): Promise<null> {
+  return null;
+}
+
+export async function leaderboardRowsFromInstance(): Promise<[]> {
+  return [];
+}
+
+export type InstanceId = Id<"portal_run_tournaments">;

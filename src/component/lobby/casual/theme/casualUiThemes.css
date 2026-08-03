@@ -1,0 +1,154 @@
+/*
+ * 休闲大厅 UI 主题 token（SKIN_DESIGN §9）。
+ * 默认 :root；S1 使用 html[data-casual-ui-theme="s1-midnight-sky"]。
+ * CasualHome 根据 seasonId 设置 data 属性。
+ */
+
+@import "./casualFooterNavTheme.css";
+
+:root {
+  --motion-fast: 120ms ease-out;
+  --motion-normal: 280ms ease-out;
+  --ui-color-primary: #2d6cdf;
+  --ui-color-primary-glow: rgba(45, 108, 223, 0.28);
+  --ui-color-ink: #1a1a2e;
+  --ui-color-muted: rgba(26, 26, 46, 0.62);
+  --ui-color-bg-main: #f0f4fa;
+  --ui-color-bg-elevated: rgba(255, 255, 255, 0.92);
+  --ui-color-border: rgba(0, 0, 0, 0.06);
+  --ui-color-nav-accent: #2d6cdf;
+  --ui-color-btn-border: rgba(0, 0, 0, 0.08);
+  --ui-chrome-scrim: rgba(0, 0, 0, 0.5);
+
+  --shell-bg-page: var(--ui-color-bg-main);
+  --shell-ink: var(--ui-color-ink);
+  --shell-header-bg: rgba(255, 255, 255, 0.92);
+  --shell-header-border: rgba(0, 0, 0, 0.06);
+  --shell-offline-bg: rgba(255, 193, 7, 0.18);
+  --shell-offline-border: rgba(0, 0, 0, 0.06);
+  --shell-auth-card-bg: #ffffff;
+  --shell-auth-card-border: rgba(0, 0, 0, 0.08);
+  --shell-auth-btn-bg: #2d6cdf;
+  --shell-auth-btn-ink: #ffffff;
+  --shell-code-ink: #1a1a2e;
+
+  /* Play Hub（与 casualPlayTab.css 对齐） */
+  --hub-green-deep: #064e3b;
+  --hub-teal-mid: #0f766e;
+  --hub-glow-a: rgba(20, 184, 166, 0.35);
+  --hub-gradient-mid: #022c22;
+  --hub-gradient-end: #064e3b;
+  --hub-gold: #fbbf24;
+  --hub-gold-deep: #d97706;
+  --hub-cta: #22c55e;
+  --hub-cta-press: #16a34a;
+  --hub-card: #ffffff;
+  --hub-ink: #0f172a;
+  --hub-muted: rgba(255, 255, 255, 0.82);
+  --hub-ladder-bg: rgba(15, 23, 42, 0.35);
+  --hub-ladder-border: rgba(251, 191, 36, 0.28);
+  --hub-stat-strong: #fef3c7;
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"] {
+  --ui-color-primary: #c8d8f0;
+  --ui-color-primary-glow: rgba(200, 216, 240, 0.35);
+  --ui-color-ink: rgba(248, 250, 252, 0.94);
+  --ui-color-muted: rgba(200, 216, 240, 0.62);
+  --ui-color-bg-main: #0d1a2e;
+  --ui-color-bg-elevated: rgba(26, 42, 58, 0.88);
+  --ui-color-border: rgba(200, 216, 240, 0.18);
+  --ui-color-nav-accent: #c8d8f0;
+  --ui-color-btn-border: rgba(200, 216, 240, 0.32);
+  --ui-chrome-scrim: rgba(8, 18, 42, 0.58);
+
+  --shell-bg-page: #0d1a2e;
+  --shell-ink: rgba(248, 250, 252, 0.94);
+  --shell-header-bg: rgba(15, 23, 42, 0.82);
+  --shell-header-border: rgba(200, 216, 240, 0.14);
+  --shell-offline-bg: rgba(251, 191, 36, 0.14);
+  --shell-offline-border: rgba(200, 216, 240, 0.12);
+  --shell-auth-card-bg: rgba(26, 42, 58, 0.92);
+  --shell-auth-card-border: rgba(200, 216, 240, 0.18);
+  --shell-auth-btn-bg: linear-gradient(180deg, #ffd700 0%, #ca8a04 100%);
+  --shell-auth-btn-ink: #0f172a;
+  --shell-code-ink: #c8d8f0;
+
+  --hub-green-deep: #0b1628;
+  --hub-teal-mid: #1a2a3a;
+  --hub-glow-a: rgba(200, 216, 240, 0.22);
+  --hub-gradient-mid: #0f1728;
+  --hub-gradient-end: #1a1a2e;
+  --hub-gold: #ffd700;
+  --hub-gold-deep: #d4a017;
+  --hub-cta: #5eead4;
+  --hub-cta-press: #2dd4bf;
+  --hub-card: rgba(26, 42, 58, 0.9);
+  --hub-ink: rgba(248, 250, 252, 0.95);
+  --hub-muted: rgba(200, 216, 240, 0.86);
+  --hub-ladder-bg: rgba(15, 23, 42, 0.55);
+  --hub-ladder-border: rgba(255, 215, 0, 0.28);
+  --hub-stat-strong: #ffd700;
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"] .casual-lobby-child {
+  background: var(--shell-bg-page);
+  color: var(--shell-ink);
+}
+
+html[data-casual-ui-theme="s2-edo-sakura"] {
+  --ui-color-primary: #fdf0f4;
+  --ui-color-primary-glow: rgba(253, 240, 244, 0.35);
+  --ui-color-ink: rgba(45, 35, 35, 0.94);
+  --ui-color-muted: rgba(160, 82, 45, 0.72);
+  --ui-color-bg-main: #fdf8f6;
+  --ui-color-bg-elevated: rgba(255, 252, 250, 0.94);
+  --ui-color-border: rgba(160, 82, 45, 0.16);
+  --ui-color-nav-accent: #4a90d9;
+  --ui-color-btn-border: rgba(74, 144, 217, 0.28);
+  --ui-chrome-scrim: rgba(253, 240, 244, 0.72);
+
+  --shell-bg-page: #fdf0f4;
+  --shell-ink: rgba(45, 35, 35, 0.94);
+  --shell-header-bg: rgba(255, 252, 250, 0.9);
+  --shell-header-border: rgba(160, 82, 45, 0.12);
+  --shell-offline-bg: rgba(251, 191, 36, 0.14);
+  --shell-offline-border: rgba(160, 82, 45, 0.1);
+  --shell-auth-card-bg: rgba(255, 252, 250, 0.96);
+  --shell-auth-card-border: rgba(74, 144, 217, 0.2);
+  --shell-auth-btn-bg: linear-gradient(180deg, #4a90d9 0%, #2563eb 100%);
+  --shell-auth-btn-ink: #fff;
+  --shell-code-ink: #a0522d;
+
+  --hub-green-deep: #7a9e7e;
+  --hub-teal-mid: #a0522d;
+  --hub-glow-a: rgba(253, 240, 244, 0.45);
+  --hub-gradient-mid: #fdf0f4;
+  --hub-gradient-end: #f5e6ea;
+  --hub-gold: #d97706;
+  --hub-gold-deep: #a0522d;
+  --hub-cta: #4a90d9;
+  --hub-cta-press: #2563eb;
+  --hub-card: rgba(255, 252, 250, 0.95);
+  --hub-ink: rgba(45, 35, 35, 0.95);
+  --hub-muted: rgba(160, 82, 45, 0.82);
+  --hub-ladder-bg: rgba(253, 240, 244, 0.65);
+  --hub-ladder-border: rgba(74, 144, 217, 0.28);
+  --hub-stat-strong: #4a90d9;
+}
+
+html[data-casual-ui-theme="s2-edo-sakura"] .casual-lobby-child {
+  background: var(--shell-bg-page);
+  color: var(--shell-ink);
+}
+
+/* BP 标准轨：按钮边框 / 卡片强调 */
+html[data-casual-ui-bp="standard"] .casual-econ__primaryBtn,
+html[data-casual-ui-bp="deluxe"] .casual-econ__primaryBtn {
+  border: 1px solid var(--ui-color-btn-border);
+  box-shadow: 0 0 12px var(--ui-color-primary-glow);
+}
+
+html[data-casual-ui-bp="deluxe"] .casual-page-shell__header {
+  box-shadow: inset 0 -2px 0 var(--ui-color-primary-glow);
+}

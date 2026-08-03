@@ -4,9 +4,9 @@
 
 import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { MonsterSprite } from "../../types/CombatTypes";
 import { SpineModelAnimator } from "../animation/model/SpineModelAnimator";
-import { MonsterSprite } from "../types/CombatTypes";
 
 
 interface ICharacterProps {
@@ -28,12 +28,12 @@ const CharacterSpine = ({ character, width, height }: ICharacterProps) => {
 
     useEffect(() => {
         (async () => {
-            if (spineResources || !character.asset?.resource?.atlas) return;
+            if (spineResources || !character.assetPath) return;
             try {
 
                 const [atlas, spineData] = await Promise.all([
-                    PIXI.Assets.load(character.asset?.resource?.atlas),
-                    PIXI.Assets.load(character.asset?.resource?.spineData)
+                    PIXI.Assets.load(character.assetPath + ".atlas"),
+                    PIXI.Assets.load(character.assetPath + ".json")
                 ]);
 
                 if (!atlas || !spineData) {

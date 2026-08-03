@@ -1,0 +1,5 @@
+@import "../../casual/theme/casualUiThemes.css";
+
+[data-campaign-theme] {
+  color-scheme: light;
+}

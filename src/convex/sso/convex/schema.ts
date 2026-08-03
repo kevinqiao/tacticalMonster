@@ -1,64 +1,337 @@
 import { defineSchema, defineTable } from "convex/server";
+
 import { v } from "convex/values";
 
+
+
 export default defineSchema({
-    auth_channel: defineTable({
-        cid: v.string(),
-        scope: v.number(),
-        provider: v.string(),
-        data: v.optional(v.any())
-    }).index("by_channel", ["cid"]),
 
     partner: defineTable({
+
         pid: v.number(),
+
+        name: v.optional(v.string()),
+
+        /** Partner official website URL (e.g. https://example.com). */
+        host: v.optional(v.string()),
+
+        /**
+         * Player login SoT.
+         * mode: clerk | embed | embed_then_clerk; embed.method when mode uses embed.
+         */
+        playerAuth: v.optional(
+          v.object({
+            mode: v.union(
+              v.literal("clerk"),
+              v.literal("embed"),
+              v.literal("embed_then_clerk")
+            ),
+            embed: v.optional(
+              v.object({
+                method: v.union(
+                  v.literal("jwt_local"),
+                  v.literal("crazygames_jwt"),
+                  v.literal("code_exchange"),
+                  v.literal("session_introspect")
+                ),
+              })
+            ),
+          })
+        ),
+
+        /** Staff console login SoT. */
+        staffAuth: v.optional(
+          v.object({
+            mode: v.literal("web"),
+          })
+        ),
+
+        /**
+         * Cross-product visual brand SoT (Campaign / Game Center / future).
+         * Do not store brand under `data`.
+         */
+        brand: v.optional(
+          v.object({
+            sourceUrl: v.optional(v.string()),
+            themeVersion: v.optional(v.number()),
+            theme: v.optional(
+              v.object({
+                version: v.number(),
+                sourceUrl: v.optional(v.string()),
+                mode: v.union(v.literal("light"), v.literal("dark")),
+                brand: v.object({
+                  primary: v.string(),
+                  onPrimary: v.string(),
+                  background: v.string(),
+                  surface: v.string(),
+                  text: v.string(),
+                  textMuted: v.string(),
+                  fontFamily: v.string(),
+                  radiusMd: v.string(),
+                }),
+                shell: v.object({
+                  ctaBg: v.string(),
+                  ctaText: v.string(),
+                  headerBg: v.string(),
+                  posterFrameRadius: v.string(),
+                }),
+                assets: v.optional(
+                  v.object({
+                    logoUrl: v.optional(v.string()),
+                  })
+                ),
+              })
+            ),
+            logoUrl: v.optional(v.string()),
+            updatedAt: v.optional(v.number()),
+          })
+        ),
+
+        /** Draft theme from website sync; publish promotes into `brand.theme`. */
+        brandDraft: v.optional(
+          v.object({
+            version: v.number(),
+            sourceUrl: v.optional(v.string()),
+            mode: v.union(v.literal("light"), v.literal("dark")),
+            brand: v.object({
+              primary: v.string(),
+              onPrimary: v.string(),
+              background: v.string(),
+              surface: v.string(),
+              text: v.string(),
+              textMuted: v.string(),
+              fontFamily: v.string(),
+              radiusMd: v.string(),
+            }),
+            shell: v.object({
+              ctaBg: v.string(),
+              ctaText: v.string(),
+              headerBg: v.string(),
+              posterFrameRadius: v.string(),
+            }),
+            assets: v.optional(
+              v.object({
+                logoUrl: v.optional(v.string()),
+              })
+            ),
+          })
+        ),
+
+        /**
+         * Embed runtime secrets / origins (method lives on `playerAuth.embed`).
+         * Migrating off legacy `data.jwtSecret` / `data.embed` / `data.allowedOrigins`.
+         */
+        embed: v.optional(
+          v.object({
+            jwtSecret: v.optional(v.string()),
+            jwt: v.optional(
+              v.object({
+                audience: v.optional(v.string()),
+                secret: v.optional(v.string()),
+              })
+            ),
+            allowedOrigins: v.optional(v.array(v.string())),
+          })
+        ),
+
+        /**
+         * @deprecated Escape hatch only. Brand / embed must not be written here.
+         * Residual keys may remain during migration; prefer first-class fields.
+         */
+        data: v.optional(v.any()),
+
+        /**
+         * Product capability flags — sole source of truth for Portal vs Campaign Ops.
+         * Unset → both false.
+         */
+        capabilities: v.optional(
+          v.object({
+            portalGames: v.boolean(),
+            campaignOps: v.boolean(),
+          })
+        ),
+
+        /**
+         * @deprecated Legacy GC ops blob on some prod rows. SoT is Portal;
+         * kept optional so schema push does not fail on existing documents.
+         */
+        gameCenter: v.optional(v.any()),
+
+        /**
+         * @deprecated Legacy allowlist; catalog is static via readPartnerGames().
+         * Kept optional for existing prod documents.
+         */
+        games: v.optional(v.array(v.string())),
+
+        /**
+         * Public partnerSlug for Portal `/gc/{slug}/...` and Campaign `/cc/{slug}/...`.
+         */
+        slug: v.optional(v.string()),
+
+        /** @deprecated Prefer `slug`. Kept optional so legacy prod docs still validate. */
+        portal_key: v.optional(v.string()),
+
+    })
+        .index("by_pid", ["pid"])
+        .index("by_name", ["name"])
+        .index("by_slug", ["slug"]),
+
+
+
+    partner_staff: defineTable({
+
+        partnerId: v.number(),
+
+        uid: v.string(),
+
+        role: v.union(
+
+            v.literal("owner"),
+
+            v.literal("admin"),
+
+            v.literal("developer"),
+
+            v.literal("viewer")
+
+        ),
+
+        createdAt: v.number(),
+
+    })
+
+        .index("by_partner_uid", ["partnerId", "uid"])
+
+        .index("by_partner", ["partnerId"])
+
+        .index("by_uid", ["uid"]),
+
+    /** Redeem location (门店). Owned by a campaignOps partner. */
+    store: defineTable({
+        storeId: v.string(),
+        partnerId: v.number(),
+        slug: v.string(),
         name: v.string(),
-        auth_channels: v.array(v.string()),
-        data: v.optional(v.any())
-    }).index("by_name", ["name"]),
+        status: v.union(v.literal("active"), v.literal("suspended")),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_storeId", ["storeId"])
+        .index("by_slug", ["slug"])
+        .index("by_partnerId", ["partnerId"]),
 
-    platform: defineTable({
-        pid: v.number(),
-        type: v.number(),
-        partner: v.number(),
-        host: v.string(),
-        data: v.optional(v.any())
-    }).index("by_host", ["host"]).index("by_pid", ["pid"]),
+    store_staff: defineTable({
+        storeId: v.string(),
+        uid: v.string(),
+        role: v.union(v.literal("owner"), v.literal("staff")),
+        createdAt: v.number(),
+    })
+        .index("by_store", ["storeId"])
+        .index("by_store_uid", ["storeId", "uid"])
+        .index("by_uid", ["uid"]),
 
-    counter: defineTable({
-        platform: v.number(),
-        partner: v.number(),
-    }),
+    platform_staff: defineTable({
 
-    cuser: defineTable({
-        cid: v.string(),
-        cuid: v.string(),
-        email: v.optional(v.string()),
-        phone: v.optional(v.string()),
-        data: v.optional(v.any())
-    }).index("by_cuid", ["cid", "cuid"]),
+        uid: v.string(),
+
+        role: v.union(v.literal("owner"), v.literal("admin"), v.literal("viewer")),
+
+        createdAt: v.number(),
+
+    }).index("by_uid", ["uid"]),
+
+
+
+    /**
+     * Web SignIn account (auth_channel cid=0).
+     * `accountId` = login id = `auth_identities.subject` (e.g. admin).
+     * `email` optional contact address when login id is an email.
+     */
 
     user: defineTable({
-        uid: v.optional(v.string()),
-        cuid: v.string(),
-        token: v.optional(v.string()),
-        expire: v.optional(v.number()),
-        lastUpdate: v.optional(v.number()),
-        platform: v.optional(v.number()),
-        partner: v.number(),
-        name: v.optional(v.string()),
+
+        accountId: v.string(),
+
         email: v.optional(v.string()),
+
+        passwordHash: v.string(),
+
+        name: v.optional(v.string()),
+
         phone: v.optional(v.string()),
+
+        createdAt: v.number(),
+
+        updatedAt: v.number(),
+
+    })
+
+        .index("by_accountId", ["accountId"])
+
+        .index("by_email", ["email"]),
+
+
+
+    /** Canonical platform identity: uid = `${cid}_${partnerId}_${hash(subject)}`. JWT subject = uid.
+     * Staff Web (cid=0): partnerId is always 0 (one person platform-wide).
+     * Consumers (Clerk/embed/…): partnerId is the real Partner (per-tenant isolation).
+     */
+
+    auth_identities: defineTable({
+
+        uid: v.string(),
+
+        provider: v.string(),
+
+        subject: v.string(),
+
+        partnerId: v.optional(v.number()),
+
+        cid: v.optional(v.number()),
+
+        email: v.optional(v.string()),
+
+        name: v.optional(v.string()),
+
+        phone: v.optional(v.string()),
+
         data: v.optional(v.any()),
-    }).index("by_partner", ['partner', "cuid"]).index("by_platform", ['platform', 'cuid']).index("by_uid", ['uid']).index("by_cuid", ['cuid']),
-    events: defineTable({
-        name: v.string(),
-        uid: v.optional(v.string()),
-        data: v.optional(v.any())
-    }).index("by_uid", ["uid"]),
-    asset: defineTable({
-        uid: v.optional(v.string()),
-        aid: v.number(),
-        balance: v.number(),
-    }).index("by_uid", ["uid", "aid"])
+
+        expire: v.optional(v.number()),
+
+        lastUpdate: v.optional(v.number()),
+
+        createdAt: v.number(),
+
+        updatedAt: v.number(),
+
+    })
+
+        .index("by_uid", ["uid"])
+
+        .index("by_provider_subject", ["provider", "subject"])
+
+        .index("by_partner_subject", ["partnerId", "subject"]),
+
+    /**
+     * Global platform ops status (singleton key = "global").
+     * UI + SSO enforcement read this; peers receive a replica via bridge sync.
+     */
+    platform_status: defineTable({
+        key: v.literal("global"),
+        mode: v.union(
+            v.literal("normal"),
+            v.literal("pre_notice"),
+            v.literal("maintenance")
+        ),
+        title: v.optional(v.string()),
+        message: v.optional(v.string()),
+        plannedStartAt: v.optional(v.number()),
+        plannedEndAt: v.optional(v.number()),
+        updatedAt: v.number(),
+        updatedBy: v.optional(v.string()),
+    }).index("by_key", ["key"]),
 
 });
+
+

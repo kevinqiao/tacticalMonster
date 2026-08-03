@@ -3,8 +3,8 @@
  * 负责更新角色在数据库中的状态（HP、MP、技能冷却等）
  */
 
-import { GameModel } from "./gameService";
-import { GameMonster, GameBoss, GameMinion } from "../../../types/monsterTypes";
+import { GameBoss, GameMinion, GameMonster } from "../../types/monsterTypes";
+import { GameModel } from "../../types/gameTypes";
 
 export class CharacterUpdateService {
     private dbCtx: any;
@@ -32,13 +32,20 @@ export class CharacterUpdateService {
             // Boss主体：使用 bossId 定位
             const characterBossId = (character as GameBoss).bossId;
             if (characterBossId && characterBossId === game.boss.bossId) {
-                // 更新 Boss
+                // ✅ 更新整个 boss 对象，避免嵌套字段冲突
+                const updatedBoss = {
+                    ...gameDoc.boss,
+                    stats: character.stats,
+                    position: {
+                        q: character.q ?? 0,
+                        r: character.r ?? 0,
+                    },
+                    cooldowns: character.skillCooldowns || {},  // schema 中使用 cooldowns
+                    statusEffects: character.statusEffects || [],
+                };
+                
                 await this.dbCtx.db.patch(gameDoc._id, {
-                    "boss.stats": character.stats,
-                    "boss.q": character.q,
-                    "boss.r": character.r,
-                    "boss.skillCooldowns": character.skillCooldowns || {},
-                    "boss.statusEffects": character.statusEffects || [],
+                    boss: updatedBoss,
                     lastUpdate: new Date().toISOString(),
                 });
                 return true;
@@ -51,17 +58,26 @@ export class CharacterUpdateService {
                 const minionIndex = game.boss.minions.findIndex((m) => m.minionId === characterMinionId);
                 if (minionIndex >= 0) {
                     const updatedMinions = [...(gameDoc.boss.minions || [])];
+                    const existingMinion = updatedMinions[minionIndex];
                     updatedMinions[minionIndex] = {
-                        ...updatedMinions[minionIndex],
-                        q: character.q,
-                        r: character.r,
+                        ...existingMinion,
+                        position: {  // 使用 position 对象（符合 schema）
+                            q: character.q ?? 0,
+                            r: character.r ?? 0,
+                        },
+                        // 向后兼容字段（从 stats 提取）
+                        hp: character.stats.hp.current,
+                        damage: character.stats.attack,
+                        defense: character.stats.defense,
+                        speed: character.stats.speed,
                         stats: character.stats,
                         statusEffects: character.statusEffects || [],
-                        skillCooldowns: character.skillCooldowns || {},
+                        cooldowns: character.skillCooldowns || {},  // schema 中使用 cooldowns
                     };
 
+                    const existingBoss = gameDoc.boss || game.boss || {};
                     await this.dbCtx.db.patch(gameDoc._id, {
-                        "boss.minions": updatedMinions,
+                        boss: { ...existingBoss, minions: updatedMinions },
                         lastUpdate: new Date().toISOString(),
                     });
                     return true;
@@ -69,8 +85,9 @@ export class CharacterUpdateService {
             }
         } else {
             // 更新玩家角色
+            const instanceId = (character as any).character_id ?? character.monsterId;
             const teamIndex = (gameDoc.team || []).findIndex(
-                (m: any) => m.uid === character.uid && m.monsterId === character.monsterId
+                (m: any) => m.uid === character.uid && ((m.character_id ?? m.monsterId) === instanceId)
             );
             if (teamIndex >= 0) {
                 const updatedTeam = [...(gameDoc.team || [])];

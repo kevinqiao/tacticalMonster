@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation } from "../../_generated/server";
+import { authedMutation } from "../../custom/session";
 import { MonsterService } from "../monster/monsterService";
 
 /**
@@ -230,13 +230,15 @@ export class RewardService {
  * 领取锦标赛奖励
  * 玩家从前端主动触发，处理通用资源奖励和游戏专用资源奖励
  */
-export const claimTournamentRewards = mutation({
+export const claimTournamentRewards = authedMutation({
     args: {
-        uid: v.string(),
         tournamentId: v.string(),
     },
     handler: async (ctx, args) => {
-        return await RewardService.claimTournamentRewards(ctx, args);
+        return await RewardService.claimTournamentRewards(ctx, {
+            uid: ctx.uid,
+            tournamentId: args.tournamentId,
+        });
     },
 });
 

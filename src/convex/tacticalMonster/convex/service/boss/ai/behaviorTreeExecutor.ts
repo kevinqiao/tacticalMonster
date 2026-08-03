@@ -3,6 +3,8 @@
  * 解析和执行行为树配置
  */
 
+import type { MapModel } from "../../../types/gameTypes";
+import { pickBestNeighborTowardMelee } from "../../../utils/aiHexMovement";
 import { SeededRandom } from "../../../utils/seededRandom";
 import { BossState, Condition, ConditionEvaluator, GameState } from "./conditionEvaluator";
 import { TargetCharacter, TargetSelector } from "./targetSelector";
@@ -23,6 +25,10 @@ export interface ExecutionContext {
     targets: TargetCharacter[];
     bossPosition: { q: number; r: number };
     rng: SeededRandom;
+    /** 与 AI 寻路一致：地图障碍/禁区 + 占位 */
+    map?: MapModel;
+    occupiedCellKeys?: Set<string>;
+    canIgnoreObstacles?: boolean;
 }
 
 export interface ActionResult {
@@ -195,11 +201,7 @@ export class BehaviorTreeExecutor {
             }
 
             case "move_to_best_position": {
-                // 移动到最佳位置（计算得出）
-                const bestPosition = this.calculateBestPosition(
-                    context.targets,
-                    context.bossPosition
-                );
+                const bestPosition = this.calculateBestPosition(context);
 
                 return {
                     action: "move",
@@ -218,35 +220,33 @@ export class BehaviorTreeExecutor {
     }
 
     /**
-     * 计算最佳移动位置
+     * 向最近敌人「最短步接敌」方向的下一格（与前端近战自动走位一致）
      */
-    private static calculateBestPosition(
-        targets: TargetCharacter[],
-        currentPosition: { q: number; r: number }
-    ): { q: number; r: number } | null {
+    private static calculateBestPosition(context: ExecutionContext): { q: number; r: number } | null {
+        const { targets, bossPosition, map, occupiedCellKeys, canIgnoreObstacles } = context;
         if (!targets || targets.length === 0) {
             return null;
         }
 
-        // 简单策略：移动到最近敌人的附近位置
-        const nearest = TargetSelector.selectTarget(
-            "nearest",
-            targets,
-            currentPosition
-        );
+        const nearest = TargetSelector.selectTarget("nearest", targets, bossPosition);
 
         if (!nearest) {
             return null;
         }
 
-        // 移动到敌人旁边（简化实现）
-        const dx = nearest.q - currentPosition.q;
-        const dy = nearest.r - currentPosition.r;
+        const cols = map?.cols ?? 20;
+        const rows = map?.rows ?? 20;
 
-        return {
-            q: currentPosition.q + (dx > 0 ? 1 : dx < 0 ? -1 : 0),
-            r: currentPosition.r + (dy > 0 ? 1 : dy < 0 ? -1 : 0),
-        };
+        return pickBestNeighborTowardMelee({
+            from: bossPosition,
+            target: { q: nearest.q, r: nearest.r },
+            cols,
+            rows,
+            map: map ?? undefined,
+            occupiedCellKeys: occupiedCellKeys ?? new Set<string>(),
+            actorFrom: bossPosition,
+            canIgnoreObstacles: canIgnoreObstacles ?? false,
+        });
     }
 }
 

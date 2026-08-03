@@ -1,0 +1,386 @@
+{
+  "localeSwitcher": {
+    "ariaLabel": "Choose language"
+  },
+  "common": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "empty": "None yet",
+    "dash": "—"
+  },
+  "gate": {
+    "loading": "Loading…",
+    "unknownKey": "Unknown partner: {{key}}",
+    "unknownGame": "Unknown game type",
+    "unknownLobby": "Lobby not found",
+    "gameNotOpen": "This game is not available",
+    "portalDisabled": "Portal is not enabled for this partner"
+  },
+  "lobby": {
+    "pickTournament": "Choose {{mode}} tournament",
+    "pickTournamentTitle": "Choose an event",
+    "pickModeSolo": "Challenge Mode",
+    "pickModeMulti": "Arena Mode",
+    "cancel": "Cancel",
+    "shop": "Shop",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "leaderboard": "Standings",
+    "history": "Matches",
+    "prizePoints": "Prize points",
+    "prizeTopPoints": "1st place points",
+    "prizeTopCoins": "1st place coins",
+    "prizeTopPointsAndCoins": "1st place points / coins",
+    "entryFee": "Entry",
+    "entryFree": "Free",
+    "entryFreeAndAd": "Free/Ad",
+    "entryFreeQuota": "{{used}}/{{cap}}",
+    "pickQuotaFree": "Free {{used}}/{{cap}}",
+    "pickQuotaAd": "Ad {{used}}/{{cap}}",
+    "pickQuotaAria": "Today free {{freeUsed}}/{{freeCap}}, ad {{adUsed}}/{{adCap}}",
+    "entryAd": "Ad",
+    "entryCoins": "🪙 {{amount}}",
+    "entryGems": "💎 {{amount}}",
+    "players": "Players",
+    "modes": {
+      "challenge": "Challenge",
+      "arena": "Arena",
+      "playsToday": "Played {{playsToday}} today"
+    },
+    "play": "Play",
+    "playFree": "Play ({{used}}/{{cap}})",
+    "playWatchAd": "Watch ad to enter ({{used}}/{{cap}})",
+    "playWatchAdPlain": "Watch ad to enter",
+    "playWithTickets": "Ticket ×{{price}}",
+    "playWithTicketsSub": "{{remaining}} left today",
+    "continue": "Continue",
+    "continueInProgress": "In progress",
+    "joining": "Joining…",
+    "matching": "Matching…",
+    "weekRemaining": "{{days}}d {{hours}}h left this week",
+    "weekRemainingHours": "{{hours}}h left this week",
+    "cohortLabel": "Group #{{no}}",
+    "cohortPending": "Weekly group",
+    "rankLabel": "Rank {{rank}}",
+    "rankLabelWithSize": "Rank {{rank}} / {{size}}",
+    "zonePromote": "↑ Promote {{from}}-{{to}}",
+    "zoneKeep": "Safe {{from}}-{{to}}",
+    "zoneDemote": "↓ Demote {{from}}-{{to}}",
+    "projectedReward": "Projected reward",
+    "unclaimedCoins": "Claim {{coins}}",
+    "unclaimedCoinsAria": "Claim {{coins}} coins",
+    "shopAria": "Shop",
+    "shopWithBalanceAria": "Shop, {{coins}} coins",
+    "rulesAria": "Game rules",
+    "accountMenu": {
+      "myAccount": "My Account",
+      "backpack": "My Backpack",
+      "openAria": "My account",
+      "nickname": "Nickname",
+      "email": "Email",
+      "phone": "Phone",
+      "emailPlaceholder": "you@example.com",
+      "phonePlaceholder": "+1 …",
+      "editHint": "Nickname: 3–16 letters, numbers, spaces or _. Email and phone are used for gift-card delivery.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Account updated",
+      "errors": {
+        "invalidName": "Nickname must be 3–16 characters (letters, numbers, spaces, _).",
+        "nameTaken": "That nickname is taken.",
+        "cooldown": "You can change your nickname again in 7 days.",
+        "invalidEmail": "Enter a valid email address.",
+        "noAuth": "Sign in to edit your account.",
+        "saveFailed": "Could not save. Try again."
+      },
+      "replayTokens": "Tickets",
+      "ticketsBalanceAria": "Tickets balance: {{count}}",
+      "adReplayRemaining": "Ad replays left today",
+      "vouchers": "Vouchers",
+      "useVoucher": "Use",
+      "useTitle": "Show QR code",
+      "qrHint": "Ask staff to scan this code, sign in, pick their store if needed, then confirm.",
+      "expiresAt": "Expires {{at}}",
+      "cancelVoucher": "Cancel",
+      "voucherStatus": {
+        "owned": "Ready",
+        "pending_use": "Pending",
+        "redeemed": "Used",
+        "expired": "Expired",
+        "void": "Void"
+      },
+      "emptyItem": "None yet",
+      "viewGiftCards": "Gift card orders ({{count}})"
+    },
+    "leaderboardAria": "Standings",
+    "historyAria": "Match history"
+  },
+  "tiers": {
+    "bronze": "Bronze",
+    "silver": "Silver",
+    "gold": "Gold",
+    "platinum": "Platinum",
+    "diamond": "Diamond",
+    "divisionSuffix": "{{tier}} {{division}}"
+  },
+  "history": {
+    "empty": "No matches yet",
+    "ongoing": "In progress",
+    "enter": "Tap to enter ›",
+    "gameType": "Game: {{name}}",
+    "score": "Score {{score}}",
+    "soloScore": "Score {{score}}",
+    "soloTarget": "Target {{target}}",
+    "challengeSuccess": "Challenge cleared",
+    "challengeFail": "Challenge failed",
+    "rank": "Rank {{rank}}",
+    "points": "{{delta}} pts",
+    "coins": "{{coins}} coins",
+    "pendingSettlement": "Awaiting settlement",
+    "report": "Report",
+    "matchTypes": {
+      "solo_p75": "Solo Challenge",
+      "multi_ranked": "Arena",
+      "multi_ranked_coin": "Coin Arena"
+    }
+  },
+  "leaderboard": {
+    "cohortTitle": "Standings",
+    "myWeek": "My week: {{points}} pts",
+    "myWeekWithRank": "My week: {{points}} pts · Rank {{rank}}",
+    "you": "You",
+    "empty": "No leaderboard data yet",
+    "columns": {
+      "rank": "#",
+      "player": "Player",
+      "points": "Points"
+    }
+  },
+  "weeklyLeague": {
+    "title": "Weekly league results",
+    "emptyInfo": "No settlement info",
+    "outcome": {
+      "promote": "Promoted",
+      "demote": "Demoted",
+      "keep": "Held rank"
+    },
+    "finalRank": " · Rank {{rank}}",
+    "currentTier": "Current tier: {{tier}}",
+    "rewardCoins": "🪙 {{coins}} coins",
+    "noExtraReward": "No extra rewards this week",
+    "claim": "Claim reward",
+    "claiming": "Claiming…",
+    "dismiss": "Claim later",
+    "claimedToast": "Claimed {{coins}} coins",
+    "seasonXpUpdated": "Season XP updated from this week’s result."
+  },
+  "shop": {
+    "title": "Redemption shop",
+    "balance": "Balance:",
+    "region": "Region: {{region}}",
+    "ordersToggle": "My orders",
+    "ordersModalTitle": "My orders",
+    "badgeGiftCard": "Gift card",
+    "badgeVoucher": "Voucher",
+    "badgeIap": "Pack",
+    "sections": {
+      "iap": "Packs",
+      "virtual": "Items",
+      "giftcard": "Gift cards",
+      "featured": "Featured",
+      "consumables": "Consumables",
+      "rewards": "Rewards"
+    },
+    "empty": "No items available",
+    "faceValue": "Face value {{value}}",
+    "grantReplay": "Tickets ×{{count}}",
+    "grantTickets": "Tickets ×{{count}}",
+    "grantCoins": "Coins ×{{count}}",
+    "voucherReward": "Reward: {{reward}}",
+    "weeklyRemaining": "{{remaining}} / {{limit}} left this week",
+    "buying": "Redeeming…",
+    "redirecting": "Redirecting…",
+    "soldOut": "Sold out",
+    "success": "Redeemed!",
+    "giftCardProcessing": "Processing — check My gift card orders",
+    "adCoin": {
+      "title": "Free coins",
+      "hint": "Watch a short video ad to earn coins",
+      "remaining": "{{remaining}} / {{cap}} left today",
+      "watch": "Watch ad +{{coins}}",
+      "watching": "Playing…",
+      "exhausted": "Daily limit reached",
+      "success": "Earned {{coins}} coins",
+      "errors": {
+        "generic": "Couldn't claim the ad reward. Try again later.",
+        "ad_channel_unsupported": "Ad rewards aren't available here",
+        "daily_cap_reached": "Daily ad limit reached",
+        "begin_failed": "Couldn't start the ad. Try again.",
+        "complete_failed": "Couldn't grant the reward. Try again.",
+        "unfilled": "No ad available right now. Try again later.",
+        "user_dismissed": "Watch the full ad to earn the reward",
+        "adblock": "Disable your ad blocker and try again",
+        "sdk_error": "Ad failed to load. Try again.",
+        "unsupported": "Ad rewards aren't available here",
+        "disabled": "Ad rewards are temporarily unavailable",
+        "session_expired": "Session expired. Please try again.",
+        "grant_failed": "Couldn't grant coins. Try again.",
+        "no_auth": "Please sign in first"
+      }
+    },
+    "checkin": {
+      "title": "Daily check-in",
+      "hint": "Check in daily for tickets. Miss a day and the streak resets.",
+      "day": "Day {{day}}",
+      "streak": "{{streak}}-day streak",
+      "claimedToday": "Checked in today",
+      "claim": "Check in +{{tickets}} tickets",
+      "claiming": "Claiming…",
+      "claimed": "Checked in",
+      "alreadyClaimed": "Already claimed today's check-in",
+      "success": "Checked in — earned {{tickets}} tickets",
+      "errors": {
+        "generic": "Couldn't check in. Try again later.",
+        "disabled": "Daily check-in is unavailable",
+        "lobby_required_for_isolated_economy": "Enter a lobby to check in",
+        "no_player": "Player not ready. Try again.",
+        "grant_failed": "Couldn't grant tickets. Try again.",
+        "no_auth": "Please sign in first",
+        "claim_failed": "Couldn't check in. Try again."
+      }
+    }
+  },
+  "tournaments": {
+    "portal_solo_p75_solitaire": { "title": "Solitaire · Solo Challenge" },
+    "portal_multi_solitaire": { "title": "Solitaire · Multiplayer" },
+    "portal_multi_coin_solitaire": { "title": "Solitaire · Coin Arena" },
+    "portal_solo_p75_block_blast": { "title": "Block Blast · Solo Challenge" },
+    "portal_multi_block_blast": { "title": "Block Blast · Multiplayer" },
+    "portal_multi_coin_block_blast": { "title": "Block Blast · Coin Arena" },
+    "portal_solo_p75_match_3": { "title": "Match-3 · Solo Challenge" },
+    "portal_multi_match_3": { "title": "Match-3 · Multiplayer" },
+    "portal_multi_coin_match_3": { "title": "Match-3 · Coin Arena" },
+    "portal_solo_p75_tower_arena": { "title": "Tower Arena · Solo Challenge" },
+    "portal_multi_tower_arena": { "title": "Tower Arena · Multiplayer" },
+    "portal_multi_coin_tower_arena": { "title": "Tower Arena · Coin Arena" },
+    "portal_solo_p75_yatz": { "title": "Yatz · Solo Challenge" },
+    "portal_multi_yatz": { "title": "Yatz · Multiplayer" },
+    "portal_multi_coin_yatz": { "title": "Yatz · Coin Arena" }
+  },
+  "shopSkus": {
+    "portal_stripe_pack_t5_c100": {
+      "title": "Play Pack",
+      "description": "5 tickets + 100 coins."
+    },
+    "portal_shop_ticket_3": {
+      "title": "Tickets ×3",
+      "description": "Get 3 tickets to keep playing."
+    },
+    "portal_shop_ticket_10": {
+      "title": "Tickets ×10",
+      "description": "Get 10 tickets to keep playing."
+    },
+    "gc_amazon_5_us": {
+      "title": "Amazon gift card $5",
+      "description": "US Amazon.com e-gift card. Redeem via link after purchase."
+    },
+    "gc_amazon_5_ca": {
+      "title": "Amazon gift card CA$5",
+      "description": "Canada Amazon e-gift card. Redeem via link after purchase."
+    }
+  },
+  "orders": {
+    "empty": "No orders yet",
+    "coins": "coins",
+    "status": {
+      "pending": "Awaiting payment",
+      "processing": "Processing",
+      "fulfilled": "Completed",
+      "expired": "Canceled",
+      "failed": "Failed",
+      "refunded": "Refunded"
+    }
+  },
+  "giftcard": {
+    "empty": "No orders yet",
+    "status": {
+      "pending": "Queued",
+      "processing": "Processing",
+      "fulfilled": "Ready to claim",
+      "failed": "Failed",
+      "refunded": "Refunded"
+    },
+    "redeem": "Claim",
+    "redeeming": "Claiming…",
+    "resendEmail": "Resend email",
+    "sending": "Sending…"
+  },
+  "regions": {
+    "title": "Choose redemption region",
+    "hint": "Region is locked for 30 days. Gift cards can only be used in the selected region.",
+    "US": "United States (US)",
+    "CA": "Canada (CA)",
+    "GB": "United Kingdom (GB)",
+    "EU": "Europe (EU)"
+  },
+  "modals": {
+    "historyTitle": "Match history",
+    "rulesTitle": "How to play"
+  },
+  "report": {
+    "title": "Match report",
+    "subtitle": "Scores and ranks for everyone at this table. Tap Replay on a row to watch that player's run.",
+    "dismiss": "Close",
+    "watch": "Replay"
+  },
+  "rules": {
+    "points": {
+      "title": "Points",
+      "intro": "Both modes feed the <strong>same weekly total</strong>. Your total determines your rank within this week's group.",
+      "soloTitle": "🎯 Solo Challenge",
+      "soloBullets": [
+        "Each run has a seed P75 <strong>target score</strong>;",
+        "Hit target: <strong class=\"portal-rules-pos\">+3 pts</strong>, miss: <strong class=\"portal-rules-neg\">-1 pt</strong>;",
+        "Runs that time out count as a miss."
+      ],
+      "multiTitle": "⚔️ Arena",
+      "multiBullets": [
+        "Compete with 5 players at the <strong>same seed</strong>;",
+        "Placement points: 🥇 <strong class=\"portal-rules-pos\">+5</strong> / 🥈 <strong class=\"portal-rules-pos\">+3</strong> / 🥉 <strong class=\"portal-rules-pos\">+1</strong> / 4th <strong class=\"portal-rules-neg\">-1</strong> / 5th <strong class=\"portal-rules-neg\">-2</strong>."
+      ]
+    },
+    "tiers": {
+      "title": "Tiers & groups",
+      "bullets": [
+        "Each week you join a <strong>30-player group</strong> in the <strong>same tier</strong> and only compete within that group;",
+        "Groups fill over about <strong>5 hours</strong> after the week starts. Weekly ranks decide promotion:"
+      ],
+      "zonePromote": "↑ Promote 1-8",
+      "zoneKeep": "Safe 9-22",
+      "zoneDemote": "↓ Demote 23-30",
+      "resetBullet": "Points reset each week. You are regrouped at your new tier."
+    },
+    "rewards": {
+      "title": "Rewards",
+      "intro": "Coins are granted by <strong>group rank</strong> at weekly reset. Higher rank and <strong>higher tier</strong> mean more coins:",
+      "rankColumn": "Group rank",
+      "pickTierAria": "Choose a tier to view rewards",
+      "ranges": {
+        "rank1": "1st place",
+        "rank2_3": "2nd–3rd",
+        "rank4_8": "4th–8th",
+        "rank9_22": "9th–22nd",
+        "rank23_30": "23rd–30th"
+      },
+      "legendPromote": "Promote to next tier",
+      "legendKeep": "Hold tier",
+      "legendDemote": "Drop to lower tier",
+      "footerBullets": [
+        "Spend coins in the <strong>redemption shop</strong>;",
+        "Reset timing follows the <strong>time left this week</strong> on the home screen;",
+        "Reward values follow the current season config."
+      ]
+    }
+  }
+}

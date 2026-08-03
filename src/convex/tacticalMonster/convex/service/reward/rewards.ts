@@ -1,19 +1,18 @@
 import { v } from "convex/values";
-import { query, mutation } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
 import { RewardService } from "./rewardService";
 import { TournamentProxyService } from "../tournament/tournamentProxyService";
 
 /**
  * 获取玩家锦标赛结算结果（用于前端显示）
  */
-export const getTournamentResult = query({
+export const getTournamentResult = authedQuery({
     args: {
-        uid: v.string(),
         tournamentId: v.string(),
     },
     handler: async (ctx, args) => {
         return await TournamentProxyService.getTournamentResult({
-            uid: args.uid,
+            uid: ctx.uid,
             tournamentId: args.tournamentId,
         });
     },
@@ -22,14 +21,13 @@ export const getTournamentResult = query({
 /**
  * 领取锦标赛奖励
  */
-export const claimTournamentRewards = mutation({
+export const claimTournamentRewards = authedMutation({
     args: {
-        uid: v.string(),
         tournamentId: v.string(),
     },
     handler: async (ctx, args) => {
         return await RewardService.claimTournamentRewards(ctx, {
-            uid: args.uid,
+            uid: ctx.uid,
             tournamentId: args.tournamentId,
         });
     },

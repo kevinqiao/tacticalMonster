@@ -4,30 +4,39 @@
 
 import gsap from "gsap";
 import { useCallback } from "react";
-import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
-import { useCombatManager } from "../service/CombatManager";
-import { getAttackableNodes } from "../utils/PathFind";
+import { getSkillConfig } from "../../config/skillConfigs";
+import { useCombatManager } from "../../service/CombatManager";
+import { useReplay } from "../view/replayContext";
+import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
+import { MonsterSkill } from "../../types/skillTypes";
+import { getAttackableNodes } from "../../utils/PathFind";
 
 const usePlaySkillSelect = () => {
-    const { characters, gridCells, hexCell, currentRound, map, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, groundCells, mapDimension, game } = useCombatManager();
+    const replay = useReplay();
+    const playbackSpeed = getReplayPlaybackSpeed(replay);
 
-
+    const { map, currentRound } = game || {};
     const playSkillSelect = useCallback(async (skillSelect: { skillId: string; uid: string; character_id: string }, onComplete: () => void | Promise<void>) => {
-        if (!characters || !gridCells || !map || !currentRound) return;
-        console.log("playSkillSelect", skillSelect)
-        const { uid, character_id } = skillSelect;
-        const character = characters.find((c) => c.uid === uid && c.character_id === character_id);
+        if (!characters || !groundCells || !map || !currentRound) return;
+        const { character_id } = skillSelect;
+        const character = characters.find((c) => c.character_id === character_id);
         if (!character) return;
-        const currentTurn = currentRound.turns.find((t) => t.uid === uid && t.character_id === character_id);
+        const currentTurn = currentRound.turns.find((t: any) => t.status === 1 && t.character_id === character_id) ?? null;
         if (!currentTurn) return;
-        const skill: MonsterSkill | null = character.skills?.find((s) => s.id === skillSelect.skillId) ?? null;
+        const moveRange = character.move_range ?? 2;
+        const remainingSteps = Math.max(0, moveRange - (currentTurn.stepsUsed ?? 0));
+        const isFlying = character.isFlying ?? false;
+        const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
+
+        const skill: MonsterSkill | null = getSkillConfig(character.selectedSkill ?? "") ?? null;
         if (!skill) return;
-        const grid = gridCells.map((row) => row.map((cell) => {
-            const char = character.q === cell.x && character.r === cell.y ? null : characters.find((c) => c.q === cell.x && c.r === cell.y)
+        const grid = groundCells.map((row) => row.map((cell) => {
+            const char = character.q === cell.q && character.r === cell.r ? null : characters.find((c) => c.q === cell.q && c.r === cell.r)
             return {
-                x: cell.x,
-                y: cell.y,
-                walkable: char ? false : cell.walkable
+                q: cell.q,
+                r: cell.r,
+                walkable: char ? false : !cell.disable
             }
         }))
 
@@ -56,11 +65,12 @@ const usePlaySkillSelect = () => {
                 r: character.r ?? 0,
                 uid: character.uid,
                 character_id: character.character_id,
-                moveRange: character.move_range ?? 2,
+                moveRange: remainingSteps,
                 attackRange: character.attack_range || { min: 1, max: 2 }
             },
             enemies,
-            skill ?? null
+            skill ?? null,
+            canIgnoreObstacles
         );
 
         character.attackables = attackableNodes;
@@ -85,7 +95,7 @@ const usePlaySkillSelect = () => {
 
         if (character.attackables) {
             character.attackables.forEach((node) => {
-                const { x, y, uid, character_id, distance } = node;
+                const { q, r, uid, character_id, distance } = node;
                 const enemy = characters.find((c) => c.uid === uid && c.character_id === character_id);
                 if (!enemy) return;
 
@@ -100,7 +110,7 @@ const usePlaySkillSelect = () => {
 
         tl.play();
 
-    }, [characters, gridCells, hexCell, currentRound, map, playbackSpeed]);
+    }, [characters, groundCells, mapDimension, currentRound, map, playbackSpeed]);
     return { playSkillSelect }
 }
 export default usePlaySkillSelect;

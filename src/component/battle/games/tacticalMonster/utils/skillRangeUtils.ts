@@ -1,0 +1,291 @@
+/**
+ * Tactical Monster 技能范围工具函数
+ * 处理技能范围计算和目标获取
+ */
+
+
+import { getSkillConfig } from "../config/skillConfigs";
+import { MonsterSprite } from "../types/CombatTypes";
+import { MonsterSkill, SkillEffect } from "../types/skillTypes";
+import { offsetHexDistance } from "./hexUtil";
+
+/**
+ * 获取范围内的目标（圆形范围）
+ */
+export const getTargetsInCircle = (
+    center: { q: number; r: number },
+    range: number,
+    allCharacters: MonsterSprite[],
+    excludeSelf?: boolean,
+    selfUid?: string
+): MonsterSprite[] => {
+    const targets: MonsterSprite[] = [];
+
+    allCharacters.forEach(char => {
+        if (excludeSelf && char.uid === selfUid) return;
+
+        const distance = offsetHexDistance(
+            center,
+            { q: char.q ?? 0, r: char.r ?? 0 }
+        );
+
+        if (distance <= range) {
+            targets.push(char);
+        }
+    });
+
+    return targets;
+};
+
+/**
+ * 获取范围内的目标（直线范围）
+ */
+export const getTargetsInLine = (
+    start: { q: number; r: number },
+    end: { q: number; r: number },
+    range: number,
+    allCharacters: MonsterSprite[],
+    excludeSelf?: boolean,
+    selfUid?: string
+): MonsterSprite[] => {
+    const targets: MonsterSprite[] = [];
+    const startDistance = offsetHexDistance(start, end);
+
+    if (startDistance > range) return targets;
+
+    // 计算直线上的所有格子
+    const lineCells: { q: number; r: number }[] = [];
+    const steps = Math.min(startDistance, range);
+
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const q = Math.round(start.q + (end.q - start.q) * t);
+        const r = Math.round(start.r + (end.r - start.r) * t);
+        lineCells.push({ q, r });
+    }
+
+    // 检查每个角色是否在直线上
+    allCharacters.forEach(char => {
+        if (excludeSelf && char.uid === selfUid) return;
+
+        const charPos = { q: char.q ?? 0, r: char.r ?? 0 };
+        const isOnLine = lineCells.some(cell =>
+            cell.q === charPos.q && cell.r === charPos.r
+        );
+
+        if (isOnLine) {
+            targets.push(char);
+        }
+    });
+
+    return targets;
+};
+
+/** 是否同阵营（玩家侧 vs Boss 侧），与后端 PVE 分队一致 */
+export const isSameBattleSide = (caster: MonsterSprite, char: MonsterSprite): boolean =>
+    (caster.uid === "boss" && char.uid === "boss") ||
+    (caster.uid !== "boss" && char.uid !== "boss");
+
+const filterByTargetSide = (
+    targets: MonsterSprite[],
+    center: MonsterSprite,
+    targetSide?: "friend" | "foe" | "all"
+): MonsterSprite[] => {
+    if (!targetSide || targetSide === "all") return targets;
+    return targets.filter((c) =>
+        targetSide === "friend" ? isSameBattleSide(center, c) : !isSameBattleSide(center, c)
+    );
+};
+
+/**
+ * 单体技能攻击/施法预览的可选目标（供 PathFind.getAttackableNodes 遍历）。
+ * 旧写法用 `uid !== caster.uid` 会排掉所有同队友方，导致护盾等 target_side:friend 永远无高亮。
+ */
+export function getSkillPreviewTargetCandidates(
+    caster: Pick<MonsterSprite, "uid" | "character_id" | "q" | "r">,
+    allCharacters: Pick<MonsterSprite, "uid" | "character_id" | "q" | "r">[],
+    skill: MonsterSkill
+): { q: number; r: number; uid: string; character_id: string }[] {
+    const targetSide = skill.range?.target_side ?? "foe";
+    const isCaster = (c: Pick<MonsterSprite, "uid" | "character_id">) =>
+        c.uid === caster.uid && c.character_id === caster.character_id;
+
+    const filtered = allCharacters.filter((c) => {
+        if (targetSide === "friend") {
+            return isSameBattleSide(caster as MonsterSprite, c as MonsterSprite);
+        }
+        if (targetSide === "all") {
+            return !isCaster(c);
+        }
+        if (isCaster(c)) return false;
+        return !isSameBattleSide(caster as MonsterSprite, c as MonsterSprite);
+    });
+
+    return filtered.map((c) => ({
+        q: c.q ?? 0,
+        r: c.r ?? 0,
+        uid: c.uid,
+        character_id: c.character_id,
+    }));
+}
+
+/**
+ * 根据技能范围获取目标
+ */
+export const getTargetsInRange = (
+    skill: MonsterSkill,
+    center: MonsterSprite,
+    allCharacters: MonsterSprite[],
+    target?: MonsterSprite
+): MonsterSprite[] => {
+    const centerPos = { q: center.q ?? 0, r: center.r ?? 0 };
+    const range = skill.range?.distance || skill.range?.max_distance || 1;
+
+    let result: MonsterSprite[] = [];
+
+    switch (skill.range?.area_type) {
+        case "single":
+            if (target) {
+                const distance = offsetHexDistance(centerPos, { q: target.q ?? 0, r: target.r ?? 0 });
+                if (distance <= range) {
+                    result = [target];
+                }
+            }
+            break;
+
+        case "circle":
+            result = getTargetsInCircle(
+                centerPos,
+                range,
+                allCharacters,
+                true,
+                center.uid
+            );
+            break;
+
+        case "line":
+            if (target) {
+                const targetPos = { q: target.q ?? 0, r: target.r ?? 0 };
+                result = getTargetsInLine(
+                    centerPos,
+                    targetPos,
+                    range,
+                    allCharacters,
+                    true,
+                    center.uid
+                );
+            }
+            break;
+
+        default:
+            if (target) {
+                result = [target];
+            }
+    }
+
+    return filterByTargetSide(result, center, skill.range?.target_side);
+};
+
+/**
+ * 根据效果范围获取目标
+ */
+export const getTargetsByEffectRange = (
+    effect: SkillEffect,
+    center: MonsterSprite,
+    allCharacters: MonsterSprite[],
+    target?: MonsterSprite
+): MonsterSprite[] => {
+    const centerPos = { q: center.q ?? 0, r: center.r ?? 0 };
+    const range = effect.area_size || effect.damage_falloff?.full_damage_range || 1;
+
+    switch (effect.area_type) {
+        case 'single':
+            if (target) {
+                return [target];
+            }
+            return [];
+
+        case 'circle':
+            return getTargetsInCircle(
+                centerPos,
+                range,
+                allCharacters,
+                true,
+                center.uid
+            );
+
+        case 'line':
+            if (target) {
+                const targetPos = { q: target.q ?? 0, r: target.r ?? 0 };
+                return getTargetsInLine(
+                    centerPos,
+                    targetPos,
+                    range,
+                    allCharacters,
+                    true,
+                    center.uid
+                );
+            }
+            return [];
+
+        default:
+            if (target) {
+                return [target];
+            }
+            return [];
+    }
+};
+
+/**
+ * 检查目标是否在技能范围内
+ */
+export const isTargetInRange = (
+    skill: MonsterSkill,
+    attacker: MonsterSprite,
+    target: MonsterSprite
+): boolean => {
+    const attackerPos = { q: attacker.q ?? 0, r: attacker.r ?? 0 };
+    const targetPos = { q: target.q ?? 0, r: target.r ?? 0 };
+    const distance = offsetHexDistance(attackerPos, targetPos);
+
+    const maxRange = skill.range?.max_distance || skill.range?.distance || 1;
+    const minRange = skill.range?.min_distance || 0;
+
+    return distance >= minRange && distance <= maxRange;
+};
+
+export type AttackProfile = {
+    skillId: string;
+    attackRange: number;
+    isMelee: boolean;
+};
+
+/** 与后端 moveAttackRule：远程单位本回合移动后不可再使用技能 */
+export const isRangedUnitForMoveAttackRule = (
+    character: Pick<MonsterSprite, "attack_range">
+): boolean => {
+    const max = character.attack_range?.max ?? 1;
+    return max > 1;
+};
+
+/**
+ * @param turnSkillSelect 当前回合 `GameTurn.skillSelect`（selectSkill 后由后端写入）；优先于 sprite 上的 selectedSkill
+ */
+export const resolveAttackProfile = (
+    character: MonsterSprite,
+    turnSkillSelect?: string | null
+): AttackProfile => {
+    const skillId = turnSkillSelect || character.selectedSkill || "basic_attack";
+    const skillConfig = getSkillConfig(skillId);
+    // console.log("skillConfig", skillConfig);
+    const attackRange =
+        (skillConfig?.range?.distance ?? skillConfig?.range?.max_distance) ??
+        character.attack_range?.max ??
+        1;
+    return {
+        skillId,
+        attackRange,
+        isMelee: attackRange === 1,
+    };
+};
+

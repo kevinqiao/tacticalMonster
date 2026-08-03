@@ -188,7 +188,8 @@ export const createWinRateTestData = internalMutation({
                 uid: args.uid,
                 score: 1500,
                 rank: i < wins ? 1 : 2,  // 前 wins 场获胜
-                status: 0,
+                mode: "tutorial",
+                status: "settled",
                 createdAt: new Date().toISOString()
             });
         }

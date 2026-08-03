@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { authedMutation } from "../../custom/session";
 import { internalMutation, mutation, query } from "../../_generated/server";
 import { LeaderboardSystem } from "./leaderboardSystem";
 
@@ -76,45 +77,43 @@ export const getSeasonalLeaderboard = query({
 /**
  * 累积每日积分
  */
-export const accumulateDailyPoints = mutation({
+export const accumulateDailyPoints = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         tournamentType: v.string(),
         score: v.number(), // 要累积的积分
     },
     handler: async (ctx, args) => {
-        return await LeaderboardSystem.accumulateDailyPoints(ctx, args);
+        return await LeaderboardSystem.accumulateDailyPoints(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 累积每周积分
  */
-export const accumulateWeeklyPoints = mutation({
+export const accumulateWeeklyPoints = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         tournamentType: v.string(),
         score: v.number(), // 要累积的积分
     },
     handler: async (ctx, args) => {
-        return await LeaderboardSystem.accumulateWeeklyPoints(ctx, args);
+        return await LeaderboardSystem.accumulateWeeklyPoints(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 快速对局完成后累积积分
  */
-export const accumulatePointsAfterQuickMatch = mutation({
+export const accumulatePointsAfterQuickMatch = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         tournamentType: v.string(),
         score: v.number(), // 要累积的积分
     },
     handler: async (ctx, args) => {
-        const { uid, gameType, tournamentType, score } = args;
+        const { gameType, tournamentType, score } = args;
+        const uid = ctx.uid;
         const results = [];
 
         // 累积每日积分
@@ -148,16 +147,15 @@ export const accumulatePointsAfterQuickMatch = mutation({
 /**
  * 领取排行榜奖励
  */
-export const claimLeaderboardReward = mutation({
+export const claimLeaderboardReward = authedMutation({
     args: {
-        uid: v.string(),
         leaderboardType: v.string(), // "daily", "weekly" 或 "seasonal"
         date: v.string(),
         gameType: v.string()
     },
     handler: async (ctx, args) => {
         return await LeaderboardSystem.claimLeaderboardReward(ctx, {
-            uid: args.uid,
+            uid: ctx.uid,
             leaderboardType: args.leaderboardType as "daily" | "weekly" | "seasonal",
             date: args.date,
             gameType: args.gameType
@@ -170,81 +168,75 @@ export const claimLeaderboardReward = mutation({
 /**
  * 累积每日综合积分（所有游戏）
  */
-export const accumulateDailyPointsOverall = mutation({
+export const accumulateDailyPointsOverall = authedMutation({
     args: {
-        uid: v.string(),
         score: v.number(), // 要累积的积分
     },
     handler: async (ctx, args) => {
-        return await LeaderboardSystem.accumulateDailyPointsOverall(ctx, args);
+        return await LeaderboardSystem.accumulateDailyPointsOverall(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 累积每日游戏特定积分
  */
-export const accumulateDailyPointsByGame = mutation({
+export const accumulateDailyPointsByGame = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         score: v.number(), // 要累积的积分
     },
     handler: async (ctx, args) => {
-        return await LeaderboardSystem.accumulateDailyPointsByGame(ctx, args);
+        return await LeaderboardSystem.accumulateDailyPointsByGame(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 累积每周综合积分（所有游戏）
  */
-export const accumulateWeeklyPointsOverall = mutation({
+export const accumulateWeeklyPointsOverall = authedMutation({
     args: {
-        uid: v.string(),
         score: v.number(), // 要累积的积分
     },
     handler: async (ctx, args) => {
-        return await LeaderboardSystem.accumulateWeeklyPointsOverall(ctx, args);
+        return await LeaderboardSystem.accumulateWeeklyPointsOverall(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 累积每周游戏特定积分
  */
-export const accumulateWeeklyPointsByGame = mutation({
+export const accumulateWeeklyPointsByGame = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         score: v.number(), // 要累积的积分
     },
     handler: async (ctx, args) => {
-        return await LeaderboardSystem.accumulateWeeklyPointsByGame(ctx, args);
+        return await LeaderboardSystem.accumulateWeeklyPointsByGame(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 累积赛季综合积分（所有游戏）
  */
-export const accumulateSeasonalPointsOverall = mutation({
+export const accumulateSeasonalPointsOverall = authedMutation({
     args: {
-        uid: v.string(),
         score: v.number(), // 要累积的积分
     },
     handler: async (ctx, args) => {
-        return await LeaderboardSystem.accumulateSeasonalPointsOverall(ctx, args);
+        return await LeaderboardSystem.accumulateSeasonalPointsOverall(ctx, { ...args, uid: ctx.uid });
     },
 });
 
 /**
  * 累积赛季游戏特定积分
  */
-export const accumulateSeasonalPointsByGame = mutation({
+export const accumulateSeasonalPointsByGame = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         score: v.number(), // 要累积的积分
     },
     handler: async (ctx, args) => {
-        return await LeaderboardSystem.accumulateSeasonalPointsByGame(ctx, args);
+        return await LeaderboardSystem.accumulateSeasonalPointsByGame(ctx, { ...args, uid: ctx.uid });
     },
 });
 

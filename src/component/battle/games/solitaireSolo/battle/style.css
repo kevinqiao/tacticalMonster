@@ -2,25 +2,41 @@
  * 单人纸牌游戏样式
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
+@import "../../shared/visualTheme/gameVisualPalettes.css";
 
+/* Game Over 面板：卡通木质风（羊皮纸内芯 + 深棕木框） */
 .game-over {
     position: absolute;
     top: 50%;
     left: 50%;
     opacity: 0;
     visibility: hidden;
-    width: 70%;
-    height: 70%;
-    background-color: #32f119;
-    border-radius: 10px;
-    padding: 10px;
-    color: #ffffff;
+    width: min(70%, 420px);
+    height: auto;
+    min-height: 220px;
+    background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+    border: 5px solid #6f4318;
+    border-radius: 24px;
+    box-shadow:
+        inset 0 3px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+        0 16px 40px rgba(0, 0, 0, 0.4);
+    padding: 26px 22px 120px;
+    color: #5b3a12;
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
     font-size: 20px;
-    font-weight: bold;
+    font-weight: 700;
     text-align: center;
     line-height: 1.5;
     z-index: 1000;
     transform: translate(-50%, -50%);
+}
+
+.game-over h1 {
+    margin: 0 0 8px;
+    font-size: 30px;
+    letter-spacing: 2px;
+    color: #5b3a12;
 }
 
 .game-over-submit-container {
@@ -32,25 +48,40 @@
     left: 0;
     width: 100%;
     height: 100px;
-    background-color: #32f119;
-    border-radius: 10px;
+    background: transparent;
+    border-radius: 0 0 20px 20px;
     padding: 0px;
-    color: #ffffff;
-    font-size: 20px;
 }
 
+/* 提交按钮：绿色糖果药丸钮 */
 .game-over-submit-btn {
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 120px;
-    height: 45px;
-    background-color: #1d19f1;
-    border-radius: 10px;
-    padding: 0px;
+    min-width: 180px;
+    height: 52px;
+    padding: 0 26px;
+    background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 55%, #4c8a15 100%);
+    border: 3px solid #3e7410;
+    border-radius: 999px;
     color: #ffffff;
-    font-size: 12px;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow: 0 1px 2px rgba(60, 100, 10, 0.6);
+    box-shadow:
+        inset 0 3px 0 rgba(255, 255, 255, 0.4),
+        0 4px 0 rgba(52, 92, 14, 0.8);
+    transition: transform 0.12s ease;
+}
+
+.game-over-submit-btn:hover {
+    transform: translateY(-1px);
+}
+
+.game-over-submit-btn:active {
+    transform: translateY(1px);
 }
 
 .solo-game-container {
@@ -65,11 +96,54 @@
     overflow: visible;
 }
 
+/* 加载页：与牌桌同款绿呢底，淡入淡出无缝衔接 */
 .solo-game-loading {
     width: 100%;
     height: 100%;
-    position: relative;
-    font-family: 'Arial', sans-serif;
+    position: absolute;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+    background:
+        radial-gradient(ellipse at 50% 38%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 55%),
+        linear-gradient(180deg, #3d9e46 0%, #2f8a3a 55%, #23702e 100%);
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow:
+        -1.5px -1.5px 0 #2c6a1f,
+         1.5px -1.5px 0 #2c6a1f,
+        -1.5px  1.5px 0 #2c6a1f,
+         1.5px  1.5px 0 #2c6a1f,
+         0 4px 6px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+}
+
+.solo-game-loading::before {
+    content: "";
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 6px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffd561;
+    animation: solo-game-loading-spin 0.85s linear infinite;
+}
+
+@keyframes solo-game-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.solo-game-loading--hidden {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .solo-player-container {
@@ -78,13 +152,457 @@
     position: absolute;
     left: 0;
     top: 0;
-    background-color: #e7570350;
-    /* background-color: #0d5f0d; */
-    font-family: 'Arial', sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    container-type: size;
+    container-name: solo-play;
+    /* 牌面高对比：饱和红 / 近纯黑 / 纯白底 */
+    --card-face-red: #d80f1c;
+    --card-face-black: #0a0a0c;
+    --card-face-bg: #ffffff;
+    --card-face-border: #1a1a1a;
+    --card-back-fill: #0e2a24;
+    --card-back-pattern: #6fb8ab;
+    --card-back-edge: #c8e6df;
+    --card-back-accent: #ffffff;
+    /* 卡通绿呢牌桌：中心亮、四周暗的柔和渐晕 */
+    background:
+        radial-gradient(ellipse at 50% 38%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 55%),
+        linear-gradient(180deg, #3d9e46 0%, #2f8a3a 55%, #23702e 100%);
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+}
+
+/* 顶栏：木质横梁，与主页段位框同调 */
+.solo-game-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 8px 14px;
+    min-height: 48px;
+    box-sizing: border-box;
+    background: linear-gradient(180deg, #9a6430 0%, #7d4c1e 60%, #6b3f16 100%);
+    border-bottom: 4px solid #5a3311;
+    box-shadow:
+        inset 0 3px 0 rgba(255, 220, 160, 0.4),
+        inset 0 -4px 6px rgba(0, 0, 0, 0.25);
+}
+
+.solo-game-header__player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.solo-game-header__avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.solo-game-header__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.solo-game-header__avatar-fallback {
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.92);
+    line-height: 1;
+}
+
+.solo-game-header__meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.solo-game-header__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: min(52vw, 220px);
+}
+
+.solo-game-header__stats {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.solo-game-header__score-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* 一键收牌：金色糖果小按钮 */
+.solo-game-header__autocomplete {
+    padding: 7px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid #b06e14;
+    background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%);
+    color: #7a4a10;
+    font-weight: 700;
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.6),
+        0 3px 0 rgba(130, 82, 16, 0.45);
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.2;
+    margin-bottom: 1px;
+}
+
+.solo-game-header__autocomplete:hover {
+    filter: brightness(1.05);
+}
+
+.solo-game-header__autocomplete:active {
+    transform: translateY(1px);
+}
+
+.solo-game-header__autocomplete:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* 提前结算：红色糖果小按钮 */
+.solo-game-header__end-game {
+    padding: 7px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid #8c2c10;
+    background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+    color: #ffffff;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.45),
+        0 3px 0 rgba(90, 51, 17, 0.7);
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.2;
+    margin-bottom: 1px;
+}
+
+.solo-game-header__end-game:hover:not(:disabled) {
+    filter: brightness(1.06);
+}
+
+.solo-game-header__end-game:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.solo-game-header__end-game:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.solo-game-header__stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.solo-game-header__stat--score {
+    position: relative;
+}
+
+.solo-game-header__stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #f3cf8f;
+    text-transform: uppercase;
+    text-shadow: 0 1px 1px rgba(90, 51, 17, 0.6);
+}
+
+.solo-game-header__stat-value {
+    font-size: 19px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #ffffff;
+    line-height: 1.1;
+    text-shadow:
+        -1px -1px 0 #5a3311,
+         1px -1px 0 #5a3311,
+        -1px  1px 0 #5a3311,
+         1px  1px 0 #5a3311,
+         0 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+.solo-game-header__stat-value--pulse {
+    animation: solo-score-pulse 0.28s ease-out;
+}
+
+@keyframes solo-score-pulse {
+    0% {
+        transform: scale(1);
+    }
+    40% {
+        transform: scale(1.12);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* 棋盘落点大号加减分 */
+.solo-score-float-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 40;
+    overflow: visible;
+}
+
+.solo-board-score-float {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-family: inherit;
+    font-size: clamp(28px, 7.5vw, 44px);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    animation: solo-board-score-float 1.05s ease-out forwards;
+    text-shadow:
+        0 2px 0 rgba(40, 20, 0, 0.45),
+        0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.solo-board-score-float--plus {
+    color: #ffe27a;
+}
+
+.solo-board-score-float--minus {
+    color: #ffb4a8;
+}
+
+@keyframes solo-board-score-float {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -40%) scale(0.72);
+    }
+    16% {
+        opacity: 1;
+        transform: translate(-50%, -55%) scale(1.12);
+    }
+    65% {
+        opacity: 1;
+        transform: translate(-50%, -95%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -130%) scale(0.94);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .solo-game-header__stat-value--pulse,
+    .solo-board-score-float {
+        animation: none;
+    }
+
+    .solo-board-score-float {
+        opacity: 0;
+    }
+}
+
+/* 保持上下布局：顶栏全宽在上、牌桌在下（不在横屏改为左侧竖条） */
+
+/* Rollout dev replay: block drag while PlayEffects animate */
+.solo-board-surface--replay {
+    pointer-events: none;
+}
+
+/* 牌桌：7 列 — row1 foundation×4 + waste(5–6) + talon(7)；row2 tableau×7 */
+.solo-board-surface {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    align-self: stretch;
+    box-sizing: border-box;
+    /*
+      间距随牌桌容器（solo-play）与牌面尺寸缩放：
+      --solo-card-* 由 measureBoardDimension 写入；未测到前用 cqi/cqh 兜底。
+    */
+    --solo-zone-gap: clamp(
+        4px,
+        max(1.4cqi, calc(var(--solo-card-width, 56px) * 0.12)),
+        20px
+    );
+    --solo-foundation-tableau-gap: clamp(
+        14px,
+        max(4.5cqh, calc(var(--solo-card-height, 78px) * 0.18)),
+        44px
+    );
+    --solo-board-w-h-ratio: 1;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+    padding: var(--solo-zone-gap);
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: var(--solo-zone-gap);
+    row-gap: var(--solo-foundation-tableau-gap);
+    align-content: start;
+    background-color: transparent;
+}
+
+@container solo-play (max-height: 560px) {
+    .solo-board-surface {
+        --solo-zone-gap: clamp(
+            2px,
+            max(0.8cqi, calc(var(--solo-card-width, 56px) * 0.06)),
+            10px
+        );
+        --solo-foundation-tableau-gap: clamp(
+            10px,
+            max(3cqh, calc(var(--solo-card-height, 78px) * 0.14)),
+            28px
+        );
+    }
+
+    .solo-board-surface .tableau-column {
+        min-height: 0;
+    }
+}
+
+/* 手机横屏：略收紧，但仍保留 foundation 与 tableau 可读间距 */
+@media (orientation: landscape) and (max-height: 500px) {
+    .solo-game-header {
+        min-height: 36px;
+        padding: 4px 10px;
+        gap: 8px;
+    }
+
+    .solo-board-surface {
+        --solo-board-w-h-ratio: 1;
+        --solo-zone-gap: 3px;
+        --solo-foundation-tableau-gap: 12px;
+        padding: 3px 4px;
+    }
+
+    .solo-board-surface .tableau-column {
+        min-height: 0;
+    }
+}
+
+.foundation-zone.foundation-slot {
+    grid-row: 1;
+    /* 与 JS 测量的牌面同尺；未设变量时回退列宽 + 5:7 */
+    width: var(--solo-card-width, 100%);
+    max-width: 100%;
+    height: var(--solo-card-height, auto);
+    aspect-ratio: 5 / 7;
+    border: none;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 60, 20, 0.18);
+    box-shadow: inset 0 2px 6px rgba(0, 50, 15, 0.25);
+    color: rgba(255, 255, 255, 0.5);
+    /* 小屏 foundation 占位花色随牌高缩放，并设可读下限 */
+    font-size: clamp(14px, calc(var(--solo-card-height, 56px) * 0.5), 32px);
+    line-height: 1;
+    box-sizing: border-box;
+    justify-self: center;
+    align-self: start;
+}
+
+.solo-stock-slot {
+    grid-row: 1;
+    grid-column: 7 / 8;
+    width: var(--solo-card-width, 100%);
+    max-width: 100%;
+    height: var(--solo-card-height, auto);
+    aspect-ratio: 5 / 7;
+    justify-self: center;
+    border: none;
+    border-radius: 10px;
+    background-color: rgba(0, 60, 20, 0.18);
+    box-shadow: inset 0 2px 6px rgba(0, 50, 15, 0.25);
+    cursor: pointer;
+    box-sizing: border-box;
+    align-self: start;
+}
+
+.solo-waste-area {
+    grid-row: 1;
+    /* foundation(1–4) 与 talon(7) 之间的 col5–6，waste 居中 */
+    grid-column: 5 / 7;
+    width: calc(var(--solo-card-width, 56px) + 2 * var(--solo-waste-fan-step, 15px));
+    max-width: calc(var(--solo-card-width, 56px) + 2 * var(--solo-waste-fan-step, 15px));
+    height: var(--solo-card-height, auto);
+    min-height: var(--solo-card-height, 44px);
+    justify-self: center;
+    align-self: start;
+    border: none;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.06);
+    box-sizing: border-box;
+}
+
+.solo-board-surface .tableau-column {
+    grid-row: 2;
+    position: relative;
+    width: 100%;
+    /* 矮屏少占纵向，避免与两行牌槽抢高度；极扁由 @container 再降为 0 */
+    min-height: min(30dvh, 240px);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2px, 0.35vw, 10px);
+    box-sizing: border-box;
+    justify-self: stretch;
+}
+
+/* 卡牌层叠在整面网格之上；不设 position，便于卡牌 absolute 的 offsetParent 落到 .solo-board-surface */
+.solo-board-cards-layer {
+    grid-row: 1 / -1;
+    grid-column: 1 / -1;
+    pointer-events: none;
+    z-index: 2;
+    min-height: 0;
+}
+
+.solo-board-cards-layer>* {
+    pointer-events: auto;
 }
 
 /* 卡牌样式 */
@@ -319,11 +837,10 @@
     background-color: rgba(240, 237, 237, 0.966);
 } */
 
-/* 拖拽悬停效果 */
+/* 拖拽悬停效果（无 scale/transition，避免拖拽时布局抖动） */
 .drag-over {
     background-color: rgba(76, 175, 80, 0.2) !important;
     border-color: #4CAF50 !important;
-    transform: scale(1.05);
 }
 
 /* 控制面板 */
@@ -604,10 +1121,9 @@
 
 /* 拖拽悬停效果 */
 .drag-over {
-    background-color: rgba(76, 175, 80, 0.1) !important;
+    background-color: rgba(76, 175, 80, 0.12) !important;
     border: 2px dashed #4CAF50 !important;
     border-radius: 8px !important;
-    transition: all 0.2s ease !important;
 }
 
 /* 拖拽目标区域高亮 */
@@ -634,4 +1150,170 @@
     transform: none !important;
     opacity: 1 !important;
     pointer-events: none !important;
+}
+
+.solo-watch-overlay {
+    --solo-watch-gap: clamp(12px, 3vmin, 28px);
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(var(--solo-watch-gap), env(safe-area-inset-top))
+        max(var(--solo-watch-gap), env(safe-area-inset-right))
+        max(var(--solo-watch-gap), env(safe-area-inset-bottom))
+        max(var(--solo-watch-gap), env(safe-area-inset-left));
+    box-sizing: border-box;
+}
+
+.solo-watch-backdrop {
+    position: fixed;
+    inset: 0;
+    border: 0;
+    background: rgba(30, 18, 5, 0.65);
+    cursor: pointer;
+}
+
+.solo-watch-dialog {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    /* 宽:高 = 2:3，在留白内尽量放大并居中 */
+    width: min(
+        calc(100vw - 2 * var(--solo-watch-gap)),
+        calc((100dvh - 2 * var(--solo-watch-gap)) * 2 / 3)
+    );
+    aspect-ratio: 2 / 3;
+    max-height: calc(100dvh - 2 * var(--solo-watch-gap));
+    overflow: hidden;
+    padding: clamp(10px, 2vmin, 16px);
+    border-radius: 22px;
+    background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+    border: 5px solid #6f4318;
+    color: #5b3a12;
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+    box-shadow:
+        inset 0 3px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+        0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.solo-watch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+.solo-watch-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.solo-watch-close {
+    padding: 6px 16px;
+    font-family: inherit;
+    font-weight: 700;
+    border: 2px solid #8c2c10;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.45),
+        0 2px 0 rgba(90, 51, 17, 0.7);
+    cursor: pointer;
+}
+
+.solo-watch-hud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #8a5a2b;
+    flex-shrink: 0;
+}
+
+.solo-watch-title-inline {
+    font-weight: 700;
+}
+
+.solo-watch-board {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+/* GamePlayer 默认 absolute 100% 在 watch 容器内会高度塌陷 */
+.solo-watch-board .solo-player-container {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.solo-watch-board .solo-game-header {
+    display: none;
+}
+
+.solo-watch-board .solo-board-surface {
+    flex: 1;
+    min-height: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    --solo-board-v-reserve: max(4.5rem, 16%);
+    --solo-zone-gap: clamp(2px, 0.6vw, 8px);
+}
+
+.solo-watch-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    flex-shrink: 0;
+}
+
+.solo-watch-controls button {
+    padding: 8px 16px;
+    font-family: inherit;
+    font-weight: 700;
+    border-radius: 999px;
+    border: 2px solid #b06e14;
+    background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%);
+    color: #7a4a10;
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.6),
+        0 2px 0 rgba(130, 82, 16, 0.45);
+    cursor: pointer;
+}
+
+.solo-watch-controls button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.solo-watch-status {
+    margin: 12px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #a3814f;
+}
+
+.solo-watch-status--error {
+    color: #c2410c;
 }

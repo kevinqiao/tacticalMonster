@@ -1,11 +1,164 @@
+import gsap from "gsap";
 import { RefObject } from "react";
-import { CARD_SUITS, SoloBoardDimension, SoloCard, ZoneType } from "./types/SoloTypes";
+import { CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, ZoneType } from "./types/SoloTypes";
 
-export const getCoord = (card: SoloCard, cards: SoloCard[], boardDimensionRef: RefObject<SoloBoardDimension | null>) => {
-    if (!boardDimensionRef.current) return { x: 0, y: 0 };
-    const boardDimension = boardDimensionRef.current;
-    cards.sort((a, b) => a.zoneIndex - b.zoneIndex);
-    // const zoneCards = cards.filter(c => c.zoneId === card.zoneId)
+/**
+ * 同列牌垂直露出比例（相对牌高）。越大重叠越少、列越松；槽位不够时由 vScale 统一压紧。
+ */
+export const TABLEAU_VERTICAL_PEEK = 0.28;
+
+/**
+ * 接龙列在「最厚一摞」的牌间步长之和 + 单牌高度超过槽位可用高度时，按比例压紧垂距，避免整摞超出区底/屏底。
+ * 不改动牌面尺寸，只缩叠放步长；各列用同一倍率，保证最厚一摞刚好装下。
+ */
+function getTableauVerticalStepScale(
+    boardDimension: SoloBoardDimension,
+    allCards: SoloCard[]
+): number {
+    const h = boardDimension.cardHeight;
+    const slotH = boardDimension.zones.tableau.height;
+    if (h <= 0 || slotH <= 0) return 1;
+    // 与 CSS 槽位底边留 1~2px，避免子像素截断看起来「溢出」
+    const pad = 1;
+    const H = Math.max(0, slotH - pad);
+    if (H < h) return 0;
+
+    const baseStep = () => TABLEAU_VERTICAL_PEEK * h;
+    let gMax = 0;
+    for (let col = 0; col < 7; col++) {
+        const zoneId = `tableau-${col}`;
+        const column = allCards
+            .filter((c) => c.zone === ZoneType.TABLEAU && c.zoneId === zoneId)
+            .sort((a, b) => a.zoneIndex - b.zoneIndex);
+        let g = 0;
+        for (let i = 0; i < column.length - 1; i++) {
+            g += baseStep();
+        }
+        gMax = Math.max(gMax, g);
+    }
+    if (gMax <= 0) return 1;
+    if (gMax + h <= H) return 1;
+    return Math.max(0, (H - h) / gMax);
+}
+
+/** Draw 3：waste 区仅铺开最新三张，更早的牌叠在 fan 左端同位置 */
+export const SOLITAIRE_WASTE_VISIBLE_FAN = 3;
+/** Draw-3 waste 水平扇开比例（相对牌宽）；加大以便露出被盖住的花色/点数 */
+export const WASTE_FAN_STEP_RATIO = 0.52;
+const WASTE_Z_BASE = 2000;
+
+function sortedWastePile(wastePile: SoloCard[], zoneId = "waste"): SoloCard[] {
+    return [...wastePile]
+        .filter((c) => c.zoneId === zoneId)
+        .sort((a, b) => a.zoneIndex - b.zoneIndex);
+}
+
+/** 三张 fan 的水平步长（相邻牌可见重叠） */
+export function wasteFanStep(cardWidth: number): number {
+    return cardWidth * WASTE_FAN_STEP_RATIO;
+}
+
+/** 与 CSS `--solo-waste-fan-step` 一致（整像素） */
+export function wasteFanStepPx(cardWidth: number): number {
+    return Math.round(wasteFanStep(cardWidth));
+}
+
+/** waste 槽位宽度 = 三张牌 fan 的总跨度 */
+export function wasteZoneFanWidth(cardWidth: number): number {
+    return cardWidth + 2 * wasteFanStepPx(cardWidth);
+}
+
+/** waste 内 pile 序号越大越靠上（顶牌在最上层） */
+export function wasteCardZIndex(card: SoloCard, wastePile: SoloCard[]): number {
+    const pile = sortedWastePile(wastePile, card.zoneId);
+    const idx = pile.findIndex((c) => c.id === card.id);
+    return idx < 0 ? WASTE_Z_BASE : WASTE_Z_BASE + idx;
+}
+
+export function soloCardZIndex(card: SoloCard, zoneCards?: SoloCard[]): number {
+    if (card.zone === ZoneType.TABLEAU) {
+        return tableauCardZIndex(card.zoneId, card.zoneIndex);
+    }
+    if (card.zone === ZoneType.WASTE && zoneCards) {
+        return wasteCardZIndex(card, zoneCards);
+    }
+    return card.zoneIndex + 10;
+}
+
+export function getWasteCardCoord(
+    card: SoloCard,
+    wastePile: SoloCard[],
+    wasteZone: { x: number; y: number; width: number; height: number },
+    cardWidth: number,
+    cardHeight: number
+): { x: number; y: number } {
+    const pile = sortedWastePile(wastePile, card.zoneId);
+    const idx = pile.findIndex((c) => c.id === card.id);
+    const step = wasteFanStepPx(cardWidth);
+    const maxFanSpan = cardWidth + 2 * step;
+    const anchorX = wasteZone.x + Math.max(0, (wasteZone.width - maxFanSpan) / 2);
+    const y =
+        wasteZone.y + Math.max(0, (wasteZone.height - cardHeight) / 2);
+
+    if (idx < 0) {
+        return { x: anchorX, y };
+    }
+
+    const n = pile.length;
+    const fanStart = Math.max(0, n - SOLITAIRE_WASTE_VISIBLE_FAN);
+
+    if (idx < fanStart) {
+        return { x: anchorX, y };
+    }
+
+    // 较早的 fan 在左，最新顶牌在右（靠近 talon）；右牌 z 更高，盖住左侧
+    const pileIdx = idx - fanStart;
+    return { x: anchorX + pileIdx * step, y };
+}
+
+/** 牌桌单列：zoneIndex 越大越靠上，z 单调递增且列与列之间不重叠 */
+export function tableauCardZIndex(zoneId: string, zoneIndex: number): number {
+    const col = parseInt(zoneId.split("-")[1] ?? "0", 10);
+    const safeCol = Number.isNaN(col) ? 0 : col;
+    return 3000 + safeCol * 200 + zoneIndex;
+}
+
+/** 按当前 gameState 重算所有区域卡牌的 z-index（修复拖拽临时 zIndex 与移动后叠放） */
+export function syncCardStackZIndexFromGameState(gameState: SoloGameState): void {
+    const byZone = new Map<string, SoloCard[]>();
+    for (const c of gameState.cards) {
+        if (!c.ele) continue;
+        const list = byZone.get(c.zoneId) ?? [];
+        list.push(c);
+        byZone.set(c.zoneId, list);
+    }
+    for (const [, list] of byZone) {
+        list.sort((a, b) => a.zoneIndex - b.zoneIndex);
+        for (const c of list) {
+            if (!c.ele) continue;
+            gsap.set(c.ele, { zIndex: soloCardZIndex(c, list) });
+        }
+    }
+}
+
+/** `boardDimensionRef` 或发牌/特效里直接传入的 `boardDimension` 快照 */
+export type BoardDimensionSource =
+    | RefObject<SoloBoardDimension | null>
+    | SoloBoardDimension
+    | null
+    | undefined;
+
+function resolveBoardDimension(src: BoardDimensionSource): SoloBoardDimension | null {
+    if (src == null) return null;
+    if (typeof src === "object" && "current" in src) {
+        return (src as RefObject<SoloBoardDimension | null>).current ?? null;
+    }
+    return src as SoloBoardDimension;
+}
+
+export const getCardCoord = (card: SoloCard, zoneCards: SoloCard[], boardDimensionSource: BoardDimensionSource) => {
+    const boardDimension = resolveBoardDimension(boardDimensionSource);
+    if (!boardDimension) return { x: 0, y: 0 };
     switch (card.zone) {
         case ZoneType.TALON: {
             const x = boardDimension.zones.talon.x
@@ -13,35 +166,43 @@ export const getCoord = (card: SoloCard, cards: SoloCard[], boardDimensionRef: R
             return { x, y };
         }
         case ZoneType.WASTE: {
-            const openCards = cards.length <= 3 ? cards : cards.slice(cards.length - 3, cards.length);
-            const index = openCards.findIndex(c => c.id === card.id)
-            const offsetY = index < 0 ? 0 : index;
-            const x = boardDimension.zones.waste.x + 80
-            const y = boardDimension.zones.waste.y + boardDimension.cardHeight * 0.15 * offsetY + 40
-            return { x, y };
+            return getWasteCardCoord(
+                card,
+                zoneCards,
+                boardDimension.zones.waste,
+                boardDimension.cardWidth,
+                boardDimension.cardHeight
+            );
         }
         case ZoneType.TABLEAU: {
             const colIndex = +card.zoneId.split('-')[1];
-            const x = boardDimension.zones.tableau.x + colIndex * (boardDimension.cardWidth + boardDimension.spacing);
-            if (card.isRevealed) {
-                const revealedIndex = cards.sort((a, b) => a.zoneIndex - b.zoneIndex).findIndex(c => c.isRevealed)
-                const offsetY = (card.zoneIndex - revealedIndex) * (boardDimension.cardHeight * 0.3) + revealedIndex * boardDimension.cardHeight * 0.1
-                const y = boardDimension.zones.tableau.y + offsetY;
-                return { x, y };
-            } else {
-                const offsetY = card.zoneIndex * (boardDimension.cardHeight * 0.1);
-                const y = boardDimension.zones.tableau.y + offsetY;
-                return { x, y };
-            }
+            const xs = boardDimension.tableauColX;
+            const x =
+                Number.isInteger(colIndex) && colIndex >= 0 && colIndex < xs.length
+                    ? xs[colIndex]!
+                    : boardDimension.zones.tableau.x + colIndex * (boardDimension.cardWidth + boardDimension.spacing);
+            const h = boardDimension.cardHeight;
+
+            const vScale = getTableauVerticalStepScale(boardDimension, zoneCards);
+            let y = boardDimension.zones.tableau.y
+            y = y + card.zoneIndex * TABLEAU_VERTICAL_PEEK * h * vScale;
+            return { x, y };
         }
         case ZoneType.FOUNDATION: {
             const index = CARD_SUITS.findIndex(suit => suit === card.suit);
-            const x = boardDimension.zones.foundations.x + index * (boardDimension.cardWidth + boardDimension.spacing)
+            const fxs = boardDimension.foundationColX;
+            const x =
+                index >= 0 && index < fxs.length
+                    ? fxs[index]!
+                    : boardDimension.zones.foundations.x + index * (boardDimension.cardWidth + boardDimension.spacing);
             const y = boardDimension.zones.foundations.y
             return { x, y };
         }
+        default:
+            return { x: 0, y: 0 };
     }
-}
+};
+
 // 获取区域优先级
 const getZonePriority = (zoneId: string, card: SoloCard) => {
     if (zoneId.startsWith('foundation-')) return 100; // Foundation 最高优先级
@@ -50,78 +211,205 @@ const getZonePriority = (zoneId: string, card: SoloCard) => {
     return 0;
 }
 
+/** 主牌 + 跟牌（tableau 串）合并为视口轴对齐包围盒，用于落点检测 */
+function unionDragPileClientRect(pile: SoloCard[]): { left: number; right: number; top: number; bottom: number } | null {
+    const withEle = pile.filter((c): c is SoloCard & { ele: HTMLElement } => !!c.ele);
+    if (withEle.length === 0) return null;
+    let left = Infinity;
+    let top = Infinity;
+    let right = -Infinity;
+    let bottom = -Infinity;
+    for (const c of withEle) {
+        const r = c.ele.getBoundingClientRect();
+        left = Math.min(left, r.left);
+        top = Math.min(top, r.top);
+        right = Math.max(right, r.right);
+        bottom = Math.max(bottom, r.bottom);
+    }
+    if (right <= left || bottom <= top) return null;
+    return { left, right, top, bottom };
+}
+
+export type DropZoneCacheEntry = {
+    zoneId: string;
+    element: Element;
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+};
+
+/** 拖拽开始时缓存落点区几何，避免 pointermove 每帧 querySelectorAll + getBoundingClientRect */
+export function buildDropZoneCache(): DropZoneCacheEntry[] {
+    const dropZones = document.querySelectorAll("[data-drop-zone]");
+    const out: DropZoneCacheEntry[] = [];
+    dropZones.forEach((zone) => {
+        const zoneId = zone.getAttribute("data-zone-id");
+        if (!zoneId) return;
+        const raw = zone.getBoundingClientRect();
+        out.push({
+            zoneId,
+            element: zone,
+            left: raw.left,
+            right: raw.right,
+            top: raw.top,
+            bottom: raw.bottom,
+        });
+    });
+    return out;
+}
+
 // 改进的 findBestDropTarget 函数 - 使用动态卡牌尺寸
 export const findBestDropTarget = (
     position: { x: number; y: number },
     card: SoloCard,
-    boardDimension: SoloBoardDimension  // 添加 boardDimension 参数
+    boardDimension: SoloBoardDimension,
+    /** 若提供，仅在「规则允许落到该区」的候选里取最优，避免与 foundation 等区域几何重叠时误选高优先级非法区 */
+    isLegalDrop?: (zoneId: string) => boolean,
+    /** tableau 跟牌与主牌同一 x，垂直叠放；仅测主牌盒时底部可能与目标列无交集，需合并整摞盒 */
+    dragFollowers?: SoloCard[] | null,
+    /** 拖拽开始缓存的落点区；缺省则现场查询（兼容旧调用） */
+    zoneCache?: DropZoneCacheEntry[] | null,
+    /** 已知视口包围盒时跳过 getBoundingClientRect */
+    dragBox?: { left: number; right: number; top: number; bottom: number } | null
 ): { zoneId: string; element: Element; priority: number; count: number; area: number } | null => {
     try {
-        // 边界检查
-        if (position.x < 0 || position.y < 0 || position.x > window.innerWidth || position.y > window.innerHeight) {
-            return null;
-        }
-
         // 从 boardDimension 获取实际的卡牌尺寸
         const cardWidth = boardDimension.cardWidth;
         const cardHeight = boardDimension.cardHeight;
 
-        // 卡牌边界
-        const cardLeft = position.x - cardWidth / 2;
-        const cardRight = position.x + cardWidth / 2;
-        const cardTop = position.y - cardHeight / 2;
-        const cardBottom = position.y + cardHeight / 2;
+        const pile = [card, ...(dragFollowers ?? [])];
+        const union = dragBox ?? unionDragPileClientRect(pile);
+        let cardLeft: number;
+        let cardRight: number;
+        let cardTop: number;
+        let cardBottom: number;
+        if (union) {
+            cardLeft = union.left;
+            cardRight = union.right;
+            cardTop = union.top;
+            cardBottom = union.bottom;
+        } else {
+            cardLeft = position.x - cardWidth / 2;
+            cardRight = position.x + cardWidth / 2;
+            cardTop = position.y - cardHeight / 2;
+            cardBottom = position.y + cardHeight / 2;
+        }
 
-        // 只选择带有 data-drop-zone 属性的元素
-        const dropZones = document.querySelectorAll('[data-drop-zone]');
+        const DROP_PAD = 14;
+        const cx = (cardLeft + cardRight) / 2;
+        const cy = (cardTop + cardBottom) / 2;
 
-        let bestTarget: { zoneId: string; element: Element; priority: number; count: number; area: number } | null = null;
-        let bestScore = -1;
-
-        dropZones.forEach(zone => {
-            const rect = zone.getBoundingClientRect();
-            const zoneId = zone.getAttribute('data-zone-id');
-
-            if (!zoneId) return;
-
-            // 计算交集面积
-            const intersectionLeft = Math.max(cardLeft, rect.left);
-            const intersectionRight = Math.min(cardRight, rect.right);
-            const intersectionTop = Math.max(cardTop, rect.top);
-            const intersectionBottom = Math.min(cardBottom, rect.bottom);
-
-            // 如果没有交集，跳过
-            if (intersectionLeft >= intersectionRight || intersectionTop >= intersectionBottom) {
-                return;
-            }
-
-            // 计算交集面积
-            const intersectionArea = (intersectionRight - intersectionLeft) * (intersectionBottom - intersectionTop);
-
-            // 如果完全没有交集，跳过
-            if (intersectionArea <= 0) {
-                return;
-            }
-
-            // 获取优先级
-            const priority = getZonePriority(zoneId, card);
-
-            // 计算分数：优先级 * 100 + 交集面积
-            const score = priority * 100 + intersectionArea;
-
-            if (score > bestScore) {
-                bestScore = score;
-                bestTarget = {
+        type ZoneBox = {
+            zoneId: string;
+            element: Element;
+            left: number;
+            right: number;
+            top: number;
+            bottom: number;
+        };
+        let zones: ZoneBox[];
+        if (zoneCache && zoneCache.length > 0) {
+            zones = zoneCache;
+        } else {
+            zones = [];
+            document.querySelectorAll("[data-drop-zone]").forEach((zone) => {
+                const zoneId = zone.getAttribute("data-zone-id");
+                if (!zoneId) return;
+                const raw = zone.getBoundingClientRect();
+                zones.push({
                     zoneId,
                     element: zone,
-                    priority,
-                    count: 1,
-                    area: intersectionArea
-                };
-            }
-        });
+                    left: raw.left,
+                    right: raw.right,
+                    top: raw.top,
+                    bottom: raw.bottom,
+                });
+            });
+        }
 
-        return bestTarget;
+        type Hit = { zoneId: string; element: Element; priority: number; area: number; score: number };
+        const hits: Hit[] = [];
+
+        const addHitsFromBox = () => {
+            for (const zone of zones) {
+                const r = {
+                    left: zone.left - DROP_PAD,
+                    right: zone.right + DROP_PAD,
+                    top: zone.top - DROP_PAD,
+                    bottom: zone.bottom + DROP_PAD,
+                };
+
+                const il = Math.max(cardLeft, r.left);
+                const ir = Math.min(cardRight, r.right);
+                const it = Math.max(cardTop, r.top);
+                const ib = Math.min(cardBottom, r.bottom);
+                if (il >= ir || it >= ib) continue;
+
+                const area = (ir - il) * (ib - it);
+                if (area <= 0) continue;
+
+                const priority = getZonePriority(zone.zoneId, card);
+                const score = priority * 100 + area;
+                hits.push({
+                    zoneId: zone.zoneId,
+                    element: zone.element,
+                    priority,
+                    area,
+                    score,
+                });
+            }
+        };
+
+        addHitsFromBox();
+
+        if (hits.length === 0) {
+            for (const zone of zones) {
+                const r = {
+                    left: zone.left - DROP_PAD,
+                    right: zone.right + DROP_PAD,
+                    top: zone.top - DROP_PAD,
+                    bottom: zone.bottom + DROP_PAD,
+                };
+                if (cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) continue;
+                const priority = getZonePriority(zone.zoneId, card);
+                hits.push({
+                    zoneId: zone.zoneId,
+                    element: zone.element,
+                    priority,
+                    area: 1,
+                    score: priority * 100 + 1,
+                });
+            }
+        }
+
+        if (hits.length === 0) {
+            return null;
+        }
+
+        hits.sort((a, b) => b.score - a.score);
+
+        if (isLegalDrop) {
+            const legal = hits.find((h) => isLegalDrop(h.zoneId));
+            if (!legal) {
+                return null;
+            }
+            return {
+                zoneId: legal.zoneId,
+                element: legal.element,
+                priority: legal.priority,
+                count: 1,
+                area: legal.area
+            };
+        }
+
+        return {
+            zoneId: hits[0].zoneId,
+            element: hits[0].element,
+            priority: hits[0].priority,
+            count: 1,
+            area: hits[0].area
+        };
 
     } catch (error) {
         console.error('Error in findBestDropTarget:', error);

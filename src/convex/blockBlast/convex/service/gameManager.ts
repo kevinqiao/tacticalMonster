@@ -1,38 +1,74 @@
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
-// 导入共享规则函数
 import {
-    canPlaceAnyShape,
-    canPlaceShape,
-    checkLines,
-    clearLines,
-    createEmptyGrid,
-    placeShapeOnGrid
-} from "../utils/gameRules";
+    BlockBlastGameStatus,
+    normalizeBlockBlastGridSize,
+    type BlockBlastGridSize,
+} from "../types/BlockBlastTypes";
+import { BlockBlastGameEngine, randomUuidCompat } from "./BlockBlastGameEngine";
+import {
+    BLOCK_BLAST_MATCH_TIME_LIMIT_SEC,
+    computeBlockBlastTotalScore,
+} from "./blockBlastScoreModel";
+import { parseCasualRunGameId } from "./casualGameLifecycle";
+import type { BlockBlastRecordedStep } from "./seedPool/blockBlastRecordedOpTypes";
 
-// 形状定义 - 常见的1010游戏形状
-const SHAPE_TEMPLATES: number[][][] = [
-    // 单个方块
-    [[1]],
-    // L 形状
-    [[1, 0], [1, 1]],
-    [[1, 1], [0, 1]],
-    [[0, 1], [1, 1]],
-    [[1, 1], [1, 0]],
-    // 直线
-    [[1, 1]],
-    [[1], [1]],
-    [[1, 1, 1]],
-    [[1], [1], [1]],
-    // 方块
-    [[1, 1], [1, 1]],
-    // T 形状
-    [[1, 1, 1], [0, 1, 0]],
-    [[0, 1], [1, 1], [0, 1]],
-    // Z 形状
-    [[1, 1, 0], [0, 1, 1]],
-    [[0, 1], [1, 1], [1, 0]],
-];
+/** 同 `gameId` 多行时取最新；`collect`+排序避免依赖 `.order().first()` 在重复索引上的 `unique` 异常 */
+function latestBlockBlastGameRow<T extends { _creationTime: number }>(rows: T[]): T | undefined {
+    if (rows.length === 0) return undefined;
+    return [...rows].sort((a, b) => b._creationTime - a._creationTime)[0];
+}
+
+/**
+ * 按 `gameId` 拉取局文档。避免 `withIndex("by_gameId", …)`：同一 `gameId` 存在多行时，
+ * 部分环境下索引等值读会触发 `unique() query returned more than one result`。
+ */
+async function collectBlockBlastGamesByGameId(ctx: { db: any }, gameId: string): Promise<any[]> {
+    return await ctx.db
+        .query("blockBlast_game")
+        .filter((q: any) => q.eq(q.field("gameId"), gameId))
+        .collect();
+}
+
+/** 保留最新一行并删除同 `gameId` 的其余行 */
+async function healDuplicateBlockBlastGamesForGameId(ctx: { db: any }, gameId: string): Promise<void> {
+    const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+    if (rows.length <= 1) return;
+    const sorted = [...rows].sort((a, b) => b._creationTime - a._creationTime);
+    for (const r of sorted.slice(1)) {
+        await ctx.db.delete(r._id);
+    }
+}
+
+/**
+ * 供 `proxy/controller` action：单事务内去重后返回当前局（不再走 internalQuery，避免索引路径 `unique`）。
+ */
+export const loadGameRowAfterHeal = internalMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const game = latestBlockBlastGameRow(rows);
+        if (!game) return null;
+        return { ...game, _creationTime: undefined };
+    },
+});
+
+/** 休闲再战：删除同 `gameId` 的局文档 */
+export const deleteCasualGameForReplay = internalMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        await ctx.runMutation(internal.service.casualGameLifecycle.cancelCasualTimeoutJob, {
+            gameId,
+        });
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        for (const row of rows) {
+            await ctx.db.delete(row._id);
+        }
+        return { ok: true as const, deleted: rows.length };
+    },
+});
 
 interface Shape {
     id: string;
@@ -43,6 +79,7 @@ interface Shape {
 interface GameState {
     _id?: string;
     gameId: string;
+    gridSize?: BlockBlastGridSize;
     grid: number[][];
     shapes: Shape[];
     nextShapes: Shape[];
@@ -53,91 +90,69 @@ interface GameState {
     seed?: string;
     shapeCounter?: number; // 已生成的形状计数器（用于可重现性）
     lastUpdate?: number;
+    recordedOps?: BlockBlastRecordedStep[];
+    lastOpAt?: number;
+    dueTime?: number;
+    casualTimeoutScheduledId?: string;
+    replayEpoch?: number;
 }
 
-function createSeededRandom(seed: string | number): () => number {
-    if (typeof seed === "number") {
-        let a = seed;
-        return function () {
-            let t = (a += 0x6d2b79f5);
-            t = Math.imul(t ^ (t >>> 15), t | 1);
-            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-        };
+async function scheduleBlockBlastCasualTimeout(
+    ctx: { db: any; scheduler: any },
+    gameId: string,
+    gameRowId: string
+): Promise<void> {
+    if (!gameId.startsWith("game_")) return;
+    const parsed = parseCasualRunGameId(gameId);
+    if (!parsed?.uid || !gameRowId) return;
+    const now = Date.now();
+    const dueTime = now + BLOCK_BLAST_MATCH_TIME_LIMIT_SEC * 1000;
+    try {
+        const jobId = await ctx.scheduler.runAfter(
+            BLOCK_BLAST_MATCH_TIME_LIMIT_SEC * 1000,
+            internal.service.casualGameTimeoutAction.checkCasualGameTimeoutAndIngest,
+            { gameRowId, gameId, uid: parsed.uid }
+        );
+        await ctx.db.patch(gameRowId, {
+            dueTime,
+            casualTimeoutScheduledId: jobId,
+        });
+    } catch (scheduleErr) {
+        console.warn("[blockBlast] casual timeout schedule failed", gameId, scheduleErr);
     }
-    let h = 1779033703 ^ seed.length;
-    for (let i = 0; i < seed.length; i++) {
-        h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
-        h = (h << 13) | (h >>> 19);
-    }
-    h = Math.imul(h ^ (h >>> 16), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    const hash = (h ^= h >>> 16) >>> 0;
-    let a = hash;
-    return function () {
-        let t = (a += 0x6d2b79f5);
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
 }
 
-/**
- * 生成基于 seed 的确定性 ID
- * 使用 seed 和索引生成可重现的 ID
- */
-function generateDeterministicId(seed: string, index: number): string {
-    // 使用 seed 和 index 生成哈希值
-    let hash = 0;
-    const seedStr = `${seed}-${index}`;
-    for (let i = 0; i < seedStr.length; i++) {
-        const char = seedStr.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    // 转换为正数并格式化为 UUID 格式
-    const positiveHash = Math.abs(hash);
-    return `${positiveHash.toString(16).padStart(8, '0')}-${(positiveHash * 2).toString(16).padStart(4, '0')}-${(positiveHash * 3).toString(16).padStart(4, '0')}-${(positiveHash * 4).toString(16).padStart(4, '0')}-${(positiveHash * 5).toString(16).padStart(12, '0')}`;
-}
-
-function generateShape(template: number[][], color: number, shapeIndex: number, seed?: string): Shape {
-    return {
-        id: seed ? generateDeterministicId(seed, shapeIndex) : crypto.randomUUID(),
-        shape: template,
-        color: color,
-    };
-}
-
-/**
- * 生成形状列表
- * @param count 要生成的形状数量
- * @param seed 种子值（可选）
- * @param startIndex 起始索引（用于确保连续生成）
- * @returns 形状数组
- */
-function generateShapes(count: number, seed?: string, startIndex: number = 0): Shape[] {
-    const rng = seed ? createSeededRandom(seed) : Math.random;
-    const shapes: Shape[] = [];
-
-    // 如果使用 seed，需要跳过前面的随机数（用于连续生成）
-    // 每个形状需要 2 个随机数：templateIndex 和 color
-    // 所以需要跳过 startIndex * 2 个随机数
-    if (seed && startIndex > 0) {
-        for (let i = 0; i < startIndex * 2; i++) {
-            rng(); // 跳过前面的随机数
+/** loadGame 时补挂缺失的 dueTime / 服务端 timeout job */
+export const ensureCasualTimeoutScheduled = internalMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        if (!gameId.startsWith("game_")) {
+            return { ok: true as const, scheduled: false as const };
         }
-    }
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const row = latestBlockBlastGameRow(rows);
+        if (!row?._id) {
+            return { ok: true as const, scheduled: false as const };
+        }
+        if (row.dueTime != null && row.casualTimeoutScheduledId != null) {
+            return { ok: true as const, scheduled: false as const };
+        }
+        await scheduleBlockBlastCasualTimeout(ctx, gameId, row._id);
+        return { ok: true as const, scheduled: true as const };
+    },
+});
 
-    for (let i = 0; i < count; i++) {
-        const templateIndex = Math.floor(rng() * SHAPE_TEMPLATES.length);
-        const color = Math.floor(rng() * 7) + 1; // 1-7 颜色
-        const shapeIndex = startIndex + i;
-        shapes.push(generateShape(SHAPE_TEMPLATES[templateIndex], color, shapeIndex, seed));
-    }
-    return shapes;
+/** 追加一条回放步骤；自动用 `lastOpAt` 估算 pacingMs（对齐 solitaireArena appendRecordedStep） */
+function appendRecordedStep(game: GameState, step: BlockBlastRecordedStep): void {
+    const now = Date.now();
+    const pacingMs =
+        step.pacingMs ??
+        (game.lastOpAt != null ? Math.max(50, now - game.lastOpAt) : undefined);
+    const withPacing =
+        pacingMs != null && step.pacingMs == null ? { ...step, pacingMs } : step;
+    game.recordedOps = [...(game.recordedOps ?? []), withPacing];
+    game.lastOpAt = now;
 }
-
-// 规则函数已移至共享模块 ../utils/gameRules.ts
 
 export class BlockBlastGameManager {
     private dbCtx: any;
@@ -149,13 +164,11 @@ export class BlockBlastGameManager {
     }
 
     async load(gameId: string): Promise<GameState | undefined> {
-        const game = await this.dbCtx.db
-            .query("blockBlast_game")
-            .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
-            .unique();
+        const rows = await collectBlockBlastGamesByGameId(this.dbCtx, gameId);
+        const game = latestBlockBlastGameRow(rows);
         if (!game) return;
 
-        this.game = { ...game, _creationTime: undefined } as GameState;
+        this.game = { ...game, _creationTime: undefined, recordedOps: game.recordedOps ?? [] } as GameState;
         return this.game;
     }
 
@@ -163,6 +176,7 @@ export class BlockBlastGameManager {
         if (!this.game) return;
 
         if (data.grid) this.game.grid = data.grid;
+        if (data.gridSize !== undefined) this.game.gridSize = data.gridSize;
         if (data.shapes !== undefined) this.game.shapes = data.shapes;
         if (data.nextShapes !== undefined) this.game.nextShapes = data.nextShapes;
         if (data.score !== undefined) this.game.score = data.score;
@@ -170,10 +184,14 @@ export class BlockBlastGameManager {
         if (data.status !== undefined) this.game.status = data.status;
         if (data.moves !== undefined) this.game.moves = data.moves;
         if (data.shapeCounter !== undefined) this.game.shapeCounter = data.shapeCounter;
+        if (data.recordedOps !== undefined) this.game.recordedOps = data.recordedOps;
+        if (data.lastOpAt !== undefined) this.game.lastOpAt = data.lastOpAt;
+        if (this.game.recordedOps === undefined) this.game.recordedOps = [];
         this.game.lastUpdate = Date.now();
 
-        await this.dbCtx.db.patch(this.game._id, {
+        const patch: Record<string, unknown> = {
             grid: this.game.grid,
+            gridSize: this.game.gridSize,
             shapes: this.game.shapes,
             nextShapes: this.game.nextShapes,
             score: this.game.score,
@@ -182,30 +200,35 @@ export class BlockBlastGameManager {
             moves: this.game.moves,
             shapeCounter: this.game.shapeCounter,
             lastUpdate: this.game.lastUpdate,
-        });
+            recordedOps: this.game.recordedOps,
+        };
+        if (this.game.lastOpAt != null) {
+            patch.lastOpAt = this.game.lastOpAt;
+        }
+        await this.dbCtx.db.patch(this.game._id, patch);
     }
 
-    async createGame(seed?: string, gameId?: string): Promise<GameState | null> {
+    async createGame(
+        seed?: string,
+        gameId?: string,
+        gridSizeArg?: BlockBlastGridSize | number,
+        replayEpoch?: number
+    ): Promise<GameState | null> {
         const normalizedSeed = seed !== undefined ? String(seed) : undefined;
-        const grid = createEmptyGrid();
-        // 使用连续索引确保可重现性
-        // initialShapes: 索引 0-2, nextShapes: 索引 3-5
-        const initialShapes = generateShapes(3, normalizedSeed, 0);
-        const nextShapes = generateShapes(3, normalizedSeed, 3);
-
+        const gridSize = normalizeBlockBlastGridSize(gridSizeArg);
+        const base = BlockBlastGameEngine.createInitialGame(
+            gameId ?? `blockblast-${Date.now()}`,
+            normalizedSeed,
+            gridSize
+        );
         const gameState: GameState = {
-            gameId: gameId ?? `blockblast-${Date.now()}`,
-            grid,
-            shapes: initialShapes,
-            nextShapes,
-            score: 0,
-            lines: 0,
-            status: 0, // PLAYING
-            moves: 0,
-            seed: normalizedSeed,
-            shapeCounter: 6, // 已生成 6 个形状（initialShapes: 0-2, nextShapes: 3-5）
+            ...base,
             lastUpdate: Date.now(),
-        };
+            recordedOps: [],
+            ...(typeof replayEpoch === "number" && Number.isFinite(replayEpoch)
+                ? { replayEpoch }
+                : {}),
+        } as GameState;
 
         const gid = await this.dbCtx.db.insert("blockBlast_game", gameState);
         if (gid) {
@@ -218,49 +241,90 @@ export class BlockBlastGameManager {
     async placeShape(shapeId: string, row: number, col: number): Promise<{ ok: boolean, data?: any }> {
         if (!this.game) return { ok: false };
 
-        const shapeIndex = this.game.shapes.findIndex(s => s.id === shapeId);
-        if (shapeIndex === -1) return { ok: false, data: { error: "Shape not found" } };
-
-        const shape = this.game.shapes[shapeIndex];
-        if (!canPlaceShape(this.game.grid, shape.shape, row, col)) {
-            return { ok: false, data: { error: "Cannot place shape" } };
+        if (
+            this.game.dueTime != null &&
+            Date.now() >= this.game.dueTime &&
+            this.game.status === BlockBlastGameStatus.PLAYING
+        ) {
+            await this.save({ status: BlockBlastGameStatus.CANCELLED });
+            return {
+                ok: false,
+                data: {
+                    error: "time_expired",
+                    mustEnd: true,
+                    endReason: "time_expired",
+                    status: BlockBlastGameStatus.CANCELLED,
+                    score: this.game.score,
+                    lines: this.game.lines,
+                    moves: this.game.moves,
+                },
+            };
         }
 
-        // 放置形状
-        placeShapeOnGrid(this.game.grid, shape.shape, shape.color, row, col);
+        /** 落子前手牌中的槽位（与确定性重放盘面同序）；apply 后 shapes 会变，故先取 */
+        const slot = this.game.shapes.findIndex((s) => s.id === shapeId);
 
-        // 移除已使用的形状
-        const newShapes = [...this.game.shapes];
-        newShapes.splice(shapeIndex, 1);
-
-        // 如果形状用完了，生成新的
-        if (newShapes.length === 0) {
-            newShapes.push(...this.game.nextShapes);
-            // 使用 shapeCounter 作为起始索引，确保连续生成
-            const nextStartIndex = this.game.shapeCounter ?? 6;
-            this.game.nextShapes = generateShapes(3, this.game.seed, nextStartIndex);
-            this.game.shapeCounter = nextStartIndex + 3; // 更新计数器
+        const res = BlockBlastGameEngine.applyPlaceShape(
+            {
+                grid: this.game.grid,
+                gridSize: this.game.gridSize,
+                shapes: this.game.shapes,
+                nextShapes: this.game.nextShapes,
+                score: this.game.score,
+                lines: this.game.lines,
+                moves: this.game.moves,
+                status: this.game.status,
+                seed: this.game.seed,
+                shapeCounter: this.game.shapeCounter,
+            },
+            shapeId,
+            row,
+            col
+        );
+        if (!res.ok) {
+            return { ok: false, data: { error: res.error } };
         }
 
-        // 检查并清除满行/列
-        const { rows, cols } = checkLines(this.game.grid);
-        const clearedCount = rows.length + cols.length;
-        if (clearedCount > 0) {
-            clearLines(this.game.grid, rows, cols);
-            this.game.lines += clearedCount;
-            this.game.score += clearedCount * 10; // 每消除一行/列得10分
+        this.game.grid = res.data.grid;
+        this.game.shapes = res.data.shapes;
+        this.game.nextShapes = res.data.nextShapes;
+        this.game.score = res.data.score;
+        this.game.lines = res.data.lines;
+        this.game.moves = res.data.moves;
+        this.game.status = res.data.status;
+        this.game.shapeCounter = res.data.shapeCounter;
+
+        if (slot >= 0) {
+            appendRecordedStep(this.game, { op: "place", slot, row, col });
         }
 
-        this.game.moves += 1;
-        this.game.shapes = newShapes;
-
-        // 检查游戏结束
-        if (!canPlaceAnyShape(this.game.grid, this.game.shapes)) {
-            this.game.status = 2; // LOST
-        }
-
-        await this.save({});
-        return { ok: true, data: { grid: this.game.grid, shapes: this.game.shapes, score: this.game.score, lines: this.game.lines, status: this.game.status } };
+        await this.save({
+            recordedOps: this.game.recordedOps,
+            lastOpAt: this.game.lastOpAt,
+        });
+        const mustEnd = this.game.status !== BlockBlastGameStatus.PLAYING;
+        return {
+            ok: true,
+            data: {
+                grid: this.game.grid,
+                shapes: this.game.shapes,
+                nextShapes: this.game.nextShapes,
+                score: this.game.score,
+                lines: this.game.lines,
+                status: this.game.status,
+                shapeCounter: this.game.shapeCounter,
+                cleared: res.data.cleared,
+                ...(mustEnd
+                    ? {
+                          mustEnd: true as const,
+                          endReason:
+                              this.game.status === BlockBlastGameStatus.LOST
+                                  ? ("stuck" as const)
+                                  : ("terminal" as const),
+                      }
+                    : {}),
+            },
+        };
     }
 
     async gameOver(): Promise<{ ok: boolean }> {
@@ -268,20 +332,93 @@ export class BlockBlastGameManager {
         await this.save({ status: 2 });
         return { ok: true };
     }
+
+    /** 玩家主动结束：标记放弃，保留当前分数供上报（对齐 solitaireArena `concedeGame`） */
+    async concedeGame(): Promise<
+        | { ok: true; score: number; lines: number; moves: number; gameStatus: number }
+        | { ok: false }
+    > {
+        if (!this.game) return { ok: false };
+        const st = this.game.status;
+        if (st !== BlockBlastGameStatus.PLAYING) {
+            return {
+                ok: true,
+                score: this.game.score,
+                lines: this.game.lines,
+                moves: this.game.moves,
+                gameStatus: st,
+            };
+        }
+        appendRecordedStep(this.game, { op: "concede" });
+        await this.save({ status: BlockBlastGameStatus.CANCELLED });
+        return {
+            ok: true,
+            score: this.game.score,
+            lines: this.game.lines,
+            moves: this.game.moves,
+            gameStatus: BlockBlastGameStatus.CANCELLED,
+        };
+    }
 }
 
 export const createGame = internalMutation({
     args: {
         seed: v.optional(v.string()),
         gameId: v.string(),
+        gridSize: v.optional(v.number()),
+        replayEpoch: v.optional(v.number()),
     },
-    handler: async (ctx, { seed, gameId }) => {
+    handler: async (ctx, { seed, gameId, gridSize, replayEpoch }) => {
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const keep = latestBlockBlastGameRow(rows);
+        if (keep) {
+            return { ok: true as const, data: { ...keep, _creationTime: undefined } };
+        }
         const gameManager = new BlockBlastGameManager(ctx);
-        const game = await gameManager.createGame(seed, gameId);
-        if (game) {
-            return { ok: true, data: game };
+        const game = await gameManager.createGame(seed, gameId, gridSize, replayEpoch);
+        if (game && game._id) {
+            await scheduleBlockBlastCasualTimeout(ctx, gameId, game._id);
+            const fresh = await gameManager.load(gameId);
+            return { ok: true, data: fresh ?? game };
         }
         return { ok: false };
+    },
+});
+
+/** 客户端直接开新局（不依赖锦标赛 proxy）；与 internal createGame 一致 */
+export const createBlockBlastGame = mutation({
+    args: {
+        seed: v.optional(v.string()),
+        gameId: v.optional(v.string()),
+        gridSize: v.optional(v.number()),
+    },
+    handler: async (ctx, { seed, gameId: requestedId, gridSize }) => {
+        const gameId =
+            requestedId && String(requestedId).length > 0
+                ? String(requestedId)
+                : randomUuidCompat();
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const keep = latestBlockBlastGameRow(rows);
+        if (keep) {
+            return { ok: true as const, gameId, data: keep };
+        }
+        const gameManager = new BlockBlastGameManager(ctx);
+        const game = await gameManager.createGame(
+            seed !== undefined ? String(seed) : undefined,
+            gameId,
+            gridSize !== undefined ? normalizeBlockBlastGridSize(gridSize) : undefined
+        );
+        if (!game) {
+            return { ok: false as const };
+        }
+        if (game._id) {
+            await scheduleBlockBlastCasualTimeout(ctx, gameId, game._id);
+            const fresh = await gameManager.load(gameId);
+            return { ok: true as const, gameId, data: fresh ?? game };
+        }
+        return { ok: true as const, gameId, data: game };
     },
 });
 
@@ -314,6 +451,7 @@ export const placeShape = mutation({
         col: v.number(),
     },
     handler: async (ctx, { gameId, shapeId, row, col }) => {
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
         const gameManager = new BlockBlastGameManager(ctx);
         await gameManager.load(gameId);
         return await gameManager.placeShape(shapeId, row, col);
@@ -323,9 +461,20 @@ export const placeShape = mutation({
 export const gameOver = mutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
         const gameManager = new BlockBlastGameManager(ctx);
         await gameManager.load(gameId);
         return await gameManager.gameOver();
+    },
+});
+
+export const concedeGame = mutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
+        const gameManager = new BlockBlastGameManager(ctx);
+        await gameManager.load(gameId);
+        return await gameManager.concedeGame();
     },
 });
 
@@ -338,10 +487,9 @@ export const findReport = query({
         return {
             ok: true,
             data: {
+                gameId,
                 baseScore: game.score,
-                linesBonus: game.lines * 5,
-                movesPenalty: Math.max(0, 100 - game.moves),
-                totalScore: game.score + game.lines * 5 + Math.max(0, 100 - game.moves),
+                totalScore: computeBlockBlastTotalScore(game.score),
             },
         };
     },
@@ -353,6 +501,27 @@ export const getGameStatus = query({
         const gameManager = new BlockBlastGameManager(ctx);
         const game = await gameManager.load(gameId);
         return { status: game?.status ?? -1 };
+    },
+});
+
+/** 回放/复盘：返回某局录制的落子序列（对齐 solitaireArena getRecordedOps） */
+export const getRecordedOps = query({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const row = latestBlockBlastGameRow(rows);
+        if (!row) {
+            return { ok: false as const, error: "not_found" as const };
+        }
+        return {
+            ok: true as const,
+            gameId: row.gameId,
+            seedId: row.seed,
+            steps: row.recordedOps ?? [],
+            score: row.score,
+            moves: row.moves,
+            status: row.status,
+        };
     },
 });
 

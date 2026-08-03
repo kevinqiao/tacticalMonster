@@ -1,0 +1,948 @@
+/*
+ * Solitaire Portal — Figma export asset theme
+ *
+ * Based on solitaire-cartoon.css; raster paths point at public/assets/portal/solitaire/.
+ * Drop Figma PNG exports into those folders (names must match --sol-* variables below).
+ *
+ * Expected files:
+ *   backgrounds/bg-16x9.png          backgrounds/bg-9x16.png
+ *   hero/hero-title.png              hero/hero-cards.png
+ *   icons/icon-target.png            icons/icon-swords.png
+ *   buttons/btn-shop-default.png     buttons/btn-challenge-default.png
+ *   buttons/btn-compete-default.png
+ *   panels/panel-history.png
+ *
+ * Until PNGs exist, copy portal_bg_*.png into backgrounds/ or temporarily switch import
+ * back to solitaire-cartoon.css in PortalGamePage.tsx.
+ *
+ * Layout sizes: tune with Figma Dev Mode (W×H, padding, gap).
+ */
+
+.portal-page.portal-page--solitaire,
+.portal-page[data-portal-game="solitaire"] {
+  /* Theme tokens (from Figma variables or Dev Mode) */
+  --theme-bg-color: #7dd3fc;
+  --theme-bg-pattern-color: #bae6fd;
+  --theme-border-dark: #0f172a;
+
+  --solo-accent: #22c55e;
+  --solo-accent-dark: #15803d;
+  --solo-bg: #f0fdf4;
+  --solo-shadow: #166534;
+
+  --multi-accent: #d946ef;
+  --multi-accent-dark: #a21caf;
+  --multi-bg: #fdf4ff;
+  --multi-shadow: #86198f;
+
+  --gold-accent: #fbbf24;
+  --gold-accent-dark: #d97706;
+  --gold-bg: #fffbeb;
+  --gold-shadow: #b45309;
+
+  --sol-page-max-width: 760px;
+  --sol-page-padding-x: 20px;
+  --sol-section-gap: 12px; /* 极度压缩各板块垂直间距，确保 100vh 单屏展示 */
+
+  /* Figma-exported PNG/SVG paths (public/assets/portal/solitaire/) */
+  --sol-bg-16x9: url("/assets/portal/solitaire/backgrounds/bg-16x9.webp");
+  --sol-bg-9x16: url("/assets/portal/solitaire/backgrounds/bg-9x16.webp");
+  --sol-hero-title: url("/assets/portal/solitaire/hero/hero-title.webp");
+  --sol-hero-cards: url("/assets/portal/solitaire/hero/hero-cards.webp");
+  --sol-icon-target: url("/assets/portal/solitaire/icons/icon-target.webp");
+  --sol-icon-swords: url("/assets/portal/solitaire/icons/icon-swords.webp");
+  --sol-btn-shop: url("/assets/portal/solitaire/buttons/btn-shop-default.webp");
+  --sol-btn-challenge: url("/assets/portal/solitaire/buttons/btn-challenge-default.webp");
+  --sol-btn-compete: url("/assets/portal/solitaire/buttons/btn-compete-default.webp");
+  --sol-panel-history: url("/assets/portal/solitaire/panels/panel-history.webp");
+  --sol-card-bg-solo: url("/assets/portal/solitaire/backgrounds/mode_solo_bg.webp");
+  --sol-card-bg-multi: url("/assets/portal/solitaire/backgrounds/mode_arena_bg.webp");
+
+  background-color: var(--theme-bg-color);
+  background-image: var(--sol-bg-16x9);
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: scroll;
+
+  color: #1e293b;
+  height: 100vh; /* 强制容器高度为 100vh，不允许垂直滚动 */
+  max-height: 100vh;
+  overflow: hidden; /* 彻底去除垂直和水平滚动条 */
+  padding: 12px var(--sol-page-padding-x) 16px; /* 极度压缩页面上下 Padding */
+  font-family: "Nunito", "Segoe UI Rounded", "PingFang SC", "Microsoft YaHei", sans-serif;
+  max-width: var(--sol-page-max-width);
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* 弹性分配剩余空间，实现单屏完美自适应 */
+  gap: var(--sol-section-gap);
+}
+
+@media (max-aspect-ratio: 1/1) {
+  .portal-page.portal-page--solitaire,
+  .portal-page[data-portal-game="solitaire"] {
+    background-image: var(--sol-bg-9x16) !important;
+    background-position: center bottom;
+  }
+}
+
+.portal-page.portal-page--solitaire::before,
+.portal-page[data-portal-game="solitaire"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image:
+    radial-gradient(circle at 12% 18%, #fff 6px, transparent 8px),
+    radial-gradient(circle at 85% 15%, #fff 8px, transparent 10px),
+    radial-gradient(circle at 25% 75%, #fff 5px, transparent 7px),
+    radial-gradient(circle at 70% 82%, #fff 7px, transparent 9px);
+  background-size: 100% 100%;
+}
+
+.portal-page.portal-page--solitaire > *,
+.portal-page[data-portal-game="solitaire"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   Header & Shop
+   ========================================================================== */
+.portal-page[data-portal-game="solitaire"] .portal-header {
+  margin-bottom: 0;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-header-main {
+  display: none;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-header-auth {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.portal-page.portal-page--solitaire .portal-btn-shop-pill,
+.portal-page[data-portal-game="solitaire"] .portal-btn-shop-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-image: var(--sol-btn-shop) !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-color: transparent !important;
+  color: #78350f !important;
+  border: none !important;
+  border-radius: 999px !important;
+  padding: 8px 18px !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: transform 0.1s, filter 0.1s;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+  min-width: 110px;
+  min-height: 36px;
+}
+
+.portal-page.portal-page--solitaire .portal-btn-shop-pill:hover,
+.portal-page[data-portal-game="solitaire"] .portal-btn-shop-pill:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+
+.portal-page.portal-page--solitaire .portal-btn-shop-pill:active,
+.portal-page[data-portal-game="solitaire"] .portal-btn-shop-pill:active {
+  transform: translateY(2px);
+  filter: brightness(0.95);
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-header-auth-btn {
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  color: var(--theme-border-dark) !important;
+  border: 3.5px solid var(--theme-border-dark) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 5px 0 #94a3b8, inset 0 2px 0 rgba(255, 255, 255, 0.9) !important;
+  padding: 8px 18px !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-header-auth-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 #94a3b8, inset 0 2px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-header-auth-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #94a3b8, inset 0 2px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+/* ==========================================================================
+   Hero — Figma PNG (title + cards); clock chip stays CSS
+   ========================================================================== */
+.portal-solitaire-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0; /* 彻底移除 padding */
+}
+
+.portal-solitaire-hero-cards-img {
+  width: 140px; /* 进一步收缩卡牌尺寸，确保单屏无滚动 */
+  height: 70px;
+  background-image: var(--sol-hero-cards);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  margin-bottom: 2px;
+  animation: solitaire-float-cards 4s infinite ease-in-out;
+}
+
+@keyframes solitaire-float-cards {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); } /* 减小漂浮幅度，避免溢出 */
+}
+
+.portal-solitaire-hero-title-img {
+  width: 280px; /* 进一步收缩标题尺寸 */
+  max-width: 92vw;
+  height: 60px;
+  background-image: var(--sol-hero-title);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  margin: 0 0 4px;
+}
+
+.portal-solitaire-hero-clock-chip {
+  background: #ffffff;
+  border: 3px solid var(--theme-border-dark);
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #475569;
+  box-shadow: 0 5px 0 rgba(15, 23, 42, 0.15);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ==========================================================================
+   Mode cards grid
+   ========================================================================== */
+.portal-solitaire-modes-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px; /* 缩减模式卡片之间的间距 (从 28px 缩减到 16px) */
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .portal-solitaire-modes-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px; /* 缩减横屏时的间距 */
+  }
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-mode-card-image-only {
+  width: 100%;
+  aspect-ratio: 300 / 335; /* 与 Figma 导出背景图原始比例完全一致 */
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  border-radius: 24px;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-mode-card-image-only--solo {
+  background-image: url("/assets/portal/solitaire/backgrounds/mode_solo_bg.webp");
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-mode-card-image-only--multi {
+  background-image: url("/assets/portal/solitaire/backgrounds/mode_arena_bg.webp");
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-mode-card {
+  border: 4px solid var(--theme-border-dark);
+  border-radius: 24px;
+  padding: 14px 16px 12px; /* 极度压缩卡片内边距，确保单屏无滚动 */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-mode-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-mode-card::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 2px dashed rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-mode-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--solo {
+  box-shadow: 0 12px 0 var(--solo-shadow), inset 0 4px 0 rgba(255, 255, 255, 0.7), inset 0 -4px 0 rgba(0, 0, 0, 0.06);
+  background: var(--solo-bg);
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--multi {
+  box-shadow: 0 12px 0 var(--multi-shadow), inset 0 4px 0 rgba(255, 255, 255, 0.7), inset 0 -4px 0 rgba(0, 0, 0, 0.06);
+  background: var(--multi-bg);
+}
+
+.portal-mode-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px; /* 缩减 margin */
+}
+
+.portal-mode-card-icon-wrapper {
+  width: 44px; /* 缩减图标尺寸 */
+  height: 44px;
+  flex-shrink: 0;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  animation: solitaire-float-icon 3s infinite ease-in-out;
+}
+
+.portal-mode-card--solo .portal-mode-card-icon-wrapper {
+  background-image: var(--sol-icon-target);
+}
+
+.portal-mode-card--multi .portal-mode-card-icon-wrapper {
+  background-image: var(--sol-icon-swords);
+}
+
+@keyframes solitaire-float-icon {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-4px) rotate(5deg); }
+}
+
+.portal-mode-card-title-section {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.portal-mode-card-title-section h2 {
+  margin: 0;
+  font-size: 18px; /* 缩减字体大小 */
+  font-weight: 900;
+  color: var(--theme-border-dark);
+  line-height: 1.2;
+}
+
+.portal-mode-card-subtitle {
+  font-size: 11.5px; /* 缩减字体大小 */
+  font-weight: 800;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.portal-mode-card-rank-badge {
+  background: #ffffff;
+  border: 3px solid var(--theme-border-dark);
+  border-radius: 10px;
+  padding: 4px 10px; /* 缩减 padding */
+  font-size: 12.5px; /* 缩减字体大小 */
+  font-weight: 900;
+  color: #1e293b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: 0 3px 0 var(--theme-border-dark);
+  margin-bottom: 10px; /* 大幅缩减底部间距 (从 22px 缩减到 10px) */
+  text-align: left;
+  align-self: flex-start;
+}
+
+.portal-mode-card-rank-badge .star-icon {
+  color: #fbbf24;
+}
+
+/* CTA — Figma PNG default; pressed/disabled via CSS (no extra PNG) */
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main {
+  width: 100%;
+  min-height: 44px; /* 缩减大按钮高度 (从 52px 缩减到 44px) */
+  border: none !important;
+  border-radius: 12px !important;
+  font-size: 16px !important; /* 缩减字体大小 */
+  font-weight: 950 !important;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0 0 8px 0 !important; /* 缩减间距 */
+  transition: transform 0.1s, filter 0.1s !important;
+  text-shadow: 0 2px 0 rgba(15, 23, 42, 0.45) !important;
+  color: #ffffff !important;
+  position: relative;
+  overflow: hidden;
+  background-color: transparent !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  box-shadow: none !important;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 30%;
+  height: 200%;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.45) 50%, rgba(255, 255, 255, 0) 100%);
+  transform: rotate(25deg);
+  pointer-events: none;
+  animation: solitaire-shine-sweep 4s infinite ease-in-out;
+}
+
+@keyframes solitaire-shine-sweep {
+  0% { left: -60%; }
+  15%, 100% { left: 130%; }
+}
+
+.portal-page.portal-page--solitaire .portal-mode-card--solo .portal-btn-cta-main,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--solo .portal-btn-cta-main,
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main--solo {
+  background-image: var(--sol-btn-challenge) !important;
+}
+
+.portal-page.portal-page--solitaire .portal-mode-card--multi .portal-btn-cta-main,
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--multi .portal-btn-cta-main,
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main--multi {
+  background-image: var(--sol-btn-compete) !important;
+}
+
+.portal-page.portal-page--solitaire .portal-mode-card--solo .portal-btn-cta-main:hover:not(:disabled),
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--solo .portal-btn-cta-main:hover:not(:disabled),
+.portal-page.portal-page--solitaire .portal-mode-card--multi .portal-btn-cta-main:hover:not(:disabled),
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--multi .portal-btn-cta-main:hover:not(:disabled),
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main--solo:hover:not(:disabled),
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main--multi:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+
+.portal-page.portal-page--solitaire .portal-mode-card--solo .portal-btn-cta-main:active:not(:disabled),
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--solo .portal-btn-cta-main:active:not(:disabled),
+.portal-page.portal-page--solitaire .portal-mode-card--multi .portal-btn-cta-main:active:not(:disabled),
+.portal-page[data-portal-game="solitaire"] .portal-mode-card--multi .portal-btn-cta-main:active:not(:disabled),
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main--solo:active:not(:disabled),
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main--multi:active:not(:disabled) {
+  transform: translateY(4px);
+  filter: brightness(0.95);
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-btn-cta-main:disabled {
+  filter: saturate(0.45) brightness(1.02);
+  opacity: 0.72;
+  cursor: not-allowed;
+  transform: none !important;
+  text-shadow: 0 1px 0 rgba(15, 23, 42, 0.25) !important;
+}
+
+.portal-mode-card-actions-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-btn-secondary-mini {
+  flex: 1;
+  min-height: 34px; /* 缩减辅助按钮高度 (从 40px 缩减到 34px) */
+  border: 2.5px solid var(--theme-border-dark) !important;
+  border-radius: 10px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+  color: #334155 !important;
+  font-size: 12px !important; /* 缩减字体大小 */
+  font-weight: 900 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 !important;
+  padding: 4px 8px !important;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #cbd5e1, inset 0 2px 0 #ffffff !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-btn-secondary-mini:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #cbd5e1, inset 0 2px 0 #ffffff !important;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-btn-secondary-mini:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #cbd5e1, inset 0 2px 0 #ffffff !important;
+}
+
+/* ==========================================================================
+   History — Figma parchment PNG + CSS rows
+   ========================================================================== */
+.portal-solitaire-history-section {
+  background-color: transparent;
+  background-image: var(--sol-panel-history);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  border: none;
+  border-radius: 22px;
+  box-shadow: none;
+  padding: 16px 20px; /* 缩减战绩羊皮纸的内边距 (从 24px 26px 缩减) */
+  box-sizing: border-box;
+  position: relative;
+}
+
+.portal-solitaire-history-section > * {
+  position: relative;
+  z-index: 2;
+}
+
+.portal-solitaire-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px; /* 缩减 margin */
+}
+
+.portal-solitaire-history-header h2 {
+  margin: 0;
+  font-size: 18px; /* 缩减字体大小 */
+  font-weight: 900;
+  color: var(--theme-border-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.portal-solitaire-history-header-count {
+  font-size: 12.5px;
+  font-weight: 900;
+  color: #78350f;
+  background: #fef3c7;
+  border: 2.5px solid var(--theme-border-dark);
+  border-radius: 999px;
+  padding: 3px 12px;
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.15);
+}
+
+.portal-solitaire-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* 缩减战绩列表行间距 (从 12px 缩减到 8px) */
+}
+
+.portal-solitaire-history-row-minimalist {
+  background: #ffffff;
+  border: 3px solid var(--theme-border-dark);
+  border-radius: 14px;
+  padding: 8px 14px; /* 缩减战绩行内边距 (从 12px 16px 缩减) */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 0 rgba(15, 23, 42, 0.08), inset 0 2px 0 rgba(255, 255, 255, 0.8);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.portal-solitaire-history-row-minimalist:hover {
+  transform: scale(1.01) translateY(-1px);
+  box-shadow: 0 5px 0 rgba(15, 23, 42, 0.12), inset 0 2px 0 rgba(255, 255, 255, 0.8);
+}
+
+.portal-solitaire-history-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  font-size: 13.5px; /* 缩减字体大小 */
+  color: #334155;
+}
+
+.portal-solitaire-history-row-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.portal-solitaire-history-time {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #94a3b8;
+}
+
+.portal-solitaire-point-bubble {
+  min-width: 38px;
+  height: 26px;
+  border-radius: 999px;
+  border: 2.5px solid var(--theme-border-dark);
+  font-size: 13px;
+  font-weight: 950;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  text-shadow: 0 1.5px 0 rgba(15, 23, 42, 0.3);
+  box-shadow: 0 3px 0 var(--theme-border-dark), inset 0 1.5px 0 rgba(255, 255, 255, 0.4);
+}
+
+.portal-solitaire-point-bubble--positive {
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%);
+}
+
+.portal-solitaire-point-bubble--negative {
+  background: linear-gradient(180deg, #f87171 0%, #ef4444 100%);
+}
+
+.portal-solitaire-ongoing-badge {
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  border: 2.5px solid var(--theme-border-dark);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11.5px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 0 var(--theme-border-dark);
+  animation: solitaire-pulser 1.2s infinite ease-in-out;
+}
+
+@keyframes solitaire-pulser {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.portal-solitaire-history-more-link {
+  align-self: flex-end;
+  background: none !important;
+  border: none !important;
+  color: #4f46e5 !important;
+  font-size: 14.5px !important;
+  font-weight: 900 !important;
+  cursor: pointer !important;
+  padding: 6px 0 !important;
+  margin-top: 8px !important;
+  text-align: right;
+  display: inline-block;
+  transition: color 0.1s;
+}
+
+.portal-solitaire-history-more-link:hover {
+  color: #3730a3 !important;
+  text-decoration: underline !important;
+}
+
+/* ==========================================================================
+   Alerts, auth, ongoing — CSS only (no Figma PNG)
+   ========================================================================== */
+.portal-page[data-portal-game="solitaire"] .portal-note {
+  background: #fef2f2;
+  border: 3px solid var(--theme-border-dark);
+  border-radius: 14px;
+  color: #991b1b;
+  font-weight: 900;
+  box-shadow: 0 5px 0 rgba(15, 23, 42, 0.1);
+  padding: 12px 16px;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-ongoing {
+  background: #ecfdf5;
+  border: 3.5px solid var(--theme-border-dark);
+  border-radius: 18px;
+  box-shadow: 0 8px 0 var(--solo-shadow), inset 0 2px 0 rgba(255, 255, 255, 0.7);
+  color: #065f46;
+  padding: 16px 20px;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-ongoing-text {
+  font-weight: 900;
+  font-size: 15px;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-btn-resume {
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%) !important;
+  border: 3px solid var(--theme-border-dark) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 5px 0 #0369a1, inset 0 2px 0 rgba(255, 255, 255, 0.5) !important;
+  color: #ffffff !important;
+  font-weight: 950 !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-btn-resume:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #0369a1, inset 0 2px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-btn-resume:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #0369a1, inset 0 2px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-auth {
+  background: #ffffff;
+  border: 3.5px solid var(--theme-border-dark);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 10px 0 #94a3b8, inset 0 3px 0 rgba(255, 255, 255, 0.8);
+  margin-top: 10px;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-auth p {
+  font-weight: 900;
+  color: #475569;
+  font-size: 15px;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-auth .portal-btn {
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%) !important;
+  border: 3.5px solid var(--theme-border-dark) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 6px 0 var(--solo-shadow), inset 0 2px 0 rgba(255, 255, 255, 0.5) !important;
+  color: white !important;
+  font-weight: 950 !important;
+  font-size: 16px !important;
+  padding: 12px 28px !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-auth .portal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 var(--solo-shadow), inset 0 2px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+.portal-page[data-portal-game="solitaire"] .portal-auth .portal-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--solo-shadow), inset 0 2px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+/* ==========================================================================
+   Modals & match overlay — CSS only
+   ========================================================================== */
+.portal-modal-panel {
+  border: 4px solid var(--theme-border-dark) !important;
+  border-radius: 24px !important;
+  overflow: hidden;
+  box-shadow: 0 15px 0 rgba(15, 23, 42, 0.15) !important;
+}
+
+.portal-modal-panel--fullscreen {
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+.portal-modal-head {
+  background: #f8fafc;
+  border-bottom: 4px solid var(--theme-border-dark) !important;
+  padding: 18px 24px !important;
+}
+
+.portal-modal-head h2 {
+  font-weight: 950 !important;
+  color: var(--theme-border-dark);
+  font-size: 22px;
+}
+
+.portal-modal-close {
+  font-size: 32px !important;
+  font-weight: 950 !important;
+  color: #64748b !important;
+  transition: transform 0.15s ease;
+}
+
+.portal-modal-close:hover {
+  transform: scale(1.2) rotate(90deg);
+  color: #0f172a !important;
+}
+
+.portal-lb-me--block {
+  background: #fef3c7;
+  border: 2.5px solid var(--theme-border-dark);
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 900;
+  color: #78350f;
+  display: inline-block;
+  box-shadow: 0 3px 0 rgba(15, 23, 42, 0.08);
+}
+
+.portal-lb-table th {
+  font-weight: 950 !important;
+  color: #334155;
+  border-bottom: 3.5px solid var(--theme-border-dark) !important;
+  padding: 12px 10px !important;
+  font-size: 15px;
+}
+
+.portal-lb-table td {
+  font-weight: 800;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0 !important;
+  padding: 12px 10px !important;
+  font-size: 14.5px;
+}
+
+.rules-dialog-content {
+  font-weight: 800;
+  color: #334155;
+  line-height: 1.6;
+  text-align: left;
+  font-size: 14.5px;
+}
+
+.rules-dialog-content ul {
+  padding-left: 22px;
+  margin: 14px 0;
+}
+
+.rules-dialog-content li {
+  margin-bottom: 10px;
+}
+
+.solitaire-match-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  font-family: "Nunito", "Segoe UI Rounded", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__panel {
+  position: relative;
+  background: #ffffff;
+  border: 4px solid #0f172a;
+  border-radius: 24px;
+  padding: 32px 24px;
+  max-width: 340px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 12px 0 rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__spinner {
+  width: 60px;
+  height: 80px;
+  background: #ffffff;
+  border: 3.5px solid #0f172a;
+  border-radius: 8px;
+  position: relative;
+  margin-bottom: 24px;
+  box-shadow: 4px 6px 0 rgba(0, 0, 0, 0.15);
+  animation: solitaire-bounce-card 1.2s infinite ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__spinner::before {
+  content: "♥";
+  font-size: 32px;
+  color: #ef4444;
+  font-weight: 900;
+  line-height: 1;
+}
+
+@keyframes solitaire-bounce-card {
+  0% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-16px) rotate(180deg); }
+  100% { transform: translateY(0) rotate(360deg); }
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0 0 10px 0;
+  letter-spacing: 0.5px;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__sub {
+  font-size: 14px;
+  font-weight: 800;
+  color: #64748b;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__leave {
+  min-height: 42px;
+  width: 100%;
+  background: linear-gradient(180deg, #f1f5f9 0%, #cbd5e1 100%);
+  border: 3px solid #0f172a;
+  border-radius: 12px;
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #94a3b8;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__leave:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #94a3b8;
+}
+
+.solitaire-match-overlay .casual-play-match-overlay__leave:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #94a3b8;
+}

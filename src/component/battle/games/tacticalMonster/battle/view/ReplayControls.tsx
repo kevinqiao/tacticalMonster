@@ -1,13 +1,12 @@
 /**
- * 重播控制组件
+ * 重播控制条 UI。重播数据与 useGameReplay 在同级 `replayContext.tsx` 的 ReplayProvider 中。
  */
-import React from 'react';
-import { useCombatManager } from '../service/CombatManager';
+import React from "react";
+import { useReplay } from "./replayContext";
 
 export const ReplayControls: React.FC = () => {
-    const { replay, mode } = useCombatManager();
-
-    if (mode !== 'replay' || !replay) {
+    const replay = useReplay();
+    if (!replay) {
         return null;
     }
 

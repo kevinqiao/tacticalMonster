@@ -1,32 +1,25 @@
 import { SoloCard } from "../../types/SoloTypes";
 
 export const hideCard = (card: SoloCard) => {
-    console.log('hideCard', card);
-    if (card.ele) {
-        const frontSvg = card.ele.querySelector('.front'); // 选择 .front SVG
-        if (frontSvg) {
+    if (!card.ele) return;
+    const frontSvg = card.ele.querySelector(".front");
+    if (!frontSvg) return;
 
-            // 获取顶部 rank 和 suit 的 <text> 元素
-            const topRankText = frontSvg.querySelector('text[x="10"][y="25"]');
-            const topSuitText = frontSvg.querySelector('text[x="10"][y="45"]');
+    const topRankText = frontSvg.querySelector("text.solo-face-rank");
+    const topSuitText = frontSvg.querySelector("text.solo-face-suit-corner");
+    const bottomRankText = frontSvg.querySelector("g.solo-face-mirror text:first-of-type");
+    const bottomSuitText = frontSvg.querySelector("g.solo-face-mirror text:last-of-type");
+    const centerSuitText = frontSvg.querySelector("text.solo-face-center");
+    const lowSuitText = frontSvg.querySelector("text.solo-face-suit-low");
 
-            // 获取底部（旋转） rank 和 suit 的 <text> 元素
-            const bottomRankText = frontSvg.querySelector('g text[x="0"][y="20"]');
-            const bottomSuitText = frontSvg.querySelector('g text[x="0"][y="40"]');
-
-            // 获取中央 suit 的 <text> 元素
-            const centerSuitText = frontSvg.querySelector('text[x="50"][y="90"]');
-            const canHide = topRankText !== null && topSuitText !== null && bottomRankText !== null && bottomSuitText !== null && centerSuitText !== null;
-            console.log('canHide', canHide);
-            if (canHide) {
-                console.log('hideCard', card);
-                topRankText.textContent = '';
-                topSuitText.textContent = '';
-                bottomRankText.textContent = '';
-                bottomSuitText.textContent = '';
-                centerSuitText.textContent = '';
-            }
-        }
+    if (!topRankText || !topSuitText || !bottomRankText || !bottomSuitText || !centerSuitText) {
+        return;
     }
 
-}
+    topRankText.textContent = "";
+    topSuitText.textContent = "";
+    bottomRankText.textContent = "";
+    bottomSuitText.textContent = "";
+    centerSuitText.textContent = "";
+    if (lowSuitText) lowSuitText.textContent = "";
+};

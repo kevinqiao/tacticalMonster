@@ -18,12 +18,14 @@ function getTacticalMonsterUrl(): string {
 }
 
 /**
- * 创建挑战关卡测试数据（公开action，支持HTTP调用）
- * 可以在Convex Dashboard中直接调用
+ * Create challenge level test data.
+ * Pass playerIds to use existing accounts (e.g. SSO uid "0_"+md5("kevin1@gmail.com")).
  */
 export const setupChallengeLevelTestData = action({
-    args: {},
-    handler: async (ctx): Promise<{
+    args: {
+        playerIds: v.optional(v.array(v.string())),
+    },
+    handler: async (ctx, args): Promise<{
         success: boolean;
         data: any;
         validation: any;
@@ -36,7 +38,7 @@ export const setupChallengeLevelTestData = action({
             // 1. 调用内部mutation创建Tournament模块数据
             const result = await ctx.runMutation(
                 internal.service.tournament.tests.challengeLevel.setupTestData.setupChallengeLevelTestData,
-                {}
+                { playerIds: args.playerIds }
             );
 
             console.log("\n✅ Tournament模块测试数据创建成功:");

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Portal iframe OAuth test</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #0f172a;
+        --panel: #1e293b;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --ok: #4ade80;
+        --bad: #f87171;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: radial-gradient(1200px 600px at 20% -10%, #1d4ed8 0%, transparent 55%),
+          radial-gradient(900px 500px at 100% 0%, #0ea5e9 0%, transparent 45%), var(--bg);
+        color: var(--text);
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: end;
+        padding: 14px 16px;
+        background: color-mix(in srgb, var(--panel) 88%, transparent);
+        border-bottom: 1px solid #334155;
+        backdrop-filter: blur(8px);
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--muted);
+        flex: 1 1 280px;
+      }
+      input,
+      button {
+        font: inherit;
+        border-radius: 8px;
+        border: 1px solid #475569;
+        background: #0b1220;
+        color: var(--text);
+        padding: 8px 10px;
+      }
+      button {
+        cursor: pointer;
+        background: #0369a1;
+        border-color: #0284c7;
+        white-space: nowrap;
+      }
+      button:hover {
+        background: #0284c7;
+      }
+      .status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        padding: 8px 16px;
+        font-size: 13px;
+        color: var(--muted);
+        background: #0b1220;
+        border-bottom: 1px solid #1e293b;
+      }
+      .status strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+      .dot.ok {
+        background: var(--ok);
+      }
+      .dot.bad {
+        background: var(--bad);
+      }
+      iframe {
+        display: block;
+        width: 100%;
+        height: calc(100vh - 118px);
+        border: 0;
+        background: #000;
+      }
+      .hint {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted);
+        max-width: 52rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <label>
+        iframe src
+        <input id="src" type="url" spellcheck="false" />
+      </label>
+      <button type="button" id="reload">Load / reload</button>
+      <button type="button" id="openTop">Open same URL top-level</button>
+      <p class="hint">
+        壳页在 iframe 外；游戏在 iframe 内。右键 iframe → Inspect，在 iframe 上下文执行
+        <code>window.self !== window.top</code>（应为 true）。Clerk 社交登录应弹出 popup，而不是整页跳转。
+      </p>
+    </header>
+    <div class="status">
+      <span class="pill"><span class="dot ok"></span> host: <strong id="hostOrigin"></strong></span>
+      <span class="pill"
+        ><span id="frameDot" class="dot"></span> iframe loaded:
+        <strong id="frameState">pending</strong></span
+      >
+      <span class="pill">expect oauthFlow: <strong>popup</strong> (because framed)</span>
+    </div>
+    <iframe
+      id="frame"
+      title="Portal embed"
+      allow="clipboard-write *; fullscreen *"
+      referrerpolicy="strict-origin-when-cross-origin"
+    ></iframe>
+    <script>
+      const DEFAULT_PATH = "/gc/solitaire";
+      const params = new URLSearchParams(location.search);
+      const srcInput = document.getElementById("src");
+      const frame = document.getElementById("frame");
+      const frameState = document.getElementById("frameState");
+      const frameDot = document.getElementById("frameDot");
+
+      document.getElementById("hostOrigin").textContent = location.origin;
+
+      const initial =
+        params.get("src") ||
+        `${location.origin}${DEFAULT_PATH}`;
+      srcInput.value = initial;
+
+      function load() {
+        const url = srcInput.value.trim();
+        if (!url) return;
+        frameState.textContent = "loading…";
+        frameDot.className = "dot";
+        frame.src = url;
+        const next = new URL(location.href);
+        next.searchParams.set("src", url);
+        history.replaceState(null, "", next);
+      }
+
+      frame.addEventListener("load", () => {
+        frameState.textContent = "yes";
+        frameDot.className = "dot ok";
+      });
+
+      document.getElementById("reload").addEventListener("click", load);
+      document.getElementById("openTop").addEventListener("click", () => {
+        window.open(srcInput.value.trim(), "_blank", "noopener,noreferrer");
+      });
+
+      load();
+    </script>
+  </body>
+</html>

@@ -3,7 +3,7 @@
  * 负责创建和插入游戏事件
  */
 
-import { CombatEvent } from "./gameService";
+import { CombatEvent } from "../../types/gameTypes";
 
 export class GameEventService {
     private dbCtx: any;
@@ -13,10 +13,52 @@ export class GameEventService {
     }
 
     /**
-     * 创建并插入事件
+     * 计算 stepTime（相对时间位置）
+     * 从游戏创建时间到现在的毫秒数
      */
-    async createEvent(event: CombatEvent): Promise<void> {
-        await this.dbCtx.db.insert("mr_game_event", event);
+    private async calculateStepTime(gameId: string, currentTime: number): Promise<number> {
+        // 从数据库获取游戏创建时间
+        const gameDoc = await this.dbCtx.db
+            .query("mr_games")
+            .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
+            .first();
+
+        if (!gameDoc || !gameDoc.createdAt) {
+            // 如果没有找到游戏或创建时间，使用当前时间（stepTime = 0）
+            console.warn(`Game ${gameId} not found or missing createdAt, using stepTime = 0`);
+            return 0;
+        }
+
+        const gameStartTime = new Date(gameDoc.createdAt).getTime();
+        return currentTime - gameStartTime;
+    }
+
+    /**
+     * 创建并插入事件
+     * 自动计算 stepTime（如果事件中没有提供）
+     */
+    async createEvent(event: CombatEvent, gameStartTime?: number): Promise<void> {
+        const currentTime = event.time || Date.now();
+
+        // 如果事件中没有 stepTime，自动计算
+        let stepTime = event.stepTime;
+        if (stepTime === undefined) {
+            if (gameStartTime !== undefined) {
+                // 如果提供了 gameStartTime，直接计算
+                stepTime = currentTime - gameStartTime;
+            } else {
+                // 否则从数据库查询
+                stepTime = await this.calculateStepTime(event.gameId, currentTime);
+            }
+        }
+
+        const eventWithStepTime: CombatEvent = {
+            ...event,
+            time: currentTime,
+            stepTime,
+        };
+
+        await this.dbCtx.db.insert("mr_game_event", eventWithStepTime);
     }
 
     /**
@@ -90,6 +132,36 @@ export class GameEventService {
             name: "end_round",
             type: 0,
             data: { round },
+            time: Date.now(),
+        };
+    }
+
+    /**
+     * 创建 defend 事件
+     */
+    createDefendEvent(
+        gameId: string,
+        identifier: { monsterId?: string; bossId?: string; minionId?: string }
+    ): CombatEvent {
+        return {
+            gameId,
+            name: "defend",
+            type: 4,
+            data: { identifier },
+            time: Date.now(),
+        };
+    }
+
+    /** 结束回合（无防守 buff），与 defend 一样推进回合 */
+    createStandbyEvent(
+        gameId: string,
+        identifier: { monsterId?: string; bossId?: string; minionId?: string }
+    ): CombatEvent {
+        return {
+            gameId,
+            name: "standby",
+            type: 4,
+            data: { identifier },
             time: Date.now(),
         };
     }

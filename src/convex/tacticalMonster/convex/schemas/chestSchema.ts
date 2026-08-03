@@ -5,15 +5,15 @@ export const chestSchema = {
     // ============================================
     // 宝箱系统相关表
     // ============================================
-    
-    mr_chest_configs: defineTable({
-        chestType: v.string(),                   // "silver", "gold", "purple", "orange"
-        name: v.string(),
-        unlockTimeSeconds: v.number(),
-        rewardsConfig: v.any(),                  // 奖励配置（概率表）
-        gemAccelerateCost: v.number(),
-    })
-    .index("by_chestType", ["chestType"]),
+
+    // mr_chest_configs: defineTable({
+    //     chestType: v.string(),                   // "silver", "gold", "purple", "orange"
+    //     name: v.string(),
+    //     unlockTimeSeconds: v.number(),
+    //     rewardsConfig: v.any(),                  // 奖励配置（概率表）
+    //     gemAccelerateCost: v.number(),
+    // })
+    // .index("by_chestType", ["chestType"]),
 
     mr_player_chests: defineTable({
         chestId: v.string(),
@@ -27,8 +27,17 @@ export const chestSchema = {
         claimedAt: v.optional(v.string()),
         createdAt: v.string(),
     })
-    .index("by_uid_status", ["uid", "status"])
-    .index("by_readyAt", ["readyAt"])
-    .index("by_uid_slot", ["uid", "slotNumber"]),
+        .index("by_uid_status", ["uid", "status"])
+        .index("by_readyAt", ["readyAt"])
+        .index("by_uid_slot", ["uid", "slotNumber"]),
+
+    /** 栏位已满时待入队的宝箱（FIFO，领取或空槽后移入 mr_player_chests） */
+    mr_chest_queue: defineTable({
+        queueEntryId: v.string(),
+        uid: v.string(),
+        chestType: v.string(),
+        gameId: v.string(),
+        stageRuleId: v.optional(v.string()),
+    }).index("by_uid", ["uid"]),
 };
 

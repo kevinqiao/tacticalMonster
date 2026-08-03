@@ -1,143 +1,158 @@
+import { Boss, BossConfig } from "../types/bossTypes";
+import { computeBossStatScale, type BossScalingTuning } from "./adaptiveBossScaling";
 import { calculatePower, MONSTER_CONFIGS, MONSTER_CONFIGS_MAP } from "./monsterConfigs";
 
-/**
- * Boss 配置数据
- * 支持Boss角色组合（Boss本体 + 小怪/护卫）
- * 
- * 设计说明：
- * - BossConfig 的主体通过 monsterId 引用角色配置（从 monsterConfigs.ts 读取）
- * - 基础属性（HP、攻击、防御、速度、技能、资源路径等）从角色配置继承
- * - BossConfig 只定义 Boss 特有的属性（行为树、阶段、难度等）
- * - 可选覆盖属性可以覆盖继承的属性（提供时优先使用）
- * - 注意：Monster 配置直接从配置文件读取，不存数据库
- */
-export interface Boss {
+export type CalculateScaleBossParams = {
     bossId: string;
-    monsterId: string;
-    name: string;
-    hp: number;
-    damage: number;
-    defense: number;
-    speed: number;
-    skills?: any[];
-    assetPath: string;
-    position?: {
-        q: number;
-        r: number;
-    };
-    minions: Array<{  // 小怪数据
-        minionId: string;
-        monsterId: string;
-        hp: number;
-        damage: number;
-        defense: number;
-        speed: number;
-        skills?: any[];
-        assetPath: string;
-        position: {
-            q: number;
-            r: number;
-        };
-    }>;
-}
-export interface BossConfig {
-    bossId: string;
+    playerPower: number;
+    difficultyMultiplier: number;
+    tuning?: BossScalingTuning;
+};
 
-    // 主体角色配置ID（引用 monsterConfigs.ts 配置文件）
-    // 基础属性（HP、攻击、防御、速度、技能等）从引用的角色配置继承
-    // 注意：Monster 配置直接从配置文件读取，不存数据库
-    monsterId: string;
-
-    // Boss 特有属性
-    difficulty: "easy" | "medium" | "hard" | "expert";
-
-    // Boss 专属配置
-    behaviorTree: any;  // AI行为树配置
-
-    // 可选覆盖属性（如果提供，将覆盖从 monsterId 引用的配置继承的属性）
-    name?: string;           // 如果提供，覆盖角色配置的 name
-    baseHp?: number;         // 如果提供，覆盖角色配置的 baseHp
-    baseDamage?: number;     // 如果提供，覆盖角色配置的 baseDamage
-    baseDefense?: number;    // 如果提供，覆盖角色配置的 baseDefense
-    baseSpeed?: number;      // 如果提供，覆盖角色配置的 baseSpeed
-    skills?: any[];          // 如果提供，覆盖或合并角色配置的 skills
-    assetPath?: string;      // 如果提供，覆盖角色配置的 assetPath
-    position?: {
-        q: number;
-        r: number;
-    };
-
-    // 新增：小怪/护卫配置（可选）
-    // 如果不配置minions，则表示单个Boss
-    minions?: MinionConfig[];
-
-    // 新增：阶段配置（支持阶段化行为）
-    phases?: BossPhase[];
-
-    configVersion: number;
-}
+export type { BossScalingTuning };
+export {
+    bossScalingTuningFromDifficultyAdjustment,
+    computeBossStatScale,
+    DEFAULT_BOSS_SCALING_TUNING,
+    mergeBossScalingTuning,
+} from "./adaptiveBossScaling";
 
 /**
- * 小怪配置接口
- * 
- * 设计说明：
- * - monsterId 引用角色配置（从 monsterConfigs.ts 读取）
- * - 基础属性从角色配置继承
- * - 可选覆盖属性可以覆盖继承的属性
- * - 注意：Monster 配置直接从配置文件读取，不存数据库
+ * Boss 配置（战斗内表现 + 与掉落经济的衔接）
+ *
+ * ## 与 `monsterConfigs`（必配）
+ * - **`monsterId`**：必须存在于 [`monsterConfigs.ts`](./monsterConfigs.ts)。Boss 外观、技能、**稀有度**（Common/Rare/Epic/Legendary）均来自该怪；**升星碎片需求**见 [`upgradeStrategyConfig`](../service/monster/config/upgradeStrategyConfig.ts)，与稀有度绑定。
+ * - **`minions[].monsterId`**：仅战斗单位，**不参与** Solo 结算直发碎片（结算只认关卡 `bossConfig.bossId` → 本表 **主 Boss** `monsterId`）。
+ *
+ * ## 与 Solo「分数档直掉碎片」（[`soloRewardResolve.ts`](./soloRewardResolve.ts)）
+ * - 关卡 `stageContent.bossConfig.bossId` 指向本表某 `boss_*`。
+ * - 未设置 `StageRuleConfig.soloDirectRewardMonsterId` 时，**直发碎片目标怪** = 本条 **`monsterId`**（与 Boss 战一致）。
+ * - 若策划希望「本关掉落碎片 ≠ 关底 Boss 模型」（例如剧情 Boss 与卡池怪不同），在 **关卡规则** 上设 `soloDirectRewardMonsterId`，**不要**在本表硬拆两条 bossId，除非确需两套 Boss 战斗。
+ * - **正式 Boss 轮换与碎片节奏** 以 [`stageRuleConfigsSoloMain.ts`](./stageRuleConfigsSoloMain.ts)（4×5 主线）为准。[`stageRuleConfigsSoloChallenge.ts`](./stageRuleConfigsSoloChallenge.ts) 的 `solo_lab` **仅测试/锦标赛管线**，不作产品节奏依据。
+ *
+ * ## 与「分数档宝箱类型」（[`stageRuleConstants.ts`](./stageRuleConstants.ts) `DEFAULT_SOLO_SCORE_TIERS`）
+ * - 每档有 **`chestType`**（silver/gold/purple…）；**开箱池**在 [`chestConfigs.ts`](./chestConfigs.ts) 的 `(chestType, stageRuleId?)`，**不在**本文件配置。
+ * - 若某关需要「高分档才出某池」，改 **score_tiers** / `chestConfigs` 行；Boss 本体不负责箱内随机池。
+ *
+ * ## 与「章节通章整卡」（[`chapterRewards.ts`](./chapterRewards.ts)）
+ * - 通章 **`CHAPTER_CLEAR_CHEST_BY_CHAPTER`** 宝箱池（`chestConfigs` 的 `chapter_clear_*`）与 **小关 Boss 定向碎片** 按设计应 **不同 monsterId**；填表前核对本表主 Boss `monsterId` 是否与通章池冲突。
+ *
+ * ## 与多人 / 锦标赛宝箱
+ * - 排名宝箱、`gameSpecificRewards` 在 Tournament 与 `chestService` 侧配置；本表仅影响 **局内 Boss 单位**。
+ *
+ * ## 配置顺序建议（对齐掉落设计）
+ * 1. 在 `monsterConfigs` 定好图鉴与稀有度。
+ * 2. 本表为每个 **`bossId`** 绑定 **`monsterId`** 与数值/minions/phases。
+ * 3. 关卡里引用 `bossId`；检查 `soloRewardResolve`、通章表、`chestConfigs` 行是否一致。
+ * 4. 改 `monsterId` 后跑 `npm run verify:tm-config-shims`（若动到前端 shim）及项目内 chest 校验。
+ *
+ * ## Solo 主线 20 Boss（`boss_main_ch{1-4}_s{1-5}`）
+ * - 由 `buildSoloMainBossConfigs()` 生成并合并进 `BOSS_CONFIGS`。
+ * - `monsterId` 与 [`chapterRewards.ts`](./chapterRewards.ts) 通章整卡错开（每章通章怪不出现在本章五关 Boss 上）。
  */
-export interface MinionConfig {
-    minionId: string;          // 小怪唯一标识（如 "minion_guard_1"）
-    monsterId: string;       // 角色配置ID（引用 monsterConfigs.ts 配置文件）  
+/**
+ * Solo 主线：每关唯一 `bossId` + `monsterId`（20 个互不重复）。
+ * 行 = 章，列 = 关。通章整卡见 [`chapterRewards.ts`](./chapterRewards.ts)（Rare→Epic 递进）；本章五关的 `monsterId` 均避开该章通章 id。
+ *
+ * **稀有度进程**（与 `monsterConfigs.rarity` 对齐）：第 1 章 **Common**；第 2 章 **以 Epic 为主** + 1 关 **Rare**（补 Assassin，因 Epic 池内无刺客）；第 3 章 **Epic + Rare** 混排；第 4 章 **四 Legendary + 美杜莎 Epic** 作终章。通章未独占的怪由池子或其它玩法承接。
+ *
+ * **第 2～4 章职业覆盖**：在 **20 个 `monsterId` 全局不重复** 且 **各章五关避开该章通章整卡 id** 的前提下，尽量五关 **class** 互不重复；第 4 章 **002 与 005 均为 Mage**（图鉴仅 4 只 Legendary，第五关需 Epic 补位时无法避免双法师，可后续换图鉴或接受）。
+ *
+ * **第 1 章**：五关 **Common**，职业 Warrior / Tank / Archer / Mage / Support。
+ */
+const SOLO_MAIN_BOSS_GRID: readonly (readonly { bossId: string; monsterId: string }[])[] = [
+    [
+        { bossId: "boss_main_ch1_s1", monsterId: "monster_036" }, // Common · Warrior
+        { bossId: "boss_main_ch1_s2", monsterId: "monster_046" }, // Common · Tank
+        { bossId: "boss_main_ch1_s3", monsterId: "monster_039" }, // Common · Archer
+        { bossId: "boss_main_ch1_s4", monsterId: "monster_050" }, // Common · Mage
+        { bossId: "boss_main_ch1_s5", monsterId: "monster_079" }, // Common · Support
+    ],
+    [
+        { bossId: "boss_main_ch2_s1", monsterId: "monster_006" }, // Epic · Warrior
+        { bossId: "boss_main_ch2_s2", monsterId: "monster_008" }, // Epic · Support
+        { bossId: "boss_main_ch2_s3", monsterId: "monster_009" }, // Epic · Tank
+        { bossId: "boss_main_ch2_s4", monsterId: "monster_010" }, // Epic · Mage
+        { bossId: "boss_main_ch2_s5", monsterId: "monster_014" }, // Rare · Assassin
+    ],
+    [
+        { bossId: "boss_main_ch3_s1", monsterId: "monster_011" }, // Epic · Tank
+        { bossId: "boss_main_ch3_s2", monsterId: "monster_012" }, // Epic · Warrior
+        { bossId: "boss_main_ch3_s3", monsterId: "monster_013" }, // Epic · Mage
+        { bossId: "boss_main_ch3_s4", monsterId: "monster_016" }, // Rare · Archer
+        { bossId: "boss_main_ch3_s5", monsterId: "monster_017" }, // Rare · Support
+    ],
+    [
+        { bossId: "boss_main_ch4_s1", monsterId: "monster_001" }, // Legendary · Warrior
+        { bossId: "boss_main_ch4_s2", monsterId: "monster_002" }, // Legendary · Mage
+        { bossId: "boss_main_ch4_s3", monsterId: "monster_003" }, // Legendary · Assassin
+        { bossId: "boss_main_ch4_s4", monsterId: "monster_004" }, // Legendary · Tank
+        { bossId: "boss_main_ch4_s5", monsterId: "monster_005" }, // Epic · Mage（与 s2 同为 Mage，见上文）
+    ],
+];
 
-    // 可选覆盖属性（如果提供，将覆盖从 monsterId 引用的配置继承的属性）
-    name?: string;             // 如果提供，覆盖角色配置的 name
-    baseHp?: number;           // 如果提供，覆盖角色配置的 baseHp
-    baseDamage?: number;       // 如果提供，覆盖角色配置的 baseDamage
-    baseDefense?: number;      // 如果提供，覆盖角色配置的 baseDefense
-    baseSpeed?: number;        // 如果提供，覆盖角色配置的 baseSpeed
-    skills?: any[];            // 如果提供，覆盖或合并角色配置的 skills
-    assetPath?: string;        // 如果提供，覆盖角色配置的 assetPath
-    position?: {
-        q: number;
-        r: number;
-    };
+/** 供 [`stageRuleConfigsSoloMain.ts`](./stageRuleConfigsSoloMain.ts) 引用，避免 bossId 与下表漂移 */
+export const SOLO_MAIN_BOSS_ID_ROWS: readonly (readonly string[])[] = SOLO_MAIN_BOSS_GRID.map((row) =>
+    row.map((c) => c.bossId)
+);
+
+function soloMainDifficultyForChapter(chapter: number): BossConfig["difficulty"] {
+    if (chapter <= 1) return "easy";
+    if (chapter === 2) return "medium";
+    if (chapter === 3) return "hard";
+    return "expert";
 }
 
-/**
- * Boss阶段配置
- */
-export interface BossPhase {
-    phaseName: string;         // "phase1", "phase2", "phase3"
-    hpThreshold: number;       // HP百分比阈值（1.0 = 100%, 0.6 = 60%）
-    behaviorPattern: any;
-    skillPriorities: any[];
-    minionBehavior?: any;      // 小怪在此阶段的行为模式
+function buildSoloMainBossConfigs(): Record<string, BossConfig> {
+    const out: Record<string, BossConfig> = {};
+    for (let ch = 1; ch <= 4; ch++) {
+        for (let st = 1; st <= 5; st++) {
+            const { bossId, monsterId } = SOLO_MAIN_BOSS_GRID[ch - 1][st - 1];
+            const globalIdx = (ch - 1) * 5 + (st - 1);
+            const t = globalIdx / 19;
+            const baseHp = Math.round(3500 + (96000 - 3500) * t);
+            const baseDamage = Math.round(80 + (960 - 80) * t);
+            const baseDefense = Math.round(40 + (480 - 40) * t);
+            const baseSpeed = Math.round(10 + (18 - 10) * t);
+
+            const entry: BossConfig = {
+                bossId,
+                monsterId,
+                difficulty: soloMainDifficultyForChapter(ch),
+                behaviorTree: {},
+                baseHp,
+                baseDamage,
+                baseDefense,
+                baseSpeed,
+                position: { q: 8, r: 1 },
+                minions: [],
+                phases: [],
+                configVersion: 1,
+            };
+            if (globalIdx === 0) {
+                entry.skills = [{ skillId: "summon_minion" }];
+            }
+            out[bossId] = entry;
+        }
+    }
+    return out;
 }
 
-/**
- * Boss 配置示例
- * 
- * 注意：
- * - monsterId 引用 monsterConfigs.ts 配置文件中的怪物配置
- * - 基础属性（HP、攻击、防御等）从角色配置继承
- * - 可选覆盖属性可以覆盖继承的属性
- * - Boss 特有属性（behaviorTree、phases）只在此定义
- * - Monster 配置直接从配置文件读取，不存数据库
- */
 export const BOSS_CONFIGS: Record<string, BossConfig> = {
     boss_bronze_1: {
         bossId: "boss_bronze_1",
         monsterId: "monster_001",  // 引用怪物配置ID（示例，需要根据实际怪物ID调整）
         difficulty: "easy",
         behaviorTree: {},
-        // 可选：覆盖基础属性
-        baseHp: 10000,  // 如果提供，覆盖角色配置的 baseHp
-        baseDamage: 100,
-        baseDefense: 50,
+        // 可选：覆盖基础属性（方案 A：首关友好，约 20-25 回合可结束）
+        baseHp: 3500,
+        baseDamage: 80,
+        baseDefense: 40,
         baseSpeed: 10,
+        position: { q: 6, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
+        skills: [{ skillId: "summon_minion" }],  // 召唤测试
         configVersion: 1,
     },
     boss_bronze_2: {
@@ -149,60 +164,100 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 120,
         baseDefense: 60,
         baseSpeed: 10,
+        position: { q: 7, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
     },
     boss_silver_1: {
         bossId: "boss_silver_1",
-        monsterId: "monster_003",
+        monsterId: "monster_003",  // 更高级怪物类型（Silver tier）
         difficulty: "medium",
         behaviorTree: {},
-        baseHp: 20000,
-        baseDamage: 200,
-        baseDefense: 100,
+        baseHp: 28000,
+        baseDamage: 280,
+        baseDefense: 140,
         baseSpeed: 12,
-        minions: [],
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
+        minions: [
+            {
+                minionId: "silver_escort_1",
+                monsterId: "monster_037",
+                position: { q: 6, r: 2 },
+            },
+        ],
         phases: [],
         configVersion: 1,
     },
     boss_silver_2: {
         bossId: "boss_silver_2",
-        monsterId: "monster_004",
+        monsterId: "monster_004",  // 更高级怪物类型（Silver tier）
         difficulty: "medium",
         behaviorTree: {},
-        baseHp: 24000,
-        baseDamage: 240,
-        baseDefense: 120,
+        baseHp: 33600,
+        baseDamage: 336,
+        baseDefense: 168,
         baseSpeed: 12,
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
     },
     boss_gold_1: {
         bossId: "boss_gold_1",
-        monsterId: "monster_005",
+        monsterId: "monster_005",  // 更高级怪物类型（Gold tier）
         difficulty: "hard",
         behaviorTree: {},
-        baseHp: 40000,
-        baseDamage: 400,
-        baseDefense: 200,
+        baseHp: 56000,
+        baseDamage: 560,
+        baseDefense: 280,
         baseSpeed: 15,
-        minions: [],
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
+        minions: [
+            {
+                minionId: "gold_escort_1",
+                monsterId: "monster_037",
+                position: { q: 5, r: 2 },
+            },
+            {
+                minionId: "gold_escort_2",
+                monsterId: "monster_038",
+                position: { q: 7, r: 3 },
+            },
+        ],
         phases: [],
         configVersion: 1,
     },
     boss_gold_2: {
         bossId: "boss_gold_2",
-        monsterId: "monster_006",
+        monsterId: "monster_006",  // 更高级怪物类型（Gold tier）
         difficulty: "hard",
         behaviorTree: {},
-        baseHp: 48000,
-        baseDamage: 480,
-        baseDefense: 240,
+        baseHp: 67200,
+        baseDamage: 672,
+        baseDefense: 336,
         baseSpeed: 15,
-        minions: [],
-        phases: [],
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
+        minions: [
+            {
+                minionId: "gold2_escort_1",
+                monsterId: "monster_037",
+                position: { q: 5, r: 1 },
+            },
+            {
+                minionId: "gold2_escort_2",
+                monsterId: "monster_038",
+                position: { q: 6, r: 3 },
+            },
+        ],
+        phases: [
+            {
+                phaseName: "enrage",
+                hpThreshold: 0.55,
+                behaviorPattern: {},
+                skillPriorities: [],
+            },
+        ],
         configVersion: 1,
     },
     boss_platinum_1: {
@@ -214,8 +269,22 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 800,
         baseDefense: 400,
         baseSpeed: 18,
-        minions: [],
-        phases: [],
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
+        minions: [
+            {
+                minionId: "plat_escort_1",
+                monsterId: "monster_037",
+                position: { q: 5, r: 2 },
+            },
+        ],
+        phases: [
+            {
+                phaseName: "secondWind",
+                hpThreshold: 0.5,
+                behaviorPattern: {},
+                skillPriorities: [],
+            },
+        ],
         configVersion: 1,
     },
     boss_platinum_2: {
@@ -227,10 +296,12 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 960,
         baseDefense: 480,
         baseSpeed: 18,
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
     },
+    ...buildSoloMainBossConfigs(),
 };
 
 /**
@@ -280,21 +351,20 @@ export const getMergedBossConfig = (bossId: string): BossConfig | null => {
         behaviorTree: bossConfig.behaviorTree,
         minions: bossConfig.minions,
         phases: bossConfig.phases,
+        position: bossConfig.position,
         configVersion: bossConfig.configVersion,
     };
 
     return merged;
 }
-export const calculateScaleBoss = (bossId: string, power: number, difficulty: number): Boss | undefined => {
+export const calculateScaleBoss = (params: CalculateScaleBossParams): Boss | undefined => {
+    const { bossId, playerPower, difficultyMultiplier, tuning } = params;
     const bossConfig = getMergedBossConfig(bossId);
     if (!bossConfig || !bossConfig.baseHp || !bossConfig.baseDamage || !bossConfig.baseDefense || !bossConfig.baseSpeed || !bossConfig.name || !bossConfig.assetPath || !bossConfig.position || !bossConfig.minions) {
         throw new Error(`Boss配置不存在: ${bossId}`);
     }
-    // const baseBossPower = bossConfig.baseHp + bossConfig.baseDamage * 2 + bossConfig.baseDefense * 1.5;
     const baseBossPower = calculatePower(bossConfig.baseDamage, bossConfig.baseDefense, bossConfig.baseHp);
-    // 计算缩放倍数：scale = (playerPower * difficulty) / baseBossPower
-    const targetBossPower = power * difficulty;
-    const scale = Math.max(0.1, Math.min(10.0, targetBossPower / baseBossPower));
+    const scale = computeBossStatScale(playerPower, baseBossPower, difficultyMultiplier, tuning);
     const powerBoss: Boss = {
         bossId: bossConfig.bossId,
         name: bossConfig.name || "",

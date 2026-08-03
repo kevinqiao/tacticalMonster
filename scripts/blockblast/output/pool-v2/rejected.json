@@ -1,0 +1,1490 @@
+[
+  {
+    "seedId": "blockblast-pool:v2:100",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 102,
+      "scoreP50": 180,
+      "scoreP90": 233,
+      "scoreMax": 311,
+      "scoreSpread": 209,
+      "scoreQuantiles": {
+        "p10": 132,
+        "p25": 155,
+        "p30": 155,
+        "p33": 155,
+        "p50": 180,
+        "p66": 194,
+        "p70": 194,
+        "p75": 194,
+        "p90": 233
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 155,
+        "midMax": 194
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:7cc807ec",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 154.2
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:146",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 103,
+      "scoreP50": 117,
+      "scoreP90": 141,
+      "scoreMax": 170,
+      "scoreSpread": 67,
+      "scoreQuantiles": {
+        "p10": 116,
+        "p25": 116,
+        "p30": 116,
+        "p33": 116,
+        "p50": 117,
+        "p66": 131,
+        "p70": 131,
+        "p75": 131,
+        "p90": 141
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 22,
+        "150-349": 2,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 116,
+        "midMax": 131
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:c08e5682",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 90.1
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:149",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 101,
+      "scoreP50": 104,
+      "scoreP90": 141,
+      "scoreMax": 233,
+      "scoreSpread": 132,
+      "scoreQuantiles": {
+        "p10": 102,
+        "p25": 103,
+        "p30": 103,
+        "p33": 103,
+        "p50": 104,
+        "p66": 116,
+        "p70": 116,
+        "p75": 128,
+        "p90": 141
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 21,
+        "150-349": 3,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 103,
+        "midMax": 116
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:dd008e0a",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 105.1
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:210",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 93,
+      "scoreP50": 179,
+      "scoreP90": 347,
+      "scoreMax": 347,
+      "scoreSpread": 254,
+      "scoreQuantiles": {
+        "p10": 138,
+        "p25": 152,
+        "p30": 153,
+        "p33": 153,
+        "p50": 179,
+        "p66": 206,
+        "p70": 216,
+        "p75": 268,
+        "p90": 347
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 153,
+        "midMax": 216
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:f572073f",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 166.7
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:240",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 92,
+      "scoreP50": 210,
+      "scoreP90": 314,
+      "scoreMax": 350,
+      "scoreSpread": 258,
+      "scoreQuantiles": {
+        "p10": 155,
+        "p25": 182,
+        "p30": 195,
+        "p33": 195,
+        "p50": 210,
+        "p66": 260,
+        "p70": 261,
+        "p75": 275,
+        "p90": 314
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 2,
+        "150-349": 21,
+        "350-699": 1,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 195,
+        "midMax": 261
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 106,
+      "layoutFingerprint": "fp:43880039",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 179
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:256",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 153,
+      "scoreP50": 181,
+      "scoreP90": 233,
+      "scoreMax": 296,
+      "scoreSpread": 143,
+      "scoreQuantiles": {
+        "p10": 154,
+        "p25": 167,
+        "p30": 168,
+        "p33": 168,
+        "p50": 181,
+        "p66": 182,
+        "p70": 194,
+        "p75": 197,
+        "p90": 233
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 0,
+        "150-349": 24,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 168,
+        "midMax": 194
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 118,
+      "layoutFingerprint": "fp:701befe7",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 138.2
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:314",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 89,
+      "scoreP50": 116,
+      "scoreP90": 141,
+      "scoreMax": 323,
+      "scoreSpread": 234,
+      "scoreQuantiles": {
+        "p10": 101,
+        "p25": 104,
+        "p30": 116,
+        "p33": 116,
+        "p50": 116,
+        "p66": 116,
+        "p70": 117,
+        "p75": 117,
+        "p90": 141
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 21,
+        "150-349": 3,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 116,
+        "midMax": 117
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:64d01818",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 135.4
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:316",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 89,
+      "scoreP50": 92,
+      "scoreP90": 143,
+      "scoreMax": 362,
+      "scoreSpread": 273,
+      "scoreQuantiles": {
+        "p10": 92,
+        "p25": 92,
+        "p30": 92,
+        "p33": 92,
+        "p50": 92,
+        "p66": 116,
+        "p70": 119,
+        "p75": 119,
+        "p90": 143
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 23,
+        "150-349": 0,
+        "350-699": 1,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 92,
+        "midMax": 119
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:5320df48",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 140.89999999999998
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:320",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 92,
+      "scoreP50": 107,
+      "scoreP90": 119,
+      "scoreMax": 222,
+      "scoreSpread": 130,
+      "scoreQuantiles": {
+        "p10": 92,
+        "p25": 93,
+        "p30": 104,
+        "p33": 104,
+        "p50": 107,
+        "p66": 119,
+        "p70": 119,
+        "p75": 119,
+        "p90": 119
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 22,
+        "150-349": 2,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 104,
+        "midMax": 119
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:3136e306",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 98.1
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:324",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 117,
+      "scoreP50": 194,
+      "scoreP90": 234,
+      "scoreMax": 272,
+      "scoreSpread": 155,
+      "scoreQuantiles": {
+        "p10": 146,
+        "p25": 179,
+        "p30": 180,
+        "p33": 180,
+        "p50": 194,
+        "p66": 206,
+        "p70": 219,
+        "p75": 219,
+        "p90": 234
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 180,
+        "midMax": 219
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:1c21d7a9",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 147.6
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:325",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 89,
+      "scoreP50": 192,
+      "scoreP90": 245,
+      "scoreMax": 485,
+      "scoreSpread": 396,
+      "scoreQuantiles": {
+        "p10": 155,
+        "p25": 156,
+        "p30": 179,
+        "p33": 179,
+        "p50": 192,
+        "p66": 206,
+        "p70": 206,
+        "p75": 206,
+        "p90": 245
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 2,
+        "150-349": 21,
+        "350-699": 1,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 179,
+        "midMax": 206
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:621390b4",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 209.6
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:339",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 116,
+      "scoreP50": 194,
+      "scoreP90": 285,
+      "scoreMax": 335,
+      "scoreSpread": 219,
+      "scoreQuantiles": {
+        "p10": 143,
+        "p25": 153,
+        "p30": 155,
+        "p33": 155,
+        "p50": 194,
+        "p66": 218,
+        "p70": 221,
+        "p75": 284,
+        "p90": 285
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 155,
+        "midMax": 221
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:ba5e6278",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 155
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:350",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 116,
+      "scoreP50": 203,
+      "scoreP90": 296,
+      "scoreMax": 338,
+      "scoreSpread": 222,
+      "scoreQuantiles": {
+        "p10": 152,
+        "p25": 179,
+        "p30": 180,
+        "p33": 180,
+        "p50": 203,
+        "p66": 269,
+        "p70": 269,
+        "p75": 270,
+        "p90": 296
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 2,
+        "150-349": 22,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 180,
+        "midMax": 269
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:b030a5bc",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 171.39999999999998
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:388",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 104,
+      "scoreP50": 182,
+      "scoreP90": 233,
+      "scoreMax": 386,
+      "scoreSpread": 282,
+      "scoreQuantiles": {
+        "p10": 153,
+        "p25": 155,
+        "p30": 167,
+        "p33": 167,
+        "p50": 182,
+        "p66": 232,
+        "p70": 233,
+        "p75": 233,
+        "p90": 233
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 1,
+        "150-349": 22,
+        "350-699": 1,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 167,
+        "midMax": 233
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 113,
+      "layoutFingerprint": "fp:31aa9e99",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 173.39999999999998
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:394",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 86,
+      "scoreP50": 212,
+      "scoreP90": 278,
+      "scoreMax": 344,
+      "scoreSpread": 258,
+      "scoreQuantiles": {
+        "p10": 146,
+        "p25": 188,
+        "p30": 200,
+        "p33": 200,
+        "p50": 212,
+        "p66": 251,
+        "p70": 263,
+        "p75": 265,
+        "p90": 278
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 200,
+        "midMax": 263
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 144,
+      "layoutFingerprint": "fp:e4b695a3",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 185.8
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:450",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 104,
+      "scoreP50": 193,
+      "scoreP90": 236,
+      "scoreMax": 338,
+      "scoreSpread": 234,
+      "scoreQuantiles": {
+        "p10": 128,
+        "p25": 167,
+        "p30": 167,
+        "p33": 167,
+        "p50": 193,
+        "p66": 194,
+        "p70": 194,
+        "p75": 194,
+        "p90": 236
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 167,
+        "midMax": 194
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:5e78202f",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 166
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:483",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 113,
+      "scoreP50": 215,
+      "scoreP90": 245,
+      "scoreMax": 320,
+      "scoreSpread": 207,
+      "scoreQuantiles": {
+        "p10": 128,
+        "p25": 177,
+        "p30": 179,
+        "p33": 179,
+        "p50": 215,
+        "p66": 230,
+        "p70": 230,
+        "p75": 230,
+        "p90": 245
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 179,
+        "midMax": 230
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:fd070bc3",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 165.8
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:502",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 92,
+      "scoreP50": 218,
+      "scoreP90": 284,
+      "scoreMax": 296,
+      "scoreSpread": 204,
+      "scoreQuantiles": {
+        "p10": 140,
+        "p25": 167,
+        "p30": 180,
+        "p33": 180,
+        "p50": 218,
+        "p66": 267,
+        "p70": 281,
+        "p75": 281,
+        "p90": 284
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 180,
+        "midMax": 281
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 112,
+      "layoutFingerprint": "fp:6355ea0f",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 155.9
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:605",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 128,
+      "scoreP50": 218,
+      "scoreP90": 285,
+      "scoreMax": 455,
+      "scoreSpread": 327,
+      "scoreQuantiles": {
+        "p10": 153,
+        "p25": 179,
+        "p30": 194,
+        "p33": 194,
+        "p50": 218,
+        "p66": 221,
+        "p70": 233,
+        "p75": 245,
+        "p90": 285
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 2,
+        "150-349": 21,
+        "350-699": 1,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 194,
+        "midMax": 233
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 112,
+      "layoutFingerprint": "fp:f49b2dd2",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 198.8
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:628",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 89,
+      "scoreP50": 119,
+      "scoreP90": 143,
+      "scoreMax": 243,
+      "scoreSpread": 154,
+      "scoreQuantiles": {
+        "p10": 89,
+        "p25": 101,
+        "p30": 104,
+        "p33": 104,
+        "p50": 119,
+        "p66": 119,
+        "p70": 119,
+        "p75": 128,
+        "p90": 143
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 21,
+        "150-349": 3,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 104,
+        "midMax": 119
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:c182352f",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 110.69999999999999
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:639",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 128,
+      "scoreP50": 194,
+      "scoreP90": 305,
+      "scoreMax": 333,
+      "scoreSpread": 205,
+      "scoreQuantiles": {
+        "p10": 140,
+        "p25": 179,
+        "p30": 179,
+        "p33": 179,
+        "p50": 194,
+        "p66": 194,
+        "p70": 227,
+        "p75": 257,
+        "p90": 305
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 179,
+        "midMax": 227
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 118,
+      "layoutFingerprint": "fp:f8643146",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 162.8
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:650",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 104,
+      "scoreP50": 182,
+      "scoreP90": 257,
+      "scoreMax": 349,
+      "scoreSpread": 245,
+      "scoreQuantiles": {
+        "p10": 140,
+        "p25": 153,
+        "p30": 167,
+        "p33": 167,
+        "p50": 182,
+        "p66": 192,
+        "p70": 204,
+        "p75": 218,
+        "p90": 257
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 167,
+        "midMax": 204
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:6bc48b10",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 162.2
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:742",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 116,
+      "scoreP50": 206,
+      "scoreP90": 257,
+      "scoreMax": 346,
+      "scoreSpread": 230,
+      "scoreQuantiles": {
+        "p10": 143,
+        "p25": 167,
+        "p30": 179,
+        "p33": 179,
+        "p50": 206,
+        "p66": 245,
+        "p70": 245,
+        "p75": 245,
+        "p90": 257
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 179,
+        "midMax": 245
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:b95aee69",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 164.8
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:827",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 103,
+      "scoreP50": 218,
+      "scoreP90": 323,
+      "scoreMax": 323,
+      "scoreSpread": 220,
+      "scoreQuantiles": {
+        "p10": 140,
+        "p25": 177,
+        "p30": 191,
+        "p33": 191,
+        "p50": 218,
+        "p66": 243,
+        "p70": 243,
+        "p75": 255,
+        "p90": 323
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 191,
+        "midMax": 243
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:62dfb512",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 166.6
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:832",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 92,
+      "scoreP50": 117,
+      "scoreP90": 146,
+      "scoreMax": 398,
+      "scoreSpread": 306,
+      "scoreQuantiles": {
+        "p10": 104,
+        "p25": 107,
+        "p30": 107,
+        "p33": 107,
+        "p50": 117,
+        "p66": 131,
+        "p70": 131,
+        "p75": 131,
+        "p90": 146
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 21,
+        "150-349": 2,
+        "350-699": 1,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 107,
+        "midMax": 131
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:554360b9",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 157.3
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:859",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 104,
+      "scoreP50": 218,
+      "scoreP90": 257,
+      "scoreMax": 296,
+      "scoreSpread": 192,
+      "scoreQuantiles": {
+        "p10": 140,
+        "p25": 164,
+        "p30": 179,
+        "p33": 179,
+        "p50": 218,
+        "p66": 218,
+        "p70": 218,
+        "p75": 218,
+        "p90": 257
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 179,
+        "midMax": 218
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 144,
+      "layoutFingerprint": "fp:99dd6e52",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 154
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:899",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 104,
+      "scoreP50": 216,
+      "scoreP90": 323,
+      "scoreMax": 323,
+      "scoreSpread": 219,
+      "scoreQuantiles": {
+        "p10": 128,
+        "p25": 167,
+        "p30": 179,
+        "p33": 179,
+        "p50": 216,
+        "p66": 246,
+        "p70": 257,
+        "p75": 260,
+        "p90": 323
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 179,
+        "midMax": 257
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:71d9f877",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 162.2
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:918",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 119,
+      "scoreP50": 206,
+      "scoreP90": 309,
+      "scoreMax": 309,
+      "scoreSpread": 190,
+      "scoreQuantiles": {
+        "p10": 141,
+        "p25": 155,
+        "p30": 165,
+        "p33": 165,
+        "p50": 206,
+        "p66": 258,
+        "p70": 284,
+        "p75": 284,
+        "p90": 309
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 165,
+        "midMax": 284
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:9ae04316",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 146.1
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:955",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 128,
+      "scoreP50": 167,
+      "scoreP90": 233,
+      "scoreMax": 347,
+      "scoreSpread": 219,
+      "scoreQuantiles": {
+        "p10": 141,
+        "p25": 155,
+        "p30": 155,
+        "p33": 155,
+        "p50": 167,
+        "p66": 182,
+        "p70": 182,
+        "p75": 194,
+        "p90": 233
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 3,
+        "150-349": 21,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 155,
+        "midMax": 182
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 124,
+      "layoutFingerprint": "fp:410445eb",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 155.60000000000002
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:971",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 89,
+      "scoreP50": 167,
+      "scoreP90": 304,
+      "scoreMax": 371,
+      "scoreSpread": 282,
+      "scoreQuantiles": {
+        "p10": 152,
+        "p25": 152,
+        "p30": 152,
+        "p33": 152,
+        "p50": 167,
+        "p66": 216,
+        "p70": 230,
+        "p75": 257,
+        "p90": 304
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 1,
+        "150-349": 22,
+        "350-699": 1,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 152,
+        "midMax": 230
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:ff7abb89",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 172.8
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v2:996",
+    "reason": "collapsed_scores",
+    "detail": "maxHistogramBucket>20.4",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 89,
+      "scoreP50": 103,
+      "scoreP90": 141,
+      "scoreMax": 269,
+      "scoreSpread": 180,
+      "scoreQuantiles": {
+        "p10": 89,
+        "p25": 102,
+        "p30": 103,
+        "p33": 103,
+        "p50": 103,
+        "p66": 114,
+        "p70": 116,
+        "p75": 116,
+        "p90": 141
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 0,
+        "50-149": 21,
+        "150-349": 3,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 103,
+        "midMax": 116
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 161,
+      "layoutFingerprint": "fp:107b19e1",
+      "policyVersion": "block-blast-stochastic-v2",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 121.1
+    }
+  }
+]

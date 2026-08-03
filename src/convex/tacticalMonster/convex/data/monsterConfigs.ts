@@ -1,59 +1,136 @@
+import { GameMonster, Monster, PlayerMonster } from "../types/monsterTypes";
+import { GROWTH_STRATEGY } from "./upgradeStrategyConfig";
+
 /**
  * 怪物配置数据
  * 基于 Camex Games Tactical Monster 的怪物设计
  * 包含90个怪物的基础属性配置
+ *
+ * attackRange：写入战斗单位 attack_range；其中 max 决定共享技能 basic_attack 的默认攻击距离（skillConfigs 中 basic_attack 不写 range.distance）。
  */
 export const calculatePower = (damage: number, defense: number, hp: number, multiplier: number = 1): number => {
     return (damage * 2 + defense * 1.5 + hp) * multiplier;
 }
-export enum ASSET_TYPE {
-    SPINE = 0,
-    FBX = 1,
-    GLTF = 2,  // GLTF格式支持
-    TXT = 3,
-}
-export interface Monster {
-    monsterId: string;
-    name: string;
-    rarity: "Common" | "Rare" | "Epic" | "Legendary";
-    class?: string;
-    race?: string;
-    baseHp: number;
-    baseDamage: number;
-    baseDefense: number;
-    baseSpeed: number;
 
-    // 技能配置：使用 skillIds 引用技能配置（方案二：完全独立）
-    skillIds?: string[];              // 技能ID列表（引用 skillConfigs.ts 中的技能）
-
-    growthRates?: {
-        hp: number;
-        damage: number;
-        defense: number;
-        speed: number;
-        starMultiplierPerStar?: number;  // 每星增加的属性倍率（可选，默认使用 GROWTH_STRATEGY 的值）
-    };
-
-    // 移动和战斗范围配置
-    moveRange?: number;               // 移动范围（Hex格子数），默认值：3
-    attackRange?: {                   // 攻击范围（Hex格子数），默认值：{ min: 1, max: 2 }
-        min: number;
-        max: number;
-    };
-
-    assetPath: string;
-    asset?: { type: ASSET_TYPE; resource: { [key: string]: string } };
+/**
+ * 合并运行时技能栏：全单位默认具备普攻（与 getSkillsByClass 中 baseSkills 一致）
+ */
+export function mergeDefaultBattleSkills(skillIds: string[] | undefined | null): string[] {
+    const out = [...(skillIds ?? [])];
+    if (!out.includes("basic_attack")) {
+        out.unshift("basic_attack");
+    }
+    return out;
 }
 
 /**
- * 稀有度属性倍率（基于 Camex Games 设计）
+ * 战斗内技能栏：怪物配置 skillIds（或职业默认）+ 玩家解锁表合并去重，并保证含 basic_attack。
+ * 避免仅 DB 未写 unlockedSkills 时栏里只有普攻、丢失弓箭手 ranged_attack 等职业技。
  */
-const RARITY_MULTIPLIERS = {
-    Common: 1.0,
-    Rare: 1.15,
-    Epic: 1.35,
-    Legendary: 1.60,
-};
+export function mergeBattleSkillsFromConfig(
+    monsterConfig: Monster | undefined,
+    playerSkillIds: string[] | undefined | null
+): string[] {
+    const fromPlayer = [...(playerSkillIds ?? [])];
+    const fromConfig =
+        monsterConfig?.skillIds && monsterConfig.skillIds.length > 0
+            ? [...monsterConfig.skillIds]
+            : monsterConfig?.class
+              ? getSkillsByClass(monsterConfig.class)
+              : [];
+
+    const merged = new Set<string>();
+    for (const id of fromConfig) merged.add(id);
+    for (const id of fromPlayer) merged.add(id);
+    const out = Array.from(merged);
+    if (!out.includes("basic_attack")) {
+        out.unshift("basic_attack");
+    }
+    return out;
+}
+
+/**
+ * 从 PlayerMonster + Monster 计算 GameMonster
+ * 这是组合关系，不是继承关系
+ */
+export function calculateGameMonster(
+    playerMonster: PlayerMonster,
+    monsterConfig: Monster,
+    position?: { q: number; r: number }
+): GameMonster {
+    const level = playerMonster.level;
+    const stars = playerMonster.stars;
+
+    // 从策略配置获取默认成长率和星级倍率
+    const { defaultGrowthRates, starMultiplierPerStar: defaultStarMultiplier } = GROWTH_STRATEGY;
+
+    // 成长率（从配置或使用策略配置的默认值）
+    const hpGrowthRate = monsterConfig.growthRates?.hp ?? defaultGrowthRates.hp;
+    const damageGrowthRate = monsterConfig.growthRates?.damage ?? defaultGrowthRates.damage;
+    const defenseGrowthRate = monsterConfig.growthRates?.defense ?? defaultGrowthRates.defense;
+    const speedGrowthRate = monsterConfig.growthRates?.speed ?? defaultGrowthRates.speed;
+
+    // 星级倍数（优先使用怪物配置的，否则使用全局默认值）
+    const starMultiplierPerStar = monsterConfig.growthRates?.starMultiplierPerStar ?? defaultStarMultiplier;
+    const starMultiplier = 1 + (stars - 1) * starMultiplierPerStar;
+
+    // 计算实际属性
+    const baseHp = monsterConfig.baseHp * (1 + (level - 1) * hpGrowthRate) * starMultiplier;
+    const baseAttack = monsterConfig.baseDamage * (1 + (level - 1) * damageGrowthRate) * starMultiplier;
+    const baseDefense = monsterConfig.baseDefense * (1 + (level - 1) * defenseGrowthRate) * starMultiplier;
+    const baseSpeed = monsterConfig.baseSpeed * (1 + (level - 1) * speedGrowthRate) * starMultiplier;
+
+    // 组合 Monster 配置 + PlayerMonster 实例 + 计算的属性
+    return {
+        // 基础标识
+        uid: playerMonster.uid,
+        monsterId: playerMonster.monsterId,
+        // 从 Monster 配置组合的字段
+        name: monsterConfig.name,
+        rarity: monsterConfig.rarity,
+        class: monsterConfig.class,
+        race: monsterConfig.race,
+        assetPath: monsterConfig.assetPath,
+
+        // 从 PlayerMonster 组合的字段
+        level: playerMonster.level,
+        stars: playerMonster.stars,
+        experience: playerMonster.experience,
+        unlockSkills: playerMonster.unlockedSkills,
+
+        // 实时计算的属性
+        stats: {
+            hp: { current: Math.floor(baseHp), max: Math.floor(baseHp) },
+            mp: { current: 100, max: 100 },  // 默认值
+            energy: { current: 0, max: 100 },  // 必杀技能量
+            attack: Math.floor(baseAttack),
+            defense: Math.floor(baseDefense),
+            speed: Math.floor(baseSpeed)
+        },
+
+        // 位置信息
+        q: position?.q,
+        r: position?.r,
+
+        // 技能系统：配置默认技能 + 玩家解锁
+        skills: mergeBattleSkillsFromConfig(monsterConfig, playerMonster.unlockedSkills || []),
+        skillCooldowns: {},
+
+        // 状态效果
+        statusEffects: [],
+        status: "normal",
+
+        // 移动和战斗（从配置读取，如果没有配置则使用默认值）
+        move_range: monsterConfig.moveRange ?? 3,
+        attack_range: monsterConfig.attackRange ?? { min: 1, max: 2 },
+
+        // 特殊属性
+        isFlying: monsterConfig.race === "Flying",
+        flightHeight: monsterConfig.race === "Flying" ? 1.5 : undefined,
+        canIgnoreObstacles: monsterConfig.race === "Flying"
+    };
+}
+
 
 /**
  * 根据稀有度获取星级倍率
@@ -118,6 +195,7 @@ function getSkillsByClass(monsterClass?: string): string[] {
             return [
                 ...baseSkills,
                 "heal",              // 3级解锁
+                "summon_minion",     // 5级解锁，召唤 monster_001
                 "group_heal",        // 10级解锁
                 "attack_boost",      // 7级解锁
                 "defense_boost",     // 7级解锁
@@ -230,10 +308,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 150,
         baseDefense: 100,
         baseSpeed: 80,
-        skillIds: getSkillsByClass("Warrior"),
+        skillIds: [...getSkillsByClass("Warrior"), "griffin_claw_attack", "griffin_flying_advantage", "griffin_ultimate"],
         growthRates: getGrowthRatesByClass("Warrior", "Legendary"),
         moveRange: 4,
-        attackRange: { min: 1, max: 2 },
+        attackRange: { min: 1, max: 1 },
         assetPath: "/assets/3d/characters/griffin/model/griffin.glb",
     },
     {
@@ -246,7 +324,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 180,
         baseDefense: 120,
         baseSpeed: 70,
-        skillIds: getSkillsByClass("Mage"),
+        skillIds: [...getSkillsByClass("Mage"), "dragon_breath", "dragon_scale_armor", "dragon_ultimate"],
         growthRates: getGrowthRatesByClass("Mage", "Legendary"),
         moveRange: 3,
         attackRange: { min: 1, max: 3 },
@@ -262,7 +340,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 200,
         baseDefense: 80,
         baseSpeed: 100,
-        skillIds: getSkillsByClass("Assassin"),
+        skillIds: [...getSkillsByClass("Assassin"), "chaos_strike", "chaos_ultimate"],
         growthRates: getGrowthRatesByClass("Assassin", "Legendary"),
         moveRange: 3,
         attackRange: { min: 1, max: 2 },
@@ -278,7 +356,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 120,
         baseDefense: 150,
         baseSpeed: 60,
-        skillIds: getSkillsByClass("Tank"),
+        skillIds: [...getSkillsByClass("Tank"), "divine_protection", "holy_light", "divine_ultimate"],
         growthRates: getGrowthRatesByClass("Tank", "Legendary"),
         moveRange: 3,
         attackRange: { min: 1, max: 2 },
@@ -298,7 +376,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 200,
         baseDefense: 60,
         baseSpeed: 90,
-        skillIds: getSkillsByClass("Mage"),
+        skillIds: ["ranged_attack", "weaken", "combat_reflexes"],
         growthRates: getGrowthRatesByClass("Mage", "Epic"),
         moveRange: 3,
         attackRange: { min: 1, max: 3 },
@@ -314,7 +392,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 160,
         baseDefense: 100,
         baseSpeed: 75,
-        skillIds: getSkillsByClass("Warrior"),
+        skillIds: ["basic_attack", "attack_boost", "combat_reflexes"],
         growthRates: getGrowthRatesByClass("Warrior", "Epic"),
         moveRange: 3,
         attackRange: { min: 1, max: 2 },
@@ -330,7 +408,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 190,
         baseDefense: 70,
         baseSpeed: 85,
-        skillIds: getSkillsByClass("Mage"),
+        skillIds: ["ranged_attack", "weaken", "combat_reflexes"],
         growthRates: getGrowthRatesByClass("Mage", "Epic"),
         moveRange: 3,
         attackRange: { min: 1, max: 3 },
@@ -346,7 +424,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 140,
         baseDefense: 90,
         baseSpeed: 95,
-        skillIds: getSkillsByClass("Support"),
+        skillIds: ["basic_attack", "heal", "summon_minion", "group_heal", "attack_boost", "defense_boost"],
         growthRates: getGrowthRatesByClass("Support", "Epic"),
         moveRange: 3,
         attackRange: { min: 1, max: 2 },
@@ -362,7 +440,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 130,
         baseDefense: 130,
         baseSpeed: 55,
-        skillIds: getSkillsByClass("Tank"),
+        skillIds: ["basic_attack", "shield", "defense_boost", "regeneration"],
         growthRates: getGrowthRatesByClass("Tank", "Epic"),
         moveRange: 2,
         attackRange: { min: 1, max: 2 },
@@ -866,7 +944,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 110,
         baseDefense: 60,
         baseSpeed: 85,
-        skillIds: getSkillsByClass("Archer"),
+        skillIds: [...getSkillsByClass("Archer"), "summon_minion"],
         growthRates: getGrowthRatesByClass("Archer", "Common"),
         moveRange: 3,
         attackRange: { min: 2, max: 5 },

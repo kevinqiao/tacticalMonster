@@ -1,0 +1,228 @@
+/*
+ * 休闲大厅底栏 Tab 皮肤（SKIN_DESIGN §9 导航光带 / 选中态）。
+ * 仅作用于 `.footer-nav-root--casual`；默认主题保持 tactical 蓝金条。
+ */
+
+html[data-casual-ui-theme="s1-midnight-sky"] {
+  --footer-nav-bar-top: rgba(200, 216, 240, 0.45);
+  --footer-nav-bar-bg: linear-gradient(
+    180deg,
+    #1a2a3a 0%,
+    #121f30 42%,
+    #0b1628 100%
+  );
+  --footer-nav-bar-shadow:
+    inset 0 2px 0 rgba(200, 216, 240, 0.22),
+    0 -1px 0 rgba(200, 216, 240, 0.12),
+    0 10px 22px rgba(4, 10, 28, 0.55);
+  --footer-nav-active-bg: linear-gradient(180deg, #ffe566 0%, #ffd700 46%, #d4a017 100%);
+  --footer-nav-active-border: rgba(255, 235, 160, 0.92);
+  --footer-nav-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 0 0 1px rgba(255, 215, 0, 0.55),
+    0 8px 20px rgba(212, 160, 23, 0.4);
+  --footer-nav-icon-bg: linear-gradient(180deg, rgba(36, 52, 72, 0.92), rgba(12, 22, 38, 0.95));
+  --footer-nav-icon-shadow:
+    inset 0 1px 0 rgba(200, 216, 240, 0.18),
+    0 3px 8px rgba(4, 10, 28, 0.55);
+  --footer-nav-label: #e8f0fc;
+  --footer-nav-label-active: #0f172a;
+  --footer-nav-btn-ink: rgba(200, 216, 240, 0.92);
+  --footer-nav-focus: rgba(255, 215, 0, 0.85);
+  --footer-nav-desktop-bg: linear-gradient(180deg, #243448 0%, #121f30 55%, #0b1628 100%);
+  --footer-nav-desktop-border: rgba(200, 216, 240, 0.38);
+  --footer-nav-desktop-ink: #e8f0fc;
+  --footer-nav-desktop-border-hover: rgba(255, 215, 0, 0.65);
+}
+
+/* --- 竖屏 5 Tab 条（CasualFooterNavBarTouchPortrait） --- */
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__list {
+  background: var(--footer-nav-bar-bg);
+  box-shadow: var(--footer-nav-bar-shadow);
+  border-top: 1px solid var(--footer-nav-bar-top);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__activeOverlay {
+  background: var(--footer-nav-active-bg);
+  box-shadow: var(--footer-nav-active-shadow);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__btn {
+  color: var(--footer-nav-btn-ink);
+  transition: transform var(--motion-fast, 120ms ease-out);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__btn--pressed {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-casual-ui-theme="s1-midnight-sky"]
+    .footer-nav-root--casual
+    .footer-nav-touch-portrait--casual
+    .footer-nav-touch-portrait__btn {
+    transition: none;
+  }
+
+  html[data-casual-ui-theme="s1-midnight-sky"]
+    .footer-nav-root--casual
+    .footer-nav-touch-portrait--casual
+    .footer-nav-touch-portrait__btn--pressed {
+    transform: none;
+  }
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__iconWrap {
+  background: var(--footer-nav-icon-bg);
+  box-shadow: var(--footer-nav-icon-shadow);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__btn--active
+  .footer-nav-touch-portrait__iconWrap {
+  background: var(--footer-nav-icon-bg);
+  box-shadow:
+    var(--footer-nav-icon-shadow),
+    0 0 0 1px rgba(255, 215, 0, 0.35);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__label {
+  color: var(--footer-nav-label);
+  text-shadow:
+    0 1px 2px rgba(4, 10, 28, 0.9),
+    0 0 8px rgba(200, 216, 240, 0.25);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__btn--active {
+  color: var(--footer-nav-label-active);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__btn--active
+  .footer-nav-touch-portrait__label {
+  color: var(--footer-nav-label-active);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__btn:focus-visible {
+  outline-color: var(--footer-nav-focus);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__icon {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55)) brightness(1.08);
+}
+
+/* --- 桌面 / 横屏芯片按钮 --- */
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-desktop--casual
+  .footer-nav-desktop__btn {
+  border-color: var(--footer-nav-desktop-border);
+  background: var(--footer-nav-desktop-bg);
+  color: var(--footer-nav-desktop-ink);
+  transition: transform var(--motion-fast, 120ms ease-out), filter 0.15s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(200, 216, 240, 0.14),
+    0 2px 0 rgba(4, 10, 28, 0.5),
+    0 4px 12px rgba(4, 10, 28, 0.4);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-desktop--casual
+  .footer-nav-desktop__btn:active {
+  transform: scale(0.97);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-desktop--casual
+  .footer-nav-desktop__btn:hover {
+  border-color: var(--footer-nav-desktop-border-hover);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 1px rgba(255, 215, 0, 0.28),
+    0 4px 14px rgba(200, 216, 240, 0.12),
+    0 6px 18px rgba(4, 10, 28, 0.45);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-desktop--casual
+  .footer-nav-desktop__btn:focus-visible {
+  outline-color: var(--footer-nav-focus);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-desktop--casual
+  .footer-nav-desktop__icon {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)) brightness(1.06);
+}
+
+/* --- 旧版 SVG 触摸条（少见布局） --- */
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-strip {
+  filter: hue-rotate(18deg) saturate(0.75) brightness(0.72);
+}
+
+html[data-casual-ui-theme="s1-midnight-sky"]
+  .footer-nav-root--casual
+  .footer-nav-hit__label {
+  color: var(--footer-nav-label);
+}
+
+html[data-casual-ui-theme="s2-edo-sakura"] {
+  --footer-nav-bar-top: rgba(74, 144, 217, 0.35);
+  --footer-nav-bar-bg: linear-gradient(180deg, #fdf0f4 0%, #f5e6ea 55%, #ecd5dc 100%);
+  --footer-nav-bar-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.6), 0 8px 18px rgba(160, 82, 45, 0.12);
+  --footer-nav-active-bg: linear-gradient(180deg, #7eb8ff 0%, #4a90d9 100%);
+  --footer-nav-active-border: rgba(255, 255, 255, 0.85);
+  --footer-nav-label: #5c4033;
+  --footer-nav-label-active: #fff;
+  --footer-nav-btn-ink: #a0522d;
+  --footer-nav-desktop-bg: linear-gradient(180deg, #fdf8f6, #f5e6ea);
+  --footer-nav-desktop-border: rgba(74, 144, 217, 0.35);
+  --footer-nav-desktop-ink: #5c4033;
+}
+
+html[data-casual-ui-theme="s2-edo-sakura"]
+  .footer-nav-root--casual
+  .footer-nav-touch-portrait--casual
+  .footer-nav-touch-portrait__list {
+  background: var(--footer-nav-bar-bg);
+  box-shadow: var(--footer-nav-bar-shadow);
+  border-top: 1px solid var(--footer-nav-bar-top);
+}

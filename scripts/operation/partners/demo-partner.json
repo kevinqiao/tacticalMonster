@@ -1,0 +1,134 @@
+{
+  "notes": "One default multi-game lobby (slug default → URL /gc/demo-partner). Explicit offerings[] (tournamentId); not gameType / offeringGames. Coin tables opt-in separately. Set PARTNER_STAFF_PASSWORD_DEMO before --apply staff.",
+  "pid": 1,
+  "name": "Demo Partner",
+  "slug": "demo-partner",
+  "host": "http://localhost:3000",
+  "capabilities": {
+    "portalGames": true,
+    "campaignOps": false
+  },
+  "embed": {
+    "method": "jwt_local",
+    "allowedOrigins": [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000"
+    ]
+  },
+  "playerAuth": {
+    "mode": "clerk"
+  },
+  "portal": {
+    "lobbyOpsMode": "shared",
+    "adReplayDailyCap": 10,
+    "maxReplaysPerMatch": 1,
+    "adReplayEnabled": true,
+    "ticketReplayEnabled": true,
+    "ticketReplayPriceTickets": 1,
+    "quotaScope": "mode",
+    "ticketEntryEnabled": false,
+    "adEntryEnabled": true
+  },
+  "lobbies": [
+    {
+      "slug": "default",
+      "title": "Game Center",
+      "isDefault": true,
+      "offerings": [
+        {
+          "tournamentId": "portal_solo_p75_solitaire",
+          "sortOrder": 0,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_solitaire",
+          "sortOrder": 1,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_solo_p75_block_blast",
+          "sortOrder": 2,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_block_blast",
+          "sortOrder": 3,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_solo_p75_match_3",
+          "sortOrder": 4,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_match_3",
+          "sortOrder": 5,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_solo_p75_tower_arena",
+          "sortOrder": 6,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_tower_arena",
+          "sortOrder": 7,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_solo_p75_yatz",
+          "sortOrder": 8,
+          "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_yatz",
+          "sortOrder": 9,
+          "enabled": true
+        }
+      ],
+      "seasonHonorMode": "join_now"
+    }
+  ],
+  "shopSkus": [
+    {
+      "kind": "virtual",
+      "id": "ticket_3",
+      "title": "门票 ×3",
+      "description": "获得 3 张门票，可用于继续游戏。",
+      "priceCoins": 180,
+      "grantTicketCount": 3,
+      "weeklyPurchaseLimit": 5,
+      "sortOrder": 10
+    },
+    {
+      "kind": "voucher",
+      "id": "demo_coffee",
+      "title": "Demo Cafe 咖啡券",
+      "description": "到店核销示例券。",
+      "priceCoins": 400,
+      "voucherRewardText": "美式咖啡一杯",
+      "voucherValidityDays": 14,
+      "listInShop": true,
+      "sortOrder": 100
+    }
+  ],
+  "shopSettings": {
+    "enabled": true,
+    "giftCardsEnabled": true,
+    "virtualEnabled": true,
+    "vouchersEnabled": true,
+    "adCoinEnabled": true,
+    "assortmentMode": "all_shared",
+    "skuIds": [],
+    "excludeSkuIds": [],
+    "overrides": {},
+    "lobbyOverlays": []
+  },
+  "staff": [
+    {
+      "account": "admin",
+      "role": "owner",
+      "passwordEnv": "PARTNER_STAFF_PASSWORD_DEMO"
+    }
+  ]
+}

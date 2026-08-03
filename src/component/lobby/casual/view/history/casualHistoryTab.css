@@ -1,0 +1,125 @@
+.casual-history-tab__subhead {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.casual-history-tab__sectionHint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(26, 26, 46, 0.62);
+}
+
+.casual-history-tab__empty {
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(26, 26, 46, 0.72);
+}
+
+.casual-history-tab__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.casual-history-tab__item {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.casual-history-tab__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.casual-history-tab__head strong {
+  font-size: 15px;
+}
+
+.casual-history-tab__head span {
+  font-size: 12px;
+  color: rgba(26, 26, 46, 0.7);
+}
+
+.casual-history-tab__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  font-size: 12px;
+  color: rgba(26, 26, 46, 0.74);
+}
+
+.casual-history-tab__claim {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.casual-history-tab__actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.casual-history-tab__replay-btn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(64, 105, 255, 0.35);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(64, 105, 255, 0.08);
+  color: #4069ff;
+}
+
+.casual-history-tab__replay-btn:hover {
+  background: rgba(64, 105, 255, 0.14);
+}
+
+.casual-history-tab__reward-hint {
+  margin: 0;
+  flex: 1 1 160px;
+  font-size: 12px;
+  color: rgba(26, 26, 46, 0.68);
+}
+
+.casual-history-tab__claim-btn {
+  margin-left: auto;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #5b8cff 0%, #4069ff 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(64, 105, 255, 0.35);
+}
+
+.casual-history-tab__claim-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.casual-history-tab__claim-err {
+  font-size: 11px;
+  color: #c62828;
+}
+
+.casual-history-tab__claimed-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(26, 26, 46, 0.55);
+}

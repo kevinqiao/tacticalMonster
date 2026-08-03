@@ -4,8 +4,10 @@
 import { useConvex } from 'convex/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../../../../../convex/tacticalMonster/convex/_generated/api';
-import { GameReplayManager, ReplayState } from '../service/GameReplayManager';
-import { CombatEvent, GameModel } from '../types/CombatTypes';
+import { CombatEvent } from '../../types/CombatTypes';
+import { GameModel } from '../../types/gameTypes';
+import { GameReplayManager, ReplayState } from '../../service/GameReplayManager';
+
 
 export function useGameReplay(gameId: string | null, mode: 'play' | 'watch' | 'replay') {
     const convex = useConvex();

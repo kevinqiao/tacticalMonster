@@ -5,35 +5,28 @@
 
 import { getTournamentConfig } from "../../../../data/tournamentConfigs";
 
+const DEFAULT_TEST_PLAYERS = [
+    { uid: "test_player_bronze", level: 5, exp: 1000, displayName: "Test Player Bronze" },
+    { uid: "test_player_silver", level: 15, exp: 5000, displayName: "Test Player Silver" },
+    { uid: "test_player_gold", level: 35, exp: 15000, displayName: "Test Player Gold" },
+];
+
 /**
- * 创建测试玩家数据
- * @returns 创建的玩家UID列表
+ * Create test player data.
+ * @param ctx - Convex context
+ * @param overridePlayerIds - Optional list of uids to create (e.g. SSO uid like "0_"+md5(email) for kevin1@gmail.com)
+ * @returns Created player UID list
  */
-export async function createTestPlayers(ctx: any): Promise<string[]> {
+export async function createTestPlayers(
+    ctx: any,
+    overridePlayerIds?: string[]
+): Promise<string[]> {
     const nowISO = new Date().toISOString();
     const playerIds: string[] = [];
 
-    // 测试玩家配置
-    const testPlayers = [
-        {
-            uid: "test_player_bronze",
-            level: 5,
-            exp: 1000,
-            displayName: "测试玩家（青铜）",
-        },
-        {
-            uid: "test_player_silver",
-            level: 15,
-            exp: 5000,
-            displayName: "测试玩家（白银）",
-        },
-        {
-            uid: "test_player_gold",
-            level: 35,
-            exp: 15000,
-            displayName: "测试玩家（黄金）",
-        },
-    ];
+    const testPlayers = overridePlayerIds?.length
+        ? overridePlayerIds.map((uid) => ({ uid, level: 5, exp: 1000, displayName: "Test Player" }))
+        : DEFAULT_TEST_PLAYERS;
 
     for (const player of testPlayers) {
         // 检查玩家是否已存在
@@ -152,7 +145,6 @@ export async function createTestChallengeLevel(
         description: config.description,
         gameType: config.gameType,
         isActive: config.isActive,
-        priority: 1,
         timeRange: config.timeRange || undefined,
         entryRequirements: config.entryRequirements
             ? {
@@ -179,7 +171,7 @@ export async function createTestChallengeLevel(
             },
             rankRewards: config.rewards.rankRewards || [],
             tierBonus: config.rewards.tierBonus,
-            subscriptionBonus: config.rewards.subscriptionBonus,
+            subscribedPlayerExtraRewards: config.rewards.subscribedPlayerExtraRewards,
             participationReward: config.rewards.participationReward,
             performanceRewards: config.rewards.performanceRewards,
         },
@@ -187,6 +179,8 @@ export async function createTestChallengeLevel(
         limits: config.limits,
         soloChallenge: config.soloChallenge,
     };
+    // schema 中无 priority，确保不写入
+    delete tournamentTypeData.priority;
 
     if (existing) {
         // 更新现有配置

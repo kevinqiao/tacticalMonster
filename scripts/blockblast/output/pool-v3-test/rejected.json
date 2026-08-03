@@ -1,0 +1,5594 @@
+[
+  {
+    "seedId": "blockblast-pool:v3:25000",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=141 max=112",
+    "metrics": {
+      "openingMoveCount": 141,
+      "layoutFingerprint": "fp:d837ff7c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25001",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=141 max=112",
+    "metrics": {
+      "openingMoveCount": 141,
+      "layoutFingerprint": "fp:abaf2273"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25002",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:c0605b24"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25003",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:fd5c05d8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25004",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:26cd6ab7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25005",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 88,
+      "scoreP90": 136,
+      "scoreMax": 307,
+      "scoreSpread": 299,
+      "scoreQuantiles": {
+        "p10": 24,
+        "p25": 40,
+        "p30": 56,
+        "p33": 56,
+        "p50": 88,
+        "p66": 104,
+        "p70": 112,
+        "p75": 112,
+        "p90": 136
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 7,
+        "50-149": 15,
+        "150-349": 2,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 56,
+        "midMax": 112
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 112,
+      "layoutFingerprint": "fp:6ba9f92c",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 120.9
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25006",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:2f301ebc"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25007",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=116 max=112",
+    "metrics": {
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:fa1960c3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25008",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:543a26a8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25009",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:65d51c44"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25010",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:2968afbb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25011",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:e041c7d1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25012",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:82e2cc1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25013",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=114 max=112",
+    "metrics": {
+      "openingMoveCount": 114,
+      "layoutFingerprint": "fp:b92d5f85"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25014",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=125 max=112",
+    "metrics": {
+      "openingMoveCount": 125,
+      "layoutFingerprint": "fp:78998a4c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25015",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=148 max=112",
+    "metrics": {
+      "openingMoveCount": 148,
+      "layoutFingerprint": "fp:7fe9c99f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25016",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:198573cf"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25017",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:92ce5064"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25018",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:c239d7e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25019",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:a5720bb6"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25020",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=155 max=112",
+    "metrics": {
+      "openingMoveCount": 155,
+      "layoutFingerprint": "fp:b88c0063"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25021",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:27928b79"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25022",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:ff62bf36"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25023",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:fa7a831e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25024",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 64,
+      "scoreP90": 147,
+      "scoreMax": 400,
+      "scoreSpread": 392,
+      "scoreQuantiles": {
+        "p10": 40,
+        "p25": 48,
+        "p30": 56,
+        "p33": 56,
+        "p50": 64,
+        "p66": 72,
+        "p70": 72,
+        "p75": 96,
+        "p90": 147
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 6,
+        "50-149": 15,
+        "150-349": 2,
+        "350-699": 1,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 56,
+        "midMax": 72
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 106,
+      "layoutFingerprint": "fp:e26ddfb3",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 152.2
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25025",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:675fb3f0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25026",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:d9894276"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25027",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:90d8d429"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25028",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:77378baf"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25029",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:c8c385fc"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25030",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:ba021564"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25031",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:c6ee83b1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25032",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:7b6a72d1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25033",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:8d9549fe"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25034",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 16,
+      "scoreP50": 56,
+      "scoreP90": 440,
+      "scoreMax": 440,
+      "scoreSpread": 424,
+      "scoreQuantiles": {
+        "p10": 32,
+        "p25": 48,
+        "p30": 48,
+        "p33": 48,
+        "p50": 56,
+        "p66": 64,
+        "p70": 80,
+        "p75": 96,
+        "p90": 440
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 10,
+        "50-149": 9,
+        "150-349": 1,
+        "350-699": 4,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 48,
+        "midMax": 80
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 104,
+      "layoutFingerprint": "fp:7360c346",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 161.6
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25035",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:a30dad4f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25036",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:ceedfe90"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25037",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:381d7b31"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25038",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:effb7f5a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25039",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:b68c5a55"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25040",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=144 max=112",
+    "metrics": {
+      "openingMoveCount": 144,
+      "layoutFingerprint": "fp:12f8684d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25041",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:185ffaf6"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25042",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=124 max=112",
+    "metrics": {
+      "openingMoveCount": 124,
+      "layoutFingerprint": "fp:39fcbe03"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25043",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=124 max=112",
+    "metrics": {
+      "openingMoveCount": 124,
+      "layoutFingerprint": "fp:737e8c30"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25044",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:e86da289"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25045",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:fc798488"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25046",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:4b4d393e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25047",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:c46e41dc"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25048",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:90135c4a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25049",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=8 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 0,
+      "scoreP50": 32,
+      "scoreP90": 128,
+      "scoreMax": 298,
+      "scoreSpread": 298,
+      "scoreQuantiles": {
+        "p10": 8,
+        "p25": 8,
+        "p30": 8,
+        "p33": 8,
+        "p50": 32,
+        "p66": 80,
+        "p70": 80,
+        "p75": 128,
+        "p90": 128
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 14,
+        "50-149": 9,
+        "150-349": 1,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 8,
+        "midMax": 80
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 106,
+      "layoutFingerprint": "fp:8bb866d2",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 104
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25050",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:65cb2c39"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25051",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:137f1dcb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25052",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=155 max=112",
+    "metrics": {
+      "openingMoveCount": 155,
+      "layoutFingerprint": "fp:aad92e2c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25053",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:28b0f746"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25054",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:f513d366"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25055",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=32 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 0,
+      "scoreP50": 72,
+      "scoreP90": 227,
+      "scoreMax": 259,
+      "scoreSpread": 259,
+      "scoreQuantiles": {
+        "p10": 16,
+        "p25": 32,
+        "p30": 32,
+        "p33": 32,
+        "p50": 72,
+        "p66": 136,
+        "p70": 136,
+        "p75": 160,
+        "p90": 227
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 10,
+        "50-149": 7,
+        "150-349": 7,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 32,
+        "midMax": 136
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 112,
+      "layoutFingerprint": "fp:55611192",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 104.9
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25056",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=162 max=112",
+    "metrics": {
+      "openingMoveCount": 162,
+      "layoutFingerprint": "fp:2d30b381"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25057",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=141 max=112",
+    "metrics": {
+      "openingMoveCount": 141,
+      "layoutFingerprint": "fp:bfce4018"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25058",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=148 max=112",
+    "metrics": {
+      "openingMoveCount": 148,
+      "layoutFingerprint": "fp:94f98eb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25059",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=169 max=112",
+    "metrics": {
+      "openingMoveCount": 169,
+      "layoutFingerprint": "fp:b696c127"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25060",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:1dd1e4b9"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25061",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:e71eec9a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25062",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:adf7bd45"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25063",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:965c952f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25064",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:92fd95"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25065",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=156 max=112",
+    "metrics": {
+      "openingMoveCount": 156,
+      "layoutFingerprint": "fp:8aead4e3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25066",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:bd789461"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25067",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:f5976b68"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25068",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:9a1104d4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25069",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:a4643275"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25070",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:4843039"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25071",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=116 max=112",
+    "metrics": {
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:e24aa852"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25072",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:466afcd2"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25073",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:f397666f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25074",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:e36e4e98"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25075",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:d036b790"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25076",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:1c25c944"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25077",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=142 max=112",
+    "metrics": {
+      "openingMoveCount": 142,
+      "layoutFingerprint": "fp:fc338e2"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25078",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:8a7bb42d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25079",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:a6e6568c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25080",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:2acf3184"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25081",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 48,
+      "scoreP90": 112,
+      "scoreMax": 216,
+      "scoreSpread": 208,
+      "scoreQuantiles": {
+        "p10": 16,
+        "p25": 40,
+        "p30": 40,
+        "p33": 40,
+        "p50": 48,
+        "p66": 56,
+        "p70": 72,
+        "p75": 96,
+        "p90": 112
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 15,
+        "50-149": 6,
+        "150-349": 3,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 40,
+        "midMax": 72
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 110,
+      "layoutFingerprint": "fp:347e49ed",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 93.4
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25082",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=177 max=112",
+    "metrics": {
+      "openingMoveCount": 177,
+      "layoutFingerprint": "fp:39b3a474"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25083",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:1d646a68"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25084",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:a64fb34a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25085",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:2c947eab"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25086",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=125 max=112",
+    "metrics": {
+      "openingMoveCount": 125,
+      "layoutFingerprint": "fp:673d6e8a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25087",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:b7c73ad"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25088",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:e3b91fd9"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25089",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:e66e40b6"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25090",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:c0ba57cf"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25091",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:d8b8e718"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25092",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:3a383a63"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25093",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:b84bb90c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25094",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=114 max=112",
+    "metrics": {
+      "openingMoveCount": 114,
+      "layoutFingerprint": "fp:be472b5"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25095",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:3e97e36b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25096",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:1fbeee21"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25097",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=125 max=112",
+    "metrics": {
+      "openingMoveCount": 125,
+      "layoutFingerprint": "fp:333c90d9"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25098",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=169 max=112",
+    "metrics": {
+      "openingMoveCount": 169,
+      "layoutFingerprint": "fp:6a3a77a1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25099",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:b1a23c17"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25100",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=137 max=112",
+    "metrics": {
+      "openingMoveCount": 137,
+      "layoutFingerprint": "fp:7e9a4f0e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25101",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:d7084ecc"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25102",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:f15fe51d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25103",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:ef44ac26"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25104",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:a676fd91"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25105",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:3f385ba3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25106",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:92c81579"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25107",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:97f7887d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25108",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:cf12a1b8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25109",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:d0034cb4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25110",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:1e39db0a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25111",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:8ac773a0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25112",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=24 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 0,
+      "scoreP50": 32,
+      "scoreP90": 176,
+      "scoreMax": 200,
+      "scoreSpread": 200,
+      "scoreQuantiles": {
+        "p10": 16,
+        "p25": 24,
+        "p30": 24,
+        "p33": 24,
+        "p50": 32,
+        "p66": 72,
+        "p70": 136,
+        "p75": 168,
+        "p90": 176
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 14,
+        "50-149": 3,
+        "150-349": 7,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 24,
+        "midMax": 136
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 110,
+      "layoutFingerprint": "fp:d91313ee",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 83
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25113",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:df8791b4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25114",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=148 max=112",
+    "metrics": {
+      "openingMoveCount": 148,
+      "layoutFingerprint": "fp:bed3a021"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25115",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:726053b7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25116",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=24 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 0,
+      "scoreP50": 72,
+      "scoreP90": 99,
+      "scoreMax": 248,
+      "scoreSpread": 248,
+      "scoreQuantiles": {
+        "p10": 8,
+        "p25": 24,
+        "p30": 32,
+        "p33": 32,
+        "p50": 72,
+        "p66": 72,
+        "p70": 72,
+        "p75": 72,
+        "p90": 99
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 9,
+        "50-149": 14,
+        "150-349": 1,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 32,
+        "midMax": 72
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 108,
+      "layoutFingerprint": "fp:372712d3",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 97.19999999999999
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25117",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=161 max=112",
+    "metrics": {
+      "openingMoveCount": 161,
+      "layoutFingerprint": "fp:312f713d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25118",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=131 max=112",
+    "metrics": {
+      "openingMoveCount": 131,
+      "layoutFingerprint": "fp:34ff0fa9"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25119",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=32 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 0,
+      "scoreP50": 40,
+      "scoreP90": 88,
+      "scoreMax": 192,
+      "scoreSpread": 192,
+      "scoreQuantiles": {
+        "p10": 8,
+        "p25": 32,
+        "p30": 32,
+        "p33": 32,
+        "p50": 40,
+        "p66": 48,
+        "p70": 48,
+        "p75": 56,
+        "p90": 88
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 17,
+        "50-149": 6,
+        "150-349": 1,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 32,
+        "midMax": 48
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 110,
+      "layoutFingerprint": "fp:d9e2a5af",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 84.6
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25120",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:6ea17db1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25121",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=137 max=112",
+    "metrics": {
+      "openingMoveCount": 137,
+      "layoutFingerprint": "fp:e208c6b3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25122",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=118 max=112",
+    "metrics": {
+      "openingMoveCount": 118,
+      "layoutFingerprint": "fp:dca5d396"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25123",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:5cef239a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25124",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:f8da5511"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25125",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:a42db600"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25126",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=131 max=112",
+    "metrics": {
+      "openingMoveCount": 131,
+      "layoutFingerprint": "fp:3f4316f3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25127",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:c736ebf9"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25128",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=149 max=112",
+    "metrics": {
+      "openingMoveCount": 149,
+      "layoutFingerprint": "fp:58862be"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25129",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:f460f9d8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25130",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:6f62aedc"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25131",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:18f8ae99"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25132",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=116 max=112",
+    "metrics": {
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:38863327"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25133",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:62c6aedd"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25134",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=155 max=112",
+    "metrics": {
+      "openingMoveCount": 155,
+      "layoutFingerprint": "fp:f0765b17"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25135",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:3e4464a9"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25136",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:dca5043b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25137",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=144 max=112",
+    "metrics": {
+      "openingMoveCount": 144,
+      "layoutFingerprint": "fp:2540dd5"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25138",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:d32e4db8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25139",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:baefa4fa"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25140",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:1558ae72"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25141",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:1af371b8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25142",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:61a0e27d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25143",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 24,
+      "scoreP50": 56,
+      "scoreP90": 152,
+      "scoreMax": 184,
+      "scoreSpread": 160,
+      "scoreQuantiles": {
+        "p10": 32,
+        "p25": 40,
+        "p30": 48,
+        "p33": 48,
+        "p50": 56,
+        "p66": 72,
+        "p70": 104,
+        "p75": 115,
+        "p90": 152
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 10,
+        "50-149": 8,
+        "150-349": 6,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 48,
+        "midMax": 104
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 108,
+      "layoutFingerprint": "fp:d6c5ab47",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 78.8
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25144",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:805fc2a0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25145",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:858ea20a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25146",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:bf216d10"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25147",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=142 max=112",
+    "metrics": {
+      "openingMoveCount": 142,
+      "layoutFingerprint": "fp:faafcc9f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25148",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=155 max=112",
+    "metrics": {
+      "openingMoveCount": 155,
+      "layoutFingerprint": "fp:3100cbe8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25149",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:f02abb5f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25150",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:60f48e49"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25151",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:d2cda367"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25152",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=131 max=112",
+    "metrics": {
+      "openingMoveCount": 131,
+      "layoutFingerprint": "fp:afb038df"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25153",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:1e857479"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25154",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:5f436e7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25155",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:ed352d36"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25156",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=124 max=112",
+    "metrics": {
+      "openingMoveCount": 124,
+      "layoutFingerprint": "fp:a07ff8c9"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25157",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=137 max=112",
+    "metrics": {
+      "openingMoveCount": 137,
+      "layoutFingerprint": "fp:77c6bbf4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25158",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=32 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 16,
+      "scoreP50": 67,
+      "scoreP90": 344,
+      "scoreMax": 443,
+      "scoreSpread": 427,
+      "scoreQuantiles": {
+        "p10": 24,
+        "p25": 32,
+        "p30": 32,
+        "p33": 32,
+        "p50": 67,
+        "p66": 187,
+        "p70": 200,
+        "p75": 248,
+        "p90": 344
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 10,
+        "50-149": 5,
+        "150-349": 8,
+        "350-699": 1,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 32,
+        "midMax": 200
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 104,
+      "layoutFingerprint": "fp:9020274a",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 154.5
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25159",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:d441dfc9"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25160",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=116 max=112",
+    "metrics": {
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:f56f1763"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25161",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:68f30930"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25162",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:6bcdf153"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25163",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:a952121d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25164",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:71837b3a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25165",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:c8ea150f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25166",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:5ef1cdb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25167",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:173d4fb3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25168",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:61611548"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25169",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:a9c43ec7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25170",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:d6c5b6a0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25171",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=114 max=112",
+    "metrics": {
+      "openingMoveCount": 114,
+      "layoutFingerprint": "fp:400d1d69"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25172",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:342c07a2"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25173",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:a345b8af"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25174",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:3cc6f55d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25175",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:f017c62"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25176",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:60f93a14"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25177",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=118 max=112",
+    "metrics": {
+      "openingMoveCount": 118,
+      "layoutFingerprint": "fp:59b387d0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25178",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=16 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 0,
+      "scoreP50": 32,
+      "scoreP90": 160,
+      "scoreMax": 264,
+      "scoreSpread": 264,
+      "scoreQuantiles": {
+        "p10": 8,
+        "p25": 16,
+        "p30": 24,
+        "p33": 24,
+        "p50": 32,
+        "p66": 88,
+        "p70": 96,
+        "p75": 96,
+        "p90": 160
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 13,
+        "50-149": 5,
+        "150-349": 6,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 24,
+        "midMax": 96
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 110,
+      "layoutFingerprint": "fp:6a5b32da",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 98.2
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25179",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:98d0e8a0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25180",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:dbc06af5"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25181",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:226f4f41"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25182",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:9edfe16d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25183",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:be9e8586"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25184",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:2f47308a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25185",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:213dfdb5"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25186",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:54b86831"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25187",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:6a0ce9ce"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25188",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:c000a92e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25189",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:30b524d9"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25190",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=118 max=112",
+    "metrics": {
+      "openingMoveCount": 118,
+      "layoutFingerprint": "fp:c2458df3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25191",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:88e92425"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25192",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:295ec7c2"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25193",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=24 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 16,
+      "scoreP50": 56,
+      "scoreP90": 195,
+      "scoreMax": 200,
+      "scoreSpread": 184,
+      "scoreQuantiles": {
+        "p10": 24,
+        "p25": 24,
+        "p30": 40,
+        "p33": 40,
+        "p50": 56,
+        "p66": 123,
+        "p70": 128,
+        "p75": 155,
+        "p90": 195
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 10,
+        "50-149": 7,
+        "150-349": 7,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 40,
+        "midMax": 128
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 104,
+      "layoutFingerprint": "fp:78d611e2",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 77.6
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25194",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:a9e5f291"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25195",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:329c6745"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25196",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:8a0a832f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25197",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:a8d42497"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25198",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:bccdaefb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25199",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:51c6d412"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25200",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:fe9d701d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25201",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=170 max=112",
+    "metrics": {
+      "openingMoveCount": 170,
+      "layoutFingerprint": "fp:280470fd"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25202",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:722014a3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25203",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=156 max=112",
+    "metrics": {
+      "openingMoveCount": 156,
+      "layoutFingerprint": "fp:9bbccaec"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25204",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:f91db794"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25205",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=16 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 0,
+      "scoreP50": 80,
+      "scoreP90": 184,
+      "scoreMax": 243,
+      "scoreSpread": 243,
+      "scoreQuantiles": {
+        "p10": 0,
+        "p25": 16,
+        "p30": 32,
+        "p33": 32,
+        "p50": 80,
+        "p66": 160,
+        "p70": 163,
+        "p75": 163,
+        "p90": 184
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 8,
+        "50-149": 7,
+        "150-349": 9,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 32,
+        "midMax": 163
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 108,
+      "layoutFingerprint": "fp:69b5c7a4",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 91.69999999999999
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25206",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:6f812cee"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25207",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:62e25336"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25208",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:c35b7552"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25209",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:83e4e982"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25210",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:2a043897"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25211",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=141 max=112",
+    "metrics": {
+      "openingMoveCount": 141,
+      "layoutFingerprint": "fp:80531199"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25212",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:31f7d625"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25213",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=144 max=112",
+    "metrics": {
+      "openingMoveCount": 144,
+      "layoutFingerprint": "fp:fdfa8db1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25214",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:77ab9063"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25215",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=125 max=112",
+    "metrics": {
+      "openingMoveCount": 125,
+      "layoutFingerprint": "fp:7642e3d0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25216",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:4f2ee9cf"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25217",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:acc2c9d0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25218",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=116 max=112",
+    "metrics": {
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:d99e8685"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25219",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:2372c46b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25220",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:4ffb65c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25221",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=114 max=112",
+    "metrics": {
+      "openingMoveCount": 114,
+      "layoutFingerprint": "fp:aecf0f74"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25222",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:8a43148b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25223",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:17f65dcd"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25224",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=131 max=112",
+    "metrics": {
+      "openingMoveCount": 131,
+      "layoutFingerprint": "fp:421b3d4a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25225",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:2f4c54e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25226",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:bee66e67"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25227",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:b221829d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25228",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=116 max=112",
+    "metrics": {
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:d25823a8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25229",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:c248afd3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25230",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:daa25228"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25231",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:fce0d263"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25232",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:c79ab51b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25233",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:319e9a03"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25234",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:4c248855"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25235",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:7241b9cb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25236",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=116 max=112",
+    "metrics": {
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:b504a79a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25237",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:cd8d9499"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25238",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:bb2c5ced"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25239",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:29f5b6ed"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25240",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=148 max=112",
+    "metrics": {
+      "openingMoveCount": 148,
+      "layoutFingerprint": "fp:229afd65"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25241",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:79ba333f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25242",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=162 max=112",
+    "metrics": {
+      "openingMoveCount": 162,
+      "layoutFingerprint": "fp:fff98f14"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25243",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=131 max=112",
+    "metrics": {
+      "openingMoveCount": 131,
+      "layoutFingerprint": "fp:6ed71375"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25244",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:29e03498"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25245",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:795e0298"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25246",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:1a7a9f20"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25247",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:e9b99bc1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25248",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:6052f822"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25249",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:294f5449"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25250",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:fe17080e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25251",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:1a7605b7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25252",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=114 max=112",
+    "metrics": {
+      "openingMoveCount": 114,
+      "layoutFingerprint": "fp:9b3be643"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25253",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:503f7ac8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25254",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:c6b129c2"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25255",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:d703e508"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25256",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:2b4e263a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25257",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=16 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 0,
+      "scoreP50": 40,
+      "scoreP90": 176,
+      "scoreMax": 248,
+      "scoreSpread": 248,
+      "scoreQuantiles": {
+        "p10": 8,
+        "p25": 16,
+        "p30": 16,
+        "p33": 16,
+        "p50": 40,
+        "p66": 56,
+        "p70": 88,
+        "p75": 136,
+        "p90": 176
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 15,
+        "50-149": 3,
+        "150-349": 6,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 16,
+        "midMax": 88
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 110,
+      "layoutFingerprint": "fp:62252809",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 93.39999999999999
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25258",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:b35fd8df"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25259",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=144 max=112",
+    "metrics": {
+      "openingMoveCount": 144,
+      "layoutFingerprint": "fp:aa73216c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25260",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:e01b29a4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25261",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:30a8a600"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25262",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:eb96728c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25263",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=124 max=112",
+    "metrics": {
+      "openingMoveCount": 124,
+      "layoutFingerprint": "fp:3aad42e2"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25264",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:c49c9c4a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25265",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=124 max=112",
+    "metrics": {
+      "openingMoveCount": 124,
+      "layoutFingerprint": "fp:6ad0e6db"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25266",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:3a9db5c1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25267",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:d9032571"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25268",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:bf027721"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25269",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:4f74a348"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25270",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:30a6f5eb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25271",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=118 max=112",
+    "metrics": {
+      "openingMoveCount": 118,
+      "layoutFingerprint": "fp:d87396e0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25272",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:436dfa08"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25273",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=125 max=112",
+    "metrics": {
+      "openingMoveCount": 125,
+      "layoutFingerprint": "fp:a91cb64d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25274",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:a4ecce8d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25275",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:c87f2ec1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25276",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:c9ed95bb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25277",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=137 max=112",
+    "metrics": {
+      "openingMoveCount": 137,
+      "layoutFingerprint": "fp:be000c38"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25278",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:153ca3b0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25279",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:aee5625e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25280",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:690508a2"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25281",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:24e6cc98"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25282",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=168 max=112",
+    "metrics": {
+      "openingMoveCount": 168,
+      "layoutFingerprint": "fp:3d8ee866"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25283",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:4fcba8d3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25284",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:b143cf51"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25285",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=32 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 16,
+      "scoreP50": 72,
+      "scoreP90": 192,
+      "scoreMax": 259,
+      "scoreSpread": 243,
+      "scoreQuantiles": {
+        "p10": 24,
+        "p25": 32,
+        "p30": 48,
+        "p33": 48,
+        "p50": 72,
+        "p66": 72,
+        "p70": 72,
+        "p75": 96,
+        "p90": 192
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 8,
+        "50-149": 11,
+        "150-349": 5,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 48,
+        "midMax": 72
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 106,
+      "layoutFingerprint": "fp:2761e638",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 99.5
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25286",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=32 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 0,
+      "scoreP50": 48,
+      "scoreP90": 176,
+      "scoreMax": 288,
+      "scoreSpread": 288,
+      "scoreQuantiles": {
+        "p10": 24,
+        "p25": 32,
+        "p30": 40,
+        "p33": 40,
+        "p50": 48,
+        "p66": 118,
+        "p70": 155,
+        "p75": 176,
+        "p90": 176
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 13,
+        "50-149": 3,
+        "150-349": 8,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 40,
+        "midMax": 155
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 106,
+      "layoutFingerprint": "fp:eb5e0d36",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 113
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25287",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:54fa4df0"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25288",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 16,
+      "scoreP50": 96,
+      "scoreP90": 136,
+      "scoreMax": 378,
+      "scoreSpread": 362,
+      "scoreQuantiles": {
+        "p10": 32,
+        "p25": 64,
+        "p30": 64,
+        "p33": 64,
+        "p50": 96,
+        "p66": 120,
+        "p70": 120,
+        "p75": 120,
+        "p90": 136
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 5,
+        "50-149": 16,
+        "150-349": 2,
+        "350-699": 1,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 64,
+        "midMax": 120
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 100,
+      "layoutFingerprint": "fp:94f713ce",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 150.6
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25289",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:27f5fc5"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25290",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:1f882537"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25291",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:3fb63cbf"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25292",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:6606e7ff"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25293",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:2b8cd96e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25294",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=131 max=112",
+    "metrics": {
+      "openingMoveCount": 131,
+      "layoutFingerprint": "fp:ea112e6f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25295",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:63925e72"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25296",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:25a4b6f2"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25297",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:7a542a8c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25298",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:f65d9221"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25299",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:ef399ab4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25300",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=149 max=112",
+    "metrics": {
+      "openingMoveCount": 149,
+      "layoutFingerprint": "fp:df3a2283"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25301",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:7341292d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25302",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:21f0d4c7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25303",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:73ddb597"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25304",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:46dacd8f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25305",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=149 max=112",
+    "metrics": {
+      "openingMoveCount": 149,
+      "layoutFingerprint": "fp:4fe00289"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25306",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=24 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 56,
+      "scoreP90": 123,
+      "scoreMax": 155,
+      "scoreSpread": 147,
+      "scoreQuantiles": {
+        "p10": 16,
+        "p25": 24,
+        "p30": 24,
+        "p33": 24,
+        "p50": 56,
+        "p66": 80,
+        "p70": 88,
+        "p75": 112,
+        "p90": 123
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 11,
+        "50-149": 12,
+        "150-349": 1,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 24,
+        "midMax": 88
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 110,
+      "layoutFingerprint": "fp:3410611c",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 67.1
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25307",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:9898e7dd"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25308",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:e9855f1e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25309",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=169 max=112",
+    "metrics": {
+      "openingMoveCount": 169,
+      "layoutFingerprint": "fp:5413e95"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25310",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:6e57718b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25311",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=113 max=112",
+    "metrics": {
+      "openingMoveCount": 113,
+      "layoutFingerprint": "fp:9bad3647"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25312",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:f8370802"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25313",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=176 max=112",
+    "metrics": {
+      "openingMoveCount": 176,
+      "layoutFingerprint": "fp:e73d8af6"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25314",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:78074537"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25315",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:4b3e1735"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25316",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:4473c795"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25317",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=148 max=112",
+    "metrics": {
+      "openingMoveCount": 148,
+      "layoutFingerprint": "fp:b347b820"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25318",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:2955654a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25319",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=116 max=112",
+    "metrics": {
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:54dacb7e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25320",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=137 max=112",
+    "metrics": {
+      "openingMoveCount": 137,
+      "layoutFingerprint": "fp:ab9e7907"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25321",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=177 max=112",
+    "metrics": {
+      "openingMoveCount": 177,
+      "layoutFingerprint": "fp:399a430"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25322",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:1f55e7c8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25323",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:4704849b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25324",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=24 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 40,
+      "scoreP90": 163,
+      "scoreMax": 163,
+      "scoreSpread": 155,
+      "scoreQuantiles": {
+        "p10": 16,
+        "p25": 24,
+        "p30": 24,
+        "p33": 24,
+        "p50": 40,
+        "p66": 48,
+        "p70": 48,
+        "p75": 72,
+        "p90": 163
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 17,
+        "50-149": 2,
+        "150-349": 5,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 24,
+        "midMax": 48
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 106,
+      "layoutFingerprint": "fp:a1453726",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 69.1
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25325",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:a753b973"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25326",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:55a7982e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25327",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:3b373d13"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25328",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:b25a6125"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25329",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:83e993f7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25330",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:48233645"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25331",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:7ebee5e4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25332",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:40455f07"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25333",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=124 max=112",
+    "metrics": {
+      "openingMoveCount": 124,
+      "layoutFingerprint": "fp:1553cbc"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25334",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=141 max=112",
+    "metrics": {
+      "openingMoveCount": 141,
+      "layoutFingerprint": "fp:61211c6b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25335",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:d49a200d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25336",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:eb143d8f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25337",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:bac177b1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25338",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:b517251f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25339",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:4745ecd8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25340",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=116 max=112",
+    "metrics": {
+      "openingMoveCount": 116,
+      "layoutFingerprint": "fp:4422d84b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25341",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:8fca993b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25342",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:bde71705"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25343",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:4498e44"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25344",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:360d8f21"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25345",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:deb0a734"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25346",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:cb27a8f4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25347",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=124 max=112",
+    "metrics": {
+      "openingMoveCount": 124,
+      "layoutFingerprint": "fp:cd9a2355"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25348",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:38e6d0ae"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25349",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:a455111c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25350",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:2ff66d66"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25351",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:c7b56068"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25352",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=124 max=112",
+    "metrics": {
+      "openingMoveCount": 124,
+      "layoutFingerprint": "fp:cc396a42"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25353",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:a70d827d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25354",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:e2d9feb3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25355",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:44c12187"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25356",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:3c91da40"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25357",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:7d7e7af"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25358",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=176 max=112",
+    "metrics": {
+      "openingMoveCount": 176,
+      "layoutFingerprint": "fp:b24c6ff4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25359",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:d978eed3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25360",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=32 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 72,
+      "scoreP90": 120,
+      "scoreMax": 280,
+      "scoreSpread": 272,
+      "scoreQuantiles": {
+        "p10": 16,
+        "p25": 32,
+        "p30": 48,
+        "p33": 48,
+        "p50": 72,
+        "p66": 104,
+        "p70": 112,
+        "p75": 112,
+        "p90": 120
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 9,
+        "50-149": 12,
+        "150-349": 3,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 48,
+        "midMax": 112
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 112,
+      "layoutFingerprint": "fp:76ed612f",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 108.8
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25361",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:854b81e3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25362",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=137 max=112",
+    "metrics": {
+      "openingMoveCount": 137,
+      "layoutFingerprint": "fp:11b6011f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25363",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:96359915"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25364",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:c4418683"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25365",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:8a5b91ae"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25366",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:d77a3ecf"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25367",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:d7b57811"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25368",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=118 max=112",
+    "metrics": {
+      "openingMoveCount": 118,
+      "layoutFingerprint": "fp:bb25ebd6"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25369",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:194100d2"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25370",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=149 max=112",
+    "metrics": {
+      "openingMoveCount": 149,
+      "layoutFingerprint": "fp:4aba0c1e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25371",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:4525c2b5"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25372",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:d129fd2a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25373",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:d57b1ca8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25374",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:28fcd389"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25375",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:24d7744d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25376",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:8e8663e6"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25377",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:36326438"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25378",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:bf6e1fdf"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25379",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:6d440732"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25380",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:204906c1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25381",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:12d47063"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25382",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:2eaa34df"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25383",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=131 max=112",
+    "metrics": {
+      "openingMoveCount": 131,
+      "layoutFingerprint": "fp:addb2b4d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25384",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:10225dcb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25385",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:c21a3079"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25386",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 48,
+      "scoreP90": 96,
+      "scoreMax": 115,
+      "scoreSpread": 107,
+      "scoreQuantiles": {
+        "p10": 24,
+        "p25": 40,
+        "p30": 48,
+        "p33": 48,
+        "p50": 48,
+        "p66": 56,
+        "p70": 56,
+        "p75": 64,
+        "p90": 96
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 14,
+        "50-149": 10,
+        "150-349": 0,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 48,
+        "midMax": 56
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 110,
+      "layoutFingerprint": "fp:316a81b0",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 63.1
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25387",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=137 max=112",
+    "metrics": {
+      "openingMoveCount": 137,
+      "layoutFingerprint": "fp:5a8f8774"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25388",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:874154d6"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25389",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:1deb062f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25390",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=24 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 0,
+      "scoreP50": 80,
+      "scoreP90": 171,
+      "scoreMax": 227,
+      "scoreSpread": 227,
+      "scoreQuantiles": {
+        "p10": 8,
+        "p25": 24,
+        "p30": 32,
+        "p33": 32,
+        "p50": 80,
+        "p66": 120,
+        "p70": 168,
+        "p75": 168,
+        "p90": 171
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 11,
+        "50-149": 5,
+        "150-349": 8,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 32,
+        "midMax": 168
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 104,
+      "layoutFingerprint": "fp:4f3f82b4",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 90.5
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25391",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:d3d28f4a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25392",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=148 max=112",
+    "metrics": {
+      "openingMoveCount": 148,
+      "layoutFingerprint": "fp:e80c90e7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25393",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:e21fc05"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25394",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:148f59d1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25395",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:9085082f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25396",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:4ba5fe5"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25397",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:4241100b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25398",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=113 max=112",
+    "metrics": {
+      "openingMoveCount": 113,
+      "layoutFingerprint": "fp:deb5a23"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25399",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:95486055"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25400",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:22634eb9"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25401",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:c9e5bd06"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25402",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=162 max=112",
+    "metrics": {
+      "openingMoveCount": 162,
+      "layoutFingerprint": "fp:4be0cfa8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25403",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:7648f7a3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25404",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:dba789b7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25405",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:625b1126"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25406",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:234f56fd"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25407",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:2590cefe"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25408",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=161 max=112",
+    "metrics": {
+      "openingMoveCount": 161,
+      "layoutFingerprint": "fp:48f06515"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25409",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:68f86293"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25410",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 48,
+      "scoreP90": 152,
+      "scoreMax": 320,
+      "scoreSpread": 312,
+      "scoreQuantiles": {
+        "p10": 16,
+        "p25": 40,
+        "p30": 40,
+        "p33": 40,
+        "p50": 48,
+        "p66": 80,
+        "p70": 152,
+        "p75": 152,
+        "p90": 152
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 12,
+        "50-149": 4,
+        "150-349": 8,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 40,
+        "midMax": 152
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 112,
+      "layoutFingerprint": "fp:c3efa1b0",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 124.8
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25411",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=156 max=112",
+    "metrics": {
+      "openingMoveCount": 156,
+      "layoutFingerprint": "fp:e7fefe5d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25412",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:afdf5b31"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25413",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:9947086"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25414",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:b4b11043"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25415",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:ba803c2c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25416",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=137 max=112",
+    "metrics": {
+      "openingMoveCount": 137,
+      "layoutFingerprint": "fp:3f8f3d38"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25417",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:7ce9d39b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25418",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:8da48ed4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25419",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=141 max=112",
+    "metrics": {
+      "openingMoveCount": 141,
+      "layoutFingerprint": "fp:98542b9e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25420",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:ebf6f7a4"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25421",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:d712ce18"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25422",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:b4617fad"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25423",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:5d587f50"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25424",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=118 max=112",
+    "metrics": {
+      "openingMoveCount": 118,
+      "layoutFingerprint": "fp:62d53f91"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25425",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=131 max=112",
+    "metrics": {
+      "openingMoveCount": 131,
+      "layoutFingerprint": "fp:fc0fd9a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25426",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=161 max=112",
+    "metrics": {
+      "openingMoveCount": 161,
+      "layoutFingerprint": "fp:68e4785e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25427",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:59ed0e47"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25428",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:4ac9d39a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25429",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=114 max=112",
+    "metrics": {
+      "openingMoveCount": 114,
+      "layoutFingerprint": "fp:59eb7bb7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25430",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 80,
+      "scoreP90": 144,
+      "scoreMax": 152,
+      "scoreSpread": 144,
+      "scoreQuantiles": {
+        "p10": 32,
+        "p25": 40,
+        "p30": 56,
+        "p33": 56,
+        "p50": 80,
+        "p66": 112,
+        "p70": 136,
+        "p75": 144,
+        "p90": 144
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 7,
+        "50-149": 16,
+        "150-349": 1,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 56,
+        "midMax": 136
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 106,
+      "layoutFingerprint": "fp:5d2de71e",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 73.8
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25431",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=126 max=112",
+    "metrics": {
+      "openingMoveCount": 126,
+      "layoutFingerprint": "fp:844282fb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25432",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=155 max=112",
+    "metrics": {
+      "openingMoveCount": 155,
+      "layoutFingerprint": "fp:c1e61fc6"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25433",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=161 max=112",
+    "metrics": {
+      "openingMoveCount": 161,
+      "layoutFingerprint": "fp:bccc1061"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25434",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:f94278da"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25435",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:52a642a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25436",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=153 max=112",
+    "metrics": {
+      "openingMoveCount": 153,
+      "layoutFingerprint": "fp:f689ebca"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25437",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:945b78f1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25438",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=142 max=112",
+    "metrics": {
+      "openingMoveCount": 142,
+      "layoutFingerprint": "fp:2bd06bcb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25439",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:e0a96c37"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25440",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:2f5a6083"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25441",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=132 max=112",
+    "metrics": {
+      "openingMoveCount": 132,
+      "layoutFingerprint": "fp:6e90f9b1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25442",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:8acc3e9c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25443",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=124 max=112",
+    "metrics": {
+      "openingMoveCount": 124,
+      "layoutFingerprint": "fp:71dc51f7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25444",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:4a9f6d20"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25445",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:1578c3be"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25446",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:f3ac9ff7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25447",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=144 max=112",
+    "metrics": {
+      "openingMoveCount": 144,
+      "layoutFingerprint": "fp:861be071"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25448",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:b2fcb7e7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25449",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:575e699b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25450",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=141 max=112",
+    "metrics": {
+      "openingMoveCount": 141,
+      "layoutFingerprint": "fp:e7623f10"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25451",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:8fcefa5d"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25452",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:87183b91"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25453",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=136 max=112",
+    "metrics": {
+      "openingMoveCount": 136,
+      "layoutFingerprint": "fp:a3321171"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25454",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:5aad3c3a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25455",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=152 max=112",
+    "metrics": {
+      "openingMoveCount": 152,
+      "layoutFingerprint": "fp:8e293656"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25456",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:9c960aa5"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25457",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=137 max=112",
+    "metrics": {
+      "openingMoveCount": 137,
+      "layoutFingerprint": "fp:cde57512"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25458",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=148 max=112",
+    "metrics": {
+      "openingMoveCount": 148,
+      "layoutFingerprint": "fp:4958c548"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25459",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:1e9686d6"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25460",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=121 max=112",
+    "metrics": {
+      "openingMoveCount": 121,
+      "layoutFingerprint": "fp:322e42b3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25461",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=134 max=112",
+    "metrics": {
+      "openingMoveCount": 134,
+      "layoutFingerprint": "fp:7d27ab3e"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25462",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=142 max=112",
+    "metrics": {
+      "openingMoveCount": 142,
+      "layoutFingerprint": "fp:71e44f6c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25463",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=118 max=112",
+    "metrics": {
+      "openingMoveCount": 118,
+      "layoutFingerprint": "fp:2d152fdb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25464",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=162 max=112",
+    "metrics": {
+      "openingMoveCount": 162,
+      "layoutFingerprint": "fp:8cbf54a8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25465",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:a0a57c92"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25466",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=120 max=112",
+    "metrics": {
+      "openingMoveCount": 120,
+      "layoutFingerprint": "fp:596c0d1c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25467",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:e85095b8"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25468",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=137 max=112",
+    "metrics": {
+      "openingMoveCount": 137,
+      "layoutFingerprint": "fp:8bf09794"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25469",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=147 max=112",
+    "metrics": {
+      "openingMoveCount": 147,
+      "layoutFingerprint": "fp:63182662"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25470",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=114 max=112",
+    "metrics": {
+      "openingMoveCount": 114,
+      "layoutFingerprint": "fp:8a109dac"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25471",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:e5abf019"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25472",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 72,
+      "scoreP90": 104,
+      "scoreMax": 274,
+      "scoreSpread": 266,
+      "scoreQuantiles": {
+        "p10": 24,
+        "p25": 40,
+        "p30": 40,
+        "p33": 40,
+        "p50": 72,
+        "p66": 80,
+        "p70": 80,
+        "p75": 80,
+        "p90": 104
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 8,
+        "50-149": 14,
+        "150-349": 2,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 40,
+        "midMax": 80
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 106,
+      "layoutFingerprint": "fp:2aa708fc",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 110.4
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25473",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=140 max=112",
+    "metrics": {
+      "openingMoveCount": 140,
+      "layoutFingerprint": "fp:581bfb0c"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25474",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=162 max=112",
+    "metrics": {
+      "openingMoveCount": 162,
+      "layoutFingerprint": "fp:85bef608"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25475",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:a2919101"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25476",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:c96a9255"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25477",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=117 max=112",
+    "metrics": {
+      "openingMoveCount": 117,
+      "layoutFingerprint": "fp:9e9dbbc1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25478",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=131 max=112",
+    "metrics": {
+      "openingMoveCount": 131,
+      "layoutFingerprint": "fp:3221f8cf"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25479",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:ddb5b8b7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25480",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:7b72d7ba"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25481",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=128 max=112",
+    "metrics": {
+      "openingMoveCount": 128,
+      "layoutFingerprint": "fp:f75a8858"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25482",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:78bb747b"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25483",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=139 max=112",
+    "metrics": {
+      "openingMoveCount": 139,
+      "layoutFingerprint": "fp:470f58fa"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25484",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=122 max=112",
+    "metrics": {
+      "openingMoveCount": 122,
+      "layoutFingerprint": "fp:7b2de3c1"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25485",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=145 max=112",
+    "metrics": {
+      "openingMoveCount": 145,
+      "layoutFingerprint": "fp:d04ce048"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25486",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:53b63388"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25487",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=130 max=112",
+    "metrics": {
+      "openingMoveCount": 130,
+      "layoutFingerprint": "fp:cbd9fb85"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25488",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=162 max=112",
+    "metrics": {
+      "openingMoveCount": 162,
+      "layoutFingerprint": "fp:96a4b1c7"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25489",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=129 max=112",
+    "metrics": {
+      "openingMoveCount": 129,
+      "layoutFingerprint": "fp:6b028f3"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25490",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=144 max=112",
+    "metrics": {
+      "openingMoveCount": 144,
+      "layoutFingerprint": "fp:8c3ee505"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25491",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=133 max=112",
+    "metrics": {
+      "openingMoveCount": 133,
+      "layoutFingerprint": "fp:5257db7f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25492",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=127 max=112",
+    "metrics": {
+      "openingMoveCount": 127,
+      "layoutFingerprint": "fp:8c125dbf"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25493",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=123 max=112",
+    "metrics": {
+      "openingMoveCount": 123,
+      "layoutFingerprint": "fp:104af9cc"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25494",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=138 max=112",
+    "metrics": {
+      "openingMoveCount": 138,
+      "layoutFingerprint": "fp:3d05702a"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25495",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=146 max=112",
+    "metrics": {
+      "openingMoveCount": 146,
+      "layoutFingerprint": "fp:8afbbc0f"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25496",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=160 max=112",
+    "metrics": {
+      "openingMoveCount": 160,
+      "layoutFingerprint": "fp:75f49eeb"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25497",
+    "reason": "stuck_rate_too_high",
+    "detail": "stuckRate=1 max=0.5",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 88,
+      "scoreP90": 128,
+      "scoreMax": 163,
+      "scoreSpread": 155,
+      "scoreQuantiles": {
+        "p10": 16,
+        "p25": 40,
+        "p30": 48,
+        "p33": 48,
+        "p50": 88,
+        "p66": 120,
+        "p70": 120,
+        "p75": 128,
+        "p90": 128
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 8,
+        "50-149": 15,
+        "150-349": 1,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 48,
+        "midMax": 120
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 110,
+      "layoutFingerprint": "fp:331d36ee",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 77.5
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25498",
+    "reason": "opening_too_easy",
+    "detail": "openingMoveCount=154 max=112",
+    "metrics": {
+      "openingMoveCount": 154,
+      "layoutFingerprint": "fp:7b36c1c6"
+    }
+  },
+  {
+    "seedId": "blockblast-pool:v3:25499",
+    "reason": "low_player_ceiling",
+    "detail": "scoreP25=32 min=40",
+    "metrics": {
+      "rolloutCount": 24,
+      "scoreMin": 8,
+      "scoreP50": 67,
+      "scoreP90": 144,
+      "scoreMax": 224,
+      "scoreSpread": 216,
+      "scoreQuantiles": {
+        "p10": 24,
+        "p25": 32,
+        "p30": 48,
+        "p33": 48,
+        "p50": 67,
+        "p66": 104,
+        "p70": 104,
+        "p75": 104,
+        "p90": 144
+      },
+      "scoreHistogram": {
+        "<0": 0,
+        "0-49": 8,
+        "50-149": 13,
+        "150-349": 3,
+        "350-699": 0,
+        "700+": 0
+      },
+      "bandThresholds": {
+        "lowMax": 48,
+        "midMax": 104
+      },
+      "completedRate": 0,
+      "stuckRate": 1,
+      "exitedRate": 0,
+      "timeUpRate": 0,
+      "completedCount": 0,
+      "hasAnyCompleted": false,
+      "openingMoveCount": 110,
+      "layoutFingerprint": "fp:79696d6a",
+      "policyVersion": "block-blast-stochastic-v3",
+      "matchTimeLimitSec": 300,
+      "layoutOutcome": "mixed",
+      "playerEaseScore": 91.8
+    }
+  }
+]

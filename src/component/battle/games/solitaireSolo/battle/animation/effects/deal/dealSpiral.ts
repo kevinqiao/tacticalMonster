@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { SoloCard, ZoneType } from "../../../types/SoloTypes";
-import { getCoord } from "../../../Utils";
+import { getCardCoord } from "../../../Utils";
 import { popCard } from "../popCard";
 
 /**
@@ -24,7 +24,7 @@ export const dealSpiral = ({ data, onComplete }: { data: any; onComplete?: () =>
         if (!card.ele) return;
 
         const zoneCards = cards.filter((c: SoloCard) => c.zoneId === card.zoneId);
-        const { x, y } = getCoord(card, zoneCards, boardDimension);
+        const { x, y } = getCardCoord(card, zoneCards, boardDimension);
 
         // 初始在中心并旋转
         gsap.set(card.ele, {

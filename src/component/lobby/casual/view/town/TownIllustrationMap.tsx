@@ -1,0 +1,354 @@
+﻿import React, { useMemo } from "react";
+
+import type { CasualSkinEntitlements } from "../../service/useCasualPlatformManager";
+import { getTownBuilding, TOWN_BUILDINGS } from "./casualTownBuildingCatalog";
+import type { TownBpLayer } from "./casualTownThemeCatalog";
+import {
+  getTownIllustrationConfig,
+  type TownIllustrationHotspot,
+} from "./townIllustrationConfig";
+import { resolveBuildingOverlays } from "./townBuildingOverlays";
+import { isTownBuildingUnlocked } from "./townBuildingUnlock";
+import {
+  effectiveTownBpLayer,
+  resolveTownEntitlements,
+  resolveVisibleFxLayers,
+  townLayerBaseFilter,
+  townLayerGroundTint,
+  townLayerSkyGradient,
+  TOWN_BP_LAYER_LABELS,
+} from "./townIllustrationTheme";
+import {
+  resolveOverlayMergeBaseSrc,
+  TOWN_OVERLAY_PAIR_ASPECT_RATIO,
+  type TownOverlayMergePreviewState,
+} from "./townOverlayPairPreview";
+import "./townIllustrationMap.css";
+
+export interface TownIllustrationMapProps {
+  level: number;
+  selectedId: string | null;
+  onSelect: (buildingId: string) => void;
+  seasonId?: string;
+  entitlements: CasualSkinEntitlements;
+  themePreview?: {
+    townLayer: TownBpLayer;
+    townVariant?: "standard" | "deluxe";
+  } | null;
+  /** 服务端已解锁建筑（成就校验后）；未传则仅按 Town 等级 + visibleFromStage */
+  unlockedBuildingIds?: ReadonlySet<string>;
+  /** 开发：raw/pairs before/after 与 overlay 合并预览 */
+  overlayMergePreview?: TownOverlayMergePreviewState | null;
+}
+
+const TownIllustrationMap: React.FC<TownIllustrationMapProps> = ({
+  level,
+  selectedId,
+  onSelect,
+  seasonId,
+  entitlements: liveEntitlements,
+  themePreview,
+  unlockedBuildingIds,
+  overlayMergePreview,
+}) => {
+  const config = useMemo(() => getTownIllustrationConfig(seasonId), [seasonId]);
+
+  const mergePreviewActive = overlayMergePreview?.enabled === true;
+
+  const unlockCtx = useMemo(() => {
+    if (mergePreviewActive && overlayMergePreview) {
+      const ids = overlayMergePreview.showOverlay
+        ? new Set([overlayMergePreview.buildingId])
+        : new Set<string>();
+      return {
+        townLevel: level,
+        previewAllUnlocked: false,
+        unlockedBuildingIds: ids,
+      };
+    }
+    return {
+      townLevel: level,
+      previewAllUnlocked: config.previewAllUnlocked,
+      unlockedBuildingIds,
+    };
+  }, [
+    mergePreviewActive,
+    overlayMergePreview,
+    level,
+    config.previewAllUnlocked,
+    unlockedBuildingIds,
+  ]);
+
+  const displayBaseSrc = useMemo(() => {
+    if (!mergePreviewActive || !overlayMergePreview) return config.baseSrc;
+    return resolveOverlayMergeBaseSrc(
+      overlayMergePreview.buildingId,
+      overlayMergePreview.baseSide,
+      config.baseSrc
+    );
+  }, [mergePreviewActive, overlayMergePreview, config.baseSrc]);
+
+  const displayAspectRatio = useMemo(() => {
+    if (
+      mergePreviewActive &&
+      overlayMergePreview &&
+      overlayMergePreview.baseSide !== "game"
+    ) {
+      return TOWN_OVERLAY_PAIR_ASPECT_RATIO;
+    }
+    return config.aspectRatio;
+  }, [mergePreviewActive, overlayMergePreview, config.aspectRatio]);
+
+  const resolvedOverlays = useMemo(
+    () => resolveBuildingOverlays(config.buildingOverlays, config.hotspots),
+    [config.buildingOverlays, config.hotspots]
+  );
+
+  const entitlements = useMemo(
+    () => resolveTownEntitlements(liveEntitlements, themePreview ?? null),
+    [liveEntitlements, themePreview]
+  );
+
+  const bpLayer = useMemo(() => effectiveTownBpLayer(entitlements), [entitlements]);
+  const deluxe = entitlements.townVariant === "deluxe";
+
+  const skyGradient = useMemo(
+    () => townLayerSkyGradient(bpLayer, entitlements.cssThemeKey, deluxe),
+    [bpLayer, entitlements.cssThemeKey, deluxe]
+  );
+  const groundTint = useMemo(
+    () => townLayerGroundTint(bpLayer, entitlements.cssThemeKey, deluxe),
+    [bpLayer, entitlements.cssThemeKey, deluxe]
+  );
+  const baseFilter = useMemo(
+    () => townLayerBaseFilter(bpLayer, deluxe),
+    [bpLayer, deluxe]
+  );
+
+  const visibleFx = useMemo(
+    () => resolveVisibleFxLayers(config, entitlements),
+    [config, entitlements]
+  );
+
+  const unlockedById = useMemo(() => {
+    const map = new Map<string, boolean>();
+    TOWN_BUILDINGS.forEach((b) => {
+      map.set(b.buildingId, isTownBuildingUnlocked(b.buildingId, unlockCtx));
+    });
+    return map;
+  }, [unlockCtx]);
+
+  const hotspotById = useMemo(() => {
+    const map = new Map<string, TownIllustrationHotspot>();
+    config.hotspots.forEach((h) => map.set(h.buildingId, h));
+    return map;
+  }, [config.hotspots]);
+
+  const calibrationIds = config.calibrationBuildingIds;
+  const isCalibrating =
+    !mergePreviewActive && calibrationIds != null && calibrationIds.length > 0;
+
+  const mapHotspots = useMemo(() => {
+    return config.hotspots.filter((h) => {
+      if (h.onMap === false) return false;
+      if (isCalibrating) return calibrationIds!.includes(h.buildingId);
+      return true;
+    });
+  }, [config.hotspots, calibrationIds, isCalibrating]);
+
+  const isOnMap = (buildingId: string) => {
+    const h = hotspotById.get(buildingId);
+    if (!h || h.onMap === false) return false;
+    if (isCalibrating) return calibrationIds!.includes(buildingId);
+    return true;
+  };
+
+  return (
+    <div
+      className={`town-illus${isCalibrating ? " town-illus--calibration" : ""}${
+        mergePreviewActive ? " town-illus--overlay-merge-preview" : ""
+      }`}
+      data-town-renderer="illustration-hotspot-v1"
+      data-illustration-id={config.id}
+      data-hotspot-calibration={isCalibrating ? "calibration" : "off"}
+      data-overlay-merge-preview={mergePreviewActive ? "on" : "off"}
+      data-town-layer={entitlements.townLayer}
+      data-town-variant={entitlements.townVariant}
+    >
+      {isCalibrating && (
+        <p className="town-illus__calibration-banner">
+          热区校准：虚线框上始终显示建筑名。调准后设 calibrationBuildingIds 为 null。
+        </p>
+      )}
+      {mergePreviewActive && overlayMergePreview && (
+        <p className="town-illus__overlay-merge-banner">
+          合并预览：{overlayMergePreview.baseSide === "game" ? "游戏底图" : overlayMergePreview.baseSide}
+          {overlayMergePreview.showOverlay
+            ? ` + overlays/${overlayMergePreview.buildingId}.png`
+            : "（未叠 overlay）"}
+        </p>
+      )}
+      <div
+        className="town-illus__frame"
+        data-town-layer={bpLayer}
+        style={{
+          aspectRatio: String(displayAspectRatio),
+          ["--town-base-filter" as string]: baseFilter,
+        }}
+      >
+        <span className="town-illus__tier-badge">{TOWN_BP_LAYER_LABELS[bpLayer]}</span>
+        <div
+          className="town-illus__sky"
+          style={{ background: skyGradient }}
+          aria-hidden
+        />
+        <div className="town-illus__canvas">
+          <img
+            className="town-illus__image town-illus__image--base"
+            src={displayBaseSrc}
+            alt=""
+            draggable={false}
+          />
+          {visibleFx.map((fx) =>
+            fx.imageSrc ? (
+              <img
+                key={fx.layer}
+                className={`town-illus__image town-illus__image--layer town-illus__image--${fx.layer}`}
+                src={fx.imageSrc}
+                alt=""
+                draggable={false}
+                style={{
+                  opacity: fx.opacity,
+                  filter: fx.imageFilter,
+                }}
+              />
+            ) : (
+              <div
+                key={fx.layer}
+                className={`town-illus__fx town-illus__fx--${fx.cssFx}`}
+                style={{ opacity: fx.opacity }}
+                aria-hidden
+              />
+            )
+          )}
+          {!isCalibrating &&
+            resolvedOverlays.map((overlay) => {
+              const unlocked = unlockedById.get(overlay.buildingId) ?? false;
+              if (!unlocked) return null;
+              const def = getTownBuilding(overlay.buildingId);
+              const hotspotLayout = config.buildingOverlayLayout === "hotspot";
+              return (
+                <img
+                  key={overlay.buildingId}
+                  className={`town-illus__overlay town-illus__overlay--reveal${
+                    hotspotLayout ? " town-illus__overlay--hotspot" : ""
+                  }${def?.isLegendary ? " town-illus__overlay--legendary" : ""}`}
+                  src={overlay.src}
+                  alt=""
+                  draggable={false}
+                  style={
+                    hotspotLayout
+                      ? {
+                          opacity: overlay.opacity,
+                          left: `${overlay.x * 100}%`,
+                          top: `${overlay.y * 100}%`,
+                          width: `${overlay.w * 100}%`,
+                          height: `${overlay.h * 100}%`,
+                          objectFit: overlay.objectFit ?? "contain",
+                        }
+                      : { opacity: overlay.opacity }
+                  }
+                />
+              );
+            })}
+          <div
+            className="town-illus__ground"
+            style={{ background: groundTint }}
+            aria-hidden
+          />
+        </div>
+        {mapHotspots.map((hotspot) => (
+          <HotspotButton
+            key={hotspot.buildingId}
+            hotspot={hotspot}
+            selected={selectedId === hotspot.buildingId}
+            unlocked={unlockedById.get(hotspot.buildingId) ?? false}
+            onSelect={onSelect}
+            showDebugOutline={isCalibrating}
+          />
+        ))}
+      </div>
+
+      <nav className="town-illus__roster" aria-label="建筑列表">
+        {TOWN_BUILDINGS.map((b) => {
+          const unlocked = unlockedById.get(b.buildingId) ?? false;
+          const onMap = isOnMap(b.buildingId);
+          return (
+            <button
+              key={b.buildingId}
+              type="button"
+              className={`town-illus__chip${selectedId === b.buildingId ? " is-selected" : ""}${
+                unlocked ? "" : " is-locked"
+              }${!onMap ? " town-illus__chip--offmap" : ""}`}
+              onClick={() => onSelect(b.buildingId)}
+              title={b.name}
+            >
+              <span className="town-illus__chip-icon">{unlocked ? b.icon : "🔒"}</span>
+              <span className="town-illus__chip-name">{b.name}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
+  );
+};
+
+function HotspotButton({
+  hotspot,
+  selected,
+  unlocked,
+  onSelect,
+  showDebugOutline,
+}: {
+  hotspot: TownIllustrationHotspot;
+  selected: boolean;
+  unlocked: boolean;
+  onSelect: (id: string) => void;
+  showDebugOutline?: boolean;
+}) {
+  const def = getTownBuilding(hotspot.buildingId);
+  if (!def) return null;
+
+  return (
+    <button
+      type="button"
+      className={`town-illus__hotspot${selected ? " is-selected" : ""}${
+        unlocked ? "" : " is-locked"
+      }${def.isLegendary ? " is-legendary" : ""}${
+        showDebugOutline ? " town-illus__hotspot--debug" : ""
+      }`}
+      style={{
+        left: `${hotspot.x * 100}%`,
+        top: `${hotspot.y * 100}%`,
+        width: `${hotspot.w * 100}%`,
+        height: `${hotspot.h * 100}%`,
+      }}
+      onClick={() => onSelect(hotspot.buildingId)}
+      aria-label={def.name}
+    >
+      {selected && <span className="town-illus__hotspot-ring" aria-hidden />}
+      {!unlocked && <span className="town-illus__hotspot-lock">🔒</span>}
+      {(showDebugOutline || selected) && (
+        <span
+          className={`town-illus__hotspot-label${
+            showDebugOutline ? " town-illus__hotspot-label--pinned" : ""
+          }`}
+        >
+          {def.icon} {def.name}
+        </span>
+      )}
+    </button>
+  );
+}
+
+export default TownIllustrationMap;

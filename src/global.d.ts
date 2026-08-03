@@ -3,7 +3,8 @@ declare global {
     interface Window {
         opera?: any;
         MSStream?: any;
-        Telegram?: any;
+        solana?: any;  // Solana钱包扩展
+        ethereum?: any;  // MetaMask/以太坊钱包扩展
     }
 }
 

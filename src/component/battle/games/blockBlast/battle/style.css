@@ -1,25 +1,90 @@
 /**
- * Block Blast 游戏样式
- * 基于 solitaireSolo 的样式设计
+ * Block Blast 视觉：天蓝/淡紫宇宙感底 + 高饱和塑料块（与参考图 Block-Blaster 系）
  */
+@import "../../shared/visualTheme/gameVisualPalettes.css";
+
+.blockblast-player-container[data-game-visual-key] .blockblast-grid {
+  background: color-mix(in srgb, var(--bb-board-bg, #0f1923) 72%, transparent);
+}
 
 .blockblast-game-container {
     width: 100%;
     height: 100%;
     position: relative;
-    font-family: 'Arial', sans-serif;
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    overflow: hidden;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    overflow: visible;
+    /* 卡通蓝天：与主页天空同调 */
+    background:
+        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 255, 255, 0.35) 0%, transparent 55%),
+        radial-gradient(ellipse 60% 45% at 85% 75%, rgba(255, 255, 255, 0.18) 0%, transparent 50%),
+        linear-gradient(180deg, #57b7f0 0%, #7cc8f4 55%, #a5dbf8 100%);
+}
+
+/* 加载页：与游戏背景同款蓝天底，淡入淡出无缝衔接 */
+.blockblast-game-loading {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+    background:
+        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 255, 255, 0.35) 0%, transparent 55%),
+        linear-gradient(180deg, #57b7f0 0%, #7cc8f4 55%, #a5dbf8 100%);
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow:
+        -1.5px -1.5px 0 #2d6ea8,
+         1.5px -1.5px 0 #2d6ea8,
+        -1.5px  1.5px 0 #2d6ea8,
+         1.5px  1.5px 0 #2d6ea8,
+         0 4px 6px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+}
+
+.blockblast-game-loading::before {
+    content: "";
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 6px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffd561;
+    animation: blockblast-loading-spin 0.85s linear infinite;
+}
+
+@keyframes blockblast-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.blockblast-game-loading--hidden {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .blockblast-player-container {
     width: 100%;
     height: 100%;
-    position: relative;
+    position: absolute;
+    left: 0;
+    top: 0;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    container-type: size;
+    container-name: blockblast-play;
 }
 
 .blockblast-loading {
@@ -33,38 +98,158 @@
 }
 
 .blockblast-grid {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 10px;
+    box-sizing: border-box;
+    background: rgba(6, 16, 40, 0.45);
+    border-radius: 10px;
+    /* padding 由 GridView 内联设置，与 GamePlayer 尺寸公式一致；勿在此写死 padding */
+    padding: 0;
+    /* 用 inset 描边替代 border，避免 border 吃掉内宽导致格子相对背景框视觉不居中 */
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+        inset 0 2px 16px rgba(0, 0, 0, 0.45),
+        0 4px 24px rgba(0, 0, 0, 0.2);
 }
 
 .blockblast-grid-cell {
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-.blockblast-grid-cell:hover {
-    transform: scale(1.05);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+.blockblast-grid-cell--empty:hover {
+    filter: brightness(1.08);
+}
+
+.blockblast-grid-cell--filled:hover {
+    transform: scale(1.04);
+    filter: brightness(1.04);
+    z-index: 1;
 }
 
 .blockblast-shape-preview {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 10px;
+    background: rgba(8, 20, 45, 0.55);
+    border-radius: 10px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 20px rgba(0, 0, 0, 0.15);
+    overscroll-behavior: none;
+}
+
+/* 预览区不启用滚动，溢出裁剪（避免触控穿透到页面滚动） */
+.blockblast-shape-preview--intrinsic-height .blockblast-shape-preview-scroll {
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.blockblast-shape-preview--intrinsic-width {
+    overflow: hidden;
+}
+
+.blockblast-shape-preview-scroll {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 10px 12px;
+    overflow: hidden;
+    overscroll-behavior: none;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+.blockblast-shape-preview-slot {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* 仅 Hand，预览条内纵向铺满 */
+.blockblast-shape-preview-scroll--stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+}
+
+.blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-col--hand {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+}
+
+.blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-hand-shapes {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    align-items: stretch;
+    gap: 8px 10px;
+}
+
+.blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-slot {
+    flex: 1 1 0;
+}
+
+.blockblast-shape-preview--intrinsic-width .blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-col--hand {
+    max-width: 100%;
+}
+
+.blockblast-drag-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    /* Above embed shells / modals so flight clone is never painted under #root */
+    z-index: 2147483000;
+    isolation: isolate;
+}
+
+.blockblast-shape--drag-ghost {
+    box-sizing: border-box;
+    visibility: visible !important;
+    opacity: 1 !important;
+    /* `.blockblast-shape` uses `transition: all` — animating left/top each frame breaks drag painting */
+    transition: none !important;
+    pointer-events: none;
+    /* 与预览区一致：飞行克隆不保留 .blockblast-shape 的外层矩形底框 */
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+.blockblast-tile {
+    flex-shrink: 0;
 }
 
 .blockblast-shape {
     position: relative;
     padding: 10px;
-    border-radius: 8px;
-    background-color: rgba(255, 255, 255, 0.2);
-    transition: all 0.2s ease;
+    border-radius: 10px;
+    background: rgba(6, 16, 40, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .blockblast-shape:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .blockblast-shape.dragging {
@@ -73,22 +258,385 @@
     z-index: 99999;
 }
 
-.blockblast-info {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+/* 预览区内：去掉形状外层的 padding/边框/底，避免整块矩形框（拖拽幽灵用 .blockblast-shape--drag-ghost） */
+.blockblast-shape-preview .blockblast-shape {
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+.blockblast-shape-preview .blockblast-shape:hover {
+    box-shadow: none;
+}
+
+/* 状态栏（顶栏）：木质横梁 */
+.blockblast-status {
+    color: #ffffff;
+    background: linear-gradient(180deg, #9a6430 0%, #7d4c1e 60%, #6b3f16 100%);
+    border: none;
+    box-shadow:
+        inset 0 3px 0 rgba(255, 220, 160, 0.4),
+        inset 0 -4px 6px rgba(0, 0, 0, 0.25),
+        0 4px 12px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+    z-index: 12;
+}
+
+.blockblast-status--portrait {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    /* height 由 BlockBlastStatusBar 内联：1.5×cellSize */
+    padding: 8px 12px;
+    border-radius: 0 0 12px 12px;
+}
+
+.blockblast-status__player {
+    flex-shrink: 0;
+}
+
+.blockblast-status__avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    background: rgba(30, 60, 120, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.blockblast-status__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.blockblast-status__avatar-fallback {
+    font-size: 15px;
+    font-weight: 700;
+    color: #cfe0ff;
+}
+
+/* 顶栏右侧：计时、分数、统计同一行横排 */
+.blockblast-status__portrait-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px 16px;
+    min-width: 0;
+    flex: 1;
+}
+
+/* 提前结算：红色糖果小按钮 */
+.blockblast-status__end-game {
+    padding: 5px 12px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid #8c2c10;
+    background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.45),
+        0 2px 0 rgba(90, 51, 17, 0.7);
+    flex-shrink: 0;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.blockblast-status__end-game:hover:not(:disabled) {
+    filter: brightness(1.06);
+}
+
+.blockblast-status__end-game:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.blockblast-status__timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #ffe9a3;
+    text-shadow: 0 1px 1px rgba(90, 51, 17, 0.6);
+}
+
+.blockblast-status__target {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    font-weight: 700;
+    color: #f3cf8f;
+    text-shadow: 0 1px 1px rgba(90, 51, 17, 0.6);
+    white-space: nowrap;
+}
+
+.blockblast-status__score-main {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #ffffff;
+    text-shadow:
+        -1px -1px 0 #5a3311,
+         1px -1px 0 #5a3311,
+        -1px  1px 0 #5a3311,
+         1px  1px 0 #5a3311,
+         0 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+.blockblast-status__secondary {
+    font-size: 11px;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+
+.blockblast-status--portrait .blockblast-status__score-main {
+    flex-shrink: 0;
+}
+
+.blockblast-status--portrait .blockblast-status__secondary {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+/* Game Over 面板：羊皮纸木框 */
+.blockblast-game-over {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100000;
+    min-width: 300px;
+    padding: 26px 30px;
+    border-radius: 24px;
+    background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+    border: 5px solid #6f4318;
+    color: #5b3a12;
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+    text-align: center;
+    visibility: hidden;
+    opacity: 0;
+    box-shadow:
+        inset 0 3px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+        0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+.blockblast-game-over h1 {
+    margin: 0 0 12px;
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: #5b3a12;
+}
+
+.blockblast-game-over-submit-container {
+    margin-top: 20px;
+}
+
+/* 提交按钮：绿色糖果药丸钮 */
+.blockblast-game-over-submit-btn {
+    display: inline-block;
+    padding: 12px 28px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 55%, #4c8a15 100%);
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow: 0 1px 2px rgba(60, 100, 10, 0.6);
+    cursor: pointer;
+    user-select: none;
+    border: 3px solid #3e7410;
+    box-shadow:
+        inset 0 3px 0 rgba(255, 255, 255, 0.4),
+        0 4px 0 rgba(52, 92, 14, 0.8);
+    transition: transform 0.12s ease;
+}
+
+.blockblast-game-over-submit-btn:hover {
+    transform: translateY(-1px);
+}
+
+.blockblast-game-over-submit-btn:active {
+    transform: translateY(1px);
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-    .blockblast-grid {
-        gap: 1px;
-    }
-
-    .blockblast-shape-preview {
+    .blockblast-shape-preview-scroll {
         padding: 5px;
     }
 
     .blockblast-shape {
         padding: 5px;
     }
+}
+
+/* ===== 观战 / 复盘 overlay（对齐 solitaireSolo solo-watch-*） ===== */
+.blockblast-watch-overlay {
+    --blockblast-watch-gap: clamp(12px, 3vmin, 28px);
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(var(--blockblast-watch-gap), env(safe-area-inset-top))
+        max(var(--blockblast-watch-gap), env(safe-area-inset-right))
+        max(var(--blockblast-watch-gap), env(safe-area-inset-bottom))
+        max(var(--blockblast-watch-gap), env(safe-area-inset-left));
+    box-sizing: border-box;
+}
+
+.blockblast-watch-backdrop {
+    position: fixed;
+    inset: 0;
+    border: 0;
+    background: rgba(30, 18, 5, 0.65);
+    cursor: pointer;
+}
+
+.blockblast-watch-dialog {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: min(
+        calc(100vw - 2 * var(--blockblast-watch-gap)),
+        calc((100dvh - 2 * var(--blockblast-watch-gap)) * 2 / 3)
+    );
+    aspect-ratio: 2 / 3;
+    max-height: calc(100dvh - 2 * var(--blockblast-watch-gap));
+    overflow: hidden;
+    padding: clamp(10px, 2vmin, 16px);
+    border-radius: 22px;
+    background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+    border: 5px solid #6f4318;
+    color: #5b3a12;
+    font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+    box-shadow:
+        inset 0 3px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+        0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.blockblast-watch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+.blockblast-watch-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.blockblast-watch-close {
+    padding: 6px 16px;
+    font-family: inherit;
+    font-weight: 700;
+    border: 2px solid #8c2c10;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.45),
+        0 2px 0 rgba(90, 51, 17, 0.7);
+    cursor: pointer;
+}
+
+.blockblast-watch-hud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #8a5a2b;
+    flex-shrink: 0;
+}
+
+.blockblast-watch-title-inline {
+    font-weight: 700;
+}
+
+.blockblast-watch-board {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.blockblast-watch-board .blockblast-player-container {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.blockblast-watch-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    flex-shrink: 0;
+}
+
+.blockblast-watch-controls button {
+    padding: 8px 16px;
+    font-family: inherit;
+    font-weight: 700;
+    border-radius: 999px;
+    border: 2px solid #b06e14;
+    background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%);
+    color: #7a4a10;
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.6),
+        0 2px 0 rgba(130, 82, 16, 0.45);
+    cursor: pointer;
+}
+
+.blockblast-watch-controls button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.blockblast-watch-status {
+    margin: 12px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #a3814f;
+}
+
+.blockblast-watch-status--error {
+    color: #c2410c;
 }
 

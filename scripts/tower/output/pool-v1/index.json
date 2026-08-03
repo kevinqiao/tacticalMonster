@@ -1,0 +1,7029 @@
+{
+  "poolVersion": "v1",
+  "rolloutCount": 16,
+  "matchTimeLimitSec": 480,
+  "generatedAt": "2026-06-13T16:56:54.702Z",
+  "entries": [
+    {
+      "seedId": "tower-pool:v1:11",
+      "poolVersion": "v1",
+      "tier": "easy",
+      "difficultyScore": 1931,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 606,
+        "scoreP50": 1931,
+        "scoreP90": 3764,
+        "scoreMax": 5136,
+        "scoreSpread": 4530,
+        "scoreQuantiles": {
+          "p10": 686,
+          "p25": 786,
+          "p30": 896,
+          "p33": 1036,
+          "p50": 1931,
+          "p66": 2058,
+          "p70": 2069,
+          "p75": 2069,
+          "p90": 3764
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 5,
+          "1000-1999": 3,
+          "2000-3999": 6,
+          "4000+": 2
+        },
+        "bandThresholds": {
+          "lowMax": 896,
+          "midMax": 2069
+        },
+        "completedRate": 0.1875,
+        "stuckRate": 0.8125,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 3,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_5_11::10::5::0,120|260.75,120|409.75000000000006,180|558.75,120|745,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1852
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 5136,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 112,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 2799,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 113,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 786,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 2033,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 73,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 1931,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 79,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 1260,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 60,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 606,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 4260,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 104,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 896,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 1036,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 786,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 2013,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 73,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 2058,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 90,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 3764,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 92,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 2069,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 77,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 686,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:17",
+      "poolVersion": "v1",
+      "tier": "easy",
+      "difficultyScore": 1791,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 1191,
+        "scoreP50": 1791,
+        "scoreP90": 4820,
+        "scoreMax": 5108,
+        "scoreSpread": 3917,
+        "scoreQuantiles": {
+          "p10": 1207,
+          "p25": 1399,
+          "p30": 1399,
+          "p33": 1399,
+          "p50": 1791,
+          "p66": 4218,
+          "p70": 4394,
+          "p75": 4394,
+          "p90": 4820
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 0,
+          "1000-1999": 9,
+          "2000-3999": 1,
+          "4000+": 6
+        },
+        "bandThresholds": {
+          "lowMax": 1399,
+          "midMax": 4394
+        },
+        "completedRate": 0.375,
+        "stuckRate": 0.625,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 6,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_5_17::10::5::0,120|268.45,120|421.85,180|575.25,120|767,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1974.6
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 1399,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 4820,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 90,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 4978,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 96,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 5108,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 98,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 1399,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 4770,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 92,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 1399,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 1777,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 77,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1922,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 86,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 4394,
+          "moves": 13,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 80,
+          "opCount": 13
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 1207,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 2693,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 117,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1283,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 4218,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 96,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1191,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 1791,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 83,
+          "opCount": 8
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:10",
+      "poolVersion": "v1",
+      "tier": "easy",
+      "difficultyScore": 1636,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 754,
+        "scoreP50": 1636,
+        "scoreP90": 3579,
+        "scoreMax": 4835,
+        "scoreSpread": 4081,
+        "scoreQuantiles": {
+          "p10": 754,
+          "p25": 1231,
+          "p30": 1231,
+          "p33": 1291,
+          "p50": 1636,
+          "p66": 2559,
+          "p70": 3214,
+          "p75": 3214,
+          "p90": 3579
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 3,
+          "1000-1999": 7,
+          "2000-3999": 4,
+          "4000+": 2
+        },
+        "bandThresholds": {
+          "lowMax": 1231,
+          "midMax": 3214
+        },
+        "completedRate": 0.3125,
+        "stuckRate": 0.6875,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 5,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_4_10::9::5::0,120|214.89999999999998,120|337.70000000000005,180|460.5,120|614,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1929.8
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 754,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 2559,
+          "moves": 9,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 115,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 3384,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 124,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1371,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 754,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 1770,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 94,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 1231,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 1231,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1952,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 92,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 1291,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 754,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 4835,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 79,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 3214,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 114,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 1636,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 84,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 4139,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 111,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 3579,
+          "moves": 7,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 123,
+          "opCount": 7
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:22",
+      "poolVersion": "v1",
+      "tier": "easy",
+      "difficultyScore": 1305,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 905,
+        "scoreP50": 1305,
+        "scoreP90": 5376,
+        "scoreMax": 5628,
+        "scoreSpread": 4723,
+        "scoreQuantiles": {
+          "p10": 1101,
+          "p25": 1177,
+          "p30": 1289,
+          "p33": 1289,
+          "p50": 1305,
+          "p66": 1385,
+          "p70": 4102,
+          "p75": 4102,
+          "p90": 5376
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 1,
+          "1000-1999": 10,
+          "2000-3999": 0,
+          "4000+": 5
+        },
+        "bandThresholds": {
+          "lowMax": 1289,
+          "midMax": 4102
+        },
+        "completedRate": 0.3125,
+        "stuckRate": 0.6875,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 5,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_4_22::9::5::0,120|221.2,120|347.6,180|474,120|632,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 2095.3999999999996
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 1177,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1385,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 5628,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 56,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1137,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 4102,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 94,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 5376,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 108,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 1385,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 905,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1289,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 5263,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 119,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 1301,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 1289,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1101,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 5548,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 76,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1305,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 1385,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 3
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:15",
+      "poolVersion": "v1",
+      "tier": "easy",
+      "difficultyScore": 1279,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 760,
+        "scoreP50": 1279,
+        "scoreP90": 4919,
+        "scoreMax": 5719,
+        "scoreSpread": 4959,
+        "scoreQuantiles": {
+          "p10": 760,
+          "p25": 760,
+          "p30": 760,
+          "p33": 760,
+          "p50": 1279,
+          "p66": 2085,
+          "p70": 3691,
+          "p75": 3691,
+          "p90": 4919
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 6,
+          "1000-1999": 4,
+          "2000-3999": 2,
+          "4000+": 4
+        },
+        "bandThresholds": {
+          "lowMax": 760,
+          "midMax": 3691
+        },
+        "completedRate": 0.3125,
+        "stuckRate": 0.6875,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 5,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_3_15::8::5::0,120|233.45,120|366.85,180|500.25,120|667,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1947.7
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 760,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1303,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 1279,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 3691,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 117,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 5534,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 56,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 4273,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 115,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 1213,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 61,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 760,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1319,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 2085,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 77,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 760,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 760,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 760,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 760,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 4919,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 101,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 5719,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 101,
+          "opCount": 9
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:21",
+      "poolVersion": "v1",
+      "tier": "easy",
+      "difficultyScore": 1206,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 752,
+        "scoreP50": 1206,
+        "scoreP90": 4742,
+        "scoreMax": 5179,
+        "scoreSpread": 4427,
+        "scoreQuantiles": {
+          "p10": 752,
+          "p25": 752,
+          "p30": 1174,
+          "p33": 1198,
+          "p50": 1206,
+          "p66": 3053,
+          "p70": 3561,
+          "p75": 3561,
+          "p90": 4742
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 4,
+          "1000-1999": 5,
+          "2000-3999": 3,
+          "4000+": 4
+        },
+        "bandThresholds": {
+          "lowMax": 1174,
+          "midMax": 3561
+        },
+        "completedRate": 0.375,
+        "stuckRate": 0.625,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 6,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_3_21::8::5::0,120|228.89999999999998,120|359.70000000000005,180|490.5,120|654,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1784.1
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 1206,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1174,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 2782,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 118,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1199,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 61,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 752,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 3561,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 113,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 5012,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 124,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 3053,
+          "moves": 14,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 93,
+          "opCount": 14
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 4742,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 110,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 5179,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 95,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 752,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 4676,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 124,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1198,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 1952,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 92,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 752,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 752,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:33",
+      "poolVersion": "v1",
+      "tier": "easy",
+      "difficultyScore": 1177,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 478,
+        "scoreP50": 1177,
+        "scoreP90": 3845,
+        "scoreMax": 4010,
+        "scoreSpread": 3532,
+        "scoreQuantiles": {
+          "p10": 570,
+          "p25": 658,
+          "p30": 674,
+          "p33": 742,
+          "p50": 1177,
+          "p66": 3466,
+          "p70": 3508,
+          "p75": 3508,
+          "p90": 3845
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 6,
+          "1000-1999": 2,
+          "2000-3999": 6,
+          "4000+": 1
+        },
+        "bandThresholds": {
+          "lowMax": 674,
+          "midMax": 3508
+        },
+        "completedRate": 0.375,
+        "stuckRate": 0.625,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 6,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_3_33::8::5::0,120|255.85,120|402.05,180|548.25,120|731,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1468.6
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 2781,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 113,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 3845,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 89,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 3903,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 103,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 742,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 1233,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 674,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 3508,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 120,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 570,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1177,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 478,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 658,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 570,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 3730,
+          "moves": 7,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 106,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 742,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 3466,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 98,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 4010,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 94,
+          "opCount": 10
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:30",
+      "poolVersion": "v1",
+      "tier": "easy",
+      "difficultyScore": 1131,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 1026,
+        "scoreP50": 1131,
+        "scoreP90": 3850,
+        "scoreMax": 5423,
+        "scoreSpread": 4397,
+        "scoreQuantiles": {
+          "p10": 1035,
+          "p25": 1091,
+          "p30": 1107,
+          "p33": 1111,
+          "p50": 1131,
+          "p66": 2576,
+          "p70": 3507,
+          "p75": 3507,
+          "p90": 3850
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 0,
+          "1000-1999": 10,
+          "2000-3999": 4,
+          "4000+": 2
+        },
+        "bandThresholds": {
+          "lowMax": 1107,
+          "midMax": 3507
+        },
+        "completedRate": 0.3125,
+        "stuckRate": 0.6875,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 5,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_0_30::8::5::0,120|215.95,120|339.35,180|462.75,120|617,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1944.6
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 5138,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 110,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1035,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 3699,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 95,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 5423,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 87,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 1026,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 62,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 1075,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 1211,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 3507,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 135,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1111,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 1131,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 1107,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 2576,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 132,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 3850,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 126,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 1211,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1091,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 1119,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:6",
+      "poolVersion": "v1",
+      "tier": "easy",
+      "difficultyScore": 1125,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 678,
+        "scoreP50": 1125,
+        "scoreP90": 3500,
+        "scoreMax": 4693,
+        "scoreSpread": 4015,
+        "scoreQuantiles": {
+          "p10": 678,
+          "p25": 678,
+          "p30": 961,
+          "p33": 1065,
+          "p50": 1125,
+          "p66": 1681,
+          "p70": 1707,
+          "p75": 1707,
+          "p90": 3500
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 5,
+          "1000-1999": 7,
+          "2000-3999": 2,
+          "4000+": 2
+        },
+        "bandThresholds": {
+          "lowMax": 961,
+          "midMax": 1707
+        },
+        "completedRate": 0.1875,
+        "stuckRate": 0.8125,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 3,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_0_6::8::5::0,120|251.64999999999998,120|395.45000000000005,180|539.25,120|719,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1623.5
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 961,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 4665,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 113,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 1077,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1141,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 678,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 1681,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 81,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 2702,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 104,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 678,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 3500,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 108,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 1707,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 79,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 4693,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 117,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 1065,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 678,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 1125,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 678,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 1125,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:12",
+      "poolVersion": "v1",
+      "tier": "easy",
+      "difficultyScore": 1107,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 907,
+        "scoreP50": 1107,
+        "scoreP90": 3964,
+        "scoreMax": 5323,
+        "scoreSpread": 4416,
+        "scoreQuantiles": {
+          "p10": 947,
+          "p25": 1051,
+          "p30": 1059,
+          "p33": 1071,
+          "p50": 1107,
+          "p66": 3257,
+          "p70": 3557,
+          "p75": 3557,
+          "p90": 3964
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 3,
+          "1000-1999": 7,
+          "2000-3999": 4,
+          "4000+": 2
+        },
+        "bandThresholds": {
+          "lowMax": 1059,
+          "midMax": 3557
+        },
+        "completedRate": 0.375,
+        "stuckRate": 0.625,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 6,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_0_12::8::5::0,120|235.89999999999998,120|370.70000000000005,180|505.5,120|674,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1930.3
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 1071,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1051,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 947,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 987,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 1199,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 4713,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 89,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 1672,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 86,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 5323,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 103,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 907,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 1099,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 1059,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 3852,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 108,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 3964,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 128,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 3557,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 101,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1107,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 3257,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 121,
+          "opCount": 8
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:9",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 1106,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 576,
+        "scoreP50": 1106,
+        "scoreP90": 4695,
+        "scoreMax": 5073,
+        "scoreSpread": 4497,
+        "scoreQuantiles": {
+          "p10": 580,
+          "p25": 752,
+          "p30": 752,
+          "p33": 752,
+          "p50": 1106,
+          "p66": 1345,
+          "p70": 3598,
+          "p75": 3598,
+          "p90": 4695
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 7,
+          "1000-1999": 4,
+          "2000-3999": 2,
+          "4000+": 3
+        },
+        "bandThresholds": {
+          "lowMax": 752,
+          "midMax": 3598
+        },
+        "completedRate": 0.3125,
+        "stuckRate": 0.6875,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 5,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_3_9::8::5::0,120|247.45,120|388.85,180|530.25,120|707,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1805.1
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 3598,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 84,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 752,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 4695,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 81,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1266,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 5073,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 79,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 752,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 752,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 1270,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 580,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 576,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 752,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 1345,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 55,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 4854,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 124,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 684,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 3722,
+          "moves": 7,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 116,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 1106,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 6
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:35",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 1091,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 768,
+        "scoreP50": 1091,
+        "scoreP90": 3868,
+        "scoreMax": 5001,
+        "scoreSpread": 4233,
+        "scoreQuantiles": {
+          "p10": 768,
+          "p25": 768,
+          "p30": 768,
+          "p33": 768,
+          "p50": 1091,
+          "p66": 1299,
+          "p70": 1331,
+          "p75": 1331,
+          "p90": 3868
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 7,
+          "1000-1999": 6,
+          "2000-3999": 1,
+          "4000+": 2
+        },
+        "bandThresholds": {
+          "lowMax": 768,
+          "midMax": 1331
+        },
+        "completedRate": 0.1875,
+        "stuckRate": 0.8125,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 3,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_5_35::10::5::0,120|274.04999999999995,120|430.65000000000003,180|587.25,120|783,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1753.8999999999999
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 5001,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 105,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1299,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 768,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1808,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 94,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 768,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 768,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 768,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 1331,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1139,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 768,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 768,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 4711,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 83,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1091,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 3868,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 108,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1239,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 911,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 6
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:31",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 1082,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 700,
+        "scoreP50": 1082,
+        "scoreP90": 3795,
+        "scoreMax": 4904,
+        "scoreSpread": 4204,
+        "scoreQuantiles": {
+          "p10": 700,
+          "p25": 978,
+          "p30": 994,
+          "p33": 1010,
+          "p50": 1082,
+          "p66": 1110,
+          "p70": 1502,
+          "p75": 1502,
+          "p90": 3795
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 5,
+          "1000-1999": 8,
+          "2000-3999": 1,
+          "4000+": 2
+        },
+        "bandThresholds": {
+          "lowMax": 994,
+          "midMax": 1502
+        },
+        "completedRate": 0.1875,
+        "stuckRate": 0.8125,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 3,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_1_31::9::5::0,120|224.35,120|352.55,180|480.75,120|641,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1840.2
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 4624,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 106,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 700,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 3795,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 121,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1841,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 81,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 978,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 4904,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 106,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 1082,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 994,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 700,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 1110,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 700,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 1110,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1502,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 86,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 1018,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1010,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 1082,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:5",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 802,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 446,
+        "scoreP50": 802,
+        "scoreP90": 2009,
+        "scoreMax": 2076,
+        "scoreSpread": 1630,
+        "scoreQuantiles": {
+          "p10": 538,
+          "p25": 622,
+          "p30": 718,
+          "p33": 802,
+          "p50": 802,
+          "p66": 1313,
+          "p70": 1401,
+          "p75": 1401,
+          "p90": 2009
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 7,
+          "1000-1999": 5,
+          "2000-3999": 3,
+          "4000+": 0
+        },
+        "bandThresholds": {
+          "lowMax": 718,
+          "midMax": 1401
+        },
+        "completedRate": 0,
+        "stuckRate": 1,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 0,
+        "hasAnyCompleted": false,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_5_5::10::5::0,120|227.49999999999997,120|357.50000000000006,180|487.5,120|650,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "mixed",
+        "playerEaseScore": 900
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 2009,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 87,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 446,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 802,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1121,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 1313,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 802,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 802,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 1401,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 2025,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 83,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 718,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 1157,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 570,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1423,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 57,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 622,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 2076,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 86,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 538,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:23",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 790,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 466,
+        "scoreP50": 790,
+        "scoreP90": 4657,
+        "scoreMax": 5164,
+        "scoreSpread": 4698,
+        "scoreQuantiles": {
+          "p10": 526,
+          "p25": 690,
+          "p30": 690,
+          "p33": 710,
+          "p50": 790,
+          "p66": 790,
+          "p70": 3374,
+          "p75": 3374,
+          "p90": 4657
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 10,
+          "1000-1999": 0,
+          "2000-3999": 2,
+          "4000+": 3
+        },
+        "bandThresholds": {
+          "lowMax": 690,
+          "midMax": 3374
+        },
+        "completedRate": 0.3125,
+        "stuckRate": 0.6875,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 5,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_5_23::10::5::0,120|221.2,120|347.6,180|474,120|632,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1854.3999999999999
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 790,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 790,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 526,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 5164,
+          "moves": 14,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 68,
+          "opCount": 14
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 790,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 790,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 3374,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 94,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 4964,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 120,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 4657,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 109,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 690,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 466,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 3515,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 87,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 710,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 690,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 610,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 790,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:16",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 773,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 565,
+        "scoreP50": 773,
+        "scoreP90": 4616,
+        "scoreMax": 4770,
+        "scoreSpread": 4205,
+        "scoreQuantiles": {
+          "p10": 565,
+          "p25": 693,
+          "p30": 709,
+          "p33": 773,
+          "p50": 773,
+          "p66": 1956,
+          "p70": 1973,
+          "p75": 1973,
+          "p90": 4616
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 8,
+          "1000-1999": 4,
+          "2000-3999": 1,
+          "4000+": 3
+        },
+        "bandThresholds": {
+          "lowMax": 709,
+          "midMax": 1973
+        },
+        "completedRate": 0.25,
+        "stuckRate": 0.75,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 4,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_4_16::9::5::0,120|249.2,120|391.6,180|534,120|712,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1698
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 709,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1956,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 78,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 565,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1267,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 693,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 4616,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 90,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 4688,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 90,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 1973,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 83,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 565,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 773,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 773,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 3861,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 111,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 589,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 4770,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 104,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1215,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 773,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:34",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 766,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 414,
+        "scoreP50": 766,
+        "scoreP90": 1302,
+        "scoreMax": 3853,
+        "scoreSpread": 3439,
+        "scoreQuantiles": {
+          "p10": 558,
+          "p25": 638,
+          "p30": 682,
+          "p33": 766,
+          "p50": 766,
+          "p66": 766,
+          "p70": 1233,
+          "p75": 1233,
+          "p90": 1302
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 10,
+          "1000-1999": 4,
+          "2000-3999": 1,
+          "4000+": 0
+        },
+        "bandThresholds": {
+          "lowMax": 682,
+          "midMax": 1233
+        },
+        "completedRate": 0.0625,
+        "stuckRate": 0.9375,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 1,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_4_34::9::5::0,120|257.59999999999997,120|404.8,180|552,120|736,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1440.7
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1327,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 57,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 3853,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 117,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 638,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 682,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 1233,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 558,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 1274,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 414,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1302,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 578,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:27",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 748,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 748,
+        "scoreP50": 748,
+        "scoreP90": 4980,
+        "scoreMax": 5500,
+        "scoreSpread": 4752,
+        "scoreQuantiles": {
+          "p10": 748,
+          "p25": 748,
+          "p30": 748,
+          "p33": 748,
+          "p50": 748,
+          "p66": 1221,
+          "p70": 1832,
+          "p75": 1832,
+          "p90": 4980
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 10,
+          "1000-1999": 2,
+          "2000-3999": 1,
+          "4000+": 3
+        },
+        "bandThresholds": {
+          "lowMax": 748,
+          "midMax": 1832
+        },
+        "completedRate": 0.25,
+        "stuckRate": 0.75,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 4,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_3_27::8::5::0,120|251.99999999999997,120|396.00000000000006,180|540,120|720,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1879.6
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 3984,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 106,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 4980,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 94,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 5500,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 86,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 5225,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 79,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 1832,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 84,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 1221,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:28",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 748,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 484,
+        "scoreP50": 748,
+        "scoreP90": 3649,
+        "scoreMax": 4174,
+        "scoreSpread": 3690,
+        "scoreQuantiles": {
+          "p10": 564,
+          "p25": 664,
+          "p30": 668,
+          "p33": 748,
+          "p50": 748,
+          "p66": 1264,
+          "p70": 1284,
+          "p75": 1284,
+          "p90": 3649
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 8,
+          "1000-1999": 3,
+          "2000-3999": 3,
+          "4000+": 1
+        },
+        "bandThresholds": {
+          "lowMax": 668,
+          "midMax": 1284
+        },
+        "completedRate": 0.25,
+        "stuckRate": 0.75,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 4,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_4_28::9::5::0,120|225.74999999999997,120|354.75000000000006,180|483.75,120|645,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1529
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 3474,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 120,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 624,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 3649,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 111,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 668,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 1184,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 564,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 484,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 664,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 4174,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 132,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 1264,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1284,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 3913,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 103,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 748,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:3",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 746,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 570,
+        "scoreP50": 746,
+        "scoreP90": 3573,
+        "scoreMax": 4705,
+        "scoreSpread": 4135,
+        "scoreQuantiles": {
+          "p10": 578,
+          "p25": 746,
+          "p30": 746,
+          "p33": 746,
+          "p50": 746,
+          "p66": 1818,
+          "p70": 1951,
+          "p75": 1951,
+          "p90": 3573
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 8,
+          "1000-1999": 4,
+          "2000-3999": 2,
+          "4000+": 2
+        },
+        "bandThresholds": {
+          "lowMax": 746,
+          "midMax": 1951
+        },
+        "completedRate": 0.1875,
+        "stuckRate": 0.8125,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 3,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_3_3::8::5::0,120|248.85,120|391.05,180|533.25,120|711,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1693.5
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 4577,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 109,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 2052,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 74,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 746,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 746,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 570,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 746,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 1951,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 93,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 578,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 4705,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 93,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 746,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 1153,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 746,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1818,
+          "moves": 9,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 76,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 3573,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 93,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1257,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 746,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:4",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 744,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 420,
+        "scoreP50": 744,
+        "scoreP90": 1246,
+        "scoreMax": 4264,
+        "scoreSpread": 3844,
+        "scoreQuantiles": {
+          "p10": 456,
+          "p25": 576,
+          "p30": 616,
+          "p33": 744,
+          "p50": 744,
+          "p66": 744,
+          "p70": 744,
+          "p75": 744,
+          "p90": 1246
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 2,
+          "500-999": 10,
+          "1000-1999": 2,
+          "2000-3999": 1,
+          "4000+": 1
+        },
+        "bandThresholds": {
+          "lowMax": 616,
+          "midMax": 744
+        },
+        "completedRate": 0.125,
+        "stuckRate": 0.875,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 2,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_4_4::9::5::0,120|277.54999999999995,120|436.15000000000003,180|594.75,120|793,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1531.2
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 576,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1246,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 744,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 552,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 420,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 744,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 616,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 744,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 4264,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 110,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 744,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 456,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 3775,
+          "moves": 13,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 93,
+          "opCount": 13
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1073,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 744,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 744,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 744,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:32",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 731,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 451,
+        "scoreP50": 731,
+        "scoreP90": 1260,
+        "scoreMax": 3305,
+        "scoreSpread": 2854,
+        "scoreQuantiles": {
+          "p10": 567,
+          "p25": 663,
+          "p30": 663,
+          "p33": 667,
+          "p50": 731,
+          "p66": 731,
+          "p70": 731,
+          "p75": 731,
+          "p90": 1260
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 12,
+          "1000-1999": 1,
+          "2000-3999": 2,
+          "4000+": 0
+        },
+        "bandThresholds": {
+          "lowMax": 663,
+          "midMax": 731
+        },
+        "completedRate": 0.0625,
+        "stuckRate": 0.9375,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 1,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_2_32::10::5::0,120|262.5,120|412.50000000000006,180|562.5,120|750,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1287.6999999999998
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 3305,
+          "moves": 14,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 121,
+          "opCount": 14
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 731,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 451,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 2486,
+          "moves": 10,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 114,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 731,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 663,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 731,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 567,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 603,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 731,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 731,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 731,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 663,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 731,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1260,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 50,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 667,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:8",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 723,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 439,
+        "scoreP50": 723,
+        "scoreP90": 3607,
+        "scoreMax": 4110,
+        "scoreSpread": 3671,
+        "scoreQuantiles": {
+          "p10": 539,
+          "p25": 595,
+          "p30": 623,
+          "p33": 723,
+          "p50": 723,
+          "p66": 1153,
+          "p70": 2677,
+          "p75": 2677,
+          "p90": 3607
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 8,
+          "1000-1999": 2,
+          "2000-3999": 4,
+          "4000+": 1
+        },
+        "bandThresholds": {
+          "lowMax": 623,
+          "midMax": 2677
+        },
+        "completedRate": 0.25,
+        "stuckRate": 0.75,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 4,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_2_8::10::5::0,120|222.6,120|349.8,180|477,120|636,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1498.8
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 623,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 723,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 439,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 3996,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 94,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 1153,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 2677,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 111,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 723,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 595,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1073,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 4110,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 124,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 3431,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 125,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 3607,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 105,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 543,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 723,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 539,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 723,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:19",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 719,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 455,
+        "scoreP50": 719,
+        "scoreP90": 3274,
+        "scoreMax": 4761,
+        "scoreSpread": 4306,
+        "scoreQuantiles": {
+          "p10": 511,
+          "p25": 539,
+          "p30": 667,
+          "p33": 719,
+          "p50": 719,
+          "p66": 1193,
+          "p70": 1193,
+          "p75": 1193,
+          "p90": 3274
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 9,
+          "1000-1999": 3,
+          "2000-3999": 2,
+          "4000+": 1
+        },
+        "bandThresholds": {
+          "lowMax": 667,
+          "midMax": 1193
+        },
+        "completedRate": 0.1875,
+        "stuckRate": 0.8125,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 3,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_1_19::9::5::0,120|216.64999999999998,120|340.45000000000005,180|464.25,120|619,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1651.3
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 719,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 511,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 997,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 4761,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 117,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 1197,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 667,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 3274,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 126,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 3605,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 121,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1193,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 539,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 455,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 535,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 719,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 719,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 719,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 1193,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:1",
+      "poolVersion": "v1",
+      "tier": "medium",
+      "difficultyScore": 710,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 502,
+        "scoreP50": 710,
+        "scoreP90": 1166,
+        "scoreMax": 3719,
+        "scoreSpread": 3217,
+        "scoreQuantiles": {
+          "p10": 506,
+          "p25": 530,
+          "p30": 582,
+          "p33": 610,
+          "p50": 710,
+          "p66": 1070,
+          "p70": 1138,
+          "p75": 1138,
+          "p90": 1166
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 10,
+          "1000-1999": 4,
+          "2000-3999": 2,
+          "4000+": 0
+        },
+        "bandThresholds": {
+          "lowMax": 582,
+          "midMax": 1138
+        },
+        "completedRate": 0.0625,
+        "stuckRate": 0.9375,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 1,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_1_1::9::5::0,120|233.45,120|366.85,180|500.25,120|667,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1320.1
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 610,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 526,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 710,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 582,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 710,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 1070,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 506,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 1138,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1166,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 530,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 502,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 710,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1146,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 710,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 3719,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 139,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 2579,
+          "moves": 9,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 123,
+          "opCount": 9
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:26",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 708,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 436,
+        "scoreP50": 708,
+        "scoreP90": 899,
+        "scoreMax": 4247,
+        "scoreSpread": 3811,
+        "scoreQuantiles": {
+          "p10": 440,
+          "p25": 532,
+          "p30": 608,
+          "p33": 640,
+          "p50": 708,
+          "p66": 708,
+          "p70": 708,
+          "p75": 708,
+          "p90": 899
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 2,
+          "500-999": 12,
+          "1000-1999": 1,
+          "2000-3999": 0,
+          "4000+": 1
+        },
+        "bandThresholds": {
+          "lowMax": 608,
+          "midMax": 708
+        },
+        "completedRate": 0.0625,
+        "stuckRate": 0.9375,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 1,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_2_26::10::5::0,120|273.34999999999997,120|429.55,180|585.75,120|781,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1509.3
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 436,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 4247,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 111,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 640,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 708,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 440,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 504,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 708,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 708,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 708,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 608,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 708,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 532,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 899,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 708,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1139,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 65,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 708,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:14",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 706,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 426,
+        "scoreP50": 706,
+        "scoreP90": 1795,
+        "scoreMax": 4431,
+        "scoreSpread": 4005,
+        "scoreQuantiles": {
+          "p10": 478,
+          "p25": 654,
+          "p30": 658,
+          "p33": 706,
+          "p50": 706,
+          "p66": 1000,
+          "p70": 1043,
+          "p75": 1043,
+          "p90": 1795
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 3,
+          "500-999": 7,
+          "1000-1999": 4,
+          "2000-3999": 1,
+          "4000+": 1
+        },
+        "bandThresholds": {
+          "lowMax": 658,
+          "midMax": 1043
+        },
+        "completedRate": 0.125,
+        "stuckRate": 0.875,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 2,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_2_14::10::5::0,120|223.29999999999998,120|350.90000000000003,180|478.5,120|638,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1628.5
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 654,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 4431,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 99,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 658,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 482,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 426,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1043,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 1000,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 1795,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 91,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 3832,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 88,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1180,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 478,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:18",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 692,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 428,
+        "scoreP50": 692,
+        "scoreP90": 1213,
+        "scoreMax": 4763,
+        "scoreSpread": 4335,
+        "scoreQuantiles": {
+          "p10": 448,
+          "p25": 484,
+          "p30": 508,
+          "p33": 576,
+          "p50": 692,
+          "p66": 1037,
+          "p70": 1125,
+          "p75": 1125,
+          "p90": 1213
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 4,
+          "500-999": 6,
+          "1000-1999": 5,
+          "2000-3999": 0,
+          "4000+": 1
+        },
+        "bandThresholds": {
+          "lowMax": 508,
+          "midMax": 1125
+        },
+        "completedRate": 0.0625,
+        "stuckRate": 0.9375,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 1,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_0_18::8::5::0,120|212.45,120|333.85,180|455.25,120|607,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1622.5
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 1221,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1213,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 692,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 4763,
+          "moves": 10,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 115,
+          "opCount": 10
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 692,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 576,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 428,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 692,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 484,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 1037,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 1185,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 448,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 1125,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 692,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 484,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 508,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:7",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 692,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 468,
+        "scoreP50": 692,
+        "scoreP90": 3322,
+        "scoreMax": 3572,
+        "scoreSpread": 3104,
+        "scoreQuantiles": {
+          "p10": 504,
+          "p25": 608,
+          "p30": 692,
+          "p33": 692,
+          "p50": 692,
+          "p66": 1210,
+          "p70": 2649,
+          "p75": 2649,
+          "p90": 3322
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 7,
+          "1000-1999": 3,
+          "2000-3999": 5,
+          "4000+": 0
+        },
+        "bandThresholds": {
+          "lowMax": 692,
+          "midMax": 2649
+        },
+        "completedRate": 0.1875,
+        "stuckRate": 0.8125,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 3,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_1_7::9::5::0,120|224.7,120|353.1,180|481.5,120|642,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1325.1999999999998
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 1210,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 692,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 2649,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 127,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 3572,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 108,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 1146,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 692,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 692,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 568,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 3322,
+          "moves": 14,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 102,
+          "opCount": 14
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 2671,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 137,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 608,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 3538,
+          "moves": 14,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 90,
+          "opCount": 14
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 504,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 692,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1018,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 468,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:29",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 682,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 514,
+        "scoreP50": 682,
+        "scoreP90": 1292,
+        "scoreMax": 1312,
+        "scoreSpread": 798,
+        "scoreQuantiles": {
+          "p10": 550,
+          "p25": 586,
+          "p30": 642,
+          "p33": 658,
+          "p50": 682,
+          "p66": 766,
+          "p70": 766,
+          "p75": 766,
+          "p90": 1292
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 0,
+          "500-999": 13,
+          "1000-1999": 3,
+          "2000-3999": 0,
+          "4000+": 0
+        },
+        "bandThresholds": {
+          "lowMax": 642,
+          "midMax": 766
+        },
+        "completedRate": 0,
+        "stuckRate": 1,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 0,
+        "hasAnyCompleted": false,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_5_29::10::5::0,120|222.95,120|350.35,180|477.75,120|637,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "mixed",
+        "playerEaseScore": 632.4
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 658,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 666,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 1300,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 682,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 586,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 514,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 1312,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 550,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 642,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 1292,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 586,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 766,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:24",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 672,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 480,
+        "scoreP50": 672,
+        "scoreP90": 1188,
+        "scoreMax": 4452,
+        "scoreSpread": 3972,
+        "scoreQuantiles": {
+          "p10": 564,
+          "p25": 592,
+          "p30": 672,
+          "p33": 672,
+          "p50": 672,
+          "p66": 1099,
+          "p70": 1116,
+          "p75": 1116,
+          "p90": 1188
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 8,
+          "1000-1999": 5,
+          "2000-3999": 0,
+          "4000+": 2
+        },
+        "bandThresholds": {
+          "lowMax": 672,
+          "midMax": 1116
+        },
+        "completedRate": 0.125,
+        "stuckRate": 0.875,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 2,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_0_24::8::5::0,120|228.2,120|358.6,180|489,120|652,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1567.6
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 672,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1116,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 672,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 1188,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 592,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 672,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 1076,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 480,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 588,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 992,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 4413,
+          "moves": 8,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 95,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 4452,
+          "moves": 9,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 122,
+          "opCount": 9
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 564,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 672,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 1188,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 1099,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 6
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:2",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 651,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 407,
+        "scoreP50": 651,
+        "scoreP90": 735,
+        "scoreMax": 1842,
+        "scoreSpread": 1435,
+        "scoreQuantiles": {
+          "p10": 455,
+          "p25": 555,
+          "p30": 571,
+          "p33": 571,
+          "p50": 651,
+          "p66": 735,
+          "p70": 735,
+          "p75": 735,
+          "p90": 735
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 2,
+          "500-999": 13,
+          "1000-1999": 1,
+          "2000-3999": 0,
+          "4000+": 0
+        },
+        "bandThresholds": {
+          "lowMax": 571,
+          "midMax": 735
+        },
+        "completedRate": 0,
+        "stuckRate": 1,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 0,
+        "hasAnyCompleted": false,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_2_2::10::5::0,120|263.9,120|414.70000000000005,180|565.5,120|754,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "mixed",
+        "playerEaseScore": 808
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 571,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 1842,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 92,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 571,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 735,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 735,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 555,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 527,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 651,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 651,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 635,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 455,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 735,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 735,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 735,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 407,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 735,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:13",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 610,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 406,
+        "scoreP50": 610,
+        "scoreP90": 706,
+        "scoreMax": 956,
+        "scoreSpread": 550,
+        "scoreQuantiles": {
+          "p10": 494,
+          "p25": 518,
+          "p30": 538,
+          "p33": 546,
+          "p50": 610,
+          "p66": 706,
+          "p70": 706,
+          "p75": 706,
+          "p90": 706
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 2,
+          "500-999": 14,
+          "1000-1999": 0,
+          "2000-3999": 0,
+          "4000+": 0
+        },
+        "bandThresholds": {
+          "lowMax": 538,
+          "midMax": 706
+        },
+        "completedRate": 0,
+        "stuckRate": 1,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 0,
+        "hasAnyCompleted": false,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_1_13::9::5::0,120|247.79999999999998,120|389.40000000000003,180|531,120|708,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "mixed",
+        "playerEaseScore": 514
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 518,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 610,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 494,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 610,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 510,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 538,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 406,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 546,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 956,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 64,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 706,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:25",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 607,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 487,
+        "scoreP50": 607,
+        "scoreP90": 1177,
+        "scoreMax": 4037,
+        "scoreSpread": 3550,
+        "scoreQuantiles": {
+          "p10": 511,
+          "p25": 539,
+          "p30": 591,
+          "p33": 591,
+          "p50": 607,
+          "p66": 691,
+          "p70": 691,
+          "p75": 691,
+          "p90": 1177
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 1,
+          "500-999": 12,
+          "1000-1999": 2,
+          "2000-3999": 0,
+          "4000+": 1
+        },
+        "bandThresholds": {
+          "lowMax": 591,
+          "midMax": 691
+        },
+        "completedRate": 0.0625,
+        "stuckRate": 0.9375,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 1,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 9,
+        "layoutFingerprint": "lane_1_25::9::5::0,120|271.59999999999997,120|426.8,180|582,120|776,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1424.5
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 691,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 487,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 1856,
+          "moves": 7,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 82,
+          "opCount": 7
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 607,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 527,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 691,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 691,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 691,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 4037,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 99,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 591,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 607,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 511,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 539,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 623,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 591,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 41,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 1177,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:0",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 588,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 460,
+        "scoreP50": 588,
+        "scoreP90": 2039,
+        "scoreMax": 3970,
+        "scoreSpread": 3510,
+        "scoreQuantiles": {
+          "p10": 484,
+          "p25": 500,
+          "p30": 516,
+          "p33": 544,
+          "p50": 588,
+          "p66": 668,
+          "p70": 1119,
+          "p75": 1119,
+          "p90": 2039
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 3,
+          "500-999": 8,
+          "1000-1999": 2,
+          "2000-3999": 3,
+          "4000+": 0
+        },
+        "bandThresholds": {
+          "lowMax": 516,
+          "midMax": 1119
+        },
+        "completedRate": 0.125,
+        "stuckRate": 0.875,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 2,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 8,
+        "layoutFingerprint": "lane_0_0::8::5::0,120|253.39999999999998,120|398.20000000000005,180|543,120|724,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1383
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 516,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 668,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 3507,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 107,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 460,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 556,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 1610,
+          "moves": 8,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 86,
+          "opCount": 8
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 1119,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 63,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 668,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 484,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 544,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 588,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 3970,
+          "moves": 12,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 94,
+          "opCount": 12
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 500,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 492,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 2039,
+          "moves": 6,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 79,
+          "opCount": 6
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 668,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        }
+      ]
+    },
+    {
+      "seedId": "tower-pool:v1:20",
+      "poolVersion": "v1",
+      "tier": "hard",
+      "difficultyScore": 550,
+      "metrics": {
+        "rolloutCount": 16,
+        "scoreMin": 446,
+        "scoreP50": 550,
+        "scoreP90": 710,
+        "scoreMax": 4021,
+        "scoreSpread": 3575,
+        "scoreQuantiles": {
+          "p10": 462,
+          "p25": 522,
+          "p30": 530,
+          "p33": 538,
+          "p50": 550,
+          "p66": 642,
+          "p70": 710,
+          "p75": 710,
+          "p90": 710
+        },
+        "scoreHistogram": {
+          "<0": 0,
+          "0-499": 2,
+          "500-999": 13,
+          "1000-1999": 0,
+          "2000-3999": 0,
+          "4000+": 1
+        },
+        "bandThresholds": {
+          "lowMax": 530,
+          "midMax": 710
+        },
+        "completedRate": 0.0625,
+        "stuckRate": 0.9375,
+        "exitedRate": 0,
+        "timeUpRate": 0,
+        "completedCount": 1,
+        "hasAnyCompleted": true,
+        "openingMoveCount": 10,
+        "layoutFingerprint": "lane_2_20::10::5::0,120|246.74999999999997,120|387.75000000000006,180|528.75,120|705,120",
+        "policyVersion": "tower-stochastic-v1",
+        "matchTimeLimitSec": 480,
+        "layoutOutcome": "winnable",
+        "playerEaseScore": 1433.5
+      },
+      "rolloutSummaries": [
+        {
+          "rolloutIndex": 0,
+          "finalScore": 538,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 1,
+          "finalScore": 642,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 2,
+          "finalScore": 550,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 3,
+          "finalScore": 710,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 4,
+          "finalScore": 610,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 5,
+          "finalScore": 4021,
+          "moves": 11,
+          "completed": true,
+          "terminalReason": "completed",
+          "elapsedSimSeconds": 117,
+          "opCount": 11
+        },
+        {
+          "rolloutIndex": 6,
+          "finalScore": 710,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 7,
+          "finalScore": 710,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 8,
+          "finalScore": 710,
+          "moves": 2,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 2
+        },
+        {
+          "rolloutIndex": 9,
+          "finalScore": 642,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 10,
+          "finalScore": 550,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 11,
+          "finalScore": 462,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        },
+        {
+          "rolloutIndex": 12,
+          "finalScore": 530,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 13,
+          "finalScore": 446,
+          "moves": 5,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 5
+        },
+        {
+          "rolloutIndex": 14,
+          "finalScore": 502,
+          "moves": 3,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 3
+        },
+        {
+          "rolloutIndex": 15,
+          "finalScore": 522,
+          "moves": 4,
+          "completed": false,
+          "terminalReason": "stuck",
+          "elapsedSimSeconds": 42,
+          "opCount": 4
+        }
+      ]
+    }
+  ],
+  "rejected": []
+}

@@ -5,12 +5,12 @@
 
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ModelConfig } from "../battle/config/modelConfig";
-import { GameCharacter, MapModel } from "../battle/types/CombatTypes";
-import { calculateHexPoints, pointsToPath } from "../battle/utils/gridUtils";
-import { calculateHexDistance } from "../battle/utils/hexUtil";
-import { findPath } from "../battle/utils/PathFind";
+import { calculateHexPoints, pointsToPath } from "../utils/gridUtils";
+import { offsetHexDistance } from "../utils/hexUtil";
+import { findPath } from "../utils/PathFind";
 import Character3D from "../battle/view/Character3D";
+import { ModelConfig } from "../config/modelConfig";
+import { MapModel, MonsterSprite } from "../types/CombatTypes";
 import "./CharacterWalkDemo.css";
 import { mockCharacters } from "./mockCharacterData";
 import ModelConfigEditor from "./ModelConfigEditor";
@@ -46,7 +46,7 @@ interface HexCell {
 }
 
 const CharacterWalkDemo: React.FC = () => {
-    const [selectedCharacter, setSelectedCharacter] = useState<GameCharacter>(() => {
+    const [selectedCharacter, setSelectedCharacter] = useState<MonsterSprite>(() => {
         const char = { ...mockCharacters[0] };
         char.q = 2;
         char.r = 2;
@@ -65,7 +65,7 @@ const CharacterWalkDemo: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const characterContainerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<HTMLDivElement>(null);
-    const animatorRef = useRef<{ move: () => void; stand: () => void; attack?: () => void; playAnimation?: (name: string) => boolean; [key: string]: any } | null>(null);
+    const animatorRef = useRef<{ move: () => void; stand: () => void; attack?: () => void; playAnimation?: (name: string) => boolean;[key: string]: any } | null>(null);
 
     // 计算地图尺寸和位置
     useEffect(() => {
@@ -178,7 +178,7 @@ const CharacterWalkDemo: React.FC = () => {
         const isObstacleCell = isObstacle(cell.q, cell.r);
 
         // 计算是否可以移动（距离小于等于移动范围）
-        const distance = calculateHexDistance(
+        const distance = offsetHexDistance(
             { q: selectedCharacter.q ?? 0, r: selectedCharacter.r ?? 0 },
             { q: cell.q, r: cell.r }
         );
@@ -274,7 +274,7 @@ const CharacterWalkDemo: React.FC = () => {
     const handleCellClick = useCallback((q: number, r: number) => {
         if (isMoving || !characterContainerRef.current) return;
 
-        const distance = calculateHexDistance(
+        const distance = offsetHexDistance(
             { q: selectedCharacter.q ?? 0, r: selectedCharacter.r ?? 0 },
             { q, r }
         );
@@ -418,7 +418,7 @@ const CharacterWalkDemo: React.FC = () => {
     }, [isMoving]);
 
     // 切换角色
-    const handleCharacterChange = useCallback((character: GameCharacter) => {
+    const handleCharacterChange = useCallback((character: MonsterSprite) => {
         if (isMoving) return;
         const newChar = {
             ...character,
@@ -551,7 +551,7 @@ const CharacterWalkDemo: React.FC = () => {
             {/* 配置编辑器面板 */}
             {showEditor && (
                 <ModelConfigEditor
-                    modelPath={selectedCharacter.asset?.resource?.glb || selectedCharacter.asset?.resource?.fbx || ''}
+                    modelPath={selectedCharacter.assetPath || ''}
                     currentConfig={editorConfig}
                     onConfigChange={setEditorConfig}
                     onClose={() => setShowEditor(false)}
@@ -562,7 +562,7 @@ const CharacterWalkDemo: React.FC = () => {
                             // 优先使用通用的 playAnimation 方法
                             if (typeof animator.playAnimation === 'function') {
                                 animator.playAnimation(animationName);
-                            } 
+                            }
                             // 如果没有通用方法，尝试调用对应的方法（如 stand, move, attack 等）
                             else if (typeof animator[animationName] === 'function') {
                                 animator[animationName]();

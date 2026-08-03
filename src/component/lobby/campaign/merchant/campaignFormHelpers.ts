@@ -1,0 +1,701 @@
+import i18n from "@/i18n";
+
+import type { Doc } from "../../_generated/dataModel";
+
+import { isValidTelCtaUrl, normalizeTelCtaUrl } from "../shared/displayCtaUrl";
+
+import { formatCampaignRewardLabel } from "../shared/campaignRewardDisplay";
+
+export type CampaignRewardModel = "pass_per_run" | "competitive_leaderboard";
+
+export type CampaignPassRewardKind = "solo_p75_success" | "score_threshold";
+
+export type CampaignRankRewardTier = {
+  rankFrom: string;
+  rankTo: string;
+  /** Selected reward product id — stores a Portal voucher `skuId` (preferred) or a legacy value. */
+  couponDefId: string;
+};
+
+/** @deprecated coupon_defs is retired server-side; kept only for legacy label fallbacks (list is always empty). */
+export type MerchantCouponDefOption = {
+  couponDefId: string;
+  name: string;
+  status: string;
+  reward: Doc<"campaigns">["rewardRules"][number]["reward"];
+  /** Usage rules copy; empty / omitted means none. */
+  usageRules?: string;
+  validity?: { kind: "duration_hours"; hours: number };
+  activation?:
+    | { kind: "immediate" }
+    | { kind: "delay_hours"; hours: number }
+    | { kind: "fixed_at"; atMs: number };
+};
+
+export type PortalVoucherSkuOption = {
+  skuId: string;
+  title: string;
+  rewardText: string;
+  active: boolean;
+  validityDays: number | null;
+};
+
+export type CampaignExperienceType = "game" | "display";
+
+export type DisplayCtaKind = "none" | "external_url" | "tel" | "maps";
+
+/** Tri-state override: inherit partner baseline, or force on/off. */
+export type CampaignReplayBoolOverride = "inherit" | "true" | "false";
+
+export type CampaignFormState = {
+  experienceType: CampaignExperienceType;
+  title: string;
+  slug: string;
+  rulesText: string;
+  startsAtLocal: string;
+  endsAtLocal: string;
+  highlightText: string;
+  ctaKind: DisplayCtaKind;
+  ctaLabel: string;
+  ctaUrl: string;
+  /** Portal tournament desk SoT. */
+  tournamentId: string;
+  /** Derived from tournamentId (UI reward branching). */
+  gameType: string;
+  /** Derived from tournamentId (UI reward branching). */
+  mode: "solo" | "multi";
+  rewardModel: CampaignRewardModel;
+  rewardKind: CampaignPassRewardKind;
+  minScore: string;
+  topN: string;
+  /** Selected reward product id — stores a Portal voucher `skuId` (preferred) or a legacy value. */
+  couponDefId: string;
+  rankRewardTiers: CampaignRankRewardTier[];
+  maxCouponsPerPlayer: string;
+  maxPlaysPerDay: string;
+  dayTimezone: string;
+  /** Sparse replay overrides (blank / inherit = use Partner). */
+  maxReplaysPerMatch: string;
+  adReplayEnabled: CampaignReplayBoolOverride;
+  adReplayDailyCap: string;
+  ticketReplayEnabled: CampaignReplayBoolOverride;
+  ticketReplayPriceTickets: string;
+};
+
+export const CAMPAIGN_DAY_TIMEZONE_OPTIONS = [
+  { value: "Asia/Shanghai", labelKey: "timezone.Asia/Shanghai" },
+  { value: "Asia/Hong_Kong", labelKey: "timezone.Asia/Hong_Kong" },
+  { value: "Asia/Tokyo", labelKey: "timezone.Asia/Tokyo" },
+  { value: "Asia/Singapore", labelKey: "timezone.Asia/Singapore" },
+  { value: "America/Los_Angeles", labelKey: "timezone.America/Los_Angeles" },
+  { value: "America/New_York", labelKey: "timezone.America/New_York" },
+  { value: "Europe/London", labelKey: "timezone.Europe/London" },
+  { value: "UTC", labelKey: "timezone.UTC" },
+] as const;
+
+export function campaignTimezoneLabel(value: string): string {
+  const hit = CAMPAIGN_DAY_TIMEZONE_OPTIONS.find((opt) => opt.value === value);
+  return hit ? i18n.t(hit.labelKey, { ns: "campaign.merchant" }) : value;
+}
+
+export const DEFAULT_CAMPAIGN_DAY_TIMEZONE = "Asia/Shanghai";
+
+export const PORTAL_GAME_OPTIONS = [
+  { value: "block_blast", label: "Block Blast" },
+  { value: "match_3", label: "Match-3" },
+  { value: "solitaire", label: "Solitaire" },
+  { value: "tower_arena", label: "Tower Arena" },
+  { value: "yatz", label: "Yatz" },
+] as const;
+
+/** Label lookup for campaign details; prefer live partner options when editing. */
+export function partnerGameLabel(
+  gameType: string,
+  options?: ReadonlyArray<{ value: string; label: string }>
+): string {
+  const fromOpts = options?.find((g) => g.value === gameType);
+  if (fromOpts) return fromOpts.label;
+  const hit = PORTAL_GAME_OPTIONS.find((g) => g.value === gameType);
+  return hit?.label ?? gameType;
+}
+
+export function msToDatetimeLocal(ms: number): string {
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function datetimeLocalToMs(value: string): number {
+  return new Date(value).getTime();
+}
+
+function rankRuleBoundsFromDoc(rule: {
+  rankFrom?: number;
+  rankTo?: number;
+  topN?: number;
+}): { from: number; to: number } {
+  if (
+    typeof rule.rankFrom === "number" &&
+    typeof rule.rankTo === "number" &&
+    rule.rankFrom >= 1 &&
+    rule.rankTo >= rule.rankFrom
+  ) {
+    return { from: rule.rankFrom, to: rule.rankTo };
+  }
+  const topN = Math.max(1, rule.topN ?? 1);
+  return { from: 1, to: topN };
+}
+
+export function defaultRankRewardTier(couponDefId = ""): CampaignRankRewardTier {
+  return { rankFrom: "1", rankTo: "1", couponDefId };
+}
+
+export function defaultRankRewardTiers(couponDefId = ""): CampaignRankRewardTier[] {
+  return [
+    { rankFrom: "1", rankTo: "1", couponDefId },
+    { rankFrom: "2", rankTo: "3", couponDefId },
+  ];
+}
+
+export function defaultCampaignForm(now = Date.now()): CampaignFormState {
+  return {
+    experienceType: "game",
+    title: "",
+    slug: "",
+    rulesText: "",
+    startsAtLocal: msToDatetimeLocal(now),
+    endsAtLocal: msToDatetimeLocal(now + 30 * 24 * 3600 * 1000),
+    highlightText: "",
+    ctaKind: "none",
+    ctaLabel: "",
+    ctaUrl: "",
+    tournamentId: "portal_solo_p75_block_blast",
+    gameType: "block_blast",
+    mode: "solo",
+    rewardModel: "pass_per_run",
+    rewardKind: "solo_p75_success",
+    minScore: "5000",
+    topN: "3",
+    couponDefId: "",
+    rankRewardTiers: defaultRankRewardTiers(),
+    maxCouponsPerPlayer: "1",
+    maxPlaysPerDay: "",
+    dayTimezone: DEFAULT_CAMPAIGN_DAY_TIMEZONE,
+    maxReplaysPerMatch: "",
+    adReplayEnabled: "inherit",
+    adReplayDailyCap: "",
+    ticketReplayEnabled: "inherit",
+    ticketReplayPriceTickets: "",
+  };
+}
+
+export function defaultDisplayCampaignForm(now = Date.now()): CampaignFormState {
+  return {
+    ...defaultCampaignForm(now),
+    experienceType: "display",
+    ctaKind: "none",
+  };
+}
+
+function inferRewardModel(campaign: Doc<"campaigns">): CampaignRewardModel {
+  if (
+    campaign.rewardModel === "pass_per_run" ||
+    campaign.rewardModel === "competitive_leaderboard"
+  ) {
+    return campaign.rewardModel;
+  }
+  if (campaign.rewardRules.some((r) => r.kind === "campaign_leaderboard_rank_top_n")) {
+    return "competitive_leaderboard";
+  }
+  if (campaign.rewardRules.some((r) => r.kind === "multi_rank_top_n")) {
+    return "pass_per_run";
+  }
+  if (campaign.mode === "multi") {
+    return "competitive_leaderboard";
+  }
+  return "pass_per_run";
+}
+
+export function campaignFormFromDoc(campaign: Doc<"campaigns">): CampaignFormState {
+  const experienceType =
+    campaign.experienceType === "display" ? ("display" as const) : ("game" as const);
+
+  if (experienceType === "display") {
+    const cta = campaign.displayConfig?.cta;
+    return {
+      experienceType: "display",
+      title: campaign.title,
+      slug: campaign.slug,
+      rulesText: campaign.rulesText ?? "",
+      startsAtLocal: msToDatetimeLocal(campaign.startsAt),
+      endsAtLocal: msToDatetimeLocal(campaign.endsAt),
+      highlightText: campaign.displayConfig?.highlightText ?? "",
+      ctaKind: cta?.kind ?? "none",
+      ctaLabel: cta?.label ?? "",
+      ctaUrl: cta?.url ?? "",
+      tournamentId: "",
+      gameType: "",
+      mode: "solo",
+      rewardModel: "pass_per_run",
+      rewardKind: "solo_p75_success",
+      minScore: "5000",
+      topN: "3",
+      couponDefId: "",
+      rankRewardTiers: defaultRankRewardTiers(),
+      maxCouponsPerPlayer: "0",
+      maxPlaysPerDay: "",
+      dayTimezone: DEFAULT_CAMPAIGN_DAY_TIMEZONE,
+      maxReplaysPerMatch: "",
+      adReplayEnabled: "inherit",
+      adReplayDailyCap: "",
+      ticketReplayEnabled: "inherit",
+      ticketReplayPriceTickets: "",
+    };
+  }
+
+  const rewardModel = inferRewardModel(campaign);
+  const passRule = campaign.rewardRules.find(
+    (r) => r.kind === "solo_p75_success" || r.kind === "score_threshold"
+  );
+  const leaderboardRules = campaign.rewardRules.filter(
+    (r) => r.kind === "campaign_leaderboard_rank_top_n" || r.kind === "multi_rank_top_n"
+  );
+
+  let rewardKind: CampaignPassRewardKind = "solo_p75_success";
+  if (passRule?.kind === "score_threshold") {
+    rewardKind = "score_threshold";
+  }
+
+  const rankRewardTiers =
+    leaderboardRules.length > 0
+      ? leaderboardRules.map((rule) => {
+          const bounds = rankRuleBoundsFromDoc(rule);
+          return {
+            rankFrom: String(bounds.from),
+            rankTo: String(bounds.to),
+            couponDefId: rule.portalSkuId ?? rule.couponDefId ?? "",
+          };
+        })
+      : defaultRankRewardTiers(passRule?.portalSkuId ?? passRule?.couponDefId ?? "");
+
+  const firstLeaderboard = leaderboardRules[0];
+  const legacyTopN = firstLeaderboard ? rankRuleBoundsFromDoc(firstLeaderboard).to : 3;
+
+  return {
+    experienceType: "game",
+    title: campaign.title,
+    slug: campaign.slug,
+    rulesText: campaign.rulesText ?? "",
+    startsAtLocal: msToDatetimeLocal(campaign.startsAt),
+    endsAtLocal: msToDatetimeLocal(campaign.endsAt),
+    highlightText: "",
+    ctaKind: "none",
+    ctaLabel: "",
+    ctaUrl: "",
+    tournamentId:
+      typeof (campaign as { tournamentId?: string }).tournamentId === "string"
+        ? (campaign as { tournamentId: string }).tournamentId
+        : campaign.mode === "multi"
+          ? `portal_multi_${campaign.gameType}`
+          : `portal_solo_p75_${campaign.gameType}`,
+    gameType: campaign.gameType ?? "block_blast",
+    mode: campaign.mode === "multi" ? "multi" : "solo",
+    rewardModel,
+    rewardKind,
+    minScore: String(passRule?.minScore ?? 5000),
+    topN: String(legacyTopN),
+    couponDefId:
+      passRule?.portalSkuId ?? passRule?.couponDefId ?? rankRewardTiers[0]?.couponDefId ?? "",
+    rankRewardTiers,
+    maxCouponsPerPlayer: String(campaign.playLimits.maxCouponsPerPlayer),
+    maxPlaysPerDay:
+      campaign.playLimits.maxPlaysPerDay != null
+        ? String(campaign.playLimits.maxPlaysPerDay)
+        : "",
+    dayTimezone: campaign.playLimits.dayTimezone ?? DEFAULT_CAMPAIGN_DAY_TIMEZONE,
+    maxReplaysPerMatch:
+      typeof campaign.replaySettings?.maxReplaysPerMatch === "number"
+        ? String(campaign.replaySettings.maxReplaysPerMatch)
+        : "",
+    adReplayEnabled:
+      campaign.replaySettings?.adReplayEnabled === true
+        ? "true"
+        : campaign.replaySettings?.adReplayEnabled === false
+          ? "false"
+          : "inherit",
+    adReplayDailyCap:
+      typeof campaign.replaySettings?.adReplayDailyCap === "number"
+        ? String(campaign.replaySettings.adReplayDailyCap)
+        : "",
+    ticketReplayEnabled:
+      campaign.replaySettings?.ticketReplayEnabled === true
+        ? "true"
+        : campaign.replaySettings?.ticketReplayEnabled === false
+          ? "false"
+          : "inherit",
+    ticketReplayPriceTickets:
+      typeof campaign.replaySettings?.ticketReplayPriceTickets === "number"
+        ? String(campaign.replaySettings.ticketReplayPriceTickets)
+        : "",
+  };
+}
+
+export function couponDefLabel(def: MerchantCouponDefOption | undefined): string {
+  const fallback = i18n.t("rewardLabel.default", { ns: "campaign.merchant" });
+  if (!def) return fallback;
+  return `${def.name} · ${formatCampaignRewardLabel(def.reward)}`;
+}
+
+export function portalVoucherSkuLabel(sku: PortalVoucherSkuOption | undefined): string {
+  const fallback = i18n.t("rewardLabel.default", { ns: "campaign.merchant" });
+  if (!sku) return fallback;
+  return sku.rewardText.trim() ? `${sku.title} · ${sku.rewardText}` : sku.title;
+}
+
+/**
+ * Resolves the reward product for a rule/tier. Portal voucher SKUs are the
+ * source of truth: reward rules must always carry `portalSkuId` (never
+ * `couponDefId` alone). When the Portal SKU list is loaded but the selected
+ * id isn't in it, the staff pick is stale/invalid and must be reselected.
+ */
+function buildRewardProduct(
+  productId: string,
+  portalVoucherSkus: PortalVoucherSkuOption[]
+): { portalSkuId: string; reward: Doc<"campaigns">["rewardRules"][number]["reward"] } {
+  const trimmed = productId.trim();
+  const portalSku = portalVoucherSkus.find((sku) => sku.skuId === trimmed);
+  if (portalSku) {
+    return {
+      portalSkuId: portalSku.skuId,
+      reward: {
+        type: "free_item" as const,
+        itemLabel: portalSku.rewardText || portalSku.title,
+        displayText: portalSku.rewardText || portalSku.title,
+      },
+    };
+  }
+  if (portalVoucherSkus.length > 0) {
+    throw new Error("portal_sku_required");
+  }
+  // Portal SKU list unavailable (e.g. Portal shop not loaded yet); staff may
+  // have typed/kept a stale id — still emit portalSkuId per current schema.
+  const fallbackLabel = i18n.t("rewardLabel.default", { ns: "campaign.merchant" });
+  return {
+    portalSkuId: trimmed,
+    reward: {
+      type: "free_item" as const,
+      itemLabel: fallbackLabel,
+      displayText: fallbackLabel,
+    },
+  };
+}
+
+export function buildDisplayConfigFromForm(
+  form: CampaignFormState
+): Doc<"campaigns">["displayConfig"] {
+  const kind = form.ctaKind;
+  const highlightText = form.highlightText.trim();
+  if (kind === "none") {
+    return highlightText ? { highlightText } : undefined;
+  }
+  const label = form.ctaLabel.trim();
+  const url = form.ctaUrl.trim();
+  if (!label || !url) {
+    return highlightText ? { highlightText } : undefined;
+  }
+  const resolvedUrl = kind === "tel" ? normalizeTelCtaUrl(url) : url;
+  return {
+    highlightText: highlightText || undefined,
+    cta: { kind, label, url: resolvedUrl },
+  };
+}
+
+/** Client-side validation before create/save display campaigns. */
+export function validateDisplayCampaignForm(form: CampaignFormState): string | null {
+  if (!form.title.trim()) return "name_required";
+  if (!form.slug.trim()) return "invalid_fields";
+  if (datetimeLocalToMs(form.startsAtLocal) >= datetimeLocalToMs(form.endsAtLocal)) {
+    return "invalid_period";
+  }
+  if (form.ctaKind !== "none") {
+    if (!form.ctaLabel.trim()) return "display_cta_label_required";
+    if (!form.ctaUrl.trim()) return "display_cta_url_required";
+    const url = form.ctaUrl.trim();
+    if (form.ctaKind === "external_url") {
+      try {
+        if (new URL(url).protocol !== "https:") return "https_required";
+      } catch {
+        return "https_required";
+      }
+    }
+    if (form.ctaKind === "tel" && !isValidTelCtaUrl(url)) {
+      return "display_cta_invalid_tel";
+    }
+    if (
+      form.ctaKind === "maps" &&
+      !(
+        url.startsWith("https://maps.") ||
+        url.startsWith("https://www.google.com/maps") ||
+        url.startsWith("http://maps.") ||
+        url.startsWith("geo:")
+      )
+    ) {
+      return "display_cta_invalid_maps";
+    }
+  }
+  return null;
+}
+
+export function experienceTypeLabel(experienceType: CampaignExperienceType): string {
+  return i18n.t(`experienceType.${experienceType}`, { ns: "campaign.merchant" });
+}
+
+export function buildRewardRulesFromForm(
+  form: CampaignFormState,
+  /** @deprecated coupon_defs is retired server-side; kept only for call-site compat (always []). */
+  _couponDefs: MerchantCouponDefOption[],
+  portalVoucherSkus: PortalVoucherSkuOption[] = []
+): Doc<"campaigns">["rewardRules"] {
+  const buildProduct = (productId: string) => buildRewardProduct(productId, portalVoucherSkus);
+  if (form.rewardModel === "competitive_leaderboard") {
+    if (form.rankRewardTiers.length === 0) {
+      throw new Error("reward_rules_required");
+    }
+    return form.rankRewardTiers.map((tier, index) => {
+      if (!tier.couponDefId.trim()) {
+        throw new Error("coupon_def_required");
+      }
+      const rankFrom = Math.max(1, Number.parseInt(tier.rankFrom, 10) || 1);
+      const rankTo = Math.max(rankFrom, Number.parseInt(tier.rankTo, 10) || rankFrom);
+      const couponDefId = tier.couponDefId.trim();
+      return {
+        ruleId: `leaderboard_reward_${index + 1}`,
+        kind: "campaign_leaderboard_rank_top_n" as const,
+        rankFrom,
+        rankTo,
+        topN: rankTo,
+        ...buildProduct(couponDefId),
+      };
+    });
+  }
+
+  // pass_per_run + multi: per-match place rewards
+  if (form.mode === "multi") {
+    if (form.rankRewardTiers.length === 0) {
+      throw new Error("reward_rules_required");
+    }
+    return form.rankRewardTiers.map((tier, index) => {
+      if (!tier.couponDefId.trim()) {
+        throw new Error("coupon_def_required");
+      }
+      const rankFrom = Math.max(1, Number.parseInt(tier.rankFrom, 10) || 1);
+      const rankTo = Math.max(rankFrom, Number.parseInt(tier.rankTo, 10) || rankFrom);
+      const couponDefId = tier.couponDefId.trim();
+      return {
+        ruleId: `match_rank_reward_${index + 1}`,
+        kind: "multi_rank_top_n" as const,
+        rankFrom,
+        rankTo,
+        topN: rankTo,
+        ...buildProduct(couponDefId),
+      };
+    });
+  }
+
+  if (!form.couponDefId.trim()) {
+    throw new Error("coupon_def_required");
+  }
+
+  const couponDefId = form.couponDefId.trim();
+  const product = buildProduct(couponDefId);
+
+  if (form.rewardKind === "score_threshold") {
+    return [
+      {
+        ruleId: "score_reward",
+        kind: "score_threshold" as const,
+        minScore: Number.parseInt(form.minScore, 10) || 0,
+        ...product,
+      },
+    ];
+  }
+
+  return [
+    {
+      ruleId: "p75_reward",
+      kind: "solo_p75_success" as const,
+      ...product,
+    },
+  ];
+}
+
+export function formatRankTierRangeLabel(from: number, to: number): string {
+  if (from === to) {
+    return from === 1
+      ? i18n.t("rewardKind.firstPlace", { ns: "campaign.merchant" })
+      : i18n.t("rewardKind.rankExact", { ns: "campaign.merchant", rank: from });
+  }
+  if (from === 1) {
+    return i18n.t("rewardKind.topN", { ns: "campaign.merchant", topN: to });
+  }
+  return i18n.t("rewardKind.rankRange", { ns: "campaign.merchant", from, to });
+}
+
+export function rewardKindLabel(form: CampaignFormState): string {
+  if (formUsesRankRewardTiers(form)) {
+    if (form.rankRewardTiers.length <= 1) {
+      const tier = form.rankRewardTiers[0];
+      if (tier) {
+        const from = Math.max(1, Number.parseInt(tier.rankFrom, 10) || 1);
+        const to = Math.max(from, Number.parseInt(tier.rankTo, 10) || from);
+        return formatRankTierRangeLabel(from, to);
+      }
+    }
+    return i18n.t("rewardKind.rankTiers", {
+      ns: "campaign.merchant",
+      count: form.rankRewardTiers.length,
+    });
+  }
+  if (form.rewardKind === "score_threshold") {
+    return i18n.t("rewardKind.scoreThreshold", {
+      ns: "campaign.merchant",
+      minScore: form.minScore,
+    });
+  }
+  return i18n.t("rewardKind.p75", { ns: "campaign.merchant" });
+}
+
+export function rankRewardTierPreviewLines(
+  form: CampaignFormState,
+  couponDefs: MerchantCouponDefOption[],
+  portalVoucherSkus: PortalVoucherSkuOption[] = []
+): string[] {
+  return form.rankRewardTiers.map((tier) => {
+    const from = Math.max(1, Number.parseInt(tier.rankFrom, 10) || 1);
+    const to = Math.max(from, Number.parseInt(tier.rankTo, 10) || from);
+    const def = couponDefs.find((d) => d.couponDefId === tier.couponDefId);
+    const sku = portalVoucherSkus.find((row) => row.skuId === tier.couponDefId);
+    return `${formatRankTierRangeLabel(from, to)} → ${
+      sku ? portalVoucherSkuLabel(sku) : couponDefLabel(def)
+    }`;
+  });
+}
+
+export function rewardModelLabel(model: CampaignRewardModel): string {
+  return i18n.t(`rewardModel.${model}`, { ns: "campaign.merchant" });
+}
+
+export function portalTemplateLabel(mode: "solo" | "multi", gameType: string): string {
+  return mode === "solo" ? `portal_solo_p75_${gameType}` : `portal_multi_${gameType}`;
+}
+
+/** Rank tiers for competitive end-board OR pass_per_run multi (per-match place). */
+export function formUsesRankRewardTiers(form: CampaignFormState): boolean {
+  return (
+    form.rewardModel === "competitive_leaderboard" ||
+    (form.rewardModel === "pass_per_run" && form.mode === "multi")
+  );
+}
+
+export function normalizeFormForRewardModel(form: CampaignFormState): CampaignFormState {
+  if (!formUsesRankRewardTiers(form)) {
+    return form;
+  }
+  const couponDefId = form.couponDefId || form.rankRewardTiers[0]?.couponDefId || "";
+  const rankRewardTiers =
+    form.rankRewardTiers.length > 0
+      ? form.rankRewardTiers
+      : defaultRankRewardTiers(couponDefId);
+  return { ...form, rankRewardTiers };
+}
+
+/** @deprecated coupon_defs is retired server-side; the defs list is always empty now. */
+export function pickDefaultCouponDefId(defs: MerchantCouponDefOption[]): string {
+  const active = defs.filter((d) => d.status === "active");
+  return active[0]?.couponDefId ?? "";
+}
+
+/** Portal-only: pick the first active Portal voucher SKU as the default reward product. */
+export function pickDefaultRewardProductId(portalVoucherSkus: PortalVoucherSkuOption[]): string {
+  return portalVoucherSkus.find((sku) => sku.active)?.skuId ?? "";
+}
+
+/** Fill missing reward product ids from active Portal voucher SKUs. */
+export function ensureFormRewardProduct(
+  form: CampaignFormState,
+  portalVoucherSkus: PortalVoucherSkuOption[]
+): CampaignFormState {
+  const defaultId = pickDefaultRewardProductId(portalVoucherSkus);
+  if (!defaultId) return form;
+
+  let couponDefId = form.couponDefId;
+  let rankRewardTiers = form.rankRewardTiers;
+  let changed = false;
+
+  if (!couponDefId.trim()) {
+    couponDefId = defaultId;
+    changed = true;
+  }
+
+  if (rankRewardTiers.some((tier) => !tier.couponDefId.trim())) {
+    rankRewardTiers = rankRewardTiers.map((tier) =>
+      tier.couponDefId.trim() ? tier : { ...tier, couponDefId: defaultId }
+    );
+    changed = true;
+  }
+
+  return changed ? { ...form, couponDefId, rankRewardTiers } : form;
+}
+
+export function playLimitsFromForm(form: CampaignFormState): {
+  maxCouponsPerPlayer: number;
+  maxPlaysPerDay?: number;
+  dayTimezone: string;
+} {
+  const maxCouponsPerPlayer = Math.max(1, Number.parseInt(form.maxCouponsPerPlayer, 10) || 1);
+  const dayTimezone = form.dayTimezone.trim() || DEFAULT_CAMPAIGN_DAY_TIMEZONE;
+  const dailyRaw = form.maxPlaysPerDay.trim();
+  if (!dailyRaw) {
+    return { maxCouponsPerPlayer, dayTimezone };
+  }
+  const maxPlaysPerDay = Math.max(1, Number.parseInt(dailyRaw, 10) || 1);
+  return { maxCouponsPerPlayer, maxPlaysPerDay, dayTimezone };
+}
+
+export type CampaignReplaySettingsFormValue = {
+  maxReplaysPerMatch?: number;
+  adReplayEnabled?: boolean;
+  adReplayDailyCap?: number;
+  ticketReplayEnabled?: boolean;
+  ticketReplayPriceTickets?: number;
+};
+
+/**
+ * Sparse replay overrides for create/update.
+ * Returns null when nothing is overridden (update should clear stamp).
+ */
+export function replaySettingsFromForm(
+  form: CampaignFormState
+): CampaignReplaySettingsFormValue | null {
+  const out: CampaignReplaySettingsFormValue = {};
+  const maxRaw = form.maxReplaysPerMatch.trim();
+  if (maxRaw) {
+    const n = Number.parseInt(maxRaw, 10);
+    if (Number.isFinite(n) && n >= 0 && n <= 20) out.maxReplaysPerMatch = n;
+  }
+  if (form.adReplayEnabled === "true") out.adReplayEnabled = true;
+  else if (form.adReplayEnabled === "false") out.adReplayEnabled = false;
+  const adCapRaw = form.adReplayDailyCap.trim();
+  if (adCapRaw) {
+    const n = Number.parseInt(adCapRaw, 10);
+    if (Number.isFinite(n) && n >= 0 && n <= 100) out.adReplayDailyCap = n;
+  }
+  if (form.ticketReplayEnabled === "true") out.ticketReplayEnabled = true;
+  else if (form.ticketReplayEnabled === "false") out.ticketReplayEnabled = false;
+  const priceRaw = form.ticketReplayPriceTickets.trim();
+  if (priceRaw) {
+    const n = Number.parseInt(priceRaw, 10);
+    if (Number.isFinite(n) && n >= 1 && n <= 100) out.ticketReplayPriceTickets = n;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}

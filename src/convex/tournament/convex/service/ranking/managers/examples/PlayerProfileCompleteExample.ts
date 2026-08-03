@@ -25,7 +25,8 @@ export const insertMatchResult = internalMutation({
     handler: async (ctx, args) => {
         await ctx.db.insert("player_matches", {
             ...args,
-            status: 0
+            mode: "tutorial",
+            status: "open"
         });
     }
 });

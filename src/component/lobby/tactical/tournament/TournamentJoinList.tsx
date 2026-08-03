@@ -1,0 +1,20 @@
+import { ModalProp } from "host/service/ModalManager";
+import React, { useEffect } from "react";
+import TournamentHome from "./TournamentHome";
+import "./tournamentList.css";
+
+
+const TournamentJoinList: React.FC<ModalProp> = ({ visible, data, close }) => {
+    // console.log("TournamentJoinList", visible, data, close);
+    useEffect(() => {
+        console.log("TournamentJoinList created");
+    }, []);
+    return (
+        <div style={{ width: "100%", height: "100%" }}>
+            <TournamentHome />
+            {/* <div style={{ width: "100%", height: "100%", backgroundColor: "red" }} /> */}
+        </div>
+    );
+};
+
+export default TournamentJoinList;

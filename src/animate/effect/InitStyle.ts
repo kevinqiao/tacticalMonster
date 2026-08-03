@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { PageContainer } from "service/PageManager";
+import { PageContainer } from "host/service/PageManager";
 
 interface InitStyle {
     (args: { container: PageContainer; containers?: PageContainer[] }): void

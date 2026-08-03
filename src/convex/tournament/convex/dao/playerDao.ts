@@ -4,12 +4,12 @@ import { internalMutation, internalQuery } from "../_generated/server";
 export const create = internalMutation({
     args: {
         uid: v.string(),
-        token: v.optional(v.string()),
         expire: v.optional(v.number()),
-        data: v.optional(v.any()),
+        coins: v.optional(v.number()),
+        gems: v.optional(v.number()),
     },
-    handler: async (ctx, { uid, token, expire, data }) => {
-        const pid = await ctx.db.insert("players", { uid, token, expire, ...data });
+    handler: async (ctx, { uid, expire, coins, gems }) => {
+        const pid = await ctx.db.insert("players", { uid, expire, coins, gems });
         return pid;
     },
 })
@@ -26,19 +26,19 @@ export const find = internalQuery({
     },
     handler: async (ctx, { uid }) => {
         const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+        console.log("find", uid, player);
         return player;
     },
 })
 export const update = internalMutation({
     args: {
         uid: v.string(),
-        token: v.optional(v.string()),
         expire: v.optional(v.number()),
     },
-    handler: async (ctx, { uid, token, expire }) => {
+    handler: async (ctx, { uid, expire }) => {
         const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
         if (player) {
-            return await ctx.db.patch(player._id, { token, expire });
+            return await ctx.db.patch(player._id, { expire });
         }
         return null;
     },

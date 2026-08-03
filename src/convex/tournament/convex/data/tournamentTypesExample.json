@@ -48,7 +48,7 @@
                     "platinum": 1.3,
                     "diamond": 1.5
                 },
-                "subscriptionBonus": 1.2,
+                "subscriptionRewardMultiplier": 1.2,
                 "participationReward": {
                     "coins": 50,
                     "gamePoints": 10
@@ -223,7 +223,7 @@
                     "platinum": 1.6,
                     "diamond": 2.0
                 },
-                "subscriptionBonus": 1.5,
+                "subscriptionRewardMultiplier": 1.5,
                 "participationReward": {
                     "coins": 100,
                     "gamePoints": 20
@@ -406,7 +406,7 @@
                     "platinum": 2.0,
                     "diamond": 3.0
                 },
-                "subscriptionBonus": 2.0,
+                "subscriptionRewardMultiplier": 2.0,
                 "participationReward": {
                     "coins": 500,
                     "gamePoints": 50
@@ -552,7 +552,7 @@
                     "platinum": 1.0,
                     "diamond": 1.0
                 },
-                "subscriptionBonus": 1.0,
+                "subscriptionRewardMultiplier": 1.0,
                 "participationReward": {
                     "coins": 25,
                     "gamePoints": 5

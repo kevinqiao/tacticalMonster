@@ -665,8 +665,11 @@ http.route({
                 );
             }
 
-            const { GameRuleConfigService } = await import("./service/game/gameRuleConfigService");
-            const config = GameRuleConfigService.getGameRuleConfig(ruleId);
+            const { internal } = await import("./_generated/api");
+            const config = await ctx.runQuery(
+                internal.service.game.gameRuleConfigQueries.getGameRuleConfigWithOverrides,
+                { ruleId }
+            );
 
             return new Response(
                 JSON.stringify({
@@ -687,69 +690,6 @@ http.route({
                 JSON.stringify({
                     ok: false,
                     error: error.message || "获取配置失败",
-                }),
-                {
-                    status: 500,
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Access-Control-Allow-Origin": "*",
-                    },
-                }
-            );
-        }
-    }),
-});
-
-/**
- * 获取宝箱类型权重配置
- * 供 Tournament 模块查询
- */
-http.route({
-    path: "/getChestTypeWeights",
-    method: "POST",
-    handler: httpAction(async (ctx, request) => {
-        try {
-            const body = await request.json();
-            const { ruleId, tier } = body;
-
-            if (!ruleId) {
-                return new Response(
-                    JSON.stringify({
-                        ok: false,
-                        error: "缺少必要参数: ruleId",
-                    }),
-                    {
-                        status: 400,
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Access-Control-Allow-Origin": "*",
-                        },
-                    }
-                );
-            }
-
-            const { GameRuleConfigService } = await import("./service/game/gameRuleConfigService");
-            const weights = GameRuleConfigService.getChestTypeWeights(ruleId, tier);
-
-            return new Response(
-                JSON.stringify({
-                    ok: true,
-                    weights,
-                }),
-                {
-                    status: 200,
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Access-Control-Allow-Origin": "*",
-                    },
-                }
-            );
-        } catch (error: any) {
-            console.error("获取宝箱类型权重失败:", error);
-            return new Response(
-                JSON.stringify({
-                    ok: false,
-                    error: error.message || "获取权重失败",
                 }),
                 {
                     status: 500,

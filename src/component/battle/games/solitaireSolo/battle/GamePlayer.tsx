@@ -3,281 +3,516 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 
-import { useConvex } from 'convex/react';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useUserManager } from 'service/UserManager';
-import { SoloDnDCard } from '..';
-import { api } from '../../../../../convex/solitaireArena/convex/_generated/api';
-import { GameOverReport } from './GameOverReport';
-import { useEventManager } from './service/EventProvider';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { registerCasualGameModalExitHandler } from '../../shared/casualGameModalExitBridge';
 import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
-import { SoloGameEngine } from './service/SoloGameEngine';
+
+import {
+    isCasualSoloChallengeFinalScoreReport,
+    resolveCasualScoreReportSecondaryAction,
+    resolveCasualPostSettleSummaryPresentation,
+    resolveCasualPostSettleReplayPresentation,
+} from '../../shared/casualGameScoreReportUI';
+import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
+import {
+    CasualPostSettleSummaryOverlay,
+} from '../../shared/CasualPostSettleSummaryOverlay';
+import {
+    getManualSettleDefaultMessage,
+    ManualSettleConfirmOverlay,
+} from '../../shared/ManualSettleConfirmOverlay';
 import './style.css';
-import { ActionStatus, CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, SUIT_ICONS } from './types/SoloTypes';
-import { createZones } from './Utils';
+import {
+    CARD_SUITS,
+    GameInteractionPhase,
+    SoloBoardDimension,
+    SoloGameStatus,
+    SUIT_ICONS,
+    ZoneType
+} from './types/SoloTypes';
+import { layoutAllSoloCardsFromModel } from './soloCardLayout';
+import { autoCompleteLayoutGate } from './autoCompleteLayoutGate';
+import { wasteFanStepPx } from './Utils';
+import { useGameVisualTheme } from '../../shared/visualTheme/useGameVisualTheme';
+import SoloDnDCard from './view/SoloDnDCard';
+import SoloGameHeader from './view/SoloGameHeader';
+import { SoloScoreFloatLayer } from './view/SoloScoreFloatLayer';
+import SolitaireWatchOverlay from './replay/SolitaireWatchOverlay';
 
-const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
+const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadComplete }) => {
+    const visualTheme = useGameVisualTheme('solitaire');
+    /** 整局在 animating+DEALED 下只批量补跑一次牌位（与原先各 SoloDnDCard 的 postDealLayoutOnce 等价）。 */
+    const postDealBatchLayoutDoneRef = useRef(false);
+    const [cardMountEpoch, setCardMountEpoch] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
+    const boardSurfaceRef = useRef<HTMLDivElement>(null);
+    const talonZoneRef = useRef<HTMLDivElement | undefined>(undefined);
+    const wasteZoneRef = useRef<HTMLDivElement | undefined>(undefined);
+    const foundationSlotRefs = useRef<(HTMLDivElement | null)[]>(Array.from({ length: 4 }, () => null));
+    const tableauColRefs = useRef<(HTMLDivElement | null)[]>(Array.from({ length: 7 }, () => null));
+    /** 窄屏 compact 字号（屏幕 px）；大屏为空，走 SVG 经典字号 */
+    const faceFontCssRef = useRef<{ rank: string; center: string }>({
+        rank: "",
+        center: "",
+    });
     const {
-        ruleManager,
         gameState,
-        boardDimension,
         updateBoardDimension,
-        submitScore,
-        onGameOver
+        interactionPhase,
+        boardDimension,
+        boardDimensionRef,
+        replayMode,
+        targetScore,
+        casualTournamentId,
+        scoreFloats,
+        openingDealActive,
+        skipOpeningDeal,
     } = useSoloGameManager();
+    const notifyCardDomChange = useCallback(() => {
+        setCardMountEpoch((n) => n + 1);
+    }, []);
     const { cards } = gameState || {};
+    /** Solitaire Cash：局中 base 可因 recycle 暂为负，展示与结算一致不低于 0 */
+    const displayScore =
+        gameState != null ? Math.max(0, Math.floor(gameState.score ?? 0)) : null;
+    const displayMoves = gameState != null ? gameState.moves : null;
 
-    const { recycle, deal } = useActHandler();
-    const { addEvent } = useEventManager();
+    const {
+        recycle,
+        settleManuallyAndExit,
+        settleConfirmOpen,
+        cancelSettleConfirm,
+        confirmSettleAndExit,
+        finishManualSettleSuccess,
+        postCasualScoreReportOpen,
+        postCasualScoreReport,
+        dismissPostCasualScoreReport,
+        postCasualSummaryOpen,
+        postCasualTableSummary,
+        postCasualWeeklyLeagueSettle,
+        postCasualWaitingForPeers,
+        postCasualCanReplay,
+        postCasualReplayOffered,
+        postCasualReplayMode,
+        postCasualReplayWindowEndsAt,
+        postCasualAdReplayDailyRemaining,
+        postCasualAdReplayDailyCap,
+        casualReplayBusy,
+        casualReplayError,
+        replayCasualRun,
+        dismissPostCasualSummary,
+        watchTarget,
+        watchTargetLabel,
+        openWatch,
+        closeWatch,
+        completeCasualSolitaireRunOnTimeout,
+        postSettleLayoutFreezeRef,
+    } = useActHandler();
+
+    const postSettlePresentation = useMemo(
+        () => resolveCasualPostSettleSummaryPresentation(casualTournamentId, postCasualTableSummary),
+        [casualTournamentId, postCasualTableSummary]
+    );
+
+    const scoreReportActions = useMemo(
+        () =>
+            resolveCasualScoreReportSecondaryAction({
+                templateId: casualTournamentId,
+                replayOffered: postCasualReplayOffered,
+                canReplay: postCasualCanReplay,
+                replayMode: postCasualReplayMode,
+                challengeSuccess: postCasualScoreReport?.challenge?.success,
+                adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+                adReplayDailyCap: postCasualAdReplayDailyCap,
+            }),
+        [
+            casualTournamentId,
+            postCasualReplayOffered,
+            postCasualCanReplay,
+            postCasualReplayMode,
+            postCasualScoreReport?.challenge?.success,
+            postCasualAdReplayDailyRemaining,
+            postCasualAdReplayDailyCap,
+        ]
+    );
+
+    const showPostSettleSummary =
+        postCasualSummaryOpen &&
+        !isCasualSoloChallengeFinalScoreReport(casualTournamentId);
+
+    useEffect(() => {
+        if (replayMode) return;
+        registerCasualGameModalExitHandler(() => {
+            void settleManuallyAndExit();
+        });
+        return () => registerCasualGameModalExitHandler(null);
+    }, [replayMode, settleManuallyAndExit]);
+
+    const postSettleReplay = useMemo(
+        () =>
+            resolveCasualPostSettleReplayPresentation({
+                replayOffered: postCasualReplayOffered,
+                canReplay: postCasualCanReplay,
+                replayMode: postCasualReplayMode,
+                adReplayDailyRemaining: postCasualAdReplayDailyRemaining,
+                adReplayDailyCap: postCasualAdReplayDailyCap,
+                replayWindowEndsAt: postCasualReplayWindowEndsAt,
+            }),
+        [
+            postCasualReplayOffered,
+            postCasualCanReplay,
+            postCasualReplayMode,
+            postCasualAdReplayDailyRemaining,
+            postCasualAdReplayDailyCap,
+            postCasualReplayWindowEndsAt,
+        ]
+    );
+
     const { actionData } = useSoloDnDManager();
-    const { user, updateUserData } = useUserManager();
-    // console.log("SoloPlayer", user);
-    const convex = useConvex();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
+    /** 从 CSS 布局后的 DOM 测量各槽位，填充 SoloBoardDimension（坐标相对 board surface，与卡牌 offsetParent 一致） */
+    const measureBoardDimension = useCallback((): SoloBoardDimension | null => {
+        const board = boardSurfaceRef.current;
+        const outer = containerRef.current;
+        if (!board || !outer) return null;
+        // Hidden-tab RO can report tiny boxes; skip so we keep the last good card size.
+        if (board.clientWidth < 80 || board.clientHeight < 80) return null;
 
-    // 统一的卡牌样式函数
-    const getUnifiedCardStyle = useCallback((additionalStyle: React.CSSProperties = {}): React.CSSProperties => {
-        if (!boardDimension) return additionalStyle;
-        return {
-            // 统一尺寸设置
-            width: boardDimension.cardWidth,
-            height: boardDimension.cardHeight,
-            minHeight: boardDimension.cardHeight, // 使用动态最小高度
-            maxHeight: boardDimension.cardHeight, // 强制最大高度
-            boxSizing: 'border-box',
-            flexShrink: 0,
-            // 附加样式
-            ...additionalStyle
-        };
-    }, [boardDimension]);
+        const slots = foundationSlotRefs.current;
+        const tabs = tableauColRefs.current;
+        const talonEl = talonZoneRef.current;
+        const wasteEl = wasteZoneRef.current;
+        if (!slots[0] || !slots[1] || !tabs[0] || !tabs[1] || !talonEl || !wasteEl) return null;
 
-    // 计算棋盘尺寸 - 优化自适应逻辑
-    const calculateBoardDimension = useCallback((): SoloBoardDimension => {
-        if (!containerRef.current) {
+        const rel = (el: HTMLElement) => {
+            const br = board.getBoundingClientRect();
+            const er = el.getBoundingClientRect();
             return {
-                left: 0,
-                top: 0,
-                width: 800,
-                height: 600,
-                cardWidth: 60,
-                cardHeight: 84,
-                spacing: 10,
-                zones: {
-                    foundations: { x: 50, y: 50, width: 240, height: 84 },
-                    talon: { x: 50, y: 150, width: 60, height: 84 },
-                    waste: { x: 120, y: 150, width: 60, height: 84 },
-                    tableau: { x: 50, y: 250, width: 700, height: 300 }
-                }
+                x: er.left - br.left,
+                y: er.top - br.top,
+                width: er.width,
+                height: er.height
             };
+        };
+
+        const union = (rects: Array<{ x: number; y: number; width: number; height: number }>) => {
+            if (!rects.length) return { x: 0, y: 0, width: 0, height: 0 };
+            let minX = Infinity;
+            let minY = Infinity;
+            let maxX = -Infinity;
+            let maxY = -Infinity;
+            for (const r of rects) {
+                minX = Math.min(minX, r.x);
+                minY = Math.min(minY, r.y);
+                maxX = Math.max(maxX, r.x + r.width);
+                maxY = Math.max(maxY, r.y + r.height);
+            }
+            return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+        };
+
+        let fRects = slots.filter((s): s is HTMLDivElement => !!s).map(rel);
+        let tRects = tabs.filter((t): t is HTMLDivElement => !!t).map(rel);
+        if (fRects.length < 4 || tRects.length < 7) return null;
+
+        /* 列宽取 tableau 格（始终 1fr），勿用已缩成牌宽的 foundation 槽，否则扁屏后无法回弹 */
+        const colW = tRects[0]!.width;
+        const boardStyle = getComputedStyle(board);
+        const rowGap =
+            parseFloat(boardStyle.rowGap) ||
+            parseFloat(boardStyle.getPropertyValue('--solo-foundation-tableau-gap')) ||
+            0;
+        const padY =
+            (parseFloat(boardStyle.paddingTop) || 0) + (parseFloat(boardStyle.paddingBottom) || 0);
+        const boardInnerH = Math.max(0, board.clientHeight - padY);
+        /* 预留 foundation 一行 + 至少一行牌高的 tableau，避免扁屏下槽位仍按列宽撑高、牌被压扁 */
+        const CARD_H_OVER_W = 7 / 5;
+        /*
+         * 竖屏：上下约各半。
+         * 横屏矮板：若仍按 /2，foundation 行过高，tableau 被顶到偏下、中间空一大块。
+         */
+        const landscapeShort =
+            board.clientWidth > boardInnerH * 1.1 && boardInnerH > 0 && boardInnerH < 480;
+        const heightFrac = landscapeShort ? 0.36 : 0.5;
+        const maxCardH = Math.max(28, (boardInnerH - rowGap) * heightFrac);
+        let cardW = Math.min(colW, maxCardH / CARD_H_OVER_W);
+        let cardH = cardW * CARD_H_OVER_W;
+        /* 过小则角标不可读；略抬下限 */
+        if (cardW < 20 || cardH < 28) return null;
+
+        const cardWRounded = Math.round(cardW);
+        const cardHRounded = Math.round(cardH);
+        /* 先同步宽高 CSS 变量并 reflow，再测槽位，保证区与牌同尺 */
+        const nextW = `${cardWRounded}px`;
+        const nextH = `${cardHRounded}px`;
+        const nextFan = `${wasteFanStepPx(cardWRounded)}px`;
+        const cssChanged =
+            board.style.getPropertyValue('--solo-card-width') !== nextW ||
+            board.style.getPropertyValue('--solo-card-height') !== nextH ||
+            board.style.getPropertyValue('--solo-waste-fan-step') !== nextFan;
+        if (cssChanged) {
+            board.style.setProperty('--solo-card-width', nextW);
+            board.style.setProperty('--solo-card-height', nextH);
+            board.style.setProperty('--solo-waste-fan-step', nextFan);
+            void board.offsetHeight;
         }
 
-        const rect = containerRef.current.getBoundingClientRect();
-        const containerWidth = rect.width;
-        const containerHeight = rect.height;
+        /*
+         * 窄屏 compact：左上点数 + 中间偏下大花色（屏幕 px）。
+         * 大屏：不打标，经典完整牌面（SVG user unit）。
+         */
+        const compactFace = board.clientWidth > 0 && board.clientWidth < 768;
+        const setFlag = (name: string, on: boolean) => {
+            const cur = board.getAttribute(name);
+            if (on && cur !== "1") board.setAttribute(name, "1");
+            else if (!on && cur != null) board.removeAttribute(name);
+        };
+        setFlag("data-compact-face", compactFace);
+        board.removeAttribute("data-face-boost");
 
-        // 根据屏幕尺寸确定断点
-        let currentScreenSize: 'mobile' | 'tablet' | 'desktop' = 'desktop';
-        if (containerWidth < 768) {
-            currentScreenSize = 'mobile';
-        } else if (containerWidth < 1024) {
-            currentScreenSize = 'tablet';
+        const clampPx = (n: number, lo: number, hi: number) =>
+            Math.max(lo, Math.min(hi, Math.round(n)));
+        if (compactFace) {
+            const rankPx = clampPx(cardHRounded * 0.6, 38, 56);
+            const suitLowPx = clampPx(cardHRounded * 0.8, 44, 64);
+            faceFontCssRef.current = {
+                rank: `${rankPx}px`,
+                center: `${suitLowPx}px`,
+            };
+            board.style.setProperty("--solo-face-rank-px", faceFontCssRef.current.rank);
+            board.style.setProperty("--solo-face-center-px", faceFontCssRef.current.center);
+        } else {
+            faceFontCssRef.current = { rank: "", center: "" };
+            board.style.removeProperty("--solo-face-rank-px");
+            board.style.removeProperty("--solo-face-center-px");
+            board.style.removeProperty("--solo-face-suit-px");
+            board.style.removeProperty("--solo-face-corner-px");
         }
-        // console.log('currentScreenSize', currentScreenSize);
-        // 更新屏幕尺寸状态
-        setScreenSize((prev) => prev !== currentScreenSize ? currentScreenSize : prev);
-        // 根据屏幕尺寸调整参数
-        const isMobile = currentScreenSize === 'mobile';
-        const isTablet = currentScreenSize === 'tablet';
-        const minWidth = isMobile ? 320 : isTablet ? 500 : 600;
-        const minHeight = isMobile ? 300 : isTablet ? 350 : 400;
-        const maxCardWidth = isMobile ? 50 : isTablet ? 65 : 80;
-        const minCardWidth = isMobile ? 30 : isTablet ? 35 : 40;
 
-        // 根据容器尺寸计算卡牌大小
-        const availableWidth = Math.max(containerWidth, minWidth);
-        const availableHeight = Math.max(containerHeight, minHeight);
+        fRects = slots.filter((s): s is HTMLDivElement => !!s).map(rel);
+        tRects = tabs.filter((t): t is HTMLDivElement => !!t).map(rel);
+        if (fRects.length < 4 || tRects.length < 7) return null;
 
-        // 根据屏幕尺寸调整布局比例
-        const foundationsRatio = isMobile ? 0.8 : isTablet ? 0.7 : 0.6;
-        const tableauRatio = isMobile ? 0.95 : isTablet ? 0.92 : 0.9;
+        const r0 = fRects[0]!;
+        const r1 = fRects[1]!;
+        const u0 = tRects[0]!;
+        const u1 = tRects[1]!;
+        const spacingF = Math.max(0, r1.x - (r0.x + r0.width));
+        const spacingT = Math.max(0, u1.x - (u0.x + u0.width));
+        const spacing = Math.round((spacingF + spacingT) / 2);
 
-        // 基础堆需要4张卡牌 + 3个间距
-        const foundationsAreaWidth = availableWidth * foundationsRatio;
-        const cardWidth = Math.max(
-            minCardWidth,
-            Math.min(maxCardWidth, (foundationsAreaWidth - 3 * 10) / 4)
-        );
+        const foundationColX = [fRects[0]!.x, fRects[1]!.x, fRects[2]!.x, fRects[3]!.x] as const;
+        /* 扁屏下牌宽可小于 1fr 列宽：tableau 牌与 foundation 一样按列居中 */
+        const centerInCol = (r: { x: number; width: number }) =>
+            r.x + Math.max(0, (r.width - cardWRounded) / 2);
+        const tableauColX = [
+            centerInCol(tRects[0]!),
+            centerInCol(tRects[1]!),
+            centerInCol(tRects[2]!),
+            centerInCol(tRects[3]!),
+            centerInCol(tRects[4]!),
+            centerInCol(tRects[5]!),
+            centerInCol(tRects[6]!)
+        ] as const;
 
-        // 牌桌需要7张卡牌 + 6个间距
-        const tableauAreaWidth = availableWidth * tableauRatio;
-        const tableauCardWidth = Math.max(
-            minCardWidth,
-            Math.min(maxCardWidth, (tableauAreaWidth - 6 * 10) / 7)
-        );
-
-        // 使用较小的卡牌宽度确保所有区域都能适应
-        const finalCardWidth = Math.min(cardWidth, tableauCardWidth);
-        const cardHeight = finalCardWidth * 1.5;
-        const spacing = Math.max(8, finalCardWidth * 0.15);
-
-        // 计算各区域位置
-        const foundationsWidth = finalCardWidth * 4 + spacing * 3;
-        const foundationsX = (availableWidth - foundationsWidth) / 2;
-
-        // 移动端时调整牌堆和废牌堆的布局
-        let talonX, wasteX, wasteWidth;
-        // if (isMobile) {
-        //     // 移动端：牌堆和废牌堆垂直排列
-        //     talonX = (availableWidth - finalCardWidth) / 2;
-        //     wasteX = talonX;
-        //     wasteWidth = finalCardWidth;
-        // } else {
-        // 桌面端：牌堆和废牌堆水平排列
-        talonX = spacing;
-        wasteX = talonX + finalCardWidth + spacing;
-        // wasteWidth = isMobile ? finalCardWidth : finalCardWidth * 3 + spacing * 2;
-        wasteWidth = finalCardWidth * 3 + spacing * 2;
-        // }
-
-        const finalTableauWidth = finalCardWidth * 7 + spacing * 6;
-        const tableauX = (availableWidth - finalTableauWidth) / 2;
+        const outerRect = outer.getBoundingClientRect();
+        const boardRect = board.getBoundingClientRect();
+        const w = outerRect.width;
+        const nextSize: 'mobile' | 'tablet' | 'desktop' =
+            w < 768 ? 'mobile' : w < 1024 ? 'tablet' : 'desktop';
+        setScreenSize((prev) => (prev !== nextSize ? nextSize : prev));
 
         return {
-            left: rect.left,
-            top: rect.top,
-            width: availableWidth,
-            height: availableHeight,
-            cardWidth: finalCardWidth,
-            cardHeight,
+            left: boardRect.left,
+            top: boardRect.top,
+            width: board.clientWidth,
+            height: board.clientHeight,
+            cardWidth: cardWRounded,
+            cardHeight: cardHRounded,
             spacing,
+            foundationColX,
+            tableauColX,
             zones: {
-                foundations: {
-                    x: foundationsX,
-                    y: spacing,
-                    width: foundationsWidth,
-                    height: cardHeight
-                },
-                talon: {
-                    x: talonX,
-                    y: spacing * 2 + cardHeight,
-                    width: finalCardWidth,
-                    height: cardHeight
-                },
-                waste: {
-                    x: wasteX,
-                    // y: isMobile ? spacing * 3 + cardHeight * 2 : spacing * 2 + cardHeight,
-                    y: spacing * 2 + cardHeight,
-                    width: wasteWidth,
-                    height: cardHeight
-                },
-                tableau: {
-                    x: tableauX,
-                    y: isMobile ? spacing * 4 + cardHeight * 3 : spacing * 3 + cardHeight * 2,
-                    width: finalTableauWidth,
-                    height: Math.min(
-                        cardHeight * (isMobile ? 4 : 6),
-                        availableHeight - (isMobile ? spacing * 4 + cardHeight * 3 : spacing * 3 + cardHeight * 2) - spacing
-                    )
-                }
+                foundations: union(fRects),
+                talon: rel(talonEl),
+                waste: rel(wasteEl),
+                tableau: union(tRects)
             }
         };
-    }, [screenSize]); // 添加 screenSize 依赖
+    }, []);
 
-    // 更新棋盘尺寸
-    useEffect(() => {
-        const updateDimension = () => {
-            const dimension = calculateBoardDimension();
-            updateBoardDimension(dimension);
+    const settleUiOpenRef = useRef(false);
+    settleUiOpenRef.current =
+        postSettleLayoutFreezeRef.current ||
+        settleConfirmOpen ||
+        postCasualScoreReportOpen ||
+        postCasualSummaryOpen;
+
+    useLayoutEffect(() => {
+        const board = boardSurfaceRef.current;
+        const outer = containerRef.current;
+        if (!board || !outer) return;
+
+        let cancelled = false;
+        let measureRaf = 0;
+
+        const runMeasure = () => {
+            if (cancelled) return;
+            const dimension = measureBoardDimension();
+            if (dimension) updateBoardDimension(dimension);
         };
 
-        updateDimension();
-
-        // 添加防抖处理，避免频繁更新
-        let timeoutId: NodeJS.Timeout;
-        const debouncedUpdate = () => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(updateDimension, 100);
+        /** RO 回调里同步改 CSS/布局会触发 “ResizeObserver loop …”；合并到下一帧再测 */
+        const scheduleMeasure = () => {
+            if (cancelled || measureRaf) return;
+            // freeze ref 在 setState 前就会写 true；须直接读，不能等下一次 render
+            if (postSettleLayoutFreezeRef.current || settleUiOpenRef.current) return;
+            measureRaf = requestAnimationFrame(() => {
+                measureRaf = 0;
+                if (postSettleLayoutFreezeRef.current || settleUiOpenRef.current) return;
+                runMeasure();
+            });
         };
 
-        window.addEventListener('resize', debouncedUpdate);
-        return () => {
-            window.removeEventListener('resize', debouncedUpdate);
-            clearTimeout(timeoutId);
-        };
-    }, [calculateBoardDimension, updateBoardDimension]);
+        runMeasure();
+        // 首屏：父级 flex、字体、dvh/1fr 网格常在后续帧才稳定；只测一次会错位，调窗口后 RO 才纠正
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (cancelled) return;
+                runMeasure();
+                requestAnimationFrame(() => {
+                    if (!cancelled) runMeasure();
+                });
+            });
+        });
 
-    // 调试信息 - 确保尺寸一致性
-    useEffect(() => {
-        if (process.env.NODE_ENV === 'development' && boardDimension) {
-            console.log('SoloPlayer Debug - Card Dimensions:', {
-                cardWidth: boardDimension.cardWidth,
-                cardHeight: boardDimension.cardHeight,
-                spacing: boardDimension.spacing,
-                screenSize: screenSize
+        const lateId = window.setTimeout(() => {
+            if (!cancelled) runMeasure();
+        }, 80);
+
+        if (typeof document !== 'undefined' && document.fonts?.ready) {
+            void document.fonts.ready.then(() => {
+                if (!cancelled) runMeasure();
             });
         }
-    }, [boardDimension, screenSize]);
+
+        const ro = new ResizeObserver(() => {
+            scheduleMeasure();
+        });
+        ro.observe(board);
+        ro.observe(outer);
+        /* 不观察 waste/talon：改 --solo-card-* 会改它们尺寸，再测再改会形成 RO 死循环 */
+
+        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+        const onVv = () => {
+            scheduleMeasure();
+        };
+        if (vv) {
+            vv.addEventListener('resize', onVv);
+            vv.addEventListener('scroll', onVv);
+        }
+        window.addEventListener('resize', scheduleMeasure);
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                // Double-rAF: layout often settles one frame after tab show.
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (!cancelled) runMeasure();
+                    });
+                });
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+
+        return () => {
+            cancelled = true;
+            if (measureRaf) cancelAnimationFrame(measureRaf);
+            window.clearTimeout(lateId);
+            if (vv) {
+                vv.removeEventListener('resize', onVv);
+                vv.removeEventListener('scroll', onVv);
+            }
+            window.removeEventListener('resize', scheduleMeasure);
+            document.removeEventListener('visibilitychange', onVisibility);
+            ro.disconnect();
+        };
+    }, [measureBoardDimension, updateBoardDimension, gameState?.gameId]);
+
+    useLayoutEffect(() => {
+        postDealBatchLayoutDoneRef.current = false;
+    }, [gameState?.gameId]);
+
+    useLayoutEffect(() => {
+        if (!gameState || !boardDimension || !boardDimensionRef.current) return;
+        if (interactionPhase === GameInteractionPhase.pointerDrag) return;
+        // Opening deal owns positions (talon → cascade); skip model snap to avoid a dealt flash.
+        if (openingDealActive) return;
+        // 自动清盘中：禁止用（可能滞后的）React model 把牌拽回 tableau
+        if (autoCompleteLayoutGate.blocked) return;
+        // 胜利动画期间：React model 可能仍是清盘前的 tableau，绝不能重排
+        if (
+            containerRef.current?.getAttribute("data-solo-victory") === "1" ||
+            boardSurfaceRef.current?.getAttribute("data-solo-victory") === "1" ||
+            document.querySelector(".solo-player-container[data-solo-victory='1'], .solo-board-surface[data-solo-victory='1']")
+        ) {
+            return;
+        }
+
+        const st = gameState.status as SoloGameStatus | number | undefined;
+        // 终局胜利动画期间禁止把牌拽回 foundation（否则与 Lab 效果不一致）
+        if (
+            Number(st) === SoloGameStatus.COMPLETED ||
+            Number(st) === SoloGameStatus.CANCELLED
+        ) {
+            return;
+        }
+
+        // 仅发牌阶段允许在 animating 下做一次批量落位；PLAYING 自动清盘时绝不能用旧 model 重排
+        const isDealPhase =
+            Number(st) === SoloGameStatus.OPEN || Number(st) === SoloGameStatus.DEALED;
+        const allMounted =
+            gameState.cards.length > 0 && gameState.cards.every((c) => c.ele != null);
+        const allowWhileAnimatingDeal =
+            isDealPhase &&
+            interactionPhase === GameInteractionPhase.animating &&
+            !postDealBatchLayoutDoneRef.current &&
+            allMounted;
+
+        if (interactionPhase !== GameInteractionPhase.idle && !allowWhileAnimatingDeal) {
+            return;
+        }
+
+        layoutAllSoloCardsFromModel(gameState, boardDimension, boardDimensionRef);
+
+        if (allowWhileAnimatingDeal) {
+            postDealBatchLayoutDoneRef.current = true;
+        }
+    }, [
+        gameState,
+        boardDimension,
+        boardDimensionRef,
+        interactionPhase,
+        cardMountEpoch,
+        openingDealActive,
+    ]);
+
+
     const loadZone = useCallback((zoneId: string, ele: HTMLDivElement | null) => {
-        if (!gameState || !boardDimension) return;
+        if (!gameState) return;
         const zone = gameState.zones.find(z => z.id === zoneId);
         if (zone) {
             zone.ele = ele;
         }
-    }, [gameState, boardDimension]);
+    }, [gameState]);
 
-
-    const handleDeal = useCallback(() => {
-        if (!gameState) return;
-        const dealedCards = SoloGameEngine.deal(gameState.cards);
-        addEvent({
-            id: Date.now().toString(),
-            name: "deal",
-            data: { cards: dealedCards }
-        });
-
-    }, [addEvent, gameState]);
-
-    const handleGameOver = useCallback(async () => {
-        if (!gameState?.gameId) return;
-        await convex.mutation(api.service.gameManager.gameOver, { gameId: gameState.gameId });
-        updateUserData({ game: {} });
-    }, [updateUserData, gameState]);
-
-    const handleGameOpen = useCallback(async () => {
-        console.log("openGame", user);
-        // const result = await convex.mutation(api.service.gameManager.create);
-        // if (result) {
-        //     loadGame(result);
-        //     await updateUserData({ game: { name: 'solitaire', gameId: result.gameId } });
-        // }
-    }, [user, convex, updateUserData]);
-    const handleGameInit = useCallback(() => {
-        console.log("handleGameInit");
-        const game = SoloGameEngine.createGame();
-        SoloGameEngine.shuffleDeck(game.cards);
-        const dealedCards = SoloGameEngine.deal(game.cards);
-        dealedCards.forEach((r: SoloCard) => {
-            const card = game.cards.find((c: SoloCard) => c.id === r.id);
-            if (card) {
-                card.isRevealed = r.isRevealed;
-                card.zone = r.zone;
-                card.zoneId = r.zoneId;
-                card.zoneIndex = r.zoneIndex;
-            }
-            // console.log('update card', card);
-        });
-        const zones = createZones();
-        const gameState: SoloGameState = { ...game, zones, actionStatus: ActionStatus.IDLE };
-        // loadGame(gameState);
-    }, []);
 
     const cleanup = useCallback((event: any) => {
-        if (!gameState || gameState.actionStatus !== ActionStatus.IDLE) return;
+        if (!gameState || interactionPhase !== GameInteractionPhase.idle) return;
+        const st = Number(gameState.status);
+        if (st === SoloGameStatus.COMPLETED || st === SoloGameStatus.CANCELLED) return;
         event.stopPropagation();
         event.preventDefault();
         console.log("cleanup", actionData);
@@ -286,301 +521,226 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
             actionData.cards = undefined;
         }
         recycle();
-    }, [gameState, recycle]);
+    }, [gameState, recycle, interactionPhase, actionData]);
 
 
-    // 渲染基础堆
+    // 渲染基础堆（槽位由 CSS grid 排版，尺寸由 ResizeObserver 测量）
     const renderFoundations = useCallback(() => {
-        if (!gameState || !boardDimension) return null;
+        return CARD_SUITS.map((suit, index) => (
+            <div
+                key={`foundation-${suit}`}
+                ref={(ele) => {
+                    foundationSlotRefs.current[index] = ele;
+                    loadZone(`foundation-${suit}`, ele);
+                }}
+                className="foundation-zone foundation-slot"
+                data-zone-id={`foundation-${suit}`}
+                data-drop-zone="true"
+                style={{ gridColumn: `${index + 1} / ${index + 2}` }}
+            >
+                {gameState ? SUIT_ICONS[suit] : null}
+            </div>
+        ));
+    }, [gameState, loadZone]);
 
-        // const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
-        return CARD_SUITS.map((suit, index) => {
-
-            return (
-                <div
-                    key={`foundation-${suit}`}
-                    ref={(ele) => loadZone(`foundation-${suit}`, ele)}
-                    className="foundation-zone"
-                    data-zone-id={`foundation-${suit}`}
-                    data-drop-zone="true"
-                    style={{
-                        position: 'absolute',
-                        left: boardDimension.zones.foundations.x + index * (boardDimension.cardWidth + boardDimension.spacing),
-                        top: boardDimension.zones.foundations.y,
-                        width: boardDimension.cardWidth,
-                        height: boardDimension.cardHeight,
-                        border: '2px dashed #ccc',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'rgba(0,0,0,0.1)'
-                    }}
-                >
-                    {SUIT_ICONS[suit]}
-                </div>
-            );
-        });
-    }, [gameState, boardDimension, getUnifiedCardStyle]);
-
-    // 渲染牌堆
     const renderTalon = useCallback(() => {
-        if (!gameState || !boardDimension) return null;
-
         return (
             <div
-                className="talon-zone"
-                ref={(ele) => loadZone('talon', ele)}
-                style={{
-                    position: 'absolute',
-                    left: boardDimension.zones.talon.x,
-                    top: boardDimension.zones.talon.y,
-                    width: boardDimension.cardWidth,
-                    height: boardDimension.cardHeight,
-                    border: '2px dashed #ccc',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: 'rgba(0,0,0,0.1)',
-                    cursor: 'pointer'
+                className="talon-zone solo-stock-slot"
+                ref={(ele) => {
+                    talonZoneRef.current = ele ?? undefined;
+                    loadZone('talon', ele);
                 }}
                 onClick={cleanup}
-            >
-
-            </div>
+            />
         );
-    }, [gameState, boardDimension]);
+    }, [cleanup, loadZone]);
 
-    // 渲染废牌堆
     const renderWaste = useCallback(() => {
-        if (!gameState || !boardDimension) return null;
-
         return (
             <div
-                ref={(ele) => loadZone('waste', ele)}
-                className="waste-zone"
-                style={{
-                    position: 'absolute',
-                    left: boardDimension.zones.waste.x,
-                    top: boardDimension.zones.waste.y,
-                    width: boardDimension.zones.waste.width,
-                    height: boardDimension.cardHeight
+                ref={(ele) => {
+                    wasteZoneRef.current = ele ?? undefined;
+                    loadZone('waste', ele);
                 }}
-            >
-
-            </div>
+                className="waste-zone solo-waste-area"
+            />
         );
-    }, [gameState, boardDimension, getUnifiedCardStyle]);
+    }, [loadZone]);
 
-    // 渲染牌桌
     const renderTableau = useCallback(() => {
-        if (!boardDimension) return null;
-        // console.log('boardDimension', boardDimension);
-        return Array.from({ length: 7 }, (_, colIndex) => {
-            return (
-                <div
-                    key={`tableau-col-${colIndex}`}
-                    ref={(ele) => loadZone(`tableau-${colIndex}`, ele)}
-                    className="tableau-column"
-                    data-zone-id={`tableau-${colIndex}`}
-                    data-drop-zone="true"
-                    style={{
-                        position: 'absolute',
-                        left: boardDimension.zones.tableau.x + colIndex * (boardDimension.cardWidth + boardDimension.spacing),
-                        top: boardDimension.zones.tableau.y,
-                        width: boardDimension.cardWidth,
-                        height: boardDimension.zones.tableau.height,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: boardDimension.spacing * 0.3
-                    }}
-                >
-
-                </div>
-            );
-        });
-    }, [gameState, boardDimension, getUnifiedCardStyle]);
+        return Array.from({ length: 7 }, (_, colIndex) => (
+            <div
+                key={`tableau-col-${colIndex}`}
+                ref={(ele) => {
+                    tableauColRefs.current[colIndex] = ele;
+                    loadZone(`tableau-${colIndex}`, ele);
+                }}
+                className="tableau-column"
+                data-zone-id={`tableau-${colIndex}`}
+                data-drop-zone="true"
+                style={{ gridColumn: `${colIndex + 1} / ${colIndex + 2}` }}
+            />
+        ));
+    }, [loadZone]);
     const renderCards = useMemo(() => {
         if (!cards) return null;
-        return cards.sort((a, b) => (a.zoneIndex || 0) - (b.zoneIndex || 0)).map((card, cardIndex) => (
+        // 稳定按 id 排序，避免 zone 变化时 React 重排 DOM 冲掉 GSAP transform
+        return [...cards]
+            .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+            .map((card) => (
             <SoloDnDCard
                 key={card.id}
                 card={card}
+                onCardDomChange={notifyCardDomChange}
                 style={{
                     position: 'absolute',
                     top: 0,
                     left: 0,
-                    opacity: 0,
-                    // width: boardDimension.cardWidth,
-                    // height: boardDimension.cardHeight,
-                    zIndex: card.zoneIndex + 10
+                    // z-index 只由 GSAP / soloCardZIndex 管理；React style 会在
+                    // setInteractionPhase 重渲染时盖掉飞行层 z，导致左→右首次落子穿到牌堆后
                 }}
             />
         ))
 
-    }, [cards]);
+    }, [cards, notifyCardDomChange, gameState?.cards]);
 
     // 渲染控制面板
-    const renderControlPanel = useCallback(() => {
-
-        const isMobile = screenSize === 'mobile';
-        const isTablet = screenSize === 'tablet';
-
-        return (
-            <div
-                className={isMobile || isTablet ? "control-panel-mobile" : "control-panel"}
-                style={{
-                    display: 'flex',
-                    flexDirection: isMobile || isTablet ? 'row' : 'column',
-                    gap: isMobile || isTablet ? '5px' : '10px',
-                    zIndex: 1000
-                }}
-            >
-                <button
-                    onClick={handleGameOpen}
-                    style={{
-                        fontSize: isMobile ? '12px' : '14px',
-                        padding: isMobile ? '6px 8px' : '8px 12px',
-                        height: isMobile ? '32px' : '36px', // 固定高度
-                        minHeight: isMobile ? '32px' : '36px',
-                    }}
-                >
-                    Open Game
-                </button>
-                <button
-                    onClick={handleGameInit}
-                    style={{
-                        fontSize: isMobile ? '12px' : '14px',
-                        padding: isMobile ? '6px 8px' : '8px 12px',
-                        height: isMobile ? '32px' : '36px', // 固定高度
-                        minHeight: isMobile ? '32px' : '36px',
-                    }}
-                >
-                    Init Game
-                </button>
-                <button
-                    onClick={cleanup}
-                    style={{
-                        fontSize: isMobile ? '12px' : '14px',
-                        padding: isMobile ? '6px 8px' : '8px 12px',
-                        height: isMobile ? '32px' : '36px', // 固定高度
-                        minHeight: isMobile ? '32px' : '36px',
-                    }}
-                >
-                    Recycle
-                </button>
-
-
-                <button
-                    onClick={() => deal('fan')}
-                    style={{
-                        fontSize: isTablet ? '12px' : '14px',
-                        padding: isTablet ? '6px 8px' : '8px 12px',
-                        height: isTablet ? '32px' : '36px',
-                        minHeight: isTablet ? '32px' : '36px',
-                        flex: 'none'
-                    }}
-                >
-                    Deal
-                </button>
-                <button
-                    onClick={() => deal('spiral')}
-                    style={{
-                        fontSize: isTablet ? '12px' : '14px',
-                        padding: isTablet ? '6px 8px' : '8px 12px',
-                        height: isTablet ? '32px' : '36px',
-                        minHeight: isTablet ? '32px' : '36px',
-                        flex: 'none'
-                    }}
-                >
-                    Deal(spiral)
-                </button>
-                <button
-                    onClick={() => deal('wave')}
-                    style={{
-                        fontSize: isTablet ? '12px' : '14px',
-                        padding: isTablet ? '6px 8px' : '8px 12px',
-                        height: isTablet ? '32px' : '36px',
-                        minHeight: isTablet ? '32px' : '36px',
-                        flex: 'none'
-                    }}
-                >
-                    Deal(wave)
-                </button>
-                <button
-                    onClick={() => deal('explosion')}
-                    style={{
-                        fontSize: isTablet ? '12px' : '14px',
-                        padding: isTablet ? '6px 8px' : '8px 12px',
-                        height: isTablet ? '32px' : '36px',
-                        minHeight: isTablet ? '32px' : '36px',
-                        flex: 'none'
-                    }}
-                >
-                    Deal(explosion)
-                </button>
-                <button
-                    onClick={onGameOver}
-                    style={{
-                        fontSize: isTablet ? '12px' : '14px',
-                        padding: isTablet ? '6px 8px' : '8px 12px',
-                        height: isTablet ? '32px' : '36px',
-                        minHeight: isTablet ? '32px' : '36px',
-                        flex: 'none'
-                    }}
-                >
-                    GameOver
-                </button>
-                <button
-                    onClick={() => submitScore(100)}
-                    style={{
-                        fontSize: isTablet ? '12px' : '14px',
-                        padding: isTablet ? '6px 8px' : '8px 12px',
-                        height: isTablet ? '32px' : '36px',
-                        minHeight: isTablet ? '32px' : '36px',
-                        flex: 'none'
-                    }}
-                >
-                    Submit Score
-                </button>
-            </div>
-        );
-    }, [user, gameState, screenSize, handleDeal]);
 
     return (
         <div
             ref={containerRef}
             className="solo-player-container"
+            data-game-visual-key={visualTheme.visualKey}
+            data-opening-deal={openingDealActive ? "1" : undefined}
+            onPointerDownCapture={
+                openingDealActive
+                    ? (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          skipOpeningDeal();
+                      }
+                    : undefined
+            }
             style={{
                 width: '100%',
                 height: '100%',
                 position: 'absolute',
                 left: 0,
                 top: 0,
-                backgroundColor: '#0d5f0d',
-                overflow: 'visible' // 允许拖拽元素超出边界
             }}
         >
-            {renderControlPanel()}
-            {renderFoundations()}
-            {renderTalon()}
-            {renderWaste()}
-            {renderTableau()}
-            {renderCards}
-            <GameOverReport />
-
-
-            {/* Three.js 3D弹跳图层 */}
-            {/* {boardDimension && (
-                <ThreeJsBounceLayer
+            <SoloGameHeader
+                displayScore={displayScore}
+                displayMoves={displayMoves}
+                dueTime={replayMode ? undefined : gameState?.dueTime}
+                targetScore={replayMode ? undefined : targetScore}
+                onMatchTimeout={
+                    replayMode ? undefined : () => void completeCasualSolitaireRunOnTimeout()
+                }
+            />
+            {/* {renderControlPanel()} */}
+            <div
+                ref={boardSurfaceRef}
+                className={
+                    replayMode ? "solo-board-surface solo-board-surface--replay" : "solo-board-surface"
+                }
+                style={
+                    boardDimension
+                        ? ({
+                              ["--solo-card-width" as string]: `${boardDimension.cardWidth}px`,
+                              ["--solo-card-height" as string]: `${boardDimension.cardHeight}px`,
+                              ["--solo-waste-fan-step" as string]: `${wasteFanStepPx(boardDimension.cardWidth)}px`,
+                              ...(faceFontCssRef.current.rank
+                                  ? {
+                                        ["--solo-face-rank-px" as string]:
+                                            faceFontCssRef.current.rank,
+                                        ["--solo-face-center-px" as string]:
+                                            faceFontCssRef.current.center,
+                                    }
+                                  : {}),
+                          } as React.CSSProperties)
+                        : undefined
+                }
+            >
+                {renderFoundations()}
+                {renderWaste()}
+                {renderTalon()}
+                {renderTableau()}
+                <div className="solo-board-cards-layer">{renderCards}</div>
+                <SoloScoreFloatLayer
+                    floats={scoreFloats}
                     boardDimension={boardDimension}
-                    onAnimationComplete={() => {
-                        console.log('🎊 Three.js bounce animation completed');
-                    }}
                 />
-            )} */}
-
+            </div>
+            {!replayMode && (
+                <>
+                    <ManualSettleConfirmOverlay
+                        open={settleConfirmOpen && !postCasualScoreReportOpen}
+                        defaultMessage={getManualSettleDefaultMessage('solitaire')}
+                        onCancel={cancelSettleConfirm}
+                        onConfirm={confirmSettleAndExit}
+                        onSuccessClose={finishManualSettleSuccess}
+                    />
+                    <CasualGameScoreReportOverlay
+                        open={postCasualScoreReportOpen && watchTarget == null}
+                        report={postCasualScoreReport}
+                        onConfirm={dismissPostCasualScoreReport}
+                        secondaryLabel={
+                            scoreReportActions.showReplaySecondary
+                                ? scoreReportActions.secondaryLabel
+                                : undefined
+                        }
+                        onSecondary={
+                            scoreReportActions.showReplaySecondary
+                                ? () => void replayCasualRun()
+                                : undefined
+                        }
+                        secondaryDisabled={
+                            scoreReportActions.showReplaySecondary && !postCasualCanReplay
+                        }
+                        secondaryBusy={casualReplayBusy}
+                        adReplayDailyRemaining={
+                            scoreReportActions.showReplaySecondary
+                                ? scoreReportActions.adReplayDailyRemaining
+                                : undefined
+                        }
+                        adReplayDailyCap={
+                            scoreReportActions.showReplaySecondary
+                                ? scoreReportActions.adReplayDailyCap
+                                : undefined
+                        }
+                        secondaryError={casualReplayError ?? undefined}
+                        replayWindowEndsAt={
+                            scoreReportActions.showReplaySecondary
+                                ? postCasualReplayWindowEndsAt
+                                : undefined
+                        }
+                    />
+                    <CasualPostSettleSummaryOverlay
+                        open={showPostSettleSummary && watchTarget == null}
+                        title={postSettlePresentation.title}
+                        summary={postSettlePresentation.summary}
+                        waitingForPeers={postCasualWaitingForPeers}
+                        replayAvailable={postSettleReplay.showReplay}
+                        replayMode={postCasualReplayMode}
+                        adReplayDailyRemaining={postSettleReplay.adReplayDailyRemaining}
+                        adReplayDailyCap={postSettleReplay.adReplayDailyCap}
+                        replayBusy={casualReplayBusy}
+                        replayWindowEndsAt={postCasualReplayWindowEndsAt}
+                        onReplay={postSettleReplay.showReplay ? () => void replayCasualRun() : undefined}
+                        replayLabel={postSettleReplay.replayLabel}
+                        onDismiss={dismissPostCasualSummary}
+                        weeklyLeagueSettle={postCasualWeeklyLeagueSettle}
+                    />
+                    <SolitaireWatchOverlay
+                        open={watchTarget != null}
+                        watchContext={watchTarget}
+                        displayLabel={watchTargetLabel}
+                        onClose={closeWatch}
+                    />
+                </>
+            )}
         </div>
     );
     // return <div ref={containerRef} className="solo-player-container"></div>

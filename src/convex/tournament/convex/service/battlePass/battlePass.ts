@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
+import { internalMutation, query } from "../../_generated/server";
 import { BattlePassSystem } from "./battlePassSystem";
 
 
@@ -23,22 +24,21 @@ export const getCurrentBattlePassConfig = query({
  * 获取玩家Battle Pass信息
  * 如果赛季已切换，会自动重置为新赛季
  */
-export const getPlayerBattlePass = query({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        // 检查并重置（如果赛季已切换）
-        await BattlePassSystem.checkAndResetPlayerBattlePassIfNeeded(ctx, args.uid);
-        return await BattlePassSystem.getPlayerBattlePass(ctx, args.uid);
+export const getPlayerBattlePass = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        await BattlePassSystem.checkAndResetPlayerBattlePassIfNeeded(ctx, ctx.uid);
+        return await BattlePassSystem.getPlayerBattlePass(ctx, ctx.uid);
     },
 });
 
 /**
  * 获取玩家Battle Pass统计
  */
-export const getPlayerBattlePassStats = query({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await BattlePassSystem.getPlayerBattlePassStats(ctx, args.uid);
+export const getPlayerBattlePassStats = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        return await BattlePassSystem.getPlayerBattlePassStats(ctx, ctx.uid);
     },
 });
 
@@ -67,29 +67,28 @@ export const getBattlePassStats = query({
 /**
  * 初始化玩家Battle Pass
  */
-export const initializePlayerBattlePass = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await BattlePassSystem.initializePlayerBattlePass(ctx, args.uid);
+export const initializePlayerBattlePass = authedMutation({
+    args: {},
+    handler: async (ctx) => {
+        return await BattlePassSystem.initializePlayerBattlePass(ctx, ctx.uid);
     },
 });
 
 /**
  * 购买Premium Battle Pass
  */
-export const purchasePremiumBattlePass = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await BattlePassSystem.purchasePremiumBattlePass(ctx, args.uid);
+export const purchasePremiumBattlePass = authedMutation({
+    args: {},
+    handler: async (ctx) => {
+        return await BattlePassSystem.purchasePremiumBattlePass(ctx, ctx.uid);
     },
 });
 
 /**
  * 添加赛季积分到玩家Battle Pass
  */
-export const addBattlePassSeasonPoints = mutation({
+export const addBattlePassSeasonPoints = authedMutation({
     args: {
-        uid: v.string(),
         seasonPointsAmount: v.number(),
         source: v.string(), // "tournament", "quick_match", "prop_match", "task", "social", "achievement"
         sourceDetails: v.optional(v.object({
@@ -101,33 +100,32 @@ export const addBattlePassSeasonPoints = mutation({
         }))
     },
     handler: async (ctx, args) => {
-        return await BattlePassSystem.addSeasonPoints(ctx, args.uid, args.seasonPointsAmount, args.source);
+        return await BattlePassSystem.addSeasonPoints(ctx, ctx.uid, args.seasonPointsAmount, args.source);
     },
 });
 
 /**
  * 领取Battle Pass奖励
  */
-export const claimBattlePassRewards = mutation({
+export const claimBattlePassRewards = authedMutation({
     args: {
-        uid: v.string(),
         level: v.number()
     },
     handler: async (ctx, args) => {
-        return await BattlePassSystem.claimBattlePassRewards(ctx, args.uid, args.level);
+        return await BattlePassSystem.claimBattlePassRewards(ctx, ctx.uid, args.level);
     },
 });
 
 /**
  * 批量领取Battle Pass奖励
  */
-export const batchClaimBattlePassRewards = mutation({
+export const batchClaimBattlePassRewards = authedMutation({
     args: {
-        uid: v.string(),
         levels: v.array(v.number())
     },
     handler: async (ctx, args) => {
-        const { uid, levels } = args;
+        const { levels } = args;
+        const uid = ctx.uid;
         const results = [];
         const claimedRewards = [];
 
@@ -173,16 +171,16 @@ export const batchClaimBattlePassRewards = mutation({
 /**
  * 锦标赛完成时自动添加赛季积分
  */
-export const addTournamentSeasonPoints = mutation({
+export const addTournamentSeasonPoints = authedMutation({
     args: {
-        uid: v.string(),
         tournamentId: v.string(),
         gameType: v.string(),
         rank: v.number(),
         totalParticipants: v.number()
     },
     handler: async (ctx, args) => {
-        const { uid, tournamentId, gameType, rank, totalParticipants } = args;
+        const { tournamentId, gameType, rank, totalParticipants } = args;
+        const uid = ctx.uid;
 
         // 计算排名百分比
         const rankPercentage = (rank / totalParticipants) * 100;
@@ -206,15 +204,15 @@ export const addTournamentSeasonPoints = mutation({
 /**
  * 快速对局完成时自动添加赛季积分
  */
-export const addQuickMatchSeasonPoints = mutation({
+export const addQuickMatchSeasonPoints = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         isWin: v.boolean(),
         matchId: v.string()
     },
     handler: async (ctx, args) => {
-        const { uid, gameType, isWin, matchId } = args;
+        const { gameType, isWin, matchId } = args;
+        const uid = ctx.uid;
 
         let seasonPointsAmount = 0;
         if (isWin) {
@@ -228,16 +226,16 @@ export const addQuickMatchSeasonPoints = mutation({
 /**
  * 道具对局完成时自动添加赛季积分
  */
-export const addPropMatchSeasonPoints = mutation({
+export const addPropMatchSeasonPoints = authedMutation({
     args: {
-        uid: v.string(),
         gameType: v.string(),
         isWin: v.boolean(),
         matchId: v.string(),
         propsUsed: v.number()
     },
     handler: async (ctx, args) => {
-        const { uid, gameType, isWin, matchId, propsUsed } = args;
+        const { gameType, isWin, matchId, propsUsed } = args;
+        const uid = ctx.uid;
 
         let seasonPointsAmount = 0;
         if (isWin) {
@@ -256,15 +254,15 @@ export const addPropMatchSeasonPoints = mutation({
 /**
  * 任务完成时自动添加赛季积分
  */
-export const addTaskSeasonPoints = mutation({
+export const addTaskSeasonPoints = authedMutation({
     args: {
-        uid: v.string(),
         taskId: v.string(),
         taskType: v.string(),
         seasonPointsAmount: v.number()
     },
     handler: async (ctx, args) => {
-        const { uid, taskId, taskType, seasonPointsAmount } = args;
+        const { taskId, taskType, seasonPointsAmount } = args;
+        const uid = ctx.uid;
 
         return await BattlePassSystem.addSeasonPoints(ctx, uid, seasonPointsAmount, "task");
     },
@@ -273,14 +271,14 @@ export const addTaskSeasonPoints = mutation({
 /**
  * 社交活动时自动添加赛季积分
  */
-export const addSocialSeasonPoints = mutation({
+export const addSocialSeasonPoints = authedMutation({
     args: {
-        uid: v.string(),
         action: v.string(), // "invite_friend", "share_game", "join_clan"
         seasonPointsAmount: v.number()
     },
     handler: async (ctx, args) => {
-        const { uid, action, seasonPointsAmount } = args;
+        const { action, seasonPointsAmount } = args;
+        const uid = ctx.uid;
 
         return await BattlePassSystem.addSeasonPoints(ctx, uid, seasonPointsAmount, "social");
     },
@@ -289,14 +287,14 @@ export const addSocialSeasonPoints = mutation({
 /**
  * 成就解锁时自动添加赛季积分
  */
-export const addAchievementSeasonPoints = mutation({
+export const addAchievementSeasonPoints = authedMutation({
     args: {
-        uid: v.string(),
         achievementId: v.string(),
         seasonPointsAmount: v.number()
     },
     handler: async (ctx, args) => {
-        const { uid, achievementId, seasonPointsAmount } = args;
+        const { achievementId, seasonPointsAmount } = args;
+        const uid = ctx.uid;
 
         return await BattlePassSystem.addSeasonPoints(ctx, uid, seasonPointsAmount, "achievement");
     },
@@ -309,7 +307,7 @@ export const addAchievementSeasonPoints = mutation({
 /**
  * 批量添加赛季积分
  */
-export const batchAddBattlePassSeasonPoints = mutation({
+export const batchAddBattlePassSeasonPoints = internalMutation({
     args: {
         seasonPointsEntries: v.array(v.object({
             uid: v.string(),
@@ -354,14 +352,14 @@ export const batchAddBattlePassSeasonPoints = mutation({
 /**
  * 重置玩家Battle Pass（管理用）
  */
-export const resetPlayerBattlePass = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
+export const resetPlayerBattlePass = authedMutation({
+    args: {},
+    handler: async (ctx) => {
         const config = BattlePassSystem.getCurrentBattlePassConfig();
 
         // 删除现有Battle Pass记录
         const existingBattlePass = await ctx.db.query("player_battle_pass")
-            .withIndex("by_uid_season", (q: any) => q.eq("uid", args.uid).eq("seasonId", config.seasonId))
+            .withIndex("by_uid_season", (q: any) => q.eq("uid", ctx.uid).eq("seasonId", config.seasonId))
             .unique();
 
         if (existingBattlePass) {
@@ -369,7 +367,7 @@ export const resetPlayerBattlePass = mutation({
         }
 
         // 重新初始化
-        const newBattlePass = await BattlePassSystem.initializePlayerBattlePass(ctx, args.uid);
+        const newBattlePass = await BattlePassSystem.initializePlayerBattlePass(ctx, ctx.uid);
 
         return {
             success: true,
@@ -393,20 +391,20 @@ export const resetAllPlayersBattlePassForNewSeason = internalMutation({
 /**
  * 创建Battle Pass快照（管理用）
  */
-export const createBattlePassSnapshot = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
+export const createBattlePassSnapshot = authedMutation({
+    args: {},
+    handler: async (ctx) => {
         const config = BattlePassSystem.getCurrentBattlePassConfig();
         const nowISO = new Date().toISOString();
 
-        const playerBattlePass = await BattlePassSystem.getPlayerBattlePass(ctx, args.uid);
+        const playerBattlePass = await BattlePassSystem.getPlayerBattlePass(ctx, ctx.uid);
         if (!playerBattlePass) {
             return { success: false, message: "Battle Pass不存在" };
         }
 
         // 创建快照
         await ctx.db.insert("battle_pass_snapshots", {
-            uid: args.uid,
+            uid: ctx.uid,
             seasonId: config.seasonId,
             currentLevel: playerBattlePass.currentLevel,
             currentSeasonPoints: playerBattlePass.currentSeasonPoints,
@@ -428,13 +426,13 @@ export const createBattlePassSnapshot = mutation({
 /**
  * 获取Battle Pass快照历史
  */
-export const getBattlePassSnapshots = query({
+export const getBattlePassSnapshots = authedQuery({
     args: {
-        uid: v.string(),
         seasonId: v.optional(v.string())
     },
     handler: async (ctx, args) => {
-        const { uid, seasonId } = args;
+        const { seasonId } = args;
+        const uid = ctx.uid;
         const config = BattlePassSystem.getCurrentBattlePassConfig();
         const targetSeasonId = seasonId || config.seasonId;
 

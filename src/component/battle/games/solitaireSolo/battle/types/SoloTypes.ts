@@ -10,10 +10,17 @@ export enum SoloGameStatus {
     COMPLETED = 3,
     CANCELLED = 4
 }
-export enum ActionStatus {
-    IDLE = 'idle',
-    ACTING = 'acting',
-    DROPPING = 'dropping',
+
+/** 可拖拽/点击出牌（Convex 首步后常为 PLAYING，不仅是 DEALED） */
+export function isSolitairePlayableStatus(status: SoloGameStatus | number | undefined): boolean {
+    const n = Number(status);
+    return n === SoloGameStatus.DEALED || n === SoloGameStatus.PLAYING;
+}
+/** 客户端交互阶段（不持久化到 Convex game 文档） */
+export enum GameInteractionPhase {
+    idle = 'idle',
+    pointerDrag = 'pointerDrag',
+    animating = 'animating',
 }
 export enum ActMode {
     DRAG = 'drag',
@@ -22,9 +29,8 @@ export enum ActMode {
 export enum ActType {
     DRAW = 'draw',
     MOVE = 'move',
-    FOUNDATION = 'foundation',
-    WASTE = 'waste',
-    UNDO = 'undo'
+    FLIP = 'flip',
+    RESET = 'reset',
 }
 // 区域类型枚举
 export enum ZoneType {
@@ -63,15 +69,16 @@ export interface GameModel {
     score: number;
     moves: number;
     seed?: string;
+    /** Wall-clock ms when the 5-minute match timer starts (first scoring action). */
+    playStartedAt?: number;
+    /** 休闲 run 绝对截止时间（epoch ms），创局时由服务端写入 */
+    dueTime?: number;
     lastUpdate?: string;//event id
 }
 // 简化的游戏状态 - 只使用统一的 cards 数组
 export interface SoloGameState extends GameModel {
-    // 统一卡牌管理
     cards: SoloCard[];
     zones: SoloZone[];
-    actionStatus: ActionStatus;
-    reportElement?: HTMLDivElement | null;
 }
 
 
@@ -117,6 +124,10 @@ export interface SoloBoardDimension {
     cardWidth: number;
     cardHeight: number;
     spacing: number;
+    /** 各收牌区槽位左缘 x（与 DOM 一致）；避免 1fr 子像素下用 (cw+spacing)*i 与 CSS 真值漂移 */
+    foundationColX: readonly [number, number, number, number];
+    /** 各接龙列列槽左缘 x */
+    tableauColX: readonly [number, number, number, number, number, number, number];
     zones: {
         foundations: { x: number; y: number; width: number; height: number };
         talon: { x: number; y: number; width: number; height: number };
@@ -145,14 +156,19 @@ export interface SoloActionData {
     dropTarget?: SoloDropTarget | null;     // 序列中的所有卡牌（包括主卡牌）
     offsetX?: number;
     offsetY?: number;
-    lastPosition?: { x: number; y: number }; // Add this line
+    lastPosition?: { x: number; y: number };
+    /** 从 pointerdown 起指针相对起点的最大位移（px），用于区分「短拖取消」与「轻点自动走牌」 */
+    maxDragFromStart?: number;
     status?: 'acting' | 'dragging' | 'dropping' | 'cancelled' | 'finished';
+    pointerId?: number;
+    /** 一键收 foundation 时位移动画缩短 */
+    autoFoundationMove?: boolean;
 }
 export interface ActionResult {
     ok: boolean;
     code?: number;
     message?: string;
-    data?: { draw?: Card[], move?: Card[], flip?: Card[], reset?: Card[], update?: Card[], create?: Card[], delete?: Card[] };
+    data?: { draw?: Card[], move?: Card[], flip?: Card[], reset?: Card[] };
 }
 
 export interface SoloAnimationConfig {
@@ -173,7 +189,7 @@ export enum ActionResultCode {
 // 游戏规则相关
 export interface SolitaireRule {
     canDraw: (cardId: string) => boolean;
-    getActModes: (card: Card) => ActMode[];
+    getActModes: (card: Card, opts?: { forAffordance?: boolean }) => ActMode[];
     findTarget: (card: Card) => { zoneId: string, zoneType: ZoneType } | null;
     findMoveableTargets: (card: Card) => { zoneId: string, zoneType: ZoneType }[];
     canMoveToZone: (card: Card, zoneId: string) => boolean;
@@ -200,12 +216,14 @@ export const CARD_VALUES = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7'
 export const SUIT_ICONS = { 'hearts': '♥', 'diamonds': '♦', 'clubs': '♣', 'spades': '♠' } as const;
 export const DEFAULT_GAME_CONFIG: SoloGameConfig = {
     scoring: {
-        foundationMove: 10,
-        tableauMove: 5,
-        wasteMove: 0,
+        foundationMove: 120,
+        tableauMove: 0,
+        wasteMove: 20,
         timeBonus: 1,
-        movePenalty: -1
+        movePenalty: 0,
     },
+    timeLimit: 300,
     hintsEnabled: true,
-    autoComplete: false
+    /** 为 true 时，满足「全明且可仅收 foundation」则显示「收到基础」并允许一键收完 */
+    autoComplete: true
 };

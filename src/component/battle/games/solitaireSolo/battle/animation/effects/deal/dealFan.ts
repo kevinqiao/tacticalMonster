@@ -1,22 +1,38 @@
 import gsap from "gsap";
 import { SoloCard } from "../../../types/SoloTypes";
-import { getCoord } from "../../../Utils";
+import { getCardCoord } from "../../../Utils";
 import { popCard } from "../popCard";
 
 /**
  * 扇形展开发牌效果 - 魔术师风格
  */
-export const dealFan = ({ timelines, data, onComplete }: { timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }, data: any; onComplete?: () => void }) => {
+type TimelinesMap = { [k: string]: { timeline: GSAPTimeline; cards: SoloCard[] } };
+
+export const dealFan = ({
+    timelines,
+    data,
+    onComplete,
+}: {
+    timelines?: TimelinesMap;
+    data: any;
+    onComplete?: () => void;
+}) => {
     const { cards, gameState, boardDimensionRef } = data;
     const tl = gsap.timeline({
         onComplete: () => {
             console.log("dealFan complete");
             onComplete?.();
-        }
+        },
     });
-    timelines.dealFan = { timeline: tl, cards: cards };
-    const boardDimension = boardDimensionRef.current;
-    if (!boardDimension) return;
+    if (timelines) {
+        timelines.dealFan = { timeline: tl, cards: cards };
+    }
+    const boardDimension = boardDimensionRef?.current;
+    if (!boardDimension) {
+        if (timelines) delete timelines.dealFan;
+        onComplete?.();
+        return;
+    }
 
     const deckX = boardDimension.zones.talon.x;
     const deckY = boardDimension.zones.talon.y;
@@ -67,11 +83,11 @@ export const dealFan = ({ timelines, data, onComplete }: { timelines: { [k: stri
 
         tl.to(card.ele, {
             x: () => {
-                const { x } = getCoord(card, zoneCards, boardDimensionRef);
+                const { x } = getCardCoord(card, zoneCards, boardDimensionRef);
                 return x;
             },
             y: () => {
-                const { y } = getCoord(card, zoneCards, boardDimensionRef);
+                const { y } = getCardCoord(card, zoneCards, boardDimensionRef);
                 return y;
             },
             rotateZ: 0,

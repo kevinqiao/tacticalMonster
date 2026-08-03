@@ -11,6 +11,8 @@ const statusEffectSchema = v.object({
     type: v.string(),                    // 效果类型（'buff' | 'debuff' | 'dot' | 'hot' | 'stun' | 'shield' | 'mp_drain' | 'mp_restore' | 'damage' | 'heal' | 'movement' | 'teleport'）
     duration: v.optional(v.number()),    // 持续时间（回合数，0表示立即生效）
     remaining_duration: v.number(),      // 剩余持续时间（运行时使用，必需）
+    /** 防守 buff：标记生效的整轮编号（与 gamePhaseService 回合结束清理一致） */
+    defendRoundNo: v.optional(v.number()),
 
     // 数值修改
     modifiers: v.optional(v.any()),      // 属性修改器 { [key: string]: number }
@@ -37,7 +39,7 @@ const statusEffectSchema = v.object({
     target_attribute: v.optional(v.string()),  // 目标属性（如 "attack", "defense", "hp", "mp"）
 });
 
-export const tacticalMonsterSchema = {
+export const mainSchema = {
     // ============================================
     // tacticalMonster  相关表
     // ============================================
@@ -61,6 +63,7 @@ export const tacticalMonsterSchema = {
             // ========== 基础标识 ==========
             uid: v.string(),                   // 玩家UID
             monsterId: v.string(),            // 怪物配置ID
+            character_id: v.optional(v.string()),  // 实例ID（召唤单位必填；玩家初始怪物可选，默认可从 monsterId 推导）
 
             // ========== 从 PlayerMonster 组合的字段 ==========
             level: v.number(),                 // 等级
@@ -93,6 +96,10 @@ export const tacticalMonsterSchema = {
                 })),
                 intelligence: v.optional(v.number()),
                 status_resistance: v.optional(v.number()),
+                energy: v.optional(v.object({
+                    current: v.number(),
+                    max: v.number(),
+                })),
             }),
             statusEffects: v.optional(v.array(statusEffectSchema)),  // 状态效果列表（与StatusEffect类型一致）
             skillCooldowns: v.optional(v.any()),          // 技能冷却时间
@@ -105,7 +112,8 @@ export const tacticalMonsterSchema = {
                 max: v.number()
             })),
         })),
-        boss: v.object({             // Boss数据（统一使用stats）
+        boss: v.object({
+            bossId: v.string(),             // Boss数据（统一使用stats）
             monsterId: v.string(),
             position: v.object({      // Hex位置
                 q: v.number(),
@@ -134,7 +142,11 @@ export const tacticalMonsterSchema = {
                 }),
                 attack: v.number(),
                 defense: v.number(),
-                speed: v.number()
+                speed: v.number(),
+                shield: v.optional(v.object({
+                    current: v.number(),
+                    max: v.number()
+                })),
             }),
             statusEffects: v.optional(v.array(statusEffectSchema)),  // 状态效果列表（与StatusEffect类型一致）
             cooldowns: v.optional(v.any()),           // 技能冷却
@@ -156,10 +168,29 @@ export const tacticalMonsterSchema = {
         }),
         stageId: v.string(),
         ruleId: v.string(),
+        /** 与 tournament_types.mode 语义一致；新写入使用 `mode` */
+        mode: v.optional(v.union(
+            v.literal("tutorial"),
+            v.literal("solo_challenge"),
+            v.literal("multiplayer_tournament")
+        )),
+        /** @deprecated 旧字段名，与 `mode` 同义；迁移后可删 */
+        modeType: v.optional(v.union(
+            v.literal("tutorial"),
+            v.literal("solo_challenge"),
+            v.literal("multiplayer_tournament")
+        )),
         matchId: v.optional(v.string()),
         gameId: v.string(),
         status: v.number(),
         score: v.number(),
+        scoringConfigVersion: v.optional(v.string()),
+        round: v.optional(v.number()),  // ✅ 当前回合编号（用于快速访问，GameModel.currentRound 是运行时构建的 GameRound 对象）
+        tutorialProgress: v.optional(v.object({
+            nextGuideStepIndex: v.optional(v.number()),
+            dynamicGuideSatisfied: v.optional(v.boolean()),
+            dynamicAllProgress: v.optional(v.array(v.boolean())),
+        })),
         lastUpdate: v.string(),
         createdAt: v.string(),
         // Boss阶段管理（可选，也可以存储在 boss.currentPhase 中）
@@ -173,10 +204,52 @@ export const tacticalMonsterSchema = {
         ruleId: v.string(),
         stageId: v.string(),
         createdAt: v.string(),
+        dueTimeAt: v.string(),
+        updatedAt: v.string(),
     })
         .index("by_ruleId", ["ruleId"])
         .index("by_stageId", ["stageId"])
-        .index("by_createdAt", ["createdAt"]),
+        .index("by_createdAt", ["createdAt"])
+        .index("by_updatedAt", ["ruleId", "updatedAt"]),
+    mr_stage_stats: defineTable({
+        ruleId: v.string(),
+        stageId: v.string(),
+        powerLevel: v.number(),//1-5
+        attempts: v.number(),
+    })
+        .index("by_ruleId", ["ruleId"])  // ✅ 添加 by_ruleId 索引
+        .index("by_power_attempts", ["powerLevel", "attempts"])
+        .index("by_stage", ["stageId"]),
+    /** 玩家体力（关卡体力与奖励机制） */
+    mr_player_stamina: defineTable({
+        uid: v.string(),
+        current: v.number(),           // 当前体力
+        lastRecoveredAt: v.string(),  // 上次恢复时间（ISO）
+        maxStamina: v.optional(v.number()),  // 体力上限，默认 100
+    })
+        .index("by_uid", ["uid"]),
+
+    mr_player_first_clear: defineTable({
+        uid: v.string(),
+        ruleId: v.string(),
+        stageId: v.string(),
+        score: v.number(),
+        performance: v.number(),//1-4
+        createdAt: v.string(),
+    })
+        .index("by_uid_ruleId", ["uid", "ruleId"])
+        .index("by_uid_ruleId_stageId", ["uid", "ruleId", "stageId"]),
+
+    /**
+     * 教学引导 UI：玩家「跳过引导」或完成引导后仅隐藏提示，不影响 mr_games.tutorialProgress 胜负条件。
+     * 用于跨设备同步；未登录可回退前端 localStorage。
+     */
+    mr_player_pedagogy_guide_ui: defineTable({
+        uid: v.string(),
+        ruleId: v.string(),
+        dismissedAt: v.string(),
+    })
+        .index("by_uid_ruleId", ["uid", "ruleId"]),
     mr_stage: defineTable({
         stageId: v.string(),
         bossId: v.string(),
@@ -206,25 +279,85 @@ export const tacticalMonsterSchema = {
         uid: v.string(),
         ruleId: v.string(),
         stageId: v.string(),
-        score: v.optional(v.number()),
-        result: v.optional(v.union(v.literal("win"), v.literal("lose"), v.literal("draw"))),
-        lastUpdate: v.optional(v.string()),
+        best_score: v.optional(v.number()),
+        best_performance: v.optional(v.union(v.literal(4), v.literal(3), v.literal(2), v.literal(1))),
+        lastPlayAt: v.optional(v.string()),
+        attempts: v.optional(v.number()),
         createdAt: v.string(),
     })
-        .index("by_uid_rule", ["uid", "ruleId"])
-        .index("by_uid_rule_score", ["uid", "ruleId", "score"])
-        .index("by_uid_rule_result", ["uid", "ruleId", "result"])
-        .index("by_stage_result", ["stageId", "result"])
-        .index("by_stage_score", ["stageId", "score"]),
+        .index("by_best_score", ["uid", "ruleId", "best_score"])
+        .index("by_performance", ["uid", "ruleId", "best_performance"])
+        .index("by_lastPlayAt", ["uid", "ruleId", "lastPlayAt"])
+        .index("by_stage", ["uid", "ruleId", "stageId"])
+        .index("by_uid_ruleId", ["uid", "ruleId"]),
 
     mr_game_event: defineTable({
         gameId: v.string(),
         name: v.string(),
         type: v.optional(v.number()),
         data: v.optional(v.any()),
-        time: v.number(),
+        time: v.number(),  // 绝对时间戳（Date.now()）
+        stepTime: v.optional(v.number()),  // ✅ 相对时间位置（从游戏开始，毫秒数），用于去重和排序（可选以兼容旧数据）
     }).index("by_game", ["gameId"])
-        .index("by_name", ["name"]),
+        .index("by_name", ["name"])
+        .index("by_game_stepTime", ["gameId", "stepTime"]),  // ✅ 新增索引：用于按 stepTime 排序
+
+    // ✅ 游戏回合表：存储每个 round 的 turns 数据
+    mr_stage_simulation_overrides: defineTable({
+        ruleId: v.string(),
+        suggestedRecommendedPower: v.optional(v.number()),
+        suggestedDifficultyMultiplier: v.optional(v.number()),
+        expectedWinRate: v.optional(v.number()),
+        reasoning: v.optional(v.string()),
+        strategyId: v.string(),
+        teamPower: v.number(),
+        simulationRunAt: v.string(),
+        status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
+    }).index("by_ruleId", ["ruleId"]),
+
+    /** Solo 小关 score_tiers 直发碎片/金币幂等（每局一次） */
+    mr_solo_stage_reward_claims: defineTable({
+        uid: v.string(),
+        gameId: v.string(),
+        ruleId: v.string(),
+        rewardKey: v.string(),
+        shardsGranted: v.number(),
+        coinsGranted: v.number(),
+        createdAt: v.string(),
+    })
+        .index("by_uid_gameId", ["uid", "gameId"]),
+
+    /** 章节通章奖励领取记录（每 uid 每 chapter 一次；整卡或通章宝箱） */
+    mr_player_chapter_rewards_claimed: defineTable({
+        uid: v.string(),
+        chapterId: v.number(),
+        /** 直发整卡时的怪 id；通章宝箱时省略 */
+        monsterId: v.optional(v.string()),
+        ruleId: v.string(),
+        createdAt: v.string(),
+        /** 若发放通章宝箱，对应 `chestConfigs` 的 `stageRuleId`（如 chapter_clear_1） */
+        chestStageRuleId: v.optional(v.string()),
+    })
+        .index("by_uid_chapterId", ["uid", "chapterId"]),
+
+    mr_game_round: defineTable({
+        gameId: v.string(),
+        no: v.number(),  // 回合编号
+        status: v.number(),  // 回合状态：0: 进行中, 1: 已完成, 2: 已结束
+        turns: v.array(v.object({  // GameTurn 数组；character_id 统一表示该 turn 对应角色的实例 id（玩家/Boss/小怪）
+            uid: v.string(),
+            character_id: v.string(),
+            skillSelect: v.optional(v.string()),
+            status: v.number(),  // Turn 状态：0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
+            dueTime: v.optional(v.number()),
+            order: v.optional(v.number()),
+            actionOrder: v.optional(v.number()),  // 实际出手顺序（完成时写入），用于 roundEnd.lastRound 排序
+            stepsUsed: v.optional(v.number()),
+        })),
+        startTime: v.optional(v.number()),
+        endTime: v.optional(v.number()),
+    })
+        .index("by_game_round", ["gameId", "no"]),
 
 };
 

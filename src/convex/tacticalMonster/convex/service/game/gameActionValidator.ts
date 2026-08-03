@@ -3,9 +3,9 @@
  * 负责验证游戏操作的有效性（游戏状态、回合、权限、位置等）
  */
 
+import { CharacterIdentifier, GameModel } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
-import { hexDistance } from "../../utils/hexUtils";
-import { CharacterIdentifier, GameModel } from "./gameService";
+import { offsetBfsStepDistance } from "../../utils/hexUtils";
 import { RoundService } from "./roundService";
 
 /**
@@ -69,18 +69,19 @@ export class GameActionValidator {
      * 验证操作是否属于当前回合
      */
     async validateTurn(characterIdentifier: CharacterIdentifier): Promise<ValidationResult> {
-        if (!this.game || this.game.round === undefined) {
+        if (!this.game || !this.game.currentRound) {
             return { valid: false, message: "游戏回合信息不存在" };
         }
 
         const game = this.game; // 保存引用以避免重复检查
 
         // 使用回合服务获取当前回合
-        const roundInfo = await this.roundService.getCurrentRound(game.gameId, game.round ?? 0);
+        const roundInfo = await this.roundService.getCurrentRound(game.gameId, game.currentRound?.no ?? 0);
         if (!roundInfo) {
             return { valid: false, message: "当前回合不存在" };
         }
 
+        // console.log("validateTurn roundInfo", roundInfo, characterIdentifier);
         const { currentTurn } = roundInfo;
 
         if (!currentTurn) {
@@ -97,9 +98,24 @@ export class GameActionValidator {
         if (!character) {
             return { valid: false, message: "角色不存在" };
         }
-
-        // 验证 UID 和 monsterId 是否匹配当前回合
-        if (currentTurn.uid !== character.uid || currentTurn.monsterId !== character.monsterId) {
+        // 以调用方传入的标识符为准（玩家=monsterId，Boss=bossId，小怪=minionId），
+        // 避免 Boss/小怪对象没有 character_id 时错误回退到 monsterId（配置ID）导致回合校验误判。
+        const identifierInstanceId =
+            characterIdentifier.monsterId ??
+            characterIdentifier.bossId ??
+            characterIdentifier.minionId;
+        const characterInstanceId =
+            identifierInstanceId ??
+            (character as any).character_id ??
+            (character as any).bossId ??
+            (character as any).minionId ??
+            character.monsterId;
+        if (currentTurn.uid !== character.uid || currentTurn.character_id !== characterInstanceId) {
+            console.error("[validateTurn mismatch]", {
+                identifier: characterIdentifier,
+                expected: { uid: currentTurn.uid, character_id: currentTurn.character_id },
+                actual: { uid: character.uid, character_id: characterInstanceId },
+            });
             return { valid: false, message: "不是当前回合，无法执行操作" };
         }
 
@@ -187,34 +203,70 @@ export class GameActionValidator {
             return { valid: false, message: "游戏不存在" };
         }
 
-        // 验证目标位置是否有效
+        const moveRange = character.move_range ?? 3;
+        const isFlying = character.canIgnoreObstacles || character.isFlying;
+
+        // 行走/飞行统一按 BFS 步数校验（实际以 gameActionService 收到的 steps 为准）
+        if (!this.game.map) {
+            return { valid: false, message: "地图信息不存在" };
+        }
+        const { cols, rows } = this.game.map;
+        const distance = offsetBfsStepDistance(from, to, cols, rows);
+        if (distance > moveRange) {
+            return { valid: false, message: `移动距离 ${distance} 超出移动范围 ${moveRange}` };
+        }
+
+        if (isFlying) {
+            // 飞行单位：只检查地图范围和禁用区域，不检查障碍物
+            if (!this.game.map) {
+                return { valid: false, message: "地图信息不存在" };
+            }
+
+            const { cols, rows } = this.game.map;
+
+            // 验证坐标是否在地图范围内
+            if (to.q < 0 || to.q >= cols || to.r < 0 || to.r >= rows) {
+                return { valid: false, message: `位置超出地图范围: q=${to.q}, r=${to.r}, cols=${cols}, rows=${rows}` };
+            }
+
+            // 验证位置是否在禁用区域
+            const isDisabled = this.game.map.disables?.some(
+                (disable) => disable.q === to.q && disable.r === to.r
+            );
+            if (isDisabled) {
+                return { valid: false, message: "目标位置在禁用区域" };
+            }
+
+            // 检查目标位置是否被其他角色占用
+            const allCharacters = this.characterGetter.getAllCharacters();
+            const isOccupied = allCharacters.some((char) => {
+                const charInstanceId = (char as any).character_id ?? char.monsterId;
+                const selfInstanceId = (character as any).character_id ?? character.monsterId;
+                if (char.uid === character.uid && charInstanceId === selfInstanceId) {
+                    return false; // 排除自己（按实例 id 比较以支持同 monsterId 多单位）
+                }
+                return char.q === to.q && char.r === to.r;
+            });
+
+            if (isOccupied) {
+                return { valid: false, message: "目标位置已被其他角色占用" };
+            }
+
+            return { valid: true };
+        }
+
+        // 非飞行单位：验证目标位置是否有效（包括障碍物检查）
         const positionValidation = this.validatePosition(to);
         if (!positionValidation.valid) {
             return positionValidation;
         }
 
-        // 计算移动距离
-        const distance = hexDistance(from, to);
-        const moveRange = character.move_range ?? 3;
-
-        // 验证移动距离是否在范围内
-        if (distance > moveRange) {
-            return { valid: false, message: `移动距离 ${distance} 超出移动范围 ${moveRange}` };
-        }
-
-        // 如果是飞行单位，可以忽略障碍物，直接允许
-        if (character.canIgnoreObstacles || character.isFlying) {
-            return { valid: true };
-        }
-
-        // 对于非飞行单位，需要检查路径上是否有障碍物
-        // 这里简化处理：只检查目标位置是否有障碍物（已在 validatePosition 中检查）
-        // 如果需要更严格的路径验证，可以使用路径查找算法
-
-        // 检查目标位置是否被其他角色占用
+        // 检查目标位置是否被其他角色占用（按实例 id 排除自己，支持同 monsterId 多单位如召唤）
         const allCharacters = this.characterGetter.getAllCharacters();
         const isOccupied = allCharacters.some((char) => {
-            if (char.uid === character.uid && char.monsterId === character.monsterId) {
+            const charInstanceId = (char as any).character_id ?? char.monsterId;
+            const selfInstanceId = (character as any).character_id ?? character.monsterId;
+            if (char.uid === character.uid && charInstanceId === selfInstanceId) {
                 return false; // 排除自己
             }
             return char.q === to.q && char.r === to.r;

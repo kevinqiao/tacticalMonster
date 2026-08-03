@@ -1,11 +1,47 @@
+# Portal / main SPA on Netlify (Vite → dist)
+# Partner & first-party hosting; CrazyGames still uses uploaded zip.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Clerk OAuth popup: parent must allow opener access to the popup
+# (strict "same-origin" COOP blocks window.closed / postMessage completion).
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+
+# Long-cache hashed Vite assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Legacy mini-apps under public/
 [[redirects]]
-from = "/match3/*"
-to = "/match3/index.html"
-status = 200
-force = true
+  from = "/match3/*"
+  to = "/match3/index.html"
+  status = 200
+  force = true
 
 [[redirects]]
-from = "/tg/*"
-to = "/tg/index.html"
-status = 200
-force = true
+  from = "/tg/*"
+  to = "/tg/index.html"
+  status = 200
+  force = true
+
+# SPA fallback (/gc /cc /casual /… deep links).
+# force=false so real files under /assets, /favicon, etc. still win.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

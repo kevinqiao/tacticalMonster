@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>CasualTown 装饰物坐标编辑器</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Microsoft YaHei", sans-serif; background: #1a1d24; color: #e8e8e8; }
+    header { padding: 10px 14px; background: #252a35; border-bottom: 1px solid #3a4254; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    header h1 { font-size: 15px; margin: 0 12px 0 0; font-weight: 700; }
+    button, label.file-btn {
+      background: #3d4f6f; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+    }
+    button:hover, label.file-btn:hover { background: #4d6288; }
+    label.file-btn { display: inline-block; }
+    input[type="file"] { display: none; }
+    .hint { font-size: 11px; color: #9aa8bc; flex: 1 1 100%; }
+    main { display: grid; grid-template-columns: 260px 1fr 280px; height: calc(100vh - 72px); }
+    aside { overflow: auto; border-right: 1px solid #3a4254; padding: 10px; background: #222833; }
+    aside.right { border-right: none; border-left: 1px solid #3a4254; }
+    .stage-wrap { display: flex; align-items: center; justify-content: center; padding: 12px; overflow: auto; background: #12151a; }
+    canvas { max-width: 100%; max-height: 100%; cursor: crosshair; border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.45); }
+    .group-title { font-size: 11px; color: #8ad4ff; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .item-btn {
+      display: block; width: 100%; text-align: left; margin-bottom: 4px; padding: 6px 8px;
+      background: #2e3648; border: 1px solid transparent; border-radius: 6px; color: #ddd; font-size: 12px; cursor: pointer;
+    }
+    .item-btn.is-active { border-color: #ffd84a; background: #3a4358; }
+    .field { margin-bottom: 8px; }
+    .field label { display: block; font-size: 11px; color: #9aa8bc; margin-bottom: 2px; }
+    .field input { width: 100%; padding: 5px 8px; border-radius: 4px; border: 1px solid #3a4254; background: #1a1f2a; color: #fff; font-size: 12px; }
+    pre { font-size: 10px; background: #1a1f2a; padding: 8px; border-radius: 6px; overflow: auto; max-height: 180px; }
+    .status { font-size: 11px; color: #7ec850; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>村景装饰物坐标编辑器</h1>
+    <label class="file-btn">加载母图<input type="file" id="imgFile" accept="image/*" /></label>
+    <label class="file-btn">加载 JSON<input type="file" id="jsonFile" accept=".json,application/json" /></label>
+    <button type="button" id="btnSave">下载 JSON</button>
+    <button type="button" id="btnCopy">复制 JSON</button>
+    <button type="button" id="btnReload">从仓库路径加载</button>
+    <p class="hint">
+      坐标 0–1（左上原点）。旗：拖 <span style="color:#7ec850">绿点</span>=杆底(屋脊)，<span style="color:#ffd84a">黄点</span>=杆顶。
+      保存到 <code>src/component/lobby/casual/view/town/casualVillageDecorLayout.json</code> 后运行
+      <code>node scripts/render-casual-village-pass-tiers-v2.mjs</code>
+    </p>
+  </header>
+  <main>
+    <aside id="list"></aside>
+    <div class="stage-wrap"><canvas id="cv"></canvas></div>
+    <aside class="right">
+      <div id="inspector"></div>
+      <p class="status" id="status"></p>
+      <pre id="preview"></pre>
+    </aside>
+  </main>
+  <script>
+    const DEFAULT_JSON = "../src/component/lobby/casual/view/town/casualVillageDecorLayout.json";
+    const DEFAULT_IMG = "../src/component/lobby/casual/view/town/assets/illustration/casual_village_s1_base.png";
+
+    let layout = null;
+    let bgImage = null;
+    let selected = null;
+    let drag = null;
+
+    const cv = document.getElementById("cv");
+    const ctx = cv.getContext("2d");
+
+    async function loadDefaults() {
+      try {
+        const r = await fetch(DEFAULT_JSON);
+        if (!r.ok) throw new Error("json");
+        layout = await r.json();
+        setStatus("已加载 JSON");
+      } catch {
+        setStatus("请用「加载 JSON」选择 casualVillageDecorLayout.json");
+        return;
+      }
+      try {
+        const img = new Image();
+        img.onload = () => { bgImage = img; resizeCanvas(); draw(); };
+        img.onerror = () => setStatus("请用「加载母图」选择 casual_village_s1_base.png");
+        img.src = DEFAULT_IMG + "?t=" + Date.now();
+      } catch {
+        setStatus("请手动加载母图");
+      }
+      buildList();
+      renderInspector();
+    }
+
+    function setStatus(t) { document.getElementById("status").textContent = t; }
+
+    function resizeCanvas() {
+      if (!bgImage) return;
+      const maxW = document.querySelector(".stage-wrap").clientWidth - 24;
+      const maxH = document.querySelector(".stage-wrap").clientHeight - 24;
+      const scale = Math.min(maxW / bgImage.width, maxH / bgImage.height, 1);
+      cv.width = bgImage.width;
+      cv.height = bgImage.height;
+      cv.style.width = Math.round(bgImage.width * scale) + "px";
+      cv.style.height = Math.round(bgImage.height * scale) + "px";
+    }
+
+    function normFromEvent(e) {
+      const rect = cv.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      return {
+        x: Math.max(0, Math.min(1, x)),
+        y: Math.max(0, Math.min(1, y)),
+      };
+    }
+
+    function px(x, y) {
+      return { px: x * cv.width, py: y * cv.height };
+    }
+
+    function iterItems(fn) {
+      if (!layout) return;
+      layout.flags.forEach((it, i) => fn("flags", i, it));
+      layout.flowers.forEach((it, i) => fn("flowers", i, it));
+      layout.awnings.forEach((it, i) => fn("awnings", i, it));
+      layout.windows.forEach((it, i) => fn("windows", i, it));
+      const ft = layout.fullTier;
+      fn("emblem", 0, ft.emblem, true);
+      ft.streetLights.forEach((it, i) => fn("streetLights", i, it));
+    }
+
+    function getSelectedItem() {
+      if (!selected || !layout) return null;
+      const { group, index, isEmblem } = selected;
+      if (isEmblem) return layout.fullTier.emblem;
+      if (group === "streetLights") return layout.fullTier.streetLights[index];
+      return layout[group][index];
+    }
+
+    function buildList() {
+      const el = document.getElementById("list");
+      if (!layout) { el.innerHTML = "<p>未加载 JSON</p>"; return; }
+      let html = "";
+      const section = (title, group, items, isEmblem = false) => {
+        html += `<div class="group-title">${title}</div>`;
+        items.forEach((it, i) => {
+          const key = isEmblem ? "emblem" : group;
+          const active = selected && selected.group === key && selected.index === i;
+          html += `<button type="button" class="item-btn${active ? " is-active" : ""}" data-g="${key}" data-i="${i}" data-e="${isEmblem ? "1" : "0"}">${it.label || it.id}</button>`;
+        });
+      };
+      section("旗帜 accent", "flags", layout.flags);
+      section("花坛 accent", "flowers", layout.flowers);
+      section("雨棚 facade", "awnings", layout.awnings);
+      section("亮窗 facade", "windows", layout.windows);
+      section("地标 full", [layout.fullTier.emblem], [layout.fullTier.emblem], true);
+      section("路灯 full", "streetLights", layout.fullTier.streetLights);
+      el.innerHTML = html;
+      el.querySelectorAll(".item-btn").forEach((btn) => {
+        btn.onclick = () => {
+          selected = {
+            group: btn.dataset.g,
+            index: Number(btn.dataset.i),
+            isEmblem: btn.dataset.e === "1",
+          };
+          buildList();
+          renderInspector();
+          draw();
+        };
+      });
+    }
+
+    function renderInspector() {
+      const el = document.getElementById("inspector");
+      const it = getSelectedItem();
+      if (!it) {
+        el.innerHTML = "<p style='font-size:12px;color:#9aa8bc'>左侧选择物件</p>";
+        document.getElementById("preview").textContent = "";
+        return;
+      }
+      const fields = Object.keys(it).filter((k) => typeof it[k] === "number");
+      el.innerHTML = fields
+        .map(
+          (k) => `
+        <div class="field">
+          <label>${k}</label>
+          <input type="number" step="0.001" min="0" max="1" data-k="${k}" value="${it[k]}" />
+        </div>`
+        )
+        .join("");
+      el.querySelectorAll("input").forEach((inp) => {
+        inp.onchange = () => {
+          it[inp.dataset.k] = Number(inp.value);
+          updatePreview();
+          draw();
+        };
+      });
+      updatePreview();
+    }
+
+    function updatePreview() {
+      document.getElementById("preview").textContent = JSON.stringify(getSelectedItem(), null, 2);
+    }
+
+    function hitTest(nx, ny) {
+      const hitR = 14 / cv.width;
+      let found = null;
+      iterItems((group, index, it, isEmblem) => {
+        if (found) return;
+        if (it.x != null && it.y != null && !it.yBase) {
+          if (Math.hypot(nx - it.x, ny - it.y) < hitR) found = { group, index, isEmblem, handle: "point" };
+        }
+        if (it.yBase != null) {
+          if (Math.hypot(nx - it.x, ny - it.yBase) < hitR) found = { group, index, isEmblem, handle: "base" };
+          else if (Math.hypot(nx - it.x, ny - it.yTop) < hitR) found = { group, index, isEmblem, handle: "top" };
+        }
+      });
+      return found;
+    }
+
+    function draw() {
+      if (!bgImage) return;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(bgImage, 0, 0);
+      if (!layout) return;
+
+      iterItems((group, index, it, isEmblem) => {
+        const isSel = selected && selected.group === (isEmblem ? "emblem" : group) && selected.index === index;
+        if (it.yBase != null) {
+          const a = px(it.x, it.yBase);
+          const b = px(it.x, it.yTop);
+          ctx.strokeStyle = isSel ? "#ffd84a" : "rgba(255,255,255,0.5)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(a.px, a.py);
+          ctx.lineTo(b.px, b.py);
+          ctx.stroke();
+          ctx.fillStyle = "#5adb5a";
+          ctx.beginPath(); ctx.arc(a.px, a.py, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#ffd84a";
+          ctx.beginPath(); ctx.arc(b.px, b.py, 6, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = it.fill || "#fff";
+          ctx.font = "11px sans-serif";
+          ctx.fillText(it.label || it.id, a.px + 8, a.py - 4);
+        } else if (it.rx != null) {
+          const c = px(it.x, it.y);
+          ctx.fillStyle = it.fill || "rgba(255,100,100,0.5)";
+          ctx.beginPath();
+          ctx.ellipse(c.px, c.py, it.rx * cv.width, it.ry * cv.height, 0, 0, Math.PI * 2);
+          ctx.fill();
+          if (isSel) { ctx.strokeStyle = "#ffd84a"; ctx.lineWidth = 2; ctx.stroke(); }
+        } else if (it.w != null) {
+          ctx.fillStyle = it.fill || "rgba(255,200,100,0.5)";
+          ctx.fillRect(it.x * cv.width, it.y * cv.height, it.w * cv.width, it.h * cv.height);
+          if (isSel) {
+            ctx.strokeStyle = "#ffd84a";
+            ctx.strokeRect(it.x * cv.width, it.y * cv.height, it.w * cv.width, it.h * cv.height);
+          }
+        } else if (it.r != null) {
+          const c = px(it.x, it.y);
+          ctx.strokeStyle = isSel ? "#ffd84a" : "#ffe566";
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(c.px, c.py, it.r * cv.width, 0, Math.PI * 2); ctx.stroke();
+        }
+      });
+    }
+
+    cv.addEventListener("mousedown", (e) => {
+      const n = normFromEvent(e);
+      const hit = hitTest(n.x, n.y);
+      if (hit) {
+        selected = { group: hit.group, index: hit.index, isEmblem: hit.isEmblem };
+        drag = { ...hit, startX: n.x, startY: n.y };
+        buildList();
+        renderInspector();
+        draw();
+      }
+    });
+    cv.addEventListener("mousemove", (e) => {
+      if (!drag) return;
+      const n = normFromEvent(e);
+      const it = getSelectedItem();
+      if (!it) return;
+      if (drag.handle === "base") {
+        it.x = n.x;
+        it.yBase = n.y;
+        if (it.yTop > it.yBase) it.yTop = it.yBase - 0.05;
+      } else if (drag.handle === "top") {
+        it.x = n.x;
+        it.yTop = n.y;
+      } else {
+        it.x = n.x;
+        if (it.y != null) it.y = n.y;
+      }
+      renderInspector();
+      draw();
+    });
+    window.addEventListener("mouseup", () => { drag = null; });
+
+    document.getElementById("imgFile").onchange = (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const img = new Image();
+      img.onload = () => { bgImage = img; resizeCanvas(); draw(); setStatus("母图已加载"); };
+      img.src = URL.createObjectURL(f);
+    };
+    document.getElementById("jsonFile").onchange = (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        layout = JSON.parse(reader.result);
+        buildList();
+        renderInspector();
+        draw();
+        setStatus("JSON 已加载");
+      };
+      reader.readAsText(f);
+    };
+    document.getElementById("btnSave").onclick = () => {
+      if (!layout) return;
+      const blob = new Blob([JSON.stringify(layout, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "casualVillageDecorLayout.json";
+      a.click();
+      setStatus("已下载 JSON，请覆盖到 src/.../casualVillageDecorLayout.json");
+    };
+    document.getElementById("btnCopy").onclick = async () => {
+      if (!layout) return;
+      await navigator.clipboard.writeText(JSON.stringify(layout, null, 2));
+      setStatus("JSON 已复制到剪贴板");
+    };
+    document.getElementById("btnReload").onclick = loadDefaults;
+
+    window.addEventListener("resize", () => { resizeCanvas(); draw(); });
+    loadDefaults();
+  </script>
+</body>
+</html>

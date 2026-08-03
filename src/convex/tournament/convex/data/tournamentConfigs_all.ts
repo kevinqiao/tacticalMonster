@@ -176,8 +176,8 @@ export interface RewardConfig {
         diamond: number;
     };
 
-    // 订阅加成
-    subscriptionBonus: number;
+    /** 订阅用户对结算奖励的全局倍率（与 tournamentConfigs 里「固定加算」的 subscribedPlayerExtraRewards 不同） */
+    subscriptionRewardMultiplier: number;
 
     // 参与奖励
     participationReward: {
@@ -364,7 +364,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 platinum: 1.3,
                 diamond: 1.5
             },
-            subscriptionBonus: 1.2,
+            subscriptionRewardMultiplier: 1.2,
             participationReward: {
                 coins: 10,
                 gamePoints: 5
@@ -500,7 +500,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 platinum: 1.3,
                 diamond: 1.5
             },
-            subscriptionBonus: 1.2,
+            subscriptionRewardMultiplier: 1.2,
             participationReward: {
                 coins: 20,
                 gamePoints: 10
@@ -624,7 +624,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 platinum: 1.3,
                 diamond: 1.5
             },
-            subscriptionBonus: 1.15,
+            subscriptionRewardMultiplier: 1.15,
             participationReward: {
                 coins: 15,
                 gamePoints: 8
@@ -772,7 +772,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 platinum: 1.3,
                 diamond: 1.5
             },
-            subscriptionBonus: 1.25,
+            subscriptionRewardMultiplier: 1.25,
             participationReward: {
                 coins: 25,
                 gamePoints: 15
@@ -960,7 +960,7 @@ export function createDefaultTournamentConfig(
                 platinum: 1.3,
                 diamond: 1.5
             },
-            subscriptionBonus: 1.2,
+            subscriptionRewardMultiplier: 1.2,
             participationReward: {
                 coins: 10,
                 gamePoints: 5

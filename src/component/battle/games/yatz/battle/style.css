@@ -1,0 +1,619 @@
+.yatz-game-root {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* 卡通蓝天草地：与主页同调 */
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 255, 255, 0.3), transparent 55%),
+    linear-gradient(180deg, #57b7f0 0%, #8fd0f5 40%, #4c9a3c 40.2%, #2f7a2a 100%);
+  color: #5b3a12;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+.yatz-layout {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  overflow: hidden;
+}
+
+.yatz-playfield {
+  flex-shrink: 0;
+}
+
+/* 顶栏：木质面板 */
+.yatz-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #9a6430 0%, #7d4c1e 60%, #6b3f16 100%);
+  border: 3px solid #5a3311;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 220, 160, 0.4),
+    inset 0 -4px 6px rgba(0, 0, 0, 0.25),
+    0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.yatz-header-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+}
+
+.yatz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yatz-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f3cf8f;
+  text-shadow: 0 1px 1px rgba(90, 51, 17, 0.6);
+}
+
+.yatz-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow:
+    -1px -1px 0 #5a3311,
+     1px -1px 0 #5a3311,
+    -1px  1px 0 #5a3311,
+     1px  1px 0 #5a3311,
+     0 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+.yatz-stat-value--accent {
+  color: #ffd561;
+}
+
+.yatz-stat-value--timer {
+  font-variant-numeric: tabular-nums;
+  color: #ffe9a3;
+}
+
+.yatz-stat--timer .yatz-stat-label {
+  color: #f3cf8f;
+}
+
+.yatz-stat-value--target {
+  color: #bdeaff;
+}
+
+.yatz-header-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.yatz-progress-wrap {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.yatz-progress-ring {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.yatz-progress-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.yatz-progress-ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-width: 4;
+}
+
+.yatz-progress-ring-fg {
+  fill: none;
+  stroke: #ffd561;
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.35s ease;
+}
+
+.yatz-progress-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f3cf8f;
+  text-shadow: 0 1px 1px rgba(90, 51, 17, 0.6);
+}
+
+/* 骰子台：羊皮纸面板 */
+.yatz-dice-stage {
+  position: relative;
+  padding: 12px 10px 10px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+  border: 4px solid #6f4318;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+    0 10px 24px rgba(0, 0, 0, 0.25);
+}
+
+.yatz-dice-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  min-height: clamp(52px, 14vw, 62px);
+}
+
+.yatz-die {
+  position: relative;
+  width: clamp(48px, 12vw, 58px);
+  height: clamp(48px, 12vw, 58px);
+  border: none;
+  padding: 0;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.yatz-die:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+
+.yatz-die:not(:disabled):active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.yatz-die:disabled {
+  cursor: default;
+}
+
+.yatz-die-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #ffffff 0%, #e2e8f0 55%, #cbd5e1 100%);
+  box-shadow:
+    0 4px 0 #94a3b8,
+    0 10px 22px rgba(0, 0, 0, 0.35),
+    inset 0 2px 0 rgba(255, 255, 255, 0.95);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.yatz-die--held .yatz-die-inner {
+  background: linear-gradient(145deg, #fef3c7 0%, #fde68a 55%, #fbbf24 100%);
+  box-shadow:
+    0 4px 0 #d97706,
+    0 0 0 3px rgba(251, 191, 36, 0.45),
+    0 10px 22px rgba(217, 119, 6, 0.35),
+    inset 0 2px 0 rgba(255, 255, 255, 0.85);
+}
+
+.yatz-die--empty .yatz-die-inner {
+  opacity: 0.35;
+  background: linear-gradient(145deg, #64748b 0%, #475569 100%);
+  box-shadow:
+    0 3px 0 #334155,
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.yatz-die--empty .yatz-die-placeholder {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: rgba(248, 250, 252, 0.55);
+}
+
+.yatz-die--rolling {
+  animation: yatz-die-shake 0.45s ease-in-out;
+}
+
+.yatz-die--held::after {
+  content: '锁定';
+  position: absolute;
+  top: -8px;
+  right: -4px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #1c1917;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.yatz-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ef4444, #b91c1c);
+  box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.25);
+  place-self: center;
+}
+
+.yatz-die--held .yatz-pip {
+  background: radial-gradient(circle at 35% 35%, #92400e, #78350f);
+}
+
+@keyframes yatz-die-shake {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  20% {
+    transform: rotate(-8deg) translateY(-3px);
+  }
+  40% {
+    transform: rotate(8deg) translateY(-1px);
+  }
+  60% {
+    transform: rotate(-6deg) translateY(-2px);
+  }
+  80% {
+    transform: rotate(5deg) translateY(0);
+  }
+}
+
+.yatz-round-hint {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a3814f;
+  margin: 8px 0 0;
+}
+
+.yatz-round-hint--pick {
+  color: #c2410c;
+  font-weight: 700;
+}
+
+.yatz-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.yatz-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 11px 20px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.yatz-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.yatz-btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.yatz-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 掷骰：绿色糖果按钮 */
+.yatz-btn--primary {
+  background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 55%, #4c8a15 100%);
+  border: 3px solid #3e7410;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(60, 100, 10, 0.6);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.4),
+    0 4px 0 rgba(52, 92, 14, 0.8);
+}
+
+/* 提前结算：红色糖果小按钮 */
+.yatz-btn--end {
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+  border: 2px solid #8c2c10;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 3px 0 rgba(90, 51, 17, 0.7);
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+.yatz-scorecard-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+/* 计分卡：奶油卡片 */
+.yatz-scorecard-section {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid #dcb779;
+  border-bottom-width: 4px;
+  border-bottom-color: #c99f5b;
+  background: rgba(255, 251, 238, 0.92);
+}
+
+.yatz-scorecard-title {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a5a2b;
+  background: linear-gradient(180deg, #f3d79b 0%, #eecb85 100%);
+  border-bottom: 1px solid rgba(201, 159, 91, 0.5);
+}
+
+.yatz-scorecard-title--lower {
+  color: #9c5a9e;
+}
+
+.yatz-scorecard {
+  display: flex;
+  flex-direction: column;
+}
+
+.yatz-score-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(201, 159, 91, 0.3);
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b4a1c;
+  transition: background 0.15s ease;
+}
+
+.yatz-score-row:last-child {
+  border-bottom: none;
+}
+
+.yatz-score-row button {
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+.yatz-score-row--used {
+  opacity: 0.5;
+}
+
+.yatz-score-row--pickable {
+  background: rgba(255, 213, 97, 0.28);
+  cursor: pointer;
+}
+
+.yatz-score-row--pickable:hover {
+  background: rgba(255, 213, 97, 0.55);
+}
+
+.yatz-score-row--yahtzee:not(.yatz-score-row--used) {
+  background: rgba(190, 120, 200, 0.14);
+}
+
+.yatz-score-row--yahtzee.yatz-score-row--pickable:hover {
+  background: rgba(190, 120, 200, 0.32);
+}
+
+.yatz-score-value {
+  min-width: 28px;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #5b3a12;
+}
+
+.yatz-score-subtotal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #a3814f;
+  background: rgba(243, 215, 155, 0.6);
+  border-top: 1px dashed rgba(201, 159, 91, 0.6);
+}
+
+.yatz-score-subtotal strong {
+  color: #b06e14;
+  font-weight: 700;
+  text-align: right;
+}
+
+.yatz-error {
+  color: #c2410c;
+  font-weight: 600;
+  text-align: center;
+  font-size: 13px;
+  padding: 24px;
+}
+
+.yatz-die--static {
+  pointer-events: none;
+}
+
+.yatz-die--static.yatz-die--held::after {
+  content: none;
+}
+
+.yatz-dice-stage--replay {
+  padding: 14px 10px 10px;
+}
+
+.yatz-scorecard-wrap--compact {
+  gap: 8px;
+}
+
+.yatz-replay-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.yatz-watch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.yatz-watch-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(30, 18, 5, 0.65);
+  cursor: pointer;
+}
+
+.yatz-watch-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 480px);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  border-radius: 22px;
+  padding: 14px;
+  background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+  border: 5px solid #6f4318;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+    0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+.yatz-watch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.yatz-watch-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #5b3a12;
+}
+
+.yatz-watch-close {
+  border: 2px solid #8c2c10;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-weight: 700;
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 2px 0 rgba(90, 51, 17, 0.7);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.yatz-watch-hud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #8a5a2b;
+  margin-bottom: 10px;
+}
+
+.yatz-watch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.yatz-watch-controls button {
+  border: 2px solid #b06e14;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-family: inherit;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%);
+  color: #7a4a10;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 2px 0 rgba(130, 82, 16, 0.45);
+  cursor: pointer;
+}
+
+.yatz-watch-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.yatz-watch-status {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a3814f;
+  margin: 10px 0 0;
+}
+
+.yatz-watch-status--error {
+  color: #c2410c;
+}

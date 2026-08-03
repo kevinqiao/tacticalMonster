@@ -4,7 +4,7 @@
  */
 
 import { SeededRandom } from "../../../utils/seededRandom";
-import { HexCoord, hexDistance } from "../../../utils/hexUtils";
+import { HexCoord, offsetHexDistance } from "../../../utils/hexUtils";
 
 export interface TargetCharacter {
     uid: string;
@@ -83,11 +83,11 @@ export class TargetSelector {
         return targets.reduce((nearest, target) => {
             if (!nearest) return target;
 
-            const nearestDist = hexDistance(
+            const nearestDist = offsetHexDistance(
                 { q: nearest.q, r: nearest.r },
                 bossPosition
             );
-            const targetDist = hexDistance(
+            const targetDist = offsetHexDistance(
                 { q: target.q, r: target.r },
                 bossPosition
             );
@@ -155,11 +155,11 @@ export class TargetSelector {
         return targets.reduce((furthest, target) => {
             if (!furthest) return target;
 
-            const furthestDist = hexDistance(
+            const furthestDist = offsetHexDistance(
                 { q: furthest.q, r: furthest.r },
                 bossPosition
             );
-            const targetDist = hexDistance(
+            const targetDist = offsetHexDistance(
                 { q: target.q, r: target.r },
                 bossPosition
             );
@@ -185,7 +185,7 @@ export class TargetSelector {
         threat += hpPercentage * 50;
 
         // 距离权重（越近威胁越大）
-        const distance = hexDistance(
+        const distance = offsetHexDistance(
             { q: character.q, r: character.r },
             bossPosition
         );

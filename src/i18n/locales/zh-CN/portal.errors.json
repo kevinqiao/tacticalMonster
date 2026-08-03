@@ -1,0 +1,51 @@
+{
+  "unknown": "操作失败：{{code}}",
+  "unknown_no_code": "操作失败",
+  "purchase_default": "兑换失败，请稍后重试",
+  "flow": {
+    "signInToChallenge": "请先登录后再开始挑战。",
+    "alreadyInQueue": "已在匹配队列中，请先退出匹配或等待开桌。",
+    "noTournamentsForGame": "当前大厅未配置该游戏的赛事，请在 Game Lobby 中勾选对应 offerings。"
+  },
+  "giftcard": {
+    "linkOpened": "已打开领取链接",
+    "notReady": "礼品卡仍在处理中",
+    "redeemFailed": "领取失败，请稍后重试",
+    "resendSuccess": "备份邮件已发送",
+    "resendFailed": "发送失败，请稍后重试"
+  },
+  "codes": {
+    "insufficient_coins": "金币不足",
+    "weekly_limit_reached": "本周购买已达上限",
+    "sku_not_found": "商品不存在",
+    "iap_use_payment_provider": "请使用法币支付购买该礼包",
+    "stripe_not_configured": "支付暂不可用",
+    "stripe_checkout_failed": "无法创建支付，请稍后重试",
+    "checkout_failed": "无法创建支付，请稍后重试",
+    "invalid_return_url": "支付回跳地址无效",
+    "sku_not_configured": "商品未配置支付价格",
+    "lobby_required_for_isolated_economy": "请先进入大厅后再购买",
+    "verification_required": "请先验证邮箱或手机号",
+    "region_required": "请先选择兑换地区",
+    "region_mismatch": "该礼品卡不适用于您的地区",
+    "account_too_new": "账号注册满 7 天后可兑换",
+    "insufficient_engagement": "参与至少一次周联赛后可兑换",
+    "region_locked": "兑换地区 30 天内不可更改",
+    "not_logged_in_or_no_backend": "未登录或未配置 Portal 后端",
+    "unknown_mode": "未知模式",
+    "join_failed": "加入失败",
+    "invalid_channel": "广告渠道不可用，请在 Portal Convex 设置 PORTAL_AD_REPLAY_MOCK=1",
+    "begin_failed": "无法开始广告再战，请稍后重试",
+    "complete_failed": "广告播放完成但再战失败，请稍后重试",
+    "reload_failed": "再战成功但重新发牌失败，请刷新页面",
+    "ad_channel_unsupported": "当前环境不支持广告播放（本地开发会自动启用模拟广告）",
+    "user_dismissed": "已取消广告播放",
+    "replay_not_allowed": "当前不可再战",
+    "replay_window_closed": "再战窗口已关闭",
+    "daily_cap_reached": "今日广告再战次数已用完",
+    "already_claimed": "本局已使用过广告再战",
+    "match_not_open": "再战未生效，请重试或刷新页面",
+    "match_not_replayable": "当前对局不可再战",
+    "system_maintenance": "系统维护中，请稍后再试"
+  }
+}

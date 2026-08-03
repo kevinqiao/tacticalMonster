@@ -1,0 +1,503 @@
+.match3-game-container {
+
+  width: 100%;
+
+  height: 100%;
+
+  position: relative;
+
+  display: flex;
+
+  flex-direction: column;
+
+  /* 卡通蓝天草地：与主页同调 */
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 255, 255, 0.3) 0%, transparent 55%),
+    linear-gradient(180deg, #57b7f0 0%, #8fd0f5 46%, #4c9a3c 46.2%, #2f7a2a 100%);
+
+  color: #fff;
+
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+
+  overflow: hidden;
+
+  user-select: none;
+
+  touch-action: none;
+
+  min-height: 0;
+
+}
+
+
+
+/* 顶栏：木质横梁 */
+.match3-header {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px);
+
+  gap: 12px;
+
+  flex-shrink: 0;
+
+  background: linear-gradient(180deg, #9a6430 0%, #7d4c1e 60%, #6b3f16 100%);
+
+  border-bottom: 4px solid #5a3311;
+
+  box-shadow:
+    inset 0 3px 0 rgba(255, 220, 160, 0.4),
+    inset 0 -4px 6px rgba(0, 0, 0, 0.25);
+
+}
+
+
+
+.match3-score {
+
+  font-size: clamp(1rem, 3.5vw, 1.25rem);
+
+  font-weight: 700;
+
+  color: #ffffff;
+
+  text-shadow:
+    -1px -1px 0 #5a3311,
+     1px -1px 0 #5a3311,
+    -1px  1px 0 #5a3311,
+     1px  1px 0 #5a3311,
+     0 2px 3px rgba(0, 0, 0, 0.3);
+
+}
+
+
+
+.match3-target {
+
+  font-size: clamp(0.85rem, 3vw, 1rem);
+
+  font-weight: 700;
+
+  font-variant-numeric: tabular-nums;
+
+  color: #f3cf8f;
+
+  text-shadow: 0 1px 1px rgba(90, 51, 17, 0.6);
+
+}
+
+
+
+.match3-timer {
+
+  font-variant-numeric: tabular-nums;
+
+  font-weight: 700;
+
+  color: #ffe9a3;
+
+  text-shadow: 0 1px 1px rgba(90, 51, 17, 0.6);
+
+}
+
+
+
+.match3-board-wrap {
+
+  flex: 1;
+
+  min-height: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: clamp(6px, 2vw, 8px) clamp(10px, 3vw, 16px) clamp(12px, 3vw, 24px);
+
+  --match3-chrome-reserve: clamp(5.5rem, 18dvh, 8.5rem);
+
+  --match3-board-max: min(560px, 92vmin);
+
+}
+
+
+
+.match3-board {
+
+  display: grid;
+
+  width: min(
+
+    100%,
+
+    calc(100dvh - var(--match3-chrome-reserve)),
+
+    calc(100vw - clamp(16px, 5vw, 40px)),
+
+    var(--match3-board-max)
+
+  );
+
+  aspect-ratio: 1;
+
+  padding: clamp(4px, 1.2vmin, 8px);
+
+  gap: var(--match3-cell-gap, clamp(2px, 0.7vmin, 4px));
+
+  border-radius: 16px;
+
+  /* 深棕木质棋盘底 */
+  background: linear-gradient(180deg, rgba(111, 67, 24, 0.85) 0%, rgba(90, 51, 17, 0.9) 100%);
+
+  border: 3px solid #5a3311;
+
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.35),
+    0 6px 18px rgba(0, 0, 0, 0.25);
+
+  touch-action: none;
+
+  box-sizing: border-box;
+
+}
+
+
+
+.match3-cell {
+
+  width: 100%;
+
+  height: 100%;
+
+  min-width: 0;
+
+  min-height: 0;
+
+  aspect-ratio: 1;
+
+  border-radius: calc(var(--match3-cell-size, 40px) * 0.2);
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  font-size: calc(var(--match3-cell-size, 40px) * 0.56);
+
+  line-height: 1;
+
+  cursor: grab;
+
+  user-select: none;
+
+  touch-action: none;
+
+  position: relative;
+
+  box-sizing: border-box;
+
+}
+
+
+
+.match3-cell--dragging {
+
+  cursor: grabbing;
+
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+
+}
+
+
+
+.match3-cell--swap-target {
+
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
+
+}
+
+
+
+.match3-cell:active {
+
+  cursor: grabbing;
+
+}
+
+
+
+.match3-hint {
+
+  margin: 0 clamp(12px, 3vw, 16px) clamp(6px, 1.5vw, 8px);
+
+  font-size: clamp(0.75rem, 2.8vw, 0.85rem);
+
+  font-weight: 600;
+
+  color: rgba(255, 255, 255, 0.95);
+
+  text-shadow: 0 1px 2px rgba(44, 106, 31, 0.7);
+
+  text-align: center;
+
+  flex-shrink: 0;
+
+}
+
+
+
+.match3-cell--hint {
+
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+
+}
+
+
+
+.match3-cell--selected {
+
+  outline: 2px solid #fff;
+
+  transform: scale(1.06);
+
+}
+
+
+
+.match3-board--dragging .match3-cell--selected {
+
+  transform: none;
+
+}
+
+
+
+.match3-cell--empty {
+
+  background: rgba(255, 255, 255, 0.05) !important;
+
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  cursor: default;
+
+  pointer-events: none;
+
+}
+
+
+
+.match3-actions {
+
+  display: flex;
+
+  gap: 8px;
+
+}
+
+
+
+/* 头部按钮：红色糖果小按钮 */
+.match3-btn {
+
+  padding: clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px);
+
+  border-radius: 999px;
+
+  border: 2px solid #8c2c10;
+
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+
+  color: #fff;
+
+  font-family: inherit;
+
+  font-weight: 700;
+
+  font-size: clamp(0.8rem, 2.8vw, 1rem);
+
+  text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 2px 0 rgba(90, 51, 17, 0.7);
+
+  cursor: pointer;
+
+}
+
+
+
+.match3-btn:disabled {
+
+  opacity: 0.45;
+
+  cursor: not-allowed;
+
+}
+
+
+
+@media (min-width: 768px) {
+
+  .match3-board-wrap {
+
+    --match3-board-max: min(640px, 90vmin);
+
+  }
+
+}
+
+
+
+@media (min-width: 1024px) {
+
+  .match3-board-wrap {
+
+    --match3-chrome-reserve: clamp(5rem, 12dvh, 7.5rem);
+
+    --match3-board-max: min(720px, min(88vmin, calc(100dvh - var(--match3-chrome-reserve))));
+
+  }
+
+}
+
+
+
+@media (orientation: landscape) and (max-height: 520px) {
+
+  .match3-board-wrap {
+
+    --match3-chrome-reserve: clamp(5rem, 16dvh, 7rem);
+
+    padding-bottom: clamp(6px, 1.5vw, 12px);
+
+  }
+
+}
+
+.match3-watch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.match3-watch-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(30, 18, 5, 0.65);
+  cursor: pointer;
+}
+
+.match3-watch-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 420px);
+  max-height: min(92dvh, 720px);
+  overflow: auto;
+  padding: 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+  border: 5px solid #6f4318;
+  color: #5b3a12;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+    0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.match3-watch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.match3-watch-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.match3-watch-close {
+  padding: 6px 16px;
+  font-family: inherit;
+  font-weight: 700;
+  border: 2px solid #8c2c10;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 2px 0 rgba(90, 51, 17, 0.7);
+  cursor: pointer;
+}
+
+.match3-watch-hud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #8a5a2b;
+}
+
+.match3-watch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.match3-watch-controls button {
+  padding: 8px 16px;
+  font-family: inherit;
+  font-weight: 700;
+  border-radius: 999px;
+  border: 2px solid #b06e14;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%);
+  color: #7a4a10;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 2px 0 rgba(130, 82, 16, 0.45);
+  cursor: pointer;
+}
+
+.match3-watch-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.match3-watch-status {
+  margin: 12px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #a3814f;
+}
+
+.match3-watch-status--error {
+  color: #c2410c;
+}
+
+.match3-board--watch {
+  max-width: min(360px, 100%);
+  margin: 0 auto;
+}

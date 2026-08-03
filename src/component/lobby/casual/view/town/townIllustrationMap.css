@@ -1,0 +1,431 @@
+/* 方案 A：单图村景 + 热区 + 主题分层 */
+
+.town-illus {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.town-illus__frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #5aad38;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  transition:
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.town-illus__frame[data-town-layer="env"] {
+  border-color: rgba(160, 180, 200, 0.75);
+  box-shadow: inset 0 0 40px rgba(80, 100, 120, 0.15);
+}
+
+.town-illus__frame[data-town-layer="accent"] {
+  border-color: rgba(255, 210, 80, 0.9);
+  box-shadow:
+    0 0 20px rgba(255, 200, 60, 0.35),
+    inset 0 0 30px rgba(255, 220, 100, 0.12);
+}
+
+.town-illus__frame[data-town-layer="facade"] {
+  border-color: rgba(100, 200, 255, 0.85);
+  box-shadow:
+    0 0 22px rgba(80, 160, 255, 0.35),
+    inset 0 0 35px rgba(120, 180, 255, 0.15);
+}
+
+.town-illus__frame[data-town-layer="full"] {
+  border-color: rgba(255, 160, 60, 0.95);
+  box-shadow:
+    0 0 28px rgba(255, 120, 40, 0.5),
+    inset 0 0 45px rgba(255, 200, 80, 0.2);
+}
+
+.town-illus__tier-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 8;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.town-illus__frame[data-town-layer="accent"] .town-illus__tier-badge {
+  background: rgba(180, 120, 20, 0.75);
+  border-color: #ffe566;
+}
+
+.town-illus__frame[data-town-layer="facade"] .town-illus__tier-badge {
+  background: rgba(30, 100, 180, 0.75);
+  border-color: #8ad4ff;
+}
+
+.town-illus__frame[data-town-layer="full"] .town-illus__tier-badge {
+  background: linear-gradient(135deg, #c84820 0%, #e8a020 100%);
+  border-color: #ffd84a;
+}
+
+.town-illus__sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transition: background 0.4s ease;
+}
+
+.town-illus__canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.town-illus__ground {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  transition: background 0.4s ease;
+}
+
+.town-illus__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+}
+
+.town-illus__image--base {
+  position: relative;
+  z-index: 1;
+  filter: var(--town-base-filter, none);
+  transition: filter 0.4s ease;
+}
+
+/* 建筑解锁叠层：fullCanvas = 全幅同尺寸；hotspot = 热区矩形内整栋建筑 */
+.town-illus__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.town-illus__overlay--hotspot {
+  inset: auto;
+  z-index: 3;
+}
+
+.town-illus__overlay--reveal {
+  animation: town-overlay-reveal 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.town-illus__overlay--legendary {
+  filter: drop-shadow(0 0 12px rgba(200, 140, 255, 0.75));
+}
+
+@keyframes town-overlay-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.town-illus__fx {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* accent：顶部弧形灯串（避免斜线条纹像下雨） */
+.town-illus__fx--accent {
+  opacity: 1 !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 210, 90, 0.22) 0%,
+    transparent 32%
+  );
+  mix-blend-mode: screen;
+}
+
+/* 灯绳 */
+.town-illus__fx--accent::before {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 11.5%;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(70, 45, 20, 0.55) 8%,
+    rgba(70, 45, 20, 0.55) 92%,
+    transparent 100%
+  );
+  box-shadow: 0 1px 0 rgba(255, 220, 120, 0.25);
+}
+
+/* 离散灯泡：圆形光点沿绳下垂 */
+.town-illus__fx--accent::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 5px 7px at 9% 14.5%, #fffce8 0%, #ffe566 45%, transparent 100%),
+    radial-gradient(ellipse 5px 7px at 19% 13%, #fffce8 0%, #ffd84a 45%, transparent 100%),
+    radial-gradient(ellipse 5px 7px at 29% 14%, #fffce8 0%, #ffe566 45%, transparent 100%),
+    radial-gradient(ellipse 5px 7px at 39% 13.2%, #fffce8 0%, #ffd84a 45%, transparent 100%),
+    radial-gradient(ellipse 5px 7px at 50% 14.2%, #fffce8 0%, #ffe566 45%, transparent 100%),
+    radial-gradient(ellipse 5px 7px at 61% 13%, #fffce8 0%, #ffd84a 45%, transparent 100%),
+    radial-gradient(ellipse 5px 7px at 71% 14%, #fffce8 0%, #ffe566 45%, transparent 100%),
+    radial-gradient(ellipse 5px 7px at 81% 13.5%, #fffce8 0%, #ffd84a 45%, transparent 100%),
+    radial-gradient(ellipse 5px 7px at 91% 14.2%, #fffce8 0%, #ffe566 45%, transparent 100%);
+  filter: drop-shadow(0 0 4px rgba(255, 220, 80, 0.85));
+  pointer-events: none;
+}
+
+/* facade：建筑区冷暖对比染色 */
+.town-illus__fx--facade {
+  opacity: 1 !important;
+  background:
+    linear-gradient(
+      118deg,
+      rgba(60, 140, 255, 0.42) 0%,
+      transparent 38%,
+      transparent 52%,
+      rgba(255, 150, 70, 0.38) 100%
+    );
+  mix-blend-mode: color;
+}
+
+.town-illus__fx--facade::before {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 28%;
+  bottom: 18%;
+  border: 2px dashed rgba(120, 200, 255, 0.55);
+  border-radius: 40% 40% 45% 45%;
+  box-shadow: inset 0 0 40px rgba(100, 180, 255, 0.25);
+}
+
+/* full：全局金紫氛围 + 暗角 */
+.town-illus__fx--full {
+  opacity: 1 !important;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 40%, rgba(255, 220, 100, 0.55) 0%, transparent 65%),
+    radial-gradient(ellipse 100% 90% at 50% 100%, rgba(60, 20, 100, 0.55) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(120, 60, 200, 0.2) 0%, transparent 30%, rgba(255, 160, 40, 0.25) 100%);
+  mix-blend-mode: overlay;
+}
+
+.town-illus__fx--full::after {
+  content: "✦ ✦ ✦";
+  position: absolute;
+  top: 10%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 14px;
+  letter-spacing: 1.2em;
+  color: rgba(255, 245, 200, 0.9);
+  text-shadow: 0 0 8px rgba(255, 200, 80, 0.9);
+  pointer-events: none;
+}
+
+.town-illus[data-town-variant="deluxe"] .town-illus__fx--accent {
+  filter: brightness(1.15) saturate(1.2);
+}
+
+.town-illus[data-town-variant="deluxe"] .town-illus__fx--full::after {
+  font-size: 16px;
+  color: #fff8c0;
+}
+
+.town-illus__hotspot {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.town-illus__hotspot:focus-visible {
+  outline: 2px solid #ffd84a;
+  outline-offset: 2px;
+}
+
+.town-illus__hotspot-ring {
+  position: absolute;
+  inset: 8%;
+  border: 2px solid #ffd84a;
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(255, 216, 74, 0.85);
+  animation: town-illus-pulse 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.town-illus__hotspot.is-selected .town-illus__hotspot-ring {
+  inset: 4%;
+}
+
+.town-illus__hotspot-lock {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 18px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+}
+
+.town-illus__hotspot.is-locked {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+}
+
+.town-illus__calibration-banner {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ffe566;
+  background: rgba(255, 216, 74, 0.12);
+  border: 1px dashed rgba(255, 216, 74, 0.45);
+}
+
+.town-illus__overlay-merge-banner {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #b8e4ff;
+  background: rgba(94, 184, 255, 0.12);
+  border: 1px dashed rgba(94, 184, 255, 0.45);
+}
+
+.town-illus--calibration .town-illus__hotspot--debug {
+  background: rgba(255, 216, 74, 0.12);
+  border: 1px dashed rgba(255, 216, 74, 0.65);
+  border-radius: 8px;
+}
+
+.town-illus--calibration .town-illus__chip--offmap {
+  opacity: 0.45;
+}
+
+.town-illus__hotspot-label--pinned {
+  left: 50%;
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.town-illus__hotspot.is-legendary.is-selected .town-illus__hotspot-ring {
+  border-color: #e8b0ff;
+  box-shadow: 0 0 14px rgba(200, 140, 255, 0.9);
+}
+
+.town-illus__hotspot-label {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translate(-50%, 100%);
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: #3d2808;
+  background: linear-gradient(180deg, #ffe566 0%, #e8a820 100%);
+  border: 1px solid #c88e10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.town-illus__roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.town-illus__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.town-illus__chip.is-selected {
+  border-color: #e8a820;
+  background: rgba(255, 216, 74, 0.2);
+  color: #ffe566;
+}
+
+.town-illus__chip.is-locked {
+  opacity: 0.55;
+}
+
+.town-illus__chip--offmap {
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.town-illus__chip-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.town-illus__chip-name {
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes town-illus-pulse {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}

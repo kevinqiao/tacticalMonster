@@ -1,0 +1,22 @@
+{
+  "name": "tower-arena",
+  "version": "1.0.0",
+  "description": "Tower Arena Convex Backend",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "convex:dev": "convex dev",
+    "convex:deploy": "convex deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "convex": "^1.24.8",
+    "convex-helpers": "^0.1.10-alpha.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6"
+  }
+}

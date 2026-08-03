@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { authedMutation } from "../../custom/session";
 import { internalMutation, mutation, query } from "../../_generated/server";
 import { createTournament, joinTournament } from "./common";
 import { MatchManager } from "./matchManager";
@@ -646,20 +647,18 @@ export class TournamentMatchingService {
 }
 
 // Convex 函数接口
-export const joinMatchingQueue = mutation({
+export const joinMatchingQueue = authedMutation({
     args: {
-        uid: v.string(),
         tournamentId: v.optional(v.string()),
         typeId: v.string(),
         gameType: v.optional(v.string()),
         metadata: v.optional(v.any()), // 包含 tier, teamPower 等
     },
     handler: async (ctx: any, args: any) => {
-        // 获取玩家信息
         return await TournamentMatchingService.joinMatchingQueue(ctx, {
             tournamentId: args.tournamentId,
             typeId: args.typeId,
-            uid: args.uid,
+            uid: ctx.uid,
             gameType: args.gameType,
             metadata: args.metadata,
         });
@@ -667,9 +666,8 @@ export const joinMatchingQueue = mutation({
 });
 
 
-export const cancelMatching = mutation({
+export const cancelMatching = authedMutation({
     args: {
-        uid: v.string(),
         tournamentId: v.optional(v.id("tournaments")),
         tournamentType: v.optional(v.string()),
         gameType: v.optional(v.string()),
@@ -677,7 +675,7 @@ export const cancelMatching = mutation({
         mode: v.optional(v.union(v.literal("traditional"), v.literal("independent")))
     },
     handler: async (ctx: any, args: any) => {
-        return await TournamentMatchingService.cancelMatching(ctx, args);
+        return await TournamentMatchingService.cancelMatching(ctx, { uid: ctx.uid });
     },
 });
 

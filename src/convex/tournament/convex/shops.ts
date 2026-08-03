@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
+import { authedMutation, authedQuery } from "./custom/session";
 import { ShopConfigService } from "./service/shop/shopConfigService";
 import { ShopRefreshService } from "./service/shop/shopRefreshService";
 import { ShopService } from "./service/shop/shopService";
@@ -11,22 +12,20 @@ import { ShopService } from "./service/shop/shopService";
 /**
  * 获取商店商品列表
  */
-export const getShopItems = query({
+export const getShopItems = authedQuery({
     args: {
         shopId: v.string(),
-        uid: v.string(),
     },
     handler: async (ctx, args) => {
-        return await ShopService.getShopItems(ctx, args.shopId, args.uid);
+        return await ShopService.getShopItems(ctx, args.shopId, ctx.uid);
     },
 });
 
 /**
  * 获取玩家可访问的所有商店
  */
-export const getPlayerShops = query({
+export const getPlayerShops = authedQuery({
     args: {
-        uid: v.string(),
         filters: v.optional(v.object({
             type: v.optional(v.union(
                 v.literal("daily"),
@@ -47,7 +46,7 @@ export const getPlayerShops = query({
         // 为每个商店获取商品数量
         const shopsWithItems = await Promise.all(
             (shopsResult.shops || []).map(async (shop: any) => {
-                const itemsResult = await ShopService.getShopItems(ctx, shop.shopId, args.uid);
+                const itemsResult = await ShopService.getShopItems(ctx, shop.shopId, ctx.uid);
                 return {
                     ...shop,
                     itemCount: itemsResult.items?.length || 0,
@@ -65,13 +64,12 @@ export const getPlayerShops = query({
 /**
  * 获取玩家购买历史
  */
-export const getPlayerPurchaseHistory = query({
+export const getPlayerPurchaseHistory = authedQuery({
     args: {
-        uid: v.string(),
         shopId: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        return await ShopService.getPlayerPurchaseHistory(ctx, args.uid, args.shopId);
+        return await ShopService.getPlayerPurchaseHistory(ctx, ctx.uid, args.shopId);
     },
 });
 
@@ -82,9 +80,8 @@ export const getPlayerPurchaseHistory = query({
 /**
  * 购买商品
  */
-export const purchaseItem = mutation({
+export const purchaseItem = authedMutation({
     args: {
-        uid: v.string(),
         shopId: v.string(),
         itemId: v.string(),
         quantity: v.number(),
@@ -92,7 +89,7 @@ export const purchaseItem = mutation({
     },
     handler: async (ctx, args) => {
         return await ShopService.purchaseItem(ctx, {
-            uid: args.uid,
+            uid: ctx.uid,
             shopId: args.shopId,
             itemId: args.itemId,
             quantity: args.quantity,
@@ -293,4 +290,3 @@ export const refreshSeasonalShops = internalMutation({
         return await ShopRefreshService.refreshSeasonalShops(ctx);
     },
 });
-

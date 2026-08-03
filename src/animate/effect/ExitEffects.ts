@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { PageContainer } from "service/PageManager";
+import { PageContainer } from "host/service/PageManager";
 
 interface ExitEffect {
     (args: { container: PageContainer; tl?: gsap.core.Timeline }): gsap.core.Timeline | null;

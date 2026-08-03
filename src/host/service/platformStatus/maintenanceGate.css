@@ -1,0 +1,111 @@
+body:has(.platform-maintenance-banner) {
+  padding-top: 48px;
+}
+
+.platform-maintenance-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 400000;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: baseline;
+  padding: 10px 16px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  background: linear-gradient(90deg, #1f3a5f 0%, #2a4a73 55%, #1c334f 100%);
+  color: #f4f7fb;
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+
+.platform-maintenance-banner strong {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.platform-maintenance-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 600000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(1200px 600px at 20% 0%, rgba(70, 110, 160, 0.35), transparent 60%),
+    linear-gradient(160deg, #0f1724 0%, #1a2740 45%, #121a2a 100%);
+  color: #eef3f9;
+}
+
+.platform-maintenance-card {
+  width: min(440px, 100%);
+  text-align: center;
+}
+
+.platform-maintenance-kicker {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(238, 243, 249, 0.65);
+}
+
+.platform-maintenance-card h1 {
+  margin: 0 0 12px;
+  font-size: clamp(1.6rem, 4vw, 2rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.platform-maintenance-body {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(238, 243, 249, 0.88);
+}
+
+.platform-maintenance-eta {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: rgba(238, 243, 249, 0.7);
+}
+
+.platform-maintenance-actions {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.platform-maintenance-btn {
+  min-width: 160px;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 10px;
+  background: #e8eef8;
+  color: #132033;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.platform-maintenance-btn:hover {
+  background: #ffffff;
+}
+
+.platform-maintenance-link {
+  font-size: 13px;
+  color: rgba(238, 243, 249, 0.72);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.platform-maintenance-link:hover {
+  color: #ffffff;
+}

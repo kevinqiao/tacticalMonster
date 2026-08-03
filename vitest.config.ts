@@ -1,21 +1,50 @@
+import path from 'path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+    resolve: {
+        alias: [
+            { find: /^convex\/(server|react|values|browser)$/, replacement: path.resolve(__dirname, 'node_modules/convex/$1') },
+            { find: /^convex\/(.+)$/, replacement: path.resolve(__dirname, 'src/convex/$1') },
+            { find: '@', replacement: path.resolve(__dirname, 'src') },
+            { find: 'util', replacement: path.resolve(__dirname, 'src/util') },
+            { find: 'service', replacement: path.resolve(__dirname, 'src/service') },
+            { find: 'model', replacement: path.resolve(__dirname, 'src/model') },
+            { find: 'component', replacement: path.resolve(__dirname, 'src/component') },
+            { find: 'host', replacement: path.resolve(__dirname, 'src/host') },
+            { find: 'components', replacement: path.resolve(__dirname, 'src/components') },
+            { find: 'animate', replacement: path.resolve(__dirname, 'src/animate') },
+        ],
+    },
     test: {
         globals: true,
-        environment: 'node',
+        // 对于 React 组件测试使用 jsdom，对于纯函数测试使用 node
+        environment: 'jsdom',
+        setupFiles: ['./src/component/battle/games/tacticalMonster/battle3d/__tests__/setup.ts'],
         include: [
-            'src/**/*.test.ts',
-            'src/**/*.test.tsx',
-            'src/**/*.spec.ts',
-            'src/**/*.spec.tsx',
-            'src/**/__tests__/**/*.ts',
-            'src/**/__tests__/**/*.tsx'
+            // 只包含 battle3d 前端测试
+            'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.test.ts',
+            'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.test.tsx',
+            'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.spec.ts',
+            'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.spec.tsx',
+            'src/component/battle/games/tacticalMonster/__tests__/**/*.test.ts',
+            'src/service/__tests__/**/*.test.ts',
+            'src/service/__tests__/**/*.test.tsx',
         ],
         exclude: [
             'node_modules',
             'dist',
-            '**/*.d.ts'
+            '**/*.d.ts',
+            '**/__tests__/setup.ts',
+            '**/__tests__/testUtils.ts',
+            // 排除后端 Convex 测试（需要 Convex 环境）
+            'src/convex/**/*.test.ts',
+            'src/convex/**/*.spec.ts',
+            'src/convex/**/__tests__/**/*.ts',
+            // 排除其他游戏的测试
+            'src/component/battle/games/solitaireSolo/**/*.test.ts',
+            'src/component/battle/games/solitaireSolo/**/*.spec.ts',
+            'src/component/battle/games/solitaireSolo/**/__tests__/**/*.ts',
         ],
         coverage: {
             provider: 'v8',
@@ -25,7 +54,8 @@ export default defineConfig({
                 'src/test/',
                 '**/*.d.ts',
                 '**/*.config.*',
-                '**/examples/**'
+                '**/examples/**',
+                '**/__tests__/**'
             ]
         }
     }

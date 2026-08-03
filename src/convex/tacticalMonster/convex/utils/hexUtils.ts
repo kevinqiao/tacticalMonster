@@ -1,6 +1,6 @@
 /**
- * Hex坐标计算工具
- * 用于处理六边形网格的坐标计算、距离、邻接关系等
+ * Hex 坐标计算工具
+ * 统一使用 offset (even-r) 距离，与前端 PathFind、网格渲染一致。
  */
 
 export interface HexCoord {
@@ -9,12 +9,22 @@ export interface HexCoord {
 }
 
 /**
- * Hex坐标距离计算（六边形网格中的移动步数）
+ * 轴向六边形距离（用于技能范围、AI 选目标等）
  */
 export function hexDistance(a: HexCoord, b: HexCoord): number {
-    return (Math.abs(a.q - b.q) + 
-            Math.abs(a.q + a.r - b.q - b.r) + 
-            Math.abs(a.r - b.r)) / 2;
+    return (Math.abs(a.q - b.q) +
+        Math.abs(a.q + a.r - b.q - b.r) +
+        Math.abs(a.r - b.r)) / 2;
+}
+
+/**
+ * Offset (even-r) 六边形距离，与前端 PathFind.offsetHexDistance 一致
+ * 用于行走移动范围校验，与前端可行走高亮一致
+ */
+export function offsetHexDistance(a: HexCoord, b: HexCoord): number {
+    const dq = Math.abs(a.q - b.q);
+    const dr = Math.abs(a.r - b.r);
+    return Math.max(dq, dr) + Math.floor(Math.min(dq, dr) / 2);
 }
 
 /**
@@ -22,7 +32,7 @@ export function hexDistance(a: HexCoord, b: HexCoord): number {
  */
 export function getHexesInRange(center: HexCoord, radius: number): HexCoord[] {
     const hexes: HexCoord[] = [];
-    
+
     for (let q = -radius; q <= radius; q++) {
         const r1 = Math.max(-radius, -q - radius);
         const r2 = Math.min(radius, -q + radius);
@@ -30,12 +40,54 @@ export function getHexesInRange(center: HexCoord, radius: number): HexCoord[] {
             hexes.push({ q: center.q + q, r: center.r + r });
         }
     }
-    
+
     return hexes;
 }
 
+/** Offset (even-r) 6 邻格，与前端 PathFind.getOffsetNeighborDirs 一致 */
+export function getOffsetNeighbors(hex: HexCoord, cols: number, rows: number): HexCoord[] {
+    const r = hex.r;
+    const dirs = r % 2 === 0
+        ? [
+            { dq: 1, dr: 0 }, { dq: 0, dr: -1 }, { dq: -1, dr: -1 },
+            { dq: -1, dr: 0 }, { dq: -1, dr: 1 }, { dq: 0, dr: 1 },
+        ]
+        : [
+            { dq: 1, dr: 0 }, { dq: 1, dr: -1 }, { dq: 0, dr: -1 },
+            { dq: -1, dr: 0 }, { dq: 0, dr: 1 }, { dq: 1, dr: 1 },
+        ];
+    return dirs
+        .map((d) => ({ q: hex.q + d.dq, r: hex.r + d.dr }))
+        .filter((n) => n.q >= 0 && n.q < cols && n.r >= 0 && n.r < rows);
+}
+
+/** 飞行单位 BFS 步数：可经过任意格，与前端 findPathBFS 一致 */
+export function offsetBfsStepDistance(
+    from: HexCoord,
+    to: HexCoord,
+    cols: number,
+    rows: number
+): number {
+    const visited = new Set<string>();
+    const queue: { coord: HexCoord; steps: number }[] = [{ coord: from, steps: 0 }];
+    visited.add(`${from.q},${from.r}`);
+
+    while (queue.length > 0) {
+        const { coord, steps } = queue.shift()!;
+        if (coord.q === to.q && coord.r === to.r) return steps;
+        for (const n of getOffsetNeighbors(coord, cols, rows)) {
+            const key = `${n.q},${n.r}`;
+            if (!visited.has(key)) {
+                visited.add(key);
+                queue.push({ coord: n, steps: steps + 1 });
+            }
+        }
+    }
+    return Infinity;
+}
+
 /**
- * 获取相邻的6个Hex坐标
+ * 轴向 6 邻格（与前端 AXIAL_NEIGHBOR_DIRS 一致）
  */
 export function getNeighbors(hex: HexCoord): HexCoord[] {
     const directions = [
@@ -46,7 +98,7 @@ export function getNeighbors(hex: HexCoord): HexCoord[] {
         { q: -1, r: 1 },
         { q: 0, r: 1 },
     ];
-    
+
     return directions.map(dir => ({
         q: hex.q + dir.q,
         r: hex.r + dir.r,
@@ -61,27 +113,27 @@ export function isInRegion(
     region: { minQ: number; maxQ: number; minR: number; maxR: number }
 ): boolean {
     return coord.q >= region.minQ &&
-           coord.q <= region.maxQ &&
-           coord.r >= region.minR &&
-           coord.r <= region.maxR;
+        coord.q <= region.maxQ &&
+        coord.r >= region.minR &&
+        coord.r <= region.maxR;
 }
 
 /**
- * 检查坐标是否在圆形区域内（基于Hex距离）
+ * 检查坐标是否在圆形区域内（基于 offset 距离）
  */
 export function isInCircle(
     coord: HexCoord,
     center: HexCoord,
     radius: number
 ): boolean {
-    return hexDistance(coord, center) <= radius;
+    return offsetHexDistance(coord, center) <= radius;
 }
 
 /**
- * 检查两个坐标是否相邻
+ * 检查两个坐标是否相邻（offset 距离为 1）
  */
 export function isAdjacent(a: HexCoord, b: HexCoord): boolean {
-    return hexDistance(a, b) === 1;
+    return offsetHexDistance(a, b) === 1;
 }
 
 /**
@@ -101,7 +153,7 @@ export function selectRandomPositionInZone(
     random: { randomInt: (min: number, max: number) => number }
 ): HexCoord {
     const candidates: HexCoord[] = [];
-    
+
     // 生成区域内所有可能的坐标
     for (let q = region.minQ; q <= region.maxQ; q++) {
         for (let r = region.minR; r <= region.maxR; r++) {
@@ -111,11 +163,11 @@ export function selectRandomPositionInZone(
             }
         }
     }
-    
+
     if (candidates.length === 0) {
         throw new Error("No available positions in zone");
     }
-    
+
     const index = random.randomInt(0, candidates.length);
     return candidates[index];
 }
@@ -132,15 +184,15 @@ export function selectMinionPosition(
 ): HexCoord {
     // 获取Boss周围半径内的所有坐标
     const candidates = getHexesInRange(bossMain, radius)
-        .filter(coord => 
+        .filter(coord =>
             // 排除Boss主位置
             !(coord.q === bossMain.q && coord.r === bossMain.r) &&
             // 排除已存在的位置
             !hasOverlap(coord, existingPositions) &&
             // 至少距离Boss 1格
-            hexDistance(coord, bossMain) >= 1
+            offsetHexDistance(coord, bossMain) >= 1
         );
-    
+
     if (candidates.length === 0) {
         // 如果半径内没有可用位置，扩大搜索范围
         return selectRandomPositionInZone(
@@ -154,6 +206,6 @@ export function selectMinionPosition(
             random
         );
     }
-    
+
     return random.choice(candidates);
 }

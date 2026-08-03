@@ -1,0 +1,322 @@
+.tower-game-container {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #1a2f1a 0%, #0d1a0d 100%);
+  color: #f5f5dc;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, sans-serif;
+  z-index: 9999;
+}
+
+.tower-game-container .tower-game-layout {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.tower-game-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.tower-loading,
+.tower-error {
+  margin: auto;
+  padding: 24px;
+  text-align: center;
+}
+
+.tower-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.35));
+  border-bottom: 1px solid rgba(255, 215, 0, 0.25);
+  flex-wrap: wrap;
+}
+
+.tower-hud__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.tower-hud__lives {
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+.tower-hud__pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tower-hud__gold {
+  color: #ffd966;
+}
+
+.tower-hud__score {
+  color: #a8e6cf;
+}
+
+.tower-hud__phase {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f4d03f;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tower-hint {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: rgba(245, 245, 220, 0.85);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.tower-banner {
+  padding: 8px 14px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.tower-banner--wave {
+  background: rgba(192, 57, 43, 0.85);
+  animation: tower-pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes tower-pulse {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tower-board-wrap {
+  flex: 1;
+  min-height: 180px;
+  margin: 8px 10px;
+  border: 2px solid #5a7a4a;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
+  background: #2d4a2d;
+}
+
+.tower-arena-board {
+  width: 100%;
+  height: 100%;
+  display: block;
+  min-height: 200px;
+}
+
+.tower-arena-board__path-base {
+  stroke: #5c4a32;
+}
+
+.tower-arena-board__path {
+  stroke: #c4a574;
+  stroke-dasharray: 8 4;
+}
+
+.tower-arena-board__spawn {
+  fill: #3498db;
+  opacity: 0.85;
+}
+
+.tower-arena-board__goal {
+  fill: #e74c3c;
+  opacity: 0.9;
+}
+
+.tower-arena-board__range {
+  fill: rgba(100, 180, 255, 0.12);
+  stroke: rgba(100, 180, 255, 0.45);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.tower-arena-board__slot-ring {
+  fill: rgba(0, 0, 0, 0.25);
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.tower-arena-board__slot--placeable .tower-arena-board__slot-ring {
+  stroke: #f1c40f;
+  stroke-dasharray: none;
+}
+
+.tower-arena-board__slot--selected .tower-arena-board__slot-ring {
+  stroke: #ffd700;
+  stroke-width: 2.5;
+  fill: rgba(255, 215, 0, 0.15);
+}
+
+.tower-arena-board__slot-plus {
+  fill: rgba(255, 255, 255, 0.55);
+  font-size: 18px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.tower-arena-board__tower {
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 1.5;
+}
+
+.tower-arena-board__tower--archer {
+  fill: #27ae60;
+}
+
+.tower-arena-board__tower--cannon {
+  fill: #7f8c8d;
+}
+
+.tower-arena-board__tower--mage {
+  fill: #8e44ad;
+}
+
+.tower-arena-board__tower-label {
+  fill: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.tower-arena-board__shot {
+  stroke: #ffe066;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.tower-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 14px;
+  background: rgba(0, 0, 0, 0.55);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tower-shop {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.tower-shop__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  margin-right: 4px;
+}
+
+.tower-shop__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 72px;
+  padding: 8px 10px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.tower-shop__btn--active {
+  border-color: #f1c40f;
+  box-shadow: 0 0 0 1px rgba(241, 196, 15, 0.35);
+}
+
+.tower-shop__btn--archer.tower-shop__btn--active {
+  background: rgba(39, 174, 96, 0.35);
+}
+
+.tower-shop__btn--cannon.tower-shop__btn--active {
+  background: rgba(127, 140, 141, 0.45);
+}
+
+.tower-shop__btn--mage.tower-shop__btn--active {
+  background: rgba(142, 68, 173, 0.35);
+}
+
+.tower-shop__btn--disabled {
+  opacity: 0.45;
+}
+
+.tower-shop__name {
+  font-weight: 700;
+}
+
+.tower-shop__cost {
+  color: #ffd966;
+  margin-top: 2px;
+}
+
+.tower-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tower-actions button {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #3d5c3d;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tower-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tower-actions__primary {
+  background: linear-gradient(180deg, #e8c547, #c9a227) !important;
+  color: #1a1a1a !important;
+  min-width: 110px;
+}
+
+.tower-actions__ghost {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+
+.tower-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.82);
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 2;
+  max-width: 90%;
+  text-align: center;
+}

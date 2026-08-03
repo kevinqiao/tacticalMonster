@@ -1,0 +1,50 @@
+{
+  "generatedAt": "2026-05-30T20:19:55.701Z",
+  "before": "C:\\selfhome\\development\\projects\\tacticalMonster\\src\\component\\lobby\\casual\\view\\town\\assets\\illustration\\raw\\pairs\\arena_before.png",
+  "after": "C:\\selfhome\\development\\projects\\tacticalMonster\\src\\component\\lobby\\casual\\view\\town\\assets\\illustration\\raw\\pairs\\arena_after.png",
+  "buildings": [
+    {
+      "buildingId": "arena",
+      "overlayFile": "arena.png",
+      "canvas": {
+        "width": 1024,
+        "height": 1024
+      },
+      "visiblePixels": 34524,
+      "hotspotConfig": {
+        "x": 0.62,
+        "y": 0.52,
+        "w": 0.34,
+        "h": 0.38
+      },
+      "hotspotDiffRectPx": {
+        "x": 641,
+        "y": 540,
+        "w": 336,
+        "h": 374
+      },
+      "hotspotDiffRect": {
+        "x": 0.626,
+        "y": 0.5273,
+        "w": 0.3281,
+        "h": 0.3652
+      },
+      "detectedBboxPx": {
+        "x": 610,
+        "y": 544,
+        "w": 200,
+        "h": 231
+      },
+      "detectedBbox": {
+        "x": 0.5957,
+        "y": 0.5313,
+        "w": 0.1953,
+        "h": 0.2256
+      },
+      "detectedCenter": {
+        "x": 0.6934,
+        "y": 0.644
+      }
+    }
+  ]
+}

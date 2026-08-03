@@ -1,0 +1,545 @@
+/* Footer control 专用样式（勿与 battle/ludo 等全局 `.action-control` 混用） */
+
+/* --- FooterNavControl 外壳（仅大厅底栏，不依赖 lobby/styles 的 .action-control） --- */
+.footer-nav-root {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* 横屏：#footer 与 header 同 STRIP_H；壳内 flex 负责条带内垂直居中 */
+.footer-nav-root:has(.footer-nav-shell--landscape) {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: visible;
+}
+
+.footer-nav-shell--portrait {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    padding: 8px;
+    overflow: hidden;
+    /* 供桌面底栏 cqh/cqi：图标与 padding 随条带内高缩放 */
+    container-type: size;
+    container-name: lobby-footer-shell;
+}
+
+/* 触摸屏竖屏：触摸条贴紧下边，左右撑满 */
+.footer-nav-root--touch-portrait .footer-nav-shell--portrait {
+    align-items: flex-end;
+    justify-content: center;
+    padding: 8px 0 0;
+    overflow: visible;
+}
+
+.footer-nav-root--touch-portrait .footer-nav-strip {
+    max-width: none;
+    width: 100%;
+}
+
+.footer-nav-root--touch-portrait {
+    overflow: visible;
+}
+
+.footer-nav-shell--landscape {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    /* 桌面底栏有 max-width，居中会在两侧留白；贴右与视口右缘对齐（仅留右 padding） */
+    justify-content: flex-end;
+    /* 竖直方向整块 HUD 在条带内居中（勿 stretch + height:100%，否则子项撑满条带，看不出居中） */
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    padding-top: clamp(2px, 0.45dvh, 5px);
+    padding-right: 2px;
+    padding-bottom: clamp(2px, 0.45dvh, 5px);
+    padding-left: 10px;
+    background-color: transparent;
+    /* 勿 hidden：2px 边框 + 外阴影在垂直居中时易被裁切 */
+    overflow: visible;
+    container-type: size;
+    container-name: lobby-footer-shell;
+}
+
+/* 竖屏 + 非触摸：同样是桌面图标栏，整块靠右（触摸竖屏仍居中触摸条） */
+.footer-nav-root:not(.footer-nav-root--touch-portrait) .footer-nav-shell--portrait {
+    justify-content: flex-end;
+    align-items: stretch;
+    padding:
+        clamp(2px, 0.55dvh, 6px)
+        2px
+        clamp(2px, 0.55dvh, 6px)
+        8px;
+}
+
+/* --- 触摸条：FooterNavBarTouch / FooterNavHitPath --- */
+.footer-nav-strip {
+    position: relative;
+    width: 100%;
+    max-width: min(100%, 520px);
+    aspect-ratio: 480 / 44;
+    flex-shrink: 0;
+    background: url("./assets/nav-bar-bg.png") center / 100% 100% no-repeat;
+}
+
+/* 触摸设备：条带占满可用宽度 */
+@media (pointer: coarse) {
+    .footer-nav-strip {
+        max-width: 100%;
+    }
+}
+
+.footer-nav-svg {
+    position: absolute;
+    inset: 0;
+    display: block;
+    z-index: 1;
+}
+
+.footer-nav-hit-path {
+    cursor: pointer;
+    pointer-events: all;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+    touch-action: manipulation;
+    will-change: transform;
+}
+
+.footer-nav-label-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.footer-nav-label-slot {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0 2px;
+}
+
+.footer-nav-hit__label {
+    color: #fff;
+    font-size: 11px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+    user-select: none;
+}
+
+/* --- 竖屏触摸（新版） --- */
+.footer-nav-touch-portrait {
+    width: 100%;
+    /* 以屏幕宽度均分 5 份，供遮罩/按钮按单位缩放 */
+    --footer-nav-unit: calc(100vw / 5);
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    overflow: visible;
+}
+
+.footer-nav-touch-portrait__list {
+    position: relative;
+    --footer-nav-gap: clamp(4px, 1.2dvw, 10px);
+    --footer-nav-pad-x: clamp(8px, 1.8dvw, 14px);
+    --footer-nav-content-width: calc(100% - (var(--footer-nav-pad-x) * 2));
+    --footer-nav-slot: calc(
+        (var(--footer-nav-content-width) - (var(--footer-nav-gap) * 4)) / 5
+    );
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: end;
+    gap: var(--footer-nav-gap);
+    width: 100%;
+    margin: 0;
+    padding: clamp(4px, 0.8dvh, 8px) var(--footer-nav-pad-x);
+    list-style: none;
+    border-radius: 18px 18px 12px 12px;
+    background: linear-gradient(180deg, #3bc0ff 0%, #1777ff 52%, #0d4fc7 100%);
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.28),
+        0 -1px 0 rgba(255, 255, 255, 0.12),
+        0 10px 20px rgba(7, 23, 73, 0.5);
+    overflow: visible;
+}
+
+.footer-nav-touch-portrait__item {
+    position: relative;
+    min-width: 0;
+    overflow: visible;
+    isolation: isolate;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2;
+}
+
+.footer-nav-touch-portrait__activeOverlay {
+    --footer-overlay-scale: 1.12;
+    position: absolute;
+    left: calc(
+        var(--footer-nav-pad-x) +
+        (var(--footer-active-index, 0) *
+            (var(--footer-nav-slot) + var(--footer-nav-gap)))
+    );
+    bottom: clamp(-8px, -1dvh, -4px);
+    width: var(--footer-nav-slot);
+    /* 以宽度为基准计算高度，再统一 scale，保证宽高等比放大溢出 */
+    height: clamp(66px, calc(var(--footer-nav-slot) * 1.2), 132px);
+    border-radius: 12px;
+    transform: scale(var(--footer-overlay-scale));
+    transform-origin: center bottom;
+    opacity: 1;
+    background: linear-gradient(180deg, #fff1a0 0%, #ffd34d 48%, #f4a51b 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.7),
+        0 0 0 1px rgba(248, 190, 56, 0.9),
+        0 8px 20px rgba(246, 165, 17, 0.55);
+    pointer-events: none;
+    z-index: 1;
+    list-style: none;
+    transition: left 0.22s ease-out, opacity 0.2s ease-out;
+}
+
+.footer-nav-touch-portrait__btn {
+    display: block;
+    width: 100%;
+    height: clamp(52px, 7.2dvh, 70px);
+    padding: 0;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #d9ecff;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: clamp(9px, 1.45dvh, 13px);
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+    overflow: visible;
+    transition: filter 0.16s ease-out, color 0.16s ease-out;
+}
+
+.footer-nav-touch-portrait__iconWrap {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: clamp(46px, 6dvh, 66px);
+    height: clamp(42px, 5.5dvh, 60px);
+    display: grid;
+    place-items: center;
+    transform: translate(-50%, -50%);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(20, 53, 133, 0.52), rgba(8, 26, 84, 0.78));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 3px 8px rgba(5, 18, 57, 0.5);
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, background 0.2s ease-out;
+}
+
+.footer-nav-touch-portrait__iconWrap::before {
+    content: none;
+}
+
+.footer-nav-touch-portrait__icon {
+    position: relative;
+    z-index: 1;
+    width: 72%;
+    height: 72%;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+    pointer-events: none;
+}
+
+.footer-nav-touch-portrait__label {
+    position: absolute;
+    left: 50%;
+    top: calc(50% + clamp(14px, 1.9dvh, 20px));
+    max-width: 90%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+    color: #ffffff;
+    text-shadow:
+        0 1px 2px rgba(5, 16, 44, 0.9),
+        0 0 6px rgba(0, 0, 0, 0.45);
+    user-select: none;
+    line-height: 1.1;
+    opacity: 0;
+    transform: translate(-50%, 0);
+    transition: opacity 0.16s ease-out, transform 0.2s ease-out;
+    pointer-events: none;
+    z-index: 4;
+}
+
+.footer-nav-touch-portrait__btn--active {
+    color: #d9ecff;
+    transform: none;
+}
+
+.footer-nav-touch-portrait__btn--active .footer-nav-touch-portrait__iconWrap {
+    transform: translate(-50%, -102%) scale(1);
+    background: linear-gradient(180deg, rgba(20, 53, 133, 0.52), rgba(8, 26, 84, 0.78));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 3px 8px rgba(5, 18, 57, 0.5);
+    animation: footer-nav-touch-icon-lift 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.footer-nav-touch-portrait__btn--active .footer-nav-touch-portrait__label {
+    opacity: 1;
+    transform: translate(-50%, -12px);
+}
+
+.footer-nav-touch-portrait__btn--pressed {
+    transform: none;
+    filter: brightness(0.96);
+}
+
+.footer-nav-touch-portrait__btn--pressed .footer-nav-touch-portrait__iconWrap {
+    transform: translate(-50%, -86%) scale(1.06);
+    filter: brightness(0.96);
+}
+
+@keyframes footer-nav-touch-icon-lift {
+    from {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    35% {
+        transform: translate(-50%, -88%) scale(1.24);
+    }
+    68% {
+        transform: translate(-50%, -108%) scale(0.92);
+    }
+    to {
+        transform: translate(-50%, -102%) scale(1);
+    }
+}
+
+.footer-nav-touch-portrait__btn:focus-visible {
+    outline: 2px solid #fff38c;
+    outline-offset: 2px;
+}
+
+/* --- FooterNavBarDesktop --- */
+.footer-nav-desktop {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    width: 100%;
+    max-width: min(100%, 720px);
+    height: auto;
+    max-height: 100%;
+    min-height: 0;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    overflow: visible;
+}
+
+.footer-nav-desktop__list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    /* 按钮固定比例后在行内垂直居中，避免被拉成「扁条」 */
+    align-items: center;
+    align-content: center;
+    gap: clamp(4px, 2.5cqh, 10px) clamp(6px, 2cqi, 12px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    height: auto;
+    max-height: 100%;
+    min-height: 0;
+}
+
+.footer-nav-desktop__item {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-height: 100%;
+    min-height: 0;
+}
+
+.footer-nav-desktop__btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(2px, 4cqh, 6px);
+    /* 约 72×88 竖向芯片；条带矮时用 100cqh 收窄宽度，使 h=w*11/9 不超出条带 */
+    aspect-ratio: 9 / 11;
+    box-sizing: border-box;
+    width: min(clamp(48px, 14cqi, 72px), calc(100cqh * 9 / 11));
+    max-width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    max-height: min(100%, 100cqh);
+    padding:
+        clamp(3px, 5cqh, 11px)
+        clamp(4px, 2cqi, 10px)
+        clamp(4px, 6cqh, 13px);
+    border: 2px solid hsl(38, 45%, 42%);
+    border-radius: 8px;
+    background: linear-gradient(180deg, hsl(265, 28%, 28%), hsl(265, 32%, 18%));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        0 2px 0 rgba(0, 0, 0, 0.45),
+        0 4px 12px rgba(0, 0, 0, 0.35);
+    color: #f5f0ff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: clamp(6px, 6.5cqh, 11px);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    box-sizing: border-box;
+    /* 文案裁切交给 .footer-nav-desktop__caption；此处 visible 保留边框与阴影 */
+    overflow: visible;
+    transition:
+        transform 0.12s ease-out,
+        box-shadow 0.15s ease-out,
+        filter 0.15s ease-out,
+        border-color 0.15s ease-out;
+}
+
+.footer-nav-desktop__btn:hover {
+    border-color: hsl(48, 65%, 58%);
+    transform: translateY(-1px) scale(1.02);
+    filter: brightness(1.08);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 0 0 1px rgba(255, 215, 140, 0.35),
+        0 4px 14px rgba(255, 200, 100, 0.25),
+        0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.footer-nav-desktop__btn:active {
+    transform: translateY(0) scale(0.97);
+    filter: brightness(0.92);
+}
+
+.footer-nav-desktop__btn:focus-visible {
+    outline: 2px solid hsl(48, 85%, 62%);
+    outline-offset: 2px;
+}
+
+.footer-nav-desktop__btn--auth {
+    border-color: hsl(220, 35%, 48%);
+}
+
+.footer-nav-desktop__icon {
+    width: clamp(14px, 38cqh, 44px);
+    height: clamp(14px, 38cqh, 44px);
+    flex-shrink: 0;
+    object-fit: contain;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+.footer-nav-desktop__caption {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.15;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+    user-select: none;
+}
+
+/*
+ * 触摸横屏：与 HeadNavControl .head-nav-hud__qbtn / __qico 同源，用 dvh/dvw；不用 cqh 硬压尺寸（壳矮时会把按钮缩得过小）。
+ */
+@media (pointer: coarse) and (orientation: landscape) {
+    .footer-nav-shell--landscape {
+        --footer-nav-chip: clamp(34px, 8dvh, 62px);
+        /* 上下对称，避免「只有底 padding」导致整块视觉上贴顶 */
+        --footer-shell-pad-y: min(10px, max(2px, env(safe-area-inset-bottom, 0px)));
+        padding-top: var(--footer-shell-pad-y);
+        padding-inline: clamp(4px, 1.2dvw, 10px);
+        padding-bottom: var(--footer-shell-pad-y);
+        overflow: visible;
+    }
+
+    .footer-nav-shell--landscape .footer-nav-desktop {
+        height: auto;
+        max-height: 100%;
+        align-self: center;
+        align-items: center;
+        overflow: visible;
+    }
+
+    .footer-nav-shell--landscape .footer-nav-desktop__list {
+        height: auto;
+        max-height: 100%;
+        align-items: center;
+        align-content: center;
+        gap: clamp(4px, 1dvh, 9px) clamp(5px, 1.15dvw, 10px);
+    }
+
+    .footer-nav-shell--landscape .footer-nav-desktop__btn {
+        aspect-ratio: auto;
+        justify-content: center;
+        width: auto;
+        min-width: clamp(48px, 11dvw, 88px);
+        max-width: 96px;
+        max-height: 100%;
+        min-height: 0;
+        height: auto;
+        gap: clamp(2px, 0.45dvh, 5px);
+        padding:
+            clamp(3px, 0.5dvh, 6px)
+            clamp(5px, 1.05dvw, 9px)
+            clamp(3px, 0.45dvh, 6px);
+        font-size: clamp(8px, 1.65dvh, 11px);
+        overflow: visible;
+    }
+
+    .footer-nav-shell--landscape .footer-nav-desktop__icon {
+        width: clamp(22px, calc(var(--footer-nav-chip) * 0.56), 38px);
+        height: clamp(22px, calc(var(--footer-nav-chip) * 0.56), 38px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .footer-nav-touch-portrait__btn,
+    .footer-nav-touch-portrait__iconWrap {
+        transition: none;
+    }
+
+    .footer-nav-touch-portrait__activeOverlay {
+        transition: none;
+    }
+
+    .footer-nav-touch-portrait__btn--active .footer-nav-touch-portrait__iconWrap {
+        animation: none;
+    }
+
+    .footer-nav-desktop__btn {
+        transition: none;
+    }
+
+    .footer-nav-desktop__btn:hover {
+        transform: none;
+    }
+}

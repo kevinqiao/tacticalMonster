@@ -5,14 +5,19 @@
 
 import gsap from "gsap";
 import { useCallback, useMemo } from "react";
-import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
-import { SkillEffectType } from "../config/skillConfigs";
-import { useCombatManager } from "../service/CombatManager";
-import { MonsterSprite } from "../types/CombatTypes";
-import { SkillAnimationSelector } from "./SkillAnimationSelector";
+import { getSkillConfig, MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { SkillAnimationSelector } from "../../battle3d/animation/SkillAnimationSelector";
+import { useCombatManager } from "../../service/CombatManager";
+import { useReplay } from "../view/replayContext";
+import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
+import { MonsterSprite } from "../../types/CombatTypes";
+import { SkillEffectType } from "../../types/skillTypes";
 
 const usePlaySkill = () => {
-    const { characters, gridCells, hexCell, map, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, groundCells, mapDimension, game } = useCombatManager();
+    const replay = useReplay();
+    const playbackSpeed = getReplayPlaybackSpeed(replay);
+    const { map } = game || {};
     const selector = useMemo(() => new SkillAnimationSelector(), []);
 
     // 技能特效播放函数（整合到 usePlaySkill 中）
@@ -134,18 +139,18 @@ const usePlaySkill = () => {
         skillId: string,
         targets: MonsterSprite[],
         onComplete: () => void | Promise<void>
-    ) => {
-        if (!gridCells || !hexCell || !map || !characters) {
+    ): gsap.core.Timeline | null => {
+        if (!groundCells || !mapDimension || !map || !characters) {
             Promise.resolve(onComplete()).catch(console.error);
-            return;
+            return null;
         }
 
         // 获取技能配置
-        const skill: MonsterSkill | undefined = caster.skills?.find(s => s.id === skillId);
+        const skill: MonsterSkill | undefined = getSkillConfig(skillId);
         if (!skill) {
             console.warn(`Skill ${skillId} not found for character ${caster.character_id}`);
             Promise.resolve(onComplete()).catch(console.error);
-            return;
+            return null;
         }
 
         // 选择动画
@@ -232,11 +237,11 @@ const usePlaySkill = () => {
 
         // 清除施法者的可行走格子
         caster.walkables?.forEach(node => {
-            const { x, y } = node;
-            const col = direction === 1 ? cols - x - 1 : x;
-            const gridCell = gridCells[y]?.[col];
-            if (gridCell?.gridWalk) {
-                tl.to(gridCell.gridWalk, { autoAlpha: 0, duration: 0.5 }, "<");
+            const { q, r } = node;
+            const col = direction === 1 ? cols - q - 1 : q;
+            const gridCell = groundCells[r]?.[col];
+            if (gridCell?.element) {
+                tl.to(gridCell.element, { opacity: 0, duration: 0.5 }, "<");
             }
         });
 
@@ -283,7 +288,10 @@ const usePlaySkill = () => {
         }
 
         tl.play();
-    }, [characters, gridCells, hexCell, map, selector, playHealEffect, playBuffEffect, playDebuffEffect, playSkillCastEffect, playbackSpeed]);
+
+        // ✅ 返回 timeline，以便外部可以链式添加后续动画（如被动技能）
+        return tl;
+    }, [characters, groundCells, mapDimension, map, selector, playHealEffect, playBuffEffect, playDebuffEffect, playSkillCastEffect, playbackSpeed]);
 
     return { playSkill };
 };

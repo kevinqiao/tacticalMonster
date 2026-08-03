@@ -3,18 +3,20 @@
  * 主协调函数，创建所有测试数据
  */
 
+import { v } from "convex/values";
 import { internalMutation } from "../../../../_generated/server";
 import * as tournamentTestData from "./testData";
 
 /**
- * 创建完整的挑战关卡测试数据（仅Tournament模块数据）
- * 注意：HTTP调用需要在action中处理，不能在此mutation中使用fetch
+ * Create challenge level test data (Tournament module only).
+ * Use playerIds to create players with existing SSO uids (e.g. "0_"+md5("kevin1@gmail.com")).
  */
 export const setupChallengeLevelTestData = internalMutation({
-    args: {},
-    handler: async (ctx) => {
-        // 1. Tournament模块：创建玩家和资源
-        const playerIds = await tournamentTestData.createTestPlayers(ctx);
+    args: {
+        playerIds: v.optional(v.array(v.string())),
+    },
+    handler: async (ctx, args) => {
+        const playerIds = await tournamentTestData.createTestPlayers(ctx, args.playerIds);
         await tournamentTestData.createTestResources(ctx, playerIds);
 
         // 2. Tournament模块：创建挑战关卡配置

@@ -1,0 +1,7 @@
+{
+  "poolVersion": "v3",
+  "rolloutCount": 24,
+  "matchTimeLimitSec": 300,
+  "generatedAt": "2026-06-22T23:35:46.310Z",
+  "entries": []
+}

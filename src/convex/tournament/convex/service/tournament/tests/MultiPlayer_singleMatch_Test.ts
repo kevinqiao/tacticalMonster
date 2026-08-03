@@ -46,7 +46,7 @@ export const testBatchSubmitScore = (mutation as any)({
     handler: async (ctx: any) => {
         let matchId: string | null = null;
         const playerMatches = await ctx.db.query("player_matches").collect();
-        playerMatches.filter((match: any) => !match.completed).forEach(async (match: any, index: number) => {
+        playerMatches.filter((match: any) => match.status !== "settled").forEach(async (match: any, index: number) => {
             if (!matchId) {
                 matchId = match.matchId;
             }

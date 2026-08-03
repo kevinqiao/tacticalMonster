@@ -1,28 +1,23 @@
-import { v } from "convex/values";
-import { query } from "../../_generated/server";
+import { authedQuery } from "../../custom/session";
 import { PlayerLevelService } from "./playerLevelService";
 
 /**
  * 获取玩家等级信息
  */
-export const getPlayerLevelInfo = query({
-    args: {
-        uid: v.string(),
-    },
-    handler: async (ctx, args) => {
-        return await PlayerLevelService.getPlayerLevelInfo(ctx, args.uid);
+export const getPlayerLevelInfo = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        return await PlayerLevelService.getPlayerLevelInfo(ctx, ctx.uid);
     },
 });
 
 /**
  * 获取玩家等级进度（用于进度条显示）
  */
-export const getPlayerLevelProgress = query({
-    args: {
-        uid: v.string(),
-    },
-    handler: async (ctx, args) => {
-        const levelInfo = await PlayerLevelService.getPlayerLevelInfo(ctx, args.uid);
+export const getPlayerLevelProgress = authedQuery({
+    args: {},
+    handler: async (ctx) => {
+        const levelInfo = await PlayerLevelService.getPlayerLevelInfo(ctx, ctx.uid);
         
         if (!levelInfo) {
             return null;

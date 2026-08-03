@@ -1,10 +1,13 @@
 /**
- * Block Blast 形状预览区
- * 显示当前可用的形状块
+ * 当前可放置形状（Hand）预览
  */
-
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useBlockBlastGameManager } from '../service/GameManager';
+import {
+    computeHandPreviewSlots,
+    fitPreviewCellSizeForShape,
+    previewCellSizeCap,
+} from '../utils/blockBlastPreviewLayout';
 import ShapeBlock from './ShapeBlock';
 
 interface ShapePreviewProps {
@@ -12,39 +15,98 @@ interface ShapePreviewProps {
 }
 
 const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
-    const { gameState, boardDimension } = useBlockBlastGameManager();
+    const { gameState, boardDimension, replayMode } = useBlockBlastGameManager();
     const previewRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!previewRef.current || !boardDimension) return;
-
         const preview = previewRef.current;
-        preview.style.left = `${boardDimension.shapePreview.x}px`;
-        preview.style.top = `${boardDimension.shapePreview.y}px`;
-        preview.style.width = `${boardDimension.shapePreview.width}px`;
-        preview.style.height = `${boardDimension.shapePreview.height}px`;
+        if (!preview || !boardDimension) return;
+
+        const sp = boardDimension.shapePreview;
+        const intrinsicW = sp.width === 'intrinsic';
+        const intrinsicH = sp.height === 'intrinsic';
+
+        preview.style.top = `${sp.y}px`;
+
+        if (intrinsicW) {
+            preview.style.left = '50%';
+            preview.style.transform = 'translateX(-50%)';
+            preview.style.width = 'max-content';
+            preview.style.maxWidth = `${Math.max(120, boardDimension.width - 32)}px`;
+        } else {
+            preview.style.left = `${sp.x}px`;
+            preview.style.transform = '';
+            preview.style.width = `${sp.width}px`;
+            preview.style.maxWidth = '';
+        }
+
+        if (intrinsicH) {
+            preview.style.height = 'auto';
+            preview.style.minHeight = '0';
+        } else {
+            preview.style.height = `${sp.height}px`;
+            preview.style.minHeight = '';
+        }
+
+        preview.classList.toggle('blockblast-shape-preview--intrinsic-width', intrinsicW);
+        preview.classList.toggle('blockblast-shape-preview--intrinsic-height', intrinsicH);
     }, [boardDimension]);
+
+    const gridGap = boardDimension?.spacing ?? 2;
+
+    const sp = boardDimension?.shapePreview;
+    const previewW = typeof sp?.width === 'number' ? sp.width : boardDimension?.width ?? 0;
+    const previewH = typeof sp?.height === 'number' ? sp.height : 120;
+
+    const slots = useMemo(
+        () => computeHandPreviewSlots(previewW, previewH),
+        [previewW, previewH]
+    );
+
+    const maxCellCap = previewCellSizeCap(boardDimension?.cellSize ?? 36);
+    const minPreviewCell = 14;
 
     if (!gameState) return null;
 
     return (
         <div
             ref={previewRef}
-            className={`blockblast-shape-preview ${className}`}
+            className={`blockblast-shape-preview ${className}`.trim()}
             style={{
                 position: 'absolute',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '20px',
-                padding: '10px',
             }}
         >
-            {gameState.shapes.map((shape) => (
-                <ShapeBlock key={shape.id} shape={shape} />
-            ))}
+            <div className="blockblast-shape-preview-scroll blockblast-shape-preview-scroll--stacked">
+                <div className="blockblast-shape-preview-col blockblast-shape-preview-col--hand">
+                    <div className="blockblast-shape-preview-hand-shapes">
+                        {gameState.shapes.map((shape, index) => {
+                            const slot = slots[index] ?? slots[0] ?? { width: 80, height: 80 };
+                            const cellSize = fitPreviewCellSizeForShape(
+                                shape.shape,
+                                slot,
+                                gridGap,
+                                minPreviewCell,
+                                maxCellCap
+                            );
+                            return (
+                                <div
+                                    key={shape.id}
+                                    className="blockblast-shape-preview-slot"
+                                >
+                                    <ShapeBlock
+                                        shape={shape}
+                                        cellSize={cellSize}
+                                        gridGap={gridGap}
+                                        draggable={!replayMode}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
 
 export default ShapePreview;
-

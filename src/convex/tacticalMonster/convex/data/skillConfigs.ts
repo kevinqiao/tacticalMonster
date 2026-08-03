@@ -6,152 +6,156 @@
  * 注意：技能配置不存入数据库，直接从配置文件读取
  */
 
-/**
- * 技能范围定义
- */
-export interface SkillRange {
-    area_type: "single" | "circle" | "line";  // 范围类型
-    distance?: number;                        // 最大距离（用于 single 和 line）
-    min_distance?: number;                    // 最小距离（用于 line）
-    max_distance?: number;                    // 最大距离（用于 circle）
-}
 
-/**
- * 效果类型枚举
- */
-export enum SkillEffectType {
-    BUFF = 'buff',
-    DEBUFF = 'debuff',
-    DOT = 'dot',              // 持续伤害
-    HOT = 'hot',              // 持续治疗
-    STUN = 'stun',            // 眩晕
-    SHIELD = 'shield',        // 护盾
-    MP_DRAIN = 'mp_drain',    // 法力吸取
-    MP_RESTORE = 'mp_restore', // 法力恢复
-    DAMAGE = 'damage',        // 直接伤害
-    HEAL = 'heal',            // 直接治疗
-    MOVEMENT = 'movement',    // 移动效果
-    TELEPORT = 'teleport',    // 传送效果
-}
+import { MonsterSkill, SkillEffectType } from "../types/skillTypes";
 
-/**
- * 伤害衰减定义
- */
-export interface DamageFalloff {
-    full_damage_range: number;      // 全额伤害范围
-    min_damage_percent: number;      // 最小伤害百分比（0-1）
-}
+// /**
+//  * 技能范围定义
+//  */
+// export interface SkillRange {
+//     area_type: "single" | "circle" | "line";  // 范围类型
+//     distance?: number;                        // 最大距离（用于 single 和 line）
+//     min_distance?: number;                    // 最小距离（用于 line）
+//     max_distance?: number;                    // 最大距离（用于 circle）
+// }
 
-/**
- * 技能效果定义
- */
-export interface SkillEffect {
-    id: string;                      // 效果ID
-    name: string;                    // 效果名称
-    type: SkillEffectType;           // 效果类型
-    duration?: number;               // 持续时间（回合数，0表示立即生效）
-    remaining_duration?: number;     // 剩余持续时间（运行时使用）
+// /**
+//  * 效果类型枚举
+//  */
+// export enum SkillEffectType {
+//     BUFF = 'buff',
+//     DEBUFF = 'debuff',
+//     DOT = 'dot',              // 持续伤害
+//     HOT = 'hot',              // 持续治疗
+//     STUN = 'stun',            // 眩晕
+//     SHIELD = 'shield',        // 护盾
+//     MP_DRAIN = 'mp_drain',    // 法力吸取
+//     MP_RESTORE = 'mp_restore', // 法力恢复
+//     DAMAGE = 'damage',        // 直接伤害
+//     HEAL = 'heal',            // 直接治疗
+//     MOVEMENT = 'movement',    // 移动效果
+//     TELEPORT = 'teleport',    // 传送效果
+// }
 
-    // 数值修改
-    modifiers?: {                   // 属性修改器
-        [key: string]: number;      // 如 { "attack": 20, "defense": -10 }
-    };
-    modifier_type?: 'add' | 'multiply';  // 修改类型：加法或乘法
+// /**
+//  * 伤害衰减定义
+//  */
+// export interface DamageFalloff {
+//     full_damage_range: number;      // 全额伤害范围
+//     min_damage_percent: number;      // 最小伤害百分比（0-1）
+// }
 
-    // 直接数值
-    value?: number;                 // 直接数值（伤害值、治疗值等）
+// /**
+//  * 技能效果定义
+//  */
+// export interface SkillEffect {
+//     id: string;                      // 效果ID
+//     name: string;                    // 效果名称
+//     type: SkillEffectType;           // 效果类型
+//     duration?: number;               // 持续时间（回合数，0表示立即生效）
+//     remaining_duration?: number;     // 剩余持续时间（运行时使用）
 
-    // UI相关
-    icon?: string;                  // 效果图标路径
+//     // 数值修改
+//     modifiers?: {                   // 属性修改器
+//         [key: string]: number;      // 如 { "attack": 20, "defense": -10 }
+//     };
+//     modifier_type?: 'add' | 'multiply';  // 修改类型：加法或乘法
 
-    // 范围相关
-    damage_falloff?: DamageFalloff; // 伤害衰减
-    area_type?: 'single' | 'circle' | 'line';  // 作用范围类型
-    area_size?: number;             // 作用范围大小
+//     // 直接数值
+//     value?: number;                 // 直接数值（伤害值、治疗值等）
 
-    // 伤害类型
-    damage_type?: 'physical' | 'magical';  // 伤害类型
+//     // UI相关
+//     icon?: string;                  // 效果图标路径
 
-    // 目标属性
-    target_attribute?: string;      // 目标属性（如 "attack", "defense", "hp", "mp"）
-}
+//     // 范围相关
+//     damage_falloff?: DamageFalloff; // 伤害衰减
+//     area_type?: 'single' | 'circle' | 'line';  // 作用范围类型
+//     area_size?: number;             // 作用范围大小
 
-/**
- * 技能解锁条件
- */
-export interface SkillUnlockConditions {
-    level?: number;                 // 解锁所需等级
-    questsCompleted?: string[];     // 解锁所需完成的任务ID列表
-}
+//     // 伤害类型
+//     damage_type?: 'physical' | 'magical';  // 伤害类型
 
-/**
- * 技能资源消耗
- */
-export interface SkillResourceCost {
-    mp?: number;                    // 法力值消耗
-    hp?: number;                    // 生命值消耗
-    stamina?: number;               // 体力消耗
-}
+//     // 目标属性
+//     target_attribute?: string;      // 目标属性（如 "attack", "defense", "hp", "mp"）
+// }
 
-/**
- * 技能触发条件（用于被动技能）
- */
-export interface SkillTriggerCondition {
-    trigger_type: string;            // 触发类型（如 "on_attack", "on_hit", "on_kill", "round_start", "round_end"）
-    conditions?: any;               // 触发条件（使用 json-rules-engine 的 TopLevelCondition）
-    effects: SkillEffect[];         // 触发时生效的效果列表
-}
+// /**
+//  * 技能解锁条件
+//  */
+// export interface SkillUnlockConditions {
+//     level?: number;                 // 解锁所需等级
+//     questsCompleted?: string[];     // 解锁所需完成的任务ID列表
+// }
 
-/**
- * 技能动画配置（前端使用）
- */
-export interface SkillAnimation {
-    name?: string;        // 施法者动画名称（如 "melee", "cast", "cast_fire"）
-    target?: string;      // 目标动画名称（如 "hurt", "stand"），可选，通常可自动推断
-    type?: "attack" | "cast" | "special";  // 动画类型提示（可选，用于回退）
-}
+// /**
+//  * 技能资源消耗
+//  */
+// export interface SkillResourceCost {
+//     mp?: number;                    // 法力值消耗
+//     hp?: number;                    // 生命值消耗
+//     stamina?: number;               // 体力消耗
+// }
 
-/**
- * 怪物技能定义
- */
-export interface MonsterSkill {
-    id: string;                      // 技能唯一标识符
-    name: string;                    // 技能名称
-    type: "master" | "active" | "passive";  // 技能类型
-    description?: string;            // 技能描述
-    animation?: SkillAnimation;      // 动画配置对象（可选，前端使用）
+// /**
+//  * 技能触发条件（用于被动技能）
+//  */
+// export interface SkillTriggerCondition {
+//     trigger_type: string;            // 触发类型（如 "on_attack", "on_hit", "on_kill", "round_start", "round_end"）
+//     conditions?: any;               // 触发条件（使用 json-rules-engine 的 TopLevelCondition）
+//     effects: SkillEffect[];         // 触发时生效的效果列表
+// }
 
-    // 战斗相关
-    canTriggerCounter?: boolean;     // 是否可以触发反击
-    priority?: number;               // 技能优先级（数值越大优先级越高）
+// /**
+//  * 技能动画配置（前端使用）
+//  */
+// export interface SkillAnimation {
+//     name?: string;        // 施法者动画名称（如 "melee", "cast", "cast_fire"）
+//     target?: string;      // 目标动画名称（如 "hurt", "stand"），可选，通常可自动推断
+//     type?: "attack" | "cast" | "special";  // 动画类型提示（可选，用于回退）
+// }
 
-    // 可用性条件（使用 json-rules-engine）
-    availabilityConditions?: any;    // 技能可用条件（TopLevelCondition）
+// /**
+//  * 怪物技能定义
+//  */
+// export interface MonsterSkill {
+//     id: string;                      // 技能唯一标识符
+//     name: string;                    // 技能名称
+//     type: "master" | "active" | "passive";  // 技能类型
+//     description?: string;            // 技能描述
+//     animation?: SkillAnimation;      // 动画配置对象（可选，前端使用）
 
-    // 范围定义
-    range?: SkillRange;              // 技能作用范围
+//     // 战斗相关
+//     canTriggerCounter?: boolean;     // 是否可以触发反击
+//     priority?: number;               // 技能优先级（数值越大优先级越高）
 
-    // 解锁条件
-    unlockConditions?: SkillUnlockConditions;  // 技能解锁条件
+//     // 可用性条件（使用 json-rules-engine）
+//     availabilityConditions?: any;    // 技能可用条件（TopLevelCondition）
 
-    // 资源消耗
-    resource_cost: SkillResourceCost;  // 技能资源消耗
+//     // 范围定义
+//     range?: SkillRange;              // 技能作用范围
 
-    // 冷却时间
-    cooldown: number;                // 技能冷却时间（回合数）
+//     // 解锁条件
+//     unlockConditions?: SkillUnlockConditions;  // 技能解锁条件
 
-    // 效果列表（多个效果会同时生效）
-    effects: SkillEffect[];          // 技能效果列表
+//     // 资源消耗
+//     resource_cost: SkillResourceCost;  // 技能资源消耗
 
-    // 触发条件（用于被动技能）
-    triggerConditions?: SkillTriggerCondition[];  // 触发条件列表
-}
+//     // 冷却时间
+//     cooldown: number;                // 技能冷却时间（回合数）
+
+//     // 效果列表（多个效果会同时生效）
+//     effects: SkillEffect[];          // 技能效果列表
+
+//     // 触发条件（用于被动技能）
+//     triggerConditions?: SkillTriggerCondition[];  // 触发条件列表
+// }
 
 /**
  * 通用技能库（所有怪物可共享的技能）
  */
 export const COMMON_SKILLS: Record<string, MonsterSkill> = {
     // ========== 基础攻击技能 ==========
+    /** 射程不在此写 distance：由怪物配表 Monster.attackRange.max → 运行时 attack_range.max（见 skillTargetService.getEffectiveSkillMaxDistance） */
     basic_attack: {
         id: "basic_attack",
         name: "基础攻击",
@@ -160,7 +164,6 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         priority: 1,
         range: {
             area_type: "single",
-            distance: 1,
         },
         resource_cost: {},
         cooldown: 0,
@@ -186,6 +189,10 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             area_type: "single",
             distance: 3,
         },
+        // 示例：可用性条件（目标距离 > 0，有目标时恒为真）
+        availabilityConditions: {
+            all: [{ fact: "targetDistance", operator: "greaterThan", value: 0 }],
+        },
         resource_cost: {},
         cooldown: 0,
         effects: [
@@ -196,6 +203,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
                 value: 80,
                 damage_type: "physical",
                 target_attribute: "hp",
+                damage_falloff: { full_damage_range: 2, min_damage_percent: 0.5 },
             },
         ],
     },
@@ -210,6 +218,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         range: {
             area_type: "single",
             distance: 2,
+            target_side: "friend",
         },
         unlockConditions: {
             level: 3,
@@ -236,6 +245,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         range: {
             area_type: "circle",
             max_distance: 2,
+            target_side: "friend",
         },
         unlockConditions: {
             level: 10,
@@ -255,6 +265,32 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         ],
     },
 
+    cleanse: {
+        id: "cleanse",
+        name: "净化",
+        type: "active",
+        description: "移除目标身上的负面持续效果（debuff/dot/stun）",
+        priority: 3,
+        range: {
+            area_type: "single",
+            distance: 2,
+            target_side: "friend",
+        },
+        unlockConditions: {
+            level: 9,
+        },
+        resource_cost: { mp: 25 },
+        cooldown: 3,
+        effects: [
+            {
+                id: "cleanse_effect",
+                name: "净化",
+                type: SkillEffectType.CLEANSE,
+                value: 3,
+            },
+        ],
+    },
+
     // ========== 护盾技能 ==========
     shield: {
         id: "shield",
@@ -265,6 +301,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         range: {
             area_type: "single",
             distance: 2,
+            target_side: "friend",
         },
         unlockConditions: {
             level: 5,
@@ -293,6 +330,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         range: {
             area_type: "single",
             distance: 2,
+            target_side: "friend",
         },
         unlockConditions: {
             level: 7,
@@ -322,6 +360,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         range: {
             area_type: "single",
             distance: 2,
+            target_side: "friend",
         },
         unlockConditions: {
             level: 7,
@@ -338,6 +377,36 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
                 },
                 modifier_type: "multiply",
                 duration: 3,
+            },
+        ],
+    },
+
+    // ========== 召唤技能 ==========
+    summon_minion: {
+        id: "summon_minion",
+        name: "召唤随从",
+        type: "active",
+        description: "在施法者相邻的空格召唤一个随从",
+        priority: 2,
+        range: {
+            area_type: "single",
+            distance: 0,  // 不需要目标
+        },
+        unlockConditions: {
+            level: 5,
+        },
+        resource_cost: { mp: 30 },
+        cooldown: 5,
+        effects: [
+            {
+                id: "summon_effect",
+                name: "召唤随从",
+                type: SkillEffectType.SUMMON,
+                summonConfig: {
+                    monsterId: "monster_001",
+                    side: "player",
+                    position_mode: "caster_adjacent",
+                },
             },
         ],
     },
@@ -386,6 +455,10 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         triggerConditions: [
             {
                 trigger_type: "on_hit",
+                // 可选：json-rules-engine 条件，如 30% 概率触发（triggerChance 由调用方注入）
+                conditions: {
+                    all: [{ fact: "triggerChance", operator: "lessThan", value: 0.3 }],
+                },
                 effects: [
                     {
                         id: "counter_attack",
@@ -652,6 +725,107 @@ export const UNIQUE_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
+
+    // ========== 必杀技（Ultimate）- 消耗能量 ==========
+    griffin_ultimate: {
+        id: "griffin_ultimate",
+        name: "天罚利刃",
+        type: "ultimate",
+        description: "格里芬必杀技，造成巨额物理伤害",
+        priority: 5,
+        range: { area_type: "single", distance: 2 },
+        resource_cost: { energy: 100 },
+        cooldown: 0,
+        effects: [
+            {
+                id: "ultimate_damage",
+                name: "天罚伤害",
+                type: SkillEffectType.DAMAGE,
+                value: 400,
+                damage_type: "physical",
+                target_attribute: "hp",
+            },
+        ],
+    },
+    dragon_ultimate: {
+        id: "dragon_ultimate",
+        name: "灭世龙炎",
+        type: "ultimate",
+        description: "原始巨龙必杀技，扇形火焰伤害",
+        priority: 5,
+        range: { area_type: "line", min_distance: 1, distance: 4 },
+        resource_cost: { energy: 100 },
+        cooldown: 0,
+        effects: [
+            {
+                id: "ultimate_fire",
+                name: "灭世龙炎",
+                type: SkillEffectType.DAMAGE,
+                value: 350,
+                damage_type: "magical",
+                area_type: "line",
+                area_size: 4,
+                target_attribute: "hp",
+            },
+        ],
+    },
+    chaos_ultimate: {
+        id: "chaos_ultimate",
+        name: "混沌审判",
+        type: "ultimate",
+        description: "混沌领主必杀技，高额伤害+眩晕",
+        priority: 5,
+        range: { area_type: "single", distance: 2 },
+        resource_cost: { energy: 100 },
+        cooldown: 0,
+        effects: [
+            {
+                id: "ultimate_chaos",
+                name: "混沌审判伤害",
+                type: SkillEffectType.DAMAGE,
+                value: 450,
+                damage_type: "magical",
+                target_attribute: "hp",
+            },
+            {
+                id: "ultimate_stun",
+                name: "混沌眩晕",
+                type: SkillEffectType.STUN,
+                duration: 2,
+            },
+        ],
+    },
+    divine_ultimate: {
+        id: "divine_ultimate",
+        name: "神圣庇佑",
+        type: "ultimate",
+        description: "神圣守护者必杀技，全队护盾+治疗",
+        priority: 5,
+        range: { area_type: "circle", max_distance: 3 },
+        resource_cost: { energy: 100 },
+        cooldown: 0,
+        effects: [
+            {
+                id: "ultimate_shield",
+                name: "神圣护盾",
+                type: SkillEffectType.SHIELD,
+                value: 500,
+                duration: 5,
+                area_type: "circle",
+                area_size: 3,
+                target_attribute: "shield",
+            },
+            {
+                id: "ultimate_heal",
+                name: "神圣治疗",
+                type: SkillEffectType.HEAL,
+                value: 300,
+                area_type: "circle",
+                area_size: 3,
+                target_attribute: "hp",
+            },
+        ],
+    },
 };
 
 /**
@@ -698,4 +872,6 @@ export function getSkillsByType(type: "master" | "active" | "passive"): MonsterS
 export function skillExists(skillId: string): boolean {
     return skillId in SKILL_CONFIGS;
 }
+
+
 

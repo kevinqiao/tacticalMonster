@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portal Solitaire · 效果图对照</title>
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #0f172a;
+      font-family: system-ui, sans-serif;
+    }
+    .bar {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 10px 16px;
+      background: #fef08a;
+      color: #713f12;
+      font-weight: 800;
+      text-align: center;
+      border-bottom: 3px solid #0f172a;
+    }
+    .bar a { color: #1d4ed8; }
+    .frame {
+      display: flex;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .frame img {
+      width: min(100%, 960px);
+      height: auto;
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    效果图原稿（1536×1024，仅对照用，不参与页面切片）·
+    <a href="/portal-static/index.html">CSS 静态页</a>
+  </div>
+  <div class="frame">
+    <img src="/assets/solitaire_main.png" alt="Solitaire portal mockup" />
+  </div>
+</body>
+</html>

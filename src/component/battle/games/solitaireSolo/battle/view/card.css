@@ -1,26 +1,60 @@
 .card {
+    touch-action: none;
     position: absolute;
     top: 0;
     left: 0;
+    /* 初始隐藏；布局/动画用 GSAP autoAlpha 显示。勿在 React style 里每次写 opacity:0 */
+    opacity: 0;
+    overflow: visible;
     transform-style: preserve-3d;
     perspective: 1000px;
     -webkit-transform-style: preserve-3d;
-    /* 浏览器兼容性 */
     -webkit-perspective: 1000px;
-    /* transform: rotateY(0deg); */
-    /* border-radius: 8px;
-    border: 2px solid #333; */
-    /* background-color: #fff; */
-    /* 禁用背面隐藏，确保事件始终有效 */
-    /* backface-visibility: hidden; */
     pointer-events: auto !important;
-    will-change: transform;
+    /* 阴影用 box-shadow，避免 SVG filter:drop-shadow 每帧重绘 */
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.28);
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    /* 不用 transform 做 hover，避免和 GSAP x/y 抢 transform */
+    transition:
+        box-shadow 0.16s ease,
+        outline-color 0.16s ease;
+    cursor: default;
+}
+
+/*
+ * 可拖光标：圆润手型 + 奶杏色填充 / 深褐描边（白牌与绿呢上都清晰，贴木质顶栏）
+ * hotspot 落在指尖附近，切换比旧版「黑块手」自然
+ */
+.card.card--interactive {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath fill='%23FFF6E4' stroke='%233E2410' stroke-width='1.35' stroke-linejoin='round' stroke-linecap='round' d='M8.8 13.2V8.4a1.55 1.55 0 0 1 3.1 0v4.3'/%3E%3Cpath fill='%23FFF6E4' stroke='%233E2410' stroke-width='1.35' stroke-linejoin='round' stroke-linecap='round' d='M11.9 12.9V7a1.55 1.55 0 0 1 3.1 0v5.5'/%3E%3Cpath fill='%23FFF6E4' stroke='%233E2410' stroke-width='1.35' stroke-linejoin='round' stroke-linecap='round' d='M15 13.1V7.6a1.55 1.55 0 0 1 3.1 0v7.4'/%3E%3Cpath fill='%23FFF6E4' stroke='%233E2410' stroke-width='1.35' stroke-linejoin='round' stroke-linecap='round' d='M18.1 14.8v-2.4a1.45 1.45 0 0 1 2.9 0v6.4c0 3.4-2.5 5.8-6 5.8h-.85c-3.1 0-5.5-2-6.35-4.8l-1.5-4.4a1.6 1.6 0 0 1 3-1.25l1.25 2.45'/%3E%3C/svg%3E") 9 5, grab;
+}
+
+.card.card--interactive:active,
+.card.card--dragging {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath fill='%23FFF6E4' stroke='%233E2410' stroke-width='1.35' stroke-linejoin='round' stroke-linecap='round' d='M8.2 13.6c0-1.15.9-2.05 2.05-2.05h1.05c.15-1.05 1.05-1.85 2.15-1.85.45 0 .9.15 1.25.45.4-.65 1.1-1.05 1.95-1.05 1.25 0 2.25.95 2.25 2.2v.25c.3-.15.65-.25 1.05-.25 1.15 0 2.05.9 2.05 2.05v5.1c0 2.85-2.15 5.1-5 5.1h-2.15c-2.55 0-4.7-1.7-5.4-4.05l-.75-2.55c-.3-.95.3-2 1.3-2.3.2-.05.4-.1.6-.1h.6z'/%3E%3C/svg%3E") 11 9, grabbing;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .card.card--interactive:hover {
+        box-shadow:
+            3px 7px 14px rgba(0, 0, 0, 0.34),
+            0 0 0 1px rgba(255, 213, 97, 0.45);
+        outline-color: #b06e14;
+    }
+}
+
+.card.card--dragging {
+    box-shadow:
+        4px 10px 18px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 213, 97, 0.55);
+    outline-color: #b06e14;
 }
 
 .card-solo {
     width: 100%;
     height: 100%;
-    background-color: #fff;
+    background-color: var(--card-face-bg, #ffffff);
     transform-style: preserve-3d;
     -webkit-transform-style: preserve-3d;
 }
@@ -29,18 +63,17 @@
     width: 100%;
     height: 100%;
     transform-style: preserve-3d;
-    /* 确保 SVG 也支持 3D */
     -webkit-transform-style: preserve-3d;
-
+    /* 小尺寸下减少 SVG 文字/花色栅格发糊 */
+    shape-rendering: geometricPrecision;
+    text-rendering: geometricPrecision;
 }
 
 .card .front,
 .card .back {
-    /* backface-visibility: hidden; */
+    backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    /* 浏览器兼容性 */
     transform-style: preserve-3d;
-    /* 确保每个 <g> 在 3D 空间中 */
     -webkit-transform-style: preserve-3d;
     position: absolute;
     top: 0;
@@ -55,10 +88,49 @@
     -webkit-transform: rotateY(180deg);
 }
 
+/* 小屏专用「中间偏下」花色；大屏隐藏 */
+.card .front .solo-face-suit-low {
+    visibility: hidden;
+}
 
+/**
+ * 窄屏 compact：左上点数 + 中间偏下大花色
+ * 大屏不打 data-compact-face → 经典完整牌面（角标+正中花色）
+ */
+.solo-board-surface[data-compact-face="1"] .card .front .solo-face-mirror,
+.solo-board-surface[data-compact-face="1"] .card .front .solo-face-suit-corner,
+.solo-board-surface[data-compact-face="1"] .card .front .solo-face-center {
+    visibility: hidden;
+}
 
-/* 确保所有卡牌事件始终有效 */
-.card {
-    /* 在现有规则基础上添加 */
-    will-change: transform;
+.solo-board-surface[data-compact-face="1"] .card .front .solo-face-suit-low {
+    visibility: visible;
+}
+
+.solo-board-surface[data-compact-face="1"] .card .front text.solo-face-rank {
+    font-size: var(--solo-face-rank-px, 40px) !important;
+    dominant-baseline: hanging;
+    /* 经典 y=25 偏下；小屏上移贴近顶边 */
+    transform: translateY(-10px);
+}
+
+.solo-board-surface[data-compact-face="1"] .card .front text.solo-face-suit-low {
+    font-size: var(--solo-face-center-px, 48px) !important;
+    dominant-baseline: middle;
+}
+
+/**
+ * 胜利 cascade 等飞行动画：
+ * - 隐藏背面，避免飞行时透出/闪面
+ * - 不改 .front 的 rotateY(180)，并保持牌面 GSAP rotateY:180（与局内明牌一致）
+ *   若把 front 改成 transform:none 且 card 设为 0，在部分路径下数字会左右反
+ */
+.card.card--flat-anim .back {
+    visibility: hidden !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+}
+.card.card--flat-anim .front {
+    backface-visibility: visible !important;
+    -webkit-backface-visibility: visible !important;
 }

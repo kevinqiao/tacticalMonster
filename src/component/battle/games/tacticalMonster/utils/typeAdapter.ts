@@ -1,0 +1,165 @@
+/**
+ * 类型适配器
+ * 用于前后端类型转换，统一数据格式
+ */
+
+
+import { GameBoss, GameMinion, GameMonster } from "../types/monsterTypes";
+import { MonsterSprite } from "../types/CombatTypes";
+import { CharacterIdentifier } from "../types/gameTypes";
+
+// 重新导出后端类型，方便使用
+export type { CharacterIdentifier };
+
+// 注意：不再需要转换函数，统一使用后端的 MonsterSkill 和 SkillEffect
+
+/**
+ * 将后端Monster转换为前端MonsterSprite
+ * 添加UI字段、character_id，统一使用后端的 MonsterSkill[]（不再转换）
+ */
+export function toMonsterSprite(
+    monster: GameMonster | GameBoss | GameMinion,
+    existingSprite?: MonsterSprite
+): MonsterSprite {
+    // 确定 character_id（召唤单位等可能已有 character_id，需保留以区分同 monsterId 的多个单位）
+    let character_id: string;
+    if ((monster as any).character_id) {
+        character_id = (monster as any).character_id;
+    } else if ('bossId' in monster && monster.bossId) {
+        character_id = monster.bossId;
+    } else if ('minionId' in monster && monster.minionId) {
+        character_id = monster.minionId;
+    } else {
+        character_id = monster.monsterId;
+    }
+
+
+
+
+    // 创建MonsterSprite（继承GameMonster的所有字段，包括statusEffects）
+    const sprite: MonsterSprite = {
+        ...monster,        // 继承所有GameMonster字段，包括statusEffects
+        character_id,      // 添加character_id
+        // 统一使用 MonsterSkill[]
+        // statusEffects 已经通过 ...monster 继承，类型为 StatusEffect[]
+        // 保留现有UI相关字段
+        ...(existingSprite && {
+            container: existingSprite.container,
+            standEle: existingSprite.standEle,
+            attackEle: existingSprite.attackEle,
+            skeleton: existingSprite.skeleton,
+            animator: existingSprite.animator,
+            scaleX: existingSprite.scaleX,
+            facing: existingSprite.facing,
+            walkables: existingSprite.walkables,
+            attackables: existingSprite.attackables,
+        }),
+    };
+
+    return sprite;
+}
+
+/**
+ * 将前端的 MonsterSprite 转换为后端的 CharacterIdentifier
+ */
+export function convertMonsterToCharacterIdentifier(monster: MonsterSprite): CharacterIdentifier {
+    // 根据 character_id 判断类型
+    // 注意：这里需要根据游戏状态判断，暂时使用简单规则
+    // 实际使用时，需要传入游戏状态来判断是 bossId 还是 minionId
+
+    // 简单规则：如果 uid 是 "boss"，可能是 bossId 或 minionId
+    // 这里返回一个通用的标识符，调用方需要根据实际情况设置正确的字段
+    if (monster.uid === "boss") {
+        // 无法确定是 bossId 还是 minionId，返回空对象
+        // 调用方需要根据游戏状态设置正确的字段
+        return {};
+    }
+
+    // 玩家角色：使用 monsterId
+    return {
+        monsterId: monster.character_id,
+    };
+}
+
+
+/**
+ * 根据游戏状态和 character_id 确定 CharacterIdentifier
+ * 需要传入游戏状态来判断是 bossId 还是 minionId
+ */
+export function determineCharacterIdentifier(
+    characterId: string,
+    uid: string,
+    gameState?: {
+        boss?: { bossId?: string; minions?: Array<{ minionId?: string }> };
+    }
+): CharacterIdentifier {
+    if (uid === "boss") {
+        // 检查是否是Boss主体
+        if (gameState?.boss?.bossId === characterId) {
+            return { bossId: characterId };
+        }
+        // 检查是否是小怪
+        if (gameState?.boss?.minions?.some(m => m.minionId === characterId)) {
+            return { minionId: characterId };
+        }
+        // 无法确定，返回空（调用方需要处理）
+        return {};
+    }
+
+    // 玩家角色
+    return { monsterId: characterId };
+}
+
+/**
+ * 从 CharacterIdentifier 获取 character_id（用于查找前端角色）
+ */
+export function getCharacterIdFromIdentifier(identifier: CharacterIdentifier): string | null {
+    return identifier.monsterId || identifier.bossId || identifier.minionId || null;
+}
+
+/**
+ * 从后端的 team 和 boss 生成前端的 characters 数组（MonsterSprite[]）
+ * 用于需要所有角色的场景（如渲染、查找等）
+ */
+export function getCharactersFromGameModel(
+    team: GameMonster[],
+    boss: GameBoss
+): MonsterSprite[] {
+    const characters: MonsterSprite[] = [];
+    const usedIds = new Set<string>();
+
+    // 处理玩家队伍
+    if (team && Array.isArray(team)) {
+        team.forEach((monster: GameMonster, index: number) => {
+            const sprite = toMonsterSprite(monster);
+            let cid = sprite.character_id;
+            if (usedIds.has(cid)) {
+                cid = `${cid}_${index}`;
+                sprite.character_id = cid;
+            }
+            usedIds.add(cid);
+            sprite.scaleX = 1; // 玩家角色 scaleX = 1
+            characters.push(sprite);
+        });
+    }
+
+    // 处理Boss（包括Boss本体和小怪，uid="boss"）
+    if (boss) {
+        // Boss本体
+        const bossSprite = toMonsterSprite(boss);
+        bossSprite.scaleX = -1; // Boss角色 scaleX = -1（面向玩家）
+        characters.push(bossSprite);
+
+        // Boss的小怪
+        if (boss.minions && Array.isArray(boss.minions)) {
+            boss.minions.forEach((minion: GameMonster) => {
+                const minionSprite = toMonsterSprite(minion);
+                minionSprite.scaleX = -1; // Boss小怪 scaleX = -1（面向玩家）
+                characters.push(minionSprite);
+            });
+        }
+    }
+
+    return characters;
+}
+

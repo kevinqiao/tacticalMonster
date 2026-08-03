@@ -2,6 +2,10 @@ import { httpRouter } from "convex/server";
 // import jwt from "jsonwebtoken";
 import { api, internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
+import {
+  SSO_BRIDGE_HEADER,
+  ssoBridgeSecret,
+} from "./service/bridge/ssoBridgeSecret";
 
 
 const http = httpRouter();
@@ -36,7 +40,7 @@ http.route({
     console.log("debit");
     const debit = await request.json();
     console.log("debit: ", debit);
-    const user = await ctx.runQuery(internal.dao.userDao.find, { uid: debit.uid });
+    const user = await ctx.runQuery(internal.dao.authIdentityDao.findByUid, { uid: debit.uid });
     console.log("user: ", user);
     // if (!user) return new Response("Unauthorized", { status: 401 });
     // if (!user || user.token !== debit.token) return new Response("Unauthorized", { status: 401 });
@@ -55,9 +59,20 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const credit = await request.json();
-    const user = await ctx.runQuery(internal.dao.userDao.find, { uid: credit.uid });
-    // if (!user) return new Response("Unauthorized", { status: 401 });
-    if (!user || user.token !== credit.token) return new Response("Unauthorized", { status: 401 });
+    const platformAccessToken =
+      typeof credit.platformAccessToken === "string"
+        ? credit.platformAccessToken
+        : typeof credit.token === "string"
+          ? credit.token
+          : null;
+    if (!platformAccessToken || typeof credit.uid !== "string") {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    const ok = await ctx.runAction(api.service.auth.platformAuth.verifyPlatformTokenForUid, {
+      uid: credit.uid,
+      platformAccessToken,
+    });
+    if (!ok) return new Response("Unauthorized", { status: 401 });
 
     // console.log("result",result);
     return new Response(JSON.stringify({ ok: true }), {
@@ -70,6 +85,288 @@ http.route({
   }),
 });
 
+/**
+ * merchantCampaign → SSO: assert uid is partner_staff and partner has campaignOps.
+ * Header `X-Sso-Bridge-Secret` must match `SSO_BRIDGE_SECRET` (or CAMPAIGN_BRIDGE_SECRET).
+ */
+http.route({
+  path: "/internal/assert-partner-staff",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expected = ssoBridgeSecret();
+    const headerSecret = request.headers.get(SSO_BRIDGE_HEADER);
+    if (headerSecret !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const b = body as Record<string, unknown>;
+    const partnerId = typeof b.partnerId === "number" ? b.partnerId : Number(b.partnerId);
+    const uid = typeof b.uid === "string" ? b.uid : "";
+    const minRole =
+      typeof b.minRole === "string" &&
+      ["owner", "admin", "developer", "viewer"].includes(b.minRole)
+        ? (b.minRole as "owner" | "admin" | "developer" | "viewer")
+        : undefined;
+    if (!Number.isFinite(partnerId) || partnerId < 0 || !uid) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const result = await ctx.runQuery(
+      internal.service.partner.partnerAdmin.assertPartnerStaffInternal,
+      { partnerId, uid, minRole }
+    );
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+/** merchantCampaign → SSO: any store_staff row for uid (Web sign-in / bridges). */
+http.route({
+  path: "/internal/assert-store-staff",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expected = ssoBridgeSecret();
+    const headerSecret = request.headers.get(SSO_BRIDGE_HEADER);
+    if (headerSecret !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const uid = typeof (body as { uid?: unknown }).uid === "string" ? (body as { uid: string }).uid : "";
+    if (!uid) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const result = await ctx.runQuery(
+      internal.service.partner.storeAdmin.assertStoreStaffInternal,
+      { uid }
+    );
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+/** merchantCampaign / SSO clients: store owner for staff provisioning. */
+http.route({
+  path: "/internal/assert-store-owner",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expected = ssoBridgeSecret();
+    const headerSecret = request.headers.get(SSO_BRIDGE_HEADER);
+    if (headerSecret !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const b = body as Record<string, unknown>;
+    const storeId = typeof b.storeId === "string" ? b.storeId : "";
+    const uid = typeof b.uid === "string" ? b.uid : "";
+    if (!storeId || !uid) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const result = await ctx.runQuery(
+      internal.service.partner.storeAdmin.assertStoreOwnerInternal,
+      { storeId, uid }
+    );
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+/** merchantCampaign redeem: store staff for storeId (+ partnerId). */
+http.route({
+  path: "/internal/assert-store-staff-for-store",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expected = ssoBridgeSecret();
+    const headerSecret = request.headers.get(SSO_BRIDGE_HEADER);
+    if (headerSecret !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const b = body as Record<string, unknown>;
+    const storeId = typeof b.storeId === "string" ? b.storeId : "";
+    const uid = typeof b.uid === "string" ? b.uid : "";
+    if (!storeId || !uid) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const result = await ctx.runQuery(
+      internal.service.partner.storeAdmin.assertStoreStaffForStoreInternal,
+      { storeId, uid }
+    );
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+/** merchantCampaign validateCoupon: resolve store partnerId by storeId. */
+http.route({
+  path: "/internal/resolve-store",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expected = ssoBridgeSecret();
+    const headerSecret = request.headers.get(SSO_BRIDGE_HEADER);
+    if (headerSecret !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const storeId =
+      typeof (body as { storeId?: unknown }).storeId === "string"
+        ? (body as { storeId: string }).storeId
+        : "";
+    if (!storeId) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const store = await ctx.runQuery(internal.service.partner.storeAdmin.resolveStoreInternal, {
+      storeId,
+    });
+    if (!store) {
+      return new Response(JSON.stringify({ ok: false, error: "not_found" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true, ...store }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+/**
+ * Campaign → SSO: resolve partnerId by public partner slug.
+ * Brand stays on SSO for the FE — this bridge returns identity only.
+ * Header `X-Sso-Bridge-Secret` must match `SSO_BRIDGE_SECRET` (or CAMPAIGN_BRIDGE_SECRET).
+ */
+http.route({
+  path: "/internal/resolve-partner-by-slug",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expected = ssoBridgeSecret();
+    const headerSecret = request.headers.get(SSO_BRIDGE_HEADER);
+    if (headerSecret !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const partnerSlug =
+      typeof (body as { partnerSlug?: unknown }).partnerSlug === "string"
+        ? (body as { partnerSlug: string }).partnerSlug
+        : "";
+    if (!partnerSlug.trim()) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const resolved = await ctx.runQuery(
+      internal.service.bridge.merchantCampaignResolve.resolvePartnerBySlugInternal,
+      { partnerSlug }
+    );
+    if (!resolved) {
+      return new Response(JSON.stringify({ ok: false, error: "not_found" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        partnerId: resolved.partnerId,
+        partnerSlug: resolved.partnerSlug,
+        name: resolved.name,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }),
+});
 
 // Convex expects the router to be the default export of `convex/http.js`.
 export default http;

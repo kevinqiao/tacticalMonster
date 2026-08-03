@@ -1,0 +1,305 @@
+/**
+ * 3D 阶段动画 - 回合开始/结束 + 格子高亮
+ * 与 2D usePlayPhase 签名一致：playTurnStart(character, currentTurn, phaseChanges)、playTurnOn(currentTurn, onComplete)
+ */
+
+import gsap from "gsap";
+import { useCallback } from "react";
+import { getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { useReplay } from "../../battle/view/replayContext";
+import { useCombatManager } from "../../service/CombatManager";
+import type { MonsterSprite } from "../../types/CombatTypes";
+import type { GameTurn } from "../../types/gameTypes";
+import { buildWalkGridForMovement, getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
+import { getGameReportSprite } from "../../utils/combatHudRegistry";
+import { showDamageNumber } from "../../utils/damageNumberDisplay";
+import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
+import type { UseBattleGridStateReturn } from "../handler/useBattleGridState";
+import { usePlaySkill3D } from "./usePlaySkill3D";
+
+export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
+    const { combatHudRef, groundCells, characters, game, mapDimension } = useCombatManager();
+    const replay = useReplay();
+    const playbackSpeed = getReplayPlaybackSpeed(replay);
+    const { map } = game || {};
+    const { playSkill } = usePlaySkill3D();
+
+    /**
+     * 回合开始：被动技能动画（3D 模型），与 2D 签名一致
+     */
+    const playTurnStart = useCallback(
+        async (
+            character: MonsterSprite,
+            currentTurn: GameTurn,
+            phaseChanges?: any
+        ): Promise<gsap.core.Timeline> => {
+            const tl = gsap.timeline({ timeScale: playbackSpeed });
+            if (!character) return tl;
+
+            // 状态效果 tick 动画：DOT 伤害数字（红）、HOT 治疗数字（绿）
+            const statusEffectChanges = phaseChanges?.turnStart?.statusEffectChanges;
+            const ticked = statusEffectChanges?.ticked as Array<{ effectId: string; type: string; value: number }> | undefined;
+            if (ticked?.length) {
+                for (let i = 0; i < ticked.length; i++) {
+                    const item = ticked[i];
+                    const isHeal = item.type === "hot";
+                    tl.add(
+                        gsap.delayedCall(i * 0.15, () => {
+                            showDamageNumber(
+                                character,
+                                isHeal ? -item.value : item.value,
+                                isHeal ? "heal" : "physical"
+                            );
+                        }),
+                        i === 0 ? 0 : ">"
+                    );
+                }
+                tl.add(gsap.delayedCall(ticked.length * 0.15, () => { }), ">");
+            }
+
+            const triggeredPassiveSkills =
+                phaseChanges?.turnStart?.triggeredPassiveSkills?.filter((ps: any) => ps.character_id === character.character_id) ||
+                phaseChanges?.roundStart?.triggeredPassiveSkills?.filter((ps: any) => ps.character_id === character.character_id) ||
+                [];
+
+            if (triggeredPassiveSkills.length > 0) {
+                for (const triggeredSkill of triggeredPassiveSkills) {
+                    const skillTimeline = playSkill(
+                        character,
+                        triggeredSkill.skillId,
+                        [character],
+                        () => { }
+                    );
+                    if (skillTimeline) tl.add(skillTimeline, ">");
+                }
+            } else if (character.skills && Array.isArray(character.skills)) {
+                for (const skillId of character.skills) {
+                    try {
+                        const skillConfig = getSkillConfig(skillId);
+                        if (skillConfig?.type === "passive" && skillConfig.triggerConditions) {
+                            const hasTurnStartTrigger = skillConfig.triggerConditions.some(
+                                (trigger: any) =>
+                                    trigger.trigger_type === "turn_start" ||
+                                    trigger.trigger_type === "round_start"
+                            );
+                            if (hasTurnStartTrigger) {
+                                const skillTimeline = playSkill(
+                                    character,
+                                    skillId,
+                                    [character],
+                                    () => { }
+                                );
+                                if (skillTimeline) tl.add(skillTimeline, ">");
+                            }
+                        }
+                    } catch {
+                        // ignore missing config
+                    }
+                }
+            }
+
+            if (tl.duration() > 0) tl.play();
+            return tl;
+        },
+        [playSkill, playbackSpeed]
+    );
+
+    /**
+     * 显示回合 UI：内部计算可移动/可攻击格子并高亮 3D 网格，与 2D playTurnOn(currentTurn, onComplete) 一致
+     * @param charactersOverride 可选，覆盖从 context 读取的 characters（用于召唤单位 turnStart 时，确保能找到新加入的角色）
+     */
+    const playTurnOn = useCallback(
+        (currentTurn: GameTurn, onComplete: () => void, options?: { charactersOverride?: MonsterSprite[] }) => {
+            const chars = options?.charactersOverride ?? characters;
+            if (!chars || !groundCells || !map || !gridState) {
+                onComplete();
+                return;
+            }
+
+            const character = chars.find(
+                (c) => c.character_id === currentTurn.character_id
+            );
+            if (!character) {
+                onComplete();
+                return;
+            }
+
+            const moveRange = character.move_range ?? 2;
+            const stepsUsed = currentTurn.stepsUsed ?? 0;
+            const remainingSteps = Math.max(0, moveRange - stepsUsed);
+            const isFlying = character.isFlying ?? false;
+            const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
+            const startLogic = { q: character.q ?? 0, r: character.r ?? 0 };
+
+            // 横竖屏统一用逻辑空间：高亮 = 可点击 = 与寻路一致（飞行可越障，不可穿人）
+            const grid = buildWalkGridForMovement(
+                groundCells,
+                chars,
+                character,
+                canIgnoreObstacles,
+                map?.obstacles
+            );
+            console.log("[HexDebug] playTurnOn map", map);
+            // 每回合仅一次 walk：已移动后不再显示可走格（仍可显示可攻击预览）
+            const walkableNodes =
+                stepsUsed > 0
+                    ? []
+                    : getWalkableNodes(grid, startLogic, moveRange, canIgnoreObstacles);
+            character.walkables = walkableNodes;
+            const walkableCells = walkableNodes
+                .filter((n) => (n.distance ?? 0) > 0)
+                .map((n) => ({ q: n.q, r: n.r, distance: n.distance ?? 0 }));
+
+            const enemies = chars
+                .filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
+                .map((c) => ({
+                    uid: c.uid,
+                    character_id: c.character_id,
+                    q: c.q ?? 0,
+                    r: c.r ?? 0,
+                }));
+
+            const attackableNodes = getAttackableNodes(
+                grid,
+                {
+                    q: character.q ?? 0,
+                    r: character.r ?? 0,
+                    uid: character.uid,
+                    character_id: character.character_id,
+                    moveRange: remainingSteps,
+                    attackRange: character.attack_range || { min: 1, max: 2 },
+                },
+                enemies,
+                null,
+                canIgnoreObstacles
+            );
+            character.attackables = attackableNodes;
+
+            gridState.clearAll();
+            const attackableCells = attackableNodes.map((n) => ({ q: n.q, r: n.r }));
+            const rangeForHighlight = moveRange;
+            if (walkableCells.length > 0) gridState.highlightWalkable(walkableCells, rangeForHighlight);
+            if (attackableCells.length > 0) gridState.highlightAttackable(attackableCells);
+
+            // 调试：可移动范围按 BFS 步数（与 PathFind getWalkableNodes 一致）
+            const isPortrait = mapDimension?.isPortrait ?? false;
+            const stepDistances = walkableCells.map((c) => c.distance);
+            const maxStepD = stepDistances.length ? Math.max(...stepDistances) : -1;
+            const overRange = walkableCells.filter((c) => c.distance > moveRange);
+
+            console.log("[HexDebug] playTurnOn highlight", {
+                character: startLogic,
+                moveRange,
+                isPortrait,
+                gridShape: groundCells ? [groundCells.length, groundCells[0]?.length ?? 0] : null,
+                walkableCount: walkableCells.length,
+                maxStepD,
+                overRangeCount: overRange.length,
+                walkableSample: walkableCells.slice(0, 5),
+            });
+            if (isPortrait && overRange.length > 0) {
+                console.warn("[HexDebug] portrait 可行走中有超出 moveRange 的格子", {
+                    moveRange,
+                    overRange: overRange.slice(0, 10),
+                });
+            }
+            if (maxStepD > moveRange) {
+                console.warn("[HexDebug] 可行走最远步数 maxStepD 超出 moveRange", {
+                    moveRange,
+                    maxStepD,
+                    isPortrait,
+                });
+            }
+
+            // ✅ 高亮角色所在格子（逻辑坐标）
+            gridState.setSelected({ q: character.q ?? 0, r: character.r ?? 0 });
+
+            // 活跃角色由 CombatManager 从 currentRound 推导，无需在此设置
+
+            onComplete();
+        },
+        [characters, groundCells, map, gridState]
+    ); // characters in deps for default; options?.charactersOverride used at call time
+
+    const clearTurnUI = useCallback(() => {
+        gridState?.clearAll();
+    }, [gridState]);
+
+    /**
+     * 从当前角色位置按剩余步数刷新可行走/可攻击高亮。
+     * @param remainingSteps 剩余步数（调用方传 moveRange - stepsUsed），用于可攻击预览
+     * @param onlyFurthestLayer 已弃用：保留参数兼容旧调用
+     * @param options.skipWalkHighlight 本回合已移动后为 true，不再显示可走格（一次性移动）
+     */
+    const refreshWalkableFromPosition = useCallback(
+        (
+            character: MonsterSprite,
+            remainingSteps: number,
+            onlyFurthestLayer: boolean = true,
+            options?: { skipWalkHighlight?: boolean }
+        ) => {
+            if (!characters || !groundCells || !map || !gridState) return;
+            const remainingMove = Math.max(0, remainingSteps);
+            const startLogic = { q: character.q ?? 0, r: character.r ?? 0 };
+            const isFlying = character.isFlying ?? false;
+            const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
+            const grid = buildWalkGridForMovement(
+                groundCells,
+                characters,
+                character,
+                canIgnoreObstacles,
+                map?.obstacles
+            );
+            const skipWalk = options?.skipWalkHighlight === true;
+            const effectiveRange = skipWalk ? 0 : onlyFurthestLayer && remainingMove > 0 ? 1 : remainingMove;
+            const allInRange = skipWalk
+                ? []
+                : getWalkableNodes(grid, startLogic, effectiveRange, canIgnoreObstacles);
+            const layer = allInRange;
+            character.walkables = layer;
+            const walkableCells = layer.map((n) => ({
+                q: n.q,
+                r: n.r,
+                distance: n.distance ?? 0,
+            }));
+            const enemies = characters
+                .filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
+                .map((c) => ({ uid: c.uid, character_id: c.character_id, q: c.q ?? 0, r: c.r ?? 0 }));
+            const attackableNodes = getAttackableNodes(
+                grid,
+                {
+                    q: character.q ?? 0,
+                    r: character.r ?? 0,
+                    uid: character.uid,
+                    character_id: character.character_id,
+                    moveRange: remainingMove,
+                    attackRange: character.attack_range || { min: 1, max: 2 },
+                },
+                enemies,
+                null,
+                canIgnoreObstacles
+            );
+            character.attackables = attackableNodes;
+            gridState.clearAll();
+            const rangeForHighlight = skipWalk ? 0 : effectiveRange;
+            if (walkableCells.length > 0) gridState.highlightWalkable(walkableCells, rangeForHighlight);
+            const attackableCells = attackableNodes.map((n) => ({ q: n.q, r: n.r }));
+            if (attackableCells.length > 0) gridState.highlightAttackable(attackableCells);
+            gridState.setSelected(startLogic);
+        },
+        [characters, groundCells, map, gridState]
+    );
+    const playGameOver = useCallback((timeline: gsap.core.Timeline) => {
+        const gameReportSprite = getGameReportSprite(combatHudRef);
+        if (!gameReportSprite) return;
+        const tl = timeline ?? gsap.timeline({ timeScale: playbackSpeed });
+        tl.to(gameReportSprite.ele, {
+            autoAlpha: 1,
+            duration: 0.5,
+            ease: "power2.inOut"
+        });
+        tl.play();
+    }, [playbackSpeed]);
+
+    return { playTurnStart, playTurnOn, clearTurnUI, refreshWalkableFromPosition, playGameOver };
+};

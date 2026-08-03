@@ -90,9 +90,17 @@ export class PlayerLevelService {
 
             const oldLevel = player.level || 1;
             const oldExp = player.exp || 0;
-            const newExp = oldExp + exp;
-            const newLevel = this.calculateLevelFromExp(newExp);
+            const cfg = DEFAULT_PLAYER_LEVEL_CONFIG;
+            const raw = Math.max(0, exp);
+            const gained = Math.floor(raw * cfg.globalExpGainMultiplier);
+            const newExp = oldExp + gained;
+            const newLevel = this.calculateLevelFromExp(newExp, cfg);
             const levelUp = newLevel > oldLevel;
+
+            const suffix =
+                raw > 0 && gained < raw
+                    ? `（已按平台倍率 ${cfg.globalExpGainMultiplier} 入账 ${gained}）`
+                    : "";
 
             // 更新玩家等级和经验值
             await ctx.db.patch(player._id, {
@@ -103,9 +111,13 @@ export class PlayerLevelService {
 
             return {
                 success: true,
-                message: levelUp 
-                    ? `获得 ${exp} 经验值，等级提升到 ${newLevel} 级！`
-                    : `获得 ${exp} 经验值`,
+                message: levelUp
+                    ? `获得 ${gained} 账号经验值${suffix}，等级提升到 ${newLevel} 级！`
+                    : gained > 0
+                      ? `获得 ${gained} 账号经验值${suffix}`
+                      : raw > 0
+                        ? `本次账号经验已节流为 0（原始 ${raw}）`
+                        : `获得 0 经验值`,
                 oldLevel,
                 newLevel,
                 oldExp,

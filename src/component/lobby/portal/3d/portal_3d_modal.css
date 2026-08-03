@@ -1,0 +1,2286 @@
+/* ==========================================================================
+   Portal 3D 卡通主题弹窗（排行榜 / 历史记录 / 规则 / 商店）
+   渲染在 light DOM，注入顺序在 portal.css / solitaire-figma.css 之后，
+   用于把弹窗风格统一到主页面的 3D 卡通木质风格。
+   ========================================================================== */
+
+.portal-modal-backdrop {
+  /* Solid dim only — animating opacity with backdrop-filter flickers on many GPUs. */
+  background: rgba(30, 18, 5, 0.62) !important;
+  backdrop-filter: none;
+}
+
+/* ---- 面板：羊皮纸内芯 + 深棕木框 ---- */
+
+.portal-modal-panel--fullscreen {
+  /* Open resting pose; GSAP only tweens transform (y). Do not set transform here. */
+  inset: 16px 0 0 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+  background:
+    linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%) !important;
+  border: 6px solid #6f4318 !important;
+  border-bottom: none !important;
+  border-radius: 30px 30px 0 0 !important;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+    0 -8px 30px rgba(0, 0, 0, 0.4) !important;
+  color: #5b3a12 !important;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+/* 竖屏 / 窄视口：贴边全宽 */
+@media (max-width: 963px) {
+  .portal-modal-panel--fullscreen {
+    inset: 8px 0 0 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top-width: 5px !important;
+    border-radius: 22px 22px 0 0 !important;
+  }
+
+  .portal-modal-head {
+    padding: 14px 72px !important;
+  }
+
+  .portal-modal-head h2 {
+    font-size: 20px !important;
+    letter-spacing: 1px;
+  }
+
+  .portal-sheet-close {
+    top: calc(8px + 10px);
+  }
+
+  .portal-modal-body {
+    padding: 14px 14px 28px !important;
+  }
+
+  /* ---- 规则内容：窄屏可读 ---- */
+  .portal-rules {
+    font-size: 15px;
+  }
+
+  .portal-rules-title {
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+
+  .portal-rules-badge-item img {
+    width: 44px;
+    height: 48px;
+  }
+
+  .portal-rules-badge-arrow {
+    margin: 0 2px;
+    font-size: 18px;
+  }
+
+  .portal-rules-zonebar {
+    height: auto;
+    min-height: 40px;
+    font-size: 12px;
+  }
+
+  .portal-rules-zone {
+    padding: 6px 4px;
+    line-height: 1.2;
+  }
+
+  /* Portrait rewards: hide wide matrix, show tier picker + list */
+  .portal-rules-reward--desktop {
+    display: none !important;
+  }
+
+  .portal-rules-reward--portrait {
+    display: block !important;
+  }
+}
+
+/* ---- 标题栏：木质横梁 ---- */
+
+.portal-modal-head {
+  justify-content: center !important;
+  position: relative;
+  background: linear-gradient(180deg, #9a6430 0%, #7d4c1e 60%, #6b3f16 100%) !important;
+  border-bottom: 5px solid #5a3311 !important;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 220, 160, 0.4),
+    inset 0 -4px 6px rgba(0, 0, 0, 0.25);
+  /* Extra side padding so title clears left Sign Out + right close. */
+  padding: 16px 80px !important;
+}
+
+.portal-modal-headStart {
+  position: absolute !important;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.portal-modal-signOut {
+  appearance: none;
+  margin: 0;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 22px !important;
+  border: 3px solid #8c2c10 !important;
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%) !important;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 6px rgba(120, 30, 10, 0.35),
+    0 3px 0 rgba(90, 51, 17, 0.55);
+  color: #ffffff !important;
+  font-family: "Fredoka", "Nunito", sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  text-shadow: 0 1px 0 rgba(90, 51, 17, 0.45);
+}
+
+.portal-modal-signOut:hover {
+  filter: brightness(1.06);
+  transform: scale(1.04);
+}
+
+.portal-modal-head h2 {
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif !important;
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  letter-spacing: 2px;
+  color: #ffffff !important;
+  text-shadow:
+    -1.5px -1.5px 0 #5a3311,
+     1.5px -1.5px 0 #5a3311,
+    -1.5px  1.5px 0 #5a3311,
+     1.5px  1.5px 0 #5a3311,
+     0 4px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- 关闭按钮：红色糖果圆钮（标题栏内绝对定位，需 translateY 垂直居中） ---- */
+
+.portal-modal-close {
+  position: absolute !important;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border: 3px solid #8c2c10 !important;
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%) !important;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -4px 6px rgba(120, 30, 5, 0.4),
+    0 4px 0 rgba(90, 51, 17, 0.8) !important;
+  color: #ffffff !important;
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 2px 2px rgba(120, 30, 5, 0.6);
+  transition: transform 0.15s ease;
+}
+
+.portal-modal-close:hover {
+  transform: translateY(-50%) scale(1.08) !important;
+  color: #ffffff !important;
+}
+
+/*
+ * Shell-affixed close for PortalCenterModal — must NOT share .portal-modal-close
+ * (that class uses translateY(-50%) for head-centering; clearing GSAP transform
+ * would re-apply it and look like an upward slide on fade-out).
+ */
+.portal-sheet-close {
+  position: absolute;
+  top: calc(16px + 12px);
+  right: 14px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 3px solid #8c2c10;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -4px 6px rgba(120, 30, 5, 0.4),
+    0 4px 0 rgba(90, 51, 17, 0.8);
+  color: #ffffff;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 2px 2px rgba(120, 30, 5, 0.6);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: none;
+  transition: none;
+}
+
+.portal-sheet-close:hover {
+  filter: brightness(1.08);
+  transform: none;
+}
+
+.portal-sheet-close:active {
+  filter: brightness(0.96);
+  transform: none;
+}
+
+.portal-modal-body {
+  padding: 20px 22px 34px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable;
+}
+
+/* ---- 通用文字 ---- */
+
+.portal-modal-body .portal-muted {
+  color: #a3814f;
+  font-weight: 600;
+}
+
+.portal-pts-pos {
+  color: #1f9e3d !important;
+  font-weight: 800 !important;
+}
+
+.portal-pts-neg {
+  color: #d8452f !important;
+  font-weight: 800 !important;
+}
+
+/* ==========================================================================
+   排行榜
+   ========================================================================== */
+
+.portal-lb-me--block {
+  display: inline-block;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%) !important;
+  border: 3px solid #b06e14 !important;
+  border-radius: 999px !important;
+  padding: 10px 24px !important;
+  color: #7a4a10 !important;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 17px;
+  font-weight: 700 !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 4px 0 rgba(130, 82, 16, 0.35) !important;
+}
+
+.portal-lb-table {
+  border-collapse: separate !important;
+  border-spacing: 0 10px !important;
+  font-size: 16px !important;
+}
+
+.portal-lb-table th {
+  padding: 2px 14px !important;
+  border-bottom: none !important;
+  color: #8a5a2b !important;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.portal-lb-table td {
+  padding: 13px 14px !important;
+  border-bottom: none !important;
+  background: rgba(255, 251, 238, 0.72);
+  border-top: 2px solid #dcb779;
+  border-bottom: 2px solid #c99f5b !important;
+  color: #6b4a1c !important;
+  font-weight: 700 !important;
+}
+
+.portal-lb-table td:first-child {
+  border-left: 2px solid #dcb779;
+  border-radius: 14px 0 0 14px;
+  width: 64px;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 18px;
+}
+
+.portal-lb-table td:last-child {
+  border-right: 2px solid #c99f5b;
+  border-radius: 0 14px 14px 0;
+}
+
+/* 前三名：金 / 银 / 铜 底色（:not([colspan]) 排除“暂无数据”占位行） */
+.portal-lb-table tbody tr:nth-child(1) td:not([colspan]) {
+  background: linear-gradient(180deg, #ffe9a3 0%, #ffd561 100%);
+  border-color: #d29a24;
+  color: #7a4a10 !important;
+}
+
+.portal-lb-table tbody tr:nth-child(2) td:not([colspan]) {
+  background: linear-gradient(180deg, #eef1f5 0%, #d9dfe7 100%);
+  border-color: #a7b0bd;
+  color: #4c5866 !important;
+}
+
+.portal-lb-table tbody tr:nth-child(3) td:not([colspan]) {
+  background: linear-gradient(180deg, #f4d9bd 0%, #e6b98d 100%);
+  border-color: #bd7f43;
+  color: #77451a !important;
+}
+
+/* 当前用户行：整圈绿色边框特显（覆盖前三名配色边框） */
+.portal-lb-table tbody tr.portal-lb-row--you td:not([colspan]) {
+  border-top: 3px solid #1f8a4c !important;
+  border-bottom: 3px solid #1f8a4c !important;
+  font-weight: 800 !important;
+}
+
+.portal-lb-table tbody tr.portal-lb-row--you td:first-child:not([colspan]) {
+  border-left: 3px solid #1f8a4c !important;
+}
+
+.portal-lb-table tbody tr.portal-lb-row--you td:last-child:not([colspan]) {
+  border-right: 3px solid #1f8a4c !important;
+}
+
+/* ==========================================================================
+   历史记录
+   ========================================================================== */
+
+.portal-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portal-history-row {
+  box-sizing: border-box;
+  background: rgba(255, 251, 238, 0.72) !important;
+  border: 2px solid #dcb779 !important;
+  border-bottom: 4px solid #c99f5b !important;
+  border-radius: 16px !important;
+  padding: 14px 18px !important;
+  margin: 0 !important;
+  color: #6b4a1c !important;
+}
+
+.portal-history-row strong {
+  color: #5b3a12;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.portal-history-game {
+  color: rgba(91, 58, 18, 0.72);
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.portal-history-row--ongoing {
+  background: linear-gradient(180deg, #e4f6cf 0%, #cdeba6 100%) !important;
+  border-color: #7fae3f !important;
+  border-bottom-color: #629027 !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.portal-history-row--ongoing:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 rgba(98, 144, 39, 0.35);
+}
+
+.portal-history-badge {
+  background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 100%) !important;
+  border: 2px solid #4c8a15;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(60, 100, 10, 0.6);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4);
+}
+
+.portal-history-enter {
+  color: #4c8a15 !important;
+  font-weight: 800 !important;
+}
+
+.portal-history-meta {
+  font-size: 0.85rem !important;
+}
+
+.portal-history-empty {
+  font-size: 18px;
+  padding: 48px 0 !important;
+}
+
+/* 战报按钮：金色糖果小按钮 */
+.portal-history-report-btn {
+  padding: 6px 22px !important;
+  border-radius: 999px !important;
+  border: 2.5px solid #b06e14 !important;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%) !important;
+  color: #7a4a10 !important;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 3px 0 rgba(130, 82, 16, 0.45) !important;
+  transition: transform 0.12s ease;
+}
+
+.portal-history-report-btn:hover {
+  background: linear-gradient(180deg, #ffeb96 0%, #ffd25c 60%, #ffbe3a 100%) !important;
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   规则 / 商店内容
+   ========================================================================== */
+
+.rules-dialog-content {
+  color: #6b4a1c !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  line-height: 1.7 !important;
+}
+
+.rules-dialog-content p {
+  margin: 0 0 10px;
+}
+
+.rules-dialog-content strong {
+  color: #a05c10;
+  font-weight: 800;
+}
+
+.rules-dialog-content ul {
+  list-style: none;
+  padding-left: 0 !important;
+  margin: 12px 0 !important;
+}
+
+.rules-dialog-content > ul > li {
+  background: rgba(255, 251, 238, 0.72);
+  border: 2px solid #dcb779;
+  border-bottom: 4px solid #c99f5b;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 10px !important;
+}
+
+.rules-dialog-content ul ul {
+  margin: 8px 0 0 !important;
+}
+
+.rules-dialog-content ul ul li {
+  padding: 3px 0;
+  margin-bottom: 2px !important;
+}
+
+.rules-dialog-content h3 {
+  color: #5b3a12 !important;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+/* ==========================================================================
+   玩法规则总弹窗（积分 / 段位与分组 / 奖励）
+   ========================================================================== */
+
+.portal-rules {
+  color: #6b4a1c;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* 段落 */
+.portal-rules-section {
+  scroll-margin-top: 12px;
+  margin-bottom: 30px;
+}
+
+.portal-rules-title {
+  margin: 0 0 10px;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #5b3a12;
+  padding-left: 14px;
+  border-left: 6px solid #f0a32a;
+  border-radius: 3px;
+}
+
+.portal-rules-intro {
+  margin: 0 0 12px;
+}
+
+.portal-rules strong {
+  color: #a05c10;
+  font-weight: 800;
+}
+
+.portal-rules-pos {
+  color: #1f9e3d !important;
+}
+
+.portal-rules-neg {
+  color: #d8452f !important;
+}
+
+/* 内容卡片：与历史记录卡片同款 */
+.portal-rules-card {
+  scroll-margin-top: 64px;
+  background: rgba(255, 251, 238, 0.72);
+  border: 2px solid #dcb779;
+  border-bottom: 4px solid #c99f5b;
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+}
+
+.portal-rules-card-head {
+  margin-bottom: 6px;
+}
+
+.portal-rules-card-title {
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #5b3a12;
+}
+
+.portal-rules-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.portal-rules-card li {
+  position: relative;
+  padding-left: 18px;
+  margin: 4px 0;
+}
+
+.portal-rules-card li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.68em;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f0a32a;
+  box-shadow: inset 0 -2px 2px rgba(150, 90, 10, 0.5);
+}
+
+/* 段位徽章链 */
+.portal-rules-badges {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 14px;
+  flex-wrap: wrap;
+}
+
+.portal-rules-badge-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.portal-rules-badge-item img {
+  width: 58px;
+  height: 62px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 3px rgba(60, 30, 5, 0.3));
+}
+
+.portal-rules-badge-item > span:not(.portal-rules-badge-arrow) {
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #5b3a12;
+}
+
+.portal-rules-badge-arrow {
+  margin: 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #b98a3f;
+}
+
+/* 晋降区示意条：与主页段位栏同配色 */
+.portal-rules-zonebar {
+  display: flex;
+  height: 42px;
+  margin: 10px 0;
+  border: 2.5px solid #8a5a12;
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.portal-rules-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* 30 人组：升 8 / 保 14 / 降 8 → 4:7:4 */
+.portal-rules-zone--promote {
+  flex: 4;
+  background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 100%);
+}
+
+.portal-rules-zone--keep {
+  flex: 7;
+  background: linear-gradient(180deg, #ffd561 0%, #f0a32a 100%);
+  color: #7a4a10;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.portal-rules-zone--demote {
+  flex: 4;
+  background: linear-gradient(180deg, #ff8a5c 0%, #d63a1c 100%);
+}
+
+/* 奖励表：名次 × 段位 金币矩阵 */
+.portal-rules-reward-table-wrap {
+  width: 100%;
+}
+
+.portal-rules-reward--portrait {
+  display: none;
+}
+
+.portal-rules-reward-tier-picks {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.portal-rules-reward-tier-pick {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 4px 6px;
+  border: 2.5px solid #c99f5b;
+  border-radius: 14px;
+  background: rgba(255, 251, 238, 0.85);
+  color: #8a5a2b;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.15;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(130, 82, 16, 0.2);
+}
+
+.portal-rules-reward-tier-pick img {
+  width: 36px;
+  height: 38px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 2px rgba(60, 30, 5, 0.28));
+}
+
+.portal-rules-reward-tier-pick--active {
+  border-color: #b06e14;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffc63e 60%, #f7b12b 100%);
+  color: #7a4a10;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.55),
+    0 2px 0 rgba(130, 82, 16, 0.4);
+}
+
+.portal-rules-reward-tier-pick--me:not(.portal-rules-reward-tier-pick--active) {
+  border-color: #d29a24;
+  box-shadow: 0 0 0 2px rgba(255, 210, 90, 0.45);
+}
+
+.portal-rules-reward-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.portal-rules-reward-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 2px solid #dcb779;
+  background: rgba(255, 251, 238, 0.85);
+  color: #6b4a1c;
+  font-weight: 700;
+}
+
+.portal-rules-reward-list-row--promote {
+  border-color: #7bb83a;
+  background: linear-gradient(90deg, rgba(143, 209, 79, 0.22) 0%, rgba(255, 251, 238, 0.9) 55%);
+}
+
+.portal-rules-reward-list-row--keep {
+  border-color: #e3b04a;
+  background: linear-gradient(90deg, rgba(255, 213, 97, 0.28) 0%, rgba(255, 251, 238, 0.9) 55%);
+}
+
+.portal-rules-reward-list-row--demote {
+  border-color: #e07a55;
+  background: linear-gradient(90deg, rgba(255, 138, 92, 0.2) 0%, rgba(255, 251, 238, 0.9) 55%);
+}
+
+.portal-rules-reward-list-rank {
+  min-width: 0;
+  font-size: 15px;
+}
+
+.portal-rules-reward-list-coins {
+  flex-shrink: 0;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.portal-rules-reward-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.portal-rules-reward-table th {
+  padding: 2px 8px 6px;
+  text-align: center;
+  vertical-align: bottom;
+  color: #8a5a2b;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.portal-rules-reward-table th:first-child {
+  text-align: left;
+  padding-left: 14px;
+}
+
+.portal-rules-reward-badge {
+  display: block;
+  width: 40px;
+  height: 42px;
+  margin: 0 auto 2px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 2px rgba(60, 30, 5, 0.3));
+}
+
+.portal-rules-reward-table td {
+  padding: 10px 8px;
+  text-align: center;
+  background: rgba(255, 251, 238, 0.72);
+  border-top: 2px solid #dcb779;
+  border-bottom: 2px solid #c99f5b;
+  color: #6b4a1c;
+  font-weight: 700;
+}
+
+.portal-rules-reward-table td:first-child {
+  text-align: left;
+  padding-left: 14px;
+  border-left: 2px solid #dcb779;
+  border-radius: 12px 0 0 12px;
+  white-space: nowrap;
+}
+
+.portal-rules-reward-table td:last-child {
+  border-right: 2px solid #c99f5b;
+  border-radius: 0 12px 12px 0;
+}
+
+.portal-rules-reward-coins {
+  white-space: nowrap;
+}
+
+/* 当前段位列高亮 */
+.portal-rules-reward-table td.portal-rules-reward-col--me {
+  background: linear-gradient(180deg, #ffe9a3 0%, #ffd561 100%);
+  border-color: #d29a24;
+  color: #7a4a10;
+}
+
+.portal-rules-reward-table th.portal-rules-reward-col--me {
+  color: #b06e14;
+}
+
+/* 名次列的晋降标记与图例 */
+.portal-rules-zone-mark {
+  display: inline-block;
+  width: 20px;
+  margin-right: 6px;
+  text-align: center;
+  font-weight: 800;
+}
+
+/* 周联赛结算弹窗 */
+.portal-wl-close {
+  padding: 8px 4px 4px;
+  text-align: center;
+  color: #6f4f2d;
+}
+
+.portal-wl-close__title {
+  margin: 0 0 8px;
+  font-family: Fredoka, var(--default-font-family);
+  font-size: 28px;
+  font-weight: 900;
+  color: #7a4c12;
+  text-shadow: -1px -1px 0 #fff, 1px 1px 0 #5c3b1e;
+}
+
+.portal-wl-close__sub,
+.portal-wl-close__tier,
+.portal-wl-close__rewards,
+.portal-wl-close__empty {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.portal-wl-close__rewards {
+  color: #b45309;
+  font-size: 22px;
+}
+
+.portal-wl-close__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.portal-wl-close__btn {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #7a4c12;
+  background: linear-gradient(180deg, #ffe082 0%, #fbbf24 100%);
+  box-shadow: 0 4px 0 #b45309;
+  cursor: pointer;
+}
+
+.portal-wl-close__btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.portal-wl-close__btn--ghost {
+  background: linear-gradient(180deg, #f4ddba 0%, #e8c896 100%);
+  box-shadow: 0 3px 0 #8b5a2b;
+}
+
+.portal-shop-panel {
+  color: #6f4f2d;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-modal-body:has(.portal-shop-panel) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.portal-shop-panel__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  flex-shrink: 0;
+}
+
+.portal-shop-panel__balance {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.portal-shop-panel__balance span {
+  color: #b45309;
+}
+
+.portal-shop-panel__adCoin,
+.portal-shop-panel__checkin {
+  margin: 0 0 14px;
+  flex-shrink: 0;
+}
+
+.portal-shop-panel__item--adCoin,
+.portal-shop-panel__item--checkin {
+  margin: 0;
+}
+
+.portal-shop-panel__checkinDays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  list-style: none;
+  margin: 8px 0 6px;
+  padding: 0;
+}
+
+.portal-shop-panel__checkinDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid transparent;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.portal-shop-panel__checkinDay--filled {
+  background: rgba(120, 200, 140, 0.18);
+  border-color: rgba(120, 200, 140, 0.35);
+}
+
+.portal-shop-panel__checkinDay--today {
+  border-color: rgba(255, 210, 120, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 210, 120, 0.2);
+}
+
+.portal-shop-panel__checkinDayLabel {
+  opacity: 0.75;
+}
+
+.portal-shop-panel__checkinDayReward {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+}
+
+.portal-shop-panel__checkinDayReward img {
+  width: 0.95em;
+  height: 0.95em;
+  margin-right: 2px;
+  vertical-align: -0.15em;
+}
+
+.portal-shop-panel__balance img,
+.portal-shop-panel__buy img,
+.portal-shop-panel__grant img {
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 4px;
+  vertical-align: -0.2em;
+  object-fit: contain;
+}
+
+.portal-shop-panel__buy img {
+  margin-right: 5px;
+}
+
+.portal-shop-panel__note {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.portal-shop-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portal-shop-panel__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff7e6 0%, #f4ddba 100%);
+  border: 2px solid #c99f5b;
+}
+
+.portal-shop-panel__itemMain strong {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.portal-shop-panel__desc,
+.portal-shop-panel__grant,
+.portal-shop-panel__limit {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.portal-shop-panel__buy {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #7a4c12;
+  background: linear-gradient(180deg, #ffe082 0%, #fbbf24 100%);
+  box-shadow: 0 3px 0 #b45309;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.portal-shop-panel__buy:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.portal-shop-panel__buy--insufficient:not(:disabled) {
+  background: linear-gradient(180deg, #fde8c8 0%, #f5c98a 100%);
+  color: #9a6b2e;
+  box-shadow: 0 3px 0 #a3814f;
+}
+
+.portal-shop-panel__empty {
+  padding: 20px 16px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #a3814f;
+}
+
+.portal-shop-panel__region {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8b6914;
+}
+
+.portal-shop-panel__catalog {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.portal-shop-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.portal-shop-panel__sectionTitle {
+  margin: 0;
+  padding: 6px 0 2px;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #8b6914;
+  border-bottom: 2px solid rgba(139, 105, 20, 0.25);
+}
+
+.portal-shop-panel__itemTitleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.portal-shop-panel__itemTitleRow strong {
+  display: inline;
+  font-size: 18px;
+  margin-bottom: 0;
+}
+
+.portal-shop-panel__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #7a4c12;
+  background: linear-gradient(180deg, #fde8c8 0%, #f5c98a 100%);
+  border: 1px solid #c99f5b;
+}
+
+.portal-shop-panel__ordersLink {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 2px solid #c9a227;
+  background: #fff8e6;
+  font-size: 12px;
+  font-weight: 800;
+  color: #8b6914;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.portal-shop-panel__ordersCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #fff;
+  background: #b45309;
+}
+
+.portal-shop-panel__note--warn {
+  color: #b45309;
+}
+
+.portal-giftcard-panel__empty {
+  padding: 16px;
+  text-align: center;
+  color: #a3814f;
+  font-weight: 700;
+}
+
+.portal-giftcard-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.portal-giftcard-panel__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 248, 230, 0.9);
+  border: 2px solid #e8c878;
+}
+
+.portal-giftcard-panel__meta,
+.portal-giftcard-panel__status {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #8b6914;
+}
+
+.portal-giftcard-panel__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.portal-giftcard-panel__btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 2px solid #c9a227;
+  background: linear-gradient(180deg, #ffe9a8 0%, #f5c842 100%);
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.portal-giftcard-panel__btn--secondary {
+  background: #fff8e6;
+}
+
+.portal-region-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.portal-region-modal__card {
+  width: min(92vw, 360px);
+  padding: 20px;
+  border-radius: 16px;
+  background: #fff8e6;
+  border: 3px solid #c9a227;
+}
+
+.portal-region-modal__title {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.portal-region-modal__hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #8b6914;
+}
+
+.portal-region-modal__select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 2px solid #e8c878;
+  margin-bottom: 14px;
+}
+
+.portal-region-modal__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.portal-region-modal__btn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 2px solid #c9a227;
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.portal-region-modal__btn--primary {
+  background: linear-gradient(180deg, #ffe9a8 0%, #f5c842 100%);
+}
+
+.portal-rules-zone-mark--promote {
+  color: #4c8a15;
+}
+
+.portal-rules-zone-mark--keep {
+  color: #c98a1b;
+}
+
+.portal-rules-zone-mark--demote {
+  color: #d8452f;
+}
+
+.portal-rules-reward-legend {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  color: #a3814f;
+}
+
+.portal-rules-reward-legend .portal-rules-zone-mark {
+  margin-left: 14px;
+}
+
+.portal-rules-reward-legend .portal-rules-zone-mark:first-child {
+  margin-left: 0;
+}
+
+/* ---- 3D Toast（挂 document.body，与弹窗同主题） ---- */
+
+.portal-3d-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 10050;
+  max-width: min(92vw, 420px);
+  padding: 14px 22px;
+  border-radius: 18px;
+  border: 5px solid #6f4318;
+  background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%);
+  color: #5b3a12;
+  font-family: "Fredoka", "Nunito", "Segoe UI Rounded", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+  letter-spacing: 0.3px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -4px 10px rgba(150, 96, 33, 0.22),
+    0 8px 0 rgba(90, 51, 17, 0.75),
+    0 12px 28px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  animation: portal-3d-toast-in 0.28s ease-out;
+}
+
+@keyframes portal-3d-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ---- 匹配队列遮罩：Portal 3D 木质 Q 风 ---- */
+
+.portal-3d-match-overlay {
+  /*
+   * Above Portal center modals (picker ~1200), below host play modals (5500).
+   * Must not sit over the game — otherwise Creating match sticks after the board opens.
+   */
+  z-index: 5400;
+  font-family: "Fredoka", "Nunito", "Segoe UI Rounded", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__backdrop {
+  background: rgba(30, 18, 5, 0.62) !important;
+  backdrop-filter: blur(3px);
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__panel {
+  background: linear-gradient(180deg, #f8e5b8 0%, #f3d79b 55%, #eecb85 100%) !important;
+  border: 6px solid #6f4318 !important;
+  border-radius: 28px !important;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -6px 14px rgba(150, 96, 33, 0.28),
+    0 10px 0 rgba(90, 51, 17, 0.75),
+    0 16px 36px rgba(0, 0, 0, 0.4) !important;
+  color: #5b3a12 !important;
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__spinner {
+  width: 56px;
+  height: 56px;
+  border: 5px solid #c9a56a;
+  border-top-color: #7d4c1e;
+  border-radius: 50%;
+  background: transparent;
+  animation: portal-3d-match-spin 0.9s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes portal-3d-match-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__title {
+  font-family: "Fredoka", "Nunito", sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: #5b3a12 !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__sub {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #8a5c28 !important;
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__leave {
+  border: 3px solid #8c2c10 !important;
+  border-radius: 14px !important;
+  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    0 4px 0 rgba(90, 51, 17, 0.85) !important;
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__leave:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.portal-3d-match-overlay .casual-play-match-overlay__leave:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    0 2px 0 rgba(90, 51, 17, 0.85) !important;
+}
+
+
+.portal-account-panel,
+.portal-backpack-panel {
+  padding: 8px 4px 12px;
+  color: #5b3a12;
+  font-family: "Fredoka", "Nunito", sans-serif;
+}
+
+.portal-account-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.portal-account-shell__section {
+  margin: 4px 0 0;
+  padding: 4px 0 0;
+  border-top: 2px solid rgba(111, 67, 24, 0.12);
+}
+
+.portal-account-shell__section-title {
+  margin: 10px 4px 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #5b3a12;
+  font-family: "Fredoka", "Nunito", sans-serif;
+}
+
+.portal-account-shell__mute-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 4px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #5b3a12;
+  font-family: "Fredoka", "Nunito", sans-serif;
+  cursor: pointer;
+}
+
+.portal-account-shell__mute-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: #8b5a2b;
+}
+
+.portal-account-panel__list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portal-account-panel__nickname-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.portal-account-panel__nickname-block .portal-account-panel__hint {
+  margin: 0 4px;
+  font-size: 12px;
+}
+
+.portal-account-panel__contact-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .portal-account-panel__contact-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.portal-account-panel__row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 248, 230, 0.65);
+  border: 2px solid rgba(111, 67, 24, 0.18);
+}
+
+.portal-account-panel__row dt {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a5c28;
+}
+
+.portal-account-panel__row dd {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #5b3a12;
+  word-break: break-word;
+}
+
+.portal-account-panel__row--edit {
+  align-items: center;
+}
+
+.portal-account-panel__row--edit > span {
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a5c28;
+}
+
+.portal-account-panel__row--edit input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 2px solid rgba(111, 67, 24, 0.28);
+  background: rgba(255, 255, 255, 0.85);
+  color: #5b3a12;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.portal-account-panel__row--edit input:focus {
+  outline: none;
+  border-color: rgba(38, 135, 216, 0.7);
+  box-shadow: 0 0 0 3px rgba(38, 135, 216, 0.18);
+}
+
+.portal-account-panel__row--edit input:disabled {
+  opacity: 0.65;
+}
+
+.portal-account-panel__hint {
+  margin: 14px 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #8a5c28;
+}
+
+.portal-account-panel__error {
+  margin: 10px 4px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #b42318;
+}
+
+.portal-account-panel__save {
+  appearance: none;
+  margin: 16px 0 0;
+  width: 100%;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #3aa0ef 0%, #1f7ec8 100%);
+  color: #f4fbff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(18, 78, 130, 0.55);
+}
+
+.portal-account-panel__save:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.portal-account-panel__save:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.portal-backpack-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.portal-backpack-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 248, 230, 0.65);
+  border: 2px solid rgba(111, 67, 24, 0.18);
+}
+
+.portal-backpack-panel__label {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.portal-backpack-panel__value {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.portal-backpack-panel__value--empty {
+  color: #a07a45;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.portal-backpack-panel__link {
+  margin-top: 14px;
+  width: 100%;
+  appearance: none;
+  border: 3px solid #6f4318;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, #ffe7a8 0%, #f3c96a 100%);
+  color: #5b3a12;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portal-backpack-panel__link:hover {
+  filter: brightness(1.03);
+}
+
+.portal-backpack-panel__vouchers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.portal-backpack-panel__empty {
+  margin: 0;
+  padding: 12px 14px;
+  color: #a07a45;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.portal-backpack-panel__voucher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid rgba(111, 67, 24, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 248, 230, 0.82);
+}
+
+.portal-backpack-panel__voucher-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.portal-backpack-panel__voucher-main strong {
+  font-size: 15px;
+}
+
+.portal-backpack-panel__voucher-main span,
+.portal-backpack-panel__voucher-main code {
+  overflow: hidden;
+  color: #8a5c28;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-backpack-panel__voucher-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.portal-backpack-panel__voucher-actions button {
+  border: 2px solid #c9a227;
+  border-radius: 10px;
+  padding: 5px 10px;
+  background: linear-gradient(180deg, #ffe9a8 0%, #f5c842 100%);
+  color: #5b3a12;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portal-backpack-panel__status {
+  color: #8a5c28;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.portal-backpack-panel__status--pending_use {
+  color: #b45309;
+}
+
+.portal-backpack-panel__status--redeemed {
+  color: #4c8a15;
+}
+
+.portal-backpack-panel__status--expired,
+.portal-backpack-panel__status--void {
+  color: #a07a45;
+}
+
+.portal-voucher-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px 20px;
+  text-align: center;
+  color: #5b3a12;
+  font-family: "Fredoka", "Nunito", sans-serif;
+}
+
+.portal-voucher-qr__reward {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.portal-voucher-qr__frame {
+  padding: 16px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(111, 67, 24, 0.18);
+}
+
+.portal-voucher-qr__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #5b3a12;
+}
+
+.portal-voucher-qr__meta,
+.portal-voucher-qr__hint {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: rgba(91, 58, 18, 0.72);
+}
+
+/* ---- Tournament picker tickets (multi-offering mode) ---- */
+
+.portal-tour-quota {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0 2px;
+}
+
+.portal-tour-quota-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  border: 1.5px solid rgba(111, 67, 24, 0.35);
+  background: rgba(255, 244, 214, 0.92);
+  color: #5b3a12;
+  box-shadow: 0 2px 0 rgba(111, 67, 24, 0.12);
+}
+
+.portal-tour-quota-chip--ad {
+  color: #6a3d16;
+}
+
+.portal-tour-quota-chip--ad svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.portal-modal-body .portal-tour-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.portal-tour-ticket {
+  position: relative;
+  margin: 0;
+}
+
+.portal-tour-ticket-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(118px, 0.7fr);
+  min-height: 118px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 3px solid #6f4318;
+  box-shadow:
+    0 6px 0 rgba(111, 67, 24, 0.28),
+    0 10px 22px rgba(40, 22, 6, 0.22);
+  background: #f7e4b4;
+}
+
+.portal-tour-ticket-main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  color: #fff8e8;
+  background:
+    radial-gradient(120% 90% at 10% 0%, rgba(255, 220, 140, 0.22), transparent 55%),
+    linear-gradient(145deg, #6a3d16 0%, #8a5422 42%, #5a3212 100%);
+}
+
+.portal-tour-ticket-main::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: -1px;
+  bottom: 10px;
+  width: 0;
+  border-right: 2px dashed rgba(247, 228, 180, 0.55);
+}
+
+.portal-tour-ticket-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.portal-tour-ticket-title {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: #fff8e8;
+  text-shadow: 0 2px 0 rgba(40, 22, 6, 0.35);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-tour-ticket-game {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 248, 232, 0.78);
+}
+
+.portal-tour-ticket-prize {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.portal-tour-ticket-prize-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f0c35a;
+  text-transform: uppercase;
+}
+
+.portal-tour-ticket-prize-value {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  color: #ffe08a;
+  text-shadow: 0 2px 0 rgba(80, 45, 8, 0.45);
+}
+
+.portal-tour-ticket-players {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(20, 12, 4, 0.38);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff8e8;
+}
+
+.portal-tour-ticket-players-icon {
+  width: 1.35em;
+  height: 1.35em;
+  flex: 0 0 auto;
+  display: block;
+  color: inherit;
+}
+
+.portal-tour-ticket-players-count {
+  color: inherit;
+}
+
+.portal-tour-ticket-stub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 12px;
+  background:
+    linear-gradient(180deg, #fff6dc 0%, #f3dfaa 100%);
+  color: #5b3a12;
+}
+
+.portal-tour-ticket-fee {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.portal-tour-ticket-fee-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: rgba(91, 58, 18, 0.7);
+  text-transform: uppercase;
+}
+
+.portal-tour-ticket-fee-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: #3f2710;
+}
+
+.portal-tour-ticket-fee-sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(91, 58, 18, 0.65);
+}
+
+.portal-tour-ticket-play {
+  min-width: 88px;
+  padding: 10px 14px;
+  border: 2px solid #4c8a15;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 100%);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px rgba(40, 70, 10, 0.45);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 4px 0 #3f7412;
+  cursor: pointer;
+}
+
+.portal-tour-ticket-play-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.portal-tour-ticket-play--ad {
+  border-color: #b45309;
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 55%, #d97706 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 4px 0 #b45309;
+  text-shadow: 0 1px 2px rgba(120, 60, 0, 0.45);
+}
+
+.portal-tour-ticket-play--disabled,
+.portal-tour-ticket-play:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+  transform: none;
+}
+
+.portal-tour-ticket-play:hover:not(:disabled) {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.portal-tour-ticket-play:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.3),
+    0 2px 0 #3f7412;
+}
+
+@media (max-width: 420px) {
+  .portal-tour-ticket-body {
+    grid-template-columns: minmax(0, 1.2fr) minmax(104px, 0.75fr);
+  }
+
+  .portal-tour-ticket-title {
+    font-size: 16px;
+  }
+
+  .portal-tour-ticket-prize-value {
+    font-size: 24px;
+  }
+}
+
+/* ---- Badges wall + season marks ---- */
+
+.portal-badges-wall {
+  margin-top: 18px;
+  padding-top: 8px;
+  border-top: 2px solid rgba(111, 67, 24, 0.2);
+}
+
+.portal-badges-wall__title {
+  margin: 0 0 12px;
+  font-size: 20px;
+  color: #5b3a12;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+.portal-badges-wall__group {
+  margin-bottom: 14px;
+}
+
+.portal-badges-wall__group-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #6f4318;
+}
+
+.portal-badges-wall__group-title span {
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+.portal-badges-wall__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.portal-badges-wall__item {
+  width: 88px;
+  padding: 8px 6px;
+  border: 3px solid #6f4318;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff4d6, #f0d59a);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #5b3a12;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+.portal-badges-wall__item--locked,
+.portal-badges-wall__item--locked .portal-badges-wall__icon {
+  filter: grayscale(1) opacity(0.5);
+}
+
+.portal-badges-wall__icon {
+  width: 48px;
+  height: 52px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  display: block;
+}
+
+.portal-badges-wall__name {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.portal-badge-detail {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(30, 18, 5, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.portal-badge-detail__card {
+  width: min(340px, 100%);
+  padding: 20px 18px;
+  border: 6px solid #6f4318;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f8e5b8, #eecb85);
+  color: #5b3a12;
+  text-align: center;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+.portal-badge-detail__icon {
+  margin: 0 auto 8px;
+}
+
+.portal-badge-detail__status {
+  font-weight: 700;
+  margin: 4px 0 8px;
+}
+
+.portal-badge-detail__desc {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.portal-badge-detail__progress {
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.portal-badge-detail__ok {
+  min-width: 120px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #5aae2a, #3f8f14);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portal-season-marks-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(30, 18, 5, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.portal-season-marks-modal__card {
+  width: min(380px, 100%);
+  padding: 22px 18px;
+  border: 6px solid #6f4318;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #f8e5b8, #eecb85);
+  color: #5b3a12;
+  text-align: center;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+}
+
+.portal-season-marks-modal__sub {
+  margin: 6px 0 14px;
+  font-weight: 700;
+}
+
+.portal-season-marks-modal__marks {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.portal-season-marks-modal__mark {
+  width: 96px;
+  padding: 8px;
+  border: 3px solid #6f4318;
+  border-radius: 14px;
+  background: #fff4d6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.portal-season-marks-modal__mark--locked {
+  filter: grayscale(1) opacity(0.5);
+}
+
+.portal-season-marks-modal__note {
+  font-size: 13px;
+  margin: 0 0 14px;
+  line-height: 1.35;
+}
+
+.portal-season-marks-modal__primary {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f0c14b, #d4a017);
+  color: #5b3a12;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portal-season-marks-modal__secondary {
+  border: none;
+  background: transparent;
+  color: #6f4318;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}

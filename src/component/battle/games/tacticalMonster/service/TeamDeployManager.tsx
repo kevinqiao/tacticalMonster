@@ -1,0 +1,587 @@
+import { URLS, useTournamentManager } from "@/component/lobby/tactical/service/useTournamentManager";
+import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
+import { BOSS_CONFIGS } from "@/convex/tacticalMonster/convex/data/bossConfigs";
+import { ConvexHttpClient } from "convex/browser";
+import gsap from "gsap";
+import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
+import { useUserManager } from "host/service/UserManager";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+    calculateScaleBoss,
+    getMergedBossConfig,
+    type BossScalingTuning,
+} from "../config/bossConfigs";
+import { clearHighlight, setHighlight } from "../team/utils/dragHighlightUtils";
+import { computeDeployedTeamPowerLikeGame } from "../team3d/utils/teamLayoutTeamPower";
+import { GridCellSprite } from "../types/CombatTypes";
+import type { PlayerMonster } from "../types/monsterTypes";
+import { Boss, Stage } from "../types/StageTypes";
+import { pixelToHex } from "../utils/coordinateUtils";
+import { useMapDimension } from "./useMapDimension";
+import type { MapDimension } from "../../shared/mapDimension";
+
+// Re-export for existing tactical imports; definition lives outside this chunk.
+export type { MapDimension } from "../../shared/mapDimension";
+
+// ============ 类型定义 ============
+
+export interface TeamContextValue {
+    // 状态
+    askAddMonster: { q: number, r: number } | null;
+    mapDimension: MapDimension | null;
+    playerMonsters: { monsterId: string, teamPosition?: { q: number; r: number } }[];
+    dragMonster: { monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null;
+    selectedMonsterId: string | null;
+    groundCells: GridCellSprite[][];
+    deployables: { q: number, r: number }[];
+    stage: Stage | null;
+    boss: Boss | null;
+    /** 当前编队部署战力（与开局缩放用公式一致，用于 Boss 预览） */
+    previewTeamPower: number;
+    /** Boss 合并配置上的起始四维（缩放前），用于与 boss 对比展示 */
+    bossBaseStats: { hp: number; damage: number; defense: number; speed: number } | null;
+
+    // Refs
+    dragPreviewContainerRef: React.RefObject<HTMLDivElement>;
+    candidateContainerRef: React.RefObject<HTMLDivElement>;
+    containerRef: React.RefObject<HTMLDivElement>;
+    mapContainerRef: React.RefObject<HTMLDivElement>;
+
+    // 方法
+    askAdd: (q: number, r: number) => void;
+    completeAsk: () => void;
+    quitTeam: (monsterId: string) => void;
+    selectCanadidate: (monsterId: string) => void;
+    startDrag: (monster: { monsterId: string, teamPosition?: { q: number, r: number } }, e: React.DragEvent) => void;
+    endDrag: () => void;
+    placeMonster: (monsterId: string, teamPosition?: { q: number; r: number }) => void;
+    handleDragOver: (e: React.DragEvent) => void;
+    handleDrop: (e: React.DragEvent) => void;
+    isCellOccupied: (q: number, r: number) => boolean;
+    moveMonster: (monsterId: string, logicQ: number, logicR: number) => void;
+    selectMonster: (monsterId: string | null) => void;
+}
+
+// ============ Context 创建 ============
+
+const TeamContext = createContext<TeamContextValue | null>(null);
+
+// ============ Hook ============
+
+export const useTeamDeployManager = (): TeamContextValue => {
+    const context = useContext(TeamContext);
+    if (!context) {
+        throw new Error("useTeamDeployManager must be used within a TeamDeployProvider");
+    }
+    return context;
+};
+
+// ============ Provider ============
+
+interface TeamProviderProps {
+    stage?: Stage | null;
+    /** 与关卡 difficultyAdjustment 对齐，传给 computeBossStatScale */
+    bossScalingTuning?: BossScalingTuning;
+    // onComplete?: () => void;
+    children: React.ReactNode;
+}
+
+export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, bossScalingTuning, children }) => {
+    // Refs
+    const candidateContainerRef = useRef<HTMLDivElement | null>(null);
+    const mapContainerRef = useRef<HTMLDivElement | null>(null);
+    const dragPreviewContainerRef = useRef<HTMLDivElement | null>(null);
+
+    // 使用 useMapDimension Hook
+    const { containerRef, mapDimension } = useMapDimension();
+
+    const [askAddMonster, setAskAddMonster] = useState<{ q: number, r: number } | null>(null);
+    const [dragMonster, setDragMonster] = useState<{ monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null>(null);
+    const { monsters, updateMonsterPosition, updateMonsterRemove } = useTournamentManager();
+    const { user } = useUserManager();
+    const tacticalMonsterClient = useMemo(() => {
+        const client = new ConvexHttpClient(URLS.tacticalMonster);
+        registerConvexAuthClient(client);
+        return client;
+    }, []);
+    const [playerMonsters, setPlayerMonsters] = useState<{ monsterId: string, teamPosition?: { q: number; r: number } }[]>([]);
+    const [selectedMonsterId, setSelectedMonsterId] = useState<string | null>(null);
+
+    // 网格数据 - 依赖 mapDimension 中的动态行列
+    const groundCells: GridCellSprite[][] = useMemo(() => {
+        if (!mapDimension) return [];
+        const { rows, cols } = mapDimension;
+        return Array.from({ length: rows }, (_, row) =>
+            Array.from({ length: cols }, (_, col) => ({
+                q: col,
+                r: row,
+                disable: false
+            }))
+        );
+    }, [mapDimension?.rows, mapDimension?.cols]);
+
+    const deployables: { q: number, r: number }[] = useMemo(() => {
+        if (!stage) return [];
+        const { q, r } = stage.deployables || { q: 2, r: 6 };
+        const deployables: { q: number, r: number }[] = [];
+
+        for (let i = 0; i <= r; i++) {
+            for (let j = 0; j <= q; j++) {
+                const disable = stage.map.disables?.find((disable) => disable.q === j && disable.r === i);
+                if (!disable) deployables.push({
+                    q: j,
+                    r: i,
+                });
+            }
+        }
+        return deployables;
+    }, [stage]);
+
+    const rosterAsPlayerMonsters = monsters as PlayerMonster[] | null | undefined;
+
+    const previewTeamPower = useMemo(
+        () => computeDeployedTeamPowerLikeGame(rosterAsPlayerMonsters, playerMonsters),
+        [rosterAsPlayerMonsters, playerMonsters],
+    );
+
+    const bossBaseStats = useMemo(() => {
+        if (!stage) return null;
+        const merged = getMergedBossConfig(stage.bossId);
+        if (!merged) return null;
+        return {
+            hp: merged.baseHp ?? 0,
+            damage: merged.baseDamage ?? 0,
+            defense: merged.baseDefense ?? 0,
+            speed: merged.baseSpeed ?? 0,
+        };
+    }, [stage]);
+
+    const boss: Boss | null = useMemo(() => {
+        if (!stage) return null;
+        const bossConfig = BOSS_CONFIGS[stage.bossId];
+        if (!bossConfig) return null;
+
+        try {
+            const scaled = calculateScaleBoss({
+                bossId: stage.bossId,
+                playerPower: previewTeamPower,
+                difficultyMultiplier: stage.difficulty,
+                tuning: bossScalingTuning,
+            });
+            if (scaled) {
+                return {
+                    bossId: scaled.bossId,
+                    monsterId: scaled.monsterId,
+                    name: scaled.name,
+                    assetPath: scaled.assetPath,
+                    skills: scaled.skills,
+                    hp: scaled.hp,
+                    damage: scaled.damage,
+                    defense: scaled.defense,
+                    speed: scaled.speed,
+                    position: scaled.position ?? { q: 0, r: 0 },
+                    minions: (scaled.minions ?? []).map((m) => ({
+                        monsterId: m.monsterId,
+                        hp: m.hp,
+                        damage: m.damage,
+                        defense: m.defense,
+                        speed: m.speed,
+                        position: m.position ?? { q: 0, r: 0 },
+                    })),
+                };
+            }
+        } catch {
+            console.warn("[TeamDeployManager] calculateScaleBoss fallback to raw config");
+        }
+
+        const minions = bossConfig.minions?.map((minion) => ({
+            minionId: minion.minionId,
+            monsterId: minion.monsterId,
+            hp: minion.baseHp || 0,
+            damage: minion.baseDamage || 0,
+            defense: minion.baseDefense || 0,
+            speed: minion.baseSpeed || 0,
+            skills: minion.skills || [],
+            assetPath: minion.assetPath || "",
+            position: minion.position || { q: 0, r: 0 },
+        }));
+        return {
+            bossId: stage.bossId,
+            monsterId: bossConfig.monsterId,
+            name: bossConfig.name,
+            assetPath: bossConfig.assetPath,
+            skills: bossConfig.skills,
+            hp: bossConfig.baseHp || 0,
+            damage: bossConfig.baseDamage || 0,
+            defense: bossConfig.baseDefense || 0,
+            speed: bossConfig.baseSpeed || 0,
+            position: bossConfig.position || { q: 0, r: 0 },
+            minions: minions || [],
+        };
+    }, [stage, previewTeamPower, bossScalingTuning]);
+
+    // ============ 方法 ============
+
+    // 请求添加怪物（坐标统一为逻辑坐标）
+    const askAdd = useCallback((q: number, r: number) => {
+        setAskAddMonster({ q, r });
+    }, []);
+
+    // 完成添加怪物
+    const completeAsk = useCallback(() => {
+        setAskAddMonster(null);
+    }, []);
+
+    // 开始拖拽
+    const startDrag = useCallback((monster: { monsterId: string, teamPosition?: { q: number, r: number } }, e: React.DragEvent) => {
+        if (!mapDimension) return;
+        setDragMonster({ ...monster, inited: 0, q: monster.teamPosition?.q || -1, r: monster.teamPosition?.r || -1 });
+        console.log("✅ 开始拖拽:", monster.monsterId);
+    }, [mapDimension]);
+
+    // 结束拖拽
+    const endDrag = useCallback(() => {
+        if (!dragMonster) return;
+        gsap.set(dragPreviewContainerRef.current, { autoAlpha: 0 });
+        if (dragMonster.q >= 0 && dragMonster.r >= 0) {
+            const oldCell = groundCells[dragMonster.r][dragMonster.q] as GridCellSprite;
+            clearHighlight(oldCell);
+        }
+        setDragMonster(null);
+    }, [dragMonster, groundCells]);
+
+
+
+    // 检查格子是否被占用（坐标统一为逻辑坐标）
+    const isCellOccupied = useCallback((q: number, r: number): boolean => {
+        // 1. 检查玩家怪物
+        for (const monster of playerMonsters.values()) {
+            if (!monster.teamPosition) continue;
+            if (monster.teamPosition.q === q && monster.teamPosition.r === r) {
+                return true;
+            }
+        }
+
+        // 2. 检查障碍物
+        if (stage?.map?.obstacles) {
+            for (const obstacle of stage.map.obstacles) {
+                if (obstacle.q === q && obstacle.r === r) return true;
+            }
+        }
+
+        // 3. 检查禁用区域
+        if (stage?.map?.disables) {
+            for (const disable of stage.map.disables) {
+                if (disable.q === q && disable.r === r) return true;
+            }
+        }
+
+        // 4. 检查 Boss 位置
+        if (boss?.position && boss.position.q === q && boss.position.r === r) {
+            return true;
+        }
+
+        // 5. 检查 Minions 位置
+        if (boss?.minions) {
+            for (const minion of boss.minions) {
+                if (minion.position?.q === q && minion.position?.r === r) return true;
+            }
+        }
+
+        return false;
+    }, [playerMonsters, stage, boss]);
+
+    const syncPositionToBackend = useCallback(
+        async (monsterId: string, q: number, r: number) => {
+            const uid = user?.uid;
+            if (!uid) return;
+            try {
+                await tacticalMonsterClient.mutation(tacticalMonsterApi.service.team.teamService.setMonsterPosition, {
+                    monsterId,
+                    q,
+                    r,
+                });
+                updateMonsterPosition(monsterId, q, r);
+            } catch (err) {
+                console.error("[TeamDeployManager] syncPositionToBackend failed:", err);
+            }
+        },
+        [user?.uid, tacticalMonsterClient, updateMonsterPosition]
+    );
+
+    const syncAddToBackend = useCallback(
+        async (monsterId: string, q: number, r: number) => {
+            const uid = user?.uid;
+            if (!uid) return;
+            try {
+                await tacticalMonsterClient.mutation(tacticalMonsterApi.service.team.teamService.addMonsterToTeam, {
+                    monsterId,
+                    q,
+                    r,
+                });
+                updateMonsterPosition(monsterId, q, r);
+            } catch (err) {
+                console.error("[TeamDeployManager] syncAddToBackend failed:", err);
+            }
+        },
+        [user?.uid, tacticalMonsterClient, updateMonsterPosition]
+    );
+
+    const syncRemoveToBackend = useCallback(
+        async (monsterId: string) => {
+            const uid = user?.uid;
+            if (!uid) return;
+            try {
+                await tacticalMonsterClient.mutation(tacticalMonsterApi.service.team.teamService.removeMonsterFromTeam, {
+                    monsterId,
+                });
+                updateMonsterRemove(monsterId);
+            } catch (err) {
+                console.error("[TeamDeployManager] syncRemoveToBackend failed:", err);
+            }
+        },
+        [user?.uid, tacticalMonsterClient, updateMonsterRemove]
+    );
+
+    // 放置怪物（坐标统一为逻辑坐标）
+    const placeMonster = useCallback((monsterId: string, position?: { q: number; r: number }) => {
+        setPlayerMonsters(prev => {
+            if (!monsters) return prev;
+            const m = prev.find((p) => p.monsterId === monsterId);
+            if (m) {
+                m.teamPosition = position;
+                const monster = monsters.find((m) => m.monsterId === monsterId);
+                if (monster) monster.teamPosition = position;
+            } else {
+                prev.push({ monsterId, teamPosition: position });
+            }
+            return [...prev];
+        });
+        if (position) {
+            syncPositionToBackend(monsterId, position.q, position.r);
+        }
+    }, [monsters, syncPositionToBackend]);
+    const selectCanadidate = useCallback((monsterId: string) => {
+        if (!askAddMonster || !monsters) {
+            console.warn("[TeamDeployManager] selectCanadidate: askAddMonster 或 monsters 为空", { askAddMonster, monsters });
+            return;
+        }
+        const logicPosition = { q: askAddMonster.q, r: askAddMonster.r };
+        setPlayerMonsters(prev => {
+            const m = prev.find((p) => p.monsterId === monsterId);
+            if (m) {
+                const monster = monsters.find((mo) => mo.monsterId === monsterId);
+                if (monster) {
+                    monster.teamPosition = logicPosition;
+                }
+                m.teamPosition = logicPosition;
+                setAskAddMonster(null);
+                return [...prev];
+            }
+            console.warn(`[TeamDeployManager] selectCanadidate: 未找到怪物 ${monsterId}`, { prev });
+            return prev;
+        });
+        syncAddToBackend(monsterId, logicPosition.q, logicPosition.r);
+    }, [askAddMonster, monsters, syncAddToBackend]);
+
+    const selectMonster = useCallback((monsterId: string | null) => {
+        setSelectedMonsterId(monsterId);
+    }, []);
+
+    const quitTeam = useCallback((monsterId: string) => {
+        placeMonster(monsterId, undefined);
+        syncRemoveToBackend(monsterId);
+        setSelectedMonsterId((prev) => (prev === monsterId ? null : prev));
+    }, [placeMonster, syncRemoveToBackend]);
+
+    // 移动怪物到新位置（接收逻辑坐标）
+    const moveMonster = useCallback((monsterId: string, logicQ: number, logicR: number) => {
+        setPlayerMonsters(prev => {
+            const updated = prev.map(m => {
+                if (m.monsterId === monsterId) {
+                    return { ...m, teamPosition: { q: logicQ, r: logicR } };
+                }
+                return m;
+            });
+            return updated;
+        });
+        syncPositionToBackend(monsterId, logicQ, logicR);
+    }, [syncPositionToBackend]);
+
+    // 处理拖拽悬停
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "none";
+
+        if (!dragMonster || !mapContainerRef.current || !mapDimension) {
+            return;
+        }
+
+        // 计算 dropEffect（无论动画状态如何都要执行）
+        const rect = mapContainerRef.current.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const coord = { q: -2, r: -2 };
+
+        if (mx > 0 && mx < rect.width && my > 0 && my < rect.height) {
+            const hexCoord = pixelToHex(mx, my, mapDimension);
+            if (hexCoord) {
+                coord.q = hexCoord.q;
+                coord.r = hexCoord.r;
+                if (!isCellOccupied(hexCoord.q, hexCoord.r)) {
+                    e.dataTransfer.dropEffect = "move";
+                }
+            }
+        }
+
+        // 动画进行中，只更新 dropEffect，不更新 UI
+        if (dragMonster.inited === 1) return;
+
+        // 更新拖拽预览位置（预览用屏幕像素，固定世界尺寸时用容器内像素对应的 hex 尺寸）
+        if (!dragPreviewContainerRef.current) return;
+
+        const x = e.clientX - mapDimension.hexWidth / 2;
+        const y = e.clientY - mapDimension.hexHeight / 2;
+
+        if (dragMonster.inited === 0) {
+            dragMonster.inited = 1;
+            const tl = gsap.timeline({
+                onComplete: () => {
+                    dragMonster.inited = 2;
+                }
+            });
+            tl.to(dragPreviewContainerRef.current, {
+                autoAlpha: 0,
+                x: x,
+                y: y,
+                duration: 0,
+            }).to(dragPreviewContainerRef.current, {
+                autoAlpha: 1,
+                duration: 0
+            }, ">+0.2");
+            tl.play();
+        } else {
+            gsap.set(dragPreviewContainerRef.current, { x: x, y: y, duration: 0 });
+        }
+
+        // 更新高亮格子
+        if (dragMonster.q !== coord.q || dragMonster.r !== coord.r) {
+            // 清除旧的高亮
+            if (dragMonster.q >= 0 && dragMonster.r >= 0) {
+                const oldCell = groundCells[dragMonster.r][dragMonster.q] as GridCellSprite;
+                clearHighlight(oldCell);
+            }
+            // 更新坐标
+            dragMonster.q = coord.q;
+            dragMonster.r = coord.r;
+            // 设置新的高亮
+            if (coord.q >= 0 && coord.r >= 0) {
+                const cell = groundCells[coord.r][coord.q] as GridCellSprite;
+                setHighlight(cell);
+            }
+        }
+    }, [mapDimension, groundCells, dragMonster, isCellOccupied]);
+
+    // 处理放置
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        if (!dragMonster) return;
+
+        if (dragMonster.q >= 0 && dragMonster.r >= 0) {
+            // 放置到地图格子
+            if (!isCellOccupied(dragMonster.q, dragMonster.r)) {
+                placeMonster(dragMonster.monsterId, { q: dragMonster.q, r: dragMonster.r });
+                console.log(`✅ drop: 放置到 (${dragMonster.q}, ${dragMonster.r})`);
+            }
+        }
+
+        // 清理拖拽状态
+        endDrag();
+    }, [placeMonster, endDrag, dragMonster, isCellOccupied]);
+
+    // 队伍最大人数（与后端一致）
+    const MAX_TEAM_SIZE = 4;
+
+    // ============ 副作用 ============
+    useEffect(() => {
+        console.log("[TeamDeployManager] monsters 原始数据:", monsters);
+        if (monsters && monsters.length > 0) {
+            // 优先使用已有 teamPosition 的（当前队伍），再补足其余，最多 4 个
+            const withPosition = monsters.filter((m: any) => m.teamPosition && m.teamPosition.q !== undefined);
+            const withoutPosition = monsters.filter((m: any) => !m.teamPosition || m.teamPosition.q === undefined);
+            const ordered = [...withPosition, ...withoutPosition].slice(0, MAX_TEAM_SIZE);
+
+            const mapped = ordered.map((monster: any, index: number) => {
+                const hasPosition = monster.teamPosition && monster.teamPosition.q !== undefined;
+                const defaultPosition = hasPosition ? monster.teamPosition : null;
+                return {
+                    monsterId: monster.monsterId,
+                    teamPosition: defaultPosition
+                };
+            });
+            console.log("[TeamDeployManager] 初始化 playerMonsters (最多4个):", mapped);
+            setPlayerMonsters(mapped);
+        }
+    }, [monsters]);
+
+    // ============ Context Value ============
+
+    const value: TeamContextValue = useMemo(() => ({
+        // 状态
+        mapDimension,
+        playerMonsters,
+        dragMonster,
+        selectedMonsterId,
+        groundCells,
+        deployables,
+        askAddMonster,
+        stage: stage || null,
+        boss: boss || null,
+        previewTeamPower,
+        bossBaseStats,
+        dragPreviewContainerRef,
+        candidateContainerRef,
+        containerRef,
+        mapContainerRef,
+        askAdd,
+        completeAsk,
+        selectCanadidate,
+        quitTeam,
+        startDrag,
+        endDrag,
+        placeMonster,
+        handleDragOver,
+        handleDrop,
+        isCellOccupied,
+        moveMonster,
+        selectMonster,
+    }), [
+        mapDimension,
+        playerMonsters,
+        dragMonster,
+        selectedMonsterId,
+        groundCells,
+        askAddMonster,
+        stage,
+        boss,
+        previewTeamPower,
+        bossBaseStats,
+        quitTeam,
+        startDrag,
+        endDrag,
+        placeMonster,
+        handleDragOver,
+        handleDrop,
+        isCellOccupied,
+        moveMonster,
+        selectMonster,
+    ]);
+
+    return (
+        <TeamContext.Provider value={value}>
+            {children}
+        </TeamContext.Provider>
+    );
+};
+
+export default TeamContext;

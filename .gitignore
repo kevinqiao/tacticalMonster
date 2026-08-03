@@ -16,6 +16,11 @@
 
 # misc
 .DS_Store
+# Windows 保留设备名，避免误创建后导致 git add 失败
+nul
+con
+prn
+aux
 # .env.local
 .env.development.local
 .env.test.local
@@ -27,10 +32,12 @@ yarn-error.log*
 
 .env.local
 
-.env.local
+# Clerk CLI project link (run `clerk env pull` locally; do not commit secrets)
+.clerk/
 
-# 忽略非 TypeScript/JavaScript 文件
+# 忽略非 TypeScript/JavaScript 文件（仅放行 docs/CLAUDE.md）
 *.md
+!docs/CLAUDE.md
 *.txt
 *.pdf
 *.doc
@@ -46,6 +53,23 @@ yarn-error.log*
 *.tmp
 *.temp
 
-# 忽略特定目录
-doc/
-docs/
+# Town overlay pipeline WIP (MJ before/after); shipped PNGs live in overlays/
+src/component/lobby/casual/view/town/assets/illustration/raw/**
+!src/component/lobby/casual/view/town/assets/illustration/raw/**/
+!src/component/lobby/casual/view/town/assets/illustration/raw/**/.gitkeep
+
+# Solitaire seed pool generated output (large JSON)
+/scripts/solitaire/output/
+docs/**
+!docs/
+!docs/CLAUDE.md
+portal-prod-dist.zip
+.env.production
+
+
+# Local Netlify folder
+.netlify
+
+# Local Kenney extract cache (not shipped)
+public/audio/_src/
+
