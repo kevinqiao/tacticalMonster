@@ -30,6 +30,7 @@ import type * as service_casualGameLifecycle from "../service/casualGameLifecycl
 import type * as service_casualGameTimeoutAction from "../service/casualGameTimeoutAction.js";
 import type * as service_casualPlatform_casualTemplateQuantiles from "../service/casualPlatform/casualTemplateQuantiles.js";
 import type * as service_gameManager from "../service/gameManager.js";
+import type * as service_seedPool_blockBlastExperienceKpi from "../service/seedPool/blockBlastExperienceKpi.js";
 import type * as service_seedPool_blockBlastHumanPersonas from "../service/seedPool/blockBlastHumanPersonas.js";
 import type * as service_seedPool_blockBlastOpCodec from "../service/seedPool/blockBlastOpCodec.js";
 import type * as service_seedPool_blockBlastRecordedOpTypes from "../service/seedPool/blockBlastRecordedOpTypes.js";
@@ -94,6 +95,7 @@ declare const fullApi: ApiFromModules<{
   "service/casualGameTimeoutAction": typeof service_casualGameTimeoutAction;
   "service/casualPlatform/casualTemplateQuantiles": typeof service_casualPlatform_casualTemplateQuantiles;
   "service/gameManager": typeof service_gameManager;
+  "service/seedPool/blockBlastExperienceKpi": typeof service_seedPool_blockBlastExperienceKpi;
   "service/seedPool/blockBlastHumanPersonas": typeof service_seedPool_blockBlastHumanPersonas;
   "service/seedPool/blockBlastOpCodec": typeof service_seedPool_blockBlastOpCodec;
   "service/seedPool/blockBlastRecordedOpTypes": typeof service_seedPool_blockBlastRecordedOpTypes;

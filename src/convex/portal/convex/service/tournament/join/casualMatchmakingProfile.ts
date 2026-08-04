@@ -22,12 +22,15 @@ import {
   isCasualMultiplayerAsyncTemplate,
   type BotStrategyPlayerContext,
 } from "../../../data/portalPlayerStrategyTypes";
+import { v } from "convex/values";
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
+import { internalQuery } from "../../../_generated/server";
 import { getPlayerWalletBalances } from "../../economy/portalWalletDao";
 import { RUN_PLAYER_TOURNAMENT_COMPLETED } from "./casualTournamentJoinCore";
 import { isCasualAsyncVirtualOpponentUid } from "../settle/async/casualAsyncTypes";
 
 import { readWeeklyLeagueTier } from "../../weeklyLeague/casualWeeklyLeagueProfile";
+import { resolveAsyncMatchEffectiveHumans } from "./casualAsyncMatchJoinCore";
 
 /** ??????????????(???? streak) */
 function isCasualMultiplayerRankLoss(
@@ -190,6 +193,37 @@ export function evaluateEffectiveMatchmakingMinHumans(
   return evaluateEffectiveHumans(ctx, def);
 }
 
+/** Action-safe: profile + effectiveHumans for async multi create. */
+export const resolveAsyncJoinEffectiveHumansQuery = internalQuery({
+  args: {
+    uid: v.string(),
+    templateId: v.string(),
+  },
+  handler: async (ctx, { uid, templateId }) => {
+    const def = getPortalTournamentDefinition(templateId);
+    if (!def) {
+      return { ok: false as const, error: "unknown_tournament" as const };
+    }
+    const profile = await resolvePlayerBotStrategyContext(ctx, { uid, templateId, def });
+    const evaluated = evaluateEffectiveHumans(profile, def);
+    const effectiveHumans = resolveAsyncMatchEffectiveHumans(evaluated.effectiveHumans);
+    logJoinMatchmakingProfileResult({
+      uid,
+      templateId,
+      profile,
+      effectiveHumans,
+      matchedRuleId: evaluated.matchedRuleId,
+      queueExpireAction: evaluated.queueExpireAction,
+      source: "async_join",
+    });
+    return {
+      ok: true as const,
+      effectiveHumans,
+      matchedRuleId: evaluated.matchedRuleId,
+    };
+  },
+});
+
 /** join ????????(Convex dashboard / `npx convex dev` ??) */
 export function logJoinMatchmakingProfileResult(args: {
   uid: string;
@@ -198,7 +232,7 @@ export function logJoinMatchmakingProfileResult(args: {
   effectiveHumans: number;
   matchedRuleId: string | null;
   queueExpireAction?: QueueExpireAction;
-  source: "enqueue" | "existing_open";
+  source: "enqueue" | "existing_open" | "async_join";
 }): void {
   const { uid, templateId, profile, effectiveHumans, matchedRuleId, queueExpireAction, source } =
     args;

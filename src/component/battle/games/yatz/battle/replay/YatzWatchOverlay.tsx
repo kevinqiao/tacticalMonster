@@ -8,10 +8,6 @@ import { api } from '@/convex/yatzArena/convex/_generated/api';
 
 import type { YatzRecordedStep } from '@/convex/yatzArena/convex/service/seedPool/yatzRecordedOpTypes';
 
-import { rolloutReplaySeed } from '@/convex/yatzArena/convex/service/seedPool/yatzSeedSimulator';
-
-
-
 import type { Match3WatchContext } from '../../../shared/casualAsyncTableSummaryUI';
 
 import { YatzGameStatus, type YatzGameState } from '../types/YatzTypes';
@@ -182,11 +178,8 @@ export const YatzWatchOverlay: React.FC<Props> = ({
 
     if (watchContext.kind === 'rollout') {
 
-      const sim = createWatchReplayState(
-
-        rolloutReplaySeed(watchContext.seedId, watchContext.rolloutIndex)
-
-      );
+      // Manifest fixed to seedId; rolloutIndex only selects persona + policy RNG.
+      const sim = createWatchReplayState(watchContext.seedId);
 
       setGameState(sim);
 

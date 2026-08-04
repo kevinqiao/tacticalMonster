@@ -39,6 +39,9 @@ function uniqueSeedTiersToTry(
   return [preferred, ...rest];
 }
 
+/** block_blast：在首选档内只抽最难切片（按 scoreP50 升序）。 */
+const BLOCK_BLAST_HARDEST_FRACTION = 0.35;
+
 async function pickSeedWithOptionalTier(
   db: DatabaseReader,
   args: {
@@ -48,8 +51,17 @@ async function pickSeedWithOptionalTier(
     preferredTier: "easy" | "medium" | "hard" | null | undefined;
     sessionKey: string;
     excludeSeedIds: ReadonlySet<string>;
+    highPlayerEaseFraction?: number;
   }
 ): Promise<SeedPoolEntryDoc | null> {
+  const hardestFraction =
+    args.gameType === "block_blast" ? BLOCK_BLAST_HARDEST_FRACTION : undefined;
+  const easeOpts =
+    typeof args.highPlayerEaseFraction === "number" &&
+    args.highPlayerEaseFraction > 0 &&
+    args.highPlayerEaseFraction < 1
+      ? { highPlayerEaseFraction: args.highPlayerEaseFraction }
+      : undefined;
   if (args.preferredTier == null) {
     return pickDeterministicSeedAnyTier(
       db,
@@ -66,7 +78,11 @@ async function pickSeedWithOptionalTier(
       args.version,
       tryTier,
       args.sessionKey,
-      args.excludeSeedIds
+      args.excludeSeedIds,
+      {
+        ...(hardestFraction != null ? { hardestFraction } : {}),
+        ...(easeOpts ?? {}),
+      }
     );
     if (entry) return entry;
   }
@@ -79,14 +95,16 @@ export const pickCasualMatchSeed = internalMutation({
     matchId: v.string(),
     /** Omit for no preferred tier (whole-pool pick). */
     tier: v.optional(catalogSeedTier),
+    /** L3 ritual/transition: keep top fraction by playerEaseScore within tier. */
+    highPlayerEaseFraction: v.optional(v.number()),
     poolVersion: v.optional(v.string()),
     sessionKey: v.string(),
     uids: v.array(v.string()),
   },
   handler: async (ctx, args) => {
     const gameType = args.gameType as CatalogGameType;
-    // Keep explicit undefined: multi passes no tier; solo passes "easy".
     const preferredTier = args.tier;
+    const highPlayerEaseFraction = args.highPlayerEaseFraction;
     const uids = [...new Set(args.uids.map((u) => u.trim()).filter(Boolean))];
     if (uids.length === 0) {
       return { ok: false as const, error: "missing_uids" as const };
@@ -116,6 +134,7 @@ export const pickCasualMatchSeed = internalMutation({
       preferredTier,
       sessionKey: args.sessionKey,
       excludeSeedIds: usedSeedIds,
+      highPlayerEaseFraction,
     });
     if (!entry) {
       entry = await pickSeedWithOptionalTier(ctx.db, {
@@ -124,6 +143,7 @@ export const pickCasualMatchSeed = internalMutation({
         preferredTier,
         sessionKey: `${args.sessionKey}|reuse`,
         excludeSeedIds: new Set(),
+        highPlayerEaseFraction,
       });
     }
     if (!entry) {

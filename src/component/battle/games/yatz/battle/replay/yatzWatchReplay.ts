@@ -8,13 +8,7 @@ import type {
 
 } from '@/convex/yatzArena/convex/service/seedPool/yatzRecordedOpTypes';
 
-import {
-
-  rolloutReplaySeed,
-
-  simulateRollout,
-
-} from '@/convex/yatzArena/convex/service/seedPool/yatzSeedSimulator';
+import { simulateRollout } from '@/convex/yatzArena/convex/service/seedPool/yatzSeedSimulator';
 
 import { scalePacingToTargetMs } from '@/convex/yatzArena/convex/service/seedPool/yatzSimTime';
 
@@ -76,7 +70,7 @@ export function resolveWatchSteps(
 
   return {
 
-    seedId: rolloutReplaySeed(source.seedId, source.rolloutIndex),
+    seedId: source.seedId,
 
     steps,
 

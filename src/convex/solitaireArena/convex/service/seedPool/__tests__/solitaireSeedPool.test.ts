@@ -87,6 +87,7 @@ function mockMetrics(overrides: Partial<ReturnType<typeof computeDistributionMet
     openingMoveCount: 5,
     scoreSpread: 100,
     playerEaseScore: 80,
+    clearEaseScore: 0,
     layoutFingerprint: "fp:test",
     policyVersion: "human-stochastic-v6" as const,
     matchTimeLimitSec: 300,
@@ -245,6 +246,42 @@ describe("solitaireSeedPool v2", () => {
     expect(Object.values(metrics.scoreHistogram).reduce((a, b) => a + b, 0)).toBe(8);
     expect(metrics.scoreSpread).toBe(metrics.scoreMax - metrics.scoreMin);
     expect(typeof metrics.playerEaseScore).toBe("number");
+    expect(metrics.clearEaseScore).toBe(0);
+  });
+
+  it("computeClearEaseScore ranks shorter solve paths higher", async () => {
+    const { computeClearEaseScore } = await import("../solitaireSeedDifficulty");
+    const shortPath = computeClearEaseScore({
+      openingMoveCount: 4,
+      solvable: "solvable",
+      solvableSource: "search",
+      pathLength: 80,
+      nodesExpanded: 200,
+    });
+    const longPath = computeClearEaseScore({
+      openingMoveCount: 4,
+      solvable: "solvable",
+      solvableSource: "search",
+      pathLength: 400,
+      nodesExpanded: 50_000,
+    });
+    const unsolvable = computeClearEaseScore({
+      openingMoveCount: 11,
+      solvable: "unknown",
+      solvableSource: "search",
+      pathLength: null,
+      nodesExpanded: 200_000,
+    });
+    const empirical = computeClearEaseScore({
+      openingMoveCount: 4,
+      solvable: "solvable",
+      solvableSource: "empirical_completed",
+      pathLength: null,
+      nodesExpanded: 0,
+    });
+    expect(shortPath).toBeGreaterThan(longPath);
+    expect(unsolvable).toBe(0);
+    expect(empirical).toBeGreaterThan(shortPath);
   });
 
   it("buildTierIndex groups entries by layout tier", () => {
@@ -267,6 +304,7 @@ describe("solitaireSeedPool v2", () => {
         expect(row.layoutTier).toBe(tier);
         expect(row.scoreDistribution.bandThresholds).toBeDefined();
         expect(row.playerEaseScore).toBeDefined();
+        expect(row.clearEaseScore).toBeDefined();
       }
     }
   });

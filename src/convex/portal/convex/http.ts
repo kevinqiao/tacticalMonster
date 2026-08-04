@@ -412,26 +412,34 @@ http.route({
     const match = bridgeRow.match;
 
     const templateDef = match.templateId ? getPortalTournamentDefinition(match.templateId) : undefined;
-    const successQuantile = templateDef?.seedQuantileSuccess?.quantile;
+    const bindingQuantile = match.seedBinding?.successQuantile;
+    const successQuantile =
+      bindingQuantile === "p50" || bindingQuantile === "p75" || bindingQuantile === "p90"
+        ? bindingQuantile
+        : templateDef?.seedQuantileSuccess?.quantile;
     let seedScoreThreshold: number | undefined =
       typeof match.seedScoreThreshold === "number" && Number.isFinite(match.seedScoreThreshold)
         ? match.seedScoreThreshold
         : undefined;
-    if (seedScoreThreshold == null && successQuantile === "p75" && match.seedBinding) {
-      const inline = match.seedBinding.scoreQuantiles?.p75;
+    if (
+      seedScoreThreshold == null &&
+      (successQuantile === "p50" || successQuantile === "p75" || successQuantile === "p90") &&
+      match.seedBinding
+    ) {
+      const inline = match.seedBinding.scoreQuantiles?.[successQuantile];
       if (typeof inline === "number" && Number.isFinite(inline)) {
         seedScoreThreshold = Math.floor(inline);
       }
     }
     if (
       seedScoreThreshold == null &&
-      successQuantile === "p75" &&
+      (successQuantile === "p50" || successQuantile === "p75" || successQuantile === "p90") &&
       match.seedBinding &&
       bridgeRow.gameType
     ) {
       try {
         const threshold = await resolvePlatformSeedScoreThreshold(ctx, {
-          successThresholdQuantile: "p75",
+          successThresholdQuantile: successQuantile,
           seedBinding: match.seedBinding,
           gameType: bridgeRow.gameType,
         });

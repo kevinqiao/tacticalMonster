@@ -69,7 +69,7 @@ export type PlatformSubmitContext = {
     rankRates: CasualRankRateEntry[];
     maxPlayers: number;
   };
-  successThresholdQuantile?: "p75";
+  successThresholdQuantile?: "p50" | "p75" | "p90";
 };
 
 export type PlatformBotFillPayload = {
@@ -590,7 +590,7 @@ export async function computePlatformBotFillsIfNeeded(
 export async function resolvePlatformSeedScoreThreshold(
   ctx: SeedPoolRuntimeCtx,
   args: {
-    successThresholdQuantile?: "p75";
+    successThresholdQuantile?: "p50" | "p75" | "p90";
     seedBinding?: SlimSeedBinding;
     gameType: string;
   }

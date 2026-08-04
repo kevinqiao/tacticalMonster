@@ -34,7 +34,7 @@ const DEFAULT_OVERSAMPLE_FACTOR = 2;
 const CASUAL_MIN_SCORE_P25 = 700;
 const CASUAL_MIN_SCORE_SPREAD = 650;
 const CASUAL_OVERSAMPLE_FACTOR = 3;
-const CASUAL_MIN_OPENING_MOVES = 4;
+const CASUAL_MIN_OPENING_MOVES = 3;
 const CASUAL_TIER_EASY = 0.4;
 const CASUAL_TIER_MEDIUM = 0.35;
 const DEFAULT_MIN_ENTRIES = 0; // 0 = 自动使用 index 实际条数
@@ -51,7 +51,7 @@ Usage:
 Commands:
   clean         清空 casualPlatform seed pool（可选清本地 output）
   create        离线生成/续跑 index.json（generate-seed-pool.mjs）
-  create-casual 休闲向生成（更高 P25、min-opening-moves=2、3× 过采样、easy 40%）
+  create-casual 休闲向生成（更高 P25、min-opening-moves=3、3× 过采样、easy 40%）
   load          全量导入 casualPlatform（默认先 clean 再 import）
   append    增量导入 platform seed pool（仅 DB 中不存在的 seedId）
   regen     仅重算 rolloutSummaries（+ metrics）写回 index；--sync 同步 catalog rollout 子表

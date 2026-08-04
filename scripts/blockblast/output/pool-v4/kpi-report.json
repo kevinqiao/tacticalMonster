@@ -1,29 +1,29 @@
 {
-  "generatedAt": "2026-08-02T19:52:01.507Z",
+  "generatedAt": "2026-08-03T05:08:10.830Z",
   "poolVersion": "v4",
   "profile": "prod",
   "health": {
     "profile": "prod",
     "seedCount": 2000,
-    "meanTimeUpRate": 0.2515937500000002,
-    "meanJackpotRate": 0.039458333333333394,
-    "meanMediumBurstRate": 0.38225000000000126,
-    "meanLateGameReachRate": 0.45201041666666536,
-    "meanExperienceScore": 0.4616425277777785,
+    "meanTimeUpRate": 0.26085416666666666,
+    "meanJackpotRate": 0.04773958333333326,
+    "meanMediumBurstRate": 0.41370833333333384,
+    "meanLateGameReachRate": 0.4636249999999983,
+    "meanExperienceScore": 0.4796833888888893,
     "gatePassRate": 1,
-    "softPMean": 4.749
+    "softPMean": 4.8655
   },
   "warnCounts": {},
   "failCounts": {},
   "rejectReasons": {
-    "jackpot_rate_too_low": 3743,
-    "time_up_rate_too_low": 1616,
-    "stuck_rate_too_high": 7026,
-    "low_player_ceiling": 3271,
-    "medium_burst_rate_too_low": 1886,
-    "late_game_reach_rate_too_low": 328,
-    "opening_too_easy": 182,
-    "collapsed_scores": 16,
+    "jackpot_rate_too_low": 5461,
+    "time_up_rate_too_low": 2402,
+    "stuck_rate_too_high": 10349,
+    "low_player_ceiling": 4731,
+    "medium_burst_rate_too_low": 2797,
+    "late_game_reach_rate_too_low": 468,
+    "opening_too_easy": 252,
+    "collapsed_scores": 22,
     "no_opening_moves": 3
   }
 }

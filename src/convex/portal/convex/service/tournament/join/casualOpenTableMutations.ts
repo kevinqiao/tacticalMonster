@@ -318,6 +318,11 @@ export const insertMatchShell = internalMutation({
     queueRowIds: v.optional(v.array(v.id("portal_match_queue"))),
     /** Solo (no queue): ad/ticket lane after grant consume. */
     playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
+    /** Async multi create: profile eff (>1); join capacity is maxPlayers. */
+    effectiveHumans: v.optional(v.number()),
+    matchPartitionKey: v.optional(v.string()),
+    /** Async multi: allow later humans to join until full or first submit. */
+    joinOpen: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const def = getPortalTournamentDefinition(args.templateId);
@@ -426,6 +431,9 @@ export const insertMatchShell = internalMutation({
       openPhase: "pending_seed",
       createdAt: now,
       updatedAt: now,
+      ...(args.effectiveHumans != null ? { effectiveHumans: args.effectiveHumans } : {}),
+      ...(args.matchPartitionKey ? { matchPartitionKey: args.matchPartitionKey } : {}),
+      ...(args.joinOpen === true ? { joinOpen: true } : {}),
     });
 
     console.log("[casual] insertMatchShell", {
@@ -522,10 +530,12 @@ export const finalizeOpenTable = internalMutation({
       return { ok: false as const, error: "unknown_tournament" as const };
     }
 
+    const primarySeed = seedBindingsByIndex["0"];
     await ctx.db.patch(matchDoc._id, {
       seedResolveError: undefined,
       openPhase: "ready",
       updatedAt: now,
+      ...(primarySeed ? { seedBinding: primarySeed } : {}),
     });
 
     const byUid: Record<string, { gameId: string; gameType: string; gameIndex: number }> = {};

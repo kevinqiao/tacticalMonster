@@ -19,7 +19,7 @@ const CATALOG_GAME_TYPE = CATALOG_GAME_TYPES.yatz;
 
 function parseArgs(argv) {
   const opts = {
-    inDir: path.join(repoRoot, "scripts/yatz/output/pool-v1"),
+    inDir: path.join(repoRoot, "scripts/yatz/output/pool-v2"),
     all: false,
     sync: false,
     poolVersion: "",

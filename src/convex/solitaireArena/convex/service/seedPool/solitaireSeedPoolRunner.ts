@@ -2,6 +2,7 @@ import {
   assignTiers,
   computeDistributionMetrics,
   isDeadLayout,
+  withClearEaseScore,
   type TierCandidate,
 } from "./solitaireSeedDifficulty";
 import { verifyAllRollouts } from "./solitaireSeedPoolReplayVerify";
@@ -209,6 +210,8 @@ export function processOneSeed(
       })
     : null;
 
+  const metricsWithClear = withClearEaseScore(metrics, solvability);
+
   if (requireSolvable && solvability?.solvable !== "solvable") {
     return {
       kind: "rejected",
@@ -221,7 +224,7 @@ export function processOneSeed(
             : `${solvability.solvable}${
                 solvability.solvableReason ? `:${solvability.solvableReason}` : ""
               }`,
-        metrics,
+        metrics: metricsWithClear,
       },
     };
   }
@@ -231,8 +234,8 @@ export function processOneSeed(
     candidate: {
       seedId,
       poolVersion,
-      difficultyScore: metrics.scoreP50,
-      metrics,
+      difficultyScore: metricsWithClear.scoreP50,
+      metrics: metricsWithClear,
       rolloutSummaries,
       ...(solvability
         ? {
@@ -305,11 +308,12 @@ export function candidateFromRollouts(
         solveOpts: { ...DEFAULT_GENERATE_SOLVE_OPTS, ...solvabilityOpts?.solveOpts },
       })
     : null;
+  const metricsWithClear = withClearEaseScore(metrics, solvability);
   return {
     seedId,
     poolVersion,
-    difficultyScore: metrics.scoreP50,
-    metrics,
+    difficultyScore: metricsWithClear.scoreP50,
+    metrics: metricsWithClear,
     rolloutSummaries: summaries,
     ...(solvability
       ? {

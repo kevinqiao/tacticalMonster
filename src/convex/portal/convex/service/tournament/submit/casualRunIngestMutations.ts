@@ -435,6 +435,16 @@ export const submitCasualRunScoreCore = internalMutation({
     });
     timing.mark("patchHumanPlayerGame", { hasWatchReplay: watchReplay != null });
 
+    // Async multi: first human submit closes the join window.
+    if (def.maxPlayers > 1 && !isCasualAsyncVirtualOpponentUid(uid)) {
+      const openMatch =
+        matchDoc ??
+        (await ctx.db.get(pm.matchId as Id<"portal_run_matches">));
+      if (openMatch?.joinOpen === true) {
+        await ctx.db.patch(openMatch._id, { joinOpen: false, updatedAt: now });
+      }
+    }
+
     if (!isLastGame) {
       const next = await unlockNextPlayerGame(ctx, { pm, pg, now });
       if (!next) {

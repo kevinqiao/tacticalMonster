@@ -100,11 +100,6 @@
   color: #bdeaff;
 }
 
-.yatz-header-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .yatz-progress-wrap {
   grid-column: 1 / -1;
   display: flex;
@@ -340,19 +335,6 @@
   box-shadow:
     inset 0 3px 0 rgba(255, 255, 255, 0.4),
     0 4px 0 rgba(52, 92, 14, 0.8);
-}
-
-/* 提前结算：红色糖果小按钮 */
-.yatz-btn--end {
-  background: linear-gradient(180deg, #ff8a5c 0%, #f25430 55%, #d63a1c 100%);
-  border: 2px solid #8c2c10;
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(120, 30, 5, 0.6);
-  box-shadow:
-    inset 0 2px 0 rgba(255, 255, 255, 0.45),
-    0 3px 0 rgba(90, 51, 17, 0.7);
-  padding: 8px 16px;
-  font-size: 13px;
 }
 
 .yatz-scorecard-wrap {

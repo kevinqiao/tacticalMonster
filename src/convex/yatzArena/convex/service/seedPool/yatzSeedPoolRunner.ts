@@ -1,6 +1,9 @@
 import { simulateGreedyGame } from "../YatzGameEngine";
 import { YATZ_MANIFEST_POLICY_VERSION } from "../yatzSeedManifest";
+import { assignYatzTiers } from "./yatzSeedDifficulty";
+import { YATZ_DECISION_POLICY_VERSION } from "./yatzHumanPersonas";
 import { formatYatzSeedId } from "./yatzRecordedOpTypes";
+
 export type ScoreQuantiles = {
   p10: number;
   p25: number;
@@ -34,6 +37,20 @@ function buildQuantiles(scores: number[]): ScoreQuantiles {
   };
 }
 
+/**
+ * Higher = friendlier for humans (floor + reliability − feast/famine).
+ * Pure function of existing rollout metrics — no extra simulation.
+ */
+export function computePlayerEaseScore(args: {
+  p25: number;
+  spread: number;
+  completedCount: number;
+  rolloutCount: number;
+}): number {
+  const completion = args.rolloutCount > 0 ? args.completedCount / args.rolloutCount : 0;
+  return Math.round(args.p25 * 0.5 + completion * 100 - args.spread * 0.25);
+}
+
 export type GeneratePoolOptions = {
   poolVersion: string;
   start: number;
@@ -54,7 +71,9 @@ export type SeedPoolEntry = {
     scoreMax: number;
     scoreSpread: number;
     scoreQuantiles: ScoreQuantiles;
+    playerEaseScore: number;
     policyVersion: typeof YATZ_MANIFEST_POLICY_VERSION;
+    decisionPolicyVersion: typeof YATZ_DECISION_POLICY_VERSION;
   };
 };
 
@@ -62,14 +81,17 @@ export function makeSeedId(poolVersion: string, index: number): string {
   return formatYatzSeedId(poolVersion, index);
 }
 
+/** Probe one seed; tier filled later by assignYatzTiers (high p50 → easy). */
 export function processOneSeed(
   seedIndex: number,
   options: GeneratePoolOptions
-): { kind: "accepted"; entry: SeedPoolEntry } | { kind: "rejected"; seedId: string; reason: string } {
+):
+  | { kind: "accepted"; entry: Omit<SeedPoolEntry, "tier"> & { tier?: SeedPoolEntry["tier"] } }
+  | { kind: "rejected"; seedId: string; reason: string } {
   const seedId = makeSeedId(options.poolVersion, seedIndex);
   const scores: number[] = [];
   for (let r = 0; r < options.rolloutCount; r++) {
-    const sim = simulateGreedyGame(`${seedId}:rollout:${r}`);
+    const sim = simulateGreedyGame(seedId, { rolloutIndex: r });
     if (sim.completed) scores.push(sim.finalScore);
   }
   if (scores.length < Math.max(3, Math.floor(options.rolloutCount * 0.5))) {
@@ -81,24 +103,32 @@ export function processOneSeed(
   }
   const sorted = [...scores].sort((a, b) => a - b);
   const p50 = q.p50;
-  const tier: "easy" | "medium" | "hard" =
-    p50 >= 220 ? "hard" : p50 >= 180 ? "medium" : "easy";
+  const scoreMin = sorted[0] ?? 0;
+  const scoreMax = sorted[sorted.length - 1] ?? 0;
+  const scoreSpread = scoreMax - scoreMin;
+  const playerEaseScore = computePlayerEaseScore({
+    p25: q.p25,
+    spread: scoreSpread,
+    completedCount: scores.length,
+    rolloutCount: options.rolloutCount,
+  });
   return {
     kind: "accepted",
     entry: {
       seedId,
       poolVersion: options.poolVersion,
-      tier,
       difficultyScore: p50,
       metrics: {
         rolloutCount: scores.length,
-        scoreMin: sorted[0] ?? 0,
+        scoreMin,
         scoreP50: p50,
         scoreP90: q.p90,
-        scoreMax: sorted[sorted.length - 1] ?? 0,
-        scoreSpread: (sorted[sorted.length - 1] ?? 0) - (sorted[0] ?? 0),
+        scoreMax,
+        scoreSpread,
         scoreQuantiles: q,
+        playerEaseScore,
         policyVersion: YATZ_MANIFEST_POLICY_VERSION,
+        decisionPolicyVersion: YATZ_DECISION_POLICY_VERSION,
       },
     },
   };
@@ -108,12 +138,13 @@ export function generateSeedPoolBatch(options: GeneratePoolOptions): {
   entries: SeedPoolEntry[];
   rejected: Array<{ seedId: string; reason: string }>;
 } {
-  const entries: SeedPoolEntry[] = [];
+  const candidates: Array<Omit<SeedPoolEntry, "tier"> & { tier?: SeedPoolEntry["tier"] }> = [];
   const rejected: Array<{ seedId: string; reason: string }> = [];
   for (let i = options.start; i < options.start + options.count; i++) {
     const result = processOneSeed(i, options);
-    if (result.kind === "accepted") entries.push(result.entry);
+    if (result.kind === "accepted") candidates.push(result.entry);
     else rejected.push({ seedId: result.seedId, reason: result.reason });
   }
+  const entries = assignYatzTiers(candidates);
   return { entries, rejected };
 }

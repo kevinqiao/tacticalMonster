@@ -45,11 +45,11 @@ function toRolloutSummaries(seedId, rolloutCount, simulateRollout) {
 
 function parseArgs(argv) {
   const opts = {
-    version: "v1",
-    count: 50,
+    version: "v2",
+    count: 80,
     start: 1,
     rollouts: 20,
-    out: path.join(repoRoot, "scripts/yatz/output/pool-v1"),
+    out: path.join(repoRoot, "scripts/yatz/output/pool-v2"),
     writeRolloutSummaries: true,
   };
   for (let i = 0; i < argv.length; i++) {

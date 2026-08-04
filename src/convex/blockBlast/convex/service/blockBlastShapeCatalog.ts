@@ -1,10 +1,10 @@
 /**
- * Block Blast 块型目录（policy v4）。
+ * Block Blast 块型目录（policy v6）。
  *
- * v4 相对 v3：
+ * v6 相对 v5：
  * - 同 18 种模板（I4/I5、大 L、加权 bucket）
- * - 分段格数权重：开局 → 中盘 → 高潮（大块+填缝）→ 终盘高压
- * - 手内弱约束：同一手前两块均 >3 格时，第三块偏向 ≤3 格（不看盘）
+ * - 开局即高压：4–5 格更高；中盘/终盘继续抬大块
+ * - 高潮窗几乎不抬填缝；手内救场关闭（见 GameEngine）
  *
  * 变更须 bump BLOCK_BLAST_POLICY_VERSION 并重生成 seed pool。
  */
@@ -17,42 +17,42 @@ export type BlockBlastShapeTemplate = {
 /** 约 24 手 × 3 块 ≈ 72 个 shape 出完后达到满进度 */
 export const BLOCK_BLAST_PROGRESS_FULL_SHAPE_INDEX = 72;
 
-/** 开局关键帧（亦作 EARLY 别名） */
+/** 开局关键帧（亦作 EARLY 别名）— v6 开局即偏大块 */
 export const BLOCK_BLAST_SHAPE_CELL_WEIGHTS_EARLY: Readonly<Record<number, number>> = {
-    1: 0.06,
-    2: 0.14,
-    3: 0.3,
-    4: 0.3,
-    5: 0.2,
+    1: 0.03,
+    2: 0.08,
+    3: 0.22,
+    4: 0.36,
+    5: 0.31,
 };
 
 /** 终盘关键帧（亦作 LATE 别名） */
 export const BLOCK_BLAST_SHAPE_CELL_WEIGHTS_LATE: Readonly<Record<number, number>> = {
-    1: 0.03,
-    2: 0.08,
-    3: 0.17,
-    4: 0.37,
-    5: 0.35,
+    1: 0.015,
+    2: 0.045,
+    3: 0.12,
+    4: 0.38,
+    5: 0.44,
 };
 
-/** v4 分段关键帧：progress t ∈ [0,1] */
+/** v6 分段关键帧：progress t ∈ [0,1] */
 export const BLOCK_BLAST_WEIGHT_KEYFRAMES: ReadonlyArray<{
     t: number;
     weights: Readonly<Record<number, number>>;
 }> = [
     { t: 0, weights: BLOCK_BLAST_SHAPE_CELL_WEIGHTS_EARLY },
     {
-        t: 0.25,
-        weights: { 1: 0.04, 2: 0.1, 3: 0.28, 4: 0.34, 5: 0.24 },
+        t: 0.18,
+        weights: { 1: 0.025, 2: 0.07, 3: 0.185, 4: 0.38, 5: 0.34 },
     },
     {
-        t: 0.55,
-        weights: { 1: 0.04, 2: 0.1, 3: 0.2, 4: 0.36, 5: 0.3 },
+        t: 0.42,
+        weights: { 1: 0.02, 2: 0.055, 3: 0.155, 4: 0.385, 5: 0.385 },
     },
     {
-        // 高潮窗：略抬填缝，保留大块爆发机会
-        t: 0.8,
-        weights: { 1: 0.05, 2: 0.12, 3: 0.18, 4: 0.35, 5: 0.3 },
+        // 高潮窗：几乎不抬填缝，持续大块压
+        t: 0.72,
+        weights: { 1: 0.02, 2: 0.05, 3: 0.14, 4: 0.39, 5: 0.4 },
     },
     { t: 1, weights: BLOCK_BLAST_SHAPE_CELL_WEIGHTS_LATE },
 ];
@@ -174,15 +174,15 @@ export function resolveCellWeightsForShapeIndex(shapeIndex: number): Record<numb
     return normalizeWeights(raw);
 }
 
-/** 手内第三块救场：抬高 ≤3 格权重 */
+/** 手内第三块救场（v6 引擎默认关闭；保留工具函数供测试/回退） */
 export function preferSmallCellWeights(
     cellWeights: Record<number, number>,
-    boost = 3
+    boost = 1.5
 ): Record<number, number> {
     const raw: Record<number, number> = {};
     for (const cells of CELL_BUCKETS) {
         const w = cellWeights[cells] ?? 0;
-        raw[cells] = cells <= 3 ? w * boost : w * 0.35;
+        raw[cells] = cells <= 3 ? w * boost : w * 0.65;
     }
     return normalizeWeights(raw);
 }

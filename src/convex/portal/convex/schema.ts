@@ -400,7 +400,20 @@ export default defineSchema({
     botsSeeded: v.optional(v.boolean()),
     minPlayers: v.number(),
     maxPlayers: v.number(),
+    /** Actual humans seated (increments on async join). Bot fill uses this as planned. */
     humanPlayerCount: v.optional(v.number()),
+    /**
+     * Async multi: profile-planned humans at create (must be >1). Join capacity is
+     * maxPlayers, not this field.
+     */
+    effectiveHumans: v.optional(v.number()),
+    /** Partner+template partition for async join-or-create. */
+    matchPartitionKey: v.optional(v.string()),
+    /**
+     * Async multi only: true while new humans may join.
+     * Cleared when full (humanPlayerCount >= maxPlayers) or any human submits/finishes.
+     */
+    joinOpen: v.optional(v.boolean()),
     seedBinding: v.optional(
       v.object({
         seedId: v.string(),
@@ -418,6 +431,9 @@ export default defineSchema({
             p75: v.number(),
             p90: v.number(),
           })
+        ),
+        successQuantile: v.optional(
+          v.union(v.literal("p50"), v.literal("p75"), v.literal("p90"))
         ),
       })
     ),
@@ -437,7 +453,10 @@ export default defineSchema({
     updatedAt: v.number(),
     asyncMatchFinalizeScheduledId: v.optional(v.id("_scheduled_functions")),
     asyncMatchFinalizeDueAt: v.optional(v.number()),
-  }).index("by_tournament", ["tournamentId"]),
+  })
+    .index("by_tournament", ["tournamentId"])
+    .index("by_partition_joinOpen", ["matchPartitionKey", "joinOpen"])
+    .index("by_template_joinOpen", ["templateId", "joinOpen"]),
 
   portal_run_player_games: defineTable({
     playerMatchId: v.id("portal_run_player_matches"),
@@ -463,6 +482,9 @@ export default defineSchema({
           p75: v.number(),
           p90: v.number(),
         })
+      ),
+      successQuantile: v.optional(
+        v.union(v.literal("p50"), v.literal("p75"), v.literal("p90"))
       ),
     }),
     score: v.optional(v.number()),

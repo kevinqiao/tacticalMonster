@@ -47,10 +47,7 @@ export type BotStrategyPlayerContext = {
 export function isCasualMultiplayerAsyncTemplate(def: PortalTournamentDefinition): boolean {
   if (def.maxPlayers <= 1) return false;
   if (def.omitFromPlayLobby) return false;
-  return (
-    def.matchType === "tournament_a" ||
-    def.matchType === "tournament_b" ||
-    def.matchType === "tournament_c" ||
-    def.matchType === "season_challenge"
-  );
+  if (def.timingMode === "sync") return false;
+  if (def.timingMode === "async") return true;
+  return def.matchType === "multi_ranked";
 }

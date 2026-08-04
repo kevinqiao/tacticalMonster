@@ -190,6 +190,12 @@ function stripCatalogMetrics(metrics) {
   if (metrics.scoreHistogram && typeof metrics.scoreHistogram === "object") {
     out.scoreHistogram = metrics.scoreHistogram;
   }
+  if (typeof metrics.clearEaseScore === "number" && Number.isFinite(metrics.clearEaseScore)) {
+    out.clearEaseScore = metrics.clearEaseScore;
+  }
+  if (typeof metrics.playerEaseScore === "number" && Number.isFinite(metrics.playerEaseScore)) {
+    out.playerEaseScore = metrics.playerEaseScore;
+  }
   return out;
 }
 

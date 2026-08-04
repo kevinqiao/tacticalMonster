@@ -19,6 +19,7 @@ export type SlimSeedBinding = {
   poolVersion: string;
   tier: PortalSeedTier;
   scoreQuantiles?: ScoreQuantiles;
+  successQuantile?: "p50" | "p75" | "p90";
 };
 
 export type ScoreBand = { min: number; max?: number; count?: number };
@@ -45,8 +46,10 @@ export async function bridgePickSeed(
     matchId: string;
     templateId: string;
     uids: string[];
-    /** Omit / null = pick across all tiers (multi_ranked). */
+    /** Preferred tier; omit / null = whole-pool pick (legacy). */
     tier?: PortalSeedTier | null;
+    /** L3: keep top fraction by playerEaseScore within tier. */
+    highPlayerEaseFraction?: number;
   }
 ): Promise<
   | { ok: true; seedBinding: SlimSeedBinding }
@@ -67,6 +70,9 @@ export async function bridgePickSeed(
       sessionKey,
       uids: args.uids,
       ...(args.tier != null ? { tier: args.tier } : {}),
+      ...(typeof args.highPlayerEaseFraction === "number"
+        ? { highPlayerEaseFraction: args.highPlayerEaseFraction }
+        : {}),
     }
   );
   if (!picked.ok) return { ok: false, error: picked.error };

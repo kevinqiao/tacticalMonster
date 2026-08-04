@@ -24,12 +24,20 @@ export const casualSeedScoreQuantilesValidator = v.object({
 export type CasualMatchSeedScoreQuantiles = ScoreQuantiles;
 
 /** solitaire seed pool ????(?? match ??) */
+export const casualSuccessQuantileValidator = v.union(
+  v.literal("p50"),
+  v.literal("p75"),
+  v.literal("p90")
+);
+
 export const casualMatchSeedBindingValidator = v.object({
   seedId: v.string(),
   poolVersion: v.string(),
   tier: casualSeedTierValidator,
-  /** v3 slim bind ??;block_blast ?? bind ???????? */
+  /** v3 slim bind; block_blast may omit quantiles until resolve */
   scoreQuantiles: v.optional(casualSeedScoreQuantilesValidator),
+  /** L3 ritual override (e.g. p50); omit → template seedQuantileSuccess */
+  successQuantile: v.optional(casualSuccessQuantileValidator),
 });
 
 export type CasualMatchSeedBinding = {
@@ -37,6 +45,7 @@ export type CasualMatchSeedBinding = {
   poolVersion: string;
   tier: "easy" | "medium" | "hard";
   scoreQuantiles?: CasualMatchSeedScoreQuantiles;
+  successQuantile?: "p50" | "p75" | "p90";
 };
 
 /** resolve HTTP ??? solitaire ?????(??? solitaire seed pool ??) */

@@ -144,39 +144,5 @@ export function pickCategory(
   return { ok: true, state: next };
 }
 
-/** Greedy bot for seed pool rollouts. */
-export function simulateGreedyGame(seed: string): { finalScore: number; completed: boolean } {
-  let state = createInitialGameState(seed, `sim_${seed}`) as YatzGameState;
-
-  while (state.status === YatzGameStatus.PLAYING && state.roundIndex < YATZ_ROUND_COUNT) {
-    let rolled = rollDice(state);
-    if (!rolled.ok) break;
-    state = rolled.state;
-
-    rolled = rollDice(state);
-    if (rolled.ok) state = rolled.state;
-    rolled = rollDice(state);
-    if (rolled.ok) state = rolled.state;
-
-    const available = YATZ_CATEGORIES.filter((c) => state.categoryScores[c] == null);
-    let bestCat = available[0]!;
-    let bestScore = -1;
-    for (const cat of available) {
-      const s = scoreCategory(state.dice, cat);
-      if (s > bestScore) {
-        bestScore = s;
-        bestCat = cat;
-      }
-    }
-    const picked = pickCategory(state, bestCat);
-    if (!picked.ok) break;
-    state = picked.state;
-  }
-
-  return {
-    finalScore: state.score,
-    completed: state.status === YatzGameStatus.COMPLETED,
-  };
-}
-
 export { expandYatzSeedManifest, YATZ_MANIFEST_POLICY_VERSION } from "./yatzSeedManifest";
+export { simulateGreedyGame } from "./seedPool/yatzGreedyHoldPolicy";

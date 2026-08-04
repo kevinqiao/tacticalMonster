@@ -95,6 +95,8 @@ import type * as service_bridge_casualSeedProvider from "../service/bridge/casua
 import type * as service_bridge_merchantCampaignBridge from "../service/bridge/merchantCampaignBridge.js";
 import type * as service_bridge_merchantCampaignBridgeActions from "../service/bridge/merchantCampaignBridgeActions.js";
 import type * as service_bridge_merchantCampaignBridgeEnv from "../service/bridge/merchantCampaignBridgeEnv.js";
+import type * as service_bridge_portalSeasonSeedPickQueries from "../service/bridge/portalSeasonSeedPickQueries.js";
+import type * as service_bridge_portalSeasonSeedPickSignals from "../service/bridge/portalSeasonSeedPickSignals.js";
 import type * as service_campaignLeague_campaignLeagueBotFill from "../service/campaignLeague/campaignLeagueBotFill.js";
 import type * as service_campaignLeague_campaignLeagueBotPersona from "../service/campaignLeague/campaignLeagueBotPersona.js";
 import type * as service_campaignLeague_campaignLeagueBotPoints from "../service/campaignLeague/campaignLeagueBotPoints.js";
@@ -154,6 +156,8 @@ import type * as service_tournament_casualTournamentService from "../service/tou
 import type * as service_tournament_join_campaignDailyPlayLimit from "../service/tournament/join/campaignDailyPlayLimit.js";
 import type * as service_tournament_join_campaignPlayHistory from "../service/tournament/join/campaignPlayHistory.js";
 import type * as service_tournament_join_campaignReplaySettingsValidator from "../service/tournament/join/campaignReplaySettingsValidator.js";
+import type * as service_tournament_join_casualAsyncMatchJoin from "../service/tournament/join/casualAsyncMatchJoin.js";
+import type * as service_tournament_join_casualAsyncMatchJoinCore from "../service/tournament/join/casualAsyncMatchJoinCore.js";
 import type * as service_tournament_join_casualJoinMutations from "../service/tournament/join/casualJoinMutations.js";
 import type * as service_tournament_join_casualMatchQueueSweep from "../service/tournament/join/casualMatchQueueSweep.js";
 import type * as service_tournament_join_casualMatchSeedBinding from "../service/tournament/join/casualMatchSeedBinding.js";
@@ -328,6 +332,8 @@ declare const fullApi: ApiFromModules<{
   "service/bridge/merchantCampaignBridge": typeof service_bridge_merchantCampaignBridge;
   "service/bridge/merchantCampaignBridgeActions": typeof service_bridge_merchantCampaignBridgeActions;
   "service/bridge/merchantCampaignBridgeEnv": typeof service_bridge_merchantCampaignBridgeEnv;
+  "service/bridge/portalSeasonSeedPickQueries": typeof service_bridge_portalSeasonSeedPickQueries;
+  "service/bridge/portalSeasonSeedPickSignals": typeof service_bridge_portalSeasonSeedPickSignals;
   "service/campaignLeague/campaignLeagueBotFill": typeof service_campaignLeague_campaignLeagueBotFill;
   "service/campaignLeague/campaignLeagueBotPersona": typeof service_campaignLeague_campaignLeagueBotPersona;
   "service/campaignLeague/campaignLeagueBotPoints": typeof service_campaignLeague_campaignLeagueBotPoints;
@@ -387,6 +393,8 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/join/campaignDailyPlayLimit": typeof service_tournament_join_campaignDailyPlayLimit;
   "service/tournament/join/campaignPlayHistory": typeof service_tournament_join_campaignPlayHistory;
   "service/tournament/join/campaignReplaySettingsValidator": typeof service_tournament_join_campaignReplaySettingsValidator;
+  "service/tournament/join/casualAsyncMatchJoin": typeof service_tournament_join_casualAsyncMatchJoin;
+  "service/tournament/join/casualAsyncMatchJoinCore": typeof service_tournament_join_casualAsyncMatchJoinCore;
   "service/tournament/join/casualJoinMutations": typeof service_tournament_join_casualJoinMutations;
   "service/tournament/join/casualMatchQueueSweep": typeof service_tournament_join_casualMatchQueueSweep;
   "service/tournament/join/casualMatchSeedBinding": typeof service_tournament_join_casualMatchSeedBinding;

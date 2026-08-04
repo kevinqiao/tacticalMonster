@@ -35,6 +35,10 @@ export const rolloutDistributionMetrics = v.object({
   scoreSpread: v.number(),
   scoreQuantiles,
   scoreHistogram: v.optional(v.record(v.string(), v.number())),
+  /** Solitaire: clear-board ease (higher = easier). Optional for older imports. */
+  clearEaseScore: v.optional(v.number()),
+  /** Yatz / Solitaire: human-feel ease (higher = friendlier). Optional for older imports. */
+  playerEaseScore: v.optional(v.number()),
 });
 
 export const rolloutTerminalReason = v.union(

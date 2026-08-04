@@ -44,6 +44,8 @@ export type PortalTournamentCoinRewards = {
   rankCoins?: Record<string, number>;
 };
 
+export type PortalTournamentTimingMode = "sync" | "async";
+
 export interface PortalTournamentDefinition {
   tournamentId: string;
   title: string;
@@ -52,13 +54,20 @@ export interface PortalTournamentDefinition {
   status: string;
   maxPlayers: number;
   entry: EntryCost;
+  /**
+   * Multi only: `async` = join-or-create open tables (no queue);
+   * `sync` = classic matchmaking queue. Solo ignores this.
+   */
+  timingMode?: PortalTournamentTimingMode;
+  /** Hide from play lobby listings when true. */
+  omitFromPlayLobby?: boolean;
   /** 单人挑战积分 */
   soloPoints?: PortalPointsConfig;
   /** 多人按名次积分 */
   rankPoints?: PortalRankPointsConfig;
   /** Optional coin rewards (template defaults; lobby offering may override). */
   coinRewards?: PortalTournamentCoinRewards;
-  seedQuantileSuccess?: { quantile: "p75" };
+  seedQuantileSuccess?: { quantile: "p75" | "p90" };
   rankRates?: PortalRankRateEntry[];
   referenceScoreQuantiles?: PortalReferenceScoreQuantiles;
 }
@@ -130,7 +139,10 @@ function soloDef(gameType: string, title: string): PortalTournamentDefinition {
     maxPlayers: 1,
     entry: { kind: "none" },
     soloPoints: PORTAL_SOLO_POINTS,
-    seedQuantileSuccess: { quantile: "p75" },
+    // block_blast：抬高通关线到 p90
+    seedQuantileSuccess: {
+      quantile: gameType === "block_blast" ? "p90" : "p75",
+    },
   };
 }
 
@@ -142,6 +154,7 @@ function multiDef(gameType: string, title: string): PortalTournamentDefinition {
     matchType: "multi_ranked",
     status: "open",
     maxPlayers: 5,
+    timingMode: "async",
     entry: { kind: "none" },
     rankPoints: PORTAL_MULTI_RANK_POINTS,
     rankRates: [...CASUAL_RANK_RATES_5],
@@ -160,6 +173,7 @@ function multiCoinDef(gameType: string, title: string): PortalTournamentDefiniti
     matchType: "multi_ranked",
     status: "open",
     maxPlayers: 5,
+    timingMode: "async",
     entry: { kind: "coins", amount: PORTAL_MULTI_COIN_ENTRY },
     rankPoints: { ...PORTAL_MULTI_RANK_POINTS },
     coinRewards: { rankCoins: { ...PORTAL_MULTI_COIN_RANK_REWARDS } },
@@ -310,6 +324,24 @@ export type CasualRankRateEntry = PortalRankRateEntry;
 
 export function isJoinableCasualTournament(def: PortalTournamentDefinition): boolean {
   return def.status === "open";
+}
+
+/** Multi async: join existing open table or create; never enqueue. */
+export function isPortalAsyncMultiTemplate(
+  def: Pick<PortalTournamentDefinition, "maxPlayers" | "timingMode" | "matchType">
+): boolean {
+  if (def.maxPlayers <= 1) return false;
+  if (def.timingMode === "sync") return false;
+  if (def.timingMode === "async") return true;
+  // Default multi_ranked (pre-field) behaves as async.
+  return def.matchType === "multi_ranked";
+}
+
+/** Multi sync: classic matchmaking queue. */
+export function isPortalSyncMultiTemplate(
+  def: Pick<PortalTournamentDefinition, "maxPlayers" | "timingMode" | "matchType">
+): boolean {
+  return def.maxPlayers > 1 && def.timingMode === "sync";
 }
 
 export function shouldAppearInCasualPlayLobby(def: PortalTournamentDefinition): boolean {

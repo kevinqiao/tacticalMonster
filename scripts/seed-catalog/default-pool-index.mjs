@@ -44,7 +44,7 @@ export async function resolveDefaultIndexPath(repoRoot, gameType) {
     case "tower_arena":
       return path.join(repoRoot, "scripts/tower/output/pool-v1/index.json");
     case "yatz":
-      return path.join(repoRoot, "scripts/yatz/output/pool-v1/index.json");
+      return path.join(repoRoot, "scripts/yatz/output/pool-v2/index.json");
     default:
       return "";
   }

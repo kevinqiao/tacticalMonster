@@ -820,26 +820,6 @@ const YatzGameProvider: React.FC<Props> = ({
 
 
 
-  const settleManuallyAndExit = useCallback(async () => {
-
-    const gs = gameStateRef.current;
-
-    if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
-
-    if (gs.status === YatzGameStatus.PLAYING) {
-
-      setSettleConfirmOpen(true);
-
-      return;
-
-    }
-
-    await completeCasualRun();
-
-  }, [completeCasualRun]);
-
-
-
   const runForceEndCasualSettlement = useCallback(
     async (): Promise<CasualRunSubmitOutcome> => {
       const gs = gameStateRef.current;
@@ -908,29 +888,12 @@ const YatzGameProvider: React.FC<Props> = ({
   const finishManualSettleSuccess = useCallback(
     (extras?: ManualSettleConfirmExtras) => {
       setSettleConfirmOpen(false);
-      const gs = gameStateRef.current;
-      const isCasualRun = typeof gs?.gameId === 'string' && gs.gameId.startsWith('game_');
-      if (!gs || !isCasualRun) {
-        onGameSubmit?.();
-        return;
-      }
-      const score = gs.score ?? 0;
-      void applySettleResponse(
-        score,
-        {
-          tableSummary: extras?.tableSummary,
-          pendingOthers: extras?.pendingOthers,
-          seedScoreThreshold: extras?.seedScoreThreshold,
-          success: extras?.success,
-          replayOffered: extras?.replayOffered,
-          replayTokenCount: extras?.replayTokenCount,
-          canReplay: extras?.canReplay,
-          replayWindowEndsAt: extras?.replayWindowEndsAt,
-        },
-        gs.gameId
-      );
+      // Early settle via close: leave immediately (no score-report / second dismiss).
+      void exitCasualRunAfterSettle({
+        hadReplayOffer: Boolean(extras?.replayOffered),
+      });
     },
-    [applySettleResponse, onGameSubmit]
+    [exitCasualRunAfterSettle]
   );
 
   const cancelSettleConfirm = useCallback(() => {
@@ -939,6 +902,41 @@ const YatzGameProvider: React.FC<Props> = ({
       settleInFlightRef.current = false;
     }
   }, []);
+
+  const settleManuallyAndExit = useCallback(async () => {
+    // Mirror Solitaire: second X after settle dismisses overlays + closes modal.
+    if (settleConfirmOpen) {
+      cancelSettleConfirm();
+      return;
+    }
+    if (casualRunSubmittedRef.current) {
+      if (postCasualSummaryOpen || postCasualScoreReportOpen) {
+        void exitCasualRunAfterSettle({ hadReplayOffer: postCasualReplayOffered });
+      } else {
+        onGameSubmit?.();
+      }
+      return;
+    }
+
+    const gs = gameStateRef.current;
+    if (!gs || settleInFlightRef.current) return;
+
+    if (gs.status === YatzGameStatus.PLAYING) {
+      setSettleConfirmOpen(true);
+      return;
+    }
+
+    await completeCasualRun();
+  }, [
+    settleConfirmOpen,
+    cancelSettleConfirm,
+    postCasualSummaryOpen,
+    postCasualScoreReportOpen,
+    postCasualReplayOffered,
+    exitCasualRunAfterSettle,
+    onGameSubmit,
+    completeCasualRun,
+  ]);
 
   const confirmSettleAndExit = useCallback(async (): Promise<void | ManualSettleConfirmExtras> => {
     const gs = gameStateRef.current;

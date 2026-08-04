@@ -7,6 +7,7 @@ import {
   getPortalTournamentDefinition,
   isDeprecatedDailySoloTournament,
   isJoinableCasualTournament,
+  isPortalAsyncMultiTemplate,
 } from "../../../data/portalTournamentConfigs";
 import { isCasualGameLobbyVisible } from "../../../data/partnerGameRegistry";
 import { authorizeCampaignJoinViaHttp } from "../../bridge/merchantCampaignBridge";
@@ -192,6 +193,27 @@ export const joinTournament = authedAction({
       );
     }
 
+    // Async multi: join open unfinished table or create (no queue).
+    if (isPortalAsyncMultiTemplate(def)) {
+      return await ctx.runAction(
+        internal.service.tournament.join.casualOpenTableActions.joinOrCreateAsyncMultiTable,
+        {
+          uid,
+          templateId: resolvedTemplateId,
+          ...(lobbyId ? { lobbyId } : {}),
+          ...(campaignId ? { campaignId } : {}),
+          ...(partnerId != null ? { partnerId } : {}),
+          ...(campaignRewardMode ? { campaignRewardMode } : {}),
+          ...(campaignDueTime != null ? { campaignDueTime } : {}),
+          ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
+          ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
+          ...(dayTimezone ? { dayTimezone } : {}),
+          ...(playEntryLane ? { playEntryLane } : {}),
+        }
+      );
+    }
+
+    // Sync multi: enqueue matchmaking.
     const enqueued = await ctx.runMutation(
       internal.service.tournament.join.casualMatchmaking.enqueueCasualMatchmakingAndTryMatch,
       {

@@ -173,12 +173,11 @@ export async function buildDeferredSoloPortalIngestResponse(
   const pg = await findPlayerGameByGameId(ctx, args.matchGameId);
   let seedScoreThreshold = args.seedScoreThreshold;
   if (seedScoreThreshold == null && pg && isPortalSoloP75ChallengeDef(args.def)) {
-    const inlineP75 =
-      args.def.seedQuantileSuccess?.quantile === "p75"
-        ? pg.seedBinding?.scoreQuantiles?.p75
-        : undefined;
-    if (typeof inlineP75 === "number" && Number.isFinite(inlineP75)) {
-      seedScoreThreshold = Math.floor(inlineP75);
+    const q = args.def.seedQuantileSuccess?.quantile;
+    const inline =
+      q === "p75" || q === "p90" ? pg.seedBinding?.scoreQuantiles?.[q] : undefined;
+    if (typeof inline === "number" && Number.isFinite(inline)) {
+      seedScoreThreshold = Math.floor(inline);
     }
   }
   let challengeSuccess: boolean | undefined;

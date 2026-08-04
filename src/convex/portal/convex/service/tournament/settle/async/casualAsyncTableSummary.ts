@@ -75,6 +75,8 @@ type PlayerMatchRow = Doc<"portal_run_player_matches">;
 type WatchAttachOpts = {
   gameType?: string;
   seedId?: string;
+  /** >1：多人竞技观战不挂「目标」分（补位榜分易误导） */
+  maxPlayers?: number;
   pmByUid: Map<string, PlayerMatchRow>;
   pgByUid: Map<string, PlayerGameRow>;
 };
@@ -127,11 +129,17 @@ function attachCasualWatchContext(
   const pg = opts.pgByUid.get(pm.uid);
   if (isCasualAsyncVirtualOpponentUid(pm.uid)) {
     if (!opts.seedId || !pg) return undefined;
+    const multiplayer = (opts.maxPlayers ?? 1) > 1;
+    const expectedScore = multiplayer
+      ? undefined
+      : (extras?.expectedScore ?? pg.score ?? pm.score);
     return {
       kind: "rollout",
       seedId: opts.seedId,
       rolloutIndex: pg.rolloutIndex ?? 0,
-      expectedScore: extras?.expectedScore ?? pg.score ?? pm.score,
+      ...(expectedScore != null && Number.isFinite(expectedScore)
+        ? { expectedScore }
+        : {}),
       revealAt: extras?.revealAt ?? pg.revealAt,
       duration: extras?.duration ?? pg.duration,
     };
@@ -153,7 +161,8 @@ async function resolveWatchAttachOpts(
   templateId: string,
   matchId: string,
   rows: PlayerMatchRow[],
-  games: PlayerGameRow[]
+  games: PlayerGameRow[],
+  maxPlayers?: number
 ): Promise<WatchAttachOpts | undefined> {
   const def = getPortalTournamentDefinition(templateId);
   if (!def) return undefined;
@@ -168,6 +177,7 @@ async function resolveWatchAttachOpts(
   return {
     gameType: watchGameType,
     seedId,
+    maxPlayers: maxPlayers ?? def.maxPlayers,
     pmByUid: pmByUidFromRows(rows),
     pgByUid: buildWatchGameByUid(games, watchGameType),
   };
@@ -545,6 +555,7 @@ export async function buildCasualTriathlonHistoryTableSummary(
     const watchOpts: WatchAttachOpts = {
       gameType,
       seedId,
+      maxPlayers,
       pmByUid,
       pgByUid,
     };
@@ -610,7 +621,14 @@ export async function buildCasualAsyncTableSummary(
     .withIndex("by_matchId", (q) => q.eq("matchId", matchId))
     .collect();
   const botTimingByUid = buildBotTimingByUid(playerGames);
-  const watchOpts = await resolveWatchAttachOpts(ctx, templateId, matchId, rows, playerGames);
+  const watchOpts = await resolveWatchAttachOpts(
+    ctx,
+    templateId,
+    matchId,
+    rows,
+    playerGames,
+    maxPlayers
+  );
   const boardStableArgs = {
     rows,
     botTimingByUid,

@@ -66,7 +66,7 @@ export function resolvePortalSoloChallengeSuccess(
   return isPortalP75Success(def, score, seedScoreThreshold);
 }
 
-/** 与 ingest / HTTP bridge 对齐：优先 seedBinding 内联 P75，缺失时从 seed pool 解析。 */
+/** 与 ingest / HTTP bridge 对齐：优先 seedBinding 内联分位，缺失时从 seed pool 解析。 */
 export async function resolvePortalSoloSeedScoreThresholdForPlayerGame(
   ctx: QueryCtx | MutationCtx,
   args: {
@@ -76,16 +76,20 @@ export async function resolvePortalSoloSeedScoreThresholdForPlayerGame(
 ): Promise<number | undefined> {
   if (!isPortalSoloP75ChallengeDef(args.def)) return undefined;
 
-  const inlineP75 =
-    args.def.seedQuantileSuccess?.quantile === "p75"
-      ? args.pg.seedBinding?.scoreQuantiles?.p75
-      : undefined;
-  if (typeof inlineP75 === "number" && Number.isFinite(inlineP75)) {
-    return Math.floor(inlineP75);
+  const bindingQuantile = args.pg.seedBinding?.successQuantile;
+  const quantile =
+    bindingQuantile === "p50" || bindingQuantile === "p75" || bindingQuantile === "p90"
+      ? bindingQuantile
+      : args.def.seedQuantileSuccess?.quantile;
+  if (quantile !== "p50" && quantile !== "p75" && quantile !== "p90") return undefined;
+
+  const inline = args.pg.seedBinding?.scoreQuantiles?.[quantile];
+  if (typeof inline === "number" && Number.isFinite(inline)) {
+    return Math.floor(inline);
   }
-  if (args.def.seedQuantileSuccess?.quantile === "p75" && args.pg.seedBinding) {
+  if (args.pg.seedBinding) {
     const resolved = await resolvePlatformSeedScoreThreshold(ctx, {
-      successThresholdQuantile: "p75",
+      successThresholdQuantile: quantile,
       seedBinding: args.pg.seedBinding,
       gameType: args.pg.gameType,
     });

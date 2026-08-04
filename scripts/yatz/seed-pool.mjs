@@ -8,7 +8,7 @@ import { CATALOG_GAME_TYPES } from "../seed-catalog/catalog-game-types.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 const CATALOG_GAME_TYPE = CATALOG_GAME_TYPES.yatz;
-const DEFAULT_INDEX = path.join(repoRoot, "scripts/yatz/output/pool-v1/index.json");
+const DEFAULT_INDEX = path.join(repoRoot, "scripts/yatz/output/pool-v2/index.json");
 
 function runImport(args) {
   const script = path.join(repoRoot, "scripts/seed-catalog/import-seed-pool.mjs");
@@ -37,7 +37,7 @@ async function main() {
   } else if (cmd === "load" || cmd === "append") {
     const clearFirst = cmd === "load" && !rest.includes("--no-clear");
     const poolVersion =
-      (rest.includes("--pool-version") && rest[rest.indexOf("--pool-version") + 1]) || "v1";
+      (rest.includes("--pool-version") && rest[rest.indexOf("--pool-version") + 1]) || "v2";
     const index =
       (rest.includes("--index") && rest[rest.indexOf("--index") + 1]) || DEFAULT_INDEX;
     const importArgs = [

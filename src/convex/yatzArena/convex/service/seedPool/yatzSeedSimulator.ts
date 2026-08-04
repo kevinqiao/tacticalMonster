@@ -1,51 +1,30 @@
-import { YATZ_CATEGORIES, YATZ_ROUND_COUNT, YatzGameStatus } from "../../types/YatzTypes";
-import { scoreCategory } from "../yatzScoring";
+import { YatzGameStatus } from "../../types/YatzTypes";
 import { YATZ_MANIFEST_POLICY_VERSION } from "../yatzSeedManifest";
-import { applyRecordedOp, buildInitialState } from "./yatzOpCodec";
+import { playGreedyTurn } from "./yatzGreedyHoldPolicy";
+import { YATZ_DECISION_POLICY_VERSION } from "./yatzHumanPersonas";
+import { buildInitialState } from "./yatzOpCodec";
 import type { YatzRecordedStep, YatzRolloutScript } from "./yatzRecordedOpTypes";
-import {
-  buildReplayPacingMs,
-} from "./yatzSimTime";
+import { buildReplayPacingMs } from "./yatzSimTime";
+import { createYatzPolicyContext } from "./yatzStochasticPolicy";
 
-export function rolloutReplaySeed(seedId: string, rolloutIndex: number): string {
-  return `${seedId}:rollout:${rolloutIndex}`;
+/**
+ * Game/manifest seed for watch replay.
+ * Manifest is fixed to seedId (rollouts only change policy RNG + persona).
+ */
+export function rolloutReplaySeed(seedId: string, _rolloutIndex?: number): string {
+  return seedId;
 }
 
-/** Greedy bot rollout — same policy as `simulateGreedyGame`, with recorded ops for watch replay. */
+/** Bot rollout: fixed Manifest(seedId) + persona/RNG from rolloutIndex. */
 export function simulateRollout(seedId: string, rolloutIndex: number): YatzRolloutScript {
-  const simSeed = rolloutReplaySeed(seedId, rolloutIndex);
-  let state = buildInitialState(simSeed);
+  const policy = createYatzPolicyContext(seedId, rolloutIndex);
+  let state = buildInitialState(seedId);
   const ops: YatzRecordedStep[] = [];
 
-  const push = (step: YatzRecordedStep) => {
-    ops.push(step);
-  };
-
-  while (state.status === YatzGameStatus.PLAYING && state.roundIndex < YATZ_ROUND_COUNT) {
-    for (let i = 0; i < 3; i++) {
-      const rolled = applyRecordedOp(state, { op: "roll" });
-      if (!rolled.ok) break;
-      state = rolled.state;
-      push({ op: "roll" });
-    }
-
-    const available = YATZ_CATEGORIES.filter((c) => state.categoryScores[c] == null);
-    if (available.length === 0) break;
-
-    let bestCat = available[0]!;
-    let bestScore = -1;
-    for (const cat of available) {
-      const s = scoreCategory(state.dice, cat);
-      if (s > bestScore) {
-        bestScore = s;
-        bestCat = cat;
-      }
-    }
-
-    const picked = applyRecordedOp(state, { op: "pick_category", category: bestCat });
-    if (!picked.ok) break;
-    state = picked.state;
-    push({ op: "pick_category", category: bestCat });
+  while (state.status === YatzGameStatus.PLAYING) {
+    const next = playGreedyTurn(state, (step) => ops.push(step), policy);
+    if (!next) break;
+    state = next;
   }
 
   const replayPacingMs = buildReplayPacingMs(ops, seedId, rolloutIndex);
@@ -53,6 +32,7 @@ export function simulateRollout(seedId: string, rolloutIndex: number): YatzRollo
   return {
     rolloutIndex,
     policyVersion: YATZ_MANIFEST_POLICY_VERSION,
+    decisionPolicyVersion: YATZ_DECISION_POLICY_VERSION,
     ops,
     replayPacingMs,
     finalScore: state.score,

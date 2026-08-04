@@ -200,8 +200,9 @@ async function rebuildCandidatesFromRollouts(rolloutsDir, poolVersion, matchSeco
 }
 
 async function writeJsonAtomic(filePath, value) {
+  await mkdir(path.dirname(filePath), { recursive: true });
   const tmp = `${filePath}.${process.pid}.tmp`;
-  await writeFile(tmp, JSON.stringify(value, null, 2), "utf8");
+  await writeFile(tmp, JSON.stringify(value), "utf8");
   try {
     await unlink(filePath);
   } catch {
@@ -455,19 +456,35 @@ async function main() {
         `progress ${processed}/${candidateCount} accepted=${batchCandidates.length} rejected=${batchRejected.length} elapsed=${elapsed}s index=${i}`
       );
     }
-    // 每 500 个写轻量 checkpoint（不含 rolloutSummaries，避免巨大 IO）
+    // 每 500 个写轻量 checkpoint（无 summaries；rejected 仅留 fingerprint）
     if ((i + 1) % 500 === 0) {
-      await writeJsonAtomic(checkpointPath, {
-        poolVersion: opts.version,
-        nextIndex: i + 1,
-        targetAccepted,
-        batchCandidates: batchCandidates.map((c) => ({
-          ...c,
-          rolloutSummaries: [],
-        })),
-        batchRejected,
-        savedAt: new Date().toISOString(),
-      });
+      try {
+        await writeJsonAtomic(checkpointPath, {
+          poolVersion: opts.version,
+          nextIndex: i + 1,
+          targetAccepted,
+          batchCandidates: batchCandidates.map((c) => ({
+            seedId: c.seedId,
+            poolVersion: c.poolVersion,
+            difficultyScore: c.difficultyScore,
+            metrics: c.metrics,
+            rolloutSummaries: [],
+          })),
+          batchRejected: batchRejected.map((e) => ({
+            seedId: e.seedId,
+            reason: e.reason,
+            metrics: e.metrics?.layoutFingerprint
+              ? { layoutFingerprint: e.metrics.layoutFingerprint }
+              : undefined,
+          })),
+          savedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn(
+          `checkpoint write failed at index=${i} (continuing):`,
+          err && err.message ? err.message : err
+        );
+      }
     }
   }
 

@@ -29,15 +29,15 @@ const repoRoot = path.resolve(__dirname, "../..");
 const DEFAULT_COUNT = 500;
 const DEFAULT_ROLLOUTS = 48;
 const DEFAULT_MATCH_SECONDS = 300;
-/** v4 prod 默认（按仿真校准：opening≈100–175，thinkTimeScale≈3） */
+/** v6 prod 默认（opening≈100–175，thinkTimeScale≈3；Gate/oversample 按硬池校准） */
 const DEFAULT_KPI_PROFILE = "prod";
 const DEFAULT_MIN_OPENING_MOVES = 100;
 const DEFAULT_MAX_OPENING_MOVES = 175;
-const DEFAULT_MIN_SCORE_P25 = 24;
-const DEFAULT_MIN_SCORE_SPREAD = 80;
-const DEFAULT_OVERSAMPLE_FACTOR = 15;
+const DEFAULT_MIN_SCORE_P25 = 16;
+const DEFAULT_MIN_SCORE_SPREAD = 60;
+const DEFAULT_OVERSAMPLE_FACTOR = 25;
 const DEFAULT_THINK_TIME_SCALE = 3;
-const DEFAULT_MAX_STUCK_RATE = 0.92;
+const DEFAULT_MAX_STUCK_RATE = 0.96;
 const DEFAULT_MIN_ENTRIES = 0;
 const DEFAULT_BATCH_SIZE = process.platform === "win32" ? 2 : 8;
 const CATALOG_GAME_TYPE = CATALOG_GAME_TYPES.block_blast;

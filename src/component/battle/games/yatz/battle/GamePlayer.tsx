@@ -18,6 +18,7 @@ import {
   resolveCasualPostSettleReplayPresentation,
   resolveCasualScoreReportSecondaryAction,
 } from '../../shared/casualGameScoreReportUI';
+import { registerCasualGameModalExitHandler } from '../../shared/casualGameModalExitBridge';
 import YatzWatchOverlay from './replay/YatzWatchOverlay';
 
 const UPPER_CATEGORIES = YATZ_CATEGORIES.slice(0, 6);
@@ -200,6 +201,15 @@ const GamePlayer: React.FC = () => {
   const showPostSettleSummary =
     yatz.postCasualSummaryOpen &&
     !isCasualSoloChallengeFinalScoreReport(yatz.casualTournamentId);
+
+  // Same as Solitaire/BlockBlast: modal close → settleManuallyAndExit (confirm while playing).
+  useEffect(() => {
+    registerCasualGameModalExitHandler(() => {
+      void yatz.settleManuallyAndExit();
+    });
+    return () => registerCasualGameModalExitHandler(null);
+  }, [yatz.settleManuallyAndExit]);
+
   const postSettleReplay = useMemo(
     () =>
       resolveCasualPostSettleReplayPresentation({
@@ -293,18 +303,6 @@ const GamePlayer: React.FC = () => {
               </div>
             ) : null}
           </div>
-          {playing ? (
-            <div className="yatz-header-actions">
-              <button
-                type="button"
-                className="yatz-btn yatz-btn--end"
-                disabled={yatz.busy}
-                onClick={() => void yatz.settleManuallyAndExit()}
-              >
-                {t('hud.end')}
-              </button>
-            </div>
-          ) : null}
           <div className="yatz-progress-wrap">
             <ProgressRing round={roundDisplay} />
             <span className="yatz-progress-label">

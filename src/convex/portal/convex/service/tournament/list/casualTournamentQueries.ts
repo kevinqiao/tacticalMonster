@@ -437,9 +437,11 @@ export const gameHistory = authedQuery({
             seedScoreThreshold = Math.floor(selfPm.seedScoreThreshold);
           } else {
             const quantiles = await loadSeedScoreQuantilesForSeat(ctx, selfPm._id);
-            const p75 = quantiles?.p75;
-            if (typeof p75 === "number" && Number.isFinite(p75)) {
-              seedScoreThreshold = Math.floor(p75);
+            // Prefer stored seedScoreThreshold above; fallback uses template quantile.
+            const qKey = def.seedQuantileSuccess?.quantile === "p90" ? "p90" : "p75";
+            const threshold = quantiles?.[qKey];
+            if (typeof threshold === "number" && Number.isFinite(threshold)) {
+              seedScoreThreshold = Math.floor(threshold);
             }
           }
           if (typeof selfPm.challengeSuccess === "boolean") {

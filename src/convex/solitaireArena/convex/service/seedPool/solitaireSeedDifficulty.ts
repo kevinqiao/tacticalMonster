@@ -135,6 +135,63 @@ export function computePlayerEaseScore(
   );
 }
 
+export type ClearEaseScoreInput = {
+  openingMoveCount: number;
+  solvable?: "solvable" | "unsolvable" | "unknown" | null;
+  solvableSource?: "empirical_completed" | "search" | null;
+  /** Solver solution length when status=solvable via search; null for empirical. */
+  pathLength?: number | null;
+  nodesExpanded?: number | null;
+};
+
+/**
+ * Clear-board ease (higher = easier to clear foundations).
+ * Requires solvable=true for a non-zero score; prefers short solve paths / few nodes,
+ * empirical bot clears, and more opening moves.
+ */
+export function computeClearEaseScore(input: ClearEaseScoreInput): number {
+  if (input.solvable !== "solvable") return 0;
+
+  let score = 1000;
+  score += Math.max(0, input.openingMoveCount) * 20;
+
+  if (input.solvableSource === "empirical_completed") {
+    // Strongest signal: a rollout already cleared the board.
+    score += 5000;
+  } else if (input.pathLength != null && Number.isFinite(input.pathLength)) {
+    // Shorter greedy/search path → structurally easier to clear.
+    score += Math.max(0, 4000 - input.pathLength * 2);
+  } else {
+    score += 500;
+  }
+
+  if (input.nodesExpanded != null && Number.isFinite(input.nodesExpanded)) {
+    score += Math.max(0, 2000 - input.nodesExpanded / 50);
+  }
+
+  return Math.round(score);
+}
+
+/** Attach / refresh clearEaseScore on metrics from a solvability annotation. */
+export function withClearEaseScore(
+  metrics: RolloutDistributionMetrics,
+  solvability: ClearEaseScoreInput | null | undefined
+): RolloutDistributionMetrics {
+  if (!solvability) {
+    return { ...metrics, clearEaseScore: metrics.clearEaseScore ?? 0 };
+  }
+  return {
+    ...metrics,
+    clearEaseScore: computeClearEaseScore({
+      openingMoveCount: metrics.openingMoveCount,
+      solvable: solvability.solvable,
+      solvableSource: solvability.solvableSource,
+      pathLength: solvability.pathLength,
+      nodesExpanded: solvability.nodesExpanded,
+    }),
+  };
+}
+
 export function computeDistributionMetrics(
   rollouts: SolitaireRolloutScript[],
   layout: {
@@ -179,6 +236,8 @@ export function computeDistributionMetrics(
     ...base,
     layoutOutcome,
     playerEaseScore: computePlayerEaseScore({ ...base, layoutOutcome }),
+    // Filled after solvability resolve via withClearEaseScore.
+    clearEaseScore: 0,
   };
 }
 
@@ -253,6 +312,7 @@ function entryToTierReport(entry: SeedPoolEntry): SeedTierReportEntry {
     openingMoveCount: m.openingMoveCount,
     scoreSpread: m.scoreSpread,
     playerEaseScore: m.playerEaseScore,
+    clearEaseScore: m.clearEaseScore ?? 0,
     rolloutCount: m.rolloutCount,
   };
 }

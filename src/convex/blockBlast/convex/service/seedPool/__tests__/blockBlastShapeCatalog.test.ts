@@ -75,30 +75,31 @@ describe("blockBlastShapeCatalog", () => {
     expect(a.map((s) => s.shape)).toEqual(b.map((s) => s.shape));
   });
 
-  it("long shape stream includes 5-cell blocks with limited 1-cell rate early", () => {
-    const shapes = generateShapes(48, "blockblast-pool:v4:shape-probe", 0);
+  it("long shape stream includes 5-cell blocks with limited 1-cell rate", () => {
+    const shapes = generateShapes(48, "blockblast-pool:v6:shape-probe", 0);
     const cells = shapes.map((s) => countCells(s.shape));
     expect(cells.filter((c) => c === 5).length).toBeGreaterThan(0);
-    expect(cells.filter((c) => c === 1).length / cells.length).toBeLessThan(0.12);
+    expect(cells.filter((c) => c === 1).length / cells.length).toBeLessThan(0.08);
+    expect(cells.filter((c) => c >= 4).length / cells.length).toBeGreaterThan(0.55);
   });
 
-  it("hand weak constraint prefers small piece when first two are large", () => {
-    // Force many hands: when preferSmall triggers, third piece should often be ≤3
+  it("v6 has no hand rescue: third piece not biased small after two 5-cell", () => {
     let smallThird = 0;
     let largeHands = 0;
-    for (let seed = 0; seed < 40; seed++) {
-      const shapes = generateShapes(24, `blockblast-pool:v4:hand-${seed}`, 0);
-      for (let h = 0; h < 8; h++) {
+    for (let seed = 0; seed < 80; seed++) {
+      const shapes = generateShapes(36, `blockblast-pool:v6:hand-${seed}`, 0);
+      for (let h = 0; h < 12; h++) {
         const a = countCells(shapes[h * 3]!.shape);
         const b = countCells(shapes[h * 3 + 1]!.shape);
         const c = countCells(shapes[h * 3 + 2]!.shape);
-        if (a > 3 && b > 3) {
+        if (a > 4 && b > 4) {
           largeHands += 1;
           if (c <= 3) smallThird += 1;
         }
       }
     }
     expect(largeHands).toBeGreaterThan(0);
-    expect(smallThird / largeHands).toBeGreaterThan(0.5);
+    // 无 preferSmall 时第三块 ≤3 不应显著偏高（背景权重约 <0.4）
+    expect(smallThird / largeHands).toBeLessThan(0.55);
   });
 });

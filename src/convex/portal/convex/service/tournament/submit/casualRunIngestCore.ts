@@ -83,8 +83,10 @@ export async function settleSoloMaxPlayersOneCasualRun(
     }
   } else {
     const quantiles = args.seedScoreQuantiles ?? (await loadSeedScoreQuantilesForSeat(ctx, pm._id));
-    if (typeof quantiles?.p75 === "number" && Number.isFinite(quantiles.p75)) {
-      seedScoreThreshold = Math.floor(quantiles.p75);
+    const q = def.seedQuantileSuccess?.quantile ?? "p75";
+    const qVal = q === "p90" ? quantiles?.p90 : quantiles?.p75;
+    if (typeof qVal === "number" && Number.isFinite(qVal)) {
+      seedScoreThreshold = Math.floor(qVal);
     }
   }
 

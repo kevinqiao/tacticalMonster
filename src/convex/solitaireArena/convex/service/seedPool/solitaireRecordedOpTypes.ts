@@ -117,6 +117,11 @@ export type RolloutDistributionMetrics = {
   openingMoveCount: number;
   scoreSpread: number;
   playerEaseScore: number;
+  /**
+   * Clear-board friendliness (higher = easier to clear).
+   * Uses solvability path/nodes when available; 0 if not solvable / unchecked.
+   */
+  clearEaseScore: number;
   layoutFingerprint: string;
   policyVersion: typeof HUMAN_STOCHASTIC_POLICY_VERSION;
   matchTimeLimitSec: number;
@@ -153,6 +158,7 @@ export type SeedTierReportEntry = {
   openingMoveCount: number;
   scoreSpread: number;
   playerEaseScore: number;
+  clearEaseScore: number;
   rolloutCount: number;
 };
 

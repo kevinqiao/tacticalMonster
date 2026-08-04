@@ -140,17 +140,31 @@ function buildReport({
   };
 }
 
-function mergeSolvabilityIntoIndex(raw, bySeedId) {
+function mergeSolvabilityIntoIndex(raw, bySeedId, computeClearEaseScore) {
   let merged = 0;
   const entries = (raw.entries ?? []).map((e) => {
     const row = bySeedId.get(e.seedId);
     if (!row) return e;
     merged += 1;
+    const clearEaseScore =
+      typeof computeClearEaseScore === "function"
+        ? computeClearEaseScore({
+            openingMoveCount: e.metrics?.openingMoveCount ?? 0,
+            solvable: row.status,
+            solvableSource: row.source,
+            pathLength: row.pathLength,
+            nodesExpanded: row.nodesExpanded,
+          })
+        : e.metrics?.clearEaseScore ?? 0;
     return {
       ...e,
       solvable: row.status,
       solvableSource: row.source,
       solvableReason: row.reason ?? null,
+      metrics: {
+        ...(e.metrics ?? {}),
+        clearEaseScore,
+      },
     };
   });
   return {
@@ -184,7 +198,12 @@ async function main() {
     repoRoot,
     "src/convex/solitaireArena/convex/service/seedPool/solitaireSolver.ts"
   );
+  const difficultyPath = path.join(
+    repoRoot,
+    "src/convex/solitaireArena/convex/service/seedPool/solitaireSeedDifficulty.ts"
+  );
   const { resolveSeedSolvability } = await import(pathToFileURL(solverPath).href);
+  const { computeClearEaseScore } = await import(pathToFileURL(difficultyPath).href);
 
   const raw = JSON.parse(await readFile(indexPath, "utf8"));
   const indexEntries = raw.entries ?? [];
@@ -317,7 +336,7 @@ async function main() {
   await atomicWriteJson(outPath, report);
 
   if (opts.mergeIndex) {
-    const { next, merged } = mergeSolvabilityIntoIndex(raw, bySeedId);
+    const { next, merged } = mergeSolvabilityIntoIndex(raw, bySeedId, computeClearEaseScore);
     await atomicWriteJson(indexPath, next);
     console.log(`merged solvable* into index: ${merged} entries → ${indexPath}`);
   }

@@ -12,7 +12,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 const importer = path.join(repoRoot, "scripts/portal/import-seed-pool.mjs");
 
 const pools = [
-  { gameType: "block_blast", index: "scripts/blockblast/output/pool-v3/index.json" },
+  { gameType: "block_blast", index: "scripts/blockblast/output/pool-v6/index.json" },
   { gameType: "match_3", index: "scripts/match3/output/pool-v1/index.json" },
   { gameType: "tower_arena", index: "scripts/tower/output/pool-v1/index.json" },
   { gameType: "yatz", index: "scripts/yatz/output/pool-v1/index.json" },
