@@ -157,8 +157,9 @@ async function resolveShopEconomy(
       partnerId,
       scopeKey: scope.scopeKey,
       lobbyId: scope.lobbyId,
-      // Isolated: overlay by join lobby. Shared: partner-base assortment only.
-      settingsLobbyId: scope.mode === "isolated" ? scope.lobbyId : null,
+      // Assortment overlay follows the join lobby even when wallet scope is shared
+      // (e.g. crazygames solitaire: Free coins + gift cards only).
+      settingsLobbyId: lobbyId ?? null,
     };
   } catch {
     // isolated without lobbyId — keep partner base catalog; wallet stays shared fallback
@@ -167,7 +168,7 @@ async function resolveShopEconomy(
       partnerId,
       scopeKey: "shared",
       lobbyId: null,
-      settingsLobbyId: null,
+      settingsLobbyId: lobbyId ?? null,
     };
   }
 }
@@ -350,7 +351,7 @@ export const purchasePortalShopSku = authedMutation({
         partnerId,
         scopeKey: scope.scopeKey,
         lobbyId: scope.lobbyId,
-        settingsLobbyId: scope.mode === "isolated" ? scope.lobbyId : null,
+        settingsLobbyId: lobbyId ?? null,
       };
     } catch {
       return { ok: false as const, error: "lobby_required_for_isolated_economy" as const };
@@ -560,7 +561,7 @@ export const resolveIapCheckoutSkuInternal = internalQuery({
         partnerId,
         scopeKey: scope.scopeKey,
         lobbyId: scope.lobbyId,
-        settingsLobbyId: scope.mode === "isolated" ? scope.lobbyId : null,
+        settingsLobbyId: lobbyId ?? null,
       };
     } catch {
       return { ok: false as const, error: "lobby_required_for_isolated_economy" as const };

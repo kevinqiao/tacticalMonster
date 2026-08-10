@@ -349,6 +349,8 @@ function expandShopSettingsBlock(raw, label) {
     virtualEnabled: raw.virtualEnabled !== false,
     vouchersEnabled: raw.vouchersEnabled !== false,
     adCoinEnabled: raw.adCoinEnabled !== false,
+    iapEnabled: raw.iapEnabled !== false,
+    checkinEnabled: raw.checkinEnabled !== false,
     assortmentMode,
     skuIds: Array.isArray(raw.skuIds)
       ? raw.skuIds.filter((id) => typeof id === "string")

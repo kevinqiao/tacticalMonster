@@ -702,6 +702,8 @@ http.route({
       return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
     }
     const iapEnabled = typeof b.iapEnabled === "boolean" ? b.iapEnabled : true;
+    const checkinEnabled =
+      typeof b.checkinEnabled === "boolean" ? b.checkinEnabled : true;
     try {
       return jsonResponse(
         await ctx.runMutation(
@@ -715,6 +717,7 @@ http.route({
             vouchersEnabled: b.vouchersEnabled,
             adCoinEnabled: b.adCoinEnabled,
             iapEnabled,
+            checkinEnabled,
             assortmentMode: b.assortmentMode,
             skuIds: b.skuIds.filter((id): id is string => typeof id === "string"),
             excludeSkuIds: b.excludeSkuIds.filter((id): id is string => typeof id === "string"),

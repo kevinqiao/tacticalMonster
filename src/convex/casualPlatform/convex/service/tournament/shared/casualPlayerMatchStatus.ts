@@ -3,7 +3,8 @@ import type { MutationCtx } from "../../../_generated/server";
 import { getTournamentDefinition } from "../../../data/casualTournamentConfigs";
 
 /** 默认再战窗口：3 分钟 */
-export const CASUAL_DEFAULT_REPLAY_WINDOW_MS = 3 * 60 * 1000;
+/** 默认再战窗口：30 秒 */
+export const CASUAL_DEFAULT_REPLAY_WINDOW_MS = 30 * 1000;
 
 /** 三场合战再战窗口：5 分钟（含总分榜阅读时间） */
 export const CASUAL_TRIATHLON_REPLAY_WINDOW_MS = 5 * 60 * 1000;

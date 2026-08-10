@@ -148,6 +148,8 @@ export default defineSchema({
     adCoinEnabled: v.optional(v.boolean()),
     /** Stripe/fiat iap SKUs; omit = enabled (default true). */
     iapEnabled: v.optional(v.boolean()),
+    /** Daily check-in in shop; omit = enabled (default true). */
+    checkinEnabled: v.optional(v.boolean()),
     assortmentMode: v.union(v.literal("all_shared"), v.literal("allowlist")),
     skuIds: v.optional(v.array(v.string())),
     excludeSkuIds: v.optional(v.array(v.string())),

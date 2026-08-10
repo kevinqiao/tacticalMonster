@@ -17,6 +17,7 @@ function settings(
     vouchersEnabled: true,
     adCoinEnabled: true,
     iapEnabled: true,
+    checkinEnabled: true,
     assortmentMode: "all_shared",
     skuIds: [],
     excludeSkuIds: [],

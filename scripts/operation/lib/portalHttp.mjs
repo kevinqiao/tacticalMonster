@@ -246,6 +246,8 @@ function shopSettingsBody(settings) {
     virtualEnabled: settings.virtualEnabled,
     vouchersEnabled: settings.vouchersEnabled,
     adCoinEnabled: settings.adCoinEnabled,
+    iapEnabled: settings.iapEnabled !== false,
+    checkinEnabled: settings.checkinEnabled !== false,
     assortmentMode: settings.assortmentMode,
     skuIds: settings.skuIds,
     excludeSkuIds: settings.excludeSkuIds,

@@ -38,6 +38,7 @@ const settingsArgs = {
   vouchersEnabled: v.boolean(),
   adCoinEnabled: v.boolean(),
   iapEnabled: v.boolean(),
+  checkinEnabled: v.boolean(),
   assortmentMode: v.union(v.literal("all_shared"), v.literal("allowlist")),
   skuIds: v.array(v.string()),
   excludeSkuIds: v.array(v.string()),

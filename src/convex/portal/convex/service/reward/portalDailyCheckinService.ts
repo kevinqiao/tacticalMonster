@@ -10,9 +10,11 @@ import {
   PORTAL_DAILY_CHECKIN_STREAK_BONUS_TICKETS,
   PORTAL_DAILY_CHECKIN_STREAK_CYCLE_DAYS,
 } from "../../data/portalDailyCheckinConfig";
+import { isPartnerShopCheckinEnabled } from "../../data/portalPartnerShopSettings";
 import { resolvePortalShopSessionPartnerId } from "../../data/portalShopPartner";
 import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
 import { resolveEconomyScope } from "../economy/resolveEconomyScope";
+import { loadPartnerShopSettings } from "../shop/partnerShopSettings";
 
 const MS_PER_DAY = 24 * 3600 * 1000;
 
@@ -92,6 +94,21 @@ export type PortalDailyCheckinStatus = {
   streakBonusTickets: number[];
 };
 
+async function partnerAllowsCheckin(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  lobbyId?: Id<"portal_lobbies"> | null
+): Promise<boolean> {
+  if (!PORTAL_DAILY_CHECKIN_ENABLED) return false;
+  const partnerId = resolvePortalShopSessionPartnerId(uid);
+  const settings = await loadPartnerShopSettings(
+    ctx,
+    partnerId,
+    lobbyId ?? null
+  );
+  return isPartnerShopCheckinEnabled(settings);
+}
+
 export async function getPortalDailyCheckinStatusCore(
   ctx: QueryCtx | MutationCtx,
   uid: string,
@@ -99,8 +116,9 @@ export async function getPortalDailyCheckinStatusCore(
   lobbyId?: Id<"portal_lobbies"> | null
 ): Promise<PortalDailyCheckinStatus> {
   const cycleRewards = checkinCycleRewardTickets();
+  const checkinAllowed = await partnerAllowsCheckin(ctx, uid, lobbyId);
   const base = {
-    enabled: PORTAL_DAILY_CHECKIN_ENABLED,
+    enabled: checkinAllowed,
     claimedToday: false,
     canClaim: false,
     dayKey: dailyPeriodKey(nowMs),
@@ -113,7 +131,7 @@ export async function getPortalDailyCheckinStatusCore(
     streakBonusTickets: [...PORTAL_DAILY_CHECKIN_STREAK_BONUS_TICKETS],
   };
 
-  if (!PORTAL_DAILY_CHECKIN_ENABLED) {
+  if (!checkinAllowed) {
     return base;
   }
 
@@ -196,7 +214,7 @@ export async function claimPortalDailyCheckinCore(
     nowMs?: number;
   }
 ): Promise<ClaimPortalDailyCheckinResult> {
-  if (!PORTAL_DAILY_CHECKIN_ENABLED) {
+  if (!(await partnerAllowsCheckin(ctx, args.uid, args.lobbyId))) {
     return { ok: false, error: "disabled" };
   }
 

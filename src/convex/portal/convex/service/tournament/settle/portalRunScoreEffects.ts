@@ -113,13 +113,17 @@ export async function applyPortalTemplateScoreEffects(
     });
   }
 
-  if (args.runTournamentId && (coinsGranted > 0 || def.entry.kind === "coins")) {
-    if (playerTournament) {
-      await ctx.db.patch(playerTournament._id, {
-        coinsGranted,
-        updatedAt: Date.now(),
-      });
-    }
+  if (
+    playerTournament &&
+    (coinsGranted > 0 ||
+      def.entry.kind === "coins" ||
+      // Persist explicit 0 when solo daily cap mutes rewards (history must not recompute payouts).
+      (def.matchType === "solo_p75" && points.soloRewardsMuted === true))
+  ) {
+    await ctx.db.patch(playerTournament._id, {
+      coinsGranted,
+      updatedAt: Date.now(),
+    });
   }
 
   return { ...points, ...(coinsGranted > 0 ? { coinsGranted } : {}) };

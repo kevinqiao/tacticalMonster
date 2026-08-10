@@ -65,5 +65,36 @@ describe("mergePartnerShopSettingsRows", () => {
     expect(merged?.giftCardsEnabled).toBe(true);
     expect(merged?.virtualEnabled).toBe(true);
     expect(merged?.iapEnabled).toBe(true);
+    expect(merged?.checkinEnabled).toBe(true);
+  });
+
+  it("overlay checkinEnabled=false wins over base default", () => {
+    const merged = mergePartnerShopSettingsRows(
+      1,
+      {
+        enabled: true,
+        giftCardsEnabled: true,
+        virtualEnabled: true,
+        checkinEnabled: true,
+        assortmentMode: "all_shared",
+        skuIds: [],
+        excludeSkuIds: [],
+        overrides: {},
+        updatedAt: 1,
+      },
+      {
+        enabled: true,
+        giftCardsEnabled: true,
+        virtualEnabled: false,
+        checkinEnabled: false,
+        assortmentMode: "all_shared",
+        skuIds: [],
+        excludeSkuIds: [],
+        overrides: {},
+        updatedAt: 2,
+      }
+    );
+    expect(merged?.checkinEnabled).toBe(false);
+    expect(merged?.virtualEnabled).toBe(false);
   });
 });

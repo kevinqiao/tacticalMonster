@@ -15,6 +15,7 @@ export type PortalPartnerShopSettings = {
   vouchersEnabled: boolean;
   adCoinEnabled: boolean;
   iapEnabled: boolean;
+  checkinEnabled: boolean;
   assortmentMode: "all_shared" | "allowlist";
   skuIds: string[];
   excludeSkuIds: string[];
@@ -31,6 +32,7 @@ export function defaultPortalPartnerShopSettings(partnerId: number): PortalPartn
     vouchersEnabled: true,
     adCoinEnabled: true,
     iapEnabled: true,
+    checkinEnabled: true,
     assortmentMode: "all_shared",
     skuIds: [],
     excludeSkuIds: [],
@@ -48,4 +50,12 @@ export function isPartnerShopAdCoinEnabled(
 ): boolean {
   if (!settings) return true;
   return settings.enabled !== false && settings.adCoinEnabled !== false;
+}
+
+/** Daily check-in block in shop; missing settings default to enabled. */
+export function isPartnerShopCheckinEnabled(
+  settings: PortalPartnerShopSettings | null | undefined
+): boolean {
+  if (!settings) return true;
+  return settings.enabled !== false && settings.checkinEnabled !== false;
 }

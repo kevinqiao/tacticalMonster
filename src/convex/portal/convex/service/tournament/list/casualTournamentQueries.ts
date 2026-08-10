@@ -454,10 +454,19 @@ export const gameHistory = authedQuery({
           } else if (displayScore != null && seedScoreThreshold != null) {
             challengeSuccess = isPortalP75Success(def, displayScore, seedScoreThreshold);
           }
-          if (displayScore != null && seedScoreThreshold != null) {
+          // Trust settled pointDelta (including 0 after soloSuccessDaily cap).
+          // Only recompute for legacy rows that never stored a delta.
+          if (
+            pointDelta == null &&
+            displayScore != null &&
+            seedScoreThreshold != null
+          ) {
             pointDelta = portalSoloPointDelta(def, displayScore, seedScoreThreshold);
           }
-          if (coinsGranted == null) {
+          // Capped settles store pointDelta=0 and may omit coinsGranted — do not invent payouts.
+          if (coinsGranted == null && pointDelta === 0) {
+            coinsGranted = 0;
+          } else if (coinsGranted == null) {
             const { coinRewards } = resolveEffectiveTournamentRewards(def);
             const raw =
               challengeSuccess === true

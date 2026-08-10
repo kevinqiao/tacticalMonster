@@ -15,6 +15,7 @@ type ShopSettingsForm = {
   vouchersEnabled: boolean;
   adCoinEnabled: boolean;
   iapEnabled: boolean;
+  checkinEnabled: boolean;
   assortmentMode: "all_shared" | "allowlist";
   skuIds: string[];
   excludeSkuIds: string[];
@@ -40,6 +41,7 @@ const DEFAULT_FORM: ShopSettingsForm = {
   vouchersEnabled: true,
   adCoinEnabled: true,
   iapEnabled: true,
+  checkinEnabled: true,
   assortmentMode: "all_shared",
   skuIds: [],
   excludeSkuIds: [],
@@ -54,6 +56,7 @@ function formFromSettings(settings: Partial<ShopSettingsForm> | undefined): Shop
     vouchersEnabled: settings?.vouchersEnabled !== false,
     adCoinEnabled: settings?.adCoinEnabled !== false,
     iapEnabled: settings?.iapEnabled !== false,
+    checkinEnabled: settings?.checkinEnabled !== false,
     assortmentMode:
       settings?.assortmentMode === "allowlist" ? "allowlist" : "all_shared",
     skuIds: settings?.skuIds ?? [],
@@ -270,6 +273,14 @@ const PlatformPartnerShopPanel: React.FC<Props> = ({ partnerId, canEdit }) => {
               onChange={(e) => setForm({ ...form, iapEnabled: e.target.checked })}
             />
             法币礼包（Stripe）
+          </label>
+          <label className="merchant-radio">
+            <input
+              type="checkbox"
+              checked={form.checkinEnabled}
+              onChange={(e) => setForm({ ...form, checkinEnabled: e.target.checked })}
+            />
+            每日签到
           </label>
         </fieldset>
         <p className="merchant-note merchant-note--compact">

@@ -45,7 +45,8 @@ async function resolveAdCoinEconomy(
       partnerId,
       scopeKey: scope.scopeKey,
       lobbyId: scope.lobbyId,
-      settingsLobbyId: scope.mode === "isolated" ? scope.lobbyId : null,
+      // Shop toggles (incl. adCoinEnabled) follow join lobby overlay even in shared wallet mode.
+      settingsLobbyId: lobbyId ?? null,
     };
   } catch {
     return { error: "lobby_required_for_isolated_economy" };

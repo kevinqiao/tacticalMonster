@@ -81,7 +81,8 @@ export async function applySoloSuccessDailyCapAtSettle(
   }
 ): Promise<{ muted: boolean; state: SoloSuccessDailyState }> {
   const state = await loadSoloSuccessDailyState(ctx, args);
-  if (state.capped && state.config.afterCapMode === "zero_all") {
+  // Cap already full → mute all solo rewards/penalties (zero_all is the only mode today).
+  if (state.capped) {
     return { muted: true, state };
   }
   if (args.p75Success) {

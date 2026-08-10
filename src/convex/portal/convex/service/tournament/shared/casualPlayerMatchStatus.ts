@@ -2,8 +2,8 @@ import type { Doc } from "../../../_generated/dataModel";
 import type { MutationCtx } from "../../../_generated/server";
 import { getPortalTournamentDefinition } from "../../../data/portalTournamentConfigs";
 
-/** ??????:3 ?? */
-export const CASUAL_DEFAULT_REPLAY_WINDOW_MS = 3 * 60 * 1000;
+/** 默认再战窗口：30 秒 */
+export const CASUAL_DEFAULT_REPLAY_WINDOW_MS = 30 * 1000;
 
 /** ????????:5 ??(????????) */
 export const CASUAL_TRIATHLON_REPLAY_WINDOW_MS = 5 * 60 * 1000;

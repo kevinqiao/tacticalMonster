@@ -24,6 +24,7 @@ type ShopSettingsRow = {
   vouchersEnabled?: boolean;
   adCoinEnabled?: boolean;
   iapEnabled?: boolean;
+  checkinEnabled?: boolean;
   assortmentMode: "all_shared" | "allowlist";
   skuIds?: string[];
   excludeSkuIds?: string[];
@@ -44,6 +45,7 @@ function normalize(
     vouchersEnabled: row.vouchersEnabled !== false,
     adCoinEnabled: row.adCoinEnabled !== false,
     iapEnabled: row.iapEnabled !== false,
+    checkinEnabled: row.checkinEnabled !== false,
     assortmentMode: row.assortmentMode,
     skuIds: row.skuIds ?? [],
     excludeSkuIds: row.excludeSkuIds ?? [],
@@ -96,6 +98,7 @@ export function mergePartnerShopSettingsRows(
     vouchersEnabled: overlay?.vouchersEnabled ?? base?.vouchersEnabled,
     adCoinEnabled: overlay?.adCoinEnabled ?? base?.adCoinEnabled,
     iapEnabled: overlay?.iapEnabled ?? base?.iapEnabled,
+    checkinEnabled: overlay?.checkinEnabled ?? base?.checkinEnabled,
     assortmentMode:
       overlay?.assortmentMode ??
       base?.assortmentMode ??
@@ -179,6 +182,7 @@ export const upsertPartnerShopSettingsInternal = internalMutation({
     vouchersEnabled: v.boolean(),
     adCoinEnabled: v.boolean(),
     iapEnabled: v.boolean(),
+    checkinEnabled: v.boolean(),
     assortmentMode: v.union(v.literal("all_shared"), v.literal("allowlist")),
     skuIds: v.array(v.string()),
     excludeSkuIds: v.array(v.string()),
