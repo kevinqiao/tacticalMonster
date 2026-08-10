@@ -10,6 +10,7 @@ import {
 import {
   PORTAL_MULTI_RANK_POINTS,
   PORTAL_SOLO_POINTS,
+  portalSoloSuccessTotal,
 } from "../../data/portalTournamentConfigs";
 import {
   DEFAULT_PORTAL_WEEKLY_LEAGUE_TIER,
@@ -175,7 +176,7 @@ function multiDeltaForRank(rank: number): number {
 }
 
 function soloDeltaForSuccess(ok: boolean): number {
-  return ok ? PORTAL_SOLO_POINTS.success : PORTAL_SOLO_POINTS.fail;
+  return ok ? portalSoloSuccessTotal(PORTAL_SOLO_POINTS) : PORTAL_SOLO_POINTS.fail;
 }
 
 /** 当日意向场次：persona + 段位 playIntentMul，且不超过日限 */

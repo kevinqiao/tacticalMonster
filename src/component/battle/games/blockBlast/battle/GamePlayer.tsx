@@ -2,6 +2,7 @@
  * Block Blast 主界面（对齐 solitaireSolo：测量 board、终局自动进入休闲结算弹窗）
  */
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { registerCasualGameModalExitHandler } from '../../shared/casualGameModalExitBridge';
 import { useBlockBlastGameManager } from './service/GameManager';
 import {
@@ -22,8 +23,11 @@ import {
     ManualSettleConfirmOverlay,
 } from '../../shared/ManualSettleConfirmOverlay';
 import BlockBlastStatusBar, {
+    blockBlastCommandBarHeightPx,
+    blockBlastPortraitBottomChromePx,
     blockBlastPortraitGridTopPx,
 } from './view/BlockBlastStatusBar';
+import { BlockBlastScoreFloatLayer } from './view/BlockBlastScoreFloatLayer';
 import GridView from './view/GridView';
 import ShapePreview from './view/ShapePreview';
 import BlockBlastWatchOverlay from './replay/BlockBlastWatchOverlay';
@@ -38,6 +42,7 @@ const MIN_CELL_PX = 18;
 const PREVIEW_SIZE_OF_GRID = 2 / 5;
 
 const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadComplete }) => {
+    const { t } = useTranslation('shared.casual');
     const visualTheme = useGameVisualTheme('block_blast');
     const containerRef = useRef<HTMLDivElement>(null);
     const {
@@ -68,6 +73,10 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
         casualTournamentId,
         replayMode,
         targetScore,
+        targetScoreP75,
+        targetScoreP90,
+        scoreFloats,
+        boardDimension,
     } = useBlockBlastGameManager();
 
     const [watchTarget, setWatchTarget] = useState<CasualWatchContext | null>(null);
@@ -170,19 +179,23 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
         const spacing = 2;
 
         const hPad = 16;
-        const bottomPad = 12;
         /** 抵消 round(预览高)、预览边框/安全区等，避免总高度超出容器触发页面滚动 */
         const PORTRAIT_VERTICAL_SLACK_PX = 8;
         const maxBlockW = containerWidth - hPad * 2;
         const innerPad = 2 * GRID_PADDING;
         const gutter = gapCount * spacing;
 
-        /** 顶栏高度随 cellSize 变化，与 GamePlayer 用同一公式迭代到不动点 */
+        /** 顶/底 chrome 随 cellSize 变化，与 StatusBar 用同一公式迭代到不动点 */
         let cellSize = 32;
         for (let iter = 0; iter < 24; iter++) {
             const gridTopCand = blockBlastPortraitGridTopPx(cellSize);
+            const bottomChrome = blockBlastPortraitBottomChromePx(cellSize);
             const verticalBudget =
-                containerHeight - gridTopCand - SECTION_GAP - bottomPad - PORTRAIT_VERTICAL_SLACK_PX;
+                containerHeight -
+                gridTopCand -
+                SECTION_GAP -
+                bottomChrome -
+                PORTRAIT_VERTICAL_SLACK_PX;
             const maxGridBoxH = verticalBudget / (1 + PREVIEW_SIZE_OF_GRID);
             const cellFromW = (maxBlockW - innerPad - gutter) / n;
             const cellFromH = (maxGridBoxH - innerPad - gutter) / n;
@@ -204,8 +217,9 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
 
         while (cellSize > 12) {
             const gt = blockBlastPortraitGridTopPx(cellSize);
+            const bottomChrome = blockBlastPortraitBottomChromePx(cellSize);
             if (
-                gt + gridBoxH + SECTION_GAP + previewH + bottomPad <=
+                gt + gridBoxH + SECTION_GAP + previewH + bottomChrome <=
                 containerHeight - PORTRAIT_VERTICAL_SLACK_PX
             ) {
                 break;
@@ -333,6 +347,8 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
                 gameState={gameState}
                 dueTime={replayMode ? undefined : gameState.dueTime}
                 targetScore={replayMode ? undefined : targetScore}
+                targetScoreP75={replayMode ? undefined : targetScoreP75}
+                targetScoreP90={replayMode ? undefined : targetScoreP90}
                 onMatchTimeout={
                     replayMode
                         ? undefined
@@ -343,6 +359,27 @@ const BlockBlastPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGam
             />
             <GridView />
             <ShapePreview />
+            <BlockBlastScoreFloatLayer floats={scoreFloats} boardDimension={boardDimension} />
+            {!replayMode && (
+                <footer
+                    className="blockblast-command-bar"
+                    style={{
+                        height: blockBlastCommandBarHeightPx(boardDimension?.cellSize ?? 24),
+                        minHeight: blockBlastCommandBarHeightPx(boardDimension?.cellSize ?? 24),
+                    }}
+                >
+                    <button
+                        type="button"
+                        className="blockblast-command-bar__submit"
+                        onClick={() => {
+                            void settleManuallyAndExit();
+                        }}
+                        disabled={settleConfirmOpen}
+                    >
+                        {t('hud.submit')}
+                    </button>
+                </footer>
+            )}
             {!replayMode && (
                 <>
                     <ManualSettleConfirmOverlay

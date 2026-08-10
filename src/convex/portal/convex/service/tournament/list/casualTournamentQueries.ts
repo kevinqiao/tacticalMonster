@@ -7,6 +7,8 @@ import {
   portalRankCoinReward,
   portalSoloPointDelta,
   resolveEffectiveTournamentRewards,
+  resolveScoreMultiplierForSuccessQuantile,
+  resolveSeedSuccessThresholdFromQuantiles,
   shouldAppearInCasualPlayLobby,
 } from "../../../data/portalTournamentConfigs";
 import { resolveInstanceWindow } from "../../../data/portalInstanceWindow";
@@ -437,11 +439,14 @@ export const gameHistory = authedQuery({
             seedScoreThreshold = Math.floor(selfPm.seedScoreThreshold);
           } else {
             const quantiles = await loadSeedScoreQuantilesForSeat(ctx, selfPm._id);
-            // Prefer stored seedScoreThreshold above; fallback uses template quantile.
-            const qKey = def.seedQuantileSuccess?.quantile === "p90" ? "p90" : "p75";
-            const threshold = quantiles?.[qKey];
-            if (typeof threshold === "number" && Number.isFinite(threshold)) {
-              seedScoreThreshold = Math.floor(threshold);
+            const q = def.seedQuantileSuccess?.quantile ?? "p75";
+            const resolved = resolveSeedSuccessThresholdFromQuantiles(
+              quantiles,
+              q,
+              resolveScoreMultiplierForSuccessQuantile(def.seedQuantileSuccess, q)
+            );
+            if (resolved != null) {
+              seedScoreThreshold = resolved;
             }
           }
           if (typeof selfPm.challengeSuccess === "boolean") {

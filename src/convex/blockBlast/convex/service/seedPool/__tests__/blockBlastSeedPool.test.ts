@@ -66,7 +66,7 @@ function mockMetrics(
     scoreSpread: 100,
     playerEaseScore: 80,
     layoutFingerprint: "fp:test",
-    policyVersion: "block-blast-stochastic-v6",
+    policyVersion: "block-blast-stochastic-v9",
     matchTimeLimitSec: 300,
     mediumBurstRate: 0.4,
     jackpotRate: 0.1,
@@ -77,8 +77,13 @@ function mockMetrics(
     scoreAt60P50: 15,
     scoreAt150P50: 40,
     scoreAt240P50: 70,
+    survivalTimeP25: 80,
+    survivalTimeP50: 120,
+    survivalTimeP90: 200,
+    survivalTimeSpread: 120,
     softPPassCount: 4,
     experienceScore: 0.45,
+    onboardingScore: 145,
     ...overrides,
   };
 }
@@ -122,7 +127,7 @@ describe("blockBlastSeedPool", () => {
 
   it("bot reaches positive score with a valid terminal reason", () => {
     const r = simulateRollout("blockblast-pool:v1:21", 0);
-    expect(r.policyVersion).toBe("block-blast-stochastic-v6");
+    expect(r.policyVersion).toBe("block-blast-stochastic-v9");
     expect(r.finalScore).toBeGreaterThan(0);
     expect(["stuck", "time_up", "exited", "completed"]).toContain(r.terminalReason);
     expect(r.replayPacingMs?.length).toBe(r.ops.length);
@@ -333,6 +338,97 @@ describe("blockBlastSeedQuickScreen", () => {
       { ...DEFAULT_PLAYER_FRIENDLY_OPTIONS, maxStuckRate: 0.85, kpiProfile: "off" }
     );
     expect(reject).toBeNull();
+  });
+
+  it("maxStuckRate 0 disables prod G2 stuck hard-reject", () => {
+    const reject = rejectPlayerFriendlyMetrics(
+      "blockblast-pool:v6:stuck-cli-off",
+      mockMetrics({
+        stuckRate: 1,
+        timeUpRate: 0.1,
+        jackpotRate: 0.02,
+        mediumBurstRate: 0.4,
+        lateGameReachRate: 0.5,
+        openingMoveCount: 130,
+        scoreSpread: 100,
+        scoreQuantiles: {
+          p10: 40,
+          p25: 50,
+          p30: 60,
+          p33: 70,
+          p50: 120,
+          p66: 150,
+          p70: 160,
+          p75: 180,
+          p90: 200,
+        },
+        survivalTimeP25: 40,
+        survivalTimeP50: 100,
+        survivalTimeSpread: 80,
+      }),
+      { ...DEFAULT_PLAYER_FRIENDLY_OPTIONS, maxStuckRate: 0, kpiProfile: "prod" }
+    );
+    expect(reject).toBeNull();
+  });
+
+  it("rejects when survivalTimeP25 too low", () => {
+    const reject = rejectPlayerFriendlyMetrics(
+      "blockblast-pool:v6:surv-p25",
+      mockMetrics({ survivalTimeP25: 10, survivalTimeP50: 120, survivalTimeSpread: 80 }),
+      {
+        ...DEFAULT_PLAYER_FRIENDLY_OPTIONS,
+        minSurvivalTimeP25: 30,
+        kpiProfile: "off",
+      }
+    );
+    expect(reject?.reason).toBe("survival_time_p25_too_low");
+  });
+
+  it("rejects when survivalTimeP50 too low", () => {
+    const reject = rejectPlayerFriendlyMetrics(
+      "blockblast-pool:v6:surv-p50",
+      mockMetrics({ survivalTimeP25: 40, survivalTimeP50: 50, survivalTimeSpread: 80 }),
+      {
+        ...DEFAULT_PLAYER_FRIENDLY_OPTIONS,
+        minSurvivalTimeP50: 90,
+        kpiProfile: "off",
+      }
+    );
+    expect(reject?.reason).toBe("survival_time_p50_too_low");
+  });
+
+  it("rejects when survivalTimeSpread too high", () => {
+    const reject = rejectPlayerFriendlyMetrics(
+      "blockblast-pool:v6:surv-spread",
+      mockMetrics({
+        survivalTimeP25: 40,
+        survivalTimeP50: 100,
+        survivalTimeP90: 220,
+        survivalTimeSpread: 180,
+        rolloutCount: 24,
+      }),
+      {
+        ...DEFAULT_PLAYER_FRIENDLY_OPTIONS,
+        maxSurvivalTimeSpread: 160,
+        kpiProfile: "off",
+      }
+    );
+    expect(reject?.reason).toBe("survival_time_spread_too_high");
+  });
+
+  it("computeDistributionMetrics exposes survivalTime percentiles", () => {
+    const seedId = "blockblast-pool:v6:surv-metrics";
+    const { metrics } = simulateSeedRollouts(seedId, 12, {
+      matchSeconds: 300,
+      thinkTimeScale: 0.6,
+      keepDuplicateRollouts: true,
+    });
+    expect(metrics.survivalTimeP25).toBeGreaterThan(0);
+    expect(metrics.survivalTimeP50).toBeGreaterThanOrEqual(metrics.survivalTimeP25);
+    expect(metrics.survivalTimeP90).toBeGreaterThanOrEqual(metrics.survivalTimeP50);
+    expect(metrics.survivalTimeSpread).toBe(
+      metrics.survivalTimeP90 - metrics.survivalTimeP25
+    );
   });
 
   it("prod kpi rejects low jackpotRate", () => {

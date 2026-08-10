@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   LEAGUE_SEED_TIER_WEIGHTS,
+  NEWBIE_FRIENDLINESS_FRACTION,
   pickWeightedSeedTier,
+  resolveNewbieFriendlinessStrategy,
   resolveNewbieSoloSegment,
   resolveSeasonSeedPickPolicy,
   resolveSeedTierForTemplate,
@@ -42,9 +44,27 @@ describe("portalSeedTierPolicy L3", () => {
     expect(resolveNewbieSoloSegment(3)).toBe("merged_c");
   });
 
-  it("ritual A forces easy + p50 + high playerEase", () => {
+  it("segment A always uses onboardingScore for all games", () => {
+    for (const game of ["solitaire", "match_3", "block_blast", "yatz"] as const) {
+      expect(resolveNewbieFriendlinessStrategy(game, "ritual_a")).toEqual({
+        metric: "onboardingScore",
+        fraction: NEWBIE_FRIENDLINESS_FRACTION.ritual_a,
+      });
+    }
+  });
+
+  it("transition B always uses playerEase with wider slice than A", () => {
+    for (const game of ["solitaire", "match_3", "block_blast", "yatz"] as const) {
+      const b = resolveNewbieFriendlinessStrategy(game, "transition_b");
+      expect(b.metric).toBe("playerEase");
+      expect(b.fraction).toBe(NEWBIE_FRIENDLINESS_FRACTION.transition_b);
+      expect(b.fraction).toBeGreaterThan(NEWBIE_FRIENDLINESS_FRACTION.ritual_a);
+    }
+  });
+
+  it("ritual A forces easy + p50 + onboardingScore (non-BB)", () => {
     const p = resolveSeasonSeedPickPolicy({
-      def: soloDef("yatz"),
+      def: soloDef("match_3"),
       sessionKey: "s1",
       settledSoloCount: 0,
       weeklyLeagueTier: "diamond",
@@ -52,12 +72,56 @@ describe("portalSeedTierPolicy L3", () => {
     expect(p.segment).toBe("ritual_a");
     expect(p.tier).toBe("easy");
     expect(p.successQuantile).toBe("p50");
-    expect(p.preferHighPlayerEase).toBe(true);
+    expect(p.ritualOneLineClear).toBeUndefined();
+    expect(p.preferHighFriendliness).toBe(true);
+    expect(p.friendlinessMetric).toBe("onboardingScore");
+    expect(p.friendlinessFraction).toBe(NEWBIE_FRIENDLINESS_FRACTION.ritual_a);
   });
 
-  it("transition B forces easy with p75", () => {
+  it("BB ritual A uses one-line clear (no quantile)", () => {
     const p = resolveSeasonSeedPickPolicy({
-      def: soloDef("yatz"),
+      def: soloDef("block_blast"),
+      sessionKey: "s1",
+      settledSoloCount: 0,
+    });
+    expect(p.segment).toBe("ritual_a");
+    expect(p.ritualOneLineClear).toBe(true);
+    expect(p.successQuantile).toBeUndefined();
+    expect(p.tier).toBe("easy");
+  });
+
+  it("BB transition B uses p25 then p50", () => {
+    const b1 = resolveSeasonSeedPickPolicy({
+      def: soloDef("block_blast"),
+      sessionKey: "s1",
+      settledSoloCount: 1,
+    });
+    expect(b1.segment).toBe("transition_b");
+    expect(b1.successQuantile).toBe("p25");
+    expect(b1.ritualOneLineClear).toBeUndefined();
+
+    const b2 = resolveSeasonSeedPickPolicy({
+      def: soloDef("block_blast"),
+      sessionKey: "s1",
+      settledSoloCount: 2,
+    });
+    expect(b2.segment).toBe("transition_b");
+    expect(b2.successQuantile).toBe("p50");
+  });
+
+  it("solitaire ritual A also consumes onboardingScore (not clearEase key)", () => {
+    const p = resolveSeasonSeedPickPolicy({
+      def: soloDef("solitaire"),
+      sessionKey: "s1",
+      settledSoloCount: 0,
+    });
+    expect(p.friendlinessMetric).toBe("onboardingScore");
+    expect(p.friendlinessFraction).toBe(0.25);
+  });
+
+  it("transition B forces easy with p75 and playerEase", () => {
+    const p = resolveSeasonSeedPickPolicy({
+      def: soloDef("solitaire"),
       sessionKey: "s1",
       settledSoloCount: 1,
       weeklyLeagueTier: "gold",
@@ -65,6 +129,8 @@ describe("portalSeedTierPolicy L3", () => {
     expect(p.segment).toBe("transition_b");
     expect(p.tier).toBe("easy");
     expect(p.successQuantile).toBe("p75");
+    expect(p.friendlinessMetric).toBe("playerEase");
+    expect(p.friendlinessFraction).toBe(NEWBIE_FRIENDLINESS_FRACTION.transition_b);
   });
 
   it("merged C uses league weights (bronze prefers easy more than diamond)", () => {
@@ -90,18 +156,18 @@ describe("portalSeedTierPolicy L3", () => {
     expect(shifted.hard).toBeLessThan(base.hard);
   });
 
-  it("block_blast stays hard", () => {
-    const p = resolveSeasonSeedPickPolicy({
+  it("block_blast ritual uses onboardingScore semantic", () => {
+    const ritual = resolveSeasonSeedPickPolicy({
       def: soloDef("block_blast"),
       sessionKey: "s1",
       settledSoloCount: 0,
+      weeklyLeagueTier: "diamond",
     });
-    expect(p.tier).toBe("hard");
-    expect(p.segment).toBe("block_blast");
+    expect(ritual.segment).toBe("ritual_a");
+    expect(ritual.friendlinessMetric).toBe("onboardingScore");
   });
 
   it("resolveSeedTierForTemplate uses league when provided", () => {
-    // With settledSoloCount defaulted to 99 inside helper → merged weights
     const bronze = resolveSeedTierForTemplate(multiDef("yatz"), "m1", "bronze");
     expect(["easy", "medium", "hard"]).toContain(bronze);
   });

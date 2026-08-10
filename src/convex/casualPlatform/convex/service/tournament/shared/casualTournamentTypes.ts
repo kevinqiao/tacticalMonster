@@ -12,6 +12,8 @@ export type JoinCasualRunReadyResult = {
   coinsCharged?: number;
   gemsCharged?: number;
   activityIds?: string[];
+  /** Multi ritual: join was rewritten to Solo template. */
+  ritualForcedSolo?: boolean;
 };
 
 /** @deprecated 使用 `JoinCasualRunReadyResult` */
@@ -41,6 +43,7 @@ export type JoinCasualRunQueuedResult = {
   ok: true;
   queued: true;
   templateId: string;
+  ritualForcedSolo?: boolean;
 } & CasualMatchQueueClientFlags;
 
 /** `listCasualMatchQueueForUid` 单项 */

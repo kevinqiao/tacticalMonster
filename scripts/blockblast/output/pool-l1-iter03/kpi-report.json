@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-08-06T02:22:32.225Z",
+  "poolVersion": "l1-iter03",
+  "profile": "probe",
+  "softPTargets": {
+    "minScoreAt60P50": 8,
+    "minEarlyClearRate": 0.5,
+    "scoreGrowthMin": 1.5,
+    "scoreGrowthMax": 6,
+    "minMidToLateGrowth": 0.2,
+    "minLateBurstRate": 0.12,
+    "minNearDeathRecoverRate": 0.08
+  },
+  "health": {
+    "profile": "probe",
+    "seedCount": 0,
+    "meanTimeUpRate": 0,
+    "meanJackpotRate": 0,
+    "meanMediumBurstRate": 0,
+    "meanLateGameReachRate": 0,
+    "meanExperienceScore": 0,
+    "gatePassRate": 0,
+    "softPMean": 0
+  },
+  "warnCounts": {},
+  "failCounts": {},
+  "topByExperience": [],
+  "bottomByExperience": [],
+  "topByEase": [],
+  "experienceVsEaseDivergence": {
+    "topExpNotInTopEase": []
+  },
+  "seedsMissingMetrics": 0
+}

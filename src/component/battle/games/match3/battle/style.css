@@ -77,6 +77,25 @@
 
 
 
+.match3-target--dual {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  line-height: 1.15;
+}
+
+.match3-target--dual > span {
+  opacity: 0.45;
+  filter: grayscale(0.5);
+}
+
+.match3-target--dual > span.match3-target__tier--on {
+  opacity: 1;
+  filter: none;
+  color: #ffe27a;
+}
+
 .match3-target {
 
   font-size: clamp(0.85rem, 3vw, 1rem);

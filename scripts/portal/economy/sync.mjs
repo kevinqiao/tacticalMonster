@@ -84,7 +84,20 @@ function validate(eco) {
   }
 
   const tr = eco.tournamentRewards;
-  assert(tr?.soloPoints?.success != null && tr?.soloPoints?.fail != null, "tournamentRewards.soloPoints");
+  assert(tr?.soloPoints, "tournamentRewards.soloPoints");
+  assert(
+    typeof tr.soloPoints.fail === "number" && Number.isFinite(tr.soloPoints.fail),
+    "tournamentRewards.soloPoints.fail"
+  );
+  assert(
+    typeof tr.soloPoints.success === "number" && Number.isFinite(tr.soloPoints.success),
+    "tournamentRewards.soloPoints.success"
+  );
+  assert(
+    typeof tr.soloPoints.clearBonus === "number" &&
+      Number.isFinite(tr.soloPoints.clearBonus),
+    "tournamentRewards.soloPoints.clearBonus"
+  );
   assert(tr?.multiRankPoints && typeof tr.multiRankPoints === "object", "tournamentRewards.multiRankPoints");
   assert(isPosInt(tr.multiCoinEntry), "tournamentRewards.multiCoinEntry");
   assert(Array.isArray(tr.rankRates5) && tr.rankRates5.length === 5, "tournamentRewards.rankRates5");
@@ -128,7 +141,41 @@ function validate(eco) {
   const pd = eco.playDefaults;
   assert(pd?.freePlay && isPosInt(pd.freePlay.solo), "playDefaults.freePlay");
   assert(pd?.adEntry?.solo && pd?.adEntry?.multi, "playDefaults.adEntry");
+  assert(
+    isPosInt(pd.adEntry.dailyCapUnlimitedSentinel),
+    "playDefaults.adEntry.dailyCapUnlimitedSentinel"
+  );
+  for (const mode of ["solo", "multi"]) {
+    const row = pd.adEntry[mode];
+    assert(typeof row.enabled === "boolean", `playDefaults.adEntry.${mode}.enabled`);
+    if (row.dailyCapUnlimited === true) {
+      // ok — resolved to sentinel at generate time
+    } else {
+      assert(
+        isPosInt(row.dailyCap) || row.dailyCap === 0,
+        `playDefaults.adEntry.${mode}.dailyCap`
+      );
+    }
+  }
   assert(pd?.ticketEntry?.solo && pd?.ticketEntry?.multi, "playDefaults.ticketEntry");
+  assert(pd?.soloSuccessDaily, "playDefaults.soloSuccessDaily");
+  assert(
+    typeof pd.soloSuccessDaily.enabled === "boolean",
+    "playDefaults.soloSuccessDaily.enabled"
+  );
+  assert(
+    isPosInt(pd.soloSuccessDaily.dailyCap) || pd.soloSuccessDaily.dailyCap === 0,
+    "playDefaults.soloSuccessDaily.dailyCap"
+  );
+  assert(
+    pd.soloSuccessDaily.afterCapMode === "zero_all",
+    "playDefaults.soloSuccessDaily.afterCapMode"
+  );
+  assert(
+    typeof pd.soloSuccessDaily.allowPlayAfterCap === "boolean",
+    "playDefaults.soloSuccessDaily.allowPlayAfterCap"
+  );
+  assert(isPosInt(pd.soloSuccessDaily.capMax), "playDefaults.soloSuccessDaily.capMax");
   assert(pd?.adReplay && typeof pd.adReplay.enabled === "boolean", "playDefaults.adReplay");
 }
 
@@ -268,7 +315,13 @@ function generate(eco) {
   const fp = eco.playDefaults.freePlay;
   const ae = eco.playDefaults.adEntry;
   const te = eco.playDefaults.ticketEntry;
+  const ss = eco.playDefaults.soloSuccessDaily;
   const ar = eco.playDefaults.adReplay;
+
+  const resolveAdEntryDailyCap = (row) =>
+    row.dailyCapUnlimited === true ? ae.dailyCapUnlimitedSentinel : row.dailyCap;
+  const adEntrySoloDailyCap = resolveAdEntryDailyCap(ae.solo);
+  const adEntryMultiDailyCap = resolveAdEntryDailyCap(ae.multi);
 
   const adReplayDailyCap = ar.dailyCapUnlimited
     ? ar.dailyCapUnlimitedSentinel
@@ -305,8 +358,9 @@ ${catalog.map(formatSku).join("\n")}
 
 // --- tournament rewards ---
 export const PORTAL_SOLO_POINTS = {
-  success: ${tr.soloPoints.success},
   fail: ${tr.soloPoints.fail},
+  success: ${tr.soloPoints.success},
+  clearBonus: ${tr.soloPoints.clearBonus},
 } as const;
 
 export const PORTAL_MULTI_RANK_POINTS = ${formatRecordNumberKeys(tr.multiRankPoints)} as const;
@@ -358,10 +412,11 @@ export const PORTAL_FREE_PLAY_DAILY_CAP_MAX = ${fp.capMax};
 
 // --- play defaults: ad entry ---
 export const PORTAL_AD_ENTRY_DEFAULTS = {
-  solo: { enabled: ${ae.solo.enabled}, dailyCap: ${ae.solo.dailyCap} },
-  multi: { enabled: ${ae.multi.enabled}, dailyCap: ${ae.multi.dailyCap} },
+  solo: { enabled: ${ae.solo.enabled}, dailyCap: ${adEntrySoloDailyCap} },
+  multi: { enabled: ${ae.multi.enabled}, dailyCap: ${adEntryMultiDailyCap} },
 } as const;
 export const PORTAL_AD_ENTRY_DAILY_CAP_MAX = ${ae.dailyCapMax};
+export const PORTAL_AD_ENTRY_DAILY_CAP_UNLIMITED = ${ae.dailyCapUnlimitedSentinel};
 export const PORTAL_AD_ENTRY_SESSION_TTL_MS = ${ae.sessionTtlMs};
 export const PORTAL_AD_ENTRY_GRANT_TTL_MS = ${ae.grantTtlMs};
 
@@ -381,6 +436,15 @@ export const PORTAL_TICKET_ENTRY_DEFAULTS = {
 export const PORTAL_TICKET_ENTRY_PRICE_MIN = ${te.priceMin};
 export const PORTAL_TICKET_ENTRY_PRICE_MAX = ${te.priceMax};
 export const PORTAL_TICKET_ENTRY_DAILY_CAP_MAX = ${te.dailyCapMax};
+
+// --- play defaults: solo success daily reward cap ---
+export const PORTAL_SOLO_SUCCESS_DAILY_DEFAULTS = {
+  enabled: ${ss.enabled},
+  dailyCap: ${ss.dailyCap},
+  afterCapMode: ${JSON.stringify(ss.afterCapMode)},
+  allowPlayAfterCap: ${ss.allowPlayAfterCap},
+} as const;
+export const PORTAL_SOLO_SUCCESS_DAILY_CAP_MAX = ${ss.capMax};
 
 // --- play defaults: ad replay ---
 export const PORTAL_AD_REPLAY_ENABLED = ${ar.enabled};

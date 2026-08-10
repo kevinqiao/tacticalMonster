@@ -1,0 +1,28 @@
+{
+  "generatedAt": "2026-08-06T19:46:20.367Z",
+  "poolVersion": "v6-survive",
+  "profile": "probe",
+  "health": {
+    "profile": "probe",
+    "seedCount": 4448,
+    "meanTimeUpRate": 0,
+    "meanJackpotRate": 0.020898905875300078,
+    "meanMediumBurstRate": 0.4146713878896876,
+    "meanLateGameReachRate": 0.00042153776978417264,
+    "meanExperienceScore": 0.27122979741207187,
+    "gatePassRate": 1,
+    "softPMean": 2.812724820143885
+  },
+  "warnCounts": {
+    "G1": 4448,
+    "G2": 4448,
+    "G9": 4447,
+    "G7": 536
+  },
+  "failCounts": {},
+  "rejectReasons": {
+    "collapsed_scores": 534,
+    "low_player_ceiling": 16,
+    "opening_too_easy": 2
+  }
+}

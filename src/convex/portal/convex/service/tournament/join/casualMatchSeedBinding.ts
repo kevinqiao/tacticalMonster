@@ -23,11 +23,18 @@ export const casualSeedScoreQuantilesValidator = v.object({
 
 export type CasualMatchSeedScoreQuantiles = ScoreQuantiles;
 
-/** solitaire seed pool ????(?? match ??) */
+/** L3 success line quantile on match seed binding */
 export const casualSuccessQuantileValidator = v.union(
+  v.literal("p25"),
   v.literal("p50"),
   v.literal("p75"),
   v.literal("p90")
+);
+
+export const casualSoloSegmentValidator = v.union(
+  v.literal("ritual_a"),
+  v.literal("transition_b"),
+  v.literal("merged_c")
 );
 
 export const casualMatchSeedBindingValidator = v.object({
@@ -36,8 +43,12 @@ export const casualMatchSeedBindingValidator = v.object({
   tier: casualSeedTierValidator,
   /** v3 slim bind; block_blast may omit quantiles until resolve */
   scoreQuantiles: v.optional(casualSeedScoreQuantilesValidator),
-  /** L3 ritual override (e.g. p50); omit → template seedQuantileSuccess */
+  /** L3 override (BB B: p25/p50; 其它 A: p50); omit → template seedQuantileSuccess */
   successQuantile: v.optional(casualSuccessQuantileValidator),
+  /** BB 段 A：消一行/列固定分 */
+  ritualOneLineClear: v.optional(v.boolean()),
+  /** Solo A/B/C ladder segment at pick time (reward table key). */
+  segment: v.optional(casualSoloSegmentValidator),
 });
 
 export type CasualMatchSeedBinding = {
@@ -45,7 +56,9 @@ export type CasualMatchSeedBinding = {
   poolVersion: string;
   tier: "easy" | "medium" | "hard";
   scoreQuantiles?: CasualMatchSeedScoreQuantiles;
-  successQuantile?: "p50" | "p75" | "p90";
+  successQuantile?: "p25" | "p50" | "p75" | "p90";
+  ritualOneLineClear?: boolean;
+  segment?: "ritual_a" | "transition_b" | "merged_c";
 };
 
 /** resolve HTTP ??? solitaire ?????(??? solitaire seed pool ??) */

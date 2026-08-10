@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-08-06T14:19:32.986Z",
+  "poolVersion": "calib-survive-A",
+  "profile": "probe",
+  "health": {
+    "profile": "probe",
+    "seedCount": 46,
+    "meanTimeUpRate": 0,
+    "meanJackpotRate": 0.02989130434782609,
+    "meanMediumBurstRate": 0.37952898550724634,
+    "meanLateGameReachRate": 0,
+    "meanExperienceScore": 0.271125,
+    "gatePassRate": 1,
+    "softPMean": 2.9347826086956523
+  },
+  "warnCounts": {
+    "G1": 46,
+    "G2": 46,
+    "G9": 46,
+    "G7": 4
+  },
+  "failCounts": {},
+  "rejectReasons": {
+    "collapsed_scores": 4
+  }
+}

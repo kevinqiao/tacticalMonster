@@ -24,6 +24,9 @@ export function isPlayerFriendlyEnabled(opts: PlayerFriendlyOptions): boolean {
     opts.minScoreSpread > 0 ||
     opts.rejectCollapsed ||
     opts.maxStuckRate > 0 ||
+    opts.minSurvivalTimeP25 > 0 ||
+    opts.minSurvivalTimeP50 > 0 ||
+    opts.maxSurvivalTimeSpread > 0 ||
     opts.kpiProfile === "probe" ||
     opts.kpiProfile === "prod"
   );
@@ -221,10 +224,41 @@ export function rejectPlayerFriendlyMetrics(
       metrics,
     };
   }
+  if (opts.minSurvivalTimeP25 > 0 && metrics.survivalTimeP25 < opts.minSurvivalTimeP25) {
+    return {
+      seedId,
+      reason: "survival_time_p25_too_low",
+      detail: `survivalTimeP25=${metrics.survivalTimeP25} min=${opts.minSurvivalTimeP25}`,
+      metrics,
+    };
+  }
+  if (opts.minSurvivalTimeP50 > 0 && metrics.survivalTimeP50 < opts.minSurvivalTimeP50) {
+    return {
+      seedId,
+      reason: "survival_time_p50_too_low",
+      detail: `survivalTimeP50=${metrics.survivalTimeP50} min=${opts.minSurvivalTimeP50}`,
+      metrics,
+    };
+  }
+  if (
+    opts.maxSurvivalTimeSpread > 0 &&
+    metrics.rolloutCount >= 2 &&
+    metrics.survivalTimeSpread > opts.maxSurvivalTimeSpread
+  ) {
+    return {
+      seedId,
+      reason: "survival_time_spread_too_high",
+      detail: `survivalTimeSpread=${metrics.survivalTimeSpread} max=${opts.maxSurvivalTimeSpread}`,
+      metrics,
+    };
+  }
 
   const profile: KpiProfile = opts.kpiProfile ?? "off";
   if (profile === "probe" || profile === "prod") {
-    const { hardRejects } = evaluateExperienceGates(metrics, profile);
+    const { hardRejects } = evaluateExperienceGates(metrics, profile, {
+      // 0 / 显式值：CLI --max-stuck-rate 覆盖 prod/probe G2；0=连 G2 一起关
+      maxStuckRate: opts.maxStuckRate,
+    });
     if (hardRejects.length > 0) {
       const first = hardRejects[0]!;
       return {

@@ -32,27 +32,29 @@ export function resolveMatchmakingExpireAction(
 }
 
 /**
- * 画像规则：仍以 eff=2 等人；超时后 expireAction=solo 一人开桌。
- * （不再把连败/回流/新手直接压成 eff=1 秒开。）
+ * 画像规则（async multi + sync queue 共用）：
+ * - eff=1：async 直接建私有桌（joinOpen=false）；sync 同步一人开桌
+ * - eff>1：async 先尝试加入未满桌；sync 入队等人
+ * 默认 CASUAL_DEFAULT_EFFECTIVE_HUMANS=2。
  */
 export const MATCHMAKING_RULES: MatchmakingRule[] = [
   {
     id: "consecutive_loss_solo_table",
     priority: 110,
     condition: (ctx) => ctx.consecutiveLossStreak >= CASUAL_CONSECUTIVE_LOSS_THRESHOLD,
-    strategy: { effectiveHumans: 2, expireAction: "solo" },
+    strategy: { effectiveHumans: 1 },
   },
   {
     id: "returning_player_solo",
     priority: 100,
     condition: (ctx) => ctx.daysSinceLastMatch > 14,
-    strategy: { effectiveHumans: 2, expireAction: "solo" },
+    strategy: { effectiveHumans: 1 },
   },
   {
     id: "early_game_solo",
     priority: 50,
     condition: (ctx) =>
       ctx.completedMultiplayerMatches <= 5 && ctx.weeklyLeagueTier === "bronze",
-    strategy: { effectiveHumans: 2, expireAction: "solo" },
+    strategy: { effectiveHumans: 1 },
   },
 ];

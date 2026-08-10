@@ -67,6 +67,8 @@ export const DEFAULT_PLAYER_FRIENDLY_OPTIONS: PlayerFriendlyOptions = {
   minScoreSpread: 0,
   rejectCollapsed: false,
   quickScreenRollouts: DEFAULT_QUICK_SCREEN_ROLLOUTS,
+  minFoundationCardsP25: 0,
+  maxTimeToFirstFoundationP50: 0,
 };
 
 export type GeneratePoolResult = {

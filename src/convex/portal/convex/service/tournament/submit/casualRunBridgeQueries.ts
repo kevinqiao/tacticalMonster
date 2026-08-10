@@ -1,7 +1,11 @@
 import { v } from "convex/values";
 import { internalQuery } from "../../../_generated/server";
 import { getPartnerGameRegistration } from "../../../data/partnerGameRegistry";
-import { getPortalTournamentDefinition } from "../../../data/portalTournamentConfigs";
+import { isPortalSuccessQuantile } from "../../../data/portalSeedTierPolicy";
+import {
+  getPortalTournamentDefinition,
+  resolveSoloSeedSuccessThreshold,
+} from "../../../data/portalTournamentConfigs";
 import { assertRegisteredMatchGameType } from "../settle/async/casualAsyncTypes";
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
 import { findPlayerGameByGameId } from "../shared/casualPlayerGameTypes";
@@ -41,15 +45,15 @@ export const findMatchByGameForBridge = internalQuery({
     const reg = getPartnerGameRegistration(pg.gameType)!;
 
     const templateDef = getPortalTournamentDefinition(pg.templateId);
-    const successQ = templateDef?.seedQuantileSuccess?.quantile;
-    const inlineThreshold =
-      successQ === "p75" || successQ === "p90"
-        ? pg.seedBinding?.scoreQuantiles?.[successQ]
-        : undefined;
-    const seedScoreThreshold =
-      typeof inlineThreshold === "number" && Number.isFinite(inlineThreshold)
-        ? Math.floor(inlineThreshold)
-        : undefined;
+    const seedScoreThreshold = resolveSoloSeedSuccessThreshold({
+      gameType: pg.gameType,
+      ritualOneLineClear: pg.seedBinding?.ritualOneLineClear,
+      quantiles: pg.seedBinding?.scoreQuantiles,
+      successQuantile: isPortalSuccessQuantile(pg.seedBinding?.successQuantile)
+        ? pg.seedBinding.successQuantile
+        : templateDef?.seedQuantileSuccess?.quantile,
+      seedQuantileSuccess: templateDef?.seedQuantileSuccess,
+    });
 
     if (reg.bridgeLoadGameSeed === "seed_binding_id") {
       return {

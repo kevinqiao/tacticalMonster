@@ -21,9 +21,11 @@ import { AudioBus } from 'host/service/audio';
 import { dealEffect } from '../animation/effects/dealEffect';
 import { createRolloutReplayState } from '../replay/solitaireRolloutReplay';
 import { autoCompleteLayoutGate } from '../autoCompleteLayoutGate';
+import { soloActLock } from '../soloActLock';
 import { layoutAllSoloCardsFromModel } from '../soloCardLayout';
 import SoloRuleManager from './SoloRuleManager';
 import { createZones } from '@/convex/solitaireArena/convex/service/SoloGameEngine';
+import { casualHudTargetsFromLoadRes } from '../../../shared/casualHudTargetScores';
 
 type OpeningDealEvent = { name: string; cards: Card[] };
 
@@ -154,6 +156,8 @@ interface ISoloGameContext {
     config: SoloGameConfig;
     ruleManager: SolitaireRule | null;
     interactionPhase: GameInteractionPhase;
+    /** 同步可读：setInteractionPhase 会先写此 ref，避免连续点牌时 React state 尚未提交导致重叠走子 */
+    interactionPhaseRef: RefObject<GameInteractionPhase>;
     setInteractionPhase: (phase: GameInteractionPhase) => void;
     updateBoardDimension: (dimension: SoloBoardDimension) => void;
     loadGame: () => void;
@@ -177,8 +181,11 @@ interface ISoloGameContext {
     scoreFloats: SoloScoreFloat[];
     replayMode: boolean;
     casualTournamentId?: string;
-    /** P75 挑战等：本局 seed 分位目标分 */
+    /** Clear-bar 挑战分（结算 success） */
     targetScore?: number;
+    /** HUD 双档：seed p75 / p90 */
+    targetScoreP75?: number;
+    targetScoreP90?: number;
     onGameSubmit?: () => void;
     onTriathlonNextGame?: import('component/battle/games/shared/casualTriathlonSubmitFlow').TriathlonMidSessionAdvanceHandler;
 }
@@ -190,6 +197,7 @@ const SoloGameContext = createContext<ISoloGameContext>({
     config: DEFAULT_GAME_CONFIG,
     ruleManager: null,
     interactionPhase: GameInteractionPhase.idle,
+    interactionPhaseRef: { current: GameInteractionPhase.idle },
     setInteractionPhase: () => { },
     updateBoardDimension: () => { },
     loadGame: () => { },
@@ -204,6 +212,8 @@ const SoloGameContext = createContext<ISoloGameContext>({
     replayMode: false,
     casualTournamentId: undefined,
     targetScore: undefined,
+    targetScoreP75: undefined,
+    targetScoreP90: undefined,
     onGameSubmit: undefined,
     onTriathlonNextGame: undefined,
 });
@@ -250,8 +260,15 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
      */
     const pendingLoadCompleteRef = useRef(false);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
-    const [interactionPhase, setInteractionPhase] = useState<GameInteractionPhase>(GameInteractionPhase.idle);
+    const [interactionPhase, setInteractionPhaseState] = useState<GameInteractionPhase>(GameInteractionPhase.idle);
+    const interactionPhaseRef = useRef<GameInteractionPhase>(GameInteractionPhase.idle);
+    const setInteractionPhase = useCallback((phase: GameInteractionPhase) => {
+        interactionPhaseRef.current = phase;
+        setInteractionPhaseState(phase);
+    }, []);
     const [targetScore, setTargetScore] = useState<number | undefined>(undefined);
+    const [targetScoreP75, setTargetScoreP75] = useState<number | undefined>(undefined);
+    const [targetScoreP90, setTargetScoreP90] = useState<number | undefined>(undefined);
     const [scoreFloats, setScoreFloats] = useState<SoloScoreFloat[]>([]);
     const scoreFloatIdRef = useRef(0);
     const boardDimensionRef = useRef<SoloBoardDimension | null>(null);
@@ -345,10 +362,19 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             onGameLoadComplete?.();
         }
         setGameState(game);
-        const threshold = (res as { seedScoreThreshold?: number }).seedScoreThreshold;
-        if (typeof threshold === "number" && Number.isFinite(threshold)) {
-            setTargetScore(threshold);
+        const hud = casualHudTargetsFromLoadRes(
+            res as {
+                seedScoreThreshold?: number;
+                seedScoreThresholdP75?: number;
+                seedScoreThresholdP90?: number;
+                game?: { targetScore?: number };
+            }
+        );
+        if (hud.targetScore != null) {
+            setTargetScore(hud.targetScore);
         }
+        setTargetScoreP75(hud.targetScoreP75);
+        setTargetScoreP90(hud.targetScoreP90);
     }, [convex, gameId, onGameLoadComplete, casualPlatformBridge]);
 
     const reloadCasualRun = useCallback(async (): Promise<SoloGameState | null> => {
@@ -385,10 +411,19 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             setOpeningDealActive(false);
         }
         setGameState(game);
-        const threshold = (res as { seedScoreThreshold?: number }).seedScoreThreshold;
-        if (typeof threshold === "number" && Number.isFinite(threshold)) {
-            setTargetScore(threshold);
+        const hud = casualHudTargetsFromLoadRes(
+            res as {
+                seedScoreThreshold?: number;
+                seedScoreThresholdP75?: number;
+                seedScoreThresholdP90?: number;
+                game?: { targetScore?: number };
+            }
+        );
+        if (hud.targetScore != null) {
+            setTargetScore(hud.targetScore);
         }
+        setTargetScoreP75(hud.targetScoreP75);
+        setTargetScoreP90(hud.targetScoreP90);
         return game;
     }, [convex, gameId, casualPlatformBridge]);
 
@@ -549,16 +584,18 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         setDealEvent(null);
         setOpeningDealActive(false);
         openingDealStartedRef.current = false;
+        soloActLock.clear();
+        autoCompleteLayoutGate.blocked = false;
         setInteractionPhase(GameInteractionPhase.idle);
         void loadGame();
-    }, [loadGame, replaySeedId, gameId]);
+    }, [loadGame, replaySeedId, gameId, setInteractionPhase]);
 
     /** 发牌/走子动画异常未回调时，避免长期锁在 animating（表现为「有遮罩、不能操作」） */
     useEffect(() => {
         if (interactionPhase !== GameInteractionPhase.animating) return;
         // Opening deal has its own wait timeout; the 4s watchdog was killing it before start.
         if (dealEventRef.current || openingDealActive) return;
-        const id = window.setTimeout(() => {
+        const softId = window.setTimeout(() => {
             // 清盘 / 胜利动画可能超过 4s；此时强行 idle 会让滞后 React model 把牌刷回 tableau
             if (autoCompleteLayoutGate.blocked) return;
             if (
@@ -572,8 +609,33 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             console.warn('[SoloGameProvider] interaction animating watchdog -> idle');
             setInteractionPhase(GameInteractionPhase.idle);
         }, 4_000);
-        return () => window.clearTimeout(id);
-    }, [interactionPhase, openingDealActive]);
+        // gate / actInFlight 卡死时 soft watchdog 不会出手；无胜利标记则硬解锁
+        const hardId = window.setTimeout(() => {
+            if (
+                document.querySelector(
+                    ".solo-player-container[data-solo-victory='1'], .solo-board-surface[data-solo-victory='1']"
+                )
+            ) {
+                return;
+            }
+            if (dealEventRef.current || timelinesRef.current.dealOpening) return;
+            const phaseStuck = interactionPhaseRef.current !== GameInteractionPhase.idle;
+            const actStuck = soloActLock.inFlight;
+            if (!phaseStuck && !actStuck && !autoCompleteLayoutGate.blocked) return;
+            if (autoCompleteLayoutGate.blocked) {
+                console.warn('[SoloGameProvider] hard unlock: clear autoCompleteLayoutGate + actLock + idle');
+                autoCompleteLayoutGate.blocked = false;
+            } else {
+                console.warn('[SoloGameProvider] hard unlock: actLock + idle');
+            }
+            soloActLock.clear();
+            setInteractionPhase(GameInteractionPhase.idle);
+        }, 12_000);
+        return () => {
+            window.clearTimeout(softId);
+            window.clearTimeout(hardId);
+        };
+    }, [interactionPhase, openingDealActive, setInteractionPhase]);
 
     /**
      * Play short opening deal once cards + board are mounted.
@@ -657,6 +719,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         config,
         ruleManager,
         interactionPhase,
+        interactionPhaseRef,
         setInteractionPhase,
         updateBoardDimension,
         loadGame,
@@ -671,6 +734,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         replayMode,
         casualTournamentId,
         targetScore,
+        targetScoreP75,
+        targetScoreP90,
         onGameSubmit,
         onTriathlonNextGame,
     };

@@ -164,6 +164,8 @@ function mergeSolvabilityIntoIndex(raw, bySeedId, computeClearEaseScore) {
       metrics: {
         ...(e.metrics ?? {}),
         clearEaseScore,
+        /** Platform segment-A semantic (Solitaire ritual = clearEase). */
+        onboardingScore: clearEaseScore,
       },
     };
   });

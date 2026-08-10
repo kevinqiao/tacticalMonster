@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-08-08T05:34:40.199Z",
+  "poolVersion": "v7",
+  "profile": "probe",
+  "health": {
+    "profile": "probe",
+    "seedCount": 0,
+    "meanTimeUpRate": 0,
+    "meanJackpotRate": 0,
+    "meanMediumBurstRate": 0,
+    "meanLateGameReachRate": 0,
+    "meanExperienceScore": 0,
+    "gatePassRate": 0,
+    "softPMean": 0
+  },
+  "warnCounts": {},
+  "failCounts": {},
+  "rejectReasons": {
+    "collapsed_scores": 60,
+    "stuck_rate_too_high": 419,
+    "low_player_ceiling": 1
+  }
+}

@@ -11,6 +11,7 @@ export async function persistPlayerMatchChallengeOutcome(
     runTournamentId: string;
     matchId?: string;
     seedScoreThreshold?: number;
+    seedScoreThresholdP90?: number;
     challengeSuccess?: boolean;
     now?: number;
   }
@@ -40,10 +41,20 @@ export async function persistPlayerMatchChallengeOutcome(
   if (typeof args.seedScoreThreshold === "number" && Number.isFinite(args.seedScoreThreshold)) {
     patch.seedScoreThreshold = Math.floor(args.seedScoreThreshold);
   }
+  if (
+    typeof args.seedScoreThresholdP90 === "number" &&
+    Number.isFinite(args.seedScoreThresholdP90)
+  ) {
+    patch.seedScoreThresholdP90 = Math.floor(args.seedScoreThresholdP90);
+  }
   if (typeof args.challengeSuccess === "boolean") {
     patch.challengeSuccess = args.challengeSuccess;
   }
-  if (patch.seedScoreThreshold == null && patch.challengeSuccess == null) {
+  if (
+    patch.seedScoreThreshold == null &&
+    patch.seedScoreThresholdP90 == null &&
+    patch.challengeSuccess == null
+  ) {
     return pm;
   }
 
@@ -56,6 +67,7 @@ export async function persistPlayerMatchChallengeOutcomeById(
   pmId: Id<"portal_run_player_matches">,
   args: {
     seedScoreThreshold?: number;
+    seedScoreThresholdP90?: number;
     challengeSuccess?: boolean;
     now?: number;
   }
@@ -65,9 +77,21 @@ export async function persistPlayerMatchChallengeOutcomeById(
   if (typeof args.seedScoreThreshold === "number" && Number.isFinite(args.seedScoreThreshold)) {
     patch.seedScoreThreshold = Math.floor(args.seedScoreThreshold);
   }
+  if (
+    typeof args.seedScoreThresholdP90 === "number" &&
+    Number.isFinite(args.seedScoreThresholdP90)
+  ) {
+    patch.seedScoreThresholdP90 = Math.floor(args.seedScoreThresholdP90);
+  }
   if (typeof args.challengeSuccess === "boolean") {
     patch.challengeSuccess = args.challengeSuccess;
   }
-  if (patch.seedScoreThreshold == null && patch.challengeSuccess == null) return;
+  if (
+    patch.seedScoreThreshold == null &&
+    patch.seedScoreThresholdP90 == null &&
+    patch.challengeSuccess == null
+  ) {
+    return;
+  }
   await ctx.db.patch(pmId, patch);
 }

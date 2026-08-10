@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  asyncMatchJoinOpenForCreate,
   humanSeatBlocksAsyncJoin,
   isAsyncMatchJoinable,
   resolveAsyncMatchEffectiveHumans,
@@ -12,10 +13,17 @@ import {
 } from "../../../../data/portalTournamentConfigs";
 
 describe("resolveAsyncMatchEffectiveHumans", () => {
-  it("clamps to at least 2", () => {
-    expect(resolveAsyncMatchEffectiveHumans(1)).toBe(2);
-    expect(resolveAsyncMatchEffectiveHumans(0)).toBe(2);
+  it("allows 1 (create-only) and clamps invalid below 1", () => {
+    expect(resolveAsyncMatchEffectiveHumans(1)).toBe(1);
+    expect(resolveAsyncMatchEffectiveHumans(0)).toBe(1);
     expect(resolveAsyncMatchEffectiveHumans(3)).toBe(3);
+  });
+});
+
+describe("asyncMatchJoinOpenForCreate", () => {
+  it("eff=1 creates closed table; eff>1 creates joinable table", () => {
+    expect(asyncMatchJoinOpenForCreate(1)).toBe(false);
+    expect(asyncMatchJoinOpenForCreate(2)).toBe(true);
   });
 });
 

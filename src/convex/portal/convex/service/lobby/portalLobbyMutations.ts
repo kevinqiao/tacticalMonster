@@ -44,7 +44,21 @@ const offeringValidator = v.object({
   titleOverride: v.optional(v.string()),
   rewardsOverride: v.optional(
     v.object({
-      soloPoints: v.optional(v.object({ success: v.number(), fail: v.number() })),
+      soloPoints: v.optional(
+        v.union(
+          v.object({
+            success: v.number(),
+            fail: v.number(),
+            clearBonus: v.optional(v.number()),
+          }),
+          v.object({
+            fail: v.number(),
+            ritual_a: v.object({ clear: v.number(), bonus: v.number() }),
+            transition_b: v.object({ clear: v.number(), bonus: v.number() }),
+            merged_c: v.object({ p75: v.number(), p90: v.number() }),
+          })
+        )
+      ),
       rankPoints: v.optional(v.record(v.string(), v.number())),
       coins: v.optional(
         v.object({
@@ -178,32 +192,59 @@ function serializeLobby(row: {
   };
 }
 
-async function readLobbyQuotaScope(
+async function readLobbyPlayEntryOverlayRow(
   ctx: QueryCtx | MutationCtx,
   partnerId: number,
   lobbyId: Id<"portal_lobbies">
-): Promise<PortalQuotaScope | null> {
+) {
   const rows = await ctx.db
     .query("portal_partner_play_entry_settings")
     .withIndex("by_partner_lobby", (q) =>
       q.eq("partnerId", partnerId).eq("lobbyId", lobbyId)
     )
     .collect();
-  const lobbyRow = rows.find(
-    (r) => r.tournamentId == null || r.tournamentId === ""
-  );
+  return rows.find((r) => r.tournamentId == null || r.tournamentId === "") ?? null;
+}
+
+async function readLobbyQuotaScope(
+  ctx: QueryCtx | MutationCtx,
+  partnerId: number,
+  lobbyId: Id<"portal_lobbies">
+): Promise<PortalQuotaScope | null> {
+  const lobbyRow = await readLobbyPlayEntryOverlayRow(ctx, partnerId, lobbyId);
   return normalizePortalQuotaScope(lobbyRow?.quotaScope) ?? null;
 }
 
-async function writeLobbyQuotaScope(
+type LobbyPlayEntryOverlayPatch = {
+  partnerId: number;
+  lobbyId: Id<"portal_lobbies">;
+  quotaScope?: PortalQuotaScope | null;
+  soloSuccessDailyEnabled?: boolean | null;
+  soloSuccessDailyCap?: number | null;
+  soloSuccessAfterCapMode?: "zero_all" | null;
+  soloSuccessAllowPlayAfterCap?: boolean | null;
+};
+
+const LOBBY_PLAY_ENTRY_CLEAR_KEYS = [
+  "quotaScope",
+  "soloSuccessDailyEnabled",
+  "soloSuccessDailyCap",
+  "soloSuccessAfterCapMode",
+  "soloSuccessAllowPlayAfterCap",
+] as const;
+
+async function writeLobbyPlayEntryOverlay(
   ctx: MutationCtx,
-  args: {
-    partnerId: number;
-    lobbyId: Id<"portal_lobbies">;
-    quotaScope: PortalQuotaScope | null | undefined;
-  }
+  args: LobbyPlayEntryOverlayPatch
 ) {
-  if (args.quotaScope === undefined) return;
+  const hasAny =
+    args.quotaScope !== undefined ||
+    args.soloSuccessDailyEnabled !== undefined ||
+    args.soloSuccessDailyCap !== undefined ||
+    args.soloSuccessAfterCapMode !== undefined ||
+    args.soloSuccessAllowPlayAfterCap !== undefined;
+  if (!hasAny) return;
+
   const rows = await ctx.db
     .query("portal_partner_play_entry_settings")
     .withIndex("by_partner_lobby", (q) =>
@@ -214,29 +255,64 @@ async function writeLobbyQuotaScope(
     (r) => r.tournamentId == null || r.tournamentId === ""
   );
   const now = Date.now();
-  if (args.quotaScope === null) {
-    if (!match) return;
-    const {
-      _id,
-      _creationTime,
-      quotaScope: _qs,
-      ...keep
-    } = match as typeof match & { quotaScope?: string };
-    void _creationTime;
-    void _qs;
-    await ctx.db.replace(_id, { ...keep, updatedAt: now } as never);
-    return;
-  }
+  const clearKeys: string[] = [];
+  const patch: Record<string, unknown> = { updatedAt: now };
+
+  const applyClearable = (key: string, value: unknown) => {
+    if (value === undefined) return;
+    if (value === null) clearKeys.push(key);
+    else patch[key] = value;
+  };
+  applyClearable("quotaScope", args.quotaScope);
+  applyClearable("soloSuccessDailyEnabled", args.soloSuccessDailyEnabled);
+  applyClearable("soloSuccessDailyCap", args.soloSuccessDailyCap);
+  applyClearable("soloSuccessAfterCapMode", args.soloSuccessAfterCapMode);
+  applyClearable("soloSuccessAllowPlayAfterCap", args.soloSuccessAllowPlayAfterCap);
+
   if (match) {
-    await ctx.db.patch(match._id, { quotaScope: args.quotaScope, updatedAt: now });
+    if (clearKeys.length > 0) {
+      const {
+        _id,
+        _creationTime,
+        ...keep
+      } = match as typeof match & Record<string, unknown>;
+      void _creationTime;
+      for (const key of clearKeys) {
+        delete (keep as Record<string, unknown>)[key];
+      }
+      await ctx.db.replace(_id, {
+        ...keep,
+        ...patch,
+        partnerId: args.partnerId,
+        lobbyId: args.lobbyId,
+        updatedAt: now,
+      } as never);
+    } else {
+      await ctx.db.patch(match._id, patch);
+    }
     return;
   }
-  await ctx.db.insert("portal_partner_play_entry_settings", {
+
+  const insertDoc: Record<string, unknown> = {
     partnerId: args.partnerId,
     lobbyId: args.lobbyId,
-    quotaScope: args.quotaScope,
-    updatedAt: now,
-  });
+    ...patch,
+  };
+  const meaningful = Object.keys(insertDoc).filter(
+    (k) => k !== "partnerId" && k !== "lobbyId" && k !== "updatedAt"
+  );
+  if (meaningful.length > 0) {
+    await ctx.db.insert("portal_partner_play_entry_settings", insertDoc as never);
+  }
+  void LOBBY_PLAY_ENTRY_CLEAR_KEYS;
+}
+
+/** @deprecated name kept for local call sites; writes full lobby play-entry overlay. */
+async function writeLobbyQuotaScope(
+  ctx: MutationCtx,
+  args: LobbyPlayEntryOverlayPatch
+) {
+  await writeLobbyPlayEntryOverlay(ctx, args);
 }
 
 /** Player: resolve lobby for current partner (+ optional slug). Auto-creates default if missing. */
@@ -294,6 +370,10 @@ export const upsertPortalLobby = mutation({
     branding: v.optional(brandingValidator),
     offerings: v.array(offeringValidator),
     quotaScope: quotaScopeValidator,
+    soloSuccessDailyEnabled: v.optional(v.union(v.boolean(), v.null())),
+    soloSuccessDailyCap: v.optional(v.union(v.number(), v.null())),
+    soloSuccessAfterCapMode: v.optional(v.union(v.literal("zero_all"), v.null())),
+    soloSuccessAllowPlayAfterCap: v.optional(v.union(v.boolean(), v.null())),
     seasonHonorMode: seasonHonorModeValidator,
   },
   handler: async (ctx, args) => upsertLobbyCore(ctx, args),
@@ -326,6 +406,10 @@ async function upsertLobbyCore(
     offerings: PortalLobbyOffering[];
     /** null = clear lobby override (inherit partner). */
     quotaScope?: PortalQuotaScope | null;
+    soloSuccessDailyEnabled?: boolean | null;
+    soloSuccessDailyCap?: number | null;
+    soloSuccessAfterCapMode?: "zero_all" | null;
+    soloSuccessAllowPlayAfterCap?: boolean | null;
     /** null → join_now */
     seasonHonorMode?: "join_now" | "next_season" | null;
   }
@@ -427,6 +511,10 @@ async function upsertLobbyCore(
       partnerId: args.partnerId,
       lobbyId: targetLobbyId,
       quotaScope: args.quotaScope,
+      soloSuccessDailyEnabled: args.soloSuccessDailyEnabled,
+      soloSuccessDailyCap: args.soloSuccessDailyCap,
+      soloSuccessAfterCapMode: args.soloSuccessAfterCapMode,
+      soloSuccessAllowPlayAfterCap: args.soloSuccessAllowPlayAfterCap,
     });
     return { ok: true as const, lobbyId: targetLobbyId };
   }
@@ -454,6 +542,10 @@ async function upsertLobbyCore(
     partnerId: args.partnerId,
     lobbyId,
     quotaScope: args.quotaScope,
+    soloSuccessDailyEnabled: args.soloSuccessDailyEnabled,
+    soloSuccessDailyCap: args.soloSuccessDailyCap,
+    soloSuccessAfterCapMode: args.soloSuccessAfterCapMode,
+    soloSuccessAllowPlayAfterCap: args.soloSuccessAllowPlayAfterCap,
   });
   return { ok: true as const, lobbyId };
 }
@@ -506,10 +598,26 @@ export const listPortalLobbiesInternal = internalQuery({
   handler: async (ctx, { partnerId }) => {
     const rows = await listLobbiesForPartner(ctx, partnerId);
     return await Promise.all(
-      rows.map(async (row) => ({
-        ...serializeLobby(row),
-        quotaScope: await readLobbyQuotaScope(ctx, partnerId, row._id),
-      }))
+      rows.map(async (row) => {
+        const overlay = await readLobbyPlayEntryOverlayRow(ctx, partnerId, row._id);
+        return {
+          ...serializeLobby(row),
+          quotaScope: normalizePortalQuotaScope(overlay?.quotaScope) ?? null,
+          soloSuccessDailyEnabled:
+            typeof overlay?.soloSuccessDailyEnabled === "boolean"
+              ? overlay.soloSuccessDailyEnabled
+              : null,
+          soloSuccessDailyCap: overlay?.soloSuccessDailyCap ?? null,
+          soloSuccessAfterCapMode:
+            overlay?.soloSuccessAfterCapMode === "zero_all"
+              ? ("zero_all" as const)
+              : null,
+          soloSuccessAllowPlayAfterCap:
+            typeof overlay?.soloSuccessAllowPlayAfterCap === "boolean"
+              ? overlay.soloSuccessAllowPlayAfterCap
+              : null,
+        };
+      })
     );
   },
 });
@@ -525,6 +633,10 @@ export const upsertPortalLobbyInternal = internalMutation({
     branding: v.optional(brandingValidator),
     offerings: v.array(offeringValidator),
     quotaScope: quotaScopeValidator,
+    soloSuccessDailyEnabled: v.optional(v.union(v.boolean(), v.null())),
+    soloSuccessDailyCap: v.optional(v.union(v.number(), v.null())),
+    soloSuccessAfterCapMode: v.optional(v.union(v.literal("zero_all"), v.null())),
+    soloSuccessAllowPlayAfterCap: v.optional(v.union(v.boolean(), v.null())),
     seasonHonorMode: seasonHonorModeValidator,
   },
   handler: async (ctx, args) => upsertLobbyCore(ctx, args),

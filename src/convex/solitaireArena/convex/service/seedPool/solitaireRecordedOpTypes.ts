@@ -71,6 +71,13 @@ export type SolitaireRolloutScript = {
   completed: boolean;
   terminalReason: RolloutTerminalReason;
   elapsedSimSeconds: number;
+  /** Peak cards on foundation during this rollout (0–52). */
+  foundationCardsPeak: number;
+  /**
+   * Sim seconds until first move onto foundation.
+   * null = never reached foundation this rollout.
+   */
+  timeToFirstFoundationSec: number | null;
 };
 
 export type SeedLayoutOutcome = "winnable" | "likely_dead" | "mixed";
@@ -122,6 +129,25 @@ export type RolloutDistributionMetrics = {
    * Uses solvability path/nodes when available; 0 if not solvable / unchecked.
    */
   clearEaseScore: number;
+  /**
+   * Platform ritual axis for L3 segment A (unified onboardingScore).
+   * Solitaire: foundation progress primary + downweighted clearEase.
+   */
+  onboardingScore: number;
+  /**
+   * Foundation progress (L2 Gate, analogous to BB survivalTime / earlyClear):
+   * peak foundation-card count percentiles across rollouts.
+   */
+  foundationCardsP25: number;
+  foundationCardsP50: number;
+  foundationCardsP90: number;
+  /**
+   * Median sim-seconds to first foundation move.
+   * Rollouts that never reach foundation contribute matchTimeLimitSec.
+   */
+  timeToFirstFoundationP50: number;
+  /** Fraction of rollouts that placed ≥1 card on foundation. */
+  foundationReachRate: number;
   layoutFingerprint: string;
   policyVersion: typeof HUMAN_STOCHASTIC_POLICY_VERSION;
   matchTimeLimitSec: number;
@@ -159,6 +185,12 @@ export type SeedTierReportEntry = {
   scoreSpread: number;
   playerEaseScore: number;
   clearEaseScore: number;
+  onboardingScore: number;
+  foundationCardsP25: number;
+  foundationCardsP50: number;
+  foundationCardsP90: number;
+  timeToFirstFoundationP50: number;
+  foundationReachRate: number;
   rolloutCount: number;
 };
 
@@ -196,7 +228,8 @@ export type SeedPoolRejectReason =
   | "no_opening_moves"
   | "low_player_ceiling"
   | "collapsed_scores"
-  | "not_solvable";
+  | "not_solvable"
+  | "low_foundation_progress";
 
 export type SeedPoolRejectedEntry = {
   seedId: string;
@@ -211,6 +244,10 @@ export type PlayerFriendlyOptions = {
   minScoreSpread: number;
   rejectCollapsed: boolean;
   quickScreenRollouts: number;
+  /** 0 = off. Reject when foundationCardsP25 is below this. */
+  minFoundationCardsP25: number;
+  /** 0 = off. Reject when timeToFirstFoundationP50 exceeds this (sim seconds). */
+  maxTimeToFirstFoundationP50: number;
 };
 
 export type SeedPoolTierQuotas = {

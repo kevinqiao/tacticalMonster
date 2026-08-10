@@ -1,11 +1,8 @@
 /**
- * Block Blast 块型目录（policy v6）。
+ * Block Blast 块型目录（policy v9）。
  *
- * v6 相对 v5：
- * - 同 18 种模板（I4/I5、大 L、加权 bucket）
- * - 开局即高压：4–5 格更高；中盘/终盘继续抬大块
- * - 高潮窗几乎不抬填缝；手内救场关闭（见 GameEngine）
- *
+ * v9：4 格桶补齐 tetromino L/J 全朝向（不可旋转）。
+ * v8：1–6 格、斜对角 2 格、2×3/I6；开局友好 + 前段手内救场。
  * 变更须 bump BLOCK_BLAST_POLICY_VERSION 并重生成 seed pool。
  */
 
@@ -17,25 +14,61 @@ export type BlockBlastShapeTemplate = {
 /** 约 24 手 × 3 块 ≈ 72 个 shape 出完后达到满进度 */
 export const BLOCK_BLAST_PROGRESS_FULL_SHAPE_INDEX = 72;
 
-/** 开局关键帧（亦作 EARLY 别名）— v6 开局即偏大块 */
+/** L1 迭代：离线 generate 可注入关键帧（线上 Convex 不设置，始终用默认表） */
+export type L1WeightKeyframe = {
+    t: number;
+    weights: Readonly<Record<number, number>>;
+};
+
+export type L1Preset = {
+    progressFull?: number;
+    keyframes: ReadonlyArray<L1WeightKeyframe>;
+};
+
+let l1PresetOverride: L1Preset | null = null;
+
+/** 供 scripts/blockblast/l1-iter / generate-seed-pool 在仿真前注入 */
+export function setL1PresetOverride(preset: L1Preset | null): void {
+    l1PresetOverride = preset;
+}
+
+export function getL1PresetOverride(): L1Preset | null {
+    return l1PresetOverride;
+}
+
+function activeProgressFull(): number {
+    const o = l1PresetOverride?.progressFull;
+    return typeof o === "number" && o > 0 ? o : BLOCK_BLAST_PROGRESS_FULL_SHAPE_INDEX;
+}
+
+function activeKeyframes(): ReadonlyArray<L1WeightKeyframe> {
+    return l1PresetOverride?.keyframes ?? BLOCK_BLAST_WEIGHT_KEYFRAMES;
+}
+
+/** 开局关键帧（亦作 EARLY 别名）— 偏填缝；6 格很少 */
 export const BLOCK_BLAST_SHAPE_CELL_WEIGHTS_EARLY: Readonly<Record<number, number>> = {
-    1: 0.03,
-    2: 0.08,
-    3: 0.22,
-    4: 0.36,
-    5: 0.31,
+    1: 0.06,
+    2: 0.14,
+    3: 0.28,
+    4: 0.28,
+    5: 0.18,
+    6: 0.06,
 };
 
 /** 终盘关键帧（亦作 LATE 别名） */
 export const BLOCK_BLAST_SHAPE_CELL_WEIGHTS_LATE: Readonly<Record<number, number>> = {
     1: 0.015,
-    2: 0.045,
-    3: 0.12,
-    4: 0.38,
-    5: 0.44,
+    2: 0.035,
+    3: 0.1,
+    4: 0.3,
+    5: 0.32,
+    6: 0.23,
 };
 
-/** v6 分段关键帧：progress t ∈ [0,1] */
+/** 前段进度内启用手内救场（与 generateShapes 一致） */
+export const BLOCK_BLAST_EARLY_HAND_RESCUE_PROGRESS = 0.35;
+
+/** v8 分段关键帧：progress t ∈ [0,1]，桶 1–6 */
 export const BLOCK_BLAST_WEIGHT_KEYFRAMES: ReadonlyArray<{
     t: number;
     weights: Readonly<Record<number, number>>;
@@ -43,16 +76,16 @@ export const BLOCK_BLAST_WEIGHT_KEYFRAMES: ReadonlyArray<{
     { t: 0, weights: BLOCK_BLAST_SHAPE_CELL_WEIGHTS_EARLY },
     {
         t: 0.18,
-        weights: { 1: 0.025, 2: 0.07, 3: 0.185, 4: 0.38, 5: 0.34 },
+        weights: { 1: 0.04, 2: 0.1, 3: 0.22, 4: 0.32, 5: 0.24, 6: 0.08 },
     },
     {
         t: 0.42,
-        weights: { 1: 0.02, 2: 0.055, 3: 0.155, 4: 0.385, 5: 0.385 },
+        weights: { 1: 0.02, 2: 0.05, 3: 0.14, 4: 0.34, 5: 0.32, 6: 0.13 },
     },
     {
-        // 高潮窗：几乎不抬填缝，持续大块压
+        // 高潮窗：大块压（含 6 格）
         t: 0.72,
-        weights: { 1: 0.02, 2: 0.05, 3: 0.14, 4: 0.39, 5: 0.4 },
+        weights: { 1: 0.015, 2: 0.04, 3: 0.12, 4: 0.33, 5: 0.32, 6: 0.175 },
     },
     { t: 1, weights: BLOCK_BLAST_SHAPE_CELL_WEIGHTS_LATE },
 ];
@@ -75,9 +108,20 @@ function define(shape: number[][]): BlockBlastShapeTemplate {
 }
 
 export const BLOCK_BLAST_SHAPE_TEMPLATES: BlockBlastShapeTemplate[] = [
+    // 1
     define([[1]]),
+    // 2：横/竖 + 斜对角
     define([[1, 1]]),
     define([[1], [1]]),
+    define([
+        [1, 0],
+        [0, 1],
+    ]),
+    define([
+        [0, 1],
+        [1, 0],
+    ]),
+    // 3
     define([
         [1, 0],
         [1, 1],
@@ -88,6 +132,7 @@ export const BLOCK_BLAST_SHAPE_TEMPLATES: BlockBlastShapeTemplate[] = [
     ]),
     define([[1, 1, 1]]),
     define([[1], [1], [1]]),
+    // 4
     define([
         [1, 1],
         [1, 1],
@@ -111,6 +156,44 @@ export const BLOCK_BLAST_SHAPE_TEMPLATES: BlockBlastShapeTemplate[] = [
     ]),
     define([[1, 1, 1, 1]]),
     define([[1], [1], [1], [1]]),
+    // 4：L / J（各 4 朝向；玩家不可旋转）
+    define([
+        [1, 0],
+        [1, 0],
+        [1, 1],
+    ]),
+    define([
+        [1, 1],
+        [1, 0],
+        [1, 0],
+    ]),
+    define([
+        [1, 1, 1],
+        [1, 0, 0],
+    ]),
+    define([
+        [0, 0, 1],
+        [1, 1, 1],
+    ]),
+    define([
+        [0, 1],
+        [0, 1],
+        [1, 1],
+    ]),
+    define([
+        [1, 1],
+        [0, 1],
+        [0, 1],
+    ]),
+    define([
+        [1, 1, 1],
+        [0, 0, 1],
+    ]),
+    define([
+        [1, 0, 0],
+        [1, 1, 1],
+    ]),
+    // 5
     define([[1, 1, 1, 1, 1]]),
     define([[1], [1], [1], [1], [1]]),
     define([
@@ -123,6 +206,18 @@ export const BLOCK_BLAST_SHAPE_TEMPLATES: BlockBlastShapeTemplate[] = [
         [0, 0, 1],
         [0, 0, 1],
     ]),
+    // 6
+    define([
+        [1, 1, 1],
+        [1, 1, 1],
+    ]),
+    define([
+        [1, 1],
+        [1, 1],
+        [1, 1],
+    ]),
+    define([[1, 1, 1, 1, 1, 1]]),
+    define([[1], [1], [1], [1], [1], [1]]),
 ];
 
 /** @deprecated 别名 */
@@ -132,11 +227,11 @@ export const SHAPE_TEMPLATES: number[][][] = BLOCK_BLAST_SHAPE_TEMPLATES.map((t)
 
 type WeightedShape = { shape: number[][]; weight: number };
 
-const CELL_BUCKETS = [1, 2, 3, 4, 5] as const;
+const CELL_BUCKETS = [1, 2, 3, 4, 5, 6] as const;
 
 export function resolveProgressForShapeIndex(shapeIndex: number): number {
     if (shapeIndex <= 0) return 0;
-    return Math.min(1, shapeIndex / BLOCK_BLAST_PROGRESS_FULL_SHAPE_INDEX);
+    return Math.min(1, shapeIndex / activeProgressFull());
 }
 
 function normalizeWeights(raw: Record<number, number>): Record<number, number> {
@@ -151,7 +246,7 @@ function normalizeWeights(raw: Record<number, number>): Record<number, number> {
 /** 分段关键帧线性插值，归一化后和为 1 */
 export function resolveCellWeightsForShapeIndex(shapeIndex: number): Record<number, number> {
     const t = resolveProgressForShapeIndex(shapeIndex);
-    const frames = BLOCK_BLAST_WEIGHT_KEYFRAMES;
+    const frames = activeKeyframes();
     if (t <= frames[0]!.t) {
         return normalizeWeights({ ...frames[0]!.weights });
     }

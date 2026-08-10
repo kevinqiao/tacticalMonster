@@ -7,6 +7,7 @@ import type { SolitaireRolloutScript } from '@/convex/solitaireArena/convex/serv
 import type { CasualWatchContext } from '../../../shared/casualAsyncTableSummaryUI';
 import SoloGameProvider from '../service/GameManager';
 import SoloDnDProvider from '../service/SoloDnDProvider';
+import SoloActHandlerProvider from '../service/handler/SoloActHandlerProvider';
 import {
   estimateStepIndexForBotProgress,
   resolveWatchRollout,
@@ -122,15 +123,17 @@ export const SolitaireWatchOverlay: React.FC<Props> = ({
             key={`${seedId}-${watchContext.kind}-${watchContext.kind === 'recorded' ? watchContext.gameId : watchContext.rolloutIndex}`}
             replaySeedId={seedId}
           >
-            <SoloDnDProvider>
-              <SolitaireWatchBoard
-                rollout={rollout}
-                seedId={seedId}
-                initialStepIndex={initialStepIndex}
-                watchContext={watchContext}
-                displayLabel={displayLabel}
-              />
-            </SoloDnDProvider>
+            <SoloActHandlerProvider>
+              <SoloDnDProvider>
+                <SolitaireWatchBoard
+                  rollout={rollout}
+                  seedId={seedId}
+                  initialStepIndex={initialStepIndex}
+                  watchContext={watchContext}
+                  displayLabel={displayLabel}
+                />
+              </SoloDnDProvider>
+            </SoloActHandlerProvider>
           </SoloGameProvider>
         ) : null}
       </div>

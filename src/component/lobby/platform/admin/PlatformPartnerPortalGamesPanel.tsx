@@ -82,6 +82,9 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
   const [ticketSoloCap, setTicketSoloCap] = useState("");
   const [ticketMultiPrice, setTicketMultiPrice] = useState("");
   const [ticketMultiCap, setTicketMultiCap] = useState("");
+  const [soloSuccessEnabled, setSoloSuccessEnabled] = useState(true);
+  const [soloSuccessCap, setSoloSuccessCap] = useState("");
+  const [soloSuccessAllowPlay, setSoloSuccessAllowPlay] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const hydratedForPartner = useRef<number | null>(null);
@@ -154,6 +157,11 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
     setTicketSoloCap(config.ticketEntrySoloDailyCap == null ? "" : String(config.ticketEntrySoloDailyCap));
     setTicketMultiPrice(config.ticketEntryMultiPriceTickets == null ? "" : String(config.ticketEntryMultiPriceTickets));
     setTicketMultiCap(config.ticketEntryMultiDailyCap == null ? "" : String(config.ticketEntryMultiDailyCap));
+    setSoloSuccessEnabled(config.soloSuccessDailyEnabled !== false);
+    setSoloSuccessCap(
+      config.soloSuccessDailyCap == null ? "" : String(config.soloSuccessDailyCap)
+    );
+    setSoloSuccessAllowPlay(config.soloSuccessAllowPlayAfterCap !== false);
   }, [config, partnerId, serverCapKey]);
 
   const trimmedSlug = partnerSlug.trim();
@@ -252,6 +260,10 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         ticketEntrySoloDailyCap: ticketSoloCap === "" ? null : Number(ticketSoloCap),
         ticketEntryMultiPriceTickets: ticketMultiPrice === "" ? null : Number(ticketMultiPrice),
         ticketEntryMultiDailyCap: ticketMultiCap === "" ? null : Number(ticketMultiCap),
+        soloSuccessDailyEnabled: soloSuccessEnabled,
+        soloSuccessDailyCap: soloSuccessCap === "" ? null : Number(soloSuccessCap),
+        soloSuccessAfterCapMode: "zero_all",
+        soloSuccessAllowPlayAfterCap: soloSuccessAllowPlay,
         // Always send: first-party empty string clears vanity slug.
         partnerSlug: trimmedSlug,
       });
@@ -525,7 +537,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
         </label>
         <p className="merchant-note">
           Lobby 可再覆盖此底配置。默认「按模式」：Solitaire / Block Blast 共用单人免费次数。
-          留空=平台默认（单人 3 / 多人 10）；保存后会同步到 Portal，否则大厅仍用代码默认值。
+          留空=平台默认（单人 3 / 多人 5）；保存后会同步到 Portal，否则大厅仍用代码默认值。
         </p>
         <div className="merchant-field-row">
           <label className="merchant-field">
@@ -548,7 +560,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
               max={100}
               value={freeMulti}
               onChange={(e) => setFreeMulti(e.target.value)}
-              placeholder="默认 10"
+              placeholder="默认 5"
               disabled={!canEdit}
             />
           </label>
@@ -563,8 +575,8 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
           广告入场
         </label>
         <p className="merchant-note">
-          免费用尽后可看广告进入；填 0 关闭该模式广告入场日限档。留空=平台默认（单人 5 /
-          多人 10），保存后会同步清除 Portal 旧覆盖值。
+          免费用尽后可看广告进入；填 0 关闭该模式广告入场日限档。留空=平台默认（单人无限 /
+          多人 10），保存后会同步清除 Portal 旧覆盖值。填 ≥1000000000 表示无限。
         </p>
         <div className="merchant-field-row">
           <label className="merchant-field">
@@ -575,7 +587,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
               max={100}
               value={adEntrySoloCap}
               onChange={(e) => setAdEntrySoloCap(e.target.value)}
-              placeholder="默认 5"
+              placeholder="默认无限"
               disabled={!canEdit || !adEntryEnabled}
             />
           </label>
@@ -601,7 +613,10 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
           />
           门票入场
         </label>
-        <p className="merchant-note">广告入场用尽后可用门票进入；填 0 关闭该模式门票入场日限档。</p>
+        <p className="merchant-note">
+          广告入场用尽后可用门票进入；填 0 关闭该模式门票入场日限档。留空=平台默认（单人关闭 /
+          多人 5 次）。
+        </p>
         <div className="merchant-field-row">
           <label className="merchant-field">
             单人门票价格
@@ -623,7 +638,7 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
               max={100}
               value={ticketSoloCap}
               onChange={(e) => setTicketSoloCap(e.target.value)}
-              placeholder="默认 3"
+              placeholder="默认关闭"
               disabled={!canEdit || !ticketEntryEnabled}
             />
           </label>
@@ -652,6 +667,42 @@ const PlatformPartnerPortalGamesPanel: React.FC<Props> = ({ partnerId, canEdit }
               placeholder="默认 5"
               disabled={!canEdit || !ticketEntryEnabled}
             />
+          </label>
+        </div>
+        <label className="merchant-radio">
+          <input
+            type="checkbox"
+            checked={soloSuccessEnabled}
+            onChange={(e) => setSoloSuccessEnabled(e.target.checked)}
+            disabled={!canEdit}
+          />
+          单人达标日限（领奖次数）
+        </label>
+        <p className="merchant-note">
+          与免费/广告/门票入场独立。满额后成功与失败均无奖惩，默认仍可开桌；lobby
+          可覆盖 partner。留空=平台默认（开启 / 每日 5）。
+        </p>
+        <div className="merchant-field-row">
+          <label className="merchant-field">
+            每日达标领奖次数
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={soloSuccessCap}
+              onChange={(e) => setSoloSuccessCap(e.target.value)}
+              placeholder="默认 5"
+              disabled={!canEdit || !soloSuccessEnabled}
+            />
+          </label>
+          <label className="merchant-radio" style={{ alignSelf: "end" }}>
+            <input
+              type="checkbox"
+              checked={soloSuccessAllowPlay}
+              onChange={(e) => setSoloSuccessAllowPlay(e.target.checked)}
+              disabled={!canEdit || !soloSuccessEnabled}
+            />
+            满额后仍可开桌
           </label>
         </div>
       </fieldset>

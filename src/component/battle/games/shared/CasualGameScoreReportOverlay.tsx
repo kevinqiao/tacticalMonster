@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next';
 
 import { CasualAdReplayVideoIcon } from './CasualAdReplayVideoIcon';
 import {
+  CasualChallengeResultBlock,
+  CasualChallengeResultTitle,
+} from './CasualChallengeResultBlock';
+import {
   formatCasualAdReplayQuotaBadge,
   getCasualAdReplayButtonLabel,
   type CasualGameScoreReportUI,
@@ -29,7 +33,7 @@ export type CasualGameScoreReportOverlayProps = {
   secondaryError?: string;
 };
 
-/** 休闲场：结算后展示本局得分构成；单人 P75 挑战时即为最终页（含看广告再战）。 */
+/** 休闲场：结算后展示本局得分构成；单人挑战时即为最终页（含看广告再战）。 */
 export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlayProps> = ({
   open,
   report,
@@ -51,6 +55,7 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
   if (!open || !report) return null;
 
   const challenge = report.challenge;
+
   const isAdReplay =
     secondaryLabel === getCasualAdReplayButtonLabel() ||
     adReplayDailyRemaining != null ||
@@ -91,42 +96,9 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
         <div className="ssc ssc--pinnedFooter">
           <div className="ssc__scroll">
             <h2 id={titleId} className="ssc__title msc-successTitle">
-              {challenge
-                ? challenge.success
-                  ? t('scoreReport.challengeSuccessTitle')
-                  : t('scoreReport.challengeFailTitle')
-                : resolvedTitle}
+              <CasualChallengeResultTitle challenge={challenge} fallback={resolvedTitle} />
             </h2>
-            {challenge ? (
-              <div
-                className={
-                  challenge.success
-                    ? 'msc-challengeResult msc-challengeResult--success'
-                    : 'msc-challengeResult msc-challengeResult--fail'
-                }
-                role="status"
-              >
-                <span className="msc-challengeResult__badge">
-                  {challenge.success
-                    ? t('scoreReport.successBadge')
-                    : t('scoreReport.failBadge')}
-                </span>
-                <div className="msc-challengeResult__rows">
-                  <div className="msc-challengeResult__row">
-                    <span>{t('scoreReport.targetP75')}</span>
-                    <span className="msc-challengeResult__val">
-                      {challenge.targetScore.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="msc-challengeResult__row">
-                    <span>{t('scoreReport.gameScore')}</span>
-                    <span className="msc-challengeResult__val">
-                      {challenge.achievedScore.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ) : null}
+            {challenge ? <CasualChallengeResultBlock challenge={challenge} /> : null}
             <p className="ssc__body msc-scoreReportSub">
               {t('scoreReport.detailLead', { game: report.gameLabel })}
             </p>

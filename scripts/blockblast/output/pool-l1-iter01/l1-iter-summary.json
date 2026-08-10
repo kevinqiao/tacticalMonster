@@ -1,0 +1,12 @@
+{
+  "iter": "iter01",
+  "out": "C:\\selfhome\\development\\projects\\tacticalMonster\\scripts\\blockblast\\output\\pool-l1-iter01",
+  "poolVersion": "l1-iter01",
+  "policyVersion": "block-blast-stochastic-l1-iter01",
+  "preset": "C:\\selfhome\\development\\projects\\tacticalMonster\\scripts\\blockblast\\presets\\my-iter01.json",
+  "thinkTimeScale": 3,
+  "count": 40,
+  "rollouts": 24,
+  "finishedAt": "2026-08-05T23:42:04.210Z",
+  "nextHumanStep": "Solo playtest with playtest-checklist.md; edit preset; re-run with new --iter"
+}

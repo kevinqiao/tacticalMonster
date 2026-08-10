@@ -62,6 +62,10 @@ export const getPartnerPortalConfig = authedAction({
       ticketEntrySoloDailyCap: gc.ticketEntrySoloDailyCap ?? null,
       ticketEntryMultiPriceTickets: gc.ticketEntryMultiPriceTickets ?? null,
       ticketEntryMultiDailyCap: gc.ticketEntryMultiDailyCap ?? null,
+      soloSuccessDailyEnabled: gc.soloSuccessDailyEnabled ?? null,
+      soloSuccessDailyCap: gc.soloSuccessDailyCap ?? null,
+      soloSuccessAfterCapMode: gc.soloSuccessAfterCapMode ?? null,
+      soloSuccessAllowPlayAfterCap: gc.soloSuccessAllowPlayAfterCap ?? null,
       lobbyOpsMode: gc.lobbyOpsMode ?? null,
       lobbyOpsModeEffective: gc.lobbyOpsModeEffective ?? "shared",
       seasonEpochWeekKey: gc.seasonEpochWeekKey ?? null,
@@ -98,6 +102,10 @@ export const updatePartnerPortalConfig = authedAction({
     ticketEntrySoloDailyCap: v.optional(v.union(v.number(), v.null())),
     ticketEntryMultiPriceTickets: v.optional(v.union(v.number(), v.null())),
     ticketEntryMultiDailyCap: v.optional(v.union(v.number(), v.null())),
+    soloSuccessDailyEnabled: v.optional(v.union(v.boolean(), v.null())),
+    soloSuccessDailyCap: v.optional(v.union(v.number(), v.null())),
+    soloSuccessAfterCapMode: v.optional(v.union(v.literal("zero_all"), v.null())),
+    soloSuccessAllowPlayAfterCap: v.optional(v.union(v.boolean(), v.null())),
     lobbyOpsMode: v.optional(
       v.union(v.literal("isolated"), v.literal("shared"), v.null())
     ),
@@ -126,6 +134,10 @@ export const updatePartnerPortalConfig = authedAction({
       ticketEntrySoloDailyCap: args.ticketEntrySoloDailyCap,
       ticketEntryMultiPriceTickets: args.ticketEntryMultiPriceTickets,
       ticketEntryMultiDailyCap: args.ticketEntryMultiDailyCap,
+      soloSuccessDailyEnabled: args.soloSuccessDailyEnabled,
+      soloSuccessDailyCap: args.soloSuccessDailyCap,
+      soloSuccessAfterCapMode: args.soloSuccessAfterCapMode,
+      soloSuccessAllowPlayAfterCap: args.soloSuccessAllowPlayAfterCap,
       lobbyOpsMode: args.lobbyOpsMode,
       seasonEpochWeekKey: args.seasonEpochWeekKey,
     });

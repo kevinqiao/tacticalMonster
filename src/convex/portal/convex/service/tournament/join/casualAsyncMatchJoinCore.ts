@@ -46,9 +46,19 @@ export function isAsyncMatchJoinable(args: {
   return true;
 }
 
-/** Async multi stores profile eff; capacity is maxPlayers. Ensure >1. */
+/**
+ * Normalize profile eff for async multi.
+ * - 1 → create-only (no join-existing); table joinOpen=false
+ * - >1 → try join open tables first, else create with joinOpen=true
+ * Capacity to join is still maxPlayers, not this value.
+ */
 export function resolveAsyncMatchEffectiveHumans(evaluated: number): number {
   const n = Math.floor(evaluated);
-  if (!Number.isFinite(n) || n < 2) return 2;
+  if (!Number.isFinite(n) || n < 1) return 1;
   return n;
+}
+
+/** eff=1: private bot table; eff>1: open for later human joins. */
+export function asyncMatchJoinOpenForCreate(effectiveHumans: number): boolean {
+  return effectiveHumans > 1;
 }

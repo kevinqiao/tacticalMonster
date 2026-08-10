@@ -318,10 +318,28 @@ export default defineSchema({
     rewardsOverrideSnapshot: v.optional(
       v.object({
         soloPoints: v.optional(
-          v.object({
-            success: v.number(),
-            fail: v.number(),
-          })
+          v.union(
+            v.object({
+              success: v.number(),
+              fail: v.number(),
+              clearBonus: v.optional(v.number()),
+            }),
+            v.object({
+              fail: v.number(),
+              ritual_a: v.object({
+                clear: v.number(),
+                bonus: v.number(),
+              }),
+              transition_b: v.object({
+                clear: v.number(),
+                bonus: v.number(),
+              }),
+              merged_c: v.object({
+                p75: v.number(),
+                p90: v.number(),
+              }),
+            })
+          )
         ),
         rankPoints: v.optional(v.record(v.string(), v.number())),
         coins: v.optional(
@@ -403,14 +421,15 @@ export default defineSchema({
     /** Actual humans seated (increments on async join). Bot fill uses this as planned. */
     humanPlayerCount: v.optional(v.number()),
     /**
-     * Async multi: profile-planned humans at create (must be >1). Join capacity is
-     * maxPlayers, not this field.
+     * Async multi: profile effectiveHumans at create.
+     * 1 → private bot table (joinOpen false); >1 → may accept later humans.
+     * Join capacity is still maxPlayers, not this field.
      */
     effectiveHumans: v.optional(v.number()),
     /** Partner+template partition for async join-or-create. */
     matchPartitionKey: v.optional(v.string()),
     /**
-     * Async multi only: true while new humans may join.
+     * Async multi only: true while new humans may join (created with eff>1).
      * Cleared when full (humanPlayerCount >= maxPlayers) or any human submits/finishes.
      */
     joinOpen: v.optional(v.boolean()),
@@ -433,7 +452,20 @@ export default defineSchema({
           })
         ),
         successQuantile: v.optional(
-          v.union(v.literal("p50"), v.literal("p75"), v.literal("p90"))
+          v.union(
+            v.literal("p25"),
+            v.literal("p50"),
+            v.literal("p75"),
+            v.literal("p90")
+          )
+        ),
+        ritualOneLineClear: v.optional(v.boolean()),
+        segment: v.optional(
+          v.union(
+            v.literal("ritual_a"),
+            v.literal("transition_b"),
+            v.literal("merged_c")
+          )
         ),
       })
     ),
@@ -484,8 +516,21 @@ export default defineSchema({
         })
       ),
       successQuantile: v.optional(
-        v.union(v.literal("p50"), v.literal("p75"), v.literal("p90"))
+        v.union(
+          v.literal("p25"),
+          v.literal("p50"),
+          v.literal("p75"),
+          v.literal("p90")
+        )
       ),
+      ritualOneLineClear: v.optional(v.boolean()),
+      segment: v.optional(
+          v.union(
+            v.literal("ritual_a"),
+            v.literal("transition_b"),
+            v.literal("merged_c")
+          )
+        ),
     }),
     score: v.optional(v.number()),
     status: v.union(
@@ -577,10 +622,28 @@ export default defineSchema({
     rewardsOverrideSnapshot: v.optional(
       v.object({
         soloPoints: v.optional(
-          v.object({
-            success: v.number(),
-            fail: v.number(),
-          })
+          v.union(
+            v.object({
+              success: v.number(),
+              fail: v.number(),
+              clearBonus: v.optional(v.number()),
+            }),
+            v.object({
+              fail: v.number(),
+              ritual_a: v.object({
+                clear: v.number(),
+                bonus: v.number(),
+              }),
+              transition_b: v.object({
+                clear: v.number(),
+                bonus: v.number(),
+              }),
+              merged_c: v.object({
+                p75: v.number(),
+                p90: v.number(),
+              }),
+            })
+          )
         ),
         rankPoints: v.optional(v.record(v.string(), v.number())),
         coins: v.optional(
@@ -633,10 +696,28 @@ export default defineSchema({
         rewardsOverride: v.optional(
           v.object({
             soloPoints: v.optional(
-              v.object({
-                success: v.number(),
-                fail: v.number(),
-              })
+              v.union(
+                v.object({
+                  success: v.number(),
+                  fail: v.number(),
+                  clearBonus: v.optional(v.number()),
+                }),
+                v.object({
+                  fail: v.number(),
+                  ritual_a: v.object({
+                    clear: v.number(),
+                    bonus: v.number(),
+                  }),
+                  transition_b: v.object({
+                    clear: v.number(),
+                    bonus: v.number(),
+                  }),
+                  merged_c: v.object({
+                    p75: v.number(),
+                    p90: v.number(),
+                  }),
+                })
+              )
             ),
             rankPoints: v.optional(v.record(v.string(), v.number())),
             coins: v.optional(
@@ -699,11 +780,41 @@ export default defineSchema({
     coinEntrySoloDailyCap: v.optional(v.number()),
     coinEntryMultiPriceCoins: v.optional(v.number()),
     coinEntryMultiDailyCap: v.optional(v.number()),
+    /** Solo rewarded-success daily cap (partner → lobby → tournament overlay). */
+    soloSuccessDailyEnabled: v.optional(v.boolean()),
+    soloSuccessDailyCap: v.optional(v.number()),
+    soloSuccessAfterCapMode: v.optional(v.literal("zero_all")),
+    soloSuccessAllowPlayAfterCap: v.optional(v.boolean()),
     updatedAt: v.number(),
   })
     .index("by_partnerId", ["partnerId"])
     .index("by_partner_lobby", ["partnerId", "lobbyId"])
     .index("by_partner_lobby_tournament", ["partnerId", "lobbyId", "tournamentId"]),
+
+  /**
+   * Count of solo successes that consumed the daily reward quota
+   * (scoped by lobby/tournament when quotaScope requires it).
+   */
+  portal_solo_success_daily_usage: defineTable({
+    uid: v.string(),
+    dayKey: v.string(),
+    /** Always "solo" today; kept for index symmetry with ad/ticket usage. */
+    mode: v.literal("solo"),
+    lobbyId: v.optional(v.id("portal_lobbies")),
+    tournamentId: v.optional(v.string()),
+    usedCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_uid_dayKey_mode", ["uid", "dayKey", "mode"])
+    .index("by_uid_dayKey_mode_lobby", ["uid", "dayKey", "mode", "lobbyId"])
+    .index("by_uid_dayKey_mode_lobby_tournament", [
+      "uid",
+      "dayKey",
+      "mode",
+      "lobbyId",
+      "tournamentId",
+    ]),
 
   /** One ticket-entry count per player/mode/operations day (scoped by lobby/tournament when set). */
   portal_ticket_entry_daily_usage: defineTable({
@@ -888,9 +999,11 @@ export default defineSchema({
      * 结算后清除。
      */
     replayBaselineScore: v.optional(v.number()),
-    /** 单人挑战：目标分（P75）；与本局 score/settled 同文档 */
+    /** 单人挑战：通关目标分；与本局 score/settled 同文档 */
     seedScoreThreshold: v.optional(v.number()),
-    /** 单人挑战：是否达标 */
+    /** 单人挑战：p90 奖励线（展示/审计） */
+    seedScoreThresholdP90: v.optional(v.number()),
+    /** 单人挑战：是否达标（通关线） */
     challengeSuccess: v.optional(v.boolean()),
     /**
      * Campaign pass_run 发奖展示快照（HTTP 成功后回写；与券生命周期解耦）。

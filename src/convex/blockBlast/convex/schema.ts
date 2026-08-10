@@ -32,6 +32,8 @@ export default defineSchema({
         lastOpAt: v.optional(v.number()),
         /** 休闲 run：对局截止时间（ms）；仅 `game_*` 建局时写入 */
         dueTime: v.optional(v.number()),
+        /** 单人挑战达标线；达到后立即 WON 结束 */
+        targetScore: v.optional(v.number()),
         /** 休闲 run：Convex scheduler 超时任务 id */
         casualTimeoutScheduledId: v.optional(v.id("_scheduled_functions")),
         /** 与平台 `replayEpoch` 对齐；不匹配时 loadGame 重建 */

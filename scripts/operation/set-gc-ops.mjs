@@ -39,7 +39,11 @@ Flags (omit = unchanged; null/clear = clear override):
   --ticket-solo-price / --ticketEntrySoloPriceTickets
   --ticket-solo-cap / --ticketEntrySoloDailyCap
   --ticket-multi-price / --ticketEntryMultiPriceTickets
-  --ticket-multi-cap / --ticketEntryMultiDailyCap`);
+  --ticket-multi-cap / --ticketEntryMultiDailyCap
+  --solo-success / --soloSuccessDailyEnabled           on|off|null
+  --solo-success-cap / --soloSuccessDailyCap
+  --solo-success-after-cap / --soloSuccessAfterCapMode zero_all|null
+  --solo-success-allow-play / --soloSuccessAllowPlayAfterCap on|off|null`);
 }
 
 function buildPatch(argv) {
@@ -80,6 +84,27 @@ function buildPatch(argv) {
     ["--ticket-multi-cap", "--ticketEntryMultiDailyCap"],
     "ticketEntryMultiDailyCap"
   );
+  setToggle(
+    ["--solo-success", "--soloSuccessDailyEnabled"],
+    "soloSuccessDailyEnabled"
+  );
+  setInt(
+    ["--solo-success-cap", "--soloSuccessDailyCap"],
+    "soloSuccessDailyCap"
+  );
+  setToggle(
+    ["--solo-success-allow-play", "--soloSuccessAllowPlayAfterCap"],
+    "soloSuccessAllowPlayAfterCap"
+  );
+  const afterCap = getArg(argv, [
+    "--solo-success-after-cap",
+    "--soloSuccessAfterCapMode",
+  ]);
+  if (afterCap === "null" || afterCap === "clear") {
+    patch.soloSuccessAfterCapMode = null;
+  } else if (afterCap === "zero_all") {
+    patch.soloSuccessAfterCapMode = "zero_all";
+  }
   return patch;
 }
 

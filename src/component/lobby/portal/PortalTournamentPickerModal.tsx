@@ -8,6 +8,7 @@ import {
   resolveEffectiveTournamentRewards,
 } from "@/convex/portal/convex/data/portalTournamentConfigs";
 import { PortalCenterModal } from "./PortalCenterModal";
+import { isFinitePortalAdEntryCap } from "./shared/portalAdEntryQuota";
 import type { PortalLobbyOfferingView } from "./PortalLobbyContext";
 import { localizePortalTournamentTitle } from "./portalTournamentLocalize";
 import {
@@ -46,6 +47,10 @@ export type PortalTournamentPickerDailyQuota = {
   adCap: number;
   /** When false, hide the ad chip (feature off). */
   adEnabled?: boolean;
+  /** Solo only: rewarded successes today / daily cap. */
+  successEnabled?: boolean;
+  successUsed?: number;
+  successCap?: number;
 };
 
 type Props = {
@@ -76,8 +81,10 @@ function prizeHighlight(
   const rewards = resolveEffectiveTournamentRewards(def);
   if (matchType === "solo_p75" || def.matchType === "solo_p75") {
     const success = rewards.soloPoints?.success;
-    if (success == null) return null;
-    return { labelKey: "lobby.prizePoints", value: `+${success}` };
+    const clearBonus = rewards.soloPoints?.clearBonus ?? 0;
+    if (typeof success !== "number" || !Number.isFinite(success)) return null;
+    const total = Math.floor(success) + Math.floor(clearBonus);
+    return { labelKey: "lobby.prizePoints", value: `+${total}` };
   }
   const topPts = rewards.rankPoints?.[1];
   const topCoins = rewards.coinRewards?.rankCoins?.["1"];
@@ -161,6 +168,8 @@ const PortalTournamentPickerModal: React.FC<Props> = ({
     };
   };
 
+  const adCap = activeQuota ? Math.max(0, activeQuota.adCap) : 0;
+  const adFinite = isFinitePortalAdEntryCap(adCap);
   const showAdQuota =
     activeQuota != null &&
     activeQuota.adEnabled !== false &&
@@ -170,36 +179,83 @@ const PortalTournamentPickerModal: React.FC<Props> = ({
     : 0;
   const freeCap = activeQuota ? Math.max(0, activeQuota.freeCap) : 0;
   const adUsed = activeQuota
-    ? Math.min(Math.max(0, activeQuota.adUsed), Math.max(0, activeQuota.adCap))
+    ? Math.min(Math.max(0, activeQuota.adUsed), adFinite ? adCap : 0)
     : 0;
-  const adCap = activeQuota ? Math.max(0, activeQuota.adCap) : 0;
+  const successCap =
+    mode === "solo" && activeQuota?.successEnabled
+      ? Math.max(0, Math.floor(activeQuota.successCap ?? 0))
+      : 0;
+  const successUsed =
+    successCap > 0
+      ? Math.min(
+          Math.max(0, Math.floor(activeQuota?.successUsed ?? 0)),
+          successCap
+        )
+      : 0;
+  const showSuccessQuota = successCap > 0;
   // Header chips are for shared mode/lobby pools. Skip when any ticket is
   // per-tournament (those rows show their own used/cap).
   const anyPerTournamentQuota = sorted.some((o) => {
     const st = entryFor(o.tournamentId);
     return st.perTournamentQuota === true;
   });
-  const showHeaderQuota = !anyPerTournamentQuota && activeQuota && freeCap > 0;
+  const showHeaderQuota =
+    !anyPerTournamentQuota &&
+    activeQuota &&
+    (freeCap > 0 || showSuccessQuota);
+
+  const quotaAria = (() => {
+    if (!showHeaderQuota) return undefined;
+    if (showSuccessQuota) {
+      return showAdQuota && !adFinite
+        ? t("lobby.pickQuotaAriaUnlimitedAdWithSuccess", {
+            freeUsed,
+            freeCap,
+            successUsed,
+            successCap,
+          })
+        : t("lobby.pickQuotaAriaWithSuccess", {
+            freeUsed,
+            freeCap,
+            adUsed: showAdQuota && adFinite ? adUsed : 0,
+            adCap: showAdQuota && adFinite ? adCap : 0,
+            successUsed,
+            successCap,
+          });
+    }
+    return showAdQuota && !adFinite
+      ? t("lobby.pickQuotaAriaUnlimitedAd", { freeUsed, freeCap })
+      : t("lobby.pickQuotaAria", {
+          freeUsed,
+          freeCap,
+          adUsed: showAdQuota && adFinite ? adUsed : 0,
+          adCap: showAdQuota && adFinite ? adCap : 0,
+        });
+  })();
 
   return (
     <PortalCenterModal open={open} title={headTitle} onClose={onClose}>
       {showHeaderQuota ? (
-        <div
-          className="portal-tour-quota"
-          aria-label={t("lobby.pickQuotaAria", {
-            freeUsed,
-            freeCap,
-            adUsed: showAdQuota ? adUsed : 0,
-            adCap: showAdQuota ? adCap : 0,
-          })}
-        >
-          <span className="portal-tour-quota-chip portal-tour-quota-chip--free">
-            {t("lobby.pickQuotaFree", { used: freeUsed, cap: freeCap })}
-          </span>
+        <div className="portal-tour-quota" aria-label={quotaAria}>
+          {freeCap > 0 ? (
+            <span className="portal-tour-quota-chip portal-tour-quota-chip--free">
+              {t("lobby.pickQuotaFree", { used: freeUsed, cap: freeCap })}
+            </span>
+          ) : null}
           {showAdQuota ? (
             <span className="portal-tour-quota-chip portal-tour-quota-chip--ad">
               <CasualAdReplayVideoIcon />
-              {t("lobby.pickQuotaAd", { used: adUsed, cap: adCap })}
+              {adFinite
+                ? t("lobby.pickQuotaAd", { used: adUsed, cap: adCap })
+                : t("lobby.pickQuotaAdUnlimited")}
+            </span>
+          ) : null}
+          {showSuccessQuota ? (
+            <span className="portal-tour-quota-chip portal-tour-quota-chip--success">
+              {t("lobby.pickQuotaSuccess", {
+                used: successUsed,
+                cap: successCap,
+              })}
             </span>
           ) : null}
         </div>

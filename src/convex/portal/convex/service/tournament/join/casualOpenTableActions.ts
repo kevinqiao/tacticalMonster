@@ -8,9 +8,11 @@ import type { ActionCtx } from "../../../_generated/server";
 import { internalAction } from "../../../_generated/server";
 import { getPortalTournamentDefinition, effectiveGameSequence } from "../../../data/portalTournamentConfigs";
 import { pickCasualMatchSeedBinding } from "../../bridge/casualSeedProvider";
+import { resolveMultiRitualJoinTemplate } from "../../bridge/portalSeasonSeedPickSignals";
 import type { CasualMatchSeedBinding } from "./casualMatchSeedBinding";
 import { type JoinChargeMeta } from "./casualOpenTableMutations";
 import type { SeedBindingByGameIndex } from "../shared/casualSessionOpenCore";
+import { asyncMatchJoinOpenForCreate } from "./casualAsyncMatchJoinCore";
 
 type ClaimOk = {
   ok: true;
@@ -462,7 +464,10 @@ export const expireCasualMatchQueueEntryOpen = internalAction({
 });
 
 /**
- * Async multi: try join open unfinished table; else create with effectiveHumans.
+ * Async multi:
+ * - always compute effectiveHumans from profile rules
+ * - eff=1 → create immediately (joinOpen=false; no join-existing)
+ * - eff>1 → try join open unfinished table; else create (joinOpen=true)
  * Always returns ready/error (never queued).
  */
 export const joinOrCreateAsyncMultiTable = internalAction({
@@ -499,6 +504,43 @@ export const joinOrCreateAsyncMultiTable = internalAction({
       return { ok: false as const, error: "unknown_tournament" as const };
     }
 
+    /** Defense: multi ritual rewrite if joinTournament was bypassed. */
+    if (!args.campaignId && def.matchType === "multi_ranked") {
+      const signals = await ctx.runQuery(
+        internal.service.bridge.portalSeasonSeedPickQueries.loadSignals,
+        { uid, gameType: def.gameType }
+      );
+      const rewritten = resolveMultiRitualJoinTemplate({
+        requestedTemplateId: templateId,
+        matchType: def.matchType,
+        gameType: def.gameType,
+        ladderProgress: signals.settledSoloCount,
+      });
+      if (rewritten.ritualForcedSolo) {
+        const soloDef = getPortalTournamentDefinition(rewritten.templateId);
+        if (soloDef) {
+          const opened = await ctx.runAction(
+            internal.service.tournament.join.casualOpenTableActions.openCasualSoloTable,
+            {
+              uid,
+              templateId: rewritten.templateId,
+              ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
+              ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
+              ...(args.maxPlaysPerDay != null
+                ? { maxPlaysPerDay: args.maxPlaysPerDay }
+                : {}),
+              ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+              ...(args.playEntryLane ? { playEntryLane: args.playEntryLane } : {}),
+            }
+          );
+          if (opened.ok) {
+            return { ...opened, ritualForcedSolo: true as const };
+          }
+          return opened;
+        }
+      }
+    }
+
     const existingOpen = await ctx.runQuery(
       internal.service.tournament.join.casualOpenTableGuard.getAnyGlobalOpenCasualMatch,
       { uid }
@@ -526,37 +568,41 @@ export const joinOrCreateAsyncMultiTable = internalAction({
       return { ok: false as const, error: eff.error };
     }
     const effectiveHumans = eff.effectiveHumans;
+    const joinOpen = asyncMatchJoinOpenForCreate(effectiveHumans);
 
-    const joined = await ctx.runMutation(
-      internal.service.tournament.join.casualAsyncMatchJoin.tryJoinExistingAsyncMatch,
-      {
-        uid,
-        templateId,
-        effectiveHumans,
-        ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
-        ...(args.campaignId ? { campaignId: args.campaignId } : {}),
-        ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
-        ...(args.maxPlaysPerDay != null ? { maxPlaysPerDay: args.maxPlaysPerDay } : {}),
-        ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
-        ...(args.playEntryLane ? { playEntryLane: args.playEntryLane } : {}),
+    // eff>1: prefer seating on an existing open unfinished table.
+    if (joinOpen) {
+      const joined = await ctx.runMutation(
+        internal.service.tournament.join.casualAsyncMatchJoin.tryJoinExistingAsyncMatch,
+        {
+          uid,
+          templateId,
+          effectiveHumans,
+          ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
+          ...(args.campaignId ? { campaignId: args.campaignId } : {}),
+          ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
+          ...(args.maxPlaysPerDay != null ? { maxPlaysPerDay: args.maxPlaysPerDay } : {}),
+          ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+          ...(args.playEntryLane ? { playEntryLane: args.playEntryLane } : {}),
+        }
+      );
+      if (!joined.ok) {
+        return joined;
       }
-    );
-    if (!joined.ok) {
-      return joined;
-    }
-    if (joined.joined) {
-      return {
-        ok: true as const,
-        queued: false as const,
-        templateId,
-        gameId: joined.gameId,
-        matchId: joined.matchId,
-        runTournamentId: joined.runTournamentId,
-        vouchersCharged: joined.vouchersCharged,
-        coinsCharged: joined.coinsCharged,
-        gemsCharged: joined.gemsCharged,
-        activityIds: joined.activityIds,
-      };
+      if (joined.joined) {
+        return {
+          ok: true as const,
+          queued: false as const,
+          templateId,
+          gameId: joined.gameId,
+          matchId: joined.matchId,
+          runTournamentId: joined.runTournamentId,
+          vouchersCharged: joined.vouchersCharged,
+          coinsCharged: joined.coinsCharged,
+          gemsCharged: joined.gemsCharged,
+          activityIds: joined.activityIds,
+        };
+      }
     }
 
     const charge = await ctx.runMutation(
@@ -596,7 +642,7 @@ export const joinOrCreateAsyncMultiTable = internalAction({
       ...(args.playEntryLane ? { playEntryLane: args.playEntryLane } : {}),
       effectiveHumans,
       matchPartitionKey: charge.matchPartitionKey,
-      joinOpen: true,
+      joinOpen,
     };
 
     const opened = await openCasualTableFromClaimHandler(ctx, { templateId, claim });

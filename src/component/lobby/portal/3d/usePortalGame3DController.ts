@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import i18n from "@/i18n";
 import { getPortalDailyPlayLimits } from "@/convex/portal/convex/data/portalDailyPlayLimits";
 import {
   getPortalTournamentDefinition,
@@ -307,6 +308,17 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
    * 却去拉广告，服务端仍返回 free_quota_available。
    * 配额尚未加载时再回退本地推算。
    */
+  const soloSuccessQuota = portal.dailyPlayQuota?.soloSuccess;
+  const soloSuccessEnabled = soloSuccessQuota?.enabled === true;
+  const soloSuccessDailyCap = Math.max(
+    0,
+    Math.floor(soloSuccessQuota?.dailyCap ?? 0)
+  );
+  const soloSuccessUsedToday = Math.min(
+    Math.max(0, Math.floor(soloSuccessQuota?.usedToday ?? 0)),
+    soloSuccessDailyCap > 0 ? soloSuccessDailyCap : Number.POSITIVE_INFINITY
+  );
+
   const soloLadderPlaysToday =
     portal.dailyPlayQuota?.solo.playsToday ?? clientSoloLadderPlays;
   const multiLadderPlaysToday =
@@ -877,6 +889,11 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
           ...(ticketEntry ? { ticketEntry: true } : {}),
         });
         if (outcome.kind === "ready") {
+          if (outcome.ritualForcedSolo) {
+            setNote(
+              i18n.t("lobby.ritualForcedSolo", { ns: "portal.player" })
+            );
+          }
           setOpeningPlay(mode);
           const modalGame =
             getTournamentDef(outcome.templateId)?.gameType ?? playGameType;
@@ -1138,6 +1155,9 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     multiLadderPlaysToday,
     soloMaxPlaysPerDay,
     multiMaxPlaysPerDay,
+    soloSuccessEnabled,
+    soloSuccessUsedToday,
+    soloSuccessDailyCap,
     soloDailyExhausted,
     multiDailyExhausted,
     soloAdEntryAvailable,

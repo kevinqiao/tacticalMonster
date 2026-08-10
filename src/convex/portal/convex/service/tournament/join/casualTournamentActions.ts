@@ -11,6 +11,7 @@ import {
 } from "../../../data/portalTournamentConfigs";
 import { isCasualGameLobbyVisible } from "../../../data/partnerGameRegistry";
 import { authorizeCampaignJoinViaHttp } from "../../bridge/merchantCampaignBridge";
+import { resolveMultiRitualJoinTemplate } from "../../bridge/portalSeasonSeedPickSignals";
 import { sessionPartnerIdFromUid } from "../../../../../shared/platformAuth/parsePlatformUid";
 import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
 
@@ -111,7 +112,7 @@ export const joinTournament = authedAction({
       return { ok: false as const, error: "missing_tournament" };
     }
 
-    const def = getPortalTournamentDefinition(resolvedTemplateId);
+    let def = getPortalTournamentDefinition(resolvedTemplateId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
     }
@@ -127,6 +128,30 @@ export const joinTournament = authedAction({
     if (adEntry && ticketEntry) {
       return { ok: false as const, error: "invalid_entry_mode" };
     }
+
+    /** Multi ritual: force Solo template before entry charge / open (non-campaign). */
+    let ritualForcedSolo = false;
+    if (!campaignId && def.matchType === "multi_ranked") {
+      const signals = await ctx.runQuery(
+        internal.service.bridge.portalSeasonSeedPickQueries.loadSignals,
+        { uid, gameType: def.gameType }
+      );
+      const rewritten = resolveMultiRitualJoinTemplate({
+        requestedTemplateId: resolvedTemplateId,
+        matchType: def.matchType,
+        gameType: def.gameType,
+        ladderProgress: signals.settledSoloCount,
+      });
+      if (rewritten.ritualForcedSolo) {
+        const soloDef = getPortalTournamentDefinition(rewritten.templateId);
+        if (soloDef && isJoinableCasualTournament(soloDef)) {
+          resolvedTemplateId = rewritten.templateId;
+          def = soloDef;
+          ritualForcedSolo = true;
+        }
+      }
+    }
+
     // Pre-check ladder ceiling before consuming ad/ticket grants (avoid burn-after-ad).
     if (!campaignId && (adEntry || ticketEntry)) {
       const daily = await ctx.runQuery(
@@ -175,7 +200,7 @@ export const joinTournament = authedAction({
     const playEntryLane = adEntry ? "ad" : ticketEntry ? "ticket" : undefined;
 
     if (def.maxPlayers <= 1) {
-      return await ctx.runAction(
+      const opened = await ctx.runAction(
         internal.service.tournament.join.casualOpenTableActions.openCasualSoloTable,
         {
           uid,
@@ -191,6 +216,10 @@ export const joinTournament = authedAction({
           ...(playEntryLane ? { playEntryLane } : {}),
         }
       );
+      if (opened.ok && ritualForcedSolo) {
+        return { ...opened, ritualForcedSolo: true as const };
+      }
+      return opened;
     }
 
     // Async multi: join open unfinished table or create (no queue).

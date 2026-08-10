@@ -37,6 +37,7 @@ import BlockBlastRuleManager from './BlockBlastRuleManager';
 import { createRolloutReplayState } from '../replay/blockBlastRolloutReplay';
 import {
     buildBlockBlastScoreReport,
+    buildCasualScoreChallengeUI,
     getCasualMatchScoreLineLabel,
     isCasualSoloP75ChallengeTemplate,
     shouldOpenCasualTableSummaryAfterScoreReport,
@@ -48,6 +49,7 @@ import {
     type CasualAsyncTableSummaryUI,
     type ManualSettleConfirmExtras,
 } from '../../../shared/casualAsyncTableSummaryUI';
+import { casualHudTargetsFromLoadRes } from '../../../shared/casualHudTargetScores';
 import type { WeeklyLeagueSettleUI } from '../../../shared/casualWeeklyLeagueScoreUI';
 import {
     queueTriathlonMidSessionAdvance,
@@ -113,6 +115,14 @@ function casualSettleErrorMessage(error?: string): string {
 }
 
 export type GridCellRefs = (HTMLDivElement | null)[][];
+
+export type BlockBlastScoreFloat = {
+    id: number;
+    delta: number;
+    /** 相对 player container 的坐标；缺省则棋盘中心偏上 */
+    x?: number;
+    y?: number;
+};
 
 /** placeShape 等与服务器对齐的状态补丁；勿在 await 后就地改闭包里的 gameState */
 export type GameStateCommitPatch = Partial<
@@ -184,10 +194,19 @@ interface IBlockBlastGameContext {
     dismissPostCasualSummary: () => void;
     reloadCasualRun: () => Promise<boolean>;
     casualTournamentId?: string;
-    /** P75 挑战等：本局 seed 分位目标分 */
+    /** Clear-bar 挑战分（结算 success） */
     targetScore?: number;
+    /** HUD 双档：seed p75 / p90 */
+    targetScoreP75?: number;
+    targetScoreP90?: number;
     /** 回放/复盘模式：本地按 seed 重放，跳过 Convex 建局与结算流程 */
     replayMode: boolean;
+    /** 消行得分飘字 */
+    scoreFloats: BlockBlastScoreFloat[];
+    pushScoreFloat: (
+        delta: number,
+        opts?: { x?: number; y?: number; rows?: number[]; cols?: number[] }
+    ) => void;
 }
 
 const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
@@ -230,7 +249,11 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     reloadCasualRun: async () => false,
     casualTournamentId: undefined,
     targetScore: undefined,
+    targetScoreP75: undefined,
+    targetScoreP90: undefined,
     replayMode: false,
+    scoreFloats: [],
+    pushScoreFloat: () => {},
 });
 
 export const useBlockBlastGameManager = () => {
@@ -277,6 +300,10 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         setInteractionPhaseState(phase);
     }, []);
     const [targetScore, setTargetScore] = useState<number | undefined>(undefined);
+    const [targetScoreP75, setTargetScoreP75] = useState<number | undefined>(undefined);
+    const [targetScoreP90, setTargetScoreP90] = useState<number | undefined>(undefined);
+    const [scoreFloats, setScoreFloats] = useState<BlockBlastScoreFloat[]>([]);
+    const scoreFloatIdRef = useRef(0);
     const boardDimensionRef = useRef<BoardDimension | null>(null);
     const gridCellRefs = useRef<GridCellRefs | null>(null);
     if (!gridCellRefs.current) {
@@ -446,6 +473,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         setGameReport(null);
         setInteractionPhase(GameInteractionPhase.idle);
         setTargetScore(undefined);
+        setTargetScoreP75(undefined);
+        setTargetScoreP90(undefined);
         setSettleConfirmOpen(false);
         setPostCasualScoreReportOpen(false);
         setPostCasualScoreReport(null);
@@ -516,16 +545,15 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     : typeof targetScore === 'number'
                       ? targetScore
                       : undefined;
-            if (challengeThreshold != null) {
-                const achievedScore = report.totalScore;
-                report.challenge = {
-                    targetScore: challengeThreshold,
-                    achievedScore,
-                    success:
-                        typeof settle.success === 'boolean'
-                            ? settle.success
-                            : achievedScore >= challengeThreshold,
-                };
+            const challenge = buildCasualScoreChallengeUI({
+                achievedScore: report.totalScore,
+                clearThreshold: challengeThreshold,
+                clearSuccess: settle.success,
+                p75: targetScoreP75,
+                p90: targetScoreP90,
+            });
+            if (challenge) {
+                report.challenge = challenge;
             }
 
             if (
@@ -609,6 +637,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             triathlonSessionActive,
             onTriathlonNextGame,
             targetScore,
+            targetScoreP75,
+            targetScoreP90,
         ]
     );
 
@@ -660,17 +690,24 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     const mergeCasualSettleIntoOpenOverlays = useCallback(
         (settled: Extract<CasualRunSubmitOutcome, { ok: true }>) => {
             if (settled.triathlonScoreReportOnly) return;
-            if (typeof settled.seedScoreThreshold === 'number') {
+            if (
+                typeof settled.seedScoreThreshold === 'number' ||
+                targetScoreP75 != null ||
+                targetScoreP90 != null
+            ) {
                 setPostCasualScoreReport((prev) => {
                     if (!prev) return prev;
-                    return {
-                        ...prev,
-                        challenge: {
-                            targetScore: settled.seedScoreThreshold!,
-                            achievedScore: prev.totalScore,
-                            success: Boolean(settled.success),
-                        },
-                    };
+                    const challenge = buildCasualScoreChallengeUI({
+                        achievedScore: prev.totalScore,
+                        clearThreshold:
+                            typeof settled.seedScoreThreshold === 'number'
+                                ? settled.seedScoreThreshold
+                                : targetScore,
+                        clearSuccess: settled.success,
+                        p75: targetScoreP75,
+                        p90: targetScoreP90,
+                    });
+                    return challenge ? { ...prev, challenge } : prev;
                 });
             }
             if (settled.tableSummary) {
@@ -718,7 +755,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 setPostCasualWeeklyLeagueSettle(settled.weeklyLeagueSettle);
             }
         },
-        [casualTournamentId, fetchTableSummaryForGame]
+        [casualTournamentId, fetchTableSummaryForGame, targetScore, targetScoreP75, targetScoreP90]
     );
 
     /** 强行结束：取消 timeout scheduler、服务端终局、ingest casual/portal */
@@ -802,12 +839,22 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 reportElement: null,
             };
             setGameReport(null);
+            const hud = casualHudTargetsFromLoadRes(
+                res as {
+                    seedScoreThreshold?: number;
+                    seedScoreThresholdP75?: number;
+                    seedScoreThresholdP90?: number;
+                    game?: { targetScore?: number };
+                }
+            );
+            if (hud.targetScore != null) {
+                setTargetScore(hud.targetScore);
+                game.targetScore = hud.targetScore;
+            }
+            setTargetScoreP75(hud.targetScoreP75);
+            setTargetScoreP90(hud.targetScoreP90);
             setGameState(game);
             setInteractionPhase(GameInteractionPhase.idle);
-            const threshold = (res as { seedScoreThreshold?: number }).seedScoreThreshold;
-            if (typeof threshold === 'number' && Number.isFinite(threshold)) {
-                setTargetScore(threshold);
-            }
             return true;
         }
         return false;
@@ -1017,6 +1064,72 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         setBoardDimension(dimension);
     }, []);
 
+    const pushScoreFloat = useCallback(
+        (
+            delta: number,
+            opts?: { x?: number; y?: number; rows?: number[]; cols?: number[] }
+        ) => {
+            if (!Number.isFinite(delta) || delta === 0) return;
+            let x = opts?.x;
+            let y = opts?.y;
+            if (x == null || y == null) {
+                const refs = gridCellRefs.current;
+                const rows = opts?.rows ?? [];
+                const cols = opts?.cols ?? [];
+                const pts: Array<{ x: number; y: number }> = [];
+                if (refs) {
+                    const n = refs.length;
+                    for (const row of rows) {
+                        for (let c = 0; c < n; c++) {
+                            const el = refs[row]?.[c];
+                            if (!el) continue;
+                            const r = el.getBoundingClientRect();
+                            pts.push({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+                        }
+                    }
+                    for (const col of cols) {
+                        for (let r = 0; r < n; r++) {
+                            const el = refs[r]?.[col];
+                            if (!el) continue;
+                            const box = el.getBoundingClientRect();
+                            pts.push({
+                                x: box.left + box.width / 2,
+                                y: box.top + box.height / 2,
+                            });
+                        }
+                    }
+                }
+                let root: HTMLElement | null = null;
+                if (refs) {
+                    outer: for (const row of refs) {
+                        for (const cell of row) {
+                            if (!cell) continue;
+                            root = cell.closest('.blockblast-player-container');
+                            if (root) break outer;
+                        }
+                    }
+                }
+                if (pts.length > 0 && root) {
+                    const rr = root.getBoundingClientRect();
+                    const sx = pts.reduce((a, p) => a + p.x, 0) / pts.length;
+                    const sy = pts.reduce((a, p) => a + p.y, 0) / pts.length;
+                    x = sx - rr.left;
+                    y = sy - rr.top;
+                } else {
+                    const bd = boardDimensionRef.current;
+                    x = bd ? bd.grid.x + bd.grid.width / 2 : undefined;
+                    y = bd ? bd.grid.y + bd.grid.height * 0.4 : undefined;
+                }
+            }
+            const id = ++scoreFloatIdRef.current;
+            setScoreFloats((list) => [...list.slice(-6), { id, delta, x, y }]);
+            window.setTimeout(() => {
+                setScoreFloats((list) => list.filter((f) => f.id !== id));
+            }, 1100);
+        },
+        []
+    );
+
     const loadGame = useCallback(async () => {
         if (!gameId) return;
         const res = await convex.action(api.proxy.controller.loadGame, {
@@ -1036,13 +1149,23 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 reportElement: null,
             };
             setGameReport(null);
+            const hud = casualHudTargetsFromLoadRes(
+                res as {
+                    seedScoreThreshold?: number;
+                    seedScoreThresholdP75?: number;
+                    seedScoreThresholdP90?: number;
+                    game?: { targetScore?: number };
+                }
+            );
+            if (hud.targetScore != null) {
+                setTargetScore(hud.targetScore);
+                game.targetScore = hud.targetScore;
+            }
+            setTargetScoreP75(hud.targetScoreP75);
+            setTargetScoreP90(hud.targetScoreP90);
             setGameState(game);
             setInteractionPhase(GameInteractionPhase.idle);
             onGameLoadComplete?.();
-            const threshold = (res as { seedScoreThreshold?: number }).seedScoreThreshold;
-            if (typeof threshold === 'number' && Number.isFinite(threshold)) {
-                setTargetScore(threshold);
-            }
         }
     }, [convex, gameId, onGameLoadComplete, casualPlatformBridge]);
 
@@ -1583,7 +1706,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         reloadCasualRun,
         casualTournamentId,
         targetScore,
+        targetScoreP75,
+        targetScoreP90,
         replayMode,
+        scoreFloats,
+        pushScoreFloat,
     };
 
     return (

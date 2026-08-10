@@ -1,7 +1,11 @@
 import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import type { PortalTournamentDefinition } from "../../data/portalTournamentConfigs";
-import { isPortalP75Success } from "../../data/portalTournamentConfigs";
+import {
+  isPortalP75Success,
+  resolveSoloSeedSuccessThreshold,
+} from "../../data/portalTournamentConfigs";
+import { isPortalSuccessQuantile } from "../../data/portalSeedTierPolicy";
 import { resolvePlatformSeedScoreThreshold } from "../botFill/computeBotFillsCore";
 import type { CasualAsyncTableSummary } from "../tournament/settle/casualRunSettlementFill";
 
@@ -76,25 +80,39 @@ export async function resolvePortalSoloSeedScoreThresholdForPlayerGame(
 ): Promise<number | undefined> {
   if (!isPortalSoloP75ChallengeDef(args.def)) return undefined;
 
-  const bindingQuantile = args.pg.seedBinding?.successQuantile;
-  const quantile =
-    bindingQuantile === "p50" || bindingQuantile === "p75" || bindingQuantile === "p90"
-      ? bindingQuantile
-      : args.def.seedQuantileSuccess?.quantile;
-  if (quantile !== "p50" && quantile !== "p75" && quantile !== "p90") return undefined;
-
-  const inline = args.pg.seedBinding?.scoreQuantiles?.[quantile];
-  if (typeof inline === "number" && Number.isFinite(inline)) {
-    return Math.floor(inline);
+  const binding = args.pg.seedBinding;
+  if (binding?.ritualOneLineClear) {
+    return resolveSoloSeedSuccessThreshold({
+      gameType: args.pg.gameType,
+      ritualOneLineClear: true,
+    });
   }
-  if (args.pg.seedBinding) {
+
+  const bindingQuantile = binding?.successQuantile;
+  const quantile = isPortalSuccessQuantile(bindingQuantile)
+    ? bindingQuantile
+    : args.def.seedQuantileSuccess?.quantile;
+  if (!isPortalSuccessQuantile(quantile)) return undefined;
+
+  const inline = binding?.scoreQuantiles?.[quantile];
+  if (typeof inline === "number" && Number.isFinite(inline)) {
+    return resolveSoloSeedSuccessThreshold({
+      gameType: args.pg.gameType,
+      quantiles: binding?.scoreQuantiles,
+      successQuantile: quantile,
+      seedQuantileSuccess: args.def.seedQuantileSuccess,
+    });
+  }
+  if (binding) {
     const resolved = await resolvePlatformSeedScoreThreshold(ctx, {
       successThresholdQuantile: quantile,
-      seedBinding: args.pg.seedBinding,
+      seedBinding: binding,
       gameType: args.pg.gameType,
+      ritualOneLineClear: binding.ritualOneLineClear,
+      seedQuantileSuccess: args.def.seedQuantileSuccess,
     });
     if (typeof resolved === "number" && Number.isFinite(resolved)) {
-      return Math.floor(resolved);
+      return resolved;
     }
   }
   return undefined;

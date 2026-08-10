@@ -23,22 +23,27 @@ export const flipCard = ({ data, onComplete }: { data: any; onComplete?: () => v
         zIndex: FLIP_FLIGHT_Z,
     });
 
+    let finished = false;
+    const finish = () => {
+        if (finished) return;
+        finished = true;
+        if (card.ele) {
+            const z =
+                card.zone === ZoneType.TABLEAU
+                    ? tableauCardZIndex(card.zoneId, card.zoneIndex)
+                    : (card.zoneIndex ?? 0) + 10;
+            gsap.set(card.ele, { rotateY: 180, zIndex: z });
+        }
+        onComplete?.();
+    };
+
     gsap.timeline({
-        onComplete: () => {
-            if (card.ele) {
-                const z =
-                    card.zone === ZoneType.TABLEAU
-                        ? tableauCardZIndex(card.zoneId, card.zoneIndex)
-                        : (card.zoneIndex ?? 0) + 10;
-                gsap.set(card.ele, { rotateY: 180, zIndex: z });
-            }
-            onComplete?.();
-        },
-    })
-        .to(card.ele, {
-            rotateY: 180,
-            duration,
-            ease: "sine.inOut",
-            force3D: true,
-        });
+        onComplete: finish,
+        onInterrupt: finish,
+    }).to(card.ele, {
+        rotateY: 180,
+        duration,
+        ease: "sine.inOut",
+        force3D: true,
+    });
 };

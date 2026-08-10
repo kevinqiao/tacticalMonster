@@ -14,7 +14,7 @@ export const CAMPAIGN_LEAGUE_BOT_VALUE_BAND: Record<
   CampaignLeagueMode,
   { min: number; max: number }
 > = {
-  // Solo accumulates +3/-1 per run (aligned with PORTAL_SOLO_POINTS).
+  // Solo accumulates success+clearBonus / fail per run (aligned with PORTAL_SOLO_POINTS).
   solo: { min: 6, max: 150 },
   multi: { min: 8, max: 120 },
 };

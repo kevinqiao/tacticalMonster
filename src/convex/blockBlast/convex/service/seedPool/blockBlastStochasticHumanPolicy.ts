@@ -1,8 +1,8 @@
 /**
- * Block Blast 随机拟人落子策略：枚举手牌候选落子，按消行/盘面空旷/孔洞启发打分，
+ * Block Blast 随机拟人落子策略：枚举手牌候选落子，按消行/盘面空旷/孔洞/剩余机动性启发打分，
  * 按人格 greediness 在 topN 内随机挑选。驱动所有 rollout。
  */
-import { checkLines, clearLines, placeShapeOnGrid } from "../../utils/gameRules";
+import { canPlaceShape, checkLines, clearLines, placeShapeOnGrid } from "../../utils/gameRules";
 import { createSeededRandom } from "./blockBlastSeedRandom";
 import {
   enumeratePlacements,
@@ -12,6 +12,7 @@ import {
 import type { HumanPersona } from "./blockBlastHumanPersonas";
 import { personaForRollout } from "./blockBlastHumanPersonas";
 import type { BlockBlastRecordedOp } from "./blockBlastRecordedOpTypes";
+import type { Shape } from "../../types/BlockBlastTypes";
 
 export type StochasticPolicyContext = {
   rng: () => number;
@@ -59,6 +60,29 @@ function countHoles(grid: number[][]): number {
   return holes;
 }
 
+/** 落子后其余手牌在盘上的合法落点总数（保活信号）。 */
+export function countRemainingMobility(
+  grid: number[][],
+  shapes: Shape[],
+  usedSlot: number,
+  gridSize: number
+): number {
+  let n = 0;
+  for (let slot = 0; slot < shapes.length; slot++) {
+    if (slot === usedSlot) continue;
+    const shape = shapes[slot]?.shape;
+    if (!shape?.length) continue;
+    const sh = shape.length;
+    const sw = shape[0]?.length ?? 0;
+    for (let row = 0; row <= gridSize - sh; row++) {
+      for (let col = 0; col <= gridSize - sw; col++) {
+        if (canPlaceShape(grid, shape, row, col)) n += 1;
+      }
+    }
+  }
+  return n;
+}
+
 /** 候选落子的启发分（仅在 grid 副本上模拟，不触发出块）。 */
 export function evaluatePlacement(
   state: BlockBlastSimState,
@@ -75,10 +99,18 @@ export function evaluatePlacement(
   }
   const filled = countFilled(grid);
   const holes = countHoles(grid);
+  const mobility = countRemainingMobility(
+    grid,
+    state.shapes,
+    candidate.slot,
+    state.gridSize
+  );
+  const mobilityBias = persona.mobilityBias ?? 0;
   return (
     linesCleared * persona.lineClearBias -
     filled * persona.emptinessBias -
-    holes * persona.holeBias
+    holes * persona.holeBias +
+    mobility * mobilityBias
   );
 }
 

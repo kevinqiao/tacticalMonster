@@ -1,4 +1,4 @@
-/** Catalog `gameType` values (casualPlatform seed_pool schema). */
+/** Catalog `gameType` values (Portal / shared seed_pool schema). */
 export const CATALOG_GAME_TYPES = {
   block_blast: "block_blast",
   solitaire: "solitaire",

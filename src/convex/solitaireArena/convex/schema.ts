@@ -25,6 +25,8 @@ export default defineSchema({
         status: v.number(),
         score: v.number(),
         moves: v.number(),
+        /** 单人挑战 clear 线（结算 / HUD）；达标不终局 */
+        targetScore: v.optional(v.number()),
         playStartedAt: v.optional(v.number()),
         /** 休闲 run 绝对截止时间（epoch ms），创局时写入 */
         dueTime: v.optional(v.number()),

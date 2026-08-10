@@ -58,6 +58,8 @@ export interface GameModel {
     lastUpdate?: number;
     /** 休闲 run：对局截止时间（ms） */
     dueTime?: number;
+    /** 单人挑战达标线；达到后立即 WON */
+    targetScore?: number;
 }
 
 export interface BlockBlastRule {

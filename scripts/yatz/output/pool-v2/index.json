@@ -1,7 +1,7 @@
 {
   "poolVersion": "v2",
   "rolloutCount": 20,
-  "generatedAt": "2026-08-04T16:18:23.766Z",
+  "generatedAt": "2026-08-07T21:29:14.106Z",
   "entries": [
     {
       "seedId": "v2_yatz_00072",
@@ -26,6 +26,7 @@
           "p90": 453
         },
         "playerEaseScore": 191,
+        "onboardingScore": 358,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -236,6 +237,7 @@
           "p90": 385
         },
         "playerEaseScore": 148,
+        "onboardingScore": 328,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -446,6 +448,7 @@
           "p90": 357
         },
         "playerEaseScore": 182,
+        "onboardingScore": 339,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -656,6 +659,7 @@
           "p90": 356
         },
         "playerEaseScore": 139,
+        "onboardingScore": 326,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -866,6 +870,7 @@
           "p90": 362
         },
         "playerEaseScore": 124,
+        "onboardingScore": 320,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -1076,6 +1081,7 @@
           "p90": 271
         },
         "playerEaseScore": 168,
+        "onboardingScore": 327,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -1286,6 +1292,7 @@
           "p90": 359
         },
         "playerEaseScore": 141,
+        "onboardingScore": 323,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -1496,6 +1503,7 @@
           "p90": 501
         },
         "playerEaseScore": 101,
+        "onboardingScore": 316,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -1706,6 +1714,7 @@
           "p90": 269
         },
         "playerEaseScore": 178,
+        "onboardingScore": 325,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -1916,6 +1925,7 @@
           "p90": 243
         },
         "playerEaseScore": 159,
+        "onboardingScore": 314,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -2126,6 +2136,7 @@
           "p90": 239
         },
         "playerEaseScore": 178,
+        "onboardingScore": 318,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -2336,6 +2347,7 @@
           "p90": 257
         },
         "playerEaseScore": 152,
+        "onboardingScore": 313,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -2546,6 +2558,7 @@
           "p90": 237
         },
         "playerEaseScore": 179,
+        "onboardingScore": 324,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -2756,6 +2769,7 @@
           "p90": 337
         },
         "playerEaseScore": 119,
+        "onboardingScore": 310,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -2966,6 +2980,7 @@
           "p90": 255
         },
         "playerEaseScore": 143,
+        "onboardingScore": 310,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -3176,6 +3191,7 @@
           "p90": 261
         },
         "playerEaseScore": 159,
+        "onboardingScore": 321,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -3386,6 +3402,7 @@
           "p90": 235
         },
         "playerEaseScore": 171,
+        "onboardingScore": 317,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -3596,6 +3613,7 @@
           "p90": 226
         },
         "playerEaseScore": 164,
+        "onboardingScore": 314,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -3806,6 +3824,7 @@
           "p90": 215
         },
         "playerEaseScore": 174,
+        "onboardingScore": 315,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -4016,6 +4035,7 @@
           "p90": 229
         },
         "playerEaseScore": 163,
+        "onboardingScore": 314,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -4226,6 +4246,7 @@
           "p90": 243
         },
         "playerEaseScore": 154,
+        "onboardingScore": 312,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -4436,6 +4457,7 @@
           "p90": 249
         },
         "playerEaseScore": 174,
+        "onboardingScore": 319,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -4646,6 +4668,7 @@
           "p90": 277
         },
         "playerEaseScore": 149,
+        "onboardingScore": 311,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -4856,6 +4879,7 @@
           "p90": 342
         },
         "playerEaseScore": 110,
+        "onboardingScore": 301,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -5066,6 +5090,7 @@
           "p90": 227
         },
         "playerEaseScore": 169,
+        "onboardingScore": 313,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -5276,6 +5301,7 @@
           "p90": 237
         },
         "playerEaseScore": 138,
+        "onboardingScore": 303,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -5486,6 +5512,7 @@
           "p90": 240
         },
         "playerEaseScore": 154,
+        "onboardingScore": 308,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -5696,6 +5723,7 @@
           "p90": 232
         },
         "playerEaseScore": 146,
+        "onboardingScore": 303,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -5906,6 +5934,7 @@
           "p90": 210
         },
         "playerEaseScore": 169,
+        "onboardingScore": 315,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -6116,6 +6145,7 @@
           "p90": 211
         },
         "playerEaseScore": 156,
+        "onboardingScore": 312,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -6326,6 +6356,7 @@
           "p90": 228
         },
         "playerEaseScore": 167,
+        "onboardingScore": 312,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -6536,6 +6567,7 @@
           "p90": 304
         },
         "playerEaseScore": 122,
+        "onboardingScore": 300,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -6746,6 +6778,7 @@
           "p90": 237
         },
         "playerEaseScore": 155,
+        "onboardingScore": 314,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -6956,6 +6989,7 @@
           "p90": 207
         },
         "playerEaseScore": 165,
+        "onboardingScore": 307,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -7166,6 +7200,7 @@
           "p90": 214
         },
         "playerEaseScore": 166,
+        "onboardingScore": 311,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -7376,6 +7411,7 @@
           "p90": 244
         },
         "playerEaseScore": 149,
+        "onboardingScore": 309,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -7586,6 +7622,7 @@
           "p90": 211
         },
         "playerEaseScore": 170,
+        "onboardingScore": 314,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -7796,6 +7833,7 @@
           "p90": 206
         },
         "playerEaseScore": 168,
+        "onboardingScore": 311,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -8006,6 +8044,7 @@
           "p90": 205
         },
         "playerEaseScore": 172,
+        "onboardingScore": 313,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -8216,6 +8255,7 @@
           "p90": 251
         },
         "playerEaseScore": 121,
+        "onboardingScore": 307,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -8426,6 +8466,7 @@
           "p90": 206
         },
         "playerEaseScore": 159,
+        "onboardingScore": 306,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -8636,6 +8677,7 @@
           "p90": 209
         },
         "playerEaseScore": 155,
+        "onboardingScore": 304,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -8846,6 +8888,7 @@
           "p90": 208
         },
         "playerEaseScore": 163,
+        "onboardingScore": 310,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -9056,6 +9099,7 @@
           "p90": 198
         },
         "playerEaseScore": 154,
+        "onboardingScore": 301,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -9266,6 +9310,7 @@
           "p90": 238
         },
         "playerEaseScore": 134,
+        "onboardingScore": 300,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -9476,6 +9521,7 @@
           "p90": 192
         },
         "playerEaseScore": 159,
+        "onboardingScore": 308,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -9686,6 +9732,7 @@
           "p90": 191
         },
         "playerEaseScore": 155,
+        "onboardingScore": 301,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -9896,6 +9943,7 @@
           "p90": 219
         },
         "playerEaseScore": 161,
+        "onboardingScore": 307,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -10106,6 +10154,7 @@
           "p90": 203
         },
         "playerEaseScore": 152,
+        "onboardingScore": 304,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -10316,6 +10365,7 @@
           "p90": 200
         },
         "playerEaseScore": 150,
+        "onboardingScore": 301,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -10526,6 +10576,7 @@
           "p90": 200
         },
         "playerEaseScore": 146,
+        "onboardingScore": 302,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -10736,6 +10787,7 @@
           "p90": 215
         },
         "playerEaseScore": 148,
+        "onboardingScore": 301,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -10946,6 +10998,7 @@
           "p90": 204
         },
         "playerEaseScore": 153,
+        "onboardingScore": 303,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -11156,6 +11209,7 @@
           "p90": 222
         },
         "playerEaseScore": 122,
+        "onboardingScore": 297,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -11366,6 +11420,7 @@
           "p90": 211
         },
         "playerEaseScore": 154,
+        "onboardingScore": 303,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -11576,6 +11631,7 @@
           "p90": 189
         },
         "playerEaseScore": 155,
+        "onboardingScore": 304,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -11786,6 +11842,7 @@
           "p90": 204
         },
         "playerEaseScore": 159,
+        "onboardingScore": 305,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -11996,6 +12053,7 @@
           "p90": 176
         },
         "playerEaseScore": 129,
+        "onboardingScore": 288,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -12206,6 +12264,7 @@
           "p90": 209
         },
         "playerEaseScore": 148,
+        "onboardingScore": 303,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -12416,6 +12475,7 @@
           "p90": 198
         },
         "playerEaseScore": 148,
+        "onboardingScore": 301,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -12626,6 +12686,7 @@
           "p90": 186
         },
         "playerEaseScore": 152,
+        "onboardingScore": 303,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -12836,6 +12897,7 @@
           "p90": 223
         },
         "playerEaseScore": 122,
+        "onboardingScore": 296,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -13046,6 +13108,7 @@
           "p90": 198
         },
         "playerEaseScore": 143,
+        "onboardingScore": 300,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -13256,6 +13319,7 @@
           "p90": 177
         },
         "playerEaseScore": 149,
+        "onboardingScore": 302,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -13466,6 +13530,7 @@
           "p90": 209
         },
         "playerEaseScore": 148,
+        "onboardingScore": 301,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -13676,6 +13741,7 @@
           "p90": 197
         },
         "playerEaseScore": 124,
+        "onboardingScore": 297,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -13886,6 +13952,7 @@
           "p90": 202
         },
         "playerEaseScore": 139,
+        "onboardingScore": 299,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -14096,6 +14163,7 @@
           "p90": 202
         },
         "playerEaseScore": 133,
+        "onboardingScore": 301,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -14306,6 +14374,7 @@
           "p90": 201
         },
         "playerEaseScore": 143,
+        "onboardingScore": 298,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -14516,6 +14585,7 @@
           "p90": 190
         },
         "playerEaseScore": 145,
+        "onboardingScore": 298,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -14726,6 +14796,7 @@
           "p90": 208
         },
         "playerEaseScore": 135,
+        "onboardingScore": 296,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -14936,6 +15007,7 @@
           "p90": 182
         },
         "playerEaseScore": 151,
+        "onboardingScore": 300,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -15146,6 +15218,7 @@
           "p90": 181
         },
         "playerEaseScore": 143,
+        "onboardingScore": 297,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -15356,6 +15429,7 @@
           "p90": 171
         },
         "playerEaseScore": 139,
+        "onboardingScore": 295,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -15566,6 +15640,7 @@
           "p90": 185
         },
         "playerEaseScore": 145,
+        "onboardingScore": 297,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -15776,6 +15851,7 @@
           "p90": 179
         },
         "playerEaseScore": 143,
+        "onboardingScore": 299,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -15986,6 +16062,7 @@
           "p90": 183
         },
         "playerEaseScore": 146,
+        "onboardingScore": 297,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -16196,6 +16273,7 @@
           "p90": 198
         },
         "playerEaseScore": 129,
+        "onboardingScore": 293,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -16406,6 +16484,7 @@
           "p90": 170
         },
         "playerEaseScore": 146,
+        "onboardingScore": 295,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },
@@ -16616,6 +16695,7 @@
           "p90": 153
         },
         "playerEaseScore": 140,
+        "onboardingScore": 291,
         "policyVersion": "yatz-manifest-v1",
         "decisionPolicyVersion": "yatz-decision-v2"
       },

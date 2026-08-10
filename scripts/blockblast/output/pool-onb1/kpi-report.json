@@ -1,0 +1,24 @@
+{
+  "generatedAt": "2026-08-07T23:36:54.082Z",
+  "poolVersion": "onb1",
+  "profile": "probe",
+  "health": {
+    "profile": "probe",
+    "seedCount": 0,
+    "meanTimeUpRate": 0,
+    "meanJackpotRate": 0,
+    "meanMediumBurstRate": 0,
+    "meanLateGameReachRate": 0,
+    "meanExperienceScore": 0,
+    "gatePassRate": 0,
+    "softPMean": 0
+  },
+  "warnCounts": {},
+  "failCounts": {},
+  "rejectReasons": {
+    "stuck_rate_too_high": 7085,
+    "low_player_ceiling": 40,
+    "collapsed_scores": 873,
+    "opening_too_easy": 2
+  }
+}

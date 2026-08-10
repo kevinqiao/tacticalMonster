@@ -7,6 +7,7 @@ import {
   isMediumBurst,
   KPI_THRESHOLDS_PROD,
 } from "../blockBlastExperienceKpi";
+import { computeBlockBlastOnboardingScore } from "../blockBlastSeedDifficulty";
 import type { RolloutDistributionMetrics } from "../blockBlastRecordedOpTypes";
 
 function baseMetrics(
@@ -53,8 +54,13 @@ function baseMetrics(
     scoreAt60P50: 20,
     scoreAt150P50: 50,
     scoreAt240P50: 90,
+    survivalTimeP25: 80,
+    survivalTimeP50: 120,
+    survivalTimeP90: 200,
+    survivalTimeSpread: 120,
     softPPassCount: 4,
     experienceScore: 0.5,
+    onboardingScore: 150,
     ...overrides,
   };
 }
@@ -73,6 +79,21 @@ describe("blockBlastExperienceKpi", () => {
       "prod"
     );
     expect(hardRejects.some((g) => g.id === "G7")).toBe(true);
+  });
+
+  it("prod G2 skipped when maxStuckRate override is 0", () => {
+    const m = baseMetrics({
+      stuckRate: 1,
+      timeUpRate: 0.1,
+      jackpotRate: 0.02,
+      mediumBurstRate: 0.4,
+      lateGameReachRate: 0.5,
+    });
+    const withG2 = evaluateExperienceGates(m, "prod");
+    expect(withG2.hardRejects.some((g) => g.id === "G2")).toBe(true);
+
+    const skipped = evaluateExperienceGates(m, "prod", { maxStuckRate: 0 });
+    expect(skipped.hardRejects.some((g) => g.id === "G2")).toBe(false);
   });
 
   it("probe only warns on low mediumBurstRate", () => {
@@ -106,5 +127,36 @@ describe("blockBlastExperienceKpi", () => {
     const score = computeExperienceScore({ ...m, softPPassCount: soft }, "prod");
     expect(score).toBeGreaterThan(0);
     expect(computeExperienceScore(baseMetrics({ layoutOutcome: "likely_dead" }))).toBeLessThan(0);
+  });
+
+  it("onboardingScore prefers high survivalP25 over boom-bust high P50", () => {
+    const base = {
+      experienceScore: 1,
+      earlyClearRate: 1,
+      matchTimeLimitSec: 300,
+      scoreMin: 48,
+    };
+    const stableEarly = computeBlockBlastOnboardingScore({
+      ...base,
+      survivalTimeP25: 48,
+      survivalTimeP50: 82,
+      survivalTimeSpread: 62,
+    });
+    const boomBust = computeBlockBlastOnboardingScore({
+      ...base,
+      survivalTimeP25: 38,
+      survivalTimeP50: 103,
+      survivalTimeSpread: 110,
+      scoreMin: 8,
+    });
+    const earlyDeath = computeBlockBlastOnboardingScore({
+      ...base,
+      survivalTimeP25: 30,
+      survivalTimeP50: 112,
+      survivalTimeSpread: 123,
+      scoreMin: 32,
+    });
+    expect(stableEarly).toBeGreaterThan(boomBust);
+    expect(stableEarly).toBeGreaterThan(earlyDeath);
   });
 });

@@ -100,6 +100,21 @@
   color: #bdeaff;
 }
 
+.yatz-stat--star-off {
+  opacity: 0.45;
+  filter: grayscale(0.45);
+}
+
+.yatz-stat--star-on {
+  opacity: 1;
+  filter: none;
+}
+
+.yatz-stat--star-on .yatz-stat-label,
+.yatz-stat--star-on .yatz-stat-value--target {
+  color: #ffe27a;
+}
+
 .yatz-progress-wrap {
   grid-column: 1 / -1;
   display: flex;

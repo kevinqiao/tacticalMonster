@@ -1843,6 +1843,12 @@
   flex: 0 0 auto;
 }
 
+.modePlayQuotaChipSuccess {
+  color: #1f5b32;
+  background: rgba(214, 246, 222, 0.96);
+  border-color: rgba(46, 120, 68, 0.4);
+}
+
 /* Portrait Mode Responsive Overrides */
 .mainContainerPortrait {
   position: absolute;

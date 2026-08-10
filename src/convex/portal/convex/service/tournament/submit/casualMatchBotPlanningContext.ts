@@ -2,8 +2,10 @@ import { v } from "convex/values";
 
 import {
   getPortalTournamentDefinition,
+  getTournamentBotDifficultyProfile,
   getTournamentRankRates,
   type CasualRankRateEntry,
+  type PortalBotDifficultyProfileId,
   type PortalTournamentDefinition,
 } from "../../../data/portalTournamentConfigs";
 import type { BotStrategyPlayerContext } from "../../../data/portalPlayerStrategyTypes";
@@ -12,12 +14,13 @@ import { internalQuery } from "../../../_generated/server";
 import { resolvePlayerBotStrategyContext } from "../join/casualMatchmakingProfile";
 import { loadPlayerTournamentRankCounts } from "../shared/casualPlayerTournamentRankStats";
 
-/** solo bot ??????????(profile + rankCounts + rankRates) */
+/** solo bot 规划输入 (profile + rankCounts + rankRates + botDifficultyProfile) */
 export type SoloRankPlanningBundle = {
   profile: BotStrategyPlayerContext;
   rankCounts: Record<number, number>;
   rankRates: CasualRankRateEntry[];
   maxPlayers: number;
+  botDifficultyProfile: PortalBotDifficultyProfileId;
 };
 
 export async function loadSoloRankPlanningBundle(
@@ -37,6 +40,7 @@ export async function loadSoloRankPlanningBundle(
     rankCounts,
     rankRates,
     maxPlayers: def.maxPlayers,
+    botDifficultyProfile: getTournamentBotDifficultyProfile(def),
   };
 }
 
@@ -59,3 +63,4 @@ export const getSoloRankPlanningInputs = internalQuery({
     };
   },
 });
+

@@ -37,8 +37,28 @@ export const rolloutDistributionMetrics = v.object({
   scoreHistogram: v.optional(v.record(v.string(), v.number())),
   /** Solitaire: clear-board ease (higher = easier). Optional for older imports. */
   clearEaseScore: v.optional(v.number()),
-  /** Yatz / Solitaire: human-feel ease (higher = friendlier). Optional for older imports. */
+  /** Yatz / Solitaire / Match3: human-feel ease (higher = friendlier). Optional for older imports. */
   playerEaseScore: v.optional(v.number()),
+  /** Match3: early cascade / ritual axis (higher = friendlier first wave). */
+  onboardingScore: v.optional(v.number()),
+  /** Match3: fraction of rollouts stuck in the early-move window. */
+  earlyStuckRate: v.optional(v.number()),
+  meanEarlyClearWaveSum: v.optional(v.number()),
+  earlyCascadeHitRate: v.optional(v.number()),
+  /** Block Blast: experience / early-clear ritual proxies. */
+  experienceScore: v.optional(v.number()),
+  earlyClearRate: v.optional(v.number()),
+  /** Block Blast: survival duration percentiles (seconds). Optional for older imports. */
+  survivalTimeP25: v.optional(v.number()),
+  survivalTimeP50: v.optional(v.number()),
+  survivalTimeP90: v.optional(v.number()),
+  survivalTimeSpread: v.optional(v.number()),
+  /** Solitaire: foundation progress percentiles / rates. Optional for older imports. */
+  foundationCardsP25: v.optional(v.number()),
+  foundationCardsP50: v.optional(v.number()),
+  foundationCardsP90: v.optional(v.number()),
+  timeToFirstFoundationP50: v.optional(v.number()),
+  foundationReachRate: v.optional(v.number()),
 });
 
 export const rolloutTerminalReason = v.union(

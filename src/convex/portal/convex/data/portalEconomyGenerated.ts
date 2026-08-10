@@ -91,8 +91,9 @@ export const PORTAL_SHOP_SKU_CATALOG = [
 
 // --- tournament rewards ---
 export const PORTAL_SOLO_POINTS = {
-  success: 3,
-  fail: -1,
+  fail: 0,
+  success: 2,
+  clearBonus: 1,
 } as const;
 
 export const PORTAL_MULTI_RANK_POINTS = {
@@ -165,19 +166,20 @@ export const PORTAL_FREE_PLAY_DAILY_CAP_MAX = 100;
 
 // --- play defaults: ad entry ---
 export const PORTAL_AD_ENTRY_DEFAULTS = {
-  solo: { enabled: true, dailyCap: 5 },
+  solo: { enabled: true, dailyCap: 1000000000 },
   multi: { enabled: true, dailyCap: 10 },
 } as const;
 export const PORTAL_AD_ENTRY_DAILY_CAP_MAX = 100;
+export const PORTAL_AD_ENTRY_DAILY_CAP_UNLIMITED = 1000000000;
 export const PORTAL_AD_ENTRY_SESSION_TTL_MS = 120000;
 export const PORTAL_AD_ENTRY_GRANT_TTL_MS = 120000;
 
 // --- play defaults: ticket entry ---
 export const PORTAL_TICKET_ENTRY_DEFAULTS = {
   solo: {
-    enabled: true,
+    enabled: false,
     priceTickets: 1,
-    dailyCap: 3,
+    dailyCap: 0,
   },
   multi: {
     enabled: true,
@@ -188,6 +190,15 @@ export const PORTAL_TICKET_ENTRY_DEFAULTS = {
 export const PORTAL_TICKET_ENTRY_PRICE_MIN = 1;
 export const PORTAL_TICKET_ENTRY_PRICE_MAX = 100;
 export const PORTAL_TICKET_ENTRY_DAILY_CAP_MAX = 100;
+
+// --- play defaults: solo success daily reward cap ---
+export const PORTAL_SOLO_SUCCESS_DAILY_DEFAULTS = {
+  enabled: true,
+  dailyCap: 5,
+  afterCapMode: "zero_all",
+  allowPlayAfterCap: true,
+} as const;
+export const PORTAL_SOLO_SUCCESS_DAILY_CAP_MAX = 100;
 
 // --- play defaults: ad replay ---
 export const PORTAL_AD_REPLAY_ENABLED = true;

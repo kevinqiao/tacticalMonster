@@ -44,6 +44,7 @@ import type * as service_seedPool_solitaireSeedSimulator from "../service/seedPo
 import type * as service_seedPool_solitaireSimTime from "../service/seedPool/solitaireSimTime.js";
 import type * as service_seedPool_solitaireSolver from "../service/seedPool/solitaireSolver.js";
 import type * as service_seedPool_solitaireStochasticHumanPolicy from "../service/seedPool/solitaireStochasticHumanPolicy.js";
+import type * as service_solitaireTargetWin from "../service/solitaireTargetWin.js";
 import type * as shared_botScoreSlots from "../shared/botScoreSlots.js";
 import type * as shared_constants from "../shared/constants.js";
 import type * as shared_durationFallback from "../shared/durationFallback.js";
@@ -106,6 +107,7 @@ declare const fullApi: ApiFromModules<{
   "service/seedPool/solitaireSimTime": typeof service_seedPool_solitaireSimTime;
   "service/seedPool/solitaireSolver": typeof service_seedPool_solitaireSolver;
   "service/seedPool/solitaireStochasticHumanPolicy": typeof service_seedPool_solitaireStochasticHumanPolicy;
+  "service/solitaireTargetWin": typeof service_solitaireTargetWin;
   "shared/botScoreSlots": typeof shared_botScoreSlots;
   "shared/constants": typeof shared_constants;
   "shared/durationFallback": typeof shared_durationFallback;

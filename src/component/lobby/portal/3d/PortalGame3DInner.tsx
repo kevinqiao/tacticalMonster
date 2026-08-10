@@ -16,6 +16,7 @@ import {
   shouldShowPortalAuthMenuActions,
 } from "../portalAuthButtonVisible";
 import { CasualAdReplayVideoIcon } from "@/component/battle/games/shared/CasualAdReplayVideoIcon";
+import { isFinitePortalAdEntryCap } from "../shared/portalAdEntryQuota";
 import { formatWeekRemaining } from "./portalGame3DFormatters";
 
 /** 统一规则弹窗的定位锚点：solo/multi 定位到积分段的对应模式卡 */
@@ -73,6 +74,10 @@ export interface PortalGame3DInnerProps {
   soloLadderPlaysToday?: number;
   /** 免费每日上限（单人；按钮 used/cap 用） */
   soloMaxPlaysPerDay?: number;
+  /** 单人今日已成功完成挑战次数 / 日上限（奖励封顶） */
+  soloSuccessEnabled?: boolean;
+  soloSuccessUsedToday?: number;
+  soloSuccessDailyCap?: number;
   /** 免费/广告/门票阶梯今日次数（多人；开始按钮 used/cap 用） */
   multiLadderPlaysToday?: number;
   /** 免费每日上限（多人；按钮 used/cap 用） */
@@ -145,6 +150,9 @@ export function PortalGame3DInner({
   multiOpenAssignment,
   soloLadderPlaysToday = 0,
   soloMaxPlaysPerDay = 3,
+  soloSuccessEnabled = false,
+  soloSuccessUsedToday = 0,
+  soloSuccessDailyCap = 0,
   multiLadderPlaysToday = 0,
   multiMaxPlaysPerDay = 10,
   soloDailyExhausted = false,
@@ -300,7 +308,7 @@ export function PortalGame3DInner({
   const multiStartGrayed =
     authed && !multiOpenAssignment && !queueWaiting && multiJoinDisabled;
 
-  /** Same copy as tournament picker quota chips (`pickQuotaFree` / `pickQuotaAd`). */
+  /** Same copy as tournament picker quota chips (`pickQuotaFree` / `pickQuotaAd` / `pickQuotaSuccess`). */
   const renderHomeLadderQuota = (mode: "solo" | "multi") => {
     const freeUsed = Math.min(
       Math.max(0, mode === "solo" ? soloLadderPlaysToday : multiLadderPlaysToday),
@@ -316,31 +324,72 @@ export function PortalGame3DInner({
       0,
       mode === "solo" ? soloAdEntryCap : multiAdEntryCap
     );
+    const adFinite = isFinitePortalAdEntryCap(adCap);
     const adUsed = Math.min(
       Math.max(0, mode === "solo" ? soloAdEntryUsedToday : multiAdEntryUsedToday),
-      adCap
+      adFinite ? adCap : 0
     );
     const showAd = adEnabled && adCap > 0;
-    if (freeCap <= 0) return null;
+    const successCap =
+      mode === "solo" && soloSuccessEnabled
+        ? Math.max(0, Math.floor(soloSuccessDailyCap))
+        : 0;
+    const successUsed =
+      successCap > 0
+        ? Math.min(Math.max(0, Math.floor(soloSuccessUsedToday)), successCap)
+        : 0;
+    const showSuccess = successCap > 0;
+    if (freeCap <= 0 && !showSuccess) return null;
+    const aria =
+      showSuccess
+        ? showAd && !adFinite
+          ? t("lobby.pickQuotaAriaUnlimitedAdWithSuccess", {
+              freeUsed,
+              freeCap,
+              successUsed,
+              successCap,
+            })
+          : t("lobby.pickQuotaAriaWithSuccess", {
+              freeUsed,
+              freeCap,
+              adUsed: showAd && adFinite ? adUsed : 0,
+              adCap: showAd && adFinite ? adCap : 0,
+              successUsed,
+              successCap,
+            })
+        : showAd && !adFinite
+          ? t("lobby.pickQuotaAriaUnlimitedAd", { freeUsed, freeCap })
+          : t("lobby.pickQuotaAria", {
+              freeUsed,
+              freeCap,
+              adUsed: showAd && adFinite ? adUsed : 0,
+              adCap: showAd && adFinite ? adCap : 0,
+            });
     return (
-      <span
-        className={styles.modePlayQuotaRow}
-        aria-label={t("lobby.pickQuotaAria", {
-          freeUsed,
-          freeCap,
-          adUsed: showAd ? adUsed : 0,
-          adCap: showAd ? adCap : 0,
-        })}
-      >
-        <span className={styles.modePlayQuotaChip}>
-          {t("lobby.pickQuotaFree", { used: freeUsed, cap: freeCap })}
-        </span>
+      <span className={styles.modePlayQuotaRow} aria-label={aria}>
+        {freeCap > 0 ? (
+          <span className={styles.modePlayQuotaChip}>
+            {t("lobby.pickQuotaFree", { used: freeUsed, cap: freeCap })}
+          </span>
+        ) : null}
         {showAd ? (
           <span
             className={`${styles.modePlayQuotaChip} ${styles.modePlayQuotaChipAd}`}
           >
             <CasualAdReplayVideoIcon />
-            {t("lobby.pickQuotaAd", { used: adUsed, cap: adCap })}
+            {adFinite
+              ? t("lobby.pickQuotaAd", { used: adUsed, cap: adCap })
+              : t("lobby.pickQuotaAdUnlimited")}
+          </span>
+        ) : null}
+        {showSuccess ? (
+          <span
+            className={`${styles.modePlayQuotaChip} ${styles.modePlayQuotaChipSuccess}`}
+          >
+            {t("lobby.pickQuotaSuccess", {
+              used: successUsed,
+              cap: successCap,
+            })}
           </span>
         ) : null}
       </span>

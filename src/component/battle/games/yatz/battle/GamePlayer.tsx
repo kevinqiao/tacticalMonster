@@ -282,7 +282,32 @@ const GamePlayer: React.FC = () => {
               <span className="yatz-stat-label">{t('hud.totalScore')}</span>
               <span className="yatz-stat-value">{gs.score}</span>
             </div>
-            {yatz.targetScore != null ? (
+            {yatz.targetScoreP75 != null && yatz.targetScoreP90 != null ? (
+              <>
+                <div
+                  className={[
+                    'yatz-stat',
+                    gs.score >= yatz.targetScoreP75 ? 'yatz-stat--star-on' : 'yatz-stat--star-off',
+                  ].join(' ')}
+                >
+                  <span className="yatz-stat-label">★</span>
+                  <span className="yatz-stat-value yatz-stat-value--target">
+                    {yatz.targetScoreP75}
+                  </span>
+                </div>
+                <div
+                  className={[
+                    'yatz-stat',
+                    gs.score >= yatz.targetScoreP90 ? 'yatz-stat--star-on' : 'yatz-stat--star-off',
+                  ].join(' ')}
+                >
+                  <span className="yatz-stat-label">★★★</span>
+                  <span className="yatz-stat-value yatz-stat-value--target">
+                    {yatz.targetScoreP90}
+                  </span>
+                </div>
+              </>
+            ) : yatz.targetScore != null ? (
               <div className="yatz-stat">
                 <span className="yatz-stat-label">{t('hud.target')}</span>
                 <span className="yatz-stat-value yatz-stat-value--target">{yatz.targetScore}</span>

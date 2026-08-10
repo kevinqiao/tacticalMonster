@@ -105,7 +105,15 @@ function main() {
     `  free play solo/multi: ${eco.playDefaults.freePlay.solo}/${eco.playDefaults.freePlay.multi}`
   );
   console.log(
-    `  ad entry solo/multi caps: ${eco.playDefaults.adEntry.solo.dailyCap}/${eco.playDefaults.adEntry.multi.dailyCap}`
+    `  ad entry solo/multi caps: ${
+      eco.playDefaults.adEntry.solo.dailyCapUnlimited
+        ? "unlimited"
+        : eco.playDefaults.adEntry.solo.dailyCap
+    }/${
+      eco.playDefaults.adEntry.multi.dailyCapUnlimited
+        ? "unlimited"
+        : eco.playDefaults.adEntry.multi.dailyCap
+    }`
   );
   console.log(
     `  ticket entry solo: ${eco.playDefaults.ticketEntry.solo.priceTickets}t×${eco.playDefaults.ticketEntry.solo.dailyCap}` +

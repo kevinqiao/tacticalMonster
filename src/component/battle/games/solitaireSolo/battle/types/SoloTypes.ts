@@ -69,6 +69,8 @@ export interface GameModel {
     score: number;
     moves: number;
     seed?: string;
+    /** 单人挑战达标线；达到后立即 COMPLETED */
+    targetScore?: number;
     /** Wall-clock ms when the 5-minute match timer starts (first scoring action). */
     playStartedAt?: number;
     /** 休闲 run 绝对截止时间（epoch ms），创局时由服务端写入 */

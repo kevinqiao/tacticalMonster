@@ -29,10 +29,40 @@ export type PortalReferenceScoreQuantiles = {
 
 export type PortalRankRateEntry = { rank: number; odd: number };
 
+/** Newbie solo ladder segment (A/B) or merged main (C). */
+export type PortalSoloSegment = "ritual_a" | "transition_b" | "merged_c";
+
+export type PortalSoloRewardTierKind = "fail" | "success";
+
+/**
+ * Single-target solo points (SSOT: portal-economy.json).
+ * On hit: success + clearBonus; on miss: fail.
+ */
 export type PortalPointsConfig = {
+  fail: number;
+  success: number;
+  clearBonus: number;
+};
+
+/** Legacy lobby override shapes still accepted by normalize. */
+export type PortalPointsConfigLegacy = {
   success: number;
   fail: number;
+  clearBonus?: number;
 };
+
+/** Pre–single-target segmented override (lobby snapshots). */
+export type PortalPointsConfigSegmentedLegacy = {
+  fail: number;
+  ritual_a: { clear: number; bonus: number };
+  transition_b: { clear: number; bonus: number };
+  merged_c: { p75: number; p90: number };
+};
+
+export type PortalSoloPointsOverride =
+  | PortalPointsConfig
+  | PortalPointsConfigLegacy
+  | PortalPointsConfigSegmentedLegacy;
 
 export type PortalRankPointsConfig = Record<number, number>;
 
@@ -45,6 +75,13 @@ export type PortalTournamentCoinRewards = {
 };
 
 export type PortalTournamentTimingMode = "sync" | "async";
+
+/**
+ * Solo-bot 名次推荐用的难度分轨：
+ * - `default`：低分 quantile + ≥p50 走全局 BOT_DIFFICULTY_RULES
+ * - `none`：整条链路只走该桌 rankRates（+ 个人 rankCounts 平衡）；金币竞技用
+ */
+export type PortalBotDifficultyProfileId = "default" | "none";
 
 export interface PortalTournamentDefinition {
   tournamentId: string;
@@ -67,9 +104,107 @@ export interface PortalTournamentDefinition {
   rankPoints?: PortalRankPointsConfig;
   /** Optional coin rewards (template defaults; lobby offering may override). */
   coinRewards?: PortalTournamentCoinRewards;
-  seedQuantileSuccess?: { quantile: "p75" | "p90" };
+  /**
+   * Solo 成功线：取种子分位后再可选乘 scoreMultiplier（Block Blast 用来抬通关难度）。
+   * 仪式段 binding 的 p50 默认不乘 scoreMultiplier（见 ritualScoreMultiplier，缺省 1）。
+   */
+  seedQuantileSuccess?: {
+    quantile: "p75" | "p90";
+    scoreMultiplier?: number;
+    /** 仪式 A（successQuantile=p50）专用系数；缺省 1，不抬线。 */
+    ritualScoreMultiplier?: number;
+  };
   rankRates?: PortalRankRateEntry[];
+  /** Solo-bot 难度分轨；缺省 `default`。 */
+  botDifficultyProfile?: PortalBotDifficultyProfileId;
   referenceScoreQuantiles?: PortalReferenceScoreQuantiles;
+}
+
+export type PortalSeedQuantileSuccessConfig = NonNullable<
+  PortalTournamentDefinition["seedQuantileSuccess"]
+>;
+
+/** 与 blockBlastOneLineClearScore(8) 对齐：BB 仪式段 A 消一行/列。 */
+export const BLOCK_BLAST_RITUAL_ONE_LINE_CLEAR_SCORE = 8;
+
+export type PortalSeedSuccessQuantile = "p25" | "p50" | "p75" | "p90";
+
+/**
+ * p25 / p50（新手阶梯）→ ritualScoreMultiplier ?? 1；
+ * p75/p90 → scoreMultiplier（缺省 1）。
+ */
+export function resolveScoreMultiplierForSuccessQuantile(
+  seedQuantileSuccess:
+    | Pick<PortalSeedQuantileSuccessConfig, "scoreMultiplier" | "ritualScoreMultiplier">
+    | null
+    | undefined,
+  quantile: PortalSeedSuccessQuantile | null | undefined
+): number {
+  if (quantile === "p25" || quantile === "p50") {
+    const ritual = seedQuantileSuccess?.ritualScoreMultiplier;
+    if (typeof ritual === "number" && Number.isFinite(ritual) && ritual > 0) return ritual;
+    return 1;
+  }
+  const mult = seedQuantileSuccess?.scoreMultiplier;
+  if (typeof mult === "number" && Number.isFinite(mult) && mult > 0) return mult;
+  return 1;
+}
+
+/** 从种子分位 + 模板系数解析 Solo 通关线。 */
+export function resolveSeedSuccessThresholdFromQuantiles(
+  quantiles: Partial<Record<PortalSeedSuccessQuantile, number>> | null | undefined,
+  quantile: PortalSeedSuccessQuantile | null | undefined,
+  scoreMultiplier?: number | null
+): number | undefined {
+  if (
+    !quantiles ||
+    (quantile !== "p25" &&
+      quantile !== "p50" &&
+      quantile !== "p75" &&
+      quantile !== "p90")
+  ) {
+    return undefined;
+  }
+  const raw = quantiles[quantile];
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return undefined;
+  const mult =
+    typeof scoreMultiplier === "number" &&
+    Number.isFinite(scoreMultiplier) &&
+    scoreMultiplier > 0
+      ? scoreMultiplier
+      : 1;
+  return Math.max(0, Math.floor(raw * mult));
+}
+
+/** BB 仪式一消，或分位×系数。 */
+export function resolveSoloSeedSuccessThreshold(args: {
+  gameType: string;
+  ritualOneLineClear?: boolean;
+  quantiles?: Partial<Record<PortalSeedSuccessQuantile, number>> | null;
+  successQuantile?: PortalSeedSuccessQuantile | null;
+  seedQuantileSuccess?:
+    | Pick<PortalSeedQuantileSuccessConfig, "scoreMultiplier" | "ritualScoreMultiplier">
+    | null;
+}): number | undefined {
+  if (args.ritualOneLineClear && args.gameType === "block_blast") {
+    return BLOCK_BLAST_RITUAL_ONE_LINE_CLEAR_SCORE;
+  }
+  const q = args.successQuantile;
+  const mult = resolveScoreMultiplierForSuccessQuantile(args.seedQuantileSuccess, q);
+  return resolveSeedSuccessThresholdFromQuantiles(args.quantiles, q, mult);
+}
+
+export function applySeedSuccessScoreMultiplier(
+  rawThreshold: number,
+  scoreMultiplier?: number | null
+): number {
+  const mult =
+    typeof scoreMultiplier === "number" &&
+    Number.isFinite(scoreMultiplier) &&
+    scoreMultiplier > 0
+      ? scoreMultiplier
+      : 1;
+  return Math.max(0, Math.floor(rawThreshold * mult));
 }
 
 /**
@@ -82,16 +217,112 @@ export function portalTournamentUsesPlayEntryLadder(
   return def.entry.kind === "none";
 }
 
+function isCanonicalSoloPoints(raw: unknown): raw is PortalPointsConfig {
+  if (!raw || typeof raw !== "object") return false;
+  const o = raw as Record<string, unknown>;
+  return (
+    typeof o.fail === "number" &&
+    Number.isFinite(o.fail) &&
+    typeof o.success === "number" &&
+    Number.isFinite(o.success) &&
+    typeof o.clearBonus === "number" &&
+    Number.isFinite(o.clearBonus) &&
+    o.ritual_a == null &&
+    o.merged_c == null
+  );
+}
+
+function isLegacySoloPoints(raw: unknown): raw is PortalPointsConfigLegacy {
+  if (!raw || typeof raw !== "object") return false;
+  const o = raw as Record<string, unknown>;
+  return (
+    typeof o.success === "number" &&
+    Number.isFinite(o.success) &&
+    typeof o.fail === "number" &&
+    Number.isFinite(o.fail) &&
+    o.ritual_a == null &&
+    o.merged_c == null &&
+    (o.clearBonus == null ||
+      (typeof o.clearBonus === "number" && Number.isFinite(o.clearBonus)))
+  );
+}
+
+function isSegmentedSoloPoints(
+  raw: unknown
+): raw is PortalPointsConfigSegmentedLegacy {
+  if (!raw || typeof raw !== "object") return false;
+  const o = raw as Record<string, unknown>;
+  const a = o.ritual_a as Record<string, unknown> | undefined;
+  const b = o.transition_b as Record<string, unknown> | undefined;
+  const c = o.merged_c as Record<string, unknown> | undefined;
+  return (
+    typeof o.fail === "number" &&
+    Number.isFinite(o.fail) &&
+    !!a &&
+    typeof a.clear === "number" &&
+    typeof a.bonus === "number" &&
+    !!b &&
+    typeof b.clear === "number" &&
+    typeof b.bonus === "number" &&
+    !!c &&
+    typeof c.p75 === "number" &&
+    typeof c.p90 === "number"
+  );
+}
+
+/** Points granted when the single challenge target is hit. */
+export function portalSoloSuccessTotal(pts: PortalPointsConfig): number {
+  return Math.floor(pts.success) + Math.floor(pts.clearBonus);
+}
+
+/** Normalize overrides into `{ fail, success, clearBonus }`. */
+export function normalizePortalSoloPoints(
+  raw: PortalSoloPointsOverride | null | undefined
+): PortalPointsConfig {
+  const base: PortalPointsConfig = {
+    fail: GENERATED_SOLO_POINTS.fail,
+    success: GENERATED_SOLO_POINTS.success,
+    clearBonus: GENERATED_SOLO_POINTS.clearBonus,
+  };
+  if (!raw) return base;
+  if (isCanonicalSoloPoints(raw)) {
+    return {
+      fail: Math.floor(raw.fail),
+      success: Math.floor(raw.success),
+      clearBonus: Math.floor(raw.clearBonus),
+    };
+  }
+  if (isLegacySoloPoints(raw)) {
+    return {
+      fail: Math.floor(raw.fail),
+      success: Math.floor(raw.success),
+      clearBonus:
+        typeof raw.clearBonus === "number" && Number.isFinite(raw.clearBonus)
+          ? Math.floor(raw.clearBonus)
+          : base.clearBonus,
+    };
+  }
+  if (!isSegmentedSoloPoints(raw)) return base;
+  // Legacy dual-tier snapshots → single success line from clear / p75.
+  return {
+    fail: Math.floor(raw.fail),
+    success: Math.floor(raw.merged_c.p75),
+    clearBonus: base.clearBonus,
+  };
+}
+
 /** Merge template rewards with optional lobby offering override. */
 export function resolveEffectiveTournamentRewards(
   def: PortalTournamentDefinition,
   rewardsOverride?: {
-    soloPoints?: PortalPointsConfig;
+    soloPoints?: PortalSoloPointsOverride;
     rankPoints?: Record<string, number>;
     coins?: PortalTournamentCoinRewards;
   } | null
 ) {
-  const soloPoints = rewardsOverride?.soloPoints ?? def.soloPoints;
+  const soloPoints = normalizePortalSoloPoints(
+    rewardsOverride?.soloPoints ?? def.soloPoints
+  );
   const rankPoints = rewardsOverride?.rankPoints
     ? Object.fromEntries(
         Object.entries(rewardsOverride.rankPoints).map(([k, v]) => [Number(k), v])
@@ -105,10 +336,8 @@ export function resolveEffectiveTournamentRewards(
 }
 
 /** 奖励常数 ← portalEconomyGenerated（SSOT: portal-economy.json） */
-export const PORTAL_SOLO_POINTS: PortalPointsConfig = {
-  success: GENERATED_SOLO_POINTS.success,
-  fail: GENERATED_SOLO_POINTS.fail,
-};
+export const PORTAL_SOLO_POINTS: PortalPointsConfig =
+  normalizePortalSoloPoints(GENERATED_SOLO_POINTS);
 
 export const PORTAL_MULTI_RANK_POINTS: PortalRankPointsConfig = {
   ...GENERATED_MULTI_RANK_POINTS,
@@ -139,10 +368,11 @@ function soloDef(gameType: string, title: string): PortalTournamentDefinition {
     maxPlayers: 1,
     entry: { kind: "none" },
     soloPoints: PORTAL_SOLO_POINTS,
-    // block_blast：抬高通关线到 p90
-    seedQuantileSuccess: {
-      quantile: gameType === "block_blast" ? "p90" : "p75",
-    },
+    // BB bot 分位相对真人偏低：合并后通关线 = p75 × 1.2；仪式 A 的 p50 不抬（ritualScoreMultiplier 缺省 1）
+    seedQuantileSuccess:
+      gameType === "block_blast"
+        ? { quantile: "p75", scoreMultiplier: 1.2, ritualScoreMultiplier: 1 }
+        : { quantile: "p75" },
   };
 }
 
@@ -178,6 +408,8 @@ function multiCoinDef(gameType: string, title: string): PortalTournamentDefiniti
     rankPoints: { ...PORTAL_MULTI_RANK_POINTS },
     coinRewards: { rankCoins: { ...PORTAL_MULTI_COIN_RANK_REWARDS } },
     rankRates: [...CASUAL_RANK_RATES_5],
+    /** 金币桌：solo-bot 名次只走 rankRates，不做体验难度保护 */
+    botDifficultyProfile: "none",
   };
 }
 
@@ -285,17 +517,99 @@ export function isPortalP75Success(
   return score >= seedScoreThreshold;
 }
 
+/** Infer A/B/C when seedBinding.segment is missing (legacy rows). */
+export function inferSoloSegmentFromBinding(binding?: {
+  segment?: PortalSoloSegment | string | null;
+  ritualOneLineClear?: boolean;
+  successQuantile?: string | null;
+} | null): PortalSoloSegment {
+  if (
+    binding?.segment === "ritual_a" ||
+    binding?.segment === "transition_b" ||
+    binding?.segment === "merged_c"
+  ) {
+    return binding.segment;
+  }
+  if (binding?.ritualOneLineClear) return "ritual_a";
+  if (binding?.successQuantile === "p25" || binding?.successQuantile === "p50") {
+    return "transition_b";
+  }
+  return "merged_c";
+}
+
+export type PortalSoloRewardTierResult = {
+  delta: number;
+  tier: PortalSoloRewardTierKind;
+  challengeSuccess: boolean;
+  reason: string;
+  segment: PortalSoloSegment;
+};
+
+/**
+ * Single-target solo rewards:
+ * hit clearThreshold → success + clearBonus; miss → fail.
+ */
+export function portalSoloRewardTier(args: {
+  def: PortalTournamentDefinition;
+  score: number;
+  clearThreshold?: number;
+  segment?: PortalSoloSegment;
+  quantiles?: Partial<Record<PortalSeedSuccessQuantile, number>> | null;
+  rewardsOverride?: {
+    soloPoints?: PortalSoloPointsOverride;
+  } | null;
+}): PortalSoloRewardTierResult {
+  const { soloPoints: pts } = resolveEffectiveTournamentRewards(
+    args.def,
+    args.rewardsOverride
+  );
+  const segment = args.segment ?? "merged_c";
+  const challengeSuccess = isPortalP75Success(
+    args.def,
+    args.score,
+    args.clearThreshold
+  );
+
+  if (!challengeSuccess) {
+    return {
+      delta: pts.fail,
+      tier: "fail",
+      challengeSuccess: false,
+      reason: "solo_fail",
+      segment,
+    };
+  }
+
+  return {
+    delta: portalSoloSuccessTotal(pts),
+    tier: "success",
+    challengeSuccess: true,
+    reason: "solo_success",
+    segment,
+  };
+}
+
+/** Display / bot helper: single-target delta. */
 export function portalSoloPointDelta(
   def: PortalTournamentDefinition,
   score: number,
   seedScoreThreshold?: number,
   rewardsOverride?: {
-    soloPoints?: PortalPointsConfig;
-  } | null
+    soloPoints?: PortalSoloPointsOverride;
+  } | null,
+  opts?: {
+    segment?: PortalSoloSegment;
+    quantiles?: Partial<Record<PortalSeedSuccessQuantile, number>> | null;
+  }
 ): number {
-  const { soloPoints } = resolveEffectiveTournamentRewards(def, rewardsOverride);
-  const pts = soloPoints ?? PORTAL_SOLO_POINTS;
-  return isPortalP75Success(def, score, seedScoreThreshold) ? pts.success : pts.fail;
+  return portalSoloRewardTier({
+    def,
+    score,
+    clearThreshold: seedScoreThreshold,
+    segment: opts?.segment ?? "merged_c",
+    quantiles: opts?.quantiles,
+    rewardsOverride,
+  }).delta;
 }
 
 /** Stub for copied score effects */
@@ -382,4 +696,10 @@ export function listTournamentDefinitions(): PortalTournamentDefinition[] {
 
 export function getTournamentRankRates(def: PortalTournamentDefinition): PortalRankRateEntry[] {
   return def.rankRates ?? [];
+}
+
+export function getTournamentBotDifficultyProfile(
+  def: Pick<PortalTournamentDefinition, "botDifficultyProfile">
+): PortalBotDifficultyProfileId {
+  return def.botDifficultyProfile ?? "default";
 }

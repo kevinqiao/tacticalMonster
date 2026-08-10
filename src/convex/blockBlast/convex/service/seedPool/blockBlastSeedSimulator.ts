@@ -18,7 +18,7 @@ import type {
   RolloutDistributionMetrics,
   RolloutExperienceStats,
 } from "./blockBlastRecordedOpTypes";
-import { BLOCK_BLAST_POLICY_VERSION as POLICY_VERSION } from "./blockBlastRecordedOpTypes";
+import { resolveBlockBlastPolicyVersion } from "./blockBlastRecordedOpTypes";
 import {
   createSimTimeContext,
   DEFAULT_MATCH_TIME_LIMIT_SEC,
@@ -142,7 +142,7 @@ export function simulateRollout(
 
   return {
     rolloutIndex,
-    policyVersion: POLICY_VERSION,
+    policyVersion: resolveBlockBlastPolicyVersion(),
     ops,
     replayPacingMs,
     finalScore,

@@ -51,6 +51,16 @@ export function computePlayerEaseScore(args: {
   return Math.round(args.p25 * 0.5 + completion * 100 - args.spread * 0.25);
 }
 
+/** Platform ritual axis: completion + score floor (first-win feel), not spread-penalized ease. */
+export function computeOnboardingScore(args: {
+  p25: number;
+  completedCount: number;
+  rolloutCount: number;
+}): number {
+  const completion = args.rolloutCount > 0 ? args.completedCount / args.rolloutCount : 0;
+  return Math.round(completion * 250 + args.p25 * 0.35);
+}
+
 export type GeneratePoolOptions = {
   poolVersion: string;
   start: number;
@@ -72,6 +82,7 @@ export type SeedPoolEntry = {
     scoreSpread: number;
     scoreQuantiles: ScoreQuantiles;
     playerEaseScore: number;
+    onboardingScore: number;
     policyVersion: typeof YATZ_MANIFEST_POLICY_VERSION;
     decisionPolicyVersion: typeof YATZ_DECISION_POLICY_VERSION;
   };
@@ -112,6 +123,11 @@ export function processOneSeed(
     completedCount: scores.length,
     rolloutCount: options.rolloutCount,
   });
+  const onboardingScore = computeOnboardingScore({
+    p25: q.p25,
+    completedCount: scores.length,
+    rolloutCount: options.rolloutCount,
+  });
   return {
     kind: "accepted",
     entry: {
@@ -127,6 +143,7 @@ export function processOneSeed(
         scoreSpread,
         scoreQuantiles: q,
         playerEaseScore,
+        onboardingScore,
         policyVersion: YATZ_MANIFEST_POLICY_VERSION,
         decisionPolicyVersion: YATZ_DECISION_POLICY_VERSION,
       },

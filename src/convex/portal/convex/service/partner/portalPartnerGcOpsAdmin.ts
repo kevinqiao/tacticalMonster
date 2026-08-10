@@ -105,6 +105,19 @@ export const getPartnerGcOpsInternal = internalQuery({
       ticketEntrySoloDailyCap: play?.ticketEntrySoloDailyCap ?? null,
       ticketEntryMultiPriceTickets: play?.ticketEntryMultiPriceTickets ?? null,
       ticketEntryMultiDailyCap: play?.ticketEntryMultiDailyCap ?? null,
+      soloSuccessDailyEnabled:
+        typeof play?.soloSuccessDailyEnabled === "boolean"
+          ? play.soloSuccessDailyEnabled
+          : null,
+      soloSuccessDailyCap: play?.soloSuccessDailyCap ?? null,
+      soloSuccessAfterCapMode:
+        play?.soloSuccessAfterCapMode === "zero_all"
+          ? ("zero_all" as const)
+          : null,
+      soloSuccessAllowPlayAfterCap:
+        typeof play?.soloSuccessAllowPlayAfterCap === "boolean"
+          ? play.soloSuccessAllowPlayAfterCap
+          : null,
       lobbyOpsMode: lobbyOpsRow ? lobbyOpsMode : null,
       lobbyOpsModeEffective: lobbyOpsMode,
       seasonEpochWeekKey: lobbyOpsRow?.seasonEpochWeekKey ?? null,
@@ -147,6 +160,12 @@ export const upsertPartnerGcOpsInternal = internalMutation({
     ticketEntrySoloDailyCap: v.optional(v.union(v.number(), v.null())),
     ticketEntryMultiPriceTickets: v.optional(v.union(v.number(), v.null())),
     ticketEntryMultiDailyCap: v.optional(v.union(v.number(), v.null())),
+    soloSuccessDailyEnabled: v.optional(v.union(v.boolean(), v.null())),
+    soloSuccessDailyCap: v.optional(v.union(v.number(), v.null())),
+    soloSuccessAfterCapMode: v.optional(
+      v.union(v.literal("zero_all"), v.null())
+    ),
+    soloSuccessAllowPlayAfterCap: v.optional(v.union(v.boolean(), v.null())),
     lobbyOpsMode: v.optional(
       v.union(v.literal("isolated"), v.literal("shared"), v.null())
     ),
@@ -269,6 +288,18 @@ export const upsertPartnerGcOpsInternal = internalMutation({
           : {}),
         ...(args.ticketEntryMultiDailyCap !== undefined
           ? { ticketEntryMultiDailyCap: args.ticketEntryMultiDailyCap }
+          : {}),
+        ...(args.soloSuccessDailyEnabled !== undefined
+          ? { soloSuccessDailyEnabled: args.soloSuccessDailyEnabled }
+          : {}),
+        ...(args.soloSuccessDailyCap !== undefined
+          ? { soloSuccessDailyCap: args.soloSuccessDailyCap }
+          : {}),
+        ...(args.soloSuccessAfterCapMode !== undefined
+          ? { soloSuccessAfterCapMode: args.soloSuccessAfterCapMode }
+          : {}),
+        ...(args.soloSuccessAllowPlayAfterCap !== undefined
+          ? { soloSuccessAllowPlayAfterCap: args.soloSuccessAllowPlayAfterCap }
           : {}),
       }
     );

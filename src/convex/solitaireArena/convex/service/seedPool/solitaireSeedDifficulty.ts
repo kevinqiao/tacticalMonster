@@ -172,24 +172,67 @@ export function computeClearEaseScore(input: ClearEaseScoreInput): number {
   return Math.round(score);
 }
 
-/** Attach / refresh clearEaseScore on metrics from a solvability annotation. */
+/**
+ * Platform segment-A ritual score for Solitaire.
+ * Primary: early foundation progress (BB earlyClear / survival analogue).
+ * Secondary: clearEase (end-game clearability), downweighted so pool ranking
+ * is not dominated by solver path length after require-solvable.
+ */
+export function computeSolitaireOnboardingScore(input: {
+  clearEaseScore: number;
+  foundationCardsP25: number;
+  timeToFirstFoundationP50: number;
+  foundationReachRate: number;
+  matchTimeLimitSec: number;
+}): number {
+  const limit = input.matchTimeLimitSec > 0 ? input.matchTimeLimitSec : DEFAULT_MATCH_TIME_LIMIT_SEC;
+  const foundationDepth = Math.max(0, input.foundationCardsP25) * 35;
+  const timeNorm = Math.min(1, Math.max(0, input.timeToFirstFoundationP50 / limit));
+  const earlyFoundation = (1 - timeNorm) * 250;
+  const reach = Math.min(1, Math.max(0, input.foundationReachRate)) * 120;
+  const clearEaseBonus = Math.max(0, input.clearEaseScore) * 0.12;
+  return Math.round(foundationDepth + earlyFoundation + reach + clearEaseBonus);
+}
+
+/** Attach / refresh clearEaseScore + onboardingScore from a solvability annotation. */
 export function withClearEaseScore(
   metrics: RolloutDistributionMetrics,
   solvability: ClearEaseScoreInput | null | undefined
 ): RolloutDistributionMetrics {
-  if (!solvability) {
-    return { ...metrics, clearEaseScore: metrics.clearEaseScore ?? 0 };
-  }
+  const clearEaseScore = solvability
+    ? computeClearEaseScore({
+        openingMoveCount: metrics.openingMoveCount,
+        solvable: solvability.solvable,
+        solvableSource: solvability.solvableSource,
+        pathLength: solvability.pathLength,
+        nodesExpanded: solvability.nodesExpanded,
+      })
+    : (metrics.clearEaseScore ?? 0);
+
+  const onboardingScore = computeSolitaireOnboardingScore({
+    clearEaseScore,
+    foundationCardsP25: metrics.foundationCardsP25 ?? 0,
+    timeToFirstFoundationP50:
+      metrics.timeToFirstFoundationP50 ?? metrics.matchTimeLimitSec ?? DEFAULT_MATCH_TIME_LIMIT_SEC,
+    foundationReachRate: metrics.foundationReachRate ?? 0,
+    matchTimeLimitSec: metrics.matchTimeLimitSec ?? DEFAULT_MATCH_TIME_LIMIT_SEC,
+  });
+
   return {
     ...metrics,
-    clearEaseScore: computeClearEaseScore({
-      openingMoveCount: metrics.openingMoveCount,
-      solvable: solvability.solvable,
-      solvableSource: solvability.solvableSource,
-      pathLength: solvability.pathLength,
-      nodesExpanded: solvability.nodesExpanded,
-    }),
+    clearEaseScore,
+    onboardingScore,
   };
+}
+
+/** Never-reached foundation contributes match limit (same sentinel pattern as BB survival). */
+export function timeToFirstFoundationSecForRollout(
+  rollout: Pick<SolitaireRolloutScript, "timeToFirstFoundationSec">,
+  matchTimeLimitSec: number
+): number {
+  const t = rollout.timeToFirstFoundationSec;
+  if (t == null || !Number.isFinite(t)) return matchTimeLimitSec;
+  return Math.max(0, t);
 }
 
 export function computeDistributionMetrics(
@@ -208,6 +251,20 @@ export function computeDistributionMetrics(
   const k = rollouts.length || 1;
   const quantiles = computeScoreQuantiles(scores);
   const bandThresholds = computeBandThresholds(scores);
+
+  const foundationSorted = rollouts
+    .map((r) => r.foundationCardsPeak ?? 0)
+    .sort((a, b) => a - b);
+  const foundationCardsP25 = percentile(foundationSorted, 0.25);
+  const foundationCardsP50 = percentile(foundationSorted, 0.5);
+  const foundationCardsP90 = percentile(foundationSorted, 0.9);
+  const timeToFirstSorted = rollouts
+    .map((r) => timeToFirstFoundationSecForRollout(r, layout.matchTimeLimitSec))
+    .sort((a, b) => a - b);
+  const timeToFirstFoundationP50 = percentile(timeToFirstSorted, 0.5);
+  const foundationReachRate =
+    rollouts.filter((r) => (r.foundationCardsPeak ?? 0) > 0 || r.timeToFirstFoundationSec != null)
+      .length / k;
 
   const base = {
     rolloutCount: rollouts.length,
@@ -229,6 +286,11 @@ export function computeDistributionMetrics(
     layoutFingerprint: layout.layoutFingerprint,
     policyVersion: POLICY_VERSION,
     matchTimeLimitSec: layout.matchTimeLimitSec,
+    foundationCardsP25,
+    foundationCardsP50,
+    foundationCardsP90,
+    timeToFirstFoundationP50,
+    foundationReachRate,
   };
 
   const layoutOutcome = deriveLayoutOutcome(base);
@@ -236,8 +298,15 @@ export function computeDistributionMetrics(
     ...base,
     layoutOutcome,
     playerEaseScore: computePlayerEaseScore({ ...base, layoutOutcome }),
-    // Filled after solvability resolve via withClearEaseScore.
+    // clearEase filled after solvability; onboarding recomputed in withClearEaseScore.
     clearEaseScore: 0,
+    onboardingScore: computeSolitaireOnboardingScore({
+      clearEaseScore: 0,
+      foundationCardsP25,
+      timeToFirstFoundationP50,
+      foundationReachRate,
+      matchTimeLimitSec: layout.matchTimeLimitSec,
+    }),
   };
 }
 
@@ -313,6 +382,12 @@ function entryToTierReport(entry: SeedPoolEntry): SeedTierReportEntry {
     scoreSpread: m.scoreSpread,
     playerEaseScore: m.playerEaseScore,
     clearEaseScore: m.clearEaseScore ?? 0,
+    onboardingScore: m.onboardingScore ?? m.clearEaseScore ?? 0,
+    foundationCardsP25: m.foundationCardsP25 ?? 0,
+    foundationCardsP50: m.foundationCardsP50 ?? 0,
+    foundationCardsP90: m.foundationCardsP90 ?? 0,
+    timeToFirstFoundationP50: m.timeToFirstFoundationP50 ?? m.matchTimeLimitSec,
+    foundationReachRate: m.foundationReachRate ?? 0,
     rolloutCount: m.rolloutCount,
   };
 }

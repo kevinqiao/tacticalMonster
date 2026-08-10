@@ -28,6 +28,10 @@
     "freePlayMultiDailyCap": null,
     "adEntryEnabled": null,
     "ticketEntryEnabled": null,
+    "soloSuccessDailyEnabled": null,
+    "soloSuccessDailyCap": null,
+    "soloSuccessAfterCapMode": null,
+    "soloSuccessAllowPlayAfterCap": null,
     "seasonEpochWeekKey": null
   },
   "lobbies": [
@@ -36,7 +40,11 @@
       "title": "Game Center",
       "isDefault": true,
       "offeringGames": ["solitaire", "block_blast"],
-      "seasonHonorMode": "join_now"
+      "seasonHonorMode": "join_now",
+      "soloSuccessDailyEnabled": null,
+      "soloSuccessDailyCap": null,
+      "soloSuccessAfterCapMode": null,
+      "soloSuccessAllowPlayAfterCap": null
     }
   ],
   "shopSkus": [

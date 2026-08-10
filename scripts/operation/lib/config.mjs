@@ -57,10 +57,37 @@ function normalizeRewardsOverride(raw) {
   if (!raw || typeof raw !== "object") return undefined;
   const out = {};
   if (raw.soloPoints && typeof raw.soloPoints === "object") {
-    const success = Number(raw.soloPoints.success);
-    const fail = Number(raw.soloPoints.fail);
-    if (Number.isFinite(success) && Number.isFinite(fail)) {
-      out.soloPoints = { success, fail };
+    const sp = raw.soloPoints;
+    const fail = Number(sp.fail);
+    const a = sp.ritual_a;
+    const b = sp.transition_b;
+    const c = sp.merged_c;
+    if (
+      Number.isFinite(fail) &&
+      a &&
+      typeof a === "object" &&
+      Number.isFinite(Number(a.clear)) &&
+      Number.isFinite(Number(a.bonus)) &&
+      b &&
+      typeof b === "object" &&
+      Number.isFinite(Number(b.clear)) &&
+      Number.isFinite(Number(b.bonus)) &&
+      c &&
+      typeof c === "object" &&
+      Number.isFinite(Number(c.p75)) &&
+      Number.isFinite(Number(c.p90))
+    ) {
+      out.soloPoints = {
+        fail,
+        ritual_a: { clear: Number(a.clear), bonus: Number(a.bonus) },
+        transition_b: { clear: Number(b.clear), bonus: Number(b.bonus) },
+        merged_c: { p75: Number(c.p75), p90: Number(c.p90) },
+      };
+    } else {
+      const success = Number(sp.success);
+      if (Number.isFinite(success) && Number.isFinite(fail)) {
+        out.soloPoints = { success, fail };
+      }
     }
   }
   if (raw.rankPoints && typeof raw.rankPoints === "object") {
@@ -149,6 +176,22 @@ function expandLobby(lobby) {
     quotaScope: lobby.quotaScope === undefined ? undefined : lobby.quotaScope,
     seasonHonorMode:
       lobby.seasonHonorMode === undefined ? undefined : lobby.seasonHonorMode,
+    soloSuccessDailyEnabled:
+      lobby.soloSuccessDailyEnabled === undefined
+        ? undefined
+        : lobby.soloSuccessDailyEnabled,
+    soloSuccessDailyCap:
+      lobby.soloSuccessDailyCap === undefined
+        ? undefined
+        : lobby.soloSuccessDailyCap,
+    soloSuccessAfterCapMode:
+      lobby.soloSuccessAfterCapMode === undefined
+        ? undefined
+        : lobby.soloSuccessAfterCapMode,
+    soloSuccessAllowPlayAfterCap:
+      lobby.soloSuccessAllowPlayAfterCap === undefined
+        ? undefined
+        : lobby.soloSuccessAllowPlayAfterCap,
   };
 }
 
@@ -357,6 +400,10 @@ export const PORTAL_GC_OPS_KEYS = new Set([
   "ticketEntrySoloDailyCap",
   "ticketEntryMultiPriceTickets",
   "ticketEntryMultiDailyCap",
+  "soloSuccessDailyEnabled",
+  "soloSuccessDailyCap",
+  "soloSuccessAfterCapMode",
+  "soloSuccessAllowPlayAfterCap",
 ]);
 
 /**

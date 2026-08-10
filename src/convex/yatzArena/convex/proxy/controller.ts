@@ -59,9 +59,45 @@ type CasualFindMatchResult = {
     gameId?: string;
     seed?: string;
     seedScoreThreshold?: number;
+    seedScoreThresholdP75?: number;
+    seedScoreThresholdP90?: number;
   };
   error?: string;
 };
+
+function attachHudScoreThresholds(
+  res: {
+    seedScoreThreshold?: number;
+    seedScoreThresholdP75?: number;
+    seedScoreThresholdP90?: number;
+  },
+  match:
+    | {
+        seedScoreThreshold?: number;
+        seedScoreThresholdP75?: number;
+        seedScoreThresholdP90?: number;
+      }
+    | undefined
+): number | undefined {
+  let clear: number | undefined;
+  if (typeof match?.seedScoreThreshold === "number" && Number.isFinite(match.seedScoreThreshold)) {
+    clear = match.seedScoreThreshold;
+    res.seedScoreThreshold = clear;
+  }
+  if (
+    typeof match?.seedScoreThresholdP75 === "number" &&
+    Number.isFinite(match.seedScoreThresholdP75)
+  ) {
+    res.seedScoreThresholdP75 = match.seedScoreThresholdP75;
+  }
+  if (
+    typeof match?.seedScoreThresholdP90 === "number" &&
+    Number.isFinite(match.seedScoreThresholdP90)
+  ) {
+    res.seedScoreThresholdP90 = match.seedScoreThresholdP90;
+  }
+  return clear;
+}
 
 async function fetchCasualMatchByGame(
   gameId: string,
@@ -108,7 +144,15 @@ export const loadGame = action({
   },
   handler: async (ctx, { gameId, resetCasualRun, platformBridge }): Promise<any> => {
     const bridge = platformBridge ?? "casual";
-    const res: { ok: boolean; game?: any; events?: any; error?: string; seedScoreThreshold?: number } = {
+    const res: {
+      ok: boolean;
+      game?: any;
+      events?: any;
+      error?: string;
+      seedScoreThreshold?: number;
+      seedScoreThresholdP75?: number;
+      seedScoreThresholdP90?: number;
+    } = {
       ok: false,
     };
     if (resetCasualRun === true && gameId.startsWith("game_")) {
@@ -119,22 +163,20 @@ export const loadGame = action({
         res.ok = true;
         let seedScoreThreshold: number | undefined;
         if (gameId.startsWith("game_")) {
-          const meta = await fetchCasualMatchByGame(gameId, { skipRecordSeed: true, platformBridge: bridge });
-          const threshold = meta.match?.seedScoreThreshold;
-          if (typeof threshold === "number" && Number.isFinite(threshold)) {
-            seedScoreThreshold = threshold;
-          }
+          const meta = await fetchCasualMatchByGame(gameId, {
+            skipRecordSeed: true,
+            platformBridge: bridge,
+          });
+          seedScoreThreshold = attachHudScoreThresholds(res, meta.match);
         }
         res.game = withCasualTargetScore(existing, seedScoreThreshold);
-        if (seedScoreThreshold != null) {
-          res.seedScoreThreshold = seedScoreThreshold;
-        }
         return res;
       }
     }
 
     const createArgs: { seed?: string; gameId: string } = { gameId };
     let seedScoreThreshold: number | undefined;
+    let matchMeta: CasualFindMatchResult["match"] | undefined;
 
     if (gameId.startsWith("game_")) {
       const matchGameResult = await fetchCasualMatchByGame(gameId, { platformBridge: bridge });
@@ -145,6 +187,7 @@ export const loadGame = action({
         };
       }
       const data = matchGameResult.match;
+      matchMeta = data;
       const rawSeed = data?.seed ?? data?.gameId;
       if (typeof rawSeed === "string") {
         createArgs.seed = rawSeed;
@@ -167,9 +210,7 @@ export const loadGame = action({
       res.ok = true;
       res.game = withCasualTargetScore((gameRow ?? {}) as Record<string, unknown>, seedScoreThreshold);
       res.events = gameResult.events;
-      if (seedScoreThreshold != null) {
-        res.seedScoreThreshold = seedScoreThreshold;
-      }
+      attachHudScoreThresholds(res, matchMeta);
     } else {
       res.ok = false;
       res.error = gameResult?.error ?? "create_failed";

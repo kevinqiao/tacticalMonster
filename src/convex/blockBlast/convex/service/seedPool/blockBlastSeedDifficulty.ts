@@ -13,7 +13,7 @@ import type {
   SeedTierReportEntry,
   TierIndex,
 } from "./blockBlastRecordedOpTypes";
-import { BLOCK_BLAST_POLICY_VERSION as POLICY_VERSION } from "./blockBlastRecordedOpTypes";
+import { resolveBlockBlastPolicyVersion } from "./blockBlastRecordedOpTypes";
 import { computeExperienceScore, countSoftPPasses } from "./blockBlastExperienceKpi";
 import { DEFAULT_MATCH_TIME_LIMIT_SEC } from "./blockBlastSimTime";
 
@@ -129,6 +129,46 @@ export function computePlayerEaseScore(
   );
 }
 
+/**
+ * Platform segment-A ritual score for Block Blast.
+ * Primary: survivalTimeP25 (avoid early stuck); secondary: P50 / earlyClear;
+ * penalize boom-bust spread; small bonus for score floor.
+ */
+export function computeBlockBlastOnboardingScore(input: {
+  experienceScore: number;
+  earlyClearRate: number;
+  survivalTimeP25: number;
+  survivalTimeP50: number;
+  survivalTimeSpread: number;
+  matchTimeLimitSec: number;
+  scoreMin?: number;
+}): number {
+  const limit = input.matchTimeLimitSec > 0 ? input.matchTimeLimitSec : 300;
+  const p25Norm = Math.min(1, Math.max(0, input.survivalTimeP25 / limit));
+  const p50Norm = Math.min(1, Math.max(0, input.survivalTimeP50 / limit));
+  const spreadPenalty = Math.min(1, Math.max(0, input.survivalTimeSpread / limit)) * 120;
+  const scoreFloorBonus = Math.min(80, Math.max(0, input.scoreMin ?? 0)) * 0.5;
+  return Math.round(
+    input.experienceScore +
+      input.earlyClearRate * 40 +
+      p25Norm * 320 +
+      p50Norm * 80 -
+      spreadPenalty +
+      scoreFloorBonus
+  );
+}
+
+/** time_up 记满钟；stuck/其它用 elapsed。 */
+export function survivalSecForRollout(
+  rollout: Pick<BlockBlastRolloutScript, "terminalReason" | "elapsedSimSeconds">,
+  matchTimeLimitSec: number
+): number {
+  if (rollout.terminalReason === "time_up") {
+    return matchTimeLimitSec;
+  }
+  return rollout.elapsedSimSeconds;
+}
+
 export function computeDistributionMetrics(
   rollouts: BlockBlastRolloutScript[],
   layout: {
@@ -160,6 +200,15 @@ export function computeDistributionMetrics(
   const scoreAt150Sorted = rollouts.map((r) => r.experience?.scoreAt150 ?? 0).sort((a, b) => a - b);
   const scoreAt240Sorted = rollouts.map((r) => r.experience?.scoreAt240 ?? 0).sort((a, b) => a - b);
 
+  const matchTimeLimitSec = layout.matchTimeLimitSec;
+  const survivalSorted = rollouts
+    .map((r) => survivalSecForRollout(r, matchTimeLimitSec))
+    .sort((a, b) => a - b);
+  const survivalTimeP25 = percentile(survivalSorted, 0.25);
+  const survivalTimeP50 = percentile(survivalSorted, 0.5);
+  const survivalTimeP90 = percentile(survivalSorted, 0.9);
+  const survivalTimeSpread = survivalTimeP90 - survivalTimeP25;
+
   const base = {
     rolloutCount: rollouts.length,
     scoreMin: scores[0] ?? 0,
@@ -178,8 +227,8 @@ export function computeDistributionMetrics(
     hasAnyCompleted: completedCount > 0,
     openingMoveCount: layout.openingMoveCount,
     layoutFingerprint: layout.layoutFingerprint,
-    policyVersion: POLICY_VERSION,
-    matchTimeLimitSec: layout.matchTimeLimitSec,
+    policyVersion: resolveBlockBlastPolicyVersion(),
+    matchTimeLimitSec,
     mediumBurstRate,
     jackpotRate,
     lateGameReachRate,
@@ -189,17 +238,31 @@ export function computeDistributionMetrics(
     scoreAt60P50: percentile(scoreAt60Sorted, 0.5),
     scoreAt150P50: percentile(scoreAt150Sorted, 0.5),
     scoreAt240P50: percentile(scoreAt240Sorted, 0.5),
+    survivalTimeP25,
+    survivalTimeP50,
+    survivalTimeP90,
+    survivalTimeSpread,
   };
 
   const layoutOutcome = deriveLayoutOutcome(base);
   const withOutcome = { ...base, layoutOutcome };
   const softPPassCount = countSoftPPasses(withOutcome, "prod");
   const experienceScore = computeExperienceScore({ ...withOutcome, softPPassCount }, "prod");
+  const onboardingScore = computeBlockBlastOnboardingScore({
+    experienceScore,
+    earlyClearRate,
+    survivalTimeP25,
+    survivalTimeP50,
+    survivalTimeSpread,
+    matchTimeLimitSec,
+    scoreMin: scores[0] ?? 0,
+  });
 
   return {
     ...withOutcome,
     softPPassCount,
     experienceScore,
+    onboardingScore,
     playerEaseScore: computePlayerEaseScore(withOutcome),
   };
 }
@@ -266,9 +329,14 @@ function entryToTierReport(entry: SeedPoolEntry): SeedTierReportEntry {
     scoreSpread: m.scoreSpread,
     playerEaseScore: m.playerEaseScore,
     experienceScore: m.experienceScore,
+    onboardingScore: m.onboardingScore,
     mediumBurstRate: m.mediumBurstRate,
     jackpotRate: m.jackpotRate,
     lateGameReachRate: m.lateGameReachRate,
+    survivalTimeP25: m.survivalTimeP25,
+    survivalTimeP50: m.survivalTimeP50,
+    survivalTimeP90: m.survivalTimeP90,
+    survivalTimeSpread: m.survivalTimeSpread,
     rolloutCount: m.rolloutCount,
   };
 }

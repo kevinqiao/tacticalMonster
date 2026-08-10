@@ -195,11 +195,14 @@ const PLAY_ENTRY_CLEARABLE_NUMBER_KEYS = [
   "ticketEntryMultiDailyCap",
   "adEntrySoloDailyCap",
   "adEntryMultiDailyCap",
+  "soloSuccessDailyCap",
 ] as const;
 
 const PLAY_ENTRY_CLEARABLE_BOOL_KEYS = [
   "adEntryEnabled",
   "ticketEntryEnabled",
+  "soloSuccessDailyEnabled",
+  "soloSuccessAllowPlayAfterCap",
 ] as const;
 
 /** SSO bridge write for partner free-play and ticket-entry overrides. */
@@ -224,6 +227,12 @@ export const upsertPartnerPlayEntrySettingsInternal = internalMutation({
     adEntryEnabled: v.optional(v.union(v.boolean(), v.null())),
     adEntrySoloDailyCap: v.optional(v.union(v.number(), v.null())),
     adEntryMultiDailyCap: v.optional(v.union(v.number(), v.null())),
+    soloSuccessDailyEnabled: v.optional(v.union(v.boolean(), v.null())),
+    soloSuccessDailyCap: v.optional(v.union(v.number(), v.null())),
+    soloSuccessAfterCapMode: v.optional(
+      v.union(v.literal("zero_all"), v.null())
+    ),
+    soloSuccessAllowPlayAfterCap: v.optional(v.union(v.boolean(), v.null())),
   },
   handler: async (ctx, args) => {
     const partnerId = Math.floor(args.partnerId);
@@ -238,7 +247,7 @@ export const upsertPartnerPlayEntrySettingsInternal = internalMutation({
       (r) => r.lobbyId == null && (r.tournamentId == null || r.tournamentId === "")
     );
     const overlayRows = rows.filter((r) => !baseRows.includes(r));
-    const { partnerId: _p, quotaScope, ...rest } = args;
+    const { partnerId: _p, quotaScope, soloSuccessAfterCapMode, ...rest } = args;
     void _p;
 
     const clearKeys: string[] = [];
@@ -259,6 +268,11 @@ export const upsertPartnerPlayEntrySettingsInternal = internalMutation({
       patch.quotaScope = quotaScope;
     } else if (quotaScope === null) {
       clearKeys.push("quotaScope");
+    }
+    if (soloSuccessAfterCapMode === "zero_all") {
+      patch.soloSuccessAfterCapMode = soloSuccessAfterCapMode;
+    } else if (soloSuccessAfterCapMode === null) {
+      clearKeys.push("soloSuccessAfterCapMode");
     }
 
     const needsReplace = clearKeys.length > 0;

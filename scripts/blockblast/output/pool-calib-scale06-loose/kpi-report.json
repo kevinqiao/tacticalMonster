@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-08-06T02:44:16.689Z",
+  "poolVersion": "calib-scale06-loose",
+  "profile": "probe",
+  "health": {
+    "profile": "probe",
+    "seedCount": 39,
+    "meanTimeUpRate": 0,
+    "meanJackpotRate": 0.010683760683760684,
+    "meanMediumBurstRate": 0.2585470085470086,
+    "meanLateGameReachRate": 0,
+    "meanExperienceScore": 0.23850142450142456,
+    "gatePassRate": 1,
+    "softPMean": 2.948717948717949
+  },
+  "warnCounts": {
+    "G1": 39,
+    "G2": 39,
+    "G9": 39,
+    "G7": 8
+  },
+  "failCounts": {},
+  "rejectReasons": {
+    "low_player_ceiling": 8,
+    "collapsed_scores": 3
+  }
+}

@@ -16,6 +16,7 @@ import React, {
 } from 'react';
 import { api } from '@/convex/match3Arena/convex/_generated/api';
 import {
+  buildCasualScoreChallengeUI,
   buildMatch3ScoreReport,
   getCasualMatchScoreLineLabel,
   isCasualSoloP75ChallengeTemplate,
@@ -141,8 +142,10 @@ interface IMatch3GameContext {
   replayCasualRun: () => Promise<void>;
   triathlonSessionActive: boolean;
   casualTournamentId?: string;
-  /** P75 挑战等：本局 seed 分位目标分 */
+  /** Clear-bar 挑战分（结算 success） */
   targetScore?: number;
+  targetScoreP75?: number;
+  targetScoreP90?: number;
   watchTarget: Match3WatchContext | null;
   watchTargetLabel: string;
   openWatch: (ctx: Match3WatchContext, displayLabel: string) => void;
@@ -190,6 +193,8 @@ export const Match3GameProvider: React.FC<Props> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [interactionPhase, setInteractionPhase] = useState(GameInteractionPhase.idle);
   const [targetScore, setTargetScore] = useState<number | undefined>(undefined);
+  const [targetScoreP75, setTargetScoreP75] = useState<number | undefined>(undefined);
+  const [targetScoreP90, setTargetScoreP90] = useState<number | undefined>(undefined);
   const gridCellRefs = useRef<GridCellRefs | null>(null);
   if (!gridCellRefs.current) {
     gridCellRefs.current = allocateGridCellRefs();
@@ -275,7 +280,14 @@ export const Match3GameProvider: React.FC<Props> = ({
   });
 
   const applyLoadedTargetScore = useCallback(
-    async (loadedGame: Match3GameState, res: { seedScoreThreshold?: number }) => {
+    async (
+      loadedGame: Match3GameState,
+      res: {
+        seedScoreThreshold?: number;
+        seedScoreThresholdP75?: number;
+        seedScoreThresholdP90?: number;
+      }
+    ) => {
       let threshold =
         typeof res.seedScoreThreshold === 'number' && Number.isFinite(res.seedScoreThreshold)
           ? res.seedScoreThreshold
@@ -305,6 +317,17 @@ export const Match3GameProvider: React.FC<Props> = ({
         }
       }
 
+      const p75 =
+        typeof res.seedScoreThresholdP75 === 'number' && Number.isFinite(res.seedScoreThresholdP75)
+          ? Math.floor(res.seedScoreThresholdP75)
+          : undefined;
+      const p90 =
+        typeof res.seedScoreThresholdP90 === 'number' && Number.isFinite(res.seedScoreThresholdP90)
+          ? Math.floor(res.seedScoreThresholdP90)
+          : undefined;
+      setTargetScoreP75(p75);
+      setTargetScoreP90(p90);
+
       if (threshold != null) {
         setTargetScore(threshold);
         setGameState((prev) =>
@@ -321,6 +344,8 @@ export const Match3GameProvider: React.FC<Props> = ({
     if (!gameId) return;
     setLoadError(null);
     setTargetScore(undefined);
+    setTargetScoreP75(undefined);
+    setTargetScoreP90(undefined);
     try {
       const res = await convex.action(api.proxy.controller.loadGame, {
         gameId,
@@ -384,16 +409,15 @@ export const Match3GameProvider: React.FC<Props> = ({
           : typeof targetScore === 'number'
             ? targetScore
             : undefined;
-      if (challengeThreshold != null) {
-        const achievedScore = report.totalScore;
-        report.challenge = {
-          targetScore: challengeThreshold,
-          achievedScore,
-          success:
-            typeof settle.success === 'boolean'
-              ? settle.success
-              : achievedScore >= challengeThreshold,
-        };
+      const challenge = buildCasualScoreChallengeUI({
+        achievedScore: report.totalScore,
+        clearThreshold: challengeThreshold,
+        clearSuccess: settle.success,
+        p75: targetScoreP75,
+        p90: targetScoreP90,
+      });
+      if (challenge) {
+        report.challenge = challenge;
       }
       const deferTableSummary =
         Boolean(settle.deferTriathlonTableSummary) ||
@@ -481,6 +505,8 @@ export const Match3GameProvider: React.FC<Props> = ({
       onTriathlonNextGame,
       casualPlatformBridge,
       targetScore,
+      targetScoreP75,
+      targetScoreP90,
     ]
   );
 
@@ -1061,6 +1087,8 @@ export const Match3GameProvider: React.FC<Props> = ({
     triathlonSessionActive,
     casualTournamentId,
     targetScore,
+    targetScoreP75,
+    targetScoreP90,
     watchTarget,
     watchTargetLabel,
     openWatch,

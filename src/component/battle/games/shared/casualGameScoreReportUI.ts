@@ -32,11 +32,22 @@ export type CasualGameScoreReportLine = {
   value: number;
 };
 
-/** P75 挑战结果（仅 solo_p75_challenge 模板）：目标分 + 玩家分 + 是否成功 */
+/** 单档星标达标（★ / ★★★） */
+export type CasualGameScoreChallengeTierUI = {
+  score: number;
+  reached: boolean;
+};
+
+/**
+ * Solo 挑战结果：clear 成败（广告再战等）+ 可选双星档（p75/p90）。
+ * `success` 仍表示 clear 线是否达成。
+ */
 export type CasualGameScoreChallengeUI = {
   targetScore: number;
   achievedScore: number;
   success: boolean;
+  tierP75?: CasualGameScoreChallengeTierUI;
+  tierP90?: CasualGameScoreChallengeTierUI;
 };
 
 /** 单局得分明细（非同桌榜） */
@@ -44,9 +55,62 @@ export type CasualGameScoreReportUI = {
   gameLabel: string;
   lines: CasualGameScoreReportLine[];
   totalScore: number;
-  /** 存在时展示「是否成功 + 目标分（P75）+ 游戏分」结果区块 */
+  /** 存在时展示挑战结果（双星 / clear） */
   challenge?: CasualGameScoreChallengeUI;
 };
+
+function finiteFloor(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.floor(v) : undefined;
+}
+
+/** 组装结算弹窗挑战块；无任何门槛时返回 undefined */
+export function buildCasualScoreChallengeUI(opts: {
+  achievedScore: number;
+  clearThreshold?: number;
+  /** 服务端 clear success；缺省则用 achieved >= clear */
+  clearSuccess?: boolean;
+  p75?: number;
+  p90?: number;
+}): CasualGameScoreChallengeUI | undefined {
+  const achieved = Math.max(0, Math.floor(opts.achievedScore));
+  const clear = finiteFloor(opts.clearThreshold);
+  const p75 = finiteFloor(opts.p75);
+  const p90 = finiteFloor(opts.p90);
+  if (clear == null && p75 == null && p90 == null) return undefined;
+
+  const success =
+    typeof opts.clearSuccess === 'boolean'
+      ? opts.clearSuccess
+      : clear != null
+        ? achieved >= clear
+        : p75 != null
+          ? achieved >= p75
+          : false;
+
+  return {
+    targetScore: clear ?? p75 ?? p90 ?? 0,
+    achievedScore: achieved,
+    success,
+    ...(p75 != null ? { tierP75: { score: p75, reached: achieved >= p75 } } : {}),
+    ...(p90 != null ? { tierP90: { score: p90, reached: achieved >= p90 } } : {}),
+  };
+}
+
+/** 结算标题 i18n key（`scoreReport.*`） */
+export function casualChallengeTitleKey(
+  challenge: CasualGameScoreChallengeUI
+):
+  | 'challengeStars3Title'
+  | 'challengeStars1Title'
+  | 'challengeSuccessTitle'
+  | 'challengeFailTitle' {
+  if (challenge.tierP75 && challenge.tierP90) {
+    if (challenge.tierP90.reached) return 'challengeStars3Title';
+    if (challenge.tierP75.reached) return 'challengeStars1Title';
+    return 'challengeFailTitle';
+  }
+  return challenge.success ? 'challengeSuccessTitle' : 'challengeFailTitle';
+}
 
 export function buildSolitaireScoreReport(report: SolitaireGameReport): CasualGameScoreReportUI {
   const lines: CasualGameScoreReportLine[] = [

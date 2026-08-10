@@ -4,9 +4,10 @@
  */
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { registerCasualGameModalExitHandler } from '../../shared/casualGameModalExitBridge';
 import { useSoloGameManager } from './service/GameManager';
-import useActHandler from './service/handler/useActHandler';
+import { useSoloActHandler } from './service/handler/SoloActHandlerProvider';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
 
 import {
@@ -42,6 +43,7 @@ import { SoloScoreFloatLayer } from './view/SoloScoreFloatLayer';
 import SolitaireWatchOverlay from './replay/SolitaireWatchOverlay';
 
 const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadComplete }) => {
+    const { t } = useTranslation('shared.casual');
     const visualTheme = useGameVisualTheme('solitaire');
     /** 整局在 animating+DEALED 下只批量补跑一次牌位（与原先各 SoloDnDCard 的 postDealLayoutOnce 等价）。 */
     const postDealBatchLayoutDoneRef = useRef(false);
@@ -65,6 +67,8 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         boardDimensionRef,
         replayMode,
         targetScore,
+        targetScoreP75,
+        targetScoreP90,
         casualTournamentId,
         scoreFloats,
         openingDealActive,
@@ -109,7 +113,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         closeWatch,
         completeCasualSolitaireRunOnTimeout,
         postSettleLayoutFreezeRef,
-    } = useActHandler();
+    } = useSoloActHandler();
 
     const postSettlePresentation = useMemo(
         () => resolveCasualPostSettleSummaryPresentation(casualTournamentId, postCasualTableSummary),
@@ -635,6 +639,9 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 displayMoves={displayMoves}
                 dueTime={replayMode ? undefined : gameState?.dueTime}
                 targetScore={replayMode ? undefined : targetScore}
+                targetScoreP75={replayMode ? undefined : targetScoreP75}
+                targetScoreP90={replayMode ? undefined : targetScoreP90}
+                gameKey={gameState?.gameId}
                 onMatchTimeout={
                     replayMode ? undefined : () => void completeCasualSolitaireRunOnTimeout()
                 }
@@ -673,6 +680,20 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                     boardDimension={boardDimension}
                 />
             </div>
+            {!replayMode && (
+                <footer className="solo-command-bar">
+                    <button
+                        type="button"
+                        className="solo-command-bar__submit"
+                        onClick={() => {
+                            void settleManuallyAndExit();
+                        }}
+                        disabled={settleConfirmOpen}
+                    >
+                        {t('hud.submit')}
+                    </button>
+                </footer>
+            )}
             {!replayMode && (
                 <>
                     <ManualSettleConfirmOverlay

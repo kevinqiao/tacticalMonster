@@ -38,7 +38,7 @@ export function runConvexCatalog(functionRef, args, convexArgs = []) {
 
   if (result.error) {
     throw new Error(
-      `${result.error.message}\n(hint: casualPlatform cwd=${CATALOG_CONVEX_PROJECT_DIR})`
+      `${result.error.message}\n(hint: seed-catalog cwd=${CATALOG_CONVEX_PROJECT_DIR})`
     );
   }
   if (result.status !== 0) {

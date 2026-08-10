@@ -18,12 +18,15 @@ export function buildInitialState(seedId: string): Match3GameStateForReplay {
 export function applyRecordedOp(
   state: Match3GameStateForReplay,
   op: Match3RecordedOp | Match3RecordedStep
-): { ok: true; state: Match3GameStateForReplay } | { ok: false; reason: string } {
+):
+  | { ok: true; state: Match3GameStateForReplay; clearWaveCount: number }
+  | { ok: false; reason: string } {
   const core = toMatch3RecordedOp(op as Match3RecordedStep);
   if (core.op === "concede") {
     return {
       ok: true,
       state: { ...state, status: Match3GameStatus.CANCELLED },
+      clearWaveCount: 0,
     };
   }
 
@@ -31,6 +34,8 @@ export function applyRecordedOp(
   if (!result.ok) {
     return { ok: false, reason: result.error };
   }
+
+  const clearWaveCount = result.turnScript.filter((step) => step.kind === "clear").length;
 
   return {
     ok: true,
@@ -42,5 +47,6 @@ export function applyRecordedOp(
       seed: state.seed,
       refillCounter: result.refillCounter,
     },
+    clearWaveCount,
   };
 }

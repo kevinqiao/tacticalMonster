@@ -242,11 +242,23 @@ export type PortalModeDailyPlayQuota = {
 
 export type PortalQuotaScope = "mode" | "lobby" | "tournament";
 
+export type PortalSoloSuccessDailyQuota = {
+  enabled: boolean;
+  dailyCap: number;
+  usedToday: number;
+  remainingToday: number;
+  capped: boolean;
+  afterCapMode: "zero_all";
+  allowPlayAfterCap: boolean;
+};
+
 export type PortalDailyPlayQuota = {
   solo: PortalModeDailyPlayQuota;
   multi: PortalModeDailyPlayQuota;
   /** How free/ad/ticket pools are shared for this lobby/partner. */
   quotaScope?: PortalQuotaScope;
+  /** Solo rewarded-success daily quota (independent of entry ladder). */
+  soloSuccess?: PortalSoloSuccessDailyQuota;
   dayResetsAt: number;
   dayInstanceKey: string;
   dayTimezone: string;

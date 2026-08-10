@@ -7,6 +7,7 @@ import {
   BLOCK_BLAST_SHAPE_TEMPLATES,
   pickWeightedShapeTemplate,
   resolveCellWeightsForShapeIndex,
+  setL1PresetOverride,
   shapeTemplateWeights,
 } from "../../blockBlastShapeCatalog";
 
@@ -34,11 +35,22 @@ function avgCellCountForShapeIndex(shapeIndex: number, samples = 400): number {
 }
 
 describe("blockBlastShapeCatalog", () => {
-  it("templates cover 1–5 cells with I4/I5 and big L", () => {
+  it("templates cover 1–6 cells with diagonals, L/J, I5/I6 and 2×3", () => {
     const cellSets = new Set(BLOCK_BLAST_SHAPE_TEMPLATES.map((t) => t.cells));
-    expect(cellSets).toEqual(new Set([1, 2, 3, 4, 5]));
-    expect(BLOCK_BLAST_SHAPE_TEMPLATES.some((t) => t.shape[0]?.length === 5)).toBe(true);
+    expect(cellSets).toEqual(new Set([1, 2, 3, 4, 5, 6]));
+    expect(BLOCK_BLAST_SHAPE_TEMPLATES.some((t) => t.shape[0]?.length === 6)).toBe(true);
+    expect(BLOCK_BLAST_SHAPE_TEMPLATES.filter((t) => t.cells === 4).length).toBeGreaterThanOrEqual(15);
     expect(BLOCK_BLAST_SHAPE_TEMPLATES.filter((t) => t.cells === 5).length).toBeGreaterThanOrEqual(4);
+    expect(BLOCK_BLAST_SHAPE_TEMPLATES.filter((t) => t.cells === 6).length).toBeGreaterThanOrEqual(4);
+    const diagonals = BLOCK_BLAST_SHAPE_TEMPLATES.filter(
+      (t) =>
+        t.cells === 2 &&
+        t.shape.length === 2 &&
+        t.shape[0]!.length === 2 &&
+        t.shape[0]![0]! + t.shape[0]![1]! === 1 &&
+        t.shape[1]![0]! + t.shape[1]![1]! === 1
+    );
+    expect(diagonals.length).toBe(2);
   });
 
   it("early weights match EARLY bucket at shapeIndex 0", () => {
@@ -58,7 +70,7 @@ describe("blockBlastShapeCatalog", () => {
 
   it("late weights approach LATE bucket at full progress", () => {
     const cellWeights = resolveCellWeightsForShapeIndex(BLOCK_BLAST_PROGRESS_FULL_SHAPE_INDEX);
-    for (const cells of [1, 2, 3, 4, 5]) {
+    for (const cells of [1, 2, 3, 4, 5, 6]) {
       expect(cellWeights[cells]).toBeCloseTo(BLOCK_BLAST_SHAPE_CELL_WEIGHTS_LATE[cells]!, 5);
     }
   });
@@ -75,20 +87,40 @@ describe("blockBlastShapeCatalog", () => {
     expect(a.map((s) => s.shape)).toEqual(b.map((s) => s.shape));
   });
 
-  it("long shape stream includes 5-cell blocks with limited 1-cell rate", () => {
-    const shapes = generateShapes(48, "blockblast-pool:v6:shape-probe", 0);
+  it("long shape stream includes 5–6 cell blocks with limited 1-cell rate", () => {
+    const shapes = generateShapes(48, "blockblast-pool:v9:shape-probe", 0);
     const cells = shapes.map((s) => countCells(s.shape));
-    expect(cells.filter((c) => c === 5).length).toBeGreaterThan(0);
-    expect(cells.filter((c) => c === 1).length / cells.length).toBeLessThan(0.08);
-    expect(cells.filter((c) => c >= 4).length / cells.length).toBeGreaterThan(0.55);
+    expect(cells.filter((c) => c >= 5).length).toBeGreaterThan(0);
+    expect(cells.filter((c) => c === 1).length / cells.length).toBeLessThan(0.12);
+    expect(cells.filter((c) => c >= 4).length / cells.length).toBeGreaterThan(0.4);
   });
 
-  it("v6 has no hand rescue: third piece not biased small after two 5-cell", () => {
+  it("setL1PresetOverride changes cell weights used by resolve", () => {
+    try {
+      setL1PresetOverride({
+        progressFull: 10,
+        keyframes: [
+          { t: 0, weights: { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0 } },
+          { t: 1, weights: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 1 } },
+        ],
+      });
+      expect(resolveCellWeightsForShapeIndex(0)[1]).toBeCloseTo(1, 5);
+      expect(resolveCellWeightsForShapeIndex(10)[5]).toBeCloseTo(1, 5);
+    } finally {
+      setL1PresetOverride(null);
+    }
+    expect(resolveCellWeightsForShapeIndex(0)[1]).toBeCloseTo(
+      BLOCK_BLAST_SHAPE_CELL_WEIGHTS_EARLY[1]!,
+      5
+    );
+  });
+
+  it("v9 early hand rescue: third piece biased small after two large in opening", () => {
     let smallThird = 0;
     let largeHands = 0;
-    for (let seed = 0; seed < 80; seed++) {
-      const shapes = generateShapes(36, `blockblast-pool:v6:hand-${seed}`, 0);
-      for (let h = 0; h < 12; h++) {
+    for (let seed = 0; seed < 120; seed++) {
+      const shapes = generateShapes(24, `blockblast-pool:v9:hand-${seed}`, 0);
+      for (let h = 0; h < 8; h++) {
         const a = countCells(shapes[h * 3]!.shape);
         const b = countCells(shapes[h * 3 + 1]!.shape);
         const c = countCells(shapes[h * 3 + 2]!.shape);
@@ -99,7 +131,6 @@ describe("blockBlastShapeCatalog", () => {
       }
     }
     expect(largeHands).toBeGreaterThan(0);
-    // 无 preferSmall 时第三块 ≤3 不应显著偏高（背景权重约 <0.4）
-    expect(smallThird / largeHands).toBeLessThan(0.55);
+    expect(smallThird / largeHands).toBeGreaterThan(0.55);
   });
 });

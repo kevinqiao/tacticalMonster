@@ -58,6 +58,10 @@ function stripLegacyGcOpsFromData(
     "ticketEntrySoloDailyCap",
     "ticketEntryMultiPriceTickets",
     "ticketEntryMultiDailyCap",
+    "soloSuccessDailyEnabled",
+    "soloSuccessDailyCap",
+    "soloSuccessAfterCapMode",
+    "soloSuccessAllowPlayAfterCap",
   ] as const) {
     delete next[key];
   }

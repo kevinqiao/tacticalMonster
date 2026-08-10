@@ -140,6 +140,8 @@ const Match3Player: React.FC = () => {
     openWatch,
     closeWatch,
     targetScore,
+    targetScoreP75,
+    targetScoreP90,
   } = useMatch3GameManager();
   const { trySwap } = useActHandler({
     onSwapCommitted: () => setDragVisual(null),
@@ -477,7 +479,19 @@ const Match3Player: React.FC = () => {
         <div className="match3-score">
           {t('hud.scoreWithValue', { score: gameState.score })}
         </div>
-        {(targetScore ?? gameState.targetScore) != null ? (
+        {targetScoreP75 != null && targetScoreP90 != null ? (
+          <div
+            className="match3-target match3-target--dual"
+            aria-label={t('hud.targetDualAria', { p75: targetScoreP75, p90: targetScoreP90 })}
+          >
+            <span className={gameState.score >= targetScoreP75 ? 'match3-target__tier--on' : ''}>
+              ★ {targetScoreP75}
+            </span>
+            <span className={gameState.score >= targetScoreP90 ? 'match3-target__tier--on' : ''}>
+              ★★★ {targetScoreP90}
+            </span>
+          </div>
+        ) : (targetScore ?? gameState.targetScore) != null ? (
           <div className="match3-target" aria-label={t('hud.targetScoreAria')}>
             {t('hud.targetWithValue', { score: targetScore ?? gameState.targetScore })}
           </div>

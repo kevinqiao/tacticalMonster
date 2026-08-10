@@ -25,6 +25,7 @@ import type {
     SolitaireRecordedStep,
     SolitaireSuit,
 } from "./seedPool/solitaireRecordedOpTypes";
+import { isLegitimateCompleted } from "./solitaireTargetWin";
 
 /** 同 `gameId` 多行时取最新 */
 function latestSolitaireGameRow<T extends { _creationTime: number }>(rows: T[]): T | undefined {
@@ -143,6 +144,7 @@ export class GameManager {
         status?: SoloGameStatus;
         moves?: number;
         score?: number;
+        targetScore?: number;
         playStartedAt?: number;
         recordedOps?: SolitaireRecordedStep[];
         lastOpAt?: number;
@@ -173,6 +175,7 @@ export class GameManager {
         if (data.status !== undefined) this.game.status = data.status;
         if (data.moves !== undefined) this.game.moves = data.moves;
         if (data.score !== undefined) this.game.score = data.score;
+        if (data.targetScore !== undefined) this.game.targetScore = data.targetScore;
         if (data.playStartedAt !== undefined) this.game.playStartedAt = data.playStartedAt;
         if (data.recordedOps !== undefined) this.game.recordedOps = data.recordedOps;
         if (data.lastOpAt !== undefined) this.game.lastOpAt = data.lastOpAt;
@@ -189,6 +192,9 @@ export class GameManager {
         if (this.game.zones?.length) {
             patch.zones = this.game.zones;
         }
+        if (this.game.targetScore != null) {
+            patch.targetScore = this.game.targetScore;
+        }
         if (this.game.playStartedAt != null) {
             patch.playStartedAt = this.game.playStartedAt;
         }
@@ -198,6 +204,14 @@ export class GameManager {
         await this.dbCtx.db.patch(this.game._id, patch);
     }
 
+    private resolveStatusAfterScore(_nextScore: number, fallback: SoloGameStatus): SoloGameStatus {
+        // 挑战达标不终局；仅清盘为 COMPLETED。
+        if (new SoloRuleManager(this.game as SoloGameState, GameInteractionPhase.idle).isGameWon()) {
+            return SoloGameStatus.COMPLETED;
+        }
+        return fallback;
+    }
+
     progressSnapshot(): { score: number; moves: number; gameStatus: number } {
         return {
             score: this.game?.score ?? 0,
@@ -205,13 +219,21 @@ export class GameManager {
             gameStatus: this.game?.status ?? -1,
         };
     }
-    async createGame(seed?: string | number, gameId?: string, replayEpoch?: number): Promise<any> {
+    async createGame(
+        seed?: string | number,
+        gameId?: string,
+        replayEpoch?: number,
+        targetScore?: number
+    ): Promise<any> {
         const game = SoloGameEngine.createGame(seed);
         const zones = createZones();
         const gameState: SoloGameState = {
             ...game,
             gameId: gameId ?? "",
             zones,
+            ...(typeof targetScore === "number" && Number.isFinite(targetScore)
+                ? { targetScore: Math.floor(targetScore) }
+                : {}),
         };
         const insertDoc: Record<string, unknown> = { ...gameState, recordedOps: [] };
         if (typeof replayEpoch === "number" && Number.isFinite(replayEpoch)) {
@@ -236,16 +258,31 @@ export class GameManager {
     }
     async draw(cardId: string): Promise<any> {
         if (!this.game) return { ok: false };
+        const st = this.game.status as number;
+        if (st === SoloGameStatus.CANCELLED) {
+            return { ok: false, error: "terminal" };
+        }
+        if (st === SoloGameStatus.COMPLETED) {
+            if (isLegitimateCompleted(this.game)) {
+                return { ok: false, error: "terminal" };
+            }
+            await this.save({ status: SoloGameStatus.PLAYING });
+        }
         const result = SoloGameEngine.drawCard(this.game, cardId);
         if (!result.ok) return result;
         appendRecordedStep(this.game, { op: "draw" });
         const playStartedAt = ensurePlayStarted(this.game);
         const movesBefore = this.game.moves ?? 0;
+        const nextScore = (this.game.score ?? 0) + scoreDeltaForDraw();
+        const fallback =
+            this.game.status === SoloGameStatus.DEALED
+                ? SoloGameStatus.PLAYING
+                : (this.game.status as SoloGameStatus);
         await this.save({
             cards: result.data?.draw,
             moves: movesBefore + 1,
-            score: (this.game.score ?? 0) + scoreDeltaForDraw(),
-            status: this.game.status === SoloGameStatus.DEALED ? SoloGameStatus.PLAYING : this.game.status,
+            score: nextScore,
+            status: this.resolveStatusAfterScore(nextScore, fallback),
             playStartedAt,
         });
         return {
@@ -266,12 +303,8 @@ export class GameManager {
             return { ok: false, error: "terminal" };
         }
         if (st === SoloGameStatus.COMPLETED) {
-            const leftover = (this.game.cards as Card[]).some(
-                (c) =>
-                    c.zone !== ZoneType.FOUNDATION &&
-                    !String(c.zoneId ?? "").startsWith("foundation-")
-            );
-            if (!leftover) {
+            // 清盘或挑战达标均为合法终局；仅误标 COMPLETED 才拉回 PLAYING
+            if (isLegitimateCompleted(this.game)) {
                 return { ok: false, error: "terminal" };
             }
             await this.save({ status: SoloGameStatus.PLAYING });
@@ -313,19 +346,17 @@ export class GameManager {
             toZone,
             flipCards.filter((c) => c.isRevealed).length
         );
+        const nextScore = (this.game.score ?? 0) + delta;
+        // 先落牌再判胜：resolveStatusAfterScore 依赖更新后的 cards
         await this.save({
             cards: updateCards,
             moves: movesBefore + 1,
-            score: (this.game.score ?? 0) + delta,
-            status: this.game.status === SoloGameStatus.DEALED ? SoloGameStatus.PLAYING : this.game.status,
+            score: nextScore,
             playStartedAt,
         });
-        const rm = new SoloRuleManager(this.game as SoloGameState, GameInteractionPhase.idle);
-        if (rm.isGameWon()) {
-            await this.save({
-                status: SoloGameStatus.COMPLETED,
-            });
-        }
+        await this.save({
+            status: this.resolveStatusAfterScore(nextScore, SoloGameStatus.PLAYING),
+        });
         const moveCards = result.data?.move ?? [];
         return {
             ...result,
@@ -338,17 +369,33 @@ export class GameManager {
         };
     }
     async recycle() {
+        if (!this.game) return { ok: false };
+        const st = this.game.status as number;
+        if (st === SoloGameStatus.CANCELLED) {
+            return { ok: false, error: "terminal" };
+        }
+        if (st === SoloGameStatus.COMPLETED) {
+            if (isLegitimateCompleted(this.game)) {
+                return { ok: false, error: "terminal" };
+            }
+            await this.save({ status: SoloGameStatus.PLAYING });
+        }
         const result = SoloGameEngine.recycle(this.game);
         if (!result.ok) return result;
         appendRecordedStep(this.game, { op: "recycle" });
         const cards = result.data?.update || [];
         const playStartedAt = ensurePlayStarted(this.game);
         const movesBefore = this.game.moves ?? 0;
+        const nextScore = (this.game.score ?? 0) + scoreDeltaForRecycle();
+        const fallback =
+            this.game.status === SoloGameStatus.DEALED
+                ? SoloGameStatus.PLAYING
+                : (this.game.status as SoloGameStatus);
         await this.save({
             cards,
             moves: movesBefore + 1,
-            score: (this.game.score ?? 0) + scoreDeltaForRecycle(),
-            status: this.game.status === SoloGameStatus.DEALED ? SoloGameStatus.PLAYING : this.game.status,
+            score: nextScore,
+            status: this.resolveStatusAfterScore(nextScore, fallback),
             playStartedAt,
         });
         return {
@@ -392,14 +439,9 @@ export class GameManager {
         if (st === SoloGameStatus.CANCELLED) {
             return { ok: false, error: "terminal", done: true, ...this.progressSnapshot() };
         }
-        // 过早 COMPLETED（旧 isGameWon / 状态不同步）但牌未收齐：拉回 PLAYING 继续收
+        // 过早 COMPLETED（旧 isGameWon / 状态不同步）但牌未收齐且未达标：拉回 PLAYING 继续收
         if (st === SoloGameStatus.COMPLETED) {
-            const leftover = (this.game.cards as Card[]).some(
-                (c) =>
-                    c.zone !== ZoneType.FOUNDATION &&
-                    !String(c.zoneId ?? "").startsWith("foundation-")
-            );
-            if (!leftover) {
+            if (isLegitimateCompleted(this.game)) {
                 return { ok: false, error: "terminal", done: true, ...this.progressSnapshot() };
             }
             await this.save({ status: SoloGameStatus.PLAYING });
@@ -439,12 +481,8 @@ export class GameManager {
             return { ok: false, error: "terminal" };
         }
         if (st === SoloGameStatus.COMPLETED) {
-            const leftover = (this.game.cards as Card[]).some(
-                (c) =>
-                    c.zone !== ZoneType.FOUNDATION &&
-                    !String(c.zoneId ?? "").startsWith("foundation-")
-            );
-            if (!leftover) {
+            // 允许从误标 COMPLETED 拉回；达标/清盘终局不可再 cheat
+            if (isLegitimateCompleted(this.game)) {
                 return { ok: false, error: "terminal" };
             }
         }
@@ -484,8 +522,9 @@ export const createGame = internalMutation({
         gameId: v.string(),
         replayEpoch: v.optional(v.number()),
         forceRecreate: v.optional(v.boolean()),
+        targetScore: v.optional(v.number()),
     },
-    handler: async (ctx, { seed, gameId, replayEpoch, forceRecreate }) => {
+    handler: async (ctx, { seed, gameId, replayEpoch, forceRecreate, targetScore }) => {
         try {
             await healDuplicateSolitaireGamesForGameId(ctx, gameId);
             if (forceRecreate === true) {
@@ -504,6 +543,16 @@ export const createGame = internalMutation({
                     await ctx.db.patch(existing._id, { recordedOps: [] });
                     existing.recordedOps = [];
                 }
+                if (
+                    typeof targetScore === "number" &&
+                    Number.isFinite(targetScore) &&
+                    existing.targetScore == null &&
+                    existing._id
+                ) {
+                    const floor = Math.floor(targetScore);
+                    await ctx.db.patch(existing._id, { targetScore: floor });
+                    existing.targetScore = floor;
+                }
                 return {
                     ok: true as const,
                     data: toClientGameState(existing as SoloGameState),
@@ -513,7 +562,7 @@ export const createGame = internalMutation({
 
             console.log("createGame...", seed, gameId);
             const gameManager = new GameManager(ctx);
-            const game = await gameManager.createGame(seed, gameId, replayEpoch);
+            const game = await gameManager.createGame(seed, gameId, replayEpoch, targetScore);
             if (!game) {
                 return { ok: false as const, error: "insert_failed" as const };
             }
@@ -535,6 +584,25 @@ export const createGame = internalMutation({
             console.error("[solitaire] createGame failed", gameId, err);
             return { ok: false as const, error: "create_failed" as const };
         }
+    },
+});
+
+/** 已开局补挂达标线（旧局缺字段时 loadGame 调用） */
+export const ensureTargetScore = internalMutation({
+    args: { gameId: v.string(), targetScore: v.number() },
+    handler: async (ctx, { gameId, targetScore }) => {
+        if (!Number.isFinite(targetScore)) {
+            return { ok: false as const };
+        }
+        const rows = await collectSolitaireGamesByGameId(ctx, gameId);
+        const row = latestSolitaireGameRow(rows);
+        if (!row?._id) return { ok: false as const };
+        if (row.targetScore != null) {
+            return { ok: true as const, targetScore: row.targetScore as number };
+        }
+        const floor = Math.floor(targetScore);
+        await ctx.db.patch(row._id, { targetScore: floor });
+        return { ok: true as const, targetScore: floor };
     },
 });
 

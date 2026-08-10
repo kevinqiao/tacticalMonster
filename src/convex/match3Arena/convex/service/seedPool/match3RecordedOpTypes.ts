@@ -18,6 +18,12 @@ export type RolloutTerminalReason = "completed" | "stuck" | "time_up" | "exited"
 
 export const HUMAN_STOCHASTIC_POLICY_VERSION = "human-stochastic-v1" as const;
 
+/** Stuck with moves at or below this counts as early death (opening 保活). */
+export const MATCH3_EARLY_STUCK_MAX_MOVES = 5;
+
+/** First N successful swaps contribute to onboarding / early cascade stats. */
+export const MATCH3_EARLY_SWAP_WINDOW = 5;
+
 export type Match3RolloutScript = {
   rolloutIndex: number;
   policyVersion: typeof HUMAN_STOCHASTIC_POLICY_VERSION;
@@ -28,6 +34,12 @@ export type Match3RolloutScript = {
   completed: boolean;
   terminalReason: RolloutTerminalReason;
   elapsedSimSeconds: number;
+  /** True when terminal stuck and moves <= MATCH3_EARLY_STUCK_MAX_MOVES. */
+  earlyStuck?: boolean;
+  /** Max clear waves (combo length) on any single swap this rollout. */
+  maxClearWaves?: number;
+  /** Sum of clear waves over the first MATCH3_EARLY_SWAP_WINDOW swaps. */
+  earlyClearWaveSum?: number;
 };
 
 export type RolloutSummary = {
@@ -79,7 +91,16 @@ export type RolloutDistributionMetrics = {
   layoutOutcome: "winnable" | "likely_dead" | "mixed";
   openingMoveCount: number;
   scoreSpread: number;
+  /** Opening / early-survival ease — not a p50 alias. */
   playerEaseScore: number;
+  /** Ritual axis: early cascade / first-wave highlight (higher = friendlier ritual). */
+  onboardingScore: number;
+  /** Fraction of rollouts that stuck within MATCH3_EARLY_STUCK_MAX_MOVES. */
+  earlyStuckRate: number;
+  /** Mean earlyClearWaveSum across rollouts. */
+  meanEarlyClearWaveSum: number;
+  /** Fraction of rollouts with earlyClearWaveSum >= 2 (at least one cascade feel). */
+  earlyCascadeHitRate: number;
   layoutFingerprint: string;
   policyVersion: typeof HUMAN_STOCHASTIC_POLICY_VERSION;
   matchTimeLimitSec: number;

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 
+import { isPortalSuccessQuantile } from "../../../data/portalSeedTierPolicy";
 import {
   effectiveGameSequence,
   getPortalTournamentDefinition,
@@ -35,6 +36,8 @@ function toSlimSeedBinding(
     poolVersion: binding.poolVersion,
     tier: binding.tier,
     ...(binding.scoreQuantiles ? { scoreQuantiles: binding.scoreQuantiles } : {}),
+    ...(binding.successQuantile ? { successQuantile: binding.successQuantile } : {}),
+    ...(binding.ritualOneLineClear ? { ritualOneLineClear: true } : {}),
   };
 }
 
@@ -159,7 +162,11 @@ export const resolveMatchSubmitContext = internalQuery({
       timing.mark("loadSoloRankPlanningBundle");
     }
 
-    const successThresholdQuantile = def.seedQuantileSuccess?.quantile;
+    const bindingQuantile = seedBinding?.successQuantile;
+    const successThresholdQuantile = isPortalSuccessQuantile(bindingQuantile)
+      ? bindingQuantile
+      : def.seedQuantileSuccess?.quantile;
+    const ritualOneLineClear = seedBinding?.ritualOneLineClear === true;
     const botPolicy = resolveBotPolicy(primaryGameType, pm.gameType);
     timing.finish("ok", {
       templateId: pm.templateId,
@@ -193,6 +200,7 @@ export const resolveMatchSubmitContext = internalQuery({
       ...(triathlonLegs ? { triathlonLegs } : {}),
       ...(soloRankPlanning ? { soloRankPlanning } : {}),
       ...(successThresholdQuantile ? { successThresholdQuantile } : {}),
+      ...(ritualOneLineClear ? { ritualOneLineClear: true } : {}),
     };
   },
 });

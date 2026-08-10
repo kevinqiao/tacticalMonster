@@ -1,0 +1,294 @@
+{
+  "generatedAt": "2026-08-05T23:42:04.109Z",
+  "poolVersion": "l1-iter01",
+  "profile": "probe",
+  "softPTargets": {
+    "minScoreAt60P50": 8,
+    "minEarlyClearRate": 0.5,
+    "scoreGrowthMin": 1.5,
+    "scoreGrowthMax": 6,
+    "minMidToLateGrowth": 0.2,
+    "minLateBurstRate": 0.12,
+    "minNearDeathRecoverRate": 0.08
+  },
+  "health": {
+    "profile": "probe",
+    "seedCount": 9,
+    "meanTimeUpRate": 0.13425925925925924,
+    "meanJackpotRate": 0.009259259259259259,
+    "meanMediumBurstRate": 0.2268518518518519,
+    "meanLateGameReachRate": 0.3194444444444444,
+    "meanExperienceScore": 0.34019135802469136,
+    "gatePassRate": 1,
+    "softPMean": 4
+  },
+  "warnCounts": {
+    "G1": 4
+  },
+  "failCounts": {},
+  "topByExperience": [
+    {
+      "seedId": "blockblast-pool:l1-iter01:10",
+      "tier": "easy",
+      "experienceScore": 0.39791666666666675,
+      "playerEaseScore": 81.2,
+      "mediumBurstRate": 0.375,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.25,
+      "timeUpRate": 0.20833333333333334,
+      "softPPassCount": 5,
+      "hardRejectIds": [],
+      "warningIds": []
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:21",
+      "tier": "easy",
+      "experienceScore": 0.3923611111111111,
+      "playerEaseScore": 93.8,
+      "mediumBurstRate": 0.4583333333333333,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.3333333333333333,
+      "timeUpRate": 0.2916666666666667,
+      "softPPassCount": 3,
+      "hardRejectIds": [],
+      "warningIds": []
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:5",
+      "tier": "medium",
+      "experienceScore": 0.3715,
+      "playerEaseScore": 70.8,
+      "mediumBurstRate": 0.25,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.4583333333333333,
+      "timeUpRate": 0.20833333333333334,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": []
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:13",
+      "tier": "hard",
+      "experienceScore": 0.36666666666666664,
+      "playerEaseScore": 86.4,
+      "mediumBurstRate": 0.16666666666666666,
+      "jackpotRate": 0.041666666666666664,
+      "lateGameReachRate": 0.2916666666666667,
+      "timeUpRate": 0.16666666666666666,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": []
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:29",
+      "tier": "medium",
+      "experienceScore": 0.33541666666666664,
+      "playerEaseScore": 132,
+      "mediumBurstRate": 0.16666666666666666,
+      "jackpotRate": 0.041666666666666664,
+      "lateGameReachRate": 0.2916666666666667,
+      "timeUpRate": 0.041666666666666664,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": [
+        "G1"
+      ]
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:20",
+      "tier": "hard",
+      "experienceScore": 0.3340277777777778,
+      "playerEaseScore": 100.2,
+      "mediumBurstRate": 0.20833333333333334,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.375,
+      "timeUpRate": 0.16666666666666666,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": []
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:36",
+      "tier": "medium",
+      "experienceScore": 0.30416666666666664,
+      "playerEaseScore": 90.69999999999999,
+      "mediumBurstRate": 0.16666666666666666,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.2916666666666667,
+      "timeUpRate": 0.041666666666666664,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": [
+        "G1"
+      ]
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:28",
+      "tier": "hard",
+      "experienceScore": 0.2815833333333333,
+      "playerEaseScore": 78.6,
+      "mediumBurstRate": 0.125,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.25,
+      "timeUpRate": 0.041666666666666664,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": [
+        "G1"
+      ]
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:27",
+      "tier": "medium",
+      "experienceScore": 0.27808333333333335,
+      "playerEaseScore": 85.30000000000001,
+      "mediumBurstRate": 0.125,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.3333333333333333,
+      "timeUpRate": 0.041666666666666664,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": [
+        "G1"
+      ]
+    }
+  ],
+  "bottomByExperience": [
+    {
+      "seedId": "blockblast-pool:l1-iter01:27",
+      "tier": "medium",
+      "experienceScore": 0.27808333333333335,
+      "playerEaseScore": 85.30000000000001,
+      "mediumBurstRate": 0.125,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.3333333333333333,
+      "timeUpRate": 0.041666666666666664,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": [
+        "G1"
+      ]
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:28",
+      "tier": "hard",
+      "experienceScore": 0.2815833333333333,
+      "playerEaseScore": 78.6,
+      "mediumBurstRate": 0.125,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.25,
+      "timeUpRate": 0.041666666666666664,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": [
+        "G1"
+      ]
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:36",
+      "tier": "medium",
+      "experienceScore": 0.30416666666666664,
+      "playerEaseScore": 90.69999999999999,
+      "mediumBurstRate": 0.16666666666666666,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.2916666666666667,
+      "timeUpRate": 0.041666666666666664,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": [
+        "G1"
+      ]
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:20",
+      "tier": "hard",
+      "experienceScore": 0.3340277777777778,
+      "playerEaseScore": 100.2,
+      "mediumBurstRate": 0.20833333333333334,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.375,
+      "timeUpRate": 0.16666666666666666,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": []
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:29",
+      "tier": "medium",
+      "experienceScore": 0.33541666666666664,
+      "playerEaseScore": 132,
+      "mediumBurstRate": 0.16666666666666666,
+      "jackpotRate": 0.041666666666666664,
+      "lateGameReachRate": 0.2916666666666667,
+      "timeUpRate": 0.041666666666666664,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": [
+        "G1"
+      ]
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:13",
+      "tier": "hard",
+      "experienceScore": 0.36666666666666664,
+      "playerEaseScore": 86.4,
+      "mediumBurstRate": 0.16666666666666666,
+      "jackpotRate": 0.041666666666666664,
+      "lateGameReachRate": 0.2916666666666667,
+      "timeUpRate": 0.16666666666666666,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": []
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:5",
+      "tier": "medium",
+      "experienceScore": 0.3715,
+      "playerEaseScore": 70.8,
+      "mediumBurstRate": 0.25,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.4583333333333333,
+      "timeUpRate": 0.20833333333333334,
+      "softPPassCount": 4,
+      "hardRejectIds": [],
+      "warningIds": []
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:21",
+      "tier": "easy",
+      "experienceScore": 0.3923611111111111,
+      "playerEaseScore": 93.8,
+      "mediumBurstRate": 0.4583333333333333,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.3333333333333333,
+      "timeUpRate": 0.2916666666666667,
+      "softPPassCount": 3,
+      "hardRejectIds": [],
+      "warningIds": []
+    },
+    {
+      "seedId": "blockblast-pool:l1-iter01:10",
+      "tier": "easy",
+      "experienceScore": 0.39791666666666675,
+      "playerEaseScore": 81.2,
+      "mediumBurstRate": 0.375,
+      "jackpotRate": 0,
+      "lateGameReachRate": 0.25,
+      "timeUpRate": 0.20833333333333334,
+      "softPPassCount": 5,
+      "hardRejectIds": [],
+      "warningIds": []
+    }
+  ],
+  "topByEase": [
+    "blockblast-pool:l1-iter01:29",
+    "blockblast-pool:l1-iter01:20",
+    "blockblast-pool:l1-iter01:21",
+    "blockblast-pool:l1-iter01:36",
+    "blockblast-pool:l1-iter01:13"
+  ],
+  "experienceVsEaseDivergence": {
+    "topExpNotInTopEase": []
+  },
+  "seedsMissingMetrics": 0
+}

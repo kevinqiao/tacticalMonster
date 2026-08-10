@@ -7,8 +7,9 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 import { ActMode, GameInteractionPhase, SoloActionData, SoloBoardDimension, SoloCard, SoloDropTarget, ZoneType } from '../types/SoloTypes';
 import { SOLO_ANIMATION_CONFIG } from '../animation/animationConfig';
 import { buildDropZoneCache, DropZoneCacheEntry, findBestDropTarget, TABLEAU_VERTICAL_PEEK } from '../Utils';
+import { soloActLock } from '../soloActLock';
 import { useSoloGameManager } from './GameManager';
-import useActHandler from './handler/useActHandler';
+import { useSoloActHandler } from './handler/SoloActHandlerProvider';
 
 interface ISoloDnDContext {
     actionData: SoloActionData | null;
@@ -94,13 +95,19 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
     const dragRafRef = useRef<number | null>(null);
     const highlightedElRef = useRef<Element | null>(null);
 
-    const { gameState, ruleManager, boardDimension, setInteractionPhase } = useSoloGameManager();
+    const {
+        gameState,
+        ruleManager,
+        boardDimension,
+        setInteractionPhase,
+        interactionPhaseRef,
+    } = useSoloGameManager();
 
     const legalDropPredicate = useCallback(
         (c: SoloCard, zoneId: string) => (ruleManager ? ruleManager.canMoveToZone(c, zoneId) : false),
         [ruleManager]
     );
-    const { onClickOrTouch, onDrop, cancelDrag } = useActHandler();
+    const { onClickOrTouch, onDrop, cancelDrag } = useSoloActHandler();
 
     useEffect(() => {
         const checkTouchDevice = () => {
@@ -201,6 +208,9 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
     }, [boardDimension, gameState, legalDropPredicate]);
 
     const onPointerDragStart = useCallback((card: SoloCard, event: React.PointerEvent) => {
+        // 同步锁：连续点 foundation 时 React 的 interactionPhase/ruleManager 可能仍是 idle
+        if (interactionPhaseRef.current !== GameInteractionPhase.idle) return;
+        if (soloActLock.inFlight) return;
         const actModes = ruleManager?.getActModes(card) || [];
         if (!ruleManager || !card.ele || !gameState || actModes.length === 0) return;
         setInteractionPhase(GameInteractionPhase.pointerDrag);
@@ -239,7 +249,15 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             }
         });
         bump(n => n + 1);
-    }, [gameState, getClientPoint, ruleManager, setInteractionPhase, cancelDragRaf, clearDropTargetHighlight]);
+    }, [
+        gameState,
+        getClientPoint,
+        ruleManager,
+        setInteractionPhase,
+        interactionPhaseRef,
+        cancelDragRaf,
+        clearDropTargetHighlight,
+    ]);
 
     const clearDraggingClass = useCallback((session: SoloActionData) => {
         session.card?.ele?.classList.remove("card--dragging");

@@ -15,6 +15,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: [
+      "src/convex/solitaireArena/convex/service/__tests__/**/*.test.ts",
       "src/convex/solitaireArena/convex/service/seedPool/__tests__/**/*.test.ts",
       "src/convex/towerArena/convex/service/__tests__/**/*.test.ts",
       "src/convex/towerArena/convex/service/seedPool/__tests__/**/*.test.ts",

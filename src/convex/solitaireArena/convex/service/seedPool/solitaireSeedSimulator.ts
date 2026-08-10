@@ -1,4 +1,4 @@
-import { SoloGameStatus } from "../../types/SoloTypes";
+import { SoloGameStatus, ZoneType } from "../../types/SoloTypes";
 import { layoutFingerprint } from "./solitaireSeedDifficulty";
 import { computeSolitaireCashTotalScore } from "./solitaireScoring";
 import { applyOp, buildDealtState, openingMoveCount } from "./solitaireOpCodec";
@@ -42,6 +42,32 @@ export type SimulateRolloutOptions = {
   matchSeconds?: number;
 };
 
+function countFoundationCards(state: { cards: { zone: ZoneType }[] }): number {
+  return state.cards.filter((c) => c.zone === ZoneType.FOUNDATION).length;
+}
+
+function isMoveOntoFoundation(op: SolitaireRecordedOp): boolean {
+  return op.op === "move" && op.to.startsWith("foundation-");
+}
+
+type FoundationProgressTracker = {
+  peak: number;
+  timeToFirstSec: number | null;
+};
+
+function noteFoundationProgress(
+  tracker: FoundationProgressTracker,
+  state: { cards: { zone: ZoneType }[] },
+  op: SolitaireRecordedOp,
+  elapsedSec: number
+): void {
+  const n = countFoundationCards(state);
+  if (n > tracker.peak) tracker.peak = n;
+  if (tracker.timeToFirstSec == null && isMoveOntoFoundation(op)) {
+    tracker.timeToFirstSec = elapsedSec;
+  }
+}
+
 function recordOp(
   state: Parameters<typeof applyOp>[0],
   ctx: ReturnType<typeof createStochasticPolicyContext>,
@@ -50,7 +76,8 @@ function recordOp(
   ops: SolitaireRecordedOp[],
   pacingMs: number[],
   elapsed: { value: number },
-  matchSeconds: number
+  matchSeconds: number,
+  foundation: FoundationProgressTracker
 ): { ok: true; terminalReason?: RolloutTerminalReason } | { ok: false; terminalReason: RolloutTerminalReason } {
   const cost = simCostForOp(op, timeCtx, ctx.rolloutIndex);
   if (wouldExceedTimeLimit(elapsed.value, cost, matchSeconds)) {
@@ -67,6 +94,7 @@ function recordOp(
   elapsed.value = Math.round((elapsed.value + cost) * 100) / 100;
   updatePolicyAfterOp(ctx, scoreBefore, state.score ?? 0, op);
   markFoundationBurstOp(ctx, op);
+  noteFoundationProgress(foundation, state, op, elapsed.value);
 
   if (state.status === SoloGameStatus.COMPLETED) {
     return { ok: true, terminalReason: "completed" };
@@ -86,6 +114,7 @@ export function simulateRollout(
   const ops: SolitaireRecordedOp[] = [];
   const replayPacingMs: number[] = [];
   const elapsed = { value: 0 };
+  const foundation: FoundationProgressTracker = { peak: 0, timeToFirstSec: null };
   let terminalReason: RolloutTerminalReason = "exited";
 
   for (let step = 0; step < MAX_SIM_STEPS; step++) {
@@ -108,7 +137,8 @@ export function simulateRollout(
         ops,
         replayPacingMs,
         elapsed,
-        matchSeconds
+        matchSeconds,
+        foundation
       );
       if (!burstResult.ok) {
         terminalReason = burstResult.terminalReason;
@@ -142,7 +172,8 @@ export function simulateRollout(
       ops,
       replayPacingMs,
       elapsed,
-      matchSeconds
+      matchSeconds,
+      foundation
     );
     if (!mainResult.ok) {
       terminalReason = mainResult.terminalReason;
@@ -180,6 +211,9 @@ export function simulateRollout(
     );
   }
 
+  const finalFoundation = countFoundationCards(finalState);
+  if (finalFoundation > foundation.peak) foundation.peak = finalFoundation;
+
   return {
     rolloutIndex,
     policyVersion: POLICY_VERSION,
@@ -194,6 +228,8 @@ export function simulateRollout(
     completed,
     terminalReason,
     elapsedSimSeconds,
+    foundationCardsPeak: foundation.peak,
+    timeToFirstFoundationSec: foundation.timeToFirstSec,
   };
 }
 

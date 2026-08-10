@@ -15,6 +15,11 @@ import {
   resolvePortalQuotaScope,
   type PortalQuotaScope,
 } from "../../data/portalQuotaScope";
+import {
+  soloSuccessConfigFromFields,
+  type PortalSoloSuccessAfterCapMode,
+  type PortalSoloSuccessDailyConfig,
+} from "../../data/portalSoloSuccessConfig";
 
 export type PlayEntrySettingsFields = {
   /** mode | lobby | tournament — how free/ad/ticket pools are shared. */
@@ -34,6 +39,10 @@ export type PlayEntrySettingsFields = {
   coinEntrySoloDailyCap?: number;
   coinEntryMultiPriceCoins?: number;
   coinEntryMultiDailyCap?: number;
+  soloSuccessDailyEnabled?: boolean;
+  soloSuccessDailyCap?: number;
+  soloSuccessAfterCapMode?: PortalSoloSuccessAfterCapMode;
+  soloSuccessAllowPlayAfterCap?: boolean;
 };
 
 export type PlayEntryResolveScope =
@@ -62,6 +71,10 @@ const OVERLAY_KEYS: (keyof PlayEntrySettingsFields)[] = [
   "coinEntrySoloDailyCap",
   "coinEntryMultiPriceCoins",
   "coinEntryMultiDailyCap",
+  "soloSuccessDailyEnabled",
+  "soloSuccessDailyCap",
+  "soloSuccessAfterCapMode",
+  "soloSuccessAllowPlayAfterCap",
 ];
 
 function fieldOverlay(
@@ -169,6 +182,12 @@ export function quotaScopeFromSettings(
   settings: PlayEntrySettingsFields
 ): PortalQuotaScope {
   return resolvePortalQuotaScope(settings.quotaScope);
+}
+
+export function soloSuccessConfigFromSettings(
+  settings: PlayEntrySettingsFields
+): PortalSoloSuccessDailyConfig {
+  return soloSuccessConfigFromFields(settings);
 }
 
 export { PORTAL_TICKET_ENTRY_DEFAULTS };

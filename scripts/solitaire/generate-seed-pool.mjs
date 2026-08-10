@@ -48,6 +48,8 @@ function parseArgs(argv) {
     minScoreSpread: 0,
     rejectCollapsed: false,
     quickScreenRollouts: 1,
+    minFoundationCardsP25: 0,
+    maxTimeToFirstFoundationP50: 0,
     oversampleFactor: 1,
     writeRolloutSummaries: false,
     writeRolloutFiles: false,
@@ -80,6 +82,9 @@ function parseArgs(argv) {
     else if (a === "--min-score-spread") opts.minScoreSpread = Number(next());
     else if (a === "--reject-collapsed") opts.rejectCollapsed = true;
     else if (a === "--quick-screen-rollouts") opts.quickScreenRollouts = Number(next());
+    else if (a === "--min-foundation-cards-p25") opts.minFoundationCardsP25 = Number(next());
+    else if (a === "--max-time-to-first-foundation-p50")
+      opts.maxTimeToFirstFoundationP50 = Number(next());
     else if (a === "--oversample-factor") opts.oversampleFactor = Number(next());
     else if (a === "--write-rollout-summaries") opts.writeRolloutSummaries = true;
     else if (a === "--write-rollout-files") {
@@ -123,6 +128,8 @@ function playerFriendlyOpts(opts) {
     minScoreSpread: opts.minScoreSpread,
     rejectCollapsed: opts.rejectCollapsed,
     quickScreenRollouts: opts.quickScreenRollouts,
+    minFoundationCardsP25: opts.minFoundationCardsP25,
+    maxTimeToFirstFoundationP50: opts.maxTimeToFirstFoundationP50,
   };
 }
 
@@ -422,10 +429,13 @@ async function main() {
     opts.minOpeningMoves > 0 ||
     opts.minScoreP25 > 0 ||
     opts.minScoreSpread > 0 ||
-    opts.rejectCollapsed
+    opts.rejectCollapsed ||
+    opts.minFoundationCardsP25 > 0 ||
+    opts.maxTimeToFirstFoundationP50 > 0
   ) {
     console.log(
-      `playerFriendly: minOpening=${opts.minOpeningMoves} minP25=${opts.minScoreP25} minSpread=${opts.minScoreSpread} rejectCollapsed=${opts.rejectCollapsed} quickK=${opts.quickScreenRollouts}`
+      `playerFriendly: minOpening=${opts.minOpeningMoves} minP25=${opts.minScoreP25} minSpread=${opts.minScoreSpread} rejectCollapsed=${opts.rejectCollapsed} ` +
+        `minFoundationP25=${opts.minFoundationCardsP25} maxTimeToFirstFoundationP50=${opts.maxTimeToFirstFoundationP50} quickK=${opts.quickScreenRollouts}`
     );
   }
   if (opts.oversampleFactor > 1) {

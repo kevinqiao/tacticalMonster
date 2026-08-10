@@ -41,6 +41,7 @@ import type * as data_portalSeasonHonorConfig from "../data/portalSeasonHonorCon
 import type * as data_portalSeedTierPolicy from "../data/portalSeedTierPolicy.js";
 import type * as data_portalShopCatalog from "../data/portalShopCatalog.js";
 import type * as data_portalShopPartner from "../data/portalShopPartner.js";
+import type * as data_portalSoloSuccessConfig from "../data/portalSoloSuccessConfig.js";
 import type * as data_portalTicketEntryConfig from "../data/portalTicketEntryConfig.js";
 import type * as data_portalTournamentConfigs from "../data/portalTournamentConfigs.js";
 import type * as data_portalTournamentRewardTypes from "../data/portalTournamentRewardTypes.js";
@@ -63,6 +64,7 @@ import type * as service_ads_portalEntryUsageScope from "../service/ads/portalEn
 import type * as service_ads_portalPlayEntryOverlayMutations from "../service/ads/portalPlayEntryOverlayMutations.js";
 import type * as service_ads_portalPlayEntryQueueRefund from "../service/ads/portalPlayEntryQueueRefund.js";
 import type * as service_ads_portalRewardedAdModeQuery from "../service/ads/portalRewardedAdModeQuery.js";
+import type * as service_ads_portalSoloSuccessDaily from "../service/ads/portalSoloSuccessDaily.js";
 import type * as service_ads_portalTicketEntryQueries from "../service/ads/portalTicketEntryQueries.js";
 import type * as service_ads_portalTicketEntryService from "../service/ads/portalTicketEntryService.js";
 import type * as service_ads_resolvePlayEntrySettings from "../service/ads/resolvePlayEntrySettings.js";
@@ -139,6 +141,7 @@ import type * as service_season_casualSeasonService from "../service/season/casu
 import type * as service_season_portalSeasonHonorService from "../service/season/portalSeasonHonorService.js";
 import type * as service_season_resolvePortalSeasonHonor from "../service/season/resolvePortalSeasonHonor.js";
 import type * as service_seedPool_catalogSeedHttp from "../service/seedPool/catalogSeedHttp.js";
+import type * as service_seedPool_reportMatchSeeds from "../service/seedPool/reportMatchSeeds.js";
 import type * as service_seedPool_seedPoolAdmin from "../service/seedPool/seedPoolAdmin.js";
 import type * as service_seedPool_seedPoolDevQueries from "../service/seedPool/seedPoolDevQueries.js";
 import type * as service_seedPool_seedPoolQueries from "../service/seedPool/seedPoolQueries.js";
@@ -278,6 +281,7 @@ declare const fullApi: ApiFromModules<{
   "data/portalSeedTierPolicy": typeof data_portalSeedTierPolicy;
   "data/portalShopCatalog": typeof data_portalShopCatalog;
   "data/portalShopPartner": typeof data_portalShopPartner;
+  "data/portalSoloSuccessConfig": typeof data_portalSoloSuccessConfig;
   "data/portalTicketEntryConfig": typeof data_portalTicketEntryConfig;
   "data/portalTournamentConfigs": typeof data_portalTournamentConfigs;
   "data/portalTournamentRewardTypes": typeof data_portalTournamentRewardTypes;
@@ -300,6 +304,7 @@ declare const fullApi: ApiFromModules<{
   "service/ads/portalPlayEntryOverlayMutations": typeof service_ads_portalPlayEntryOverlayMutations;
   "service/ads/portalPlayEntryQueueRefund": typeof service_ads_portalPlayEntryQueueRefund;
   "service/ads/portalRewardedAdModeQuery": typeof service_ads_portalRewardedAdModeQuery;
+  "service/ads/portalSoloSuccessDaily": typeof service_ads_portalSoloSuccessDaily;
   "service/ads/portalTicketEntryQueries": typeof service_ads_portalTicketEntryQueries;
   "service/ads/portalTicketEntryService": typeof service_ads_portalTicketEntryService;
   "service/ads/resolvePlayEntrySettings": typeof service_ads_resolvePlayEntrySettings;
@@ -376,6 +381,7 @@ declare const fullApi: ApiFromModules<{
   "service/season/portalSeasonHonorService": typeof service_season_portalSeasonHonorService;
   "service/season/resolvePortalSeasonHonor": typeof service_season_resolvePortalSeasonHonor;
   "service/seedPool/catalogSeedHttp": typeof service_seedPool_catalogSeedHttp;
+  "service/seedPool/reportMatchSeeds": typeof service_seedPool_reportMatchSeeds;
   "service/seedPool/seedPoolAdmin": typeof service_seedPool_seedPoolAdmin;
   "service/seedPool/seedPoolDevQueries": typeof service_seedPool_seedPoolDevQueries;
   "service/seedPool/seedPoolQueries": typeof service_seedPool_seedPoolQueries;

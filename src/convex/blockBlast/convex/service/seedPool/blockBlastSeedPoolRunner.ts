@@ -48,6 +48,9 @@ export const DEFAULT_PLAYER_FRIENDLY_OPTIONS: PlayerFriendlyOptions = {
   rejectCollapsed: false,
   quickScreenRollouts: DEFAULT_QUICK_SCREEN_ROLLOUTS,
   maxStuckRate: 0,
+  minSurvivalTimeP25: 0,
+  minSurvivalTimeP50: 0,
+  maxSurvivalTimeSpread: 0,
   kpiProfile: "off",
 };
 

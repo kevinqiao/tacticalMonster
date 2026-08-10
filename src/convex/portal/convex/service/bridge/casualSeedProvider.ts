@@ -63,9 +63,13 @@ export async function pickCasualMatchSeedBinding(
     templateId,
     uids,
     tier: policy.tier,
-    highPlayerEaseFraction: policy.preferHighPlayerEase
-      ? policy.playerEaseFraction
-      : undefined,
+    ...(policy.preferHighFriendliness
+      ? {
+          friendlinessFraction: policy.friendlinessFraction,
+          friendlinessMetric: policy.friendlinessMetric,
+          highPlayerEaseFraction: policy.friendlinessFraction,
+        }
+      : {}),
   });
   if (!picked.ok) {
     return picked;
@@ -80,6 +84,12 @@ export async function pickCasualMatchSeedBinding(
         ? { scoreQuantiles: picked.seedBinding.scoreQuantiles }
         : {}),
       ...(policy.successQuantile ? { successQuantile: policy.successQuantile } : {}),
+      ...(policy.ritualOneLineClear ? { ritualOneLineClear: true } : {}),
+      ...(policy.segment === "ritual_a" ||
+      policy.segment === "transition_b" ||
+      policy.segment === "merged_c"
+        ? { segment: policy.segment }
+        : {}),
     },
   };
 }

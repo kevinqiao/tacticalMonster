@@ -35,6 +35,10 @@ const CASUAL_MIN_SCORE_P25 = 700;
 const CASUAL_MIN_SCORE_SPREAD = 650;
 const CASUAL_OVERSAMPLE_FACTOR = 3;
 const CASUAL_MIN_OPENING_MOVES = 3;
+/** Casual L2 Gate: peak foundation cards P25 (BB survivalTime analogue). */
+const CASUAL_MIN_FOUNDATION_CARDS_P25 = 4;
+/** Casual L2 Gate: median sim-seconds to first foundation move. */
+const CASUAL_MAX_TIME_TO_FIRST_FOUNDATION_P50 = 90;
 const CASUAL_TIER_EASY = 0.4;
 const CASUAL_TIER_MEDIUM = 0.35;
 const DEFAULT_MIN_ENTRIES = 0; // 0 = 自动使用 index 实际条数
@@ -68,6 +72,8 @@ Common options (before --):
   --rollouts <n>        create：每 seed rollout 数（默认 ${DEFAULT_ROLLOUTS}）
   --min-score-p25 <n>   create：最低 score P25（默认 ${DEFAULT_MIN_SCORE_P25}）
   --min-score-spread <n> create：最低分数 spread（默认 ${DEFAULT_MIN_SCORE_SPREAD}）
+  --min-foundation-cards-p25 <n> create：最低 foundationCardsP25（0=关；casual 默认 ${CASUAL_MIN_FOUNDATION_CARDS_P25}）
+  --max-time-to-first-foundation-p50 <n> create：首次进 foundation 的 P50 上限秒（0=关；casual 默认 ${CASUAL_MAX_TIME_TO_FIRST_FOUNDATION_P50}）
   --oversample-factor <n> create：过采样倍数（默认 ${DEFAULT_OVERSAMPLE_FACTOR}）
   --no-reject-collapsed create：关闭 collapsed 布局拒绝
   --min-entries <n>     load：finalize 最少条数（默认 0=index 实际条数；显式设 500 可强制质量门槛）
@@ -109,6 +115,12 @@ function applyCasualCreatePreset(opts, flags, extra) {
   if (!flags.includes("--min-score-p25")) opts.minScoreP25 = CASUAL_MIN_SCORE_P25;
   if (!flags.includes("--min-score-spread")) opts.minScoreSpread = CASUAL_MIN_SCORE_SPREAD;
   if (!flags.includes("--oversample-factor")) opts.oversampleFactor = CASUAL_OVERSAMPLE_FACTOR;
+  if (!flags.includes("--min-foundation-cards-p25")) {
+    opts.minFoundationCardsP25 = CASUAL_MIN_FOUNDATION_CARDS_P25;
+  }
+  if (!flags.includes("--max-time-to-first-foundation-p50")) {
+    opts.maxTimeToFirstFoundationP50 = CASUAL_MAX_TIME_TO_FIRST_FOUNDATION_P50;
+  }
 }
 
 function buildCasualGenerateExtra(flags, extra) {
@@ -136,6 +148,8 @@ function parseCommon(flags, defaults) {
     minScoreP25: DEFAULT_MIN_SCORE_P25,
     minScoreSpread: DEFAULT_MIN_SCORE_SPREAD,
     oversampleFactor: DEFAULT_OVERSAMPLE_FACTOR,
+    minFoundationCardsP25: 0,
+    maxTimeToFirstFoundationP50: 0,
     rejectCollapsed: true,
     minEntries: DEFAULT_MIN_ENTRIES,
     batchSize: DEFAULT_BATCH_SIZE,
@@ -166,6 +180,9 @@ function parseCommon(flags, defaults) {
     else if (a === "--min-score-p25") opts.minScoreP25 = Number(next());
     else if (a === "--min-score-spread") opts.minScoreSpread = Number(next());
     else if (a === "--oversample-factor") opts.oversampleFactor = Number(next());
+    else if (a === "--min-foundation-cards-p25") opts.minFoundationCardsP25 = Number(next());
+    else if (a === "--max-time-to-first-foundation-p50")
+      opts.maxTimeToFirstFoundationP50 = Number(next());
     else if (a === "--no-reject-collapsed") opts.rejectCollapsed = false;
     else if (a === "--min-entries") opts.minEntries = Number(next());
     else if (a === "--batch-size") opts.batchSize = Number(next());
@@ -243,6 +260,10 @@ function cmdCreate(opts, extra) {
     String(opts.minScoreSpread),
     "--oversample-factor",
     String(opts.oversampleFactor),
+    "--min-foundation-cards-p25",
+    String(opts.minFoundationCardsP25),
+    "--max-time-to-first-foundation-p50",
+    String(opts.maxTimeToFirstFoundationP50),
   ];
   if (opts.rejectCollapsed) args.push("--reject-collapsed");
   if (opts.resume) args.push("--resume");
@@ -320,6 +341,7 @@ async function main() {
       console.log(
         `create-casual preset: minScoreP25=${opts.minScoreP25} minScoreSpread=${opts.minScoreSpread} ` +
           `oversample=${opts.oversampleFactor} minOpeningMoves=${CASUAL_MIN_OPENING_MOVES} ` +
+          `minFoundationP25=${opts.minFoundationCardsP25} maxTimeToFirstFoundationP50=${opts.maxTimeToFirstFoundationP50} ` +
           `tierEasy=${CASUAL_TIER_EASY} tierMedium=${CASUAL_TIER_MEDIUM}`
       );
       cmdCreate(opts, buildCasualGenerateExtra(flags, extra));

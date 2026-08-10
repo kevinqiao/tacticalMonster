@@ -7,9 +7,9 @@ import {
   portalRankCoinReward,
   resolveEffectiveTournamentRewards,
 } from "../../../data/portalTournamentConfigs";
-import { applyPortalMatchPoints } from "../../points/portalWeeklyPointsService";
 import { resolveEconomyScope } from "../../economy/resolveEconomyScope";
 import { loadLobbyRewardsOverride } from "../../lobby/lobbyOfferingRewards";
+import { applyPortalMatchPoints } from "../../points/portalWeeklyPointsService";
 
 /** Portal 结算：周积分 + 模板金币奖励；campaign 对局跳过全球周榜 */
 export async function applyPortalTemplateScoreEffects(
@@ -66,6 +66,7 @@ export async function applyPortalTemplateScoreEffects(
     score: args.score,
     rank: args.multiplayerFinalRank,
     seedScoreThreshold: args.seedScoreThreshold,
+    seedScoreQuantiles: args.seedScoreQuantiles,
     runTournamentId: runId,
     joinLobbyId: joinLobbyId ?? undefined,
     rewardsOverride: rewardsOverride ?? undefined,
@@ -74,14 +75,15 @@ export async function applyPortalTemplateScoreEffects(
   let coinsGranted = 0;
   if (def.matchType === "multi_ranked" && args.multiplayerFinalRank != null) {
     coinsGranted = portalRankCoinReward(def, args.multiplayerFinalRank, rewardsOverride);
-  } else if (def.matchType === "solo_p75") {
+  } else if (def.matchType === "solo_p75" && !points.soloRewardsMuted) {
     const { coinRewards } = resolveEffectiveTournamentRewards(def, rewardsOverride);
     const ok =
       typeof args.seedScoreThreshold === "number" &&
       Number.isFinite(args.seedScoreThreshold) &&
       args.score >= args.seedScoreThreshold;
+    // Fail coins only when explicitly configured (>0); default fail has no penalty/reward.
     const raw = ok ? coinRewards.soloSuccess : coinRewards.soloFail;
-    if (typeof raw === "number" && Number.isFinite(raw)) {
+    if (typeof raw === "number" && Number.isFinite(raw) && (ok || raw > 0)) {
       coinsGranted = Math.max(0, Math.floor(raw));
     }
   }

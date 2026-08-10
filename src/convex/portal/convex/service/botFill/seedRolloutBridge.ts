@@ -19,7 +19,8 @@ export type SlimSeedBinding = {
   poolVersion: string;
   tier: PortalSeedTier;
   scoreQuantiles?: ScoreQuantiles;
-  successQuantile?: "p50" | "p75" | "p90";
+  successQuantile?: "p25" | "p50" | "p75" | "p90";
+  ritualOneLineClear?: boolean;
 };
 
 export type ScoreBand = { min: number; max?: number; count?: number };
@@ -48,8 +49,10 @@ export async function bridgePickSeed(
     uids: string[];
     /** Preferred tier; omit / null = whole-pool pick (legacy). */
     tier?: PortalSeedTier | null;
-    /** L3: keep top fraction by playerEaseScore within tier. */
+    /** L3: keep top fraction by friendliness within tier. */
     highPlayerEaseFraction?: number;
+    friendlinessFraction?: number;
+    friendlinessMetric?: "playerEase" | "onboardingScore";
   }
 ): Promise<
   | { ok: true; seedBinding: SlimSeedBinding }
@@ -70,9 +73,12 @@ export async function bridgePickSeed(
       sessionKey,
       uids: args.uids,
       ...(args.tier != null ? { tier: args.tier } : {}),
-      ...(typeof args.highPlayerEaseFraction === "number"
-        ? { highPlayerEaseFraction: args.highPlayerEaseFraction }
-        : {}),
+      ...(typeof args.friendlinessFraction === "number"
+        ? { friendlinessFraction: args.friendlinessFraction }
+        : typeof args.highPlayerEaseFraction === "number"
+          ? { highPlayerEaseFraction: args.highPlayerEaseFraction }
+          : {}),
+      ...(args.friendlinessMetric ? { friendlinessMetric: args.friendlinessMetric } : {}),
     }
   );
   if (!picked.ok) return { ok: false, error: picked.error };

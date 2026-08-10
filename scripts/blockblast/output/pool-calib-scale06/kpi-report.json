@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-08-06T02:44:02.883Z",
+  "poolVersion": "calib-scale06",
+  "profile": "probe",
+  "health": {
+    "profile": "probe",
+    "seedCount": 0,
+    "meanTimeUpRate": 0,
+    "meanJackpotRate": 0,
+    "meanMediumBurstRate": 0,
+    "meanLateGameReachRate": 0,
+    "meanExperienceScore": 0,
+    "gatePassRate": 0,
+    "softPMean": 0
+  },
+  "warnCounts": {},
+  "failCounts": {},
+  "rejectReasons": {
+    "low_player_ceiling": 5,
+    "stuck_rate_too_high": 43,
+    "collapsed_scores": 2
+  }
+}

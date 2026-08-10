@@ -20,11 +20,14 @@ function parseArgs(argv) {
     version: "v1",
     count: 50,
     start: 1,
-    rollouts: 20,
+    rollouts: 60,
     matchSeconds: 300,
     out: path.join(repoRoot, "scripts/match3/output/pool-v1"),
-    minOpeningMoves: 3,
+    minOpeningMoves: 4,
     minScoreP25: 100,
+    maxEarlyStuckRate: 0.35,
+    minEarlyCascadeHitRate: 0.15,
+    rejectLikelyDead: true,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -37,6 +40,9 @@ function parseArgs(argv) {
     else if (a === "--out") opts.out = path.resolve(next());
     else if (a === "--min-opening-moves") opts.minOpeningMoves = Number(next());
     else if (a === "--min-score-p25") opts.minScoreP25 = Number(next());
+    else if (a === "--max-early-stuck-rate") opts.maxEarlyStuckRate = Number(next());
+    else if (a === "--min-early-cascade-hit-rate") opts.minEarlyCascadeHitRate = Number(next());
+    else if (a === "--allow-likely-dead") opts.rejectLikelyDead = false;
   }
   return opts;
 }
@@ -52,6 +58,9 @@ async function main() {
     matchSeconds: opts.matchSeconds,
     minOpeningMoves: opts.minOpeningMoves,
     minScoreP25: opts.minScoreP25,
+    maxEarlyStuckRate: opts.maxEarlyStuckRate,
+    minEarlyCascadeHitRate: opts.minEarlyCascadeHitRate,
+    rejectLikelyDead: opts.rejectLikelyDead,
   });
 
   await mkdir(opts.out, { recursive: true });

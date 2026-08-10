@@ -160,10 +160,19 @@ function item(
   return { id, ok, value, threshold, detail, rejectReason };
 }
 
+export type ExperienceGateOverrides = {
+  /**
+   * CLI `--max-stuck-rate`：undefined=用 profile 默认；
+   * 0=关闭 G2（含 prod）；>0=G2 用此上限。
+   */
+  maxStuckRate?: number;
+};
+
 /** Probe：仅极端 opening / dead 硬拒；其余不达标进 warnings。Prod：G1–G9 硬拒。 */
 export function evaluateExperienceGates(
   metrics: ExperienceMetricsSlice,
-  profile: KpiProfile
+  profile: KpiProfile,
+  overrides?: ExperienceGateOverrides
 ): GateEvalResult {
   const t = thresholdsForProfile(profile);
   if (!t || profile === "off") {
@@ -222,17 +231,21 @@ export function evaluateExperienceGates(
     ),
     prodHard
   );
-  push(
-    item(
-      "G2",
-      metrics.stuckRate <= t.maxStuckRate,
-      metrics.stuckRate,
-      t.maxStuckRate,
-      `stuckRate=${metrics.stuckRate} max=${t.maxStuckRate}`,
-      "stuck_rate_too_high"
-    ),
-    prodHard
-  );
+  const stuckCap =
+    overrides?.maxStuckRate !== undefined ? overrides.maxStuckRate : t.maxStuckRate;
+  if (stuckCap > 0) {
+    push(
+      item(
+        "G2",
+        metrics.stuckRate <= stuckCap,
+        metrics.stuckRate,
+        stuckCap,
+        `stuckRate=${metrics.stuckRate} max=${stuckCap}`,
+        "stuck_rate_too_high"
+      ),
+      prodHard
+    );
+  }
   push(
     item(
       "G3min",

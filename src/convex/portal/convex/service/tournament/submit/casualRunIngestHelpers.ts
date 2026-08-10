@@ -1,4 +1,6 @@
+import { isPortalSuccessQuantile } from "../../../data/portalSeedTierPolicy";
 import type { PortalTournamentDefinition } from "../../../data/portalTournamentConfigs";
+import { resolveSoloSeedSuccessThreshold } from "../../../data/portalTournamentConfigs";
 import type { Doc } from "../../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
 import {
@@ -173,11 +175,17 @@ export async function buildDeferredSoloPortalIngestResponse(
   const pg = await findPlayerGameByGameId(ctx, args.matchGameId);
   let seedScoreThreshold = args.seedScoreThreshold;
   if (seedScoreThreshold == null && pg && isPortalSoloP75ChallengeDef(args.def)) {
-    const q = args.def.seedQuantileSuccess?.quantile;
-    const inline =
-      q === "p75" || q === "p90" ? pg.seedBinding?.scoreQuantiles?.[q] : undefined;
-    if (typeof inline === "number" && Number.isFinite(inline)) {
-      seedScoreThreshold = Math.floor(inline);
+    const resolved = resolveSoloSeedSuccessThreshold({
+      gameType: pg.gameType,
+      ritualOneLineClear: pg.seedBinding?.ritualOneLineClear,
+      quantiles: pg.seedBinding?.scoreQuantiles,
+      successQuantile: isPortalSuccessQuantile(pg.seedBinding?.successQuantile)
+        ? pg.seedBinding.successQuantile
+        : args.def.seedQuantileSuccess?.quantile,
+      seedQuantileSuccess: args.def.seedQuantileSuccess,
+    });
+    if (resolved != null) {
+      seedScoreThreshold = resolved;
     }
   }
   let challengeSuccess: boolean | undefined;

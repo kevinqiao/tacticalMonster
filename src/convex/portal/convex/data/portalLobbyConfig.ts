@@ -20,7 +20,14 @@ export type PortalLobbyOffering = {
   sortOrder: number;
   titleOverride?: string;
   rewardsOverride?: {
-    soloPoints?: { success: number; fail: number };
+    soloPoints?:
+      | { success: number; fail: number }
+      | {
+          fail: number;
+          ritual_a: { clear: number; bonus: number };
+          transition_b: { clear: number; bonus: number };
+          merged_c: { p75: number; p90: number };
+        };
     rankPoints?: Record<string, number>;
     coins?: {
       soloSuccess?: number;

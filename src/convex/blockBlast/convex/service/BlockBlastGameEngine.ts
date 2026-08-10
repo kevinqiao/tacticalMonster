@@ -18,7 +18,12 @@ import {
     normalizeShapeMatrix,
     placeShapeOnGrid,
 } from '../utils/gameRules';
-import { pickWeightedShapeTemplate } from './blockBlastShapeCatalog';
+import {
+    BLOCK_BLAST_EARLY_HAND_RESCUE_PROGRESS,
+    countShapeCells,
+    pickWeightedShapeTemplate,
+    resolveProgressForShapeIndex,
+} from './blockBlastShapeCatalog';
 import {
     computeBlockBlastStepScoreFromClear,
 } from './blockBlastScoreModel';
@@ -92,19 +97,31 @@ export function generateShape(template: number[][], color: number, shapeIndex: n
 export function generateShapes(count: number, seed?: string, startIndex: number = 0): Shape[] {
     const rng = seed ? createSeededRandom(seed) : Math.random;
     const shapes: Shape[] = [];
+    const handCellCounts: number[] = [];
+    const end = startIndex + count;
 
-    if (seed && startIndex > 0) {
-        for (let i = 0; i < startIndex * 2; i++) {
-            rng();
+    // 从 0 重放以保持手内救场与 rng 相位；仅输出 [startIndex, end)
+    for (let shapeIndex = 0; shapeIndex < end; shapeIndex++) {
+        const handPos = shapeIndex % 3;
+        if (handPos === 0) handCellCounts.length = 0;
+
+        let preferSmall = false;
+        if (
+            handPos === 2 &&
+            handCellCounts.length === 2 &&
+            handCellCounts[0]! > 4 &&
+            handCellCounts[1]! > 4 &&
+            resolveProgressForShapeIndex(shapeIndex) < BLOCK_BLAST_EARLY_HAND_RESCUE_PROGRESS
+        ) {
+            preferSmall = true;
         }
-    }
 
-    for (let i = 0; i < count; i++) {
-        const shapeIndex = startIndex + i;
-        // v6：关闭手内救场，全程按进度权重出块
-        const template = pickWeightedShapeTemplate(rng, shapeIndex);
+        const template = pickWeightedShapeTemplate(rng, shapeIndex, { preferSmall });
+        handCellCounts.push(countShapeCells(template));
         const color = Math.floor(rng() * 7) + 1;
-        shapes.push(generateShape(template, color, shapeIndex, seed));
+        if (shapeIndex >= startIndex) {
+            shapes.push(generateShape(template, color, shapeIndex, seed));
+        }
     }
     return shapes;
 }
@@ -133,6 +150,7 @@ export type ApplyPlaceShapeInput = Pick<
     | 'status'
     | 'seed'
     | 'shapeCounter'
+    | 'targetScore'
 >;
 
 /** 落子并换手后、尚未检测/消除满行满列的盘面（与 `applyPlaceShape` 前半段同一实现） */
@@ -252,6 +270,7 @@ export class BlockBlastGameEngine {
         let status = game.status;
         const moves = game.moves + 1;
 
+        // 挑战目标（clear / p75 / p90）仅用于 HUD 与结算积分，达标不终局；卡死才 LOST。
         if (!canPlaceAnyShape(grid, newShapes)) {
             status = BlockBlastGameStatus.LOST;
         }

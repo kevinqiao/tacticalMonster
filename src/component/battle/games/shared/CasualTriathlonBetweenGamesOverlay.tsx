@@ -2,6 +2,7 @@ import { useCrazyGamesMidgameBreak } from 'host/service/ads/midgame/useCrazyGame
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { CasualChallengeResultBlock } from './CasualChallengeResultBlock';
 import type { CasualGameScoreReportUI } from './casualGameScoreReportUI';
 import {
   TRIATHLON_BETWEEN_LEG_AUTO_MS,
@@ -88,42 +89,17 @@ export const CasualTriathlonBetweenGamesOverlay: React.FC<Props> = ({
         <div className="ssc">
           <h2 id={titleId} className="ssc__title msc-successTitle">
             {challenge
-              ? challenge.success
-                ? t('triathlon.legChallengeSuccess', { n: completedLegNumber })
-                : t('triathlon.legChallengeFail', { n: completedLegNumber })
+              ? challenge.tierP90?.reached
+                ? t('triathlon.legStars3', { n: completedLegNumber })
+                : challenge.tierP75?.reached
+                  ? t('triathlon.legStars1', { n: completedLegNumber })
+                  : challenge.success
+                    ? t('triathlon.legChallengeSuccess', { n: completedLegNumber })
+                    : t('triathlon.legChallengeFail', { n: completedLegNumber })
               : t('triathlon.legComplete', { n: completedLegNumber })}
           </h2>
 
-          {challenge ? (
-            <div
-              className={
-                challenge.success
-                  ? 'msc-challengeResult msc-challengeResult--success'
-                  : 'msc-challengeResult msc-challengeResult--fail'
-              }
-              role="status"
-            >
-              <span className="msc-challengeResult__badge">
-                {challenge.success
-                  ? t('scoreReport.successBadge')
-                  : t('scoreReport.failBadge')}
-              </span>
-              <div className="msc-challengeResult__rows">
-                <div className="msc-challengeResult__row">
-                  <span>{t('scoreReport.targetP75')}</span>
-                  <span className="msc-challengeResult__val">
-                    {challenge.targetScore.toLocaleString()}
-                  </span>
-                </div>
-                <div className="msc-challengeResult__row">
-                  <span>{t('scoreReport.gameScore')}</span>
-                  <span className="msc-challengeResult__val">
-                    {challenge.achievedScore.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : null}
+          {challenge ? <CasualChallengeResultBlock challenge={challenge} /> : null}
 
           <p className="ssc__body msc-scoreReportSub">
             {t('triathlon.scoreDetail', { game: gameLabel })}

@@ -1,9 +1,12 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import type { PortalTournamentDefinition } from "../../data/portalTournamentConfigs";
+import type {
+  PortalSoloPointsOverride,
+  PortalTournamentDefinition,
+} from "../../data/portalTournamentConfigs";
 
 export type RewardsOverrideSnapshot = {
-  soloPoints?: { success: number; fail: number };
+  soloPoints?: PortalSoloPointsOverride;
   rankPoints?: Record<string, number>;
   coins?: {
     soloSuccess?: number;

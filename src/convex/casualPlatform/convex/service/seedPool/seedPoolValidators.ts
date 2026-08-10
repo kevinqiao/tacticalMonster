@@ -35,6 +35,21 @@ export const rolloutDistributionMetrics = v.object({
   scoreSpread: v.number(),
   scoreQuantiles,
   scoreHistogram: v.optional(v.record(v.string(), v.number())),
+  /** Solitaire: clear-board ease (higher = easier). Optional for older imports. */
+  clearEaseScore: v.optional(v.number()),
+  /** Block Blast / Solitaire / Yatz: human-feel ease (higher = friendlier). */
+  playerEaseScore: v.optional(v.number()),
+  /** Block Blast: survival duration percentiles (seconds). Optional for older imports. */
+  survivalTimeP25: v.optional(v.number()),
+  survivalTimeP50: v.optional(v.number()),
+  survivalTimeP90: v.optional(v.number()),
+  survivalTimeSpread: v.optional(v.number()),
+  /** Solitaire: foundation progress percentiles / rates. Optional for older imports. */
+  foundationCardsP25: v.optional(v.number()),
+  foundationCardsP50: v.optional(v.number()),
+  foundationCardsP90: v.optional(v.number()),
+  timeToFirstFoundationP50: v.optional(v.number()),
+  foundationReachRate: v.optional(v.number()),
 });
 
 export const rolloutTerminalReason = v.union(

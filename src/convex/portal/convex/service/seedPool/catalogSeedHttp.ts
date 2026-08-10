@@ -39,9 +39,6 @@ function uniqueSeedTiersToTry(
   return [preferred, ...rest];
 }
 
-/** block_blast：在首选档内只抽最难切片（按 scoreP50 升序）。 */
-const BLOCK_BLAST_HARDEST_FRACTION = 0.35;
-
 async function pickSeedWithOptionalTier(
   db: DatabaseReader,
   args: {
@@ -52,15 +49,21 @@ async function pickSeedWithOptionalTier(
     sessionKey: string;
     excludeSeedIds: ReadonlySet<string>;
     highPlayerEaseFraction?: number;
+    friendlinessFraction?: number;
+    friendlinessMetric?: "playerEase" | "onboardingScore";
   }
 ): Promise<SeedPoolEntryDoc | null> {
-  const hardestFraction =
-    args.gameType === "block_blast" ? BLOCK_BLAST_HARDEST_FRACTION : undefined;
+  const frac =
+    typeof args.friendlinessFraction === "number"
+      ? args.friendlinessFraction
+      : args.highPlayerEaseFraction;
   const easeOpts =
-    typeof args.highPlayerEaseFraction === "number" &&
-    args.highPlayerEaseFraction > 0 &&
-    args.highPlayerEaseFraction < 1
-      ? { highPlayerEaseFraction: args.highPlayerEaseFraction }
+    typeof frac === "number" && Number.isFinite(frac) && frac > 0 && frac < 1
+      ? {
+          friendlinessFraction: frac,
+          friendlinessMetric: args.friendlinessMetric ?? "playerEase",
+          highPlayerEaseFraction: frac,
+        }
       : undefined;
   if (args.preferredTier == null) {
     return pickDeterministicSeedAnyTier(
@@ -79,10 +82,7 @@ async function pickSeedWithOptionalTier(
       tryTier,
       args.sessionKey,
       args.excludeSeedIds,
-      {
-        ...(hardestFraction != null ? { hardestFraction } : {}),
-        ...(easeOpts ?? {}),
-      }
+      easeOpts
     );
     if (entry) return entry;
   }
@@ -95,8 +95,12 @@ export const pickCasualMatchSeed = internalMutation({
     matchId: v.string(),
     /** Omit for no preferred tier (whole-pool pick). */
     tier: v.optional(catalogSeedTier),
-    /** L3 ritual/transition: keep top fraction by playerEaseScore within tier. */
+    /** L3 ritual/transition: keep top fraction by friendliness within tier. */
     highPlayerEaseFraction: v.optional(v.number()),
+    friendlinessFraction: v.optional(v.number()),
+    friendlinessMetric: v.optional(
+      v.union(v.literal("playerEase"), v.literal("onboardingScore"))
+    ),
     poolVersion: v.optional(v.string()),
     sessionKey: v.string(),
     uids: v.array(v.string()),
@@ -105,6 +109,8 @@ export const pickCasualMatchSeed = internalMutation({
     const gameType = args.gameType as CatalogGameType;
     const preferredTier = args.tier;
     const highPlayerEaseFraction = args.highPlayerEaseFraction;
+    const friendlinessFraction = args.friendlinessFraction;
+    const friendlinessMetric = args.friendlinessMetric;
     const uids = [...new Set(args.uids.map((u) => u.trim()).filter(Boolean))];
     if (uids.length === 0) {
       return { ok: false as const, error: "missing_uids" as const };
@@ -135,6 +141,8 @@ export const pickCasualMatchSeed = internalMutation({
       sessionKey: args.sessionKey,
       excludeSeedIds: usedSeedIds,
       highPlayerEaseFraction,
+      friendlinessFraction,
+      friendlinessMetric,
     });
     if (!entry) {
       entry = await pickSeedWithOptionalTier(ctx.db, {
@@ -144,6 +152,8 @@ export const pickCasualMatchSeed = internalMutation({
         sessionKey: `${args.sessionKey}|reuse`,
         excludeSeedIds: new Set(),
         highPlayerEaseFraction,
+        friendlinessFraction,
+        friendlinessMetric,
       });
     }
     if (!entry) {
@@ -182,7 +192,18 @@ export const recordCasualMatchSeedForPlayer = internalMutation({
       return { ok: false as const, error: "seed_mismatch" as const };
     }
     if (!pick.uids.includes(uid)) {
-      return { ok: false as const, error: "uid_not_in_match" as const };
+      // Async multi: later humans share the creator's match_seed_pick. Admit only
+      // when the uid already has a seat on this match (bridge already scoped by gameId).
+      const seat = await ctx.db
+        .query("portal_run_player_matches")
+        .withIndex("by_match_uid", (q) => q.eq("matchId", args.matchId).eq("uid", uid))
+        .unique();
+      if (!seat) {
+        return { ok: false as const, error: "uid_not_in_match" as const };
+      }
+      await ctx.db.patch(pick._id, {
+        uids: [...new Set([...pick.uids, uid])],
+      });
     }
 
     await recordPlayerSeedsForMatch(ctx.db, {

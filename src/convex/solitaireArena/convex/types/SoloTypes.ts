@@ -64,6 +64,8 @@ export interface GameModel {
     score: number;
     moves: number;
     seed?: string;
+    /** 单人挑战 clear 线（结算 / HUD）；达标不终局 */
+    targetScore?: number;
     /** Wall-clock ms when the 5-minute match timer starts (first scoring action). */
     playStartedAt?: number;
     lastUpdate?: string;//event id

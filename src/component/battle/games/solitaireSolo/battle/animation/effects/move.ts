@@ -8,6 +8,19 @@ const { moveFlightBase, moveFlightStackOffset } = SOLO_ANIMATION_CONFIG.zIndex;
 /** 清盘多牌同时飞行时递增，避免后起飞的牌被压在下面 */
 let autoFoundationFlightSeq = 0;
 
+/** kill 前先 progress(1)，让上一趟 timeline 的 onComplete 仍能触发，避免 await 永远挂起 */
+function forceCompleteTweensOf(ele: Element) {
+    const tweens = gsap.getTweensOf(ele);
+    for (const tw of tweens) {
+        try {
+            tw.totalProgress(1);
+        } catch {
+            /* ignore */
+        }
+    }
+    gsap.killTweensOf(ele);
+}
+
 export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
     const { moveCards, targetZoneId, gameState, boardDimensionRef, autoFoundationMove } = data;
     // 每次读取配置，避免 HMR 后仍用模块加载时的旧时长
@@ -19,6 +32,13 @@ export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => v
         : SOLO_ANIMATION_CONFIG.ease.move.normal;
     const flightSeqBase = autoFoundationMove ? ++autoFoundationFlightSeq * 10 : 0;
 
+    let finished = false;
+    const finish = () => {
+        if (finished) return;
+        finished = true;
+        onComplete?.();
+    };
+
     const targetCards: SoloCard[] = gameState.cards.filter((c: SoloCard) => c.zoneId === targetZoneId);
     const zoneCards: SoloCard[] = [...targetCards, ...moveCards];
 
@@ -28,7 +48,7 @@ export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => v
 
     const withEle = pile.filter((c) => c.ele);
     if (withEle.length === 0) {
-        onComplete?.();
+        finish();
         return;
     }
 
@@ -74,24 +94,28 @@ export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => v
         });
     };
 
+    const settleAndFinish = () => {
+        // 胜利动画已开始时勿再按旧 planState 吸附，否则会把扇面牌拽回 tableau/foundation 槽
+        const victoryPlaying = Boolean(
+            document.querySelector(
+                ".solo-player-container[data-solo-victory='1'], .solo-board-surface[data-solo-victory='1']"
+            )
+        );
+        if (!victoryPlaying) {
+            snapToLayout();
+            settleTargetStackZ();
+        }
+        finish();
+    };
+
     const tl = gsap.timeline({
         onStart: () => {
             // React setState(animating) 可能在同帧晚些覆盖 inline style；起飞再锁一次
             applyFlightZ();
         },
-        onComplete: () => {
-            // 胜利动画已开始时勿再按旧 planState 吸附，否则会把扇面牌拽回 tableau/foundation 槽
-            const victoryPlaying = Boolean(
-                document.querySelector(
-                    ".solo-player-container[data-solo-victory='1'], .solo-board-surface[data-solo-victory='1']"
-                )
-            );
-            if (!victoryPlaying) {
-                snapToLayout();
-                settleTargetStackZ();
-            }
-            onComplete?.();
-        },
+        onComplete: settleAndFinish,
+        // killTweensOf / 胜利清 tween 时也必须解锁 await，否则 interactionPhase 卡在 animating
+        onInterrupt: settleAndFinish,
     });
 
     applyFlightZ();
@@ -114,7 +138,7 @@ export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => v
                     ? { x: Math.round(domX), y: Math.round(domY) }
                     : modelStart;
 
-            gsap.killTweensOf(c.ele!);
+            forceCompleteTweensOf(c.ele!);
             gsap.set(c.ele!, {
                 x: start.x,
                 y: start.y,

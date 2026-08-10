@@ -6,6 +6,7 @@ import { verifyRollout } from "@/convex/solitaireArena/convex/service/seedPool/s
 import GamePlayer from "../GamePlayer";
 import SoloGameProvider, { useSoloGameManager } from "../service/GameManager";
 import SoloDnDProvider from "../service/SoloDnDProvider";
+import SoloActHandlerProvider from "../service/handler/SoloActHandlerProvider";
 import "../style.css";
 import SolitaireRolloutDevViewer from "./SolitaireRolloutDevViewer";
 
@@ -176,9 +177,11 @@ const SolitaireRolloutAnimatedPanel: React.FC<Props> = (props) => {
       key={`${seedId}-${rolloutIndex}`}
       replaySeedId={seedId}
     >
-      <SoloDnDProvider>
-        <SolitaireRolloutAnimatedInner {...props} />
-      </SoloDnDProvider>
+      <SoloActHandlerProvider>
+        <SoloDnDProvider>
+          <SolitaireRolloutAnimatedInner {...props} />
+        </SoloDnDProvider>
+      </SoloActHandlerProvider>
     </SoloGameProvider>
   );
 };

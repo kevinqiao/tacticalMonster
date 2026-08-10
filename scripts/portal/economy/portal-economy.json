@@ -79,7 +79,11 @@
     ]
   },
   "tournamentRewards": {
-    "soloPoints": { "success": 3, "fail": -1 },
+    "soloPoints": {
+      "fail": 0,
+      "success": 2,
+      "clearBonus": 1
+    },
     "multiRankPoints": { "1": 5, "2": 3, "3": 1, "4": -1, "5": -2 },
     "multiCoinEntry": 20,
     "multiCoinRankRewards": { "1": 45, "2": 25, "3": 15, "4": 5 },
@@ -137,18 +141,26 @@
       "capMax": 100
     },
     "adEntry": {
-      "solo": { "enabled": true, "dailyCap": 5 },
+      "solo": { "enabled": true, "dailyCapUnlimited": true },
       "multi": { "enabled": true, "dailyCap": 10 },
       "dailyCapMax": 100,
+      "dailyCapUnlimitedSentinel": 1000000000,
       "sessionTtlMs": 120000,
       "grantTtlMs": 120000
     },
     "ticketEntry": {
-      "solo": { "enabled": true, "priceTickets": 1, "dailyCap": 3 },
+      "solo": { "enabled": false, "priceTickets": 1, "dailyCap": 0 },
       "multi": { "enabled": true, "priceTickets": 2, "dailyCap": 5 },
       "priceMin": 1,
       "priceMax": 100,
       "dailyCapMax": 100
+    },
+    "soloSuccessDaily": {
+      "enabled": true,
+      "dailyCap": 5,
+      "afterCapMode": "zero_all",
+      "allowPlayAfterCap": true,
+      "capMax": 100
     },
     "adReplay": {
       "enabled": true,

@@ -26,7 +26,7 @@ async function main() {
     process.argv[2] ?? path.join(repoRoot, "scripts/blockblast/output/pool-v6")
   );
   const rollouts = Number(process.argv[3] ?? 48);
-  const thinkTimeScale = Number(process.argv[4] ?? 3);
+  const thinkTimeScale = Number(process.argv[4] ?? 0.6);
   const matchSeconds = 300;
 
   const tierPath = path.join(outDir, "tier-index.json");

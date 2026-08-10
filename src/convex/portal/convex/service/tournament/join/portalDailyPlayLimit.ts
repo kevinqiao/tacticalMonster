@@ -26,6 +26,7 @@ import {
   readTicketEntryUsedToday,
 } from "../../ads/portalEntryDailyUsage";
 import { type PlayEntryContext } from "../../ads/portalEntryUsageScope";
+import { loadSoloSuccessDailyState } from "../../ads/portalSoloSuccessDaily";
 import { resolveFreePlayDailyCap } from "../../ads/portalTicketEntryService";
 import {
   quotaScopeFromSettings,
@@ -46,11 +47,23 @@ export type PortalModeDailyPlayQuota = {
   remainingPlaysToday: number;
 };
 
+export type PortalSoloSuccessDailyQuota = {
+  enabled: boolean;
+  dailyCap: number;
+  usedToday: number;
+  remainingToday: number;
+  capped: boolean;
+  afterCapMode: "zero_all";
+  allowPlayAfterCap: boolean;
+};
+
 export type PortalDailyPlayQuotaView = {
   solo: PortalModeDailyPlayQuota;
   multi: PortalModeDailyPlayQuota;
   /** Effective sharing rule for this lobby/partner. */
   quotaScope: PortalQuotaScope;
+  /** Solo rewarded-success daily quota (independent of free/ad/ticket entry). */
+  soloSuccess: PortalSoloSuccessDailyQuota;
   dayResetsAt: number;
   dayInstanceKey: string;
   dayTimezone: string;
@@ -225,7 +238,10 @@ export async function assertPortalDailyPlayLimit(
      */
     entryLane?: PortalPlayEntryLane;
   }
-): Promise<{ ok: true } | { ok: false; error: "daily_play_limit_reached" }> {
+): Promise<
+  | { ok: true }
+  | { ok: false; error: "daily_play_limit_reached" | "solo_success_daily_cap_reached" }
+> {
   const def = getPortalTournamentDefinition(args.templateId);
   if (!def) return { ok: true };
   // Coin / gem entry: charge wallet only; ignore free/ad/ticket daily ceiling.
@@ -243,6 +259,22 @@ export async function assertPortalDailyPlayLimit(
     tournamentId: entryCtx.tournamentId,
   });
   const quotaScope = quotaScopeFromSettings(settings);
+
+  // Optional hard block after daily rewarded-success quota (default: allow play).
+  if (mode === "solo") {
+    const soloSuccess = await loadSoloSuccessDailyState(ctx, {
+      uid: args.uid,
+      lobbyId: entryCtx.lobbyId,
+      tournamentId: entryCtx.tournamentId,
+      nowMs: args.nowMs,
+    });
+    if (
+      soloSuccess.capped &&
+      soloSuccess.config.allowPlayAfterCap === false
+    ) {
+      return { ok: false, error: "solo_success_daily_cap_reached" };
+    }
+  }
 
   const limits = args.limits ?? getPortalDailyPlayLimits();
   const freeCap = args.limits
@@ -379,7 +411,7 @@ export const getPortalDailyPlayQuota = authedQuery({
       resolveFreePlayDailyCap(ctx, uid, "solo", entryCtx),
       resolveFreePlayDailyCap(ctx, uid, "multi", entryCtx),
     ]);
-    const [solo, multi] = await Promise.all([
+    const [solo, multi, soloSuccessState] = await Promise.all([
       quotaForMode(ctx, {
         uid,
         mode: "solo",
@@ -400,12 +432,31 @@ export const getPortalDailyPlayQuota = authedQuery({
         nowMs,
         dayTimezone,
       }),
+      loadSoloSuccessDailyState(ctx, {
+        uid,
+        lobbyId: args.lobbyId ?? null,
+        tournamentId: args.tournamentId ?? null,
+        nowMs,
+      }),
     ]);
+
+    const remainingToday = soloSuccessState.config.enabled
+      ? Math.max(0, soloSuccessState.config.dailyCap - soloSuccessState.usedToday)
+      : soloSuccessState.config.dailyCap;
 
     return {
       solo,
       multi,
       quotaScope,
+      soloSuccess: {
+        enabled: soloSuccessState.config.enabled,
+        dailyCap: soloSuccessState.config.dailyCap,
+        usedToday: soloSuccessState.usedToday,
+        remainingToday,
+        capped: soloSuccessState.capped,
+        afterCapMode: soloSuccessState.config.afterCapMode,
+        allowPlayAfterCap: soloSuccessState.config.allowPlayAfterCap,
+      },
       dayResetsAt: window.endsAt + 1,
       dayInstanceKey: window.instanceKey,
       dayTimezone,

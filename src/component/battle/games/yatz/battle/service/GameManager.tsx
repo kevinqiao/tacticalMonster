@@ -41,6 +41,7 @@ import {
 } from '../../../shared/casualAsyncTableSummaryUI';
 
 import {
+  buildCasualScoreChallengeUI,
   shouldRefreshPortalAdReplayQuota,
   getCasualMatchScoreLineLabel,
   isCasualSoloP75ChallengeTemplate,
@@ -166,6 +167,8 @@ type YatzGameContextValue = {
   busy: boolean;
 
   targetScore?: number;
+  targetScoreP75?: number;
+  targetScoreP90?: number;
 
   roll: () => Promise<void>;
 
@@ -294,6 +297,8 @@ const YatzGameProvider: React.FC<Props> = ({
   const [busy, setBusy] = useState(false);
 
   const [targetScore, setTargetScore] = useState<number | undefined>();
+  const [targetScoreP75, setTargetScoreP75] = useState<number | undefined>();
+  const [targetScoreP90, setTargetScoreP90] = useState<number | undefined>();
 
   const [postCasualScoreReportOpen, setPostCasualScoreReportOpen] = useState(false);
 
@@ -395,10 +400,18 @@ const YatzGameProvider: React.FC<Props> = ({
         setGameState(res.game as YatzGameState);
 
         if (typeof res.seedScoreThreshold === 'number') {
-
           setTargetScore(res.seedScoreThreshold);
-
         }
+        setTargetScoreP75(
+          typeof res.seedScoreThresholdP75 === 'number' && Number.isFinite(res.seedScoreThresholdP75)
+            ? Math.floor(res.seedScoreThresholdP75)
+            : undefined
+        );
+        setTargetScoreP90(
+          typeof res.seedScoreThresholdP90 === 'number' && Number.isFinite(res.seedScoreThresholdP90)
+            ? Math.floor(res.seedScoreThresholdP90)
+            : undefined
+        );
 
         return;
 
@@ -491,21 +504,20 @@ const YatzGameProvider: React.FC<Props> = ({
       };
 
       const soloChallenge = isCasualSoloP75ChallengeTemplate(casualTournamentId);
-      const challengeThreshold = soloChallenge
-        ? typeof res.seedScoreThreshold === 'number'
-          ? res.seedScoreThreshold
-          : typeof targetScore === 'number'
-            ? targetScore
-            : undefined
-        : undefined;
-
-      if (challengeThreshold != null) {
-        report.challenge = {
-          targetScore: challengeThreshold,
+      if (soloChallenge) {
+        const challenge = buildCasualScoreChallengeUI({
           achievedScore: score,
-          success:
-            typeof res.success === 'boolean' ? res.success : score >= challengeThreshold,
-        };
+          clearThreshold:
+            typeof res.seedScoreThreshold === 'number'
+              ? res.seedScoreThreshold
+              : targetScore,
+          clearSuccess: res.success,
+          p75: targetScoreP75,
+          p90: targetScoreP90,
+        });
+        if (challenge) {
+          report.challenge = challenge;
+        }
       }
 
       setPostCasualScoreReport(report);
@@ -604,7 +616,7 @@ const YatzGameProvider: React.FC<Props> = ({
 
     },
 
-    [casualPlatformBridge, casualTournamentId, targetScore]
+    [casualPlatformBridge, casualTournamentId, targetScore, targetScoreP75, targetScoreP90]
 
   );
 
@@ -696,10 +708,18 @@ const YatzGameProvider: React.FC<Props> = ({
       setGameState(res.game as YatzGameState);
 
       if (typeof res.seedScoreThreshold === 'number') {
-
         setTargetScore(res.seedScoreThreshold);
-
       }
+      setTargetScoreP75(
+        typeof res.seedScoreThresholdP75 === 'number' && Number.isFinite(res.seedScoreThresholdP75)
+          ? Math.floor(res.seedScoreThresholdP75)
+          : undefined
+      );
+      setTargetScoreP90(
+        typeof res.seedScoreThresholdP90 === 'number' && Number.isFinite(res.seedScoreThresholdP90)
+          ? Math.floor(res.seedScoreThresholdP90)
+          : undefined
+      );
 
       return true;
 
@@ -1336,6 +1356,8 @@ const YatzGameProvider: React.FC<Props> = ({
         busy,
 
         targetScore,
+        targetScoreP75,
+        targetScoreP90,
 
         roll,
 

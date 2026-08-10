@@ -44,9 +44,14 @@ function parseArgs(argv) {
     oversampleFactor: 1,
     thinkTimeScale: 0,
     maxStuckRate: 0,
+    minSurvivalTimeP25: 0,
+    minSurvivalTimeP50: 0,
+    maxSurvivalTimeSpread: 0,
     kpiProfile: "off",
     writeRolloutSummaries: false,
     writeRolloutFiles: false,
+    l1Preset: "",
+    policyVersionOverride: "",
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -73,7 +78,16 @@ function parseArgs(argv) {
     else if (a === "--oversample-factor") opts.oversampleFactor = Number(next());
     else if (a === "--think-time-scale") opts.thinkTimeScale = Number(next());
     else if (a === "--max-stuck-rate") opts.maxStuckRate = Number(next());
-    else if (a === "--kpi-profile") opts.kpiProfile = next();
+    else if (a === "--min-survival-p25") opts.minSurvivalTimeP25 = Number(next());
+    else if (a === "--min-survival-p50") opts.minSurvivalTimeP50 = Number(next());
+    else if (a === "--max-survival-spread") opts.maxSurvivalTimeSpread = Number(next());
+    else if (a === "--no-survival-gate") {
+      opts.minSurvivalTimeP25 = 0;
+      opts.minSurvivalTimeP50 = 0;
+      opts.maxSurvivalTimeSpread = 0;
+    } else if (a === "--kpi-profile") opts.kpiProfile = next();
+    else if (a === "--l1-preset") opts.l1Preset = path.resolve(next());
+    else if (a === "--policy-version") opts.policyVersionOverride = next();
     else if (a === "--write-rollout-summaries") opts.writeRolloutSummaries = true;
     else if (a === "--write-rollout-files") {
       opts.writeRolloutSummaries = true;
@@ -89,6 +103,75 @@ function parseArgs(argv) {
   return opts;
 }
 
+function normalizeKeyframeWeights(weights) {
+  const out = {};
+  for (const cells of [1, 2, 3, 4, 5]) {
+    const key = String(cells);
+    const v = weights?.[cells] ?? weights?.[key];
+    if (typeof v !== "number" || !(v >= 0)) {
+      throw new Error(`l1-preset keyframe missing non-negative weight for cells=${cells}`);
+    }
+    out[cells] = v;
+  }
+  return out;
+}
+
+async function applyL1PresetOverrides(opts) {
+  if (!opts.l1Preset && !opts.policyVersionOverride) return null;
+
+  const catalogPath = path.join(
+    repoRoot,
+    "src/convex/blockBlast/convex/service/blockBlastShapeCatalog.ts"
+  );
+  const typesPath = path.join(
+    repoRoot,
+    "src/convex/blockBlast/convex/service/seedPool/blockBlastRecordedOpTypes.ts"
+  );
+  const catalog = await import(pathToFileURL(catalogPath).href);
+  const types = await import(pathToFileURL(typesPath).href);
+
+  let presetDoc = null;
+  if (opts.l1Preset) {
+    const raw = await readFile(opts.l1Preset, "utf8");
+    presetDoc = JSON.parse(raw);
+    if (!Array.isArray(presetDoc.keyframes) || presetDoc.keyframes.length < 2) {
+      throw new Error(`l1-preset must include keyframes[] (>=2): ${opts.l1Preset}`);
+    }
+    const keyframes = presetDoc.keyframes.map((kf, i) => {
+      if (typeof kf?.t !== "number") {
+        throw new Error(`l1-preset keyframes[${i}].t must be a number`);
+      }
+      return { t: kf.t, weights: normalizeKeyframeWeights(kf.weights) };
+    });
+    catalog.setL1PresetOverride({
+      progressFull:
+        typeof presetDoc.progressFull === "number" ? presetDoc.progressFull : undefined,
+      keyframes,
+    });
+    const policyFromPreset =
+      typeof presetDoc.policyVersion === "string" ? presetDoc.policyVersion : "";
+    const policy = opts.policyVersionOverride || policyFromPreset;
+    if (policy) types.setBlockBlastPolicyVersionOverride(policy);
+    if (!argvHasVersion(process.argv.slice(2)) && typeof presetDoc.poolVersion === "string") {
+      opts.version = presetDoc.poolVersion;
+    }
+  } else if (opts.policyVersionOverride) {
+    types.setBlockBlastPolicyVersionOverride(opts.policyVersionOverride);
+  }
+
+  return {
+    presetPath: opts.l1Preset || null,
+    policyVersion: types.resolveBlockBlastPolicyVersion(),
+    poolVersion: opts.version,
+    progressFull: presetDoc?.progressFull ?? null,
+    notes: presetDoc?.notes ?? null,
+  };
+}
+
+function argvHasVersion(argv) {
+  return argv.includes("--version");
+}
+
 function playerFriendlyOpts(opts) {
   return {
     minOpeningMoves: opts.minOpeningMoves,
@@ -98,6 +181,9 @@ function playerFriendlyOpts(opts) {
     rejectCollapsed: opts.rejectCollapsed,
     quickScreenRollouts: opts.quickScreenRollouts,
     maxStuckRate: opts.maxStuckRate,
+    minSurvivalTimeP25: opts.minSurvivalTimeP25,
+    minSurvivalTimeP50: opts.minSurvivalTimeP50,
+    maxSurvivalTimeSpread: opts.maxSurvivalTimeSpread,
     kpiProfile: opts.kpiProfile === "probe" || opts.kpiProfile === "prod" ? opts.kpiProfile : "off",
   };
 }
@@ -241,6 +327,13 @@ async function main() {
   const opts = parseArgs(argv);
   if (!argv.includes("--version")) opts.version = defaults.poolVersion;
   if (!argv.includes("--out")) opts.out = defaults.outDir;
+
+  const l1Meta = await applyL1PresetOverrides(opts);
+  // preset 可能改写 poolVersion；若调用方未显式 --out，跟到 pool-<version>
+  if (l1Meta && !argv.includes("--out")) {
+    opts.out = path.join(repoRoot, "scripts/blockblast/output", `pool-${opts.version}`);
+  }
+
   const log = console.log;
   console.log = () => {};
 
@@ -268,6 +361,20 @@ async function main() {
   console.log = log;
 
   await mkdir(opts.out, { recursive: true });
+  if (l1Meta) {
+    console.log(
+      `L1 override: policy=${l1Meta.policyVersion} poolVersion=${l1Meta.poolVersion} preset=${l1Meta.presetPath ?? "(policy only)"}`
+    );
+    await writeJsonAtomic(path.join(opts.out, "l1-iter-meta.json"), {
+      ...l1Meta,
+      thinkTimeScale: opts.thinkTimeScale > 0 ? opts.thinkTimeScale : null,
+      generatedAt: new Date().toISOString(),
+    });
+    if (opts.l1Preset) {
+      const presetRaw = await readFile(opts.l1Preset, "utf8");
+      await writeFile(path.join(opts.out, "l1-preset.json"), presetRaw, "utf8");
+    }
+  }
 
   const rolloutsDir = path.join(opts.out, "rollouts");
   if (opts.writeRolloutFiles) {
@@ -345,7 +452,7 @@ async function main() {
     opts.kpiProfile !== "off"
   ) {
     console.log(
-      `playerFriendly: minOpening=${opts.minOpeningMoves} maxOpening=${opts.maxOpeningMoves} minP25=${opts.minScoreP25} minSpread=${opts.minScoreSpread} maxStuckRate=${opts.maxStuckRate || "off"} rejectCollapsed=${opts.rejectCollapsed} quickK=${opts.quickScreenRollouts} kpiProfile=${opts.kpiProfile}`
+      `playerFriendly: minOpening=${opts.minOpeningMoves} maxOpening=${opts.maxOpeningMoves} minP25=${opts.minScoreP25} minSpread=${opts.minScoreSpread} maxStuckRate=${opts.maxStuckRate || "off"} minSurvP25=${opts.minSurvivalTimeP25 || "off"} minSurvP50=${opts.minSurvivalTimeP50 || "off"} maxSurvSpread=${opts.maxSurvivalTimeSpread || "off"} rejectCollapsed=${opts.rejectCollapsed} quickK=${opts.quickScreenRollouts} kpiProfile=${opts.kpiProfile}`
     );
   }
   if (opts.oversampleFactor > 1) {

@@ -200,7 +200,7 @@ export async function beginPortalAdEntrySessionCore(
     pendingAdEntries: 1,
   });
   if (!ladder.ok) {
-    return { ok: false as const, error: "daily_play_limit_reached" as const };
+    return { ok: false as const, error: ladder.error };
   }
 
   const cfg = await resolveAdEntryConfig(ctx, args.uid, mode, entryCtx);

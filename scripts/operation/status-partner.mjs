@@ -86,6 +86,10 @@ Shows SSO peek, Portal GC ops (incl. entry caps), lobbies, shop SKUs/settings, d
         ticketEntrySoloDailyCap: gc.ticketEntrySoloDailyCap ?? null,
         ticketEntryMultiPriceTickets: gc.ticketEntryMultiPriceTickets ?? null,
         ticketEntryMultiDailyCap: gc.ticketEntryMultiDailyCap ?? null,
+        soloSuccessDailyEnabled: gc.soloSuccessDailyEnabled ?? null,
+        soloSuccessDailyCap: gc.soloSuccessDailyCap ?? null,
+        soloSuccessAfterCapMode: gc.soloSuccessAfterCapMode ?? null,
+        soloSuccessAllowPlayAfterCap: gc.soloSuccessAllowPlayAfterCap ?? null,
         quotaScope: gc.quotaScope,
         seasonEpochWeekKey: gc.seasonEpochWeekKey,
       },
@@ -105,8 +109,14 @@ Shows SSO peek, Portal GC ops (incl. entry caps), lobbies, shop SKUs/settings, d
       l.quotaScope === "tournament"
         ? l.quotaScope
         : "inherit";
+    const soloCap =
+      typeof l.soloSuccessDailyCap === "number"
+        ? l.soloSuccessDailyCap
+        : l.soloSuccessDailyEnabled === false
+          ? "off"
+          : "inherit";
     console.log(
-      `  - ${l.slug}  default=${l.isDefault === true}  enabled=${l.enabled !== false}  quota=${q}  offerings=${offerings}  id=${l.lobbyId ?? l._id ?? "?"}`
+      `  - ${l.slug}  default=${l.isDefault === true}  enabled=${l.enabled !== false}  quota=${q}  soloSuccessCap=${soloCap}  offerings=${offerings}  id=${l.lobbyId ?? l._id ?? "?"}`
     );
   }
 

@@ -25,6 +25,15 @@ function settleFlipZIndex(card: SoloCard): void {
     gsap.set(card.ele, { rotateY: 180, zIndex: z });
 }
 
+function onceCallback(onComplete?: () => void): () => void {
+    let done = false;
+    return () => {
+        if (done) return;
+        done = true;
+        onComplete?.();
+    };
+}
+
 export function startFlipGeneric({
     card,
     duration: durationOverride,
@@ -55,8 +64,9 @@ export function startFlipGeneric({
 
     return {
         completeReveal: (faceCard, onComplete) => {
+            const finish = onceCallback(onComplete);
             if (cancelled || !card.ele) {
-                onComplete?.();
+                finish();
                 return;
             }
             holdTween?.kill();
@@ -67,16 +77,21 @@ export function startFlipGeneric({
                 ease: "sine.inOut",
                 onComplete: () => {
                     settleFlipZIndex(faceCard);
-                    onComplete?.();
+                    finish();
+                },
+                onInterrupt: () => {
+                    settleFlipZIndex(faceCard);
+                    finish();
                 },
             });
         },
         cancel: (onComplete) => {
+            const finish = onceCallback(onComplete);
             cancelled = true;
             holdTween?.kill();
             finishTween?.kill();
             if (!card.ele) {
-                onComplete?.();
+                finish();
                 return;
             }
             gsap.to(card.ele, {
@@ -84,13 +99,16 @@ export function startFlipGeneric({
                 duration: half,
                 ease: "sine.inOut",
                 onComplete: () => {
-                    const z =
-                        card.zone === ZoneType.TABLEAU
-                            ? tableauCardZIndex(card.zoneId, card.zoneIndex)
-                            : (card.zoneIndex ?? 0) + 10;
-                    gsap.set(card.ele, { zIndex: z });
-                    onComplete?.();
+                    if (card.ele) {
+                        const z =
+                            card.zone === ZoneType.TABLEAU
+                                ? tableauCardZIndex(card.zoneId, card.zoneIndex)
+                                : (card.zoneIndex ?? 0) + 10;
+                        gsap.set(card.ele, { zIndex: z });
+                    }
+                    finish();
                 },
+                onInterrupt: finish,
             });
         },
     };

@@ -16,9 +16,10 @@ export const DEFAULT_MATCH_TIME_LIMIT_SEC = BLOCK_BLAST_MATCH_TIME_LIMIT_SEC;
 
 /**
  * 统一缩放所有人格 base thinkTimeSec（见 blockBlastHumanPersonas.ts）。
+ * 0.6：六档均值 thinkTimeSec≈1.68 → 有效步时≈1s（对齐真人正常节奏）。
  * pool create 默认用 CLI `--think-time-scale`；未传时用本常量。
  */
-export const BLOCK_BLAST_SIM_THINK_TIME_SCALE = 1;
+export const BLOCK_BLAST_SIM_THINK_TIME_SCALE = 0.6;
 
 export function resolveThinkTimeScale(override?: number): number {
   if (override != null && Number.isFinite(override) && override > 0) {

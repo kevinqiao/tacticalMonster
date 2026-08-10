@@ -175,3 +175,59 @@ export async function decrementTicketEntryUsedToday(
     updatedAt: args.now,
   });
 }
+
+/** Rewarded solo-success count for the ops day (bumped only when a success grants rewards). */
+export async function readSoloSuccessUsedToday(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  dayKey: string,
+  entryCtx?: PlayEntryContext | null,
+  quotaScope: PortalQuotaScope = "mode"
+): Promise<number> {
+  const bucket = entryUsageBucketForScope(quotaScope, entryCtx);
+  const rows = await ctx.db
+    .query("portal_solo_success_daily_usage")
+    .withIndex("by_uid_dayKey_mode", (q) =>
+      q.eq("uid", uid).eq("dayKey", dayKey).eq("mode", "solo")
+    )
+    .collect();
+  const row = rows.find((r) => usageRowMatchesBucket(r, bucket));
+  return Math.max(0, Math.floor(row?.usedCount ?? 0));
+}
+
+export async function bumpSoloSuccessUsedToday(
+  ctx: MutationCtx,
+  args: {
+    uid: string;
+    dayKey: string;
+    now: number;
+    entryCtx?: PlayEntryContext | null;
+    quotaScope: PortalQuotaScope;
+  }
+): Promise<void> {
+  const bucket = entryUsageBucketForScope(args.quotaScope, args.entryCtx);
+  const rows = await ctx.db
+    .query("portal_solo_success_daily_usage")
+    .withIndex("by_uid_dayKey_mode", (q) =>
+      q.eq("uid", args.uid).eq("dayKey", args.dayKey).eq("mode", "solo")
+    )
+    .collect();
+  const usage = rows.find((r) => usageRowMatchesBucket(r, bucket));
+  if (usage) {
+    await ctx.db.patch(usage._id, {
+      usedCount: usage.usedCount + 1,
+      updatedAt: args.now,
+    });
+    return;
+  }
+  await ctx.db.insert("portal_solo_success_daily_usage", {
+    uid: args.uid,
+    dayKey: args.dayKey,
+    mode: "solo",
+    ...(bucket.lobbyId ? { lobbyId: bucket.lobbyId } : {}),
+    ...(bucket.tournamentId ? { tournamentId: bucket.tournamentId } : {}),
+    usedCount: 1,
+    createdAt: args.now,
+    updatedAt: args.now,
+  });
+}

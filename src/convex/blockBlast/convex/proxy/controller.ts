@@ -97,10 +97,46 @@ type CasualFindMatchResult = {
     seed?: string;
     gridSize?: number;
     seedScoreThreshold?: number;
+    seedScoreThresholdP75?: number;
+    seedScoreThresholdP90?: number;
     replayEpoch?: number;
   };
   error?: string;
 };
+
+function attachHudScoreThresholds(
+  res: {
+    seedScoreThreshold?: number;
+    seedScoreThresholdP75?: number;
+    seedScoreThresholdP90?: number;
+  },
+  match:
+    | {
+        seedScoreThreshold?: number;
+        seedScoreThresholdP75?: number;
+        seedScoreThresholdP90?: number;
+      }
+    | undefined
+): number | undefined {
+  let clear: number | undefined;
+  if (typeof match?.seedScoreThreshold === "number" && Number.isFinite(match.seedScoreThreshold)) {
+    clear = match.seedScoreThreshold;
+    res.seedScoreThreshold = clear;
+  }
+  if (
+    typeof match?.seedScoreThresholdP75 === "number" &&
+    Number.isFinite(match.seedScoreThresholdP75)
+  ) {
+    res.seedScoreThresholdP75 = match.seedScoreThresholdP75;
+  }
+  if (
+    typeof match?.seedScoreThresholdP90 === "number" &&
+    Number.isFinite(match.seedScoreThresholdP90)
+  ) {
+    res.seedScoreThresholdP90 = match.seedScoreThresholdP90;
+  }
+  return clear;
+}
 
 function shouldRebuildCasualArenaGame(
   existing: { status: number; replayEpoch?: number },
@@ -151,7 +187,15 @@ export const loadGame = action({
   },
   handler: async (ctx, { gameId, resetCasualRun, platformBridge }): Promise<any> => {
     const bridge = platformBridge ?? "casual";
-    const res: { ok: boolean; game?: any; events?: any; error?: string; seedScoreThreshold?: number } = { ok: false };
+    const res: {
+      ok: boolean;
+      game?: any;
+      events?: any;
+      error?: string;
+      seedScoreThreshold?: number;
+      seedScoreThresholdP75?: number;
+      seedScoreThresholdP90?: number;
+    } = { ok: false };
 
     let recreate = resetCasualRun === true;
     if (!recreate && gameId.startsWith("game_")) {
@@ -182,9 +226,15 @@ export const loadGame = action({
           }
           res.ok = true;
           res.game = existing;
-          const threshold = meta.match?.seedScoreThreshold;
-          if (typeof threshold === "number" && Number.isFinite(threshold)) {
-            res.seedScoreThreshold = threshold;
+          const threshold = attachHudScoreThresholds(res, meta.match);
+          if (threshold != null && existing.targetScore == null) {
+            const patched = await ctx.runMutation(internal.service.gameManager.ensureTargetScore, {
+              gameId,
+              targetScore: threshold,
+            });
+            if (patched.ok) {
+              res.game = { ...existing, targetScore: patched.targetScore };
+            }
           }
           return res;
         }
@@ -201,9 +251,15 @@ export const loadGame = action({
             skipRecordSeed: true,
             platformBridge: bridge,
           });
-          const threshold = meta.match?.seedScoreThreshold;
-          if (typeof threshold === "number" && Number.isFinite(threshold)) {
-            res.seedScoreThreshold = threshold;
+          const threshold = attachHudScoreThresholds(res, meta.match);
+          if (threshold != null && existing.targetScore == null) {
+            const patched = await ctx.runMutation(internal.service.gameManager.ensureTargetScore, {
+              gameId,
+              targetScore: threshold,
+            });
+            if (patched.ok) {
+              res.game = { ...existing, targetScore: patched.targetScore };
+            }
           }
         }
         return res;
@@ -219,8 +275,11 @@ export const loadGame = action({
       gameId: string;
       gridSize?: number;
       replayEpoch?: number;
+      targetScore?: number;
     } = { gameId };
     let seedScoreThreshold: number | undefined;
+    let seedScoreThresholdP75: number | undefined;
+    let seedScoreThresholdP90: number | undefined;
 
     if (gameId.startsWith("game_")) {
       const matchGameResult = await fetchCasualMatchByGame(gameId, { platformBridge: bridge });
@@ -241,6 +300,19 @@ export const loadGame = action({
       }
       if (typeof data?.seedScoreThreshold === "number" && Number.isFinite(data.seedScoreThreshold)) {
         seedScoreThreshold = data.seedScoreThreshold;
+        createArgs.targetScore = Math.floor(data.seedScoreThreshold);
+      }
+      if (
+        typeof data?.seedScoreThresholdP75 === "number" &&
+        Number.isFinite(data.seedScoreThresholdP75)
+      ) {
+        seedScoreThresholdP75 = data.seedScoreThresholdP75;
+      }
+      if (
+        typeof data?.seedScoreThresholdP90 === "number" &&
+        Number.isFinite(data.seedScoreThresholdP90)
+      ) {
+        seedScoreThresholdP90 = data.seedScoreThresholdP90;
       }
       if (typeof data?.replayEpoch === "number" && Number.isFinite(data.replayEpoch)) {
         createArgs.replayEpoch = data.replayEpoch;
@@ -272,6 +344,12 @@ export const loadGame = action({
       res.game = gameResult.data;
       if (seedScoreThreshold != null) {
         res.seedScoreThreshold = seedScoreThreshold;
+      }
+      if (seedScoreThresholdP75 != null) {
+        res.seedScoreThresholdP75 = seedScoreThresholdP75;
+      }
+      if (seedScoreThresholdP90 != null) {
+        res.seedScoreThresholdP90 = seedScoreThresholdP90;
       }
     } else {
       res.ok = false;

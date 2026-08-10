@@ -7,18 +7,23 @@ import {
   computeDistributionMetrics,
   computePlayerEaseScore,
   computeScoreHistogram,
+  computeSolitaireOnboardingScore,
   isCollapsedDistribution,
   layoutFingerprint,
   PERFORMANCE_BAND_HIGH_CUMULATIVE_FRACTION,
   PERFORMANCE_BAND_LOW_FRACTION,
   percentileForBand,
   selectTopCandidatesByPlayerEase,
+  withClearEaseScore,
 } from "../solitaireSeedDifficulty";
 import {
   DEFAULT_PLAYER_FRIENDLY_OPTIONS,
   processOneSeed,
 } from "../solitaireSeedPoolRunner";
-import { quickScreenSeed } from "../solitaireSeedQuickScreen";
+import {
+  quickScreenSeed,
+  rejectPlayerFriendlyMetrics,
+} from "../solitaireSeedQuickScreen";
 import { verifyRollout } from "../solitaireSeedPoolReplayVerify";
 import {
   computePercentileOnSeed,
@@ -88,6 +93,12 @@ function mockMetrics(overrides: Partial<ReturnType<typeof computeDistributionMet
     scoreSpread: 100,
     playerEaseScore: 80,
     clearEaseScore: 0,
+    onboardingScore: 0,
+    foundationCardsP25: 4,
+    foundationCardsP50: 8,
+    foundationCardsP90: 16,
+    timeToFirstFoundationP50: 40,
+    foundationReachRate: 1,
     layoutFingerprint: "fp:test",
     policyVersion: "human-stochastic-v6" as const,
     matchTimeLimitSec: 300,
@@ -247,6 +258,26 @@ describe("solitaireSeedPool v2", () => {
     expect(metrics.scoreSpread).toBe(metrics.scoreMax - metrics.scoreMin);
     expect(typeof metrics.playerEaseScore).toBe("number");
     expect(metrics.clearEaseScore).toBe(0);
+    expect(typeof metrics.onboardingScore).toBe("number");
+    expect(metrics.onboardingScore).toBeGreaterThanOrEqual(0);
+    expect(metrics.foundationCardsP25).toBeGreaterThanOrEqual(0);
+    expect(metrics.foundationCardsP50).toBeGreaterThanOrEqual(metrics.foundationCardsP25);
+    expect(metrics.foundationCardsP90).toBeGreaterThanOrEqual(metrics.foundationCardsP50);
+    expect(metrics.timeToFirstFoundationP50).toBeGreaterThan(0);
+    expect(metrics.foundationReachRate).toBeGreaterThanOrEqual(0);
+    expect(metrics.foundationReachRate).toBeLessThanOrEqual(1);
+  });
+
+  it("simulateRollout tracks foundation peak and time-to-first", () => {
+    const r = simulateRollout("solitaire-pool:v2:foundation-track", 0, { matchSeconds: 300 });
+    expect(r.foundationCardsPeak).toBeGreaterThanOrEqual(0);
+    if (r.foundationCardsPeak > 0) {
+      expect(r.timeToFirstFoundationSec).not.toBeNull();
+      expect(r.timeToFirstFoundationSec!).toBeGreaterThan(0);
+      expect(r.timeToFirstFoundationSec!).toBeLessThanOrEqual(r.elapsedSimSeconds + 1e-6);
+    } else {
+      expect(r.timeToFirstFoundationSec).toBeNull();
+    }
   });
 
   it("computeClearEaseScore ranks shorter solve paths higher", async () => {
@@ -282,6 +313,98 @@ describe("solitaireSeedPool v2", () => {
     expect(shortPath).toBeGreaterThan(longPath);
     expect(unsolvable).toBe(0);
     expect(empirical).toBeGreaterThan(shortPath);
+  });
+
+  it("computeSolitaireOnboardingScore rises with foundation progress and early first foundation", () => {
+    const base = {
+      clearEaseScore: 2000,
+      foundationReachRate: 1,
+      matchTimeLimitSec: 300,
+    };
+    const deepEarly = computeSolitaireOnboardingScore({
+      ...base,
+      foundationCardsP25: 12,
+      timeToFirstFoundationP50: 30,
+    });
+    const shallowLate = computeSolitaireOnboardingScore({
+      ...base,
+      foundationCardsP25: 2,
+      timeToFirstFoundationP50: 180,
+    });
+    const lowReach = computeSolitaireOnboardingScore({
+      ...base,
+      foundationCardsP25: 12,
+      timeToFirstFoundationP50: 30,
+      foundationReachRate: 0.2,
+    });
+    expect(deepEarly).toBeGreaterThan(shallowLate);
+    expect(deepEarly).toBeGreaterThan(lowReach);
+  });
+
+  it("computeSolitaireOnboardingScore treats clearEase as a secondary bonus", () => {
+    const foundation = {
+      foundationCardsP25: 6,
+      timeToFirstFoundationP50: 60,
+      foundationReachRate: 1,
+      matchTimeLimitSec: 300,
+    };
+    const withClear = computeSolitaireOnboardingScore({
+      ...foundation,
+      clearEaseScore: 2000,
+    });
+    const withoutClear = computeSolitaireOnboardingScore({
+      ...foundation,
+      clearEaseScore: 0,
+    });
+    const foundationBoost = computeSolitaireOnboardingScore({
+      ...foundation,
+      foundationCardsP25: 16,
+      clearEaseScore: 0,
+    });
+    expect(withClear).toBeGreaterThan(withoutClear);
+    // +10 foundation cards (×35) outweighs clearEase 2000 (×0.12).
+    expect(foundationBoost - withoutClear).toBeGreaterThan(withClear - withoutClear);
+  });
+
+  it("withClearEaseScore recomputes onboarding from clearEase + foundation metrics", () => {
+    const base = mockMetrics({
+      clearEaseScore: 0,
+      onboardingScore: 0,
+      foundationCardsP25: 8,
+      timeToFirstFoundationP50: 45,
+      foundationReachRate: 1,
+      openingMoveCount: 5,
+    });
+    const annotated = withClearEaseScore(base, {
+      openingMoveCount: 5,
+      solvable: "solvable",
+      solvableSource: "search",
+      pathLength: 100,
+      nodesExpanded: 500,
+    });
+    expect(annotated.clearEaseScore).toBeGreaterThan(0);
+    expect(annotated.onboardingScore).toBe(
+      computeSolitaireOnboardingScore({
+        clearEaseScore: annotated.clearEaseScore,
+        foundationCardsP25: 8,
+        timeToFirstFoundationP50: 45,
+        foundationReachRate: 1,
+        matchTimeLimitSec: 300,
+      })
+    );
+    expect(annotated.onboardingScore).not.toBe(annotated.clearEaseScore);
+
+    const noSolvability = withClearEaseScore(base, null);
+    expect(noSolvability.clearEaseScore).toBe(0);
+    expect(noSolvability.onboardingScore).toBe(
+      computeSolitaireOnboardingScore({
+        clearEaseScore: 0,
+        foundationCardsP25: 8,
+        timeToFirstFoundationP50: 45,
+        foundationReachRate: 1,
+        matchTimeLimitSec: 300,
+      })
+    );
   });
 
   it("buildTierIndex groups entries by layout tier", () => {
@@ -371,6 +494,45 @@ describe("solitaireSeedQuickScreen", () => {
     if (!result.ok) {
       expect(result.entry.reason).toBe("no_opening_moves");
     }
+  });
+
+  it("rejects when foundationCardsP25 too low", () => {
+    const reject = rejectPlayerFriendlyMetrics(
+      "solitaire-pool:v2:foundation-gate",
+      mockMetrics({ foundationCardsP25: 1, timeToFirstFoundationP50: 30 }),
+      {
+        ...DEFAULT_PLAYER_FRIENDLY_OPTIONS,
+        minFoundationCardsP25: 4,
+      }
+    );
+    expect(reject?.reason).toBe("low_foundation_progress");
+    expect(reject?.detail).toContain("foundationCardsP25=1");
+  });
+
+  it("rejects when timeToFirstFoundationP50 too high", () => {
+    const reject = rejectPlayerFriendlyMetrics(
+      "solitaire-pool:v2:foundation-late",
+      mockMetrics({ foundationCardsP25: 8, timeToFirstFoundationP50: 120 }),
+      {
+        ...DEFAULT_PLAYER_FRIENDLY_OPTIONS,
+        maxTimeToFirstFoundationP50: 90,
+      }
+    );
+    expect(reject?.reason).toBe("low_foundation_progress");
+    expect(reject?.detail).toContain("timeToFirstFoundationP50=120");
+  });
+
+  it("passes foundation gates when within thresholds", () => {
+    const reject = rejectPlayerFriendlyMetrics(
+      "solitaire-pool:v2:foundation-ok",
+      mockMetrics({ foundationCardsP25: 6, timeToFirstFoundationP50: 45 }),
+      {
+        ...DEFAULT_PLAYER_FRIENDLY_OPTIONS,
+        minFoundationCardsP25: 4,
+        maxTimeToFirstFoundationP50: 90,
+      }
+    );
+    expect(reject).toBeNull();
   });
 
   it("processOneSeed rejects collapsed_scores when enabled", () => {

@@ -1,4 +1,4 @@
-import { applyRecordedOp, buildInitialState } from "./match3OpCodec";
+import { buildInitialState } from "./match3OpCodec";
 import { findValidMoves } from "../Match3GameEngine";
 import type {
   Match3RolloutScript,
@@ -48,6 +48,51 @@ function buildHistogram(scores: number[]): ScoreHistogram {
   return hist;
 }
 
+export function deriveLayoutOutcome(input: {
+  openingMoveCount: number;
+  earlyStuckRate: number;
+}): RolloutDistributionMetrics["layoutOutcome"] {
+  if (input.openingMoveCount < 3) return "likely_dead";
+  if (input.earlyStuckRate >= 0.5) return "likely_dead";
+  if (input.earlyStuckRate >= 0.25 || input.openingMoveCount < 5) return "mixed";
+  return "winnable";
+}
+
+/**
+ * Opening / early-survival ease (higher = friendlier).
+ * Deliberately not a p50 alias — mid-game skill deaths should not define "上手".
+ */
+export function computePlayerEaseScore(input: {
+  openingMoveCount: number;
+  scoreP25: number;
+  earlyStuckRate: number;
+  meanEarlyClearWaveSum: number;
+  layoutOutcome: RolloutDistributionMetrics["layoutOutcome"];
+}): number {
+  return (
+    input.openingMoveCount * 12 +
+    input.scoreP25 * 0.25 +
+    (1 - input.earlyStuckRate) * 220 +
+    input.meanEarlyClearWaveSum * 40 +
+    (input.layoutOutcome === "likely_dead" ? -1000 : 0)
+  );
+}
+
+/** Ritual / first-wave highlight axis for novice segment A. */
+export function computeOnboardingScore(input: {
+  openingMoveCount: number;
+  meanEarlyClearWaveSum: number;
+  earlyCascadeHitRate: number;
+  earlyStuckRate: number;
+}): number {
+  return Math.round(
+    input.meanEarlyClearWaveSum * 120 +
+      input.earlyCascadeHitRate * 250 +
+      input.openingMoveCount * 8 +
+      (1 - input.earlyStuckRate) * 100
+  );
+}
+
 export function computeDistributionMetrics(
   rollouts: Match3RolloutScript[],
   seedId: string,
@@ -65,6 +110,29 @@ export function computeDistributionMetrics(
   const timeUpCount = rollouts.filter((r) => r.terminalReason === "time_up").length;
   const scoreSpread = (sorted[sorted.length - 1] ?? 0) - (sorted[0] ?? 0);
 
+  const k = rollouts.length || 1;
+  const earlyStuckRate =
+    rollouts.filter((r) => r.earlyStuck === true).length / k;
+  const meanEarlyClearWaveSum =
+    rollouts.reduce((sum, r) => sum + (r.earlyClearWaveSum ?? 0), 0) / k;
+  const earlyCascadeHitRate =
+    rollouts.filter((r) => (r.earlyClearWaveSum ?? 0) >= 2).length / k;
+
+  const layoutOutcome = deriveLayoutOutcome({ openingMoveCount, earlyStuckRate });
+  const playerEaseScore = computePlayerEaseScore({
+    openingMoveCount,
+    scoreP25: quantiles.p25,
+    earlyStuckRate,
+    meanEarlyClearWaveSum,
+    layoutOutcome,
+  });
+  const onboardingScore = computeOnboardingScore({
+    openingMoveCount,
+    meanEarlyClearWaveSum,
+    earlyCascadeHitRate,
+    earlyStuckRate,
+  });
+
   return {
     rolloutCount,
     scoreMin: sorted[0] ?? 0,
@@ -80,10 +148,14 @@ export function computeDistributionMetrics(
     timeUpRate: rollouts.length ? timeUpCount / rollouts.length : 0,
     completedCount,
     hasAnyCompleted: completedCount > 0,
-    layoutOutcome: openingMoveCount >= 3 ? "winnable" : "likely_dead",
+    layoutOutcome,
     openingMoveCount,
     scoreSpread,
-    playerEaseScore: quantiles.p50,
+    playerEaseScore,
+    onboardingScore,
+    earlyStuckRate,
+    meanEarlyClearWaveSum,
+    earlyCascadeHitRate,
     layoutFingerprint: layoutFingerprint(seedId),
     policyVersion: HUMAN_STOCHASTIC_POLICY_VERSION,
     matchTimeLimitSec: matchSeconds,

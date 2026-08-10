@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   BLOCK_BLAST_BURST_JACKPOT,
   blockBlastBurstBonus,
+  blockBlastOneLineClearScore,
   computeBlockBlastStepScore,
   computeBlockBlastTotalScore,
   countBlockBlastClearedCells,
@@ -33,5 +34,11 @@ describe("blockBlastScoreModel", () => {
     expect(computeBlockBlastTotalScore(1234)).toBe(1234);
     expect(computeBlockBlastTotalScore(1234.9)).toBe(1234);
     expect(computeBlockBlastTotalScore(-5)).toBe(0);
+  });
+
+  it("one-line clear score equals grid size", () => {
+    expect(blockBlastOneLineClearScore(8)).toBe(8);
+    expect(blockBlastOneLineClearScore(9)).toBe(9);
+    expect(computeBlockBlastStepScore(8, 8)).toBe(blockBlastOneLineClearScore(8));
   });
 });

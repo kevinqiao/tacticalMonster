@@ -124,6 +124,9 @@ export function PortalGame3DOverlays({
                 adUsed: ctrl.portal.adEntryOffer?.solo.usedToday ?? 0,
                 adCap: ctrl.portal.adEntryOffer?.solo.cap ?? 0,
                 adEnabled: ctrl.portal.adEntryOffer?.solo.enabled === true,
+                successEnabled: ctrl.soloSuccessEnabled,
+                successUsed: ctrl.soloSuccessUsedToday,
+                successCap: ctrl.soloSuccessDailyCap,
               }
             : {
                 freeUsed: ctrl.multiLadderPlaysToday,

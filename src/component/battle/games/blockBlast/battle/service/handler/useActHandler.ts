@@ -39,7 +39,16 @@ type PlaceShapeMutationData = {
     cleared?: { rows: number[]; cols: number[] };
 };
 
-function snapshotEngineInput(gameState: BlockBlastGameState): ApplyPlaceShapeInput {
+function snapshotEngineInput(
+    gameState: BlockBlastGameState,
+    targetScore?: number
+): ApplyPlaceShapeInput {
+    const threshold =
+        typeof targetScore === 'number' && Number.isFinite(targetScore)
+            ? targetScore
+            : typeof gameState.targetScore === 'number' && Number.isFinite(gameState.targetScore)
+              ? gameState.targetScore
+              : undefined;
     return {
         grid: gameState.grid.map((row) => [...row]),
         gridSize: gameState.gridSize ?? inferGridSizeFromGrid(gameState.grid),
@@ -54,6 +63,7 @@ function snapshotEngineInput(gameState: BlockBlastGameState): ApplyPlaceShapeInp
         status: gameState.status,
         seed: gameState.seed,
         shapeCounter: gameState.shapeCounter,
+        ...(threshold != null ? { targetScore: threshold } : {}),
     };
 }
 
@@ -109,8 +119,16 @@ function playClearLinesAnim(
 
 const useActHandler = () => {
     const convex = useConvex();
-    const { gameState, ruleManager, gridCellRefs, setInteractionPhase, commitGameState, completeCasualRunIfTerminal } =
-        useBlockBlastGameManager();
+    const {
+        gameState,
+        ruleManager,
+        gridCellRefs,
+        setInteractionPhase,
+        commitGameState,
+        completeCasualRunIfTerminal,
+        targetScore,
+        pushScoreFloat,
+    } = useBlockBlastGameManager();
 
     const cancelDrag = useCallback(
         (data: BlockBlastActionData) => {
@@ -163,7 +181,7 @@ const useActHandler = () => {
 
             setInteractionPhase(GameInteractionPhase.animating);
             let handedOffToCancelDrag = false;
-            const engineInput = snapshotEngineInput(gameState);
+            const engineInput = snapshotEngineInput(gameState, targetScore);
             let postOpTerminalStatus: number | undefined;
 
             const local = BlockBlastGameEngine.applyPlaceShape(
@@ -231,6 +249,13 @@ const useActHandler = () => {
                     });
 
                     await playClearLinesAnim(cleared.rows, cleared.cols, gridCellRefs);
+
+                    if (stepScore > 0) {
+                        pushScoreFloat(stepScore, {
+                            rows: cleared.rows,
+                            cols: cleared.cols,
+                        });
+                    }
 
                     commitGameState({
                         grid: localData.grid,
@@ -303,6 +328,7 @@ const useActHandler = () => {
         },
         [
             gameState,
+            targetScore,
             ruleManager,
             convex,
             gridCellRefs,
@@ -310,6 +336,7 @@ const useActHandler = () => {
             cancelDrag,
             commitGameState,
             completeCasualRunIfTerminal,
+            pushScoreFloat,
         ]
     );
 

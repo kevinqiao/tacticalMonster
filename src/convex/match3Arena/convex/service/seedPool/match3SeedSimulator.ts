@@ -8,7 +8,11 @@ import type {
   RolloutDistributionMetrics,
   RolloutTerminalReason,
 } from "./match3RecordedOpTypes";
-import { HUMAN_STOCHASTIC_POLICY_VERSION as POLICY_VERSION } from "./match3RecordedOpTypes";
+import {
+  HUMAN_STOCHASTIC_POLICY_VERSION as POLICY_VERSION,
+  MATCH3_EARLY_STUCK_MAX_MOVES,
+  MATCH3_EARLY_SWAP_WINDOW,
+} from "./match3RecordedOpTypes";
 import {
   createStochasticPolicyContext,
   pickNextOp,
@@ -17,7 +21,6 @@ import {
 import {
   createSimTimeContext,
   DEFAULT_MATCH_TIME_LIMIT_SEC,
-  resolveTerminalReason,
   simCostForOp,
   wouldExceedTimeLimit,
 } from "./match3SimTime";
@@ -38,7 +41,14 @@ function recordOp(
   pacingMs: number[],
   elapsed: { value: number },
   matchSeconds: number
-): { ok: true; state: typeof state; terminalReason?: RolloutTerminalReason } | { ok: false; terminalReason: RolloutTerminalReason } {
+):
+  | {
+      ok: true;
+      state: typeof state;
+      clearWaveCount: number;
+      terminalReason?: RolloutTerminalReason;
+    }
+  | { ok: false; terminalReason: RolloutTerminalReason } {
   const cost = simCostForOp(op, timeCtx, ctx.rolloutIndex);
   if (wouldExceedTimeLimit(elapsed.value, cost, matchSeconds)) {
     return { ok: false, terminalReason: "time_up" };
@@ -55,9 +65,14 @@ function recordOp(
   updatePolicyAfterOp(ctx);
 
   if (res.state.status === Match3GameStatus.CANCELLED) {
-    return { ok: true, state: res.state, terminalReason: "exited" };
+    return {
+      ok: true,
+      state: res.state,
+      clearWaveCount: res.clearWaveCount,
+      terminalReason: "exited",
+    };
   }
-  return { ok: true, state: res.state };
+  return { ok: true, state: res.state, clearWaveCount: res.clearWaveCount };
 }
 
 export function simulateRollout(
@@ -75,6 +90,9 @@ export function simulateRollout(
 
   let terminalReason: RolloutTerminalReason = "completed";
   let completed = false;
+  let maxClearWaves = 0;
+  let earlyClearWaveSum = 0;
+  let successfulSwaps = 0;
 
   for (let step = 0; step < MAX_SIM_STEPS; step++) {
     const next = pickNextOp(state, ctx);
@@ -95,6 +113,13 @@ export function simulateRollout(
       break;
     }
     state = result.state;
+    if (recorded.op === "swap") {
+      successfulSwaps += 1;
+      maxClearWaves = Math.max(maxClearWaves, result.clearWaveCount);
+      if (successfulSwaps <= MATCH3_EARLY_SWAP_WINDOW) {
+        earlyClearWaveSum += result.clearWaveCount;
+      }
+    }
     if (result.terminalReason === "exited") {
       terminalReason = "exited";
       completed = true;
@@ -108,6 +133,8 @@ export function simulateRollout(
   }
 
   const finalScore = computeMatch3TotalScore(state.score);
+  const earlyStuck =
+    terminalReason === "stuck" && state.moves <= MATCH3_EARLY_STUCK_MAX_MOVES;
 
   return {
     rolloutIndex,
@@ -119,6 +146,9 @@ export function simulateRollout(
     completed,
     terminalReason,
     elapsedSimSeconds: elapsed.value,
+    earlyStuck,
+    maxClearWaves,
+    earlyClearWaveSum,
   };
 }
 

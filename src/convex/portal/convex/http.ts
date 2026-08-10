@@ -13,7 +13,11 @@ import { resolveIngestPlatformBotFillPlan } from "./service/tournament/submit/ca
 import { createIngestTiming } from "./service/tournament/submit/casualIngestTiming";
 import { bridgeOkBody } from "./service/bridge/casualGameBridgeContract";
 import { getPartnerGameRegistration } from "./data/partnerGameRegistry";
-import { getPortalTournamentDefinition } from "./data/portalTournamentConfigs";
+import { isPortalSuccessQuantile } from "./data/portalSeedTierPolicy";
+import {
+  getPortalTournamentDefinition,
+  resolveSoloSeedSuccessThreshold,
+} from "./data/portalTournamentConfigs";
 
 const http = httpRouter();
 
@@ -413,27 +417,29 @@ http.route({
 
     const templateDef = match.templateId ? getPortalTournamentDefinition(match.templateId) : undefined;
     const bindingQuantile = match.seedBinding?.successQuantile;
-    const successQuantile =
-      bindingQuantile === "p50" || bindingQuantile === "p75" || bindingQuantile === "p90"
-        ? bindingQuantile
-        : templateDef?.seedQuantileSuccess?.quantile;
-    let seedScoreThreshold: number | undefined =
-      typeof match.seedScoreThreshold === "number" && Number.isFinite(match.seedScoreThreshold)
-        ? match.seedScoreThreshold
-        : undefined;
+    const successQuantile = isPortalSuccessQuantile(bindingQuantile)
+      ? bindingQuantile
+      : templateDef?.seedQuantileSuccess?.quantile;
+    const gameTypeForThreshold =
+      bridgeRow.gameType ?? templateDef?.gameType ?? "";
+    // Prefer quantiles × multiplier (canonical). Bridge threshold is already multiplied when present.
+    let seedScoreThreshold = resolveSoloSeedSuccessThreshold({
+      gameType: gameTypeForThreshold,
+      ritualOneLineClear: match.seedBinding?.ritualOneLineClear,
+      quantiles: match.seedBinding?.scoreQuantiles,
+      successQuantile,
+      seedQuantileSuccess: templateDef?.seedQuantileSuccess,
+    });
     if (
       seedScoreThreshold == null &&
-      (successQuantile === "p50" || successQuantile === "p75" || successQuantile === "p90") &&
-      match.seedBinding
+      typeof match.seedScoreThreshold === "number" &&
+      Number.isFinite(match.seedScoreThreshold)
     ) {
-      const inline = match.seedBinding.scoreQuantiles?.[successQuantile];
-      if (typeof inline === "number" && Number.isFinite(inline)) {
-        seedScoreThreshold = Math.floor(inline);
-      }
+      seedScoreThreshold = Math.floor(match.seedScoreThreshold);
     }
     if (
       seedScoreThreshold == null &&
-      (successQuantile === "p50" || successQuantile === "p75" || successQuantile === "p90") &&
+      isPortalSuccessQuantile(successQuantile) &&
       match.seedBinding &&
       bridgeRow.gameType
     ) {
@@ -442,6 +448,9 @@ http.route({
           successThresholdQuantile: successQuantile,
           seedBinding: match.seedBinding,
           gameType: bridgeRow.gameType,
+          ritualOneLineClear: match.seedBinding.ritualOneLineClear,
+          seedQuantileSuccess: templateDef?.seedQuantileSuccess,
+          templateId: match.templateId,
         });
         if (threshold != null) {
           seedScoreThreshold = threshold;
@@ -1261,6 +1270,28 @@ http.route({
                 ticketEntryMultiDailyCap: body.ticketEntryMultiDailyCap as number | null,
               }
             : {}),
+          ...(body?.soloSuccessDailyEnabled !== undefined
+            ? { soloSuccessDailyEnabled: body.soloSuccessDailyEnabled as boolean | null }
+            : {}),
+          ...(body?.soloSuccessDailyCap !== undefined
+            ? { soloSuccessDailyCap: body.soloSuccessDailyCap as number | null }
+            : {}),
+          ...(body?.soloSuccessAfterCapMode !== undefined
+            ? {
+                soloSuccessAfterCapMode:
+                  body.soloSuccessAfterCapMode === null ||
+                  body.soloSuccessAfterCapMode === "zero_all"
+                    ? body.soloSuccessAfterCapMode
+                    : undefined,
+              }
+            : {}),
+          ...(body?.soloSuccessAllowPlayAfterCap !== undefined
+            ? {
+                soloSuccessAllowPlayAfterCap: body.soloSuccessAllowPlayAfterCap as
+                  | boolean
+                  | null,
+              }
+            : {}),
           ...(body?.lobbyOpsMode !== undefined
             ? {
                 lobbyOpsMode:
@@ -1568,6 +1599,22 @@ http.route({
                   b.quotaScope === "tournament"
                 ? { quotaScope: b.quotaScope }
                 : {}),
+            ...(b.soloSuccessDailyEnabled === null ||
+            typeof b.soloSuccessDailyEnabled === "boolean"
+              ? { soloSuccessDailyEnabled: b.soloSuccessDailyEnabled }
+              : {}),
+            ...(b.soloSuccessDailyCap === null ||
+            typeof b.soloSuccessDailyCap === "number"
+              ? { soloSuccessDailyCap: b.soloSuccessDailyCap }
+              : {}),
+            ...(b.soloSuccessAfterCapMode === null ||
+            b.soloSuccessAfterCapMode === "zero_all"
+              ? { soloSuccessAfterCapMode: b.soloSuccessAfterCapMode }
+              : {}),
+            ...(b.soloSuccessAllowPlayAfterCap === null ||
+            typeof b.soloSuccessAllowPlayAfterCap === "boolean"
+              ? { soloSuccessAllowPlayAfterCap: b.soloSuccessAllowPlayAfterCap }
+              : {}),
             ...(b.seasonHonorMode === null ||
             b.seasonHonorMode === "join_now" ||
             b.seasonHonorMode === "next_season"

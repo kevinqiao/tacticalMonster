@@ -145,6 +145,18 @@ export async function portalLobbyUpsert(target, partnerId, lobby) {
     ...(lobby.branding ? { branding: lobby.branding } : {}),
     offerings: lobby.offerings,
     ...(lobby.quotaScope !== undefined ? { quotaScope: lobby.quotaScope } : {}),
+    ...(lobby.soloSuccessDailyEnabled !== undefined
+      ? { soloSuccessDailyEnabled: lobby.soloSuccessDailyEnabled }
+      : {}),
+    ...(lobby.soloSuccessDailyCap !== undefined
+      ? { soloSuccessDailyCap: lobby.soloSuccessDailyCap }
+      : {}),
+    ...(lobby.soloSuccessAfterCapMode !== undefined
+      ? { soloSuccessAfterCapMode: lobby.soloSuccessAfterCapMode }
+      : {}),
+    ...(lobby.soloSuccessAllowPlayAfterCap !== undefined
+      ? { soloSuccessAllowPlayAfterCap: lobby.soloSuccessAllowPlayAfterCap }
+      : {}),
     ...(lobby.seasonHonorMode !== undefined
       ? { seasonHonorMode: lobby.seasonHonorMode }
       : {}),

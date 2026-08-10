@@ -1,5 +1,11 @@
 import type { BotStrategyPlayerContext } from "../../data/portalPlayerStrategyTypes";
-import type { CasualRankRateEntry } from "../../data/portalTournamentConfigs";
+import {
+  getPortalTournamentDefinition,
+  resolveSoloSeedSuccessThreshold,
+  type CasualRankRateEntry,
+  type PortalBotDifficultyProfileId,
+  type PortalSeedQuantileSuccessConfig,
+} from "../../data/portalTournamentConfigs";
 import {
   deriveRankScoreFloorsFromQuantiles,
   type ScoreQuantiles,
@@ -68,8 +74,10 @@ export type PlatformSubmitContext = {
     rankCounts: Record<number, number>;
     rankRates: CasualRankRateEntry[];
     maxPlayers: number;
+    botDifficultyProfile?: PortalBotDifficultyProfileId;
   };
-  successThresholdQuantile?: "p50" | "p75" | "p90";
+  successThresholdQuantile?: "p25" | "p50" | "p75" | "p90";
+  ritualOneLineClear?: boolean;
 };
 
 export type PlatformBotFillPayload = {
@@ -369,6 +377,7 @@ export async function computeSoloPlatformBotFills(
       rankCounts: planning.rankCounts,
       rankRates: planning.rankRates,
       sessionSeed,
+      botDifficultyProfile: planning.botDifficultyProfile ?? "default",
     });
 
     const slots = computeSoloBotScoreSlots({
@@ -413,6 +422,7 @@ export async function computeSoloPlatformBotFills(
     rankCounts: planning.rankCounts,
     rankRates: planning.rankRates,
     sessionSeed,
+    botDifficultyProfile: planning.botDifficultyProfile ?? "default",
   });
   timing.mark("recommendSoloEffectiveRank", { effectiveRank: recommended.effectiveRank });
 
@@ -569,11 +579,18 @@ export async function computePlatformBotFillsIfNeeded(
   timing.mark("withPlatformRevealSchedule");
 
   let seedScoreThreshold: number | undefined;
-  if (context.successThresholdQuantile && context.seedBinding) {
+  if (
+    context.seedBinding &&
+    (context.ritualOneLineClear ||
+      context.seedBinding.ritualOneLineClear ||
+      context.successThresholdQuantile)
+  ) {
     seedScoreThreshold = await resolvePlatformSeedScoreThreshold(ctx, {
       successThresholdQuantile: context.successThresholdQuantile,
       seedBinding: context.seedBinding,
       gameType,
+      ritualOneLineClear: context.ritualOneLineClear,
+      templateId: context.templateId,
     });
     timing.mark("resolvePlatformSeedScoreThreshold", { seedScoreThreshold: seedScoreThreshold ?? null });
   }
@@ -586,20 +603,40 @@ export async function computePlatformBotFillsIfNeeded(
   };
 }
 
-/** 单人 p75 等：从 seed 分位解析成功阈值（与 bot fill 无关，maxPlayers=1 时也需调用）。 */
+/** 单人成功线：仪式一消或分位×模板系数（与 bot fill 无关，maxPlayers=1 时也需调用）。 */
 export async function resolvePlatformSeedScoreThreshold(
   ctx: SeedPoolRuntimeCtx,
   args: {
-    successThresholdQuantile?: "p50" | "p75" | "p90";
+    successThresholdQuantile?: "p25" | "p50" | "p75" | "p90";
     seedBinding?: SlimSeedBinding;
     gameType: string;
+    ritualOneLineClear?: boolean;
+    seedQuantileSuccess?: Pick<
+      PortalSeedQuantileSuccessConfig,
+      "scoreMultiplier" | "ritualScoreMultiplier"
+    > | null;
+    templateId?: string;
   }
 ): Promise<number | undefined> {
+  const ritualOneLineClear =
+    args.ritualOneLineClear === true || args.seedBinding?.ritualOneLineClear === true;
+  if (ritualOneLineClear && args.gameType === "block_blast") {
+    return resolveSoloSeedSuccessThreshold({
+      gameType: args.gameType,
+      ritualOneLineClear: true,
+    });
+  }
   if (!args.successThresholdQuantile || !args.seedBinding) return undefined;
   const quantiles = await resolveSeedQuantiles(ctx, args.seedBinding, args.gameType);
-  const threshold = quantiles[args.successThresholdQuantile];
-  if (typeof threshold === "number" && Number.isFinite(threshold)) {
-    return threshold;
-  }
-  return undefined;
+  const seedQuantileSuccess =
+    args.seedQuantileSuccess ??
+    (args.templateId
+      ? getPortalTournamentDefinition(args.templateId)?.seedQuantileSuccess
+      : undefined);
+  return resolveSoloSeedSuccessThreshold({
+    gameType: args.gameType,
+    quantiles,
+    successQuantile: args.successThresholdQuantile,
+    seedQuantileSuccess,
+  });
 }

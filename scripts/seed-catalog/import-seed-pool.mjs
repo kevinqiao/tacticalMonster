@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Import index.json into casualPlatform seed catalog (meta + entries + rollout rows).
+ * Import index.json into Portal seed catalog by default (meta + entries + rollout rows).
+ * Target dir: scripts/seed-catalog/convex-catalog-target.mjs (SEED_CATALOG_CONVEX_DIR).
  *
  *   npx tsx scripts/seed-catalog/import-seed-pool.mjs solitaire --clear-first
  *   npx tsx scripts/seed-catalog/import-seed-pool.mjs solitaire --limit 50 --clear-first
@@ -195,6 +196,16 @@ function stripCatalogMetrics(metrics) {
   }
   if (typeof metrics.playerEaseScore === "number" && Number.isFinite(metrics.playerEaseScore)) {
     out.playerEaseScore = metrics.playerEaseScore;
+  }
+  for (const key of [
+    "survivalTimeP25",
+    "survivalTimeP50",
+    "survivalTimeP90",
+    "survivalTimeSpread",
+  ]) {
+    if (typeof metrics[key] === "number" && Number.isFinite(metrics[key])) {
+      out[key] = metrics[key];
+    }
   }
   return out;
 }

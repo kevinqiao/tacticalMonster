@@ -29,15 +29,19 @@ const repoRoot = path.resolve(__dirname, "../..");
 const DEFAULT_COUNT = 500;
 const DEFAULT_ROLLOUTS = 48;
 const DEFAULT_MATCH_SECONDS = 300;
-/** v6 prod 默认（opening≈100–175，thinkTimeScale≈3；Gate/oversample 按硬池校准） */
+/** v6：thinkTimeScale≈0.6 → 有效步时≈1s（对齐真人）；Gate/oversample 需按新尺子重探 */
 const DEFAULT_KPI_PROFILE = "prod";
 const DEFAULT_MIN_OPENING_MOVES = 100;
 const DEFAULT_MAX_OPENING_MOVES = 175;
 const DEFAULT_MIN_SCORE_P25 = 16;
 const DEFAULT_MIN_SCORE_SPREAD = 60;
 const DEFAULT_OVERSAMPLE_FACTOR = 25;
-const DEFAULT_THINK_TIME_SCALE = 3;
+const DEFAULT_THINK_TIME_SCALE = 0.6;
 const DEFAULT_MAX_STUCK_RATE = 0.96;
+/** survival Gate（秒）：0=关闭；prod 默认开，用于替代饱和 stuckRate */
+const DEFAULT_MIN_SURVIVAL_P25 = 30;
+const DEFAULT_MIN_SURVIVAL_P50 = 90;
+const DEFAULT_MAX_SURVIVAL_SPREAD = 160;
 const DEFAULT_MIN_ENTRIES = 0;
 const DEFAULT_BATCH_SIZE = process.platform === "win32" ? 2 : 8;
 const CATALOG_GAME_TYPE = CATALOG_GAME_TYPES.block_blast;
@@ -48,9 +52,12 @@ const PROBE_DEFAULTS = {
   minScoreP25: 16,
   minScoreSpread: 50,
   maxStuckRate: 0.98,
+  minSurvivalTimeP25: 20,
+  minSurvivalTimeP50: 60,
+  maxSurvivalTimeSpread: 180,
   oversampleFactor: 8,
   rollouts: 24,
-  thinkTimeScale: 3,
+  thinkTimeScale: 0.6,
 };
 
 function usage(defaults) {
@@ -61,11 +68,11 @@ Usage:
   npx tsx scripts/blockblast/seed-pool.mjs <command> [options] [-- extra-args...]
 
 Commands:
-  clean     清空 casualPlatform seed pool（可选清本地 output）
+  clean     清空 Portal seed pool（可选清本地 output）
   create    离线生成/续跑 index.json（generate-seed-pool.mjs）
   report    对 index 出体验 KPI 报告（report-kpi.mjs）
-  load      全量导入 casualPlatform（默认先 clean 再 import）
-  append    增量导入 platform seed pool（仅 DB 中不存在的 seedId）
+  load      全量导入 Portal（默认先 clean 再 import）
+  append    增量导入 Portal seed pool（仅 DB 中不存在的 seedId）
   regen     仅重算 rolloutSummaries（+ metrics）写回 index；--sync 同步 catalog rollout 子表
   help      显示本帮助
 
@@ -87,9 +94,15 @@ Common options (before --):
   --max-opening-moves <n> create：最高 openingMoveCount（默认 ${DEFAULT_MAX_OPENING_MOVES}）
   --oversample-factor <n> create：过采样倍数（默认 ${DEFAULT_OVERSAMPLE_FACTOR}；按 experienceScore）
   --think-time-scale <n> create/regen：模拟思考时间缩放（默认 ${DEFAULT_THINK_TIME_SCALE}）
-  --max-stuck-rate <n>   create：拒绝 stuckRate 高于此值（默认 ${DEFAULT_MAX_STUCK_RATE}）
+  --max-stuck-rate <n>   create：stuck 上限（默认 ${DEFAULT_MAX_STUCK_RATE}；0/--no-max-stuck-rate 连 prod G2 一起关）
+  --min-survival-p25 <n> create：最低 survivalTimeP25 秒（默认 ${DEFAULT_MIN_SURVIVAL_P25}；0=关）
+  --min-survival-p50 <n> create：最低 survivalTimeP50 秒（默认 ${DEFAULT_MIN_SURVIVAL_P50}；0=关）
+  --max-survival-spread <n> create：最高 survivalTimeSpread=P90-P25 秒（默认 ${DEFAULT_MAX_SURVIVAL_SPREAD}；0=关）
+  --l1-preset <path>      create：注入 L1 关键帧 JSON（不改源码常量）
+  --policy-version <v>    create：覆盖写入 metrics 的出块 policyVersion
   --no-reject-collapsed   create：关闭 collapsed 布局拒绝
   --no-max-stuck-rate     create：关闭 stuckRate 过滤
+  --no-survival-gate      create：关闭 survivalTime P25/P50/spread 门禁
   --min-entries <n>       load：finalize 最少条数（默认 0=index 实际条数）
   --batch-size <n>        load/append 批大小（默认 ${DEFAULT_BATCH_SIZE}）
   --no-clear              load 时不先 clean catalog
@@ -106,6 +119,7 @@ Examples:
   npm run blockblast:pool:create
   npm run blockblast:pool:load
   npm run blockblast:pool:regen -- --seed blockblast-pool:v4:0 --sync
+  npm run blockblast:l1:iter -- run --preset scripts/blockblast/presets/v6-baseline.json --iter iter01
   文档: scripts/blockblast/README.md
 `);
 }
@@ -132,6 +146,9 @@ function parseCommon(flags, defaults) {
     oversampleFactor: DEFAULT_OVERSAMPLE_FACTOR,
     thinkTimeScale: DEFAULT_THINK_TIME_SCALE,
     maxStuckRate: DEFAULT_MAX_STUCK_RATE,
+    minSurvivalTimeP25: DEFAULT_MIN_SURVIVAL_P25,
+    minSurvivalTimeP50: DEFAULT_MIN_SURVIVAL_P50,
+    maxSurvivalTimeSpread: DEFAULT_MAX_SURVIVAL_SPREAD,
     kpiProfile: DEFAULT_KPI_PROFILE,
     rejectCollapsed: true,
     minEntries: DEFAULT_MIN_ENTRIES,
@@ -144,17 +161,24 @@ function parseCommon(flags, defaults) {
     seedId: "",
     sync: false,
     regenAll: false,
+    l1Preset: "",
+    policyVersionOverride: "",
   };
   let indexFromFlag = false;
   const touched = new Set();
   for (let i = 0; i < flags.length; i++) {
     const a = flags[i];
     const next = () => flags[++i];
-    if (a === "--out") opts.out = path.resolve(next());
-    else if (a === "--index") {
+    if (a === "--out") {
+      opts.out = path.resolve(next());
+      touched.add("out");
+    } else if (a === "--index") {
       opts.index = path.resolve(next());
       indexFromFlag = true;
-    } else if (a === "--pool-version") opts.poolVersion = next();
+    } else if (a === "--pool-version") {
+      opts.poolVersion = next();
+      touched.add("poolVersion");
+    }
     else if (a === "--kpi-profile") {
       opts.kpiProfile = next();
       touched.add("kpiProfile");
@@ -178,7 +202,7 @@ function parseCommon(flags, defaults) {
     } else if (a === "--oversample-factor") {
       opts.oversampleFactor = Number(next());
       touched.add("oversampleFactor");
-    }     else if (a === "--think-time-scale") {
+    } else if (a === "--think-time-scale") {
       opts.thinkTimeScale = Number(next());
       touched.add("thinkTimeScale");
     } else if (a === "--max-stuck-rate") {
@@ -187,7 +211,25 @@ function parseCommon(flags, defaults) {
     } else if (a === "--no-max-stuck-rate") {
       opts.maxStuckRate = 0;
       touched.add("maxStuckRate");
-    } else if (a === "--no-reject-collapsed") opts.rejectCollapsed = false;
+    } else if (a === "--min-survival-p25") {
+      opts.minSurvivalTimeP25 = Number(next());
+      touched.add("minSurvivalTimeP25");
+    } else if (a === "--min-survival-p50") {
+      opts.minSurvivalTimeP50 = Number(next());
+      touched.add("minSurvivalTimeP50");
+    } else if (a === "--max-survival-spread") {
+      opts.maxSurvivalTimeSpread = Number(next());
+      touched.add("maxSurvivalTimeSpread");
+    } else if (a === "--no-survival-gate") {
+      opts.minSurvivalTimeP25 = 0;
+      opts.minSurvivalTimeP50 = 0;
+      opts.maxSurvivalTimeSpread = 0;
+      touched.add("minSurvivalTimeP25");
+      touched.add("minSurvivalTimeP50");
+      touched.add("maxSurvivalTimeSpread");
+    } else if (a === "--l1-preset") opts.l1Preset = path.resolve(next());
+    else if (a === "--policy-version") opts.policyVersionOverride = next();
+    else if (a === "--no-reject-collapsed") opts.rejectCollapsed = false;
     else if (a === "--min-entries") opts.minEntries = Number(next());
     else if (a === "--batch-size") opts.batchSize = Number(next());
     else if (a === "--no-clear") opts.clearFirst = false;
@@ -207,6 +249,15 @@ function parseCommon(flags, defaults) {
     if (!touched.has("minScoreP25")) opts.minScoreP25 = PROBE_DEFAULTS.minScoreP25;
     if (!touched.has("minScoreSpread")) opts.minScoreSpread = PROBE_DEFAULTS.minScoreSpread;
     if (!touched.has("maxStuckRate")) opts.maxStuckRate = PROBE_DEFAULTS.maxStuckRate;
+    if (!touched.has("minSurvivalTimeP25")) {
+      opts.minSurvivalTimeP25 = PROBE_DEFAULTS.minSurvivalTimeP25;
+    }
+    if (!touched.has("minSurvivalTimeP50")) {
+      opts.minSurvivalTimeP50 = PROBE_DEFAULTS.minSurvivalTimeP50;
+    }
+    if (!touched.has("maxSurvivalTimeSpread")) {
+      opts.maxSurvivalTimeSpread = PROBE_DEFAULTS.maxSurvivalTimeSpread;
+    }
     if (!touched.has("oversampleFactor")) opts.oversampleFactor = PROBE_DEFAULTS.oversampleFactor;
     if (!touched.has("rollouts")) opts.rollouts = PROBE_DEFAULTS.rollouts;
     if (!touched.has("thinkTimeScale")) opts.thinkTimeScale = PROBE_DEFAULTS.thinkTimeScale;
@@ -215,7 +266,30 @@ function parseCommon(flags, defaults) {
   if (!indexFromFlag) {
     opts.index = path.join(opts.out, "index.json");
   }
+  opts._touched = touched;
+  opts._indexFromFlag = indexFromFlag;
   return opts;
+}
+
+async function applyL1PresetCliDefaults(opts, defaults) {
+  if (!opts.l1Preset) return;
+  const raw = await readFile(opts.l1Preset, "utf8");
+  const preset = JSON.parse(raw);
+  const touched = opts._touched ?? new Set();
+  if (!touched.has("poolVersion") && typeof preset.poolVersion === "string") {
+    opts.poolVersion = preset.poolVersion;
+  }
+  if (!opts.policyVersionOverride && typeof preset.policyVersion === "string") {
+    opts.policyVersionOverride = preset.policyVersion;
+  }
+  if (!touched.has("out")) {
+    opts.out = path.join(repoRoot, "scripts/blockblast/output", `pool-${opts.poolVersion}`);
+  }
+  if (!opts._indexFromFlag) {
+    opts.index = path.join(opts.out, "index.json");
+  }
+  // keep defaults.policyVersion for logging only; create uses override when set
+  void defaults;
 }
 
 async function readPoolVersionFromIndex(indexPath, fallback) {
@@ -256,7 +330,7 @@ async function cmdClean(opts) {
 
 function cmdCreate(opts, extra) {
   console.log(
-    `create poolVersion=${opts.poolVersion} (policy ${opts.policyVersion}) out=${opts.out} matchSeconds=${opts.matchSeconds} thinkTimeScale=${opts.thinkTimeScale} maxStuckRate=${opts.maxStuckRate || "off"} kpiProfile=${opts.kpiProfile}`
+    `create poolVersion=${opts.poolVersion} (policy ${opts.policyVersion}) out=${opts.out} matchSeconds=${opts.matchSeconds} thinkTimeScale=${opts.thinkTimeScale} maxStuckRate=${opts.maxStuckRate || "off"} survivalGate=p25≥${opts.minSurvivalTimeP25 || "off"}/p50≥${opts.minSurvivalTimeP50 || "off"}/spread≤${opts.maxSurvivalTimeSpread || "off"} kpiProfile=${opts.kpiProfile}`
   );
   const args = [
     "--version",
@@ -284,12 +358,20 @@ function cmdCreate(opts, extra) {
     String(opts.thinkTimeScale),
     "--max-stuck-rate",
     String(opts.maxStuckRate),
+    "--min-survival-p25",
+    String(opts.minSurvivalTimeP25),
+    "--min-survival-p50",
+    String(opts.minSurvivalTimeP50),
+    "--max-survival-spread",
+    String(opts.maxSurvivalTimeSpread),
     "--kpi-profile",
     opts.kpiProfile,
   ];
   if (opts.rejectCollapsed) args.push("--reject-collapsed");
   if (opts.resume) args.push("--resume");
   if (opts.indexOnly) args.push("--index-only", "true");
+  if (opts.l1Preset) args.push("--l1-preset", opts.l1Preset);
+  if (opts.policyVersionOverride) args.push("--policy-version", opts.policyVersionOverride);
   args.push(...extra);
   console.log("create → generate-seed-pool.mjs", args.join(" "));
   runTsx("generate-seed-pool.mjs", args);
@@ -340,8 +422,8 @@ function cmdLoad(opts, extra, { append = false } = {}) {
   }
   if (opts.indexOnly) args.push("--index-only");
   args.push(...extra);
-  console.log(`${append ? "append" : "load"} → seed-catalog/import-seed-pool.mjs`, args.join(" "));
-  runTsx(path.join(repoRoot, "scripts/seed-catalog/import-seed-pool.mjs"), args);
+  console.log(`${append ? "append" : "load"} → portal/import-seed-pool.mjs`, args.join(" "));
+  runTsx(path.join(repoRoot, "scripts/portal/import-seed-pool.mjs"), args);
 }
 
 async function main() {
@@ -355,6 +437,9 @@ async function main() {
   const command = argv[0];
   const { flags, extra } = splitPassthrough(argv.slice(1));
   const opts = parseCommon(flags, defaults);
+  if (command === "create") {
+    await applyL1PresetCliDefaults(opts, defaults);
+  }
 
   switch (command) {
     case "clean":

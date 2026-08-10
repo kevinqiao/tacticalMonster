@@ -94,6 +94,7 @@ export async function resolveIngestPlatformBotFillPlan(
         triathlonLegs: submitCtx.triathlonLegs,
         soloRankPlanning: submitCtx.soloRankPlanning,
         successThresholdQuantile: submitCtx.successThresholdQuantile,
+        ritualOneLineClear: submitCtx.ritualOneLineClear,
       },
       humanScore: Math.floor(args.score),
       primaryGameType: submitCtx.primaryGameType ?? submitCtx.gameType,
@@ -122,6 +123,8 @@ export async function resolveIngestPlatformBotFillPlan(
       successThresholdQuantile: submitCtx.successThresholdQuantile,
       seedBinding: submitCtx.seedBinding,
       gameType: submitCtx.primaryGameType ?? submitCtx.gameType,
+      ritualOneLineClear: submitCtx.ritualOneLineClear,
+      templateId: submitCtx.templateId,
     });
     timing.mark("resolvePlatformSeedScoreThreshold", {
       threshold: computedThreshold ?? null,
@@ -129,12 +132,17 @@ export async function resolveIngestPlatformBotFillPlan(
     if (computedThreshold != null) {
       mergedSeedScoreThreshold = computedThreshold;
     }
-  } else if (submitCtx.successThresholdQuantile && submitCtx.seedBinding) {
+  } else if (
+    submitCtx.seedBinding &&
+    (submitCtx.ritualOneLineClear || submitCtx.successThresholdQuantile)
+  ) {
     /** 单人挑战：seed 分位覆盖客户端传入，避免错误 +3/-1 */
     const authoritative = await resolvePlatformSeedScoreThreshold(ctx, {
       successThresholdQuantile: submitCtx.successThresholdQuantile,
       seedBinding: submitCtx.seedBinding,
       gameType: submitCtx.primaryGameType ?? submitCtx.gameType,
+      ritualOneLineClear: submitCtx.ritualOneLineClear,
+      templateId: submitCtx.templateId,
     });
     timing.mark("resolvePlatformSeedScoreThreshold.overridePreset", {
       preset: mergedSeedScoreThreshold,

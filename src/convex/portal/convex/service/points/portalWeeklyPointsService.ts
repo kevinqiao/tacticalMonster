@@ -5,24 +5,30 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { PORTAL_WEEKLY_LEAGUE_ENABLED } from "../../data/portalWeeklyLeagueConfig";
-import type { PortalTournamentDefinition } from "../../data/portalTournamentConfigs";
+import type {
+  CasualReferenceScoreQuantiles,
+  PortalSoloPointsOverride,
+  PortalTournamentDefinition,
+} from "../../data/portalTournamentConfigs";
 import {
-  isPortalP75Success,
+  inferSoloSegmentFromBinding,
   portalRankPointDelta,
-  portalSoloPointDelta,
+  portalSoloRewardTier,
 } from "../../data/portalTournamentConfigs";
 import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
+import { applySoloSuccessDailyCapAtSettle } from "../ads/portalSoloSuccessDaily";
+import { checkAndUnlockBadgesCore } from "../badge/portalBadgeService";
+import { portalMatchWinDeltas } from "../badge/portalBadgeUnlockLogic";
+import { addSeasonHonorXp } from "../season/portalSeasonHonorService";
+import { persistPlayerMatchChallengeOutcome } from "../tournament/settle/playerMatchChallengeOutcome";
+import { listPlayerGamesForSeat } from "../tournament/shared/casualPlayerGameTypes";
+import { ensureWeeklyLeagueProfileForLobby } from "../weeklyLeague/casualWeeklyLeagueProfile";
 import {
   ensurePortalWeeklyLeagueMember,
   ensurePortalWeeklyLeagueMemberForLobby,
   getWeeklyLeagueMember,
   getWeeklyLeagueMemberByLobby,
 } from "../weeklyLeague/portalWeeklyLeagueService";
-import { ensureWeeklyLeagueProfileForLobby } from "../weeklyLeague/casualWeeklyLeagueProfile";
-import { checkAndUnlockBadgesCore } from "../badge/portalBadgeService";
-import { portalMatchWinDeltas } from "../badge/portalBadgeUnlockLogic";
-import { addSeasonHonorXp } from "../season/portalSeasonHonorService";
-import { persistPlayerMatchChallengeOutcome } from "../tournament/settle/playerMatchChallengeOutcome";
 
 export type PortalWeeklyMode = "solo" | "multi";
 
@@ -39,12 +45,13 @@ export async function applyPortalMatchPoints(
     score: number;
     rank?: number;
     seedScoreThreshold?: number;
+    seedScoreQuantiles?: CasualReferenceScoreQuantiles;
     runTournamentId: Id<"portal_run_tournaments">;
     now?: number;
     /** Prefer player join lobby over run.lobbyId (cross-lobby shared matchmaking). */
     joinLobbyId?: Id<"portal_lobbies"> | null;
     rewardsOverride?: {
-      soloPoints?: { success: number; fail: number };
+      soloPoints?: PortalSoloPointsOverride;
       rankPoints?: Record<string, number>;
       coins?: {
         soloSuccess?: number;
@@ -53,21 +60,57 @@ export async function applyPortalMatchPoints(
       };
     } | null;
   }
-): Promise<{ pointDelta: number; weeklyPointsAfter: number; weekKey: string }> {
+): Promise<{
+  pointDelta: number;
+  weeklyPointsAfter: number;
+  weekKey: string;
+  /** Solo daily success cap muted all rewards/penalties for this settle. */
+  soloRewardsMuted?: boolean;
+}> {
   const now = args.now ?? Date.now();
   const mode = portalModeFromDef(args.def);
   let delta = 0;
   let reason = "multi_rank";
   let p75Success: boolean | undefined;
+  let soloRewardsMuted = false;
+  const runRow = await ctx.db.get(args.runTournamentId);
+  const lobbyId = args.joinLobbyId ?? runRow?.lobbyId;
+
   if (args.def.matchType === "solo_p75") {
-    delta = portalSoloPointDelta(
-      args.def,
-      args.score,
-      args.seedScoreThreshold,
-      args.rewardsOverride
-    );
-    p75Success = isPortalP75Success(args.def, args.score, args.seedScoreThreshold);
-    reason = p75Success ? "solo_p75_success" : "solo_p75_fail";
+    const pm = await ctx.db
+      .query("portal_run_player_matches")
+      .withIndex("by_run_uid", (q) =>
+        q.eq("tournamentId", args.runTournamentId).eq("uid", args.uid)
+      )
+      .first();
+    const games = pm ? await listPlayerGamesForSeat(ctx, pm._id) : [];
+    const binding = games[0]?.seedBinding;
+    const segment = inferSoloSegmentFromBinding(binding);
+    const quantiles = args.seedScoreQuantiles ?? binding?.scoreQuantiles;
+    const reward = portalSoloRewardTier({
+      def: args.def,
+      score: args.score,
+      clearThreshold: args.seedScoreThreshold,
+      segment,
+      quantiles,
+      rewardsOverride: args.rewardsOverride,
+    });
+    p75Success = reward.challengeSuccess;
+    const cap = await applySoloSuccessDailyCapAtSettle(ctx, {
+      uid: args.uid,
+      lobbyId: lobbyId ?? null,
+      tournamentId: args.def.tournamentId,
+      p75Success: p75Success === true,
+      nowMs: now,
+    });
+    soloRewardsMuted = cap.muted;
+    if (soloRewardsMuted) {
+      delta = 0;
+      reason = `${reward.reason}_capped`;
+    } else {
+      delta = reward.delta;
+      reason = reward.reason;
+    }
   } else {
     const rank = args.rank ?? 1;
     delta = portalRankPointDelta(args.def, rank, args.rewardsOverride);
@@ -78,9 +121,6 @@ export async function applyPortalMatchPoints(
   const weekKey = weeklyPeriodKey(now);
   let weeklyPointsAfter = Math.max(0, delta);
   let appliedDelta = weeklyPointsAfter;
-
-  const runRow = await ctx.db.get(args.runTournamentId);
-  const lobbyId = args.joinLobbyId ?? runRow?.lobbyId;
 
   if (PORTAL_WEEKLY_LEAGUE_ENABLED) {
     if (lobbyId) {
@@ -165,8 +205,8 @@ export async function applyPortalMatchPoints(
     now,
   });
 
-  // Badges + season honor (lobby-scoped)
-  if (lobbyId) {
+  // Badges + season honor (lobby-scoped). Skip when solo daily success cap mutes rewards.
+  if (lobbyId && !soloRewardsMuted) {
     await ensureWeeklyLeagueProfileForLobby(ctx, args.uid, lobbyId, now);
     const profile = await ctx.db
       .query("portal_weekly_league_profile")
@@ -213,5 +253,10 @@ export async function applyPortalMatchPoints(
     }
   }
 
-  return { pointDelta: appliedDelta, weeklyPointsAfter, weekKey };
+  return {
+    pointDelta: appliedDelta,
+    weeklyPointsAfter,
+    weekKey,
+    ...(soloRewardsMuted ? { soloRewardsMuted: true } : {}),
+  };
 }

@@ -2,6 +2,7 @@ import {
   CASUAL_CONSECUTIVE_LOSS_THRESHOLD,
   type BotStrategyPlayerContext,
 } from "../../data/portalPlayerStrategyTypes";
+import type { PortalBotDifficultyProfileId } from "../../data/portalTournamentConfigs";
 import type { BotRankWeights } from "./rankSampling";
 
 export type BotDifficultyRule = {
@@ -59,10 +60,19 @@ export const BOT_DIFFICULTY_RULES: BotDifficultyRule[] = [
   },
 ];
 
+/** 桌级难度分轨 → 规则表；`none` 表示不做体验保护，整条 recommend 走 rankRates。 */
+export function resolveBotDifficultyRules(
+  profileId: PortalBotDifficultyProfileId
+): BotDifficultyRule[] {
+  if (profileId === "none") return [];
+  return BOT_DIFFICULTY_RULES;
+}
+
 export function evaluateBotDifficultyRulesWithMeta(
-  ctx: BotStrategyPlayerContext
+  ctx: BotStrategyPlayerContext,
+  rules: BotDifficultyRule[] = BOT_DIFFICULTY_RULES
 ): { strategy: BotRankWeights | null; matchedRuleId: string | null } {
-  const sorted = [...BOT_DIFFICULTY_RULES].sort((a, b) => b.priority - a.priority);
+  const sorted = [...rules].sort((a, b) => b.priority - a.priority);
   for (const rule of sorted) {
     if (rule.condition(ctx)) {
       return { strategy: rule.strategy, matchedRuleId: rule.id };
@@ -70,3 +80,4 @@ export function evaluateBotDifficultyRulesWithMeta(
   }
   return { strategy: null, matchedRuleId: null };
 }
+

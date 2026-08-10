@@ -6,6 +6,8 @@ import {
   getPortalTournamentDefinition,
   isPeriodScopedTournament,
   effectiveGameSequence,
+  resolveScoreMultiplierForSuccessQuantile,
+  resolveSeedSuccessThresholdFromQuantiles,
   type CasualReferenceScoreQuantiles,
   type PortalTournamentDefinition,
 } from "../../../data/portalTournamentConfigs";
@@ -84,9 +86,13 @@ export async function settleSoloMaxPlayersOneCasualRun(
   } else {
     const quantiles = args.seedScoreQuantiles ?? (await loadSeedScoreQuantilesForSeat(ctx, pm._id));
     const q = def.seedQuantileSuccess?.quantile ?? "p75";
-    const qVal = q === "p90" ? quantiles?.p90 : quantiles?.p75;
-    if (typeof qVal === "number" && Number.isFinite(qVal)) {
-      seedScoreThreshold = Math.floor(qVal);
+    const resolved = resolveSeedSuccessThresholdFromQuantiles(
+      quantiles,
+      q,
+      resolveScoreMultiplierForSuccessQuantile(def.seedQuantileSuccess, q)
+    );
+    if (resolved != null) {
+      seedScoreThreshold = resolved;
     }
   }
 
@@ -178,6 +184,10 @@ export async function settleSoloMaxPlayersOneCasualRun(
     };
   }
 
+  const seedScoreQuantiles =
+    args.seedScoreQuantiles ??
+    primaryPg?.seedBinding?.scoreQuantiles ??
+    (await loadSeedScoreQuantilesForSeat(ctx, pm._id));
   const extra = await applyCasualTemplateScoreEffects(ctx, def, {
     uid,
     tournamentId: pm.templateId,
@@ -190,7 +200,7 @@ export async function settleSoloMaxPlayersOneCasualRun(
     ...(typeof seedScoreThreshold === "number"
       ? { seedScoreThreshold }
       : {}),
-    ...(args.seedScoreQuantiles ? { seedScoreQuantiles: args.seedScoreQuantiles } : {}),
+    ...(seedScoreQuantiles ? { seedScoreQuantiles } : {}),
   });
   await persistPendingRunRewards(ctx, runTid, uid, extra.pendingWalletRewards);
 

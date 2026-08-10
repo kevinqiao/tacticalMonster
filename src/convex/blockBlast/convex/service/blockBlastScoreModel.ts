@@ -12,6 +12,14 @@ export const BLOCK_BLAST_MATCH_TIME_LIMIT_SEC = 300;
 /** C > B+8 时额外固定大奖（激进 burst） */
 export const BLOCK_BLAST_BURST_JACKPOT = 80;
 
+/**
+ * 仪式段 A：消满一行或一列的最低得分（单线清除格数 = 边长 B，无 burst）。
+ * 与 Portal `BLOCK_BLAST_RITUAL_ONE_LINE_CLEAR_SCORE` 对齐。
+ */
+export function blockBlastOneLineClearScore(gridSize = 8): number {
+  return Math.max(1, Math.floor(gridSize));
+}
+
 /** 本步满行/满列并集去重后的清除格数 */
 export function countBlockBlastClearedCells(
   rows: number[],

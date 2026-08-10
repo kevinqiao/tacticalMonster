@@ -81,6 +81,9 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           multiOpenAssignment={ctrl.multiOpenAssignment}
           soloLadderPlaysToday={ctrl.soloLadderPlaysToday}
           soloMaxPlaysPerDay={ctrl.soloMaxPlaysPerDay}
+          soloSuccessEnabled={ctrl.soloSuccessEnabled}
+          soloSuccessUsedToday={ctrl.soloSuccessUsedToday}
+          soloSuccessDailyCap={ctrl.soloSuccessDailyCap}
           multiLadderPlaysToday={ctrl.multiLadderPlaysToday}
           multiMaxPlaysPerDay={ctrl.multiMaxPlaysPerDay}
           soloDailyExhausted={ctrl.soloDailyExhausted}

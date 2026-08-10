@@ -1,0 +1,1220 @@
+{
+  "poolVersion": "onb1",
+  "entries": [
+    {
+      "seedId": "blockblast-pool:v7:760",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.47 spread=118.59 scoreMin=16 scoreP50=606"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2872",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.87 spread=73.32 scoreMin=16 scoreP50=515"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2143",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.89 spread=92.63 scoreMin=16 scoreP50=486"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2617",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.5 spread=160.7 scoreMin=16 scoreP50=464"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3214",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.25 spread=130.47 scoreMin=32 scoreP50=462"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2796",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=38.92 spread=70.5 scoreMin=72 scoreP50=432"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3248",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=38.75 spread=125.43 scoreMin=32 scoreP50=430"
+    },
+    {
+      "seedId": "blockblast-pool:v7:837",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.44 spread=71.12 scoreMin=8 scoreP50=418"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1632",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.75 spread=108.27000000000001 scoreMin=32 scoreP50=410"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2256",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.53 spread=66.67999999999999 scoreMin=40 scoreP50=409"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1405",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.04 spread=69.21000000000001 scoreMin=40 scoreP50=402"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2141",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.35 spread=111.85 scoreMin=64 scoreP50=400"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3529",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=38.54 spread=38.800000000000004 scoreMin=48 scoreP50=397"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1194",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.73 spread=94 scoreMin=32 scoreP50=395"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1892",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.23 spread=110.74 scoreMin=56 scoreP50=395"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2203",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.44 spread=116.86000000000001 scoreMin=64 scoreP50=395"
+    },
+    {
+      "seedId": "blockblast-pool:v7:876",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.97 spread=70.91 scoreMin=16 scoreP50=394"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1690",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.19 spread=96.25999999999999 scoreMin=80 scoreP50=390"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1088",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.68 spread=166.07 scoreMin=48 scoreP50=387"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2891",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.84 spread=100.02000000000001 scoreMin=56 scoreP50=379"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2927",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.49 spread=85.61 scoreMin=40 scoreP50=368"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1231",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.39 spread=87.7 scoreMin=32 scoreP50=360"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1062",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.53 spread=92.91 scoreMin=8 scoreP50=355"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2359",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.39 spread=84.08 scoreMin=24 scoreP50=355"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3187",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.11 spread=120.36 scoreMin=80 scoreP50=355"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3524",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.81 spread=72.22 scoreMin=32 scoreP50=355"
+    },
+    {
+      "seedId": "blockblast-pool:v7:109",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.07 spread=68.36000000000001 scoreMin=48 scoreP50=354"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3337",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.4 spread=38.190000000000005 scoreMin=16 scoreP50=352"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2607",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.28 spread=101.77000000000001 scoreMin=40 scoreP50=350"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1830",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.49 spread=101.08 scoreMin=56 scoreP50=347"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2710",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.09 spread=98.22 scoreMin=24 scoreP50=347"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1329",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.3 spread=93.09 scoreMin=40 scoreP50=344"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2972",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.37 spread=73.59 scoreMin=64 scoreP50=342"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1739",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.26 spread=141.03 scoreMin=40 scoreP50=339"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1795",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=39.34 spread=106.31 scoreMin=24 scoreP50=339"
+    },
+    {
+      "seedId": "blockblast-pool:v7:234",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.98 spread=95.84 scoreMin=24 scoreP50=339"
+    },
+    {
+      "seedId": "blockblast-pool:v7:269",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=39.97 spread=77.81 scoreMin=24 scoreP50=339"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1614",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.77 spread=83.85 scoreMin=24 scoreP50=336"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2437",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.71 spread=98.28999999999999 scoreMin=96 scoreP50=336"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3592",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.73 spread=88.42 scoreMin=40 scoreP50=336"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1500",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.22 spread=79.32000000000001 scoreMin=32 scoreP50=334"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2651",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.28 spread=82.03 scoreMin=48 scoreP50=334"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3058",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=41.22 spread=86.71000000000001 scoreMin=48 scoreP50=331"
+    },
+    {
+      "seedId": "blockblast-pool:v7:951",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.83 spread=34.84 scoreMin=32 scoreP50=330"
+    },
+    {
+      "seedId": "blockblast-pool:v7:468",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=37.06 spread=105.03 scoreMin=48 scoreP50=329"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2078",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.17 spread=80.07 scoreMin=24 scoreP50=328"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2144",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.6 spread=34.63999999999999 scoreMin=24 scoreP50=328"
+    },
+    {
+      "seedId": "blockblast-pool:v7:73",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=42.19 spread=80.74000000000001 scoreMin=64 scoreP50=328"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1577",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.95 spread=103.46999999999998 scoreMin=16 scoreP50=322"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3274",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=50.51 spread=105.23000000000002 scoreMin=56 scoreP50=320"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2058",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.77 spread=116.20999999999998 scoreMin=56 scoreP50=315"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3625",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.65 spread=131.44 scoreMin=64 scoreP50=315"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1721",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=38.25 spread=83.41 scoreMin=48 scoreP50=312"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1666",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.3 spread=77.56 scoreMin=40 scoreP50=307"
+    },
+    {
+      "seedId": "blockblast-pool:v7:206",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.81 spread=70.78999999999999 scoreMin=64 scoreP50=307"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1391",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.7 spread=83.5 scoreMin=32 scoreP50=304"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1553",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.17 spread=86.42 scoreMin=32 scoreP50=304"
+    },
+    {
+      "seedId": "blockblast-pool:v7:525",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.74 spread=76.28999999999999 scoreMin=40 scoreP50=302"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2772",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.46 spread=70.94999999999999 scoreMin=48 scoreP50=299"
+    },
+    {
+      "seedId": "blockblast-pool:v7:751",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.95 spread=67.06 scoreMin=0 scoreP50=299"
+    },
+    {
+      "seedId": "blockblast-pool:v7:846",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.97 spread=82.43 scoreMin=56 scoreP50=299"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1625",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.78 spread=79.3 scoreMin=24 scoreP50=296"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2060",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.06 spread=61.769999999999996 scoreMin=16 scoreP50=296"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2098",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=42.5 spread=67.13 scoreMin=56 scoreP50=296"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2428",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.03 spread=78.17999999999999 scoreMin=40 scoreP50=296"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2604",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.19 spread=75.13 scoreMin=16 scoreP50=296"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2633",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.65 spread=102.29999999999998 scoreMin=72 scoreP50=296"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2708",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.16 spread=71.76 scoreMin=104 scoreP50=296"
+    },
+    {
+      "seedId": "blockblast-pool:v7:69",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.01 spread=58.73 scoreMin=96 scoreP50=296"
+    },
+    {
+      "seedId": "blockblast-pool:v7:767",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.17 spread=98.78 scoreMin=48 scoreP50=296"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1647",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.85 spread=96.37 scoreMin=64 scoreP50=294"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3112",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.7 spread=99.86999999999999 scoreMin=24 scoreP50=294"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1775",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.67 spread=94.02 scoreMin=64 scoreP50=291"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2454",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=37.87 spread=61.48 scoreMin=72 scoreP50=291"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3172",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.21 spread=110.16999999999999 scoreMin=8 scoreP50=291"
+    },
+    {
+      "seedId": "blockblast-pool:v7:333",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.84 spread=57.56 scoreMin=40 scoreP50=291"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2051",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.37 spread=108.82 scoreMin=40 scoreP50=288"
+    },
+    {
+      "seedId": "blockblast-pool:v7:289",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30 spread=114.96000000000001 scoreMin=40 scoreP50=288"
+    },
+    {
+      "seedId": "blockblast-pool:v7:75",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.08 spread=78.93 scoreMin=32 scoreP50=288"
+    },
+    {
+      "seedId": "blockblast-pool:v7:854",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=37.1 spread=68.5 scoreMin=56 scoreP50=288"
+    },
+    {
+      "seedId": "blockblast-pool:v7:150",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.4 spread=94.56 scoreMin=48 scoreP50=283"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2670",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.32 spread=63.720000000000006 scoreMin=24 scoreP50=283"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3211",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.06 spread=29.99 scoreMin=8 scoreP50=282"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2615",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.78 spread=72.97 scoreMin=24 scoreP50=280"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2185",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.07 spread=174.35 scoreMin=24 scoreP50=278"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1691",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=39.85 spread=109.76000000000002 scoreMin=64 scoreP50=275"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1889",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=26.72 spread=73.29 scoreMin=72 scoreP50=275"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1345",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=26.52 spread=76.81 scoreMin=48 scoreP50=272"
+    },
+    {
+      "seedId": "blockblast-pool:v7:420",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=37.27 spread=79.82999999999998 scoreMin=56 scoreP50=272"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1216",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.96 spread=58.470000000000006 scoreMin=40 scoreP50=267"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1243",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.33 spread=71.68 scoreMin=72 scoreP50=267"
+    },
+    {
+      "seedId": "blockblast-pool:v7:191",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.39 spread=47.17 scoreMin=8 scoreP50=265"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1153",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=40.46 spread=57.199999999999996 scoreMin=48 scoreP50=264"
+    },
+    {
+      "seedId": "blockblast-pool:v7:251",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.07 spread=70.38 scoreMin=40 scoreP50=264"
+    },
+    {
+      "seedId": "blockblast-pool:v7:276",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.69 spread=62.74000000000001 scoreMin=32 scoreP50=264"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2136",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.17 spread=47.260000000000005 scoreMin=40 scoreP50=262"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1315",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.36 spread=58.72 scoreMin=64 scoreP50=259"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1745",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.42 spread=61.989999999999995 scoreMin=64 scoreP50=259"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2183",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.74 spread=119.75999999999999 scoreMin=96 scoreP50=259"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2432",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.4 spread=112.13999999999999 scoreMin=56 scoreP50=259"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3276",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.87 spread=52.849999999999994 scoreMin=32 scoreP50=259"
+    },
+    {
+      "seedId": "blockblast-pool:v7:478",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.16 spread=67.27000000000001 scoreMin=48 scoreP50=259"
+    },
+    {
+      "seedId": "blockblast-pool:v7:783",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.12 spread=44.4 scoreMin=16 scoreP50=259"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1016",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.46 spread=65.9 scoreMin=24 scoreP50=256"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1997",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.02 spread=84.72 scoreMin=8 scoreP50=256"
+    },
+    {
+      "seedId": "blockblast-pool:v7:149",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.12 spread=75.94 scoreMin=40 scoreP50=251"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2460",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.52 spread=76.35 scoreMin=88 scoreP50=251"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2713",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.2 spread=58.709999999999994 scoreMin=64 scoreP50=251"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3184",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.79 spread=62.809999999999995 scoreMin=32 scoreP50=251"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3419",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.05 spread=67.78 scoreMin=48 scoreP50=251"
+    },
+    {
+      "seedId": "blockblast-pool:v7:870",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.88 spread=56.49000000000001 scoreMin=56 scoreP50=251"
+    },
+    {
+      "seedId": "blockblast-pool:v7:103",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.23 spread=67.70000000000002 scoreMin=8 scoreP50=248"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1547",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.3 spread=72.57000000000001 scoreMin=32 scoreP50=248"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1931",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.82 spread=65.44 scoreMin=56 scoreP50=248"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2845",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.56 spread=58.730000000000004 scoreMin=48 scoreP50=248"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1058",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.8 spread=133.38 scoreMin=83 scoreP50=246"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1301",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.98 spread=48.690000000000005 scoreMin=32 scoreP50=246"
+    },
+    {
+      "seedId": "blockblast-pool:v7:134",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.54 spread=43.98 scoreMin=0 scoreP50=246"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1094",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.57 spread=192.36 scoreMin=64 scoreP50=240"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2159",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.32 spread=82.59 scoreMin=16 scoreP50=240"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2334",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=39.3 spread=41.31 scoreMin=72 scoreP50=240"
+    },
+    {
+      "seedId": "blockblast-pool:v7:422",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=39.05 spread=58.18000000000001 scoreMin=16 scoreP50=240"
+    },
+    {
+      "seedId": "blockblast-pool:v7:8",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.12 spread=101.47999999999999 scoreMin=56 scoreP50=240"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1676",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.26 spread=94.67000000000002 scoreMin=96 scoreP50=235"
+    },
+    {
+      "seedId": "blockblast-pool:v7:399",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.73 spread=47.61999999999999 scoreMin=56 scoreP50=235"
+    },
+    {
+      "seedId": "blockblast-pool:v7:441",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.57 spread=52.26 scoreMin=64 scoreP50=235"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1293",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.37 spread=67.67 scoreMin=80 scoreP50=232"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2384",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.86 spread=56.42 scoreMin=40 scoreP50=232"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3213",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=37.51 spread=61.36000000000001 scoreMin=48 scoreP50=232"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2401",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.63 spread=125.81 scoreMin=40 scoreP50=227"
+    },
+    {
+      "seedId": "blockblast-pool:v7:283",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.66 spread=52.39 scoreMin=48 scoreP50=227"
+    },
+    {
+      "seedId": "blockblast-pool:v7:136",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=41.99 spread=100.50999999999999 scoreMin=80 scoreP50=224"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1552",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.12 spread=52.32 scoreMin=40 scoreP50=224"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1599",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.68 spread=65.57 scoreMin=32 scoreP50=224"
+    },
+    {
+      "seedId": "blockblast-pool:v7:166",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.2 spread=65.25 scoreMin=48 scoreP50=224"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2298",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.59 spread=83.22999999999999 scoreMin=32 scoreP50=222"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1564",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.31 spread=53.47 scoreMin=64 scoreP50=219"
+    },
+    {
+      "seedId": "blockblast-pool:v7:182",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.64 spread=54.239999999999995 scoreMin=88 scoreP50=219"
+    },
+    {
+      "seedId": "blockblast-pool:v7:320",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.28 spread=40.400000000000006 scoreMin=40 scoreP50=219"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2571",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.77 spread=60.43000000000001 scoreMin=24 scoreP50=216"
+    },
+    {
+      "seedId": "blockblast-pool:v7:264",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.85 spread=58.4 scoreMin=24 scoreP50=216"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3512",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.27 spread=138.32 scoreMin=48 scoreP50=216"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3562",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.17 spread=40.47 scoreMin=40 scoreP50=216"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3612",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.52 spread=38.57 scoreMin=72 scoreP50=216"
+    },
+    {
+      "seedId": "blockblast-pool:v7:427",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.71 spread=56.98 scoreMin=56 scoreP50=216"
+    },
+    {
+      "seedId": "blockblast-pool:v7:678",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.92 spread=53.47 scoreMin=80 scoreP50=216"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1220",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.79 spread=48.04 scoreMin=64 scoreP50=211"
+    },
+    {
+      "seedId": "blockblast-pool:v7:158",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.76 spread=48.22999999999999 scoreMin=16 scoreP50=211"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1706",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.76 spread=30.6 scoreMin=88 scoreP50=211"
+    },
+    {
+      "seedId": "blockblast-pool:v7:293",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=39.35 spread=42.800000000000004 scoreMin=32 scoreP50=211"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3258",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=38.88 spread=44.32 scoreMin=40 scoreP50=211"
+    },
+    {
+      "seedId": "blockblast-pool:v7:219",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.98 spread=52.06000000000001 scoreMin=32 scoreP50=208"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2297",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.21 spread=47.46 scoreMin=56 scoreP50=208"
+    },
+    {
+      "seedId": "blockblast-pool:v7:375",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.65 spread=56.190000000000005 scoreMin=72 scoreP50=208"
+    },
+    {
+      "seedId": "blockblast-pool:v7:381",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.34 spread=47.28 scoreMin=32 scoreP50=208"
+    },
+    {
+      "seedId": "blockblast-pool:v7:517",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.54 spread=67.93 scoreMin=64 scoreP50=208"
+    },
+    {
+      "seedId": "blockblast-pool:v7:779",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.72 spread=46.75 scoreMin=40 scoreP50=208"
+    },
+    {
+      "seedId": "blockblast-pool:v7:840",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.67 spread=160.26 scoreMin=16 scoreP50=208"
+    },
+    {
+      "seedId": "blockblast-pool:v7:85",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.04 spread=44.910000000000004 scoreMin=40 scoreP50=208"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1348",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.02 spread=33.85 scoreMin=48 scoreP50=203"
+    },
+    {
+      "seedId": "blockblast-pool:v7:278",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.7 spread=49.45 scoreMin=48 scoreP50=203"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1476",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.64 spread=32.209999999999994 scoreMin=64 scoreP50=200"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1636",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.46 spread=51.73 scoreMin=72 scoreP50=200"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1989",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.24 spread=60.92 scoreMin=64 scoreP50=200"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2496",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.82 spread=58.18 scoreMin=48 scoreP50=200"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2700",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.23 spread=34.75 scoreMin=24 scoreP50=200"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2870",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.47 spread=46.489999999999995 scoreMin=48 scoreP50=200"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3065",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.46 spread=60.050000000000004 scoreMin=8 scoreP50=200"
+    },
+    {
+      "seedId": "blockblast-pool:v7:370",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.39 spread=30.689999999999998 scoreMin=56 scoreP50=200"
+    },
+    {
+      "seedId": "blockblast-pool:v7:782",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.19 spread=72.45 scoreMin=56 scoreP50=200"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3637",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.95 spread=35.50999999999999 scoreMin=32 scoreP50=198"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1506",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.5 spread=66.3 scoreMin=48 scoreP50=192"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1881",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.91 spread=37.99000000000001 scoreMin=40 scoreP50=192"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2974",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.84 spread=43.89 scoreMin=32 scoreP50=192"
+    },
+    {
+      "seedId": "blockblast-pool:v7:33",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.52 spread=50.52000000000001 scoreMin=32 scoreP50=192"
+    },
+    {
+      "seedId": "blockblast-pool:v7:844",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.26 spread=52.39999999999999 scoreMin=24 scoreP50=192"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1481",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.94 spread=57.83 scoreMin=24 scoreP50=184"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1490",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.94 spread=41.95 scoreMin=8 scoreP50=184"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1568",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.31 spread=39.7 scoreMin=16 scoreP50=184"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2504",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.2 spread=112.38000000000001 scoreMin=48 scoreP50=184"
+    },
+    {
+      "seedId": "blockblast-pool:v7:307",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.52 spread=44.15 scoreMin=96 scoreP50=184"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3186",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.25 spread=42.239999999999995 scoreMin=0 scoreP50=184"
+    },
+    {
+      "seedId": "blockblast-pool:v7:330",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=38.78 spread=49.709999999999994 scoreMin=24 scoreP50=184"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2486",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.63 spread=39.919999999999995 scoreMin=56 scoreP50=179"
+    },
+    {
+      "seedId": "blockblast-pool:v7:863",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.17 spread=118.29 scoreMin=8 scoreP50=179"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2329",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.5 spread=50.72 scoreMin=80 scoreP50=176"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2671",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.06 spread=51.83 scoreMin=40 scoreP50=176"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3166",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.18 spread=47.440000000000005 scoreMin=48 scoreP50=176"
+    },
+    {
+      "seedId": "blockblast-pool:v7:480",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.61 spread=51.290000000000006 scoreMin=48 scoreP50=176"
+    },
+    {
+      "seedId": "blockblast-pool:v7:530",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.08 spread=32.61 scoreMin=32 scoreP50=176"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1224",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.47 spread=40.93000000000001 scoreMin=48 scoreP50=171"
+    },
+    {
+      "seedId": "blockblast-pool:v7:322",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.86 spread=33.379999999999995 scoreMin=24 scoreP50=171"
+    },
+    {
+      "seedId": "blockblast-pool:v7:401",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.93 spread=36.07 scoreMin=56 scoreP50=171"
+    },
+    {
+      "seedId": "blockblast-pool:v7:559",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=37.51 spread=30.380000000000003 scoreMin=64 scoreP50=171"
+    },
+    {
+      "seedId": "blockblast-pool:v7:564",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.61 spread=35.3 scoreMin=48 scoreP50=171"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1059",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.68 spread=37.449999999999996 scoreMin=32 scoreP50=168"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1134",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.14 spread=48.120000000000005 scoreMin=88 scoreP50=168"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1548",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.26 spread=44.01 scoreMin=32 scoreP50=168"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1578",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.02 spread=36.64 scoreMin=40 scoreP50=168"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2573",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.5 spread=45.7 scoreMin=16 scoreP50=168"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2844",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.81 spread=32.629999999999995 scoreMin=24 scoreP50=168"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2918",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.46 spread=41.04 scoreMin=64 scoreP50=168"
+    },
+    {
+      "seedId": "blockblast-pool:v7:800",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.52 spread=53.559999999999995 scoreMin=64 scoreP50=168"
+    },
+    {
+      "seedId": "blockblast-pool:v7:58",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.61 spread=36.760000000000005 scoreMin=48 scoreP50=163"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1193",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.31 spread=43.099999999999994 scoreMin=72 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1291",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.49 spread=37.46999999999999 scoreMin=24 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1529",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.34 spread=41.489999999999995 scoreMin=48 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:167",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.53 spread=40.53 scoreMin=88 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2004",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=26.16 spread=57.64 scoreMin=48 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2064",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.41 spread=30.360000000000007 scoreMin=48 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2850",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.56 spread=74.63 scoreMin=48 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3353",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.43 spread=41.38999999999999 scoreMin=8 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3522",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=26.16 spread=35.44 scoreMin=24 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3623",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.29 spread=44.54 scoreMin=48 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:866",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.78 spread=35.900000000000006 scoreMin=72 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:959",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.78 spread=39.33 scoreMin=16 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:981",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.51 spread=29.1 scoreMin=48 scoreP50=160"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1778",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.56 spread=31.89 scoreMin=48 scoreP50=155"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1156",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.17 spread=40.7 scoreMin=48 scoreP50=152"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1165",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.88 spread=29.89 scoreMin=32 scoreP50=152"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1425",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=35.97 spread=36.370000000000005 scoreMin=40 scoreP50=152"
+    },
+    {
+      "seedId": "blockblast-pool:v7:16",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.32 spread=37.49999999999999 scoreMin=40 scoreP50=152"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1965",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.13 spread=36 scoreMin=40 scoreP50=152"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2813",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.93 spread=30.43 scoreMin=40 scoreP50=152"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.28 spread=38.730000000000004 scoreMin=24 scoreP50=152"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3342",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.25 spread=36.78 scoreMin=24 scoreP50=152"
+    },
+    {
+      "seedId": "blockblast-pool:v7:895",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.42 spread=44.099999999999994 scoreMin=8 scoreP50=152"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1438",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=29.14 spread=30.71 scoreMin=56 scoreP50=147"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2042",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.27 spread=30.400000000000002 scoreMin=24 scoreP50=147"
+    },
+    {
+      "seedId": "blockblast-pool:v7:119",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=32.74 spread=33.440000000000005 scoreMin=64 scoreP50=144"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1324",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.03 spread=30.18 scoreMin=40 scoreP50=144"
+    },
+    {
+      "seedId": "blockblast-pool:v7:169",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.65 spread=40.580000000000005 scoreMin=32 scoreP50=144"
+    },
+    {
+      "seedId": "blockblast-pool:v7:245",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.6 spread=39.01 scoreMin=24 scoreP50=144"
+    },
+    {
+      "seedId": "blockblast-pool:v7:284",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.82 spread=36.04 scoreMin=80 scoreP50=144"
+    },
+    {
+      "seedId": "blockblast-pool:v7:753",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=36.63 spread=33.449999999999996 scoreMin=72 scoreP50=144"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2822",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=28.02 spread=46.46000000000001 scoreMin=16 scoreP50=136"
+    },
+    {
+      "seedId": "blockblast-pool:v7:531",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=33.25 spread=31.58 scoreMin=40 scoreP50=136"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1520",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=30.42 spread=29.9 scoreMin=24 scoreP50=128"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2459",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=37.92 spread=26 scoreMin=72 scoreP50=128"
+    },
+    {
+      "seedId": "blockblast-pool:v7:2894",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=25.52 spread=36.22 scoreMin=24 scoreP50=128"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1027",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=27.94 spread=34.489999999999995 scoreMin=24 scoreP50=120"
+    },
+    {
+      "seedId": "blockblast-pool:v7:3270",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=31.25 spread=32.5 scoreMin=56 scoreP50=120"
+    },
+    {
+      "seedId": "blockblast-pool:v7:1168",
+      "reason": "ritual_survival_gate",
+      "detail": "p25=34.26 spread=27.760000000000005 scoreMin=48 scoreP50=104"
+    }
+  ]
+}

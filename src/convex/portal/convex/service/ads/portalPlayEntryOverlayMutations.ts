@@ -30,6 +30,10 @@ export const upsertPlayEntryOverlay = mutation({
     coinEntrySoloDailyCap: v.optional(v.number()),
     coinEntryMultiPriceCoins: v.optional(v.number()),
     coinEntryMultiDailyCap: v.optional(v.number()),
+    soloSuccessDailyEnabled: v.optional(v.boolean()),
+    soloSuccessDailyCap: v.optional(v.number()),
+    soloSuccessAfterCapMode: v.optional(v.literal("zero_all")),
+    soloSuccessAllowPlayAfterCap: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const partnerId = Math.floor(args.partnerId);
@@ -66,6 +70,10 @@ export const upsertPlayEntryOverlay = mutation({
       ["coinEntrySoloDailyCap", args.coinEntrySoloDailyCap],
       ["coinEntryMultiPriceCoins", args.coinEntryMultiPriceCoins],
       ["coinEntryMultiDailyCap", args.coinEntryMultiDailyCap],
+      ["soloSuccessDailyEnabled", args.soloSuccessDailyEnabled],
+      ["soloSuccessDailyCap", args.soloSuccessDailyCap],
+      ["soloSuccessAfterCapMode", args.soloSuccessAfterCapMode],
+      ["soloSuccessAllowPlayAfterCap", args.soloSuccessAllowPlayAfterCap],
     ];
     const data: Record<string, unknown> = { updatedAt: Date.now() };
     for (const [k, val] of candidates) {

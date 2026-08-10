@@ -3,6 +3,7 @@
 import {
   PORTAL_AD_ENTRY_DEFAULTS,
   PORTAL_AD_ENTRY_DAILY_CAP_MAX,
+  PORTAL_AD_ENTRY_DAILY_CAP_UNLIMITED,
   PORTAL_AD_ENTRY_SESSION_TTL_MS,
   PORTAL_AD_ENTRY_GRANT_TTL_MS,
 } from "./portalEconomyGenerated";
@@ -22,6 +23,7 @@ export type PortalAdEntryModeConfig = {
 export {
   PORTAL_AD_ENTRY_DEFAULTS,
   PORTAL_AD_ENTRY_DAILY_CAP_MAX,
+  PORTAL_AD_ENTRY_DAILY_CAP_UNLIMITED,
   PORTAL_AD_ENTRY_SESSION_TTL_MS,
   PORTAL_AD_ENTRY_GRANT_TTL_MS,
 };
@@ -33,6 +35,11 @@ export function isPortalAdEntryChannel(channel: string): channel is PortalAdEntr
   return isPortalAdReplayChannel(channel);
 }
 
+/** Finite caps are 0–dailyCapMax; sentinel (≥ unlimited) means no daily limit. */
+export function isUnlimitedAdEntryDailyCap(cap: number): boolean {
+  return cap >= PORTAL_AD_ENTRY_DAILY_CAP_UNLIMITED;
+}
+
 export function clampAdEntryDailyCap(
   value: unknown,
   mode: PortalAdEntryMode
@@ -40,6 +47,9 @@ export function clampAdEntryDailyCap(
   const fallback = PORTAL_AD_ENTRY_DEFAULTS[mode].dailyCap;
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
   const result = Math.floor(value);
+  if (result >= PORTAL_AD_ENTRY_DAILY_CAP_UNLIMITED) {
+    return PORTAL_AD_ENTRY_DAILY_CAP_UNLIMITED;
+  }
   return result >= 0 && result <= PORTAL_AD_ENTRY_DAILY_CAP_MAX ? result : fallback;
 }
 

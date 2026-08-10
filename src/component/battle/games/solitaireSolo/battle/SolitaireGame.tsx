@@ -19,6 +19,7 @@ import GamePlayer from './GamePlayer';
 import SoloGameProvider from './service/GameManager';
 
 import SoloDnDProvider from './service/SoloDnDProvider';
+import SoloActHandlerProvider from './service/handler/SoloActHandlerProvider';
 
 import './style.css';
 
@@ -107,11 +108,11 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
 
                     {/* <EventProvider> */}
 
-                    <SoloDnDProvider>
-
-                        <GamePlayer onGameLoadComplete={onGameLoadComplete} />
-
-                    </SoloDnDProvider>
+                    <SoloActHandlerProvider>
+                        <SoloDnDProvider>
+                            <GamePlayer onGameLoadComplete={onGameLoadComplete} />
+                        </SoloDnDProvider>
+                    </SoloActHandlerProvider>
 
                     {/* </EventProvider> */}
 

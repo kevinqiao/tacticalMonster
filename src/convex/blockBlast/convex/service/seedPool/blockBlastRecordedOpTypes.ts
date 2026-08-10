@@ -23,8 +23,19 @@ export function toBlockBlastRecordedOp(step: BlockBlastRecordedStep): BlockBlast
 
 export type RolloutTerminalReason = "completed" | "stuck" | "time_up" | "exited";
 
-/** v4：分段格数权重 + 手内弱约束（每手避免三块全 >3 格） */
-export const BLOCK_BLAST_POLICY_VERSION = "block-blast-stochastic-v6" as const;
+/** v9：v8 + 4 格 L/J 全朝向。L1 迭代可用 setBlockBlastPolicyVersionOverride。 */
+export const BLOCK_BLAST_POLICY_VERSION = "block-blast-stochastic-v9" as const;
+
+let blockBlastPolicyVersionOverride: string | null = null;
+
+/** 离线 L1 迭代：覆盖写入 metrics 的 policyVersion（不改默认常量） */
+export function setBlockBlastPolicyVersionOverride(version: string | null): void {
+  blockBlastPolicyVersionOverride = version;
+}
+
+export function resolveBlockBlastPolicyVersion(): string {
+  return blockBlastPolicyVersionOverride ?? BLOCK_BLAST_POLICY_VERSION;
+}
 
 /** 单局仿真体验事件（summary 级） */
 export type RolloutExperienceStats = {
@@ -45,7 +56,8 @@ export type RolloutExperienceStats = {
 
 export type BlockBlastRolloutScript = {
   rolloutIndex: number;
-  policyVersion: typeof BLOCK_BLAST_POLICY_VERSION;
+  /** 出块政策版本；L1 迭代时可被 setBlockBlastPolicyVersionOverride 覆盖 */
+  policyVersion: string;
   ops: BlockBlastRecordedOp[];
   /** 每个 op 的 UI 间隔（ms），与 ops 等长；旧 rollout 可省略。 */
   replayPacingMs?: number[];
@@ -116,8 +128,22 @@ export type RolloutDistributionMetrics = {
   scoreAt60P50: number;
   scoreAt150P50: number;
   scoreAt240P50: number;
+  /**
+   * 存活时长分位（秒）：time_up 记 matchTimeLimitSec，其它终局用 elapsedSimSeconds。
+   * 用于 Gate（替代饱和的 stuckRate）。
+   */
+  survivalTimeP25: number;
+  survivalTimeP50: number;
+  survivalTimeP90: number;
+  /** survivalTimeP90 − survivalTimeP25；越大 = 同 seed 存活越不稳 */
+  survivalTimeSpread: number;
   softPPassCount: number;
   experienceScore: number;
+  /**
+   * Platform ritual axis for L3 segment A.
+   * Block Blast: experienceScore + earlyClearRate + survivalTimeP50 (− spread penalty).
+   */
+  onboardingScore: number;
 };
 
 export type RolloutSummary = Pick<
@@ -150,9 +176,14 @@ export type SeedTierReportEntry = {
   scoreSpread: number;
   playerEaseScore: number;
   experienceScore: number;
+  onboardingScore: number;
   mediumBurstRate: number;
   jackpotRate: number;
   lateGameReachRate: number;
+  survivalTimeP25: number;
+  survivalTimeP50: number;
+  survivalTimeP90: number;
+  survivalTimeSpread: number;
   rolloutCount: number;
 };
 
@@ -183,6 +214,9 @@ export type SeedPoolRejectReason =
   | "low_player_ceiling"
   | "collapsed_scores"
   | "stuck_rate_too_high"
+  | "survival_time_p25_too_low"
+  | "survival_time_p50_too_low"
+  | "survival_time_spread_too_high"
   | "time_up_rate_too_low"
   | "medium_burst_rate_too_low"
   | "jackpot_rate_too_low"
@@ -203,8 +237,17 @@ export type PlayerFriendlyOptions = {
   minScoreSpread: number;
   rejectCollapsed: boolean;
   quickScreenRollouts: number;
-  /** 0=关闭；拒绝 metrics.stuckRate 高于此值的 seed（≈要求 timeUpRate ≥ 1−max） */
+  /**
+   * 0=关闭 stuck 过滤（含 kpiProfile prod/probe 的 G2）；
+   * >0=拒绝 stuckRate 高于此值（CLI 与体验 Gate 共用此上限）。
+   */
   maxStuckRate: number;
+  /** 0=关闭；拒绝 survivalTimeP25 低于此值（秒） */
+  minSurvivalTimeP25: number;
+  /** 0=关闭；拒绝 survivalTimeP50 低于此值（秒） */
+  minSurvivalTimeP50: number;
+  /** 0=关闭；拒绝 survivalTimeSpread（P90−P25）高于此值（秒） */
+  maxSurvivalTimeSpread: number;
   /** off=仅用上方显式阈值；probe/prod=叠加体验 Gate */
   kpiProfile: KpiProfile;
 };

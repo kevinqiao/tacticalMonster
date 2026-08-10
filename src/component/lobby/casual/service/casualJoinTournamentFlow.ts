@@ -14,12 +14,14 @@ export type ResolvedJoinTournamentOutcome =
       vouchersCharged?: number;
       coinsCharged?: number;
       gemsCharged?: number;
+      ritualForcedSolo?: boolean;
     }
   | {
       kind: "queued";
       templateId: string;
       waitingForPeer: boolean;
       expiresAt?: number;
+      ritualForcedSolo?: boolean;
     }
   | { kind: "failed"; error: string; errorCode?: string };
 
@@ -37,6 +39,7 @@ export function resolveJoinTournamentOutcome(
       templateId: result.templateId,
       waitingForPeer: result.waitingForPeer,
       expiresAt: result.expiresAt,
+      ...(result.ritualForcedSolo ? { ritualForcedSolo: true } : {}),
     };
   }
   if (!result.gameId) {
@@ -51,5 +54,6 @@ export function resolveJoinTournamentOutcome(
     vouchersCharged: result.vouchersCharged,
     coinsCharged: result.coinsCharged,
     gemsCharged: result.gemsCharged,
+    ...(result.ritualForcedSolo ? { ritualForcedSolo: true } : {}),
   };
 }

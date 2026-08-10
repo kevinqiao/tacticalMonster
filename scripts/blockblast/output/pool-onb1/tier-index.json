@@ -1,0 +1,31 @@
+{
+  "poolVersion": "onb1",
+  "generatedAt": "2026-08-08T05:51:42.401Z",
+  "tiers": {
+    "easy": [
+      "blockblast-pool:onb1:3038",
+      "blockblast-pool:onb1:2085",
+      "blockblast-pool:onb1:47",
+      "blockblast-pool:onb1:3365",
+      "blockblast-pool:onb1:542"
+    ],
+    "medium": [
+      "blockblast-pool:onb1:3385",
+      "blockblast-pool:onb1:308",
+      "blockblast-pool:onb1:3185",
+      "blockblast-pool:onb1:1144",
+      "blockblast-pool:onb1:2734",
+      "blockblast-pool:onb1:86",
+      "blockblast-pool:onb1:1768",
+      "blockblast-pool:onb1:1477"
+    ],
+    "hard": [
+      "blockblast-pool:onb1:1732",
+      "blockblast-pool:onb1:2241",
+      "blockblast-pool:onb1:1833",
+      "blockblast-pool:onb1:937",
+      "blockblast-pool:onb1:3300",
+      "blockblast-pool:onb1:1561"
+    ]
+  }
+}

@@ -137,11 +137,52 @@ export function entryPlayerEaseScore(entry: SeedPoolEntryDoc): number {
   return 0;
 }
 
+function metricNumber(
+  metrics: SeedPoolEntryDoc["metrics"] | undefined,
+  key: string
+): number | null {
+  if (!metrics || typeof metrics !== "object") return null;
+  const v = (metrics as Record<string, unknown>)[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+export type FriendlinessMetricKey = "playerEase" | "onboardingScore";
+
+/**
+ * Platform newbie friendliness (higher = better for A/B).
+ * Segment A reads onboardingScore; falls back through legacy game fields then playerEase.
+ */
+export function entryFriendlinessScore(
+  entry: SeedPoolEntryDoc,
+  metric: FriendlinessMetricKey = "playerEase"
+): number {
+  const m = entry.metrics;
+  if (metric === "onboardingScore") {
+    return (
+      metricNumber(m, "onboardingScore") ??
+      metricNumber(m, "clearEaseScore") ??
+      metricNumber(m, "experienceScore") ??
+      metricNumber(m, "survivalTimeP50") ??
+      metricNumber(m, "earlyClearRate") ??
+      entryPlayerEaseScore(entry)
+    );
+  }
+  return entryPlayerEaseScore(entry);
+}
+
+export type SeedPickSliceOpts = {
+  hardestFraction?: number;
+  /** @deprecated Prefer friendlinessFraction + friendlinessMetric */
+  highPlayerEaseFraction?: number;
+  friendlinessFraction?: number;
+  friendlinessMetric?: FriendlinessMetricKey;
+};
+
 function pickDeterministicFromEntries(
   rows: SeedPoolEntryDoc[],
   sessionKey: string,
   excludeSeedIds: ReadonlySet<string>,
-  opts?: { hardestFraction?: number; highPlayerEaseFraction?: number }
+  opts?: SeedPickSliceOpts
 ): SeedPoolEntryDoc | null {
   let available = rows.filter((r) => !excludeSeedIds.has(r.seedId));
   if (available.length === 0) return null;
@@ -154,14 +195,18 @@ function pickDeterministicFromEntries(
     const n = Math.max(1, Math.ceil(byHard.length * hardFrac));
     available = byHard.slice(0, n);
   }
-  const easeFrac = opts?.highPlayerEaseFraction;
-  if (typeof easeFrac === "number" && Number.isFinite(easeFrac) && easeFrac > 0 && easeFrac < 1) {
-    const byEase = [...available].sort((a, b) => {
-      const d = entryPlayerEaseScore(b) - entryPlayerEaseScore(a);
+  const friendFrac =
+    typeof opts?.friendlinessFraction === "number"
+      ? opts.friendlinessFraction
+      : opts?.highPlayerEaseFraction;
+  const friendMetric = opts?.friendlinessMetric ?? "playerEase";
+  if (typeof friendFrac === "number" && Number.isFinite(friendFrac) && friendFrac > 0 && friendFrac < 1) {
+    const byFriend = [...available].sort((a, b) => {
+      const d = entryFriendlinessScore(b, friendMetric) - entryFriendlinessScore(a, friendMetric);
       return d !== 0 ? d : a.seedId.localeCompare(b.seedId);
     });
-    const n = Math.max(1, Math.ceil(byEase.length * easeFrac));
-    available = byEase.slice(0, n);
+    const n = Math.max(1, Math.ceil(byFriend.length * friendFrac));
+    available = byFriend.slice(0, n);
   }
   const sorted = [...available].sort((a, b) => a.seedId.localeCompare(b.seedId));
   let hash = 0;
@@ -178,7 +223,7 @@ export async function pickDeterministicSeedForTier(
   tier: CatalogSeedTier,
   sessionKey: string,
   excludeSeedIds: ReadonlySet<string> = new Set(),
-  opts?: { hardestFraction?: number; highPlayerEaseFraction?: number }
+  opts?: SeedPickSliceOpts
 ): Promise<SeedPoolEntryDoc | null> {
   const rows = await db
     .query("seed_pool_entries")

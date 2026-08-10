@@ -93,6 +93,7 @@ interface GameState {
     recordedOps?: BlockBlastRecordedStep[];
     lastOpAt?: number;
     dueTime?: number;
+    targetScore?: number;
     casualTimeoutScheduledId?: string;
     replayEpoch?: number;
 }
@@ -186,6 +187,7 @@ export class BlockBlastGameManager {
         if (data.shapeCounter !== undefined) this.game.shapeCounter = data.shapeCounter;
         if (data.recordedOps !== undefined) this.game.recordedOps = data.recordedOps;
         if (data.lastOpAt !== undefined) this.game.lastOpAt = data.lastOpAt;
+        if (data.targetScore !== undefined) this.game.targetScore = data.targetScore;
         if (this.game.recordedOps === undefined) this.game.recordedOps = [];
         this.game.lastUpdate = Date.now();
 
@@ -205,6 +207,9 @@ export class BlockBlastGameManager {
         if (this.game.lastOpAt != null) {
             patch.lastOpAt = this.game.lastOpAt;
         }
+        if (this.game.targetScore != null) {
+            patch.targetScore = this.game.targetScore;
+        }
         await this.dbCtx.db.patch(this.game._id, patch);
     }
 
@@ -212,7 +217,8 @@ export class BlockBlastGameManager {
         seed?: string,
         gameId?: string,
         gridSizeArg?: BlockBlastGridSize | number,
-        replayEpoch?: number
+        replayEpoch?: number,
+        targetScore?: number
     ): Promise<GameState | null> {
         const normalizedSeed = seed !== undefined ? String(seed) : undefined;
         const gridSize = normalizeBlockBlastGridSize(gridSizeArg);
@@ -227,6 +233,9 @@ export class BlockBlastGameManager {
             recordedOps: [],
             ...(typeof replayEpoch === "number" && Number.isFinite(replayEpoch)
                 ? { replayEpoch }
+                : {}),
+            ...(typeof targetScore === "number" && Number.isFinite(targetScore)
+                ? { targetScore: Math.floor(targetScore) }
                 : {}),
         } as GameState;
 
@@ -276,6 +285,7 @@ export class BlockBlastGameManager {
                 status: this.game.status,
                 seed: this.game.seed,
                 shapeCounter: this.game.shapeCounter,
+                targetScore: this.game.targetScore,
             },
             shapeId,
             row,
@@ -303,6 +313,21 @@ export class BlockBlastGameManager {
             lastOpAt: this.game.lastOpAt,
         });
         const mustEnd = this.game.status !== BlockBlastGameStatus.PLAYING;
+        const endReason =
+            this.game.status === BlockBlastGameStatus.WON
+                ? ("target" as const)
+                : this.game.status === BlockBlastGameStatus.LOST
+                  ? ("stuck" as const)
+                  : ("terminal" as const);
+        if (mustEnd && this.game.casualTimeoutScheduledId) {
+            try {
+                await this.dbCtx.scheduler.cancel(this.game.casualTimeoutScheduledId);
+            } catch (e) {
+                console.warn("[blockBlast] cancel timeout on terminal place failed", this.game.gameId, e);
+            }
+            this.game.casualTimeoutScheduledId = undefined;
+            await this.dbCtx.db.patch(this.game._id, { casualTimeoutScheduledId: undefined });
+        }
         return {
             ok: true,
             data: {
@@ -314,15 +339,7 @@ export class BlockBlastGameManager {
                 status: this.game.status,
                 shapeCounter: this.game.shapeCounter,
                 cleared: res.data.cleared,
-                ...(mustEnd
-                    ? {
-                          mustEnd: true as const,
-                          endReason:
-                              this.game.status === BlockBlastGameStatus.LOST
-                                  ? ("stuck" as const)
-                                  : ("terminal" as const),
-                      }
-                    : {}),
+                ...(mustEnd ? { mustEnd: true as const, endReason } : {}),
             },
         };
     }
@@ -367,22 +384,58 @@ export const createGame = internalMutation({
         gameId: v.string(),
         gridSize: v.optional(v.number()),
         replayEpoch: v.optional(v.number()),
+        targetScore: v.optional(v.number()),
     },
-    handler: async (ctx, { seed, gameId, gridSize, replayEpoch }) => {
+    handler: async (ctx, { seed, gameId, gridSize, replayEpoch, targetScore }) => {
         await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
         const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
         const keep = latestBlockBlastGameRow(rows);
         if (keep) {
+            if (
+                typeof targetScore === "number" &&
+                Number.isFinite(targetScore) &&
+                keep.targetScore == null &&
+                keep._id
+            ) {
+                await ctx.db.patch(keep._id, { targetScore: Math.floor(targetScore) });
+                return {
+                    ok: true as const,
+                    data: {
+                        ...keep,
+                        targetScore: Math.floor(targetScore),
+                        _creationTime: undefined,
+                    },
+                };
+            }
             return { ok: true as const, data: { ...keep, _creationTime: undefined } };
         }
         const gameManager = new BlockBlastGameManager(ctx);
-        const game = await gameManager.createGame(seed, gameId, gridSize, replayEpoch);
+        const game = await gameManager.createGame(seed, gameId, gridSize, replayEpoch, targetScore);
         if (game && game._id) {
             await scheduleBlockBlastCasualTimeout(ctx, gameId, game._id);
             const fresh = await gameManager.load(gameId);
             return { ok: true, data: fresh ?? game };
         }
         return { ok: false };
+    },
+});
+
+/** 已开局补挂达标线（旧局缺字段时 loadGame 调用） */
+export const ensureTargetScore = internalMutation({
+    args: { gameId: v.string(), targetScore: v.number() },
+    handler: async (ctx, { gameId, targetScore }) => {
+        if (!Number.isFinite(targetScore)) {
+            return { ok: false as const };
+        }
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const row = latestBlockBlastGameRow(rows);
+        if (!row?._id) return { ok: false as const };
+        if (row.targetScore != null) {
+            return { ok: true as const, targetScore: row.targetScore };
+        }
+        const floor = Math.floor(targetScore);
+        await ctx.db.patch(row._id, { targetScore: floor });
+        return { ok: true as const, targetScore: floor };
     },
 });
 
