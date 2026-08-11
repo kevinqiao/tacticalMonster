@@ -39,6 +39,19 @@ const settingsArgs = {
   adCoinEnabled: v.boolean(),
   iapEnabled: v.boolean(),
   checkinEnabled: v.boolean(),
+  checkinRewardKind: v.union(
+    v.literal("tickets"),
+    v.literal("coins"),
+    v.literal("both")
+  ),
+  checkinRewards: v.optional(
+    v.object({
+      baseTickets: v.optional(v.number()),
+      streakBonusTickets: v.optional(v.array(v.number())),
+      baseCoins: v.optional(v.number()),
+      streakBonusCoins: v.optional(v.array(v.number())),
+    })
+  ),
   assortmentMode: v.union(v.literal("all_shared"), v.literal("allowlist")),
   skuIds: v.array(v.string()),
   excludeSkuIds: v.array(v.string()),

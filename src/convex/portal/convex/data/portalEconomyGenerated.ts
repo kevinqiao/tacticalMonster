@@ -126,36 +126,39 @@ export const PORTAL_SEASON_EPOCH_WEEK_KEY = "w:2026-07-27";
 export const PORTAL_SEASON_WEEKS = 5;
 export const PORTAL_SEASON_MAX_LEVEL = 30;
 export const PORTAL_SEASON_LEVEL_XP = [0, 0, 8, 18, 30, 44, 60, 78, 98, 120, 144, 172, 204, 240, 280, 324, 372, 424, 480, 540, 604, 674, 750, 832, 920, 1014, 1114, 1220, 1332, 1450, 1574] as const;
-export const PORTAL_SEASON_XP_WIN = 4;
-export const PORTAL_SEASON_XP_PLAY = 1;
+export const PORTAL_SEASON_XP_WIN = 2;
+export const PORTAL_SEASON_XP_PLAY = 2;
 export const PORTAL_SEASON_XP_WEEK_SETTLE = 20;
 export const PORTAL_SEASON_XP_WEEK_PROMOTE = 40;
 export const PORTAL_SEASON_DAILY_WIN_XP_CAP = 24;
-export const PORTAL_SEASON_DAILY_PLAY_XP_CAP = 10;
+/** null = unlimited play XP per day */
+export const PORTAL_SEASON_DAILY_PLAY_XP_CAP: number | null = null;
 
 // --- weekly league (economy) ---
 export const PORTAL_WEEKLY_LEAGUE_ENABLED = true;
 export const PORTAL_WEEKLY_LEAGUE_COHORT_SIZE = 30;
 export const PORTAL_WEEKLY_LEAGUE_PROJECTED_COINS = {
-  bronze: { r1: 200, r2_3: 120, r4_8: 60, r9_22: 20 },
-  silver: { r1: 300, r2_3: 180, r4_8: 90, r9_22: 30 },
-  gold: { r1: 500, r2_3: 300, r4_8: 150, r9_22: 50 },
-  platinum: { r1: 800, r2_3: 480, r4_8: 240, r9_22: 80 },
-  diamond: { r1: 1200, r2_3: 720, r4_8: 360, r9_22: 120 },
+  bronze: { r1: 120, r2_3: 80, r4_8: 50, r9_22: 0 },
+  silver: { r1: 150, r2_3: 100, r4_8: 65, r9_22: 0 },
+  gold: { r1: 200, r2_3: 120, r4_8: 80, r9_22: 0 },
+  platinum: { r1: 250, r2_3: 140, r4_8: 100, r9_22: 0 },
+  diamond: { r1: 300, r2_3: 180, r4_8: 120, r9_22: 0 },
 } as const;
 
 // --- ad coin ---
 export const PORTAL_AD_COIN_ENABLED = true;
-export const PORTAL_AD_COIN_REWARD_AMOUNT = 30;
+export const PORTAL_AD_COIN_REWARD_AMOUNT = 3;
 export const PORTAL_AD_COIN_DAILY_CAP = 5;
 export const PORTAL_AD_COIN_SESSION_TTL_MS = 120000;
 export const PORTAL_AD_COIN_CHANNELS = ["partner", "poki", "dev", "crazygames"] as const;
 
-// --- daily check-in (tickets) ---
+// --- daily check-in (tickets / coins) ---
 export const PORTAL_DAILY_CHECKIN_ENABLED = true;
 export const PORTAL_DAILY_CHECKIN_BASE_TICKETS = 1;
 export const PORTAL_DAILY_CHECKIN_STREAK_CYCLE_DAYS = 7;
 export const PORTAL_DAILY_CHECKIN_STREAK_BONUS_TICKETS = [0, 0, 1, 0, 0, 1, 2] as const;
+export const PORTAL_DAILY_CHECKIN_BASE_COINS = 30;
+export const PORTAL_DAILY_CHECKIN_STREAK_BONUS_COINS = [0, 0, 15, 0, 0, 15, 30] as const;
 
 // --- play defaults: free ---
 export const PORTAL_DAILY_PLAY_LIMITS = {

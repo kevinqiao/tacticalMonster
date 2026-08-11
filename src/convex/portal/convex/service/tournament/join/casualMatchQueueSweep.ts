@@ -38,7 +38,7 @@ export const sweepStuckCasualMatchQueue = internalMutation({
         if (resolveQueueEffectiveHumans(row) === 1) {
           await ctx.scheduler.runAfter(
             0,
-            internal.service.tournament.join.casualOpenTableActions.openSoloAsyncTableFromQueue,
+            internal.service.tournament.join.casualOpenTableActions.openSingleHumanAsyncTableFromQueue,
             { queueRowId: row._id }
           );
           scheduledSolo += 1;

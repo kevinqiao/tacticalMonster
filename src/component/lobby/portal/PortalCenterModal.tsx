@@ -11,6 +11,8 @@ type PortalCenterModalProps = {
   children: React.ReactNode;
   /** Optional control opposite the close button (e.g. Sign Out). */
   headerStart?: React.ReactNode;
+  /** Stack above another portal modal (higher z-index; Escape closes this first). */
+  stacked?: boolean;
   /** @deprecated 全屏弹层不再使用宽度变体 */
   wide?: boolean;
 };
@@ -32,6 +34,7 @@ export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
   onClose,
   children,
   headerStart,
+  stacked = false,
 }) => {
   const { t } = useTranslation("portal.player");
   const stylesReady = usePortalDocumentStylesReady();
@@ -120,11 +123,14 @@ export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      // Stacked sheets capture Escape so the underlying modal stays open.
+      if (stacked) e.stopImmediatePropagation();
+      onClose();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    window.addEventListener("keydown", onKey, stacked);
+    return () => window.removeEventListener("keydown", onKey, stacked);
+  }, [open, onClose, stacked]);
 
   useEffect(() => {
     return () => {
@@ -141,7 +147,9 @@ export const PortalCenterModal: React.FC<PortalCenterModalProps> = ({
   return (
     <div
       ref={overlayRef}
-      className="portal-modal-overlay portal-modal-overlay--fullscreen"
+      className={`portal-modal-overlay portal-modal-overlay--fullscreen${
+        stacked ? " portal-modal-overlay--stacked" : ""
+      }`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="portal-modal-title"

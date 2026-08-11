@@ -20,7 +20,7 @@ import type * as service_casualBotFill_botStrategyTypes from "../service/casualB
 import type * as service_casualBotFill_casualBridgeProfile from "../service/casualBotFill/casualBridgeProfile.js";
 import type * as service_casualBotFill_computeBotFills from "../service/casualBotFill/computeBotFills.js";
 import type * as service_casualBotFill_rolloutPick from "../service/casualBotFill/rolloutPick.js";
-import type * as service_casualBotFill_soloRankRecommend from "../service/casualBotFill/soloRankRecommend.js";
+import type * as service_casualBotFill_singleHumanRankRecommend from "../service/casualBotFill/singleHumanRankRecommend.js";
 import type * as service_casualBridgeEnv from "../service/casualBridgeEnv.js";
 import type * as service_casualBridgeIngest from "../service/casualBridgeIngest.js";
 import type * as service_casualBridgeResolve from "../service/casualBridgeResolve.js";
@@ -83,7 +83,7 @@ declare const fullApi: ApiFromModules<{
   "service/casualBotFill/casualBridgeProfile": typeof service_casualBotFill_casualBridgeProfile;
   "service/casualBotFill/computeBotFills": typeof service_casualBotFill_computeBotFills;
   "service/casualBotFill/rolloutPick": typeof service_casualBotFill_rolloutPick;
-  "service/casualBotFill/soloRankRecommend": typeof service_casualBotFill_soloRankRecommend;
+  "service/casualBotFill/singleHumanRankRecommend": typeof service_casualBotFill_singleHumanRankRecommend;
   "service/casualBridgeEnv": typeof service_casualBridgeEnv;
   "service/casualBridgeIngest": typeof service_casualBridgeIngest;
   "service/casualBridgeResolve": typeof service_casualBridgeResolve;

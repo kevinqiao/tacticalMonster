@@ -1,6 +1,6 @@
-import { pickDurationFallbackMs } from "./durationFallback";
+﻿import { pickDurationFallbackMs } from "./durationFallback";
 import { scoreForRankSlot, type BotScoreSlot } from "./botScoreSlots";
-import { enforceSoloBotFillsForEffectiveRank } from "./soloRankEnforce";
+import { enforceSingleHumanBotFillsForEffectiveRank } from "./singleHumanRankEnforce";
 import { finiteSlotHighDefault, scoreEpsilon, type BotFillGameType } from "./gameTypeConfig";
 
 export type RolloutPick = {
@@ -358,7 +358,7 @@ export function pickSoloBotFillsFromTwoBands(args: {
     });
   }
 
-  return enforceSoloBotFillsForEffectiveRank({
+  return enforceSingleHumanBotFillsForEffectiveRank({
     humanScore: args.humanScore,
     effectiveRank: args.effectiveRank,
     maxPlayers: args.maxPlayers,

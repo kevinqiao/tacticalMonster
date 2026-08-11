@@ -29,7 +29,8 @@
     "ticketReplayEnabled": true,
     "ticketReplayPriceTickets": 1,
     "quotaScope": "mode",
-    "ticketEntryEnabled": false
+    "ticketEntryEnabled": false,
+    "freePlayMultiDailyCap": null
   },
   "lobbies": [
     {
@@ -46,6 +47,12 @@
           "tournamentId": "portal_multi_solitaire",
           "sortOrder": 1,
           "enabled": true
+        },
+        {
+          "tournamentId": "portal_multi_coin_solitaire",
+          "sortOrder": 2,
+          "enabled": true,
+          "unlockSeasonLevel": 5
         }
       ],
       "seasonHonorMode": "join_now",

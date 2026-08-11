@@ -1,4 +1,4 @@
-import type { BotStrategyPlayerContext } from "../../data/casualPlayerStrategyTypes";
+﻿import type { BotStrategyPlayerContext } from "../../data/casualPlayerStrategyTypes";
 import type { CasualRankRateEntry } from "../../data/casualTournamentConfigs";
 import {
   deriveRankScoreFloorsFromQuantiles,
@@ -22,7 +22,7 @@ import {
   pickScoresFromRolloutBands,
   type AsyncBotFillFromRollout,
 } from "./rolloutPick";
-import { recommendSoloEffectiveRank } from "./soloRankRecommend";
+import { recommendSingleHumanEffectiveRank } from "./singleHumanRankRecommend";
 import {
   bridgeFetchRolloutBands,
   bridgeFetchTriathlonLegRollouts,
@@ -42,7 +42,7 @@ import {
 import { scoreEpsilon } from "./gameTypeConfig";
 
 export type PlatformSubmitContext = {
-  mode: "daily" | "solo" | "mixed";
+  mode: "daily" | "single_human" | "mixed";
   templateId: string;
   matchId: string;
   maxPlayers: number;
@@ -240,7 +240,7 @@ async function fetchTriathlonWideLegPools(
   });
 }
 
-export async function computeSoloPlatformBotFills(
+export async function computeSingleHumanPlatformBotFills(
   ctx: SeedPoolRuntimeCtx,
   args: {
     context: PlatformSubmitContext;
@@ -261,7 +261,7 @@ export async function computeSoloPlatformBotFills(
     const planning = context.soloRankPlanning;
     if (!planning?.profile) throw new Error("missing_solo_rank_planning");
 
-    const recommended = recommendSoloEffectiveRank({
+    const recommended = recommendSingleHumanEffectiveRank({
       humanScore,
       scoreQuantiles,
       maxPlayers: context.maxPlayers,
@@ -295,7 +295,7 @@ export async function computeSoloPlatformBotFills(
   const planning = context.soloRankPlanning;
   if (!planning?.profile) throw new Error("missing_solo_rank_planning");
 
-  const recommended = recommendSoloEffectiveRank({
+  const recommended = recommendSingleHumanEffectiveRank({
     humanScore,
     scoreQuantiles,
     maxPlayers: context.maxPlayers,
@@ -432,7 +432,7 @@ export async function computePlatformBotFillsIfNeeded(
 }> {
   const { context, humanScore, primaryGameType, matchStartedAt, humanFinishedAt } = args;
   if (context.botsSeeded || context.maxPlayers <= 1) return {};
-  if (context.mode !== "solo" && context.mode !== "mixed") return {};
+  if (context.mode !== "single_human" && context.mode !== "mixed") return {};
   if (!isBotFillGameType(primaryGameType) && !context.isTriathlon) return {};
 
   const gameType: BotFillGameType = isBotFillGameType(primaryGameType)
@@ -440,8 +440,8 @@ export async function computePlatformBotFillsIfNeeded(
     : "block_blast";
 
   let botFills: PlatformBotFillPayload[];
-  if (context.mode === "solo") {
-    const result = await computeSoloPlatformBotFills(ctx, {
+  if (context.mode === "single_human") {
+    const result = await computeSingleHumanPlatformBotFills(ctx, {
       context,
       humanScore,
       primaryGameType: gameType,

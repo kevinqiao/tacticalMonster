@@ -6,7 +6,7 @@ import {
 /** 多人匹配队列：仅 effectiveHumans > 1 时生效（与前端 CASUAL_MATCH_OPEN_TIMEOUT_MS 对齐） */
 export const CASUAL_MATCH_QUEUE_TIMEOUT_MS = 60_000;
 
-/** eff=1 异步 solo 开桌延迟（ms） */
+/** eff=1：single human in async multi 开桌延迟（ms） */
 export const CASUAL_SOLO_ASYNC_OPEN_DELAY_MS = 1_000;
 
 /** Join 画像未命中 MATCHMAKING_RULES 时的默认 effectiveHumans */

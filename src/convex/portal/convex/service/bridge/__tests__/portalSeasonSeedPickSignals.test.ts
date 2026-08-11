@@ -105,12 +105,12 @@ describe("A/B ladder stays until success", () => {
 });
 
 describe("multi ritual solo gate", () => {
-  it("opens only when ladder progress is 0", () => {
-    expect(isPortalMultiRitualOpen(0)).toBe(true);
+  it("is disabled — never open", () => {
+    expect(isPortalMultiRitualOpen(0)).toBe(false);
     expect(isPortalMultiRitualOpen(1)).toBe(false);
   });
 
-  it("rewrites free and coin multi to solo when progress is 0", () => {
+  it("never rewrites multi joins to solo", () => {
     for (const requested of [
       "portal_multi_block_blast",
       "portal_multi_coin_block_blast",
@@ -123,35 +123,9 @@ describe("multi ritual solo gate", () => {
           ladderProgress: 0,
         })
       ).toEqual({
-        templateId: "portal_solo_p75_block_blast",
-        ritualForcedSolo: true,
+        templateId: requested,
+        ritualForcedSolo: false,
       });
     }
-  });
-
-  it("does not rewrite when progress >= 1", () => {
-    expect(
-      resolveMultiRitualJoinTemplate({
-        requestedTemplateId: "portal_multi_block_blast",
-        matchType: "multi_ranked",
-        gameType: "block_blast",
-        ladderProgress: 1,
-      })
-    ).toEqual({
-      templateId: "portal_multi_block_blast",
-      ritualForcedSolo: false,
-    });
-  });
-
-  it("skips campaign joins", () => {
-    expect(
-      resolveMultiRitualJoinTemplate({
-        requestedTemplateId: "portal_multi_block_blast",
-        matchType: "multi_ranked",
-        gameType: "block_blast",
-        ladderProgress: 0,
-        skip: true,
-      }).ritualForcedSolo
-    ).toBe(false);
   });
 });

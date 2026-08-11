@@ -712,7 +712,7 @@ export const claimNextMultiBatch = internalMutation({
         );
       }
 
-      /** eff=1：Bot 补位开桌（与 openSoloAsyncTableFromQueue 双保险） */
+      /** eff=1：Bot 补位开桌（与 openSingleHumanAsyncTableFromQueue 双保险） */
       const soloFill = partitionRows.filter((r) => resolveQueueEffectiveHumans(r) === 1);
       if (soloFill.length > 0) {
         soloFill.sort((a, b) => a.createdAt - b.createdAt);

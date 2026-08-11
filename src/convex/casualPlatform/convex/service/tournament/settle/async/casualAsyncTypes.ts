@@ -10,7 +10,25 @@ import {
 } from "../../../../data/casualGameRegistry";
 import { effectiveGameSequence } from "../../../../data/casualTournamentConfigs";
 
-export type CasualSubmitMode = "daily" | "solo" | "mixed";
+/**
+ * Terminology (three different “solo” layers — do not conflate):
+ * 1) Play mode `mode: "solo" | "multi"` — Solo Challenge vs multiplayer Arena.
+ * 2) `CasualSubmitMode` — human composition on an async multi table:
+ *    `daily` / `single_human` (effectiveHumans=1) / `mixed` (>=2).
+ * 3) Open-table / rank APIs for single human in async multi.
+ * Never call (2)/(3) “solo mode”.
+ */
+export type CasualSubmitMode = "daily" | "single_human" | "mixed";
+
+/** Wire/legacy values; `"solo"` means single human in async multi. */
+export type CasualSubmitModeWire = CasualSubmitMode | "solo";
+
+/** Map legacy `"solo"` → `"single_human"` at bridge boundaries. */
+export function normalizeSubmitMode(mode: string): CasualSubmitMode | null {
+  if (mode === "solo") return "single_human";
+  if (mode === "daily" || mode === "single_human" || mode === "mixed") return mode;
+  return null;
+}
 
 export function resolveCasualSubmitMode(
   maxPlayers: number,
@@ -18,7 +36,7 @@ export function resolveCasualSubmitMode(
 ): CasualSubmitMode {
   if (maxPlayers <= 1) return "daily";
   if (Math.max(1, humanPlayerCount) >= 2) return "mixed";
-  return "solo";
+  return "single_human";
 }
 
 export type AsyncBotFill = {

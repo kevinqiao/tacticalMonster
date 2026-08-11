@@ -72,7 +72,7 @@ export async function resolveIngestPlatformBotFillPlan(
     submitCtx.isLastGame &&
     !submitCtx.botsSeeded &&
     submitCtx.maxPlayers > 1 &&
-    (submitCtx.mode === "solo" || submitCtx.mode === "mixed") &&
+    (submitCtx.mode === "single_human" || submitCtx.mode === "mixed") &&
     (!mergedBotFills || mergedBotFills.length === 0);
 
   if (willSyncBotFill) {

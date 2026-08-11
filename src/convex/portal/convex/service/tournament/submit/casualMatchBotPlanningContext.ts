@@ -14,7 +14,7 @@ import { internalQuery } from "../../../_generated/server";
 import { resolvePlayerBotStrategyContext } from "../join/casualMatchmakingProfile";
 import { loadPlayerTournamentRankCounts } from "../shared/casualPlayerTournamentRankStats";
 
-/** solo bot 规划输入 (profile + rankCounts + rankRates + botDifficultyProfile) */
+/** single human in async multi：bot 规划输入 (profile + rankCounts + rankRates + botDifficultyProfile) */
 export type SoloRankPlanningBundle = {
   profile: BotStrategyPlayerContext;
   rankCounts: Record<number, number>;

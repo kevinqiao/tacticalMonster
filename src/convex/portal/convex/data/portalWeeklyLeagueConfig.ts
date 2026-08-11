@@ -226,6 +226,6 @@ export function portalWeeklyLeagueProjectedCoins(
   if (rank === 1) return row.r1;
   if (rank <= 3) return row.r2_3;
   if (rank <= 8) return row.r4_8;
-  if (rank <= 22) return row.r9_22;
+  // r9_22 kept in economy schema for sync/compat; payout ends at rank 8.
   return null;
 }

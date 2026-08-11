@@ -67,7 +67,10 @@ export type ResolveMatchSubmitContextRequest = {
   bridgeVersion?: CasualGameBridgeVersion;
 };
 
-export type CasualSubmitMode = "daily" | "solo" | "mixed";
+/** Human composition on async multi; not play-mode Solo Challenge. */
+export type CasualSubmitMode = "daily" | "single_human" | "mixed";
+/** @deprecated Prefer `"single_human"`. Legacy wire alias. */
+export type CasualSubmitModeLegacy = CasualSubmitMode | "solo";
 
 /** POST /internal/casual-replay-authorize */
 export type CasualReplayAuthorizeRequest = {
@@ -88,7 +91,7 @@ export type CasualReplayAuthorizeResponse =
     }
   | { ok: false; error: string };
 
-/** POST /internal/solo-rank-planning-inputs（可选；resolve 在 solo 时可内联） */
+/** POST /internal/solo-rank-planning-inputs（可选；resolve 在 single_human 时可内联） */
 export type SoloRankPlanningInputsRequest = {
   uid: string;
   templateId: string;

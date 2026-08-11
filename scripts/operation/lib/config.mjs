@@ -151,6 +151,10 @@ function expandLobby(lobby) {
     if (o.rewardsOverride && typeof o.rewardsOverride === "object") {
       out.rewardsOverride = normalizeRewardsOverride(o.rewardsOverride);
     }
+    const unlockLvl = Number(o.unlockSeasonLevel);
+    if (Number.isFinite(unlockLvl) && unlockLvl >= 2) {
+      out.unlockSeasonLevel = Math.floor(unlockLvl);
+    }
     return out;
   });
 
@@ -167,7 +171,8 @@ function expandLobby(lobby) {
         normalizedOfferings
           .map((o) => {
             const id = o.tournamentId ?? "";
-            const m = id.match(/^portal_(?:solo_p75|multi|multi_coin)_(.+)$/);
+            // multi_coin before multi — otherwise multi_coin_* → coin_<game>
+            const m = id.match(/^portal_(?:solo_p75|multi_coin|multi)_(.+)$/);
             return m?.[1] ?? null;
           })
           .filter(Boolean)
@@ -337,6 +342,58 @@ function expandStaff(raw) {
   return { account, role, passwordEnv, password };
 }
 
+function expandNonNegIntArray(raw, label) {
+  if (raw == null) return undefined;
+  if (!Array.isArray(raw)) {
+    throw new Error(`shop_settings_checkin_rewards_invalid:${label}`);
+  }
+  return raw.map((n, i) => {
+    const v = Number(n);
+    if (!Number.isInteger(v) || v < 0) {
+      throw new Error(`shop_settings_checkin_rewards_invalid:${label}[${i}]`);
+    }
+    return v;
+  });
+}
+
+function expandCheckinRewards(raw, label) {
+  if (raw == null) return {};
+  if (typeof raw !== "object") {
+    throw new Error(`shop_settings_checkin_rewards_invalid:${label}`);
+  }
+  const out = {};
+  if (raw.baseTickets != null) {
+    const v = Number(raw.baseTickets);
+    if (!Number.isInteger(v) || v < 0) {
+      throw new Error(`shop_settings_checkin_rewards_invalid:${label}.baseTickets`);
+    }
+    out.baseTickets = v;
+  }
+  if (raw.baseCoins != null) {
+    const v = Number(raw.baseCoins);
+    if (!Number.isInteger(v) || v < 0) {
+      throw new Error(`shop_settings_checkin_rewards_invalid:${label}.baseCoins`);
+    }
+    out.baseCoins = v;
+  }
+  const tickets = expandNonNegIntArray(
+    raw.streakBonusTickets,
+    `${label}.streakBonusTickets`
+  );
+  if (tickets) out.streakBonusTickets = tickets;
+  const coins = expandNonNegIntArray(
+    raw.streakBonusCoins,
+    `${label}.streakBonusCoins`
+  );
+  if (coins) out.streakBonusCoins = coins;
+  return out;
+}
+
+function expandCheckinRewardKind(raw) {
+  if (raw === "coins" || raw === "both" || raw === "tickets") return raw;
+  return "tickets";
+}
+
 function expandShopSettingsBlock(raw, label) {
   if (!raw || typeof raw !== "object") {
     throw new Error(`shop_settings_invalid:${label}`);
@@ -351,6 +408,8 @@ function expandShopSettingsBlock(raw, label) {
     adCoinEnabled: raw.adCoinEnabled !== false,
     iapEnabled: raw.iapEnabled !== false,
     checkinEnabled: raw.checkinEnabled !== false,
+    checkinRewardKind: expandCheckinRewardKind(raw.checkinRewardKind),
+    checkinRewards: expandCheckinRewards(raw.checkinRewards, `${label}.checkinRewards`),
     assortmentMode,
     skuIds: Array.isArray(raw.skuIds)
       ? raw.skuIds.filter((id) => typeof id === "string")

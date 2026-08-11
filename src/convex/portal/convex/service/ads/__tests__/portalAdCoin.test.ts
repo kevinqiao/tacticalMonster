@@ -19,7 +19,7 @@ describe("portalAdCoinConfig", () => {
   });
 
   it("keeps reward and daily cap in expected ranges", () => {
-    expect(PORTAL_AD_COIN_REWARD_AMOUNT).toBe(30);
+    expect(PORTAL_AD_COIN_REWARD_AMOUNT).toBe(3);
     expect(PORTAL_AD_COIN_DAILY_CAP).toBe(5);
   });
 });

@@ -84,9 +84,9 @@ import type * as service_botFill_gameTypeConfig from "../service/botFill/gameTyp
 import type * as service_botFill_rankSampling from "../service/botFill/rankSampling.js";
 import type * as service_botFill_rolloutPick from "../service/botFill/rolloutPick.js";
 import type * as service_botFill_seedRolloutBridge from "../service/botFill/seedRolloutBridge.js";
-import type * as service_botFill_soloRankBand from "../service/botFill/soloRankBand.js";
-import type * as service_botFill_soloRankEnforce from "../service/botFill/soloRankEnforce.js";
-import type * as service_botFill_soloRankRecommend from "../service/botFill/soloRankRecommend.js";
+import type * as service_botFill_singleHumanRankBand from "../service/botFill/singleHumanRankBand.js";
+import type * as service_botFill_singleHumanRankEnforce from "../service/botFill/singleHumanRankEnforce.js";
+import type * as service_botFill_singleHumanRankRecommend from "../service/botFill/singleHumanRankRecommend.js";
 import type * as service_botFill_triathlonBotFill from "../service/botFill/triathlonBotFill.js";
 import type * as service_botPersona_portalBotPersonaDefaults from "../service/botPersona/portalBotPersonaDefaults.js";
 import type * as service_botPersona_portalBotPersonaService from "../service/botPersona/portalBotPersonaService.js";
@@ -125,6 +125,7 @@ import type * as service_launch_portalLaunchAuth from "../service/launch/portalL
 import type * as service_launch_portalLaunchMutations from "../service/launch/portalLaunchMutations.js";
 import type * as service_launch_portalLaunchTypes from "../service/launch/portalLaunchTypes.js";
 import type * as service_lobby_lobbyOfferingRewards from "../service/lobby/lobbyOfferingRewards.js";
+import type * as service_lobby_lobbyOfferingUnlocks from "../service/lobby/lobbyOfferingUnlocks.js";
 import type * as service_lobby_portalLobbyMutations from "../service/lobby/portalLobbyMutations.js";
 import type * as service_partner_portalPartnerGcOpsAdmin from "../service/partner/portalPartnerGcOpsAdmin.js";
 import type * as service_partner_portalPartnerWipe from "../service/partner/portalPartnerWipe.js";
@@ -324,9 +325,9 @@ declare const fullApi: ApiFromModules<{
   "service/botFill/rankSampling": typeof service_botFill_rankSampling;
   "service/botFill/rolloutPick": typeof service_botFill_rolloutPick;
   "service/botFill/seedRolloutBridge": typeof service_botFill_seedRolloutBridge;
-  "service/botFill/soloRankBand": typeof service_botFill_soloRankBand;
-  "service/botFill/soloRankEnforce": typeof service_botFill_soloRankEnforce;
-  "service/botFill/soloRankRecommend": typeof service_botFill_soloRankRecommend;
+  "service/botFill/singleHumanRankBand": typeof service_botFill_singleHumanRankBand;
+  "service/botFill/singleHumanRankEnforce": typeof service_botFill_singleHumanRankEnforce;
+  "service/botFill/singleHumanRankRecommend": typeof service_botFill_singleHumanRankRecommend;
   "service/botFill/triathlonBotFill": typeof service_botFill_triathlonBotFill;
   "service/botPersona/portalBotPersonaDefaults": typeof service_botPersona_portalBotPersonaDefaults;
   "service/botPersona/portalBotPersonaService": typeof service_botPersona_portalBotPersonaService;
@@ -365,6 +366,7 @@ declare const fullApi: ApiFromModules<{
   "service/launch/portalLaunchMutations": typeof service_launch_portalLaunchMutations;
   "service/launch/portalLaunchTypes": typeof service_launch_portalLaunchTypes;
   "service/lobby/lobbyOfferingRewards": typeof service_lobby_lobbyOfferingRewards;
+  "service/lobby/lobbyOfferingUnlocks": typeof service_lobby_lobbyOfferingUnlocks;
   "service/lobby/portalLobbyMutations": typeof service_lobby_portalLobbyMutations;
   "service/partner/portalPartnerGcOpsAdmin": typeof service_partner_portalPartnerGcOpsAdmin;
   "service/partner/portalPartnerWipe": typeof service_partner_portalPartnerWipe;

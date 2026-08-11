@@ -17,9 +17,9 @@ describe("portalDailyPlayModeFromDef", () => {
 });
 
 describe("PORTAL_DAILY_PLAY_LIMITS", () => {
-  it("defaults to solo 3 / multi 10 (shared across gameTypes)", () => {
+  it("defaults to solo 3 / multi 5 (shared across gameTypes)", () => {
     expect(PORTAL_DAILY_PLAY_LIMITS.solo).toBe(3);
-    expect(PORTAL_DAILY_PLAY_LIMITS.multi).toBe(10);
+    expect(PORTAL_DAILY_PLAY_LIMITS.multi).toBe(5);
   });
 });
 
@@ -33,14 +33,14 @@ describe("portalTournamentUsesPlayEntryLadder", () => {
 });
 
 describe("play entry ladder ceilings", () => {
-  it("multi hard max is free + ad + ticket caps", () => {
+  it("multi free/ad caps leave room for ad after free is exhausted", () => {
     const free = PORTAL_DAILY_PLAY_LIMITS.multi;
     const ad = PORTAL_AD_ENTRY_DEFAULTS.multi.dailyCap;
-    const ticket = PORTAL_TICKET_ENTRY_DEFAULTS.multi.dailyCap;
-    // After free is exhausted, ad entry must still fit under this ceiling
-    // (not freeCap + adUsed alone — orphan plays used to block ads).
-    expect(free + ad + ticket).toBeGreaterThan(free);
-    expect(free).toBe(10);
+    // Ad lane is gated by adUsed vs adCap (not playsToday >= free+ad),
+    // so orphan ladder rows cannot fake a hard daily_play_limit.
+    expect(ad).toBeGreaterThan(0);
+    expect(free).toBe(5);
     expect(ad).toBe(10);
+    expect(PORTAL_TICKET_ENTRY_DEFAULTS.multi.dailyCap).toBeGreaterThanOrEqual(0);
   });
 });

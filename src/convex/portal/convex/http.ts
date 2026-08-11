@@ -1,4 +1,4 @@
-import { httpRouter } from "convex/server";
+﻿import { httpRouter } from "convex/server";
 
 import { api, internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
@@ -23,7 +23,7 @@ const http = httpRouter();
 
 /**
  * ??????????:daily / solo / mixed(?? targetRank)?
- * mode=solo ??? `soloRankPlanning`(profile / rankCounts / rankRates),???? HTTP?
+ * mode=single_human ??? `soloRankPlanning`(profile / rankCounts / rankRates),???? HTTP?
  * Header `X-Portal-Bridge-Secret` ? ingest ???
  */
 http.route({
@@ -704,6 +704,43 @@ http.route({
     const iapEnabled = typeof b.iapEnabled === "boolean" ? b.iapEnabled : true;
     const checkinEnabled =
       typeof b.checkinEnabled === "boolean" ? b.checkinEnabled : true;
+    const checkinRewardKind =
+      b.checkinRewardKind === "coins" ||
+      b.checkinRewardKind === "both" ||
+      b.checkinRewardKind === "tickets"
+        ? (b.checkinRewardKind as "tickets" | "coins" | "both")
+        : ("tickets" as const);
+    const checkinRewardsRaw =
+      b.checkinRewards && typeof b.checkinRewards === "object"
+        ? (b.checkinRewards as Record<string, unknown>)
+        : {};
+    const asNonNegInt = (n: unknown): number | undefined => {
+      if (typeof n !== "number" || !Number.isInteger(n) || n < 0) return undefined;
+      return n;
+    };
+    const asNonNegIntArr = (n: unknown): number[] | undefined => {
+      if (!Array.isArray(n)) return undefined;
+      const out: number[] = [];
+      for (const x of n) {
+        if (typeof x !== "number" || !Number.isInteger(x) || x < 0) return undefined;
+        out.push(x);
+      }
+      return out;
+    };
+    const checkinRewards = {
+      ...(asNonNegInt(checkinRewardsRaw.baseTickets) != null
+        ? { baseTickets: asNonNegInt(checkinRewardsRaw.baseTickets) }
+        : {}),
+      ...(asNonNegIntArr(checkinRewardsRaw.streakBonusTickets)
+        ? { streakBonusTickets: asNonNegIntArr(checkinRewardsRaw.streakBonusTickets) }
+        : {}),
+      ...(asNonNegInt(checkinRewardsRaw.baseCoins) != null
+        ? { baseCoins: asNonNegInt(checkinRewardsRaw.baseCoins) }
+        : {}),
+      ...(asNonNegIntArr(checkinRewardsRaw.streakBonusCoins)
+        ? { streakBonusCoins: asNonNegIntArr(checkinRewardsRaw.streakBonusCoins) }
+        : {}),
+    };
     try {
       return jsonResponse(
         await ctx.runMutation(
@@ -718,6 +755,8 @@ http.route({
             adCoinEnabled: b.adCoinEnabled,
             iapEnabled,
             checkinEnabled,
+            checkinRewardKind,
+            checkinRewards,
             assortmentMode: b.assortmentMode,
             skuIds: b.skuIds.filter((id): id is string => typeof id === "string"),
             excludeSkuIds: b.excludeSkuIds.filter((id): id is string => typeof id === "string"),

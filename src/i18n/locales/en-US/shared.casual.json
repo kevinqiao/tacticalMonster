@@ -23,6 +23,8 @@
     "not_found": "Campaign not found",
     "merchant_unreachable": "Campaign service unavailable. Try again later.",
     "daily_play_limit_reached": "Daily play limit reached. Come back tomorrow.",
+    "ad_entry_required": "Free plays used up — watch an ad to keep playing",
+    "ticket_entry_required": "Free plays used up — use a ticket to keep playing",
     "solo_success_daily_cap_reached": "Today's success reward limit is full; new tables are blocked for now.",
     "ad_channel_unsupported": "Ad entry is not supported in this environment",
     "begin_failed": "Could not start ad entry. Try again later.",
@@ -39,6 +41,7 @@
     "ticket_entry_limit_reached": "Daily ticket-entry limit reached",
     "ticket_entry_not_available": "Ticket entry is not available right now",
     "insufficient_tickets": "Not enough tickets",
+    "offering_locked": "Season level too low to unlock this arena",
     "default_with_code": "Could not join: {{code}}",
     "default": "Could not join"
   },

@@ -1,4 +1,4 @@
-import type { BotStrategyPlayerContext } from "../../data/portalPlayerStrategyTypes";
+﻿import type { BotStrategyPlayerContext } from "../../data/portalPlayerStrategyTypes";
 import {
   getPortalTournamentDefinition,
   resolveSoloSeedSuccessThreshold,
@@ -29,8 +29,8 @@ import {
   pickSoloBotFillsFromTwoBands,
   type AsyncBotFillFromRollout,
 } from "./rolloutPick";
-import { recommendSoloEffectiveRank } from "./soloRankRecommend";
-import { enforceSoloBotFillsForEffectiveRank } from "./soloRankEnforce";
+import { recommendSingleHumanEffectiveRank } from "./singleHumanRankRecommend";
+import { enforceSingleHumanBotFillsForEffectiveRank } from "./singleHumanRankEnforce";
 import { createIngestTiming } from "../tournament/submit/casualIngestTiming";
 import {
   bridgeFetchRolloutBands,
@@ -51,7 +51,7 @@ import {
 import { scoreEpsilon } from "./gameTypeConfig";
 
 export type PlatformSubmitContext = {
-  mode: "daily" | "solo" | "mixed";
+  mode: "daily" | "single_human" | "mixed";
   templateId: string;
   matchId: string;
   maxPlayers: number;
@@ -184,7 +184,7 @@ async function pickSingleGameBotFills(
   }));
 }
 
-function applySoloEffectiveRankEnforcement(args: {
+function applySingleHumanEffectiveRankEnforcement(args: {
   humanScore: number;
   effectiveRank: number;
   maxPlayers: number;
@@ -193,7 +193,7 @@ function applySoloEffectiveRankEnforcement(args: {
   gameType: BotFillGameType;
 }): PlatformBotFillPayload[] {
   const origByRank = new Map(args.botFills.map((f) => [f.rank, f] as const));
-  const enforced = enforceSoloBotFillsForEffectiveRank({
+  const enforced = enforceSingleHumanBotFillsForEffectiveRank({
     humanScore: args.humanScore,
     effectiveRank: args.effectiveRank,
     maxPlayers: args.maxPlayers,
@@ -347,7 +347,7 @@ async function fetchTriathlonWideLegPools(
   });
 }
 
-export async function computeSoloPlatformBotFills(
+export async function computeSingleHumanPlatformBotFills(
   ctx: SeedPoolRuntimeCtx,
   args: {
     context: PlatformSubmitContext;
@@ -356,7 +356,7 @@ export async function computeSoloPlatformBotFills(
   }
 ): Promise<{ botFills: PlatformBotFillPayload[]; effectiveRank: number }> {
   const { context, humanScore, primaryGameType } = args;
-  const timing = createIngestTiming("computeSoloPlatformBotFills", context.matchId);
+  const timing = createIngestTiming("computeSingleHumanPlatformBotFills", context.matchId);
 
   if (context.isTriathlon && context.triathlonLegs?.length) {
     const legQuantiles = await Promise.all(
@@ -369,7 +369,7 @@ export async function computeSoloPlatformBotFills(
     const planning = context.soloRankPlanning;
     if (!planning?.profile) throw new Error("missing_solo_rank_planning");
 
-    const recommended = recommendSoloEffectiveRank({
+    const recommended = recommendSingleHumanEffectiveRank({
       humanScore,
       scoreQuantiles,
       maxPlayers: context.maxPlayers,
@@ -393,7 +393,7 @@ export async function computeSoloPlatformBotFills(
       slots,
       sessionSeed,
     });
-    const botFills = applySoloEffectiveRankEnforcement({
+    const botFills = applySingleHumanEffectiveRankEnforcement({
       humanScore,
       effectiveRank: recommended.effectiveRank,
       maxPlayers: context.maxPlayers,
@@ -414,7 +414,7 @@ export async function computeSoloPlatformBotFills(
   const planning = context.soloRankPlanning;
   if (!planning?.profile) throw new Error("missing_solo_rank_planning");
 
-  const recommended = recommendSoloEffectiveRank({
+  const recommended = recommendSingleHumanEffectiveRank({
     humanScore,
     scoreQuantiles,
     maxPlayers: context.maxPlayers,
@@ -424,7 +424,7 @@ export async function computeSoloPlatformBotFills(
     sessionSeed,
     botDifficultyProfile: planning.botDifficultyProfile ?? "default",
   });
-  timing.mark("recommendSoloEffectiveRank", { effectiveRank: recommended.effectiveRank });
+  timing.mark("recommendSingleHumanEffectiveRank", { effectiveRank: recommended.effectiveRank });
 
   timing.mark("before.pickSoloGameBotFills", {
     bandCount: soloRolloutQueryBands({
@@ -545,7 +545,7 @@ export async function computePlatformBotFillsIfNeeded(
 }> {
   const { context, humanScore, primaryGameType, matchStartedAt, humanFinishedAt } = args;
   if (context.botsSeeded || context.maxPlayers <= 1) return {};
-  if (context.mode !== "solo" && context.mode !== "mixed") return {};
+  if (context.mode !== "single_human" && context.mode !== "mixed") return {};
   if (!isBotFillGameType(primaryGameType) && !context.isTriathlon) return {};
 
   const timing = createIngestTiming("computePlatformBotFillsIfNeeded", context.matchId);
@@ -556,8 +556,8 @@ export async function computePlatformBotFillsIfNeeded(
     : "block_blast";
 
   let botFills: PlatformBotFillPayload[];
-  if (context.mode === "solo") {
-    const result = await computeSoloPlatformBotFills(ctx, {
+  if (context.mode === "single_human") {
+    const result = await computeSingleHumanPlatformBotFills(ctx, {
       context,
       humanScore,
       primaryGameType: gameType,

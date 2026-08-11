@@ -1,4 +1,4 @@
-import {
+﻿import {
   buildBalancedRankWeights,
   evaluateBotDifficultyRulesWithMeta,
   sampleTargetRank,
@@ -17,16 +17,16 @@ import {
   type ScoreQuantiles,
 } from "./botDifficulty";
 
-export type SoloRankRecommendSource = "quantile" | "profile" | "rank_rates";
+export type SingleHumanRankRecommendSource = "quantile" | "profile" | "rank_rates";
 
-export type SoloRankRecommendResult = {
+export type SingleHumanRankRecommendResult = {
   targetRank: number;
   effectiveRank: number;
-  source: SoloRankRecommendSource;
+  source: SingleHumanRankRecommendSource;
   matchedRuleId?: string;
 };
 
-export function recommendSoloEffectiveRank(args: {
+export function recommendSingleHumanEffectiveRank(args: {
   humanScore: number;
   scoreQuantiles: ScoreQuantiles;
   maxPlayers: number;
@@ -34,7 +34,7 @@ export function recommendSoloEffectiveRank(args: {
   rankCounts: Record<number, number>;
   rankRates: CasualRankRateEntry[];
   sessionSeed: number;
-}): SoloRankRecommendResult {
+}): SingleHumanRankRecommendResult {
   const {
     humanScore,
     scoreQuantiles,
@@ -49,7 +49,7 @@ export function recommendSoloEffectiveRank(args: {
   const p50 = scoreQuantiles.p50;
 
   let targetRank: number;
-  let source: SoloRankRecommendSource;
+  let source: SingleHumanRankRecommendSource;
   let matchedRuleId: string | undefined;
 
   if (humanScore < p50) {

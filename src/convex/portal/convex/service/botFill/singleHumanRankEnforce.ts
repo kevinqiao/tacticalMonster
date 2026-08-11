@@ -1,4 +1,4 @@
-import { scoreEpsilon, type BotFillGameType } from "./gameTypeConfig";
+﻿import { scoreEpsilon, type BotFillGameType } from "./gameTypeConfig";
 import type { AsyncBotFillFromRollout } from "./rolloutPick";
 
 function clampScoreToRange(
@@ -61,7 +61,7 @@ function targetScoreBelowHuman(args: {
 }
 
 /** 按 score 降序推算人类在 bot 补位后的 1-based 名次（同分按 rank 数字更小者优先）。 */
-export function simulateSoloHumanRank(args: {
+export function simulateSingleHumanRank(args: {
   humanScore: number;
   effectiveRank: number;
   botFills: Array<{ rank: number; score: number }>;
@@ -79,10 +79,10 @@ export function simulateSoloHumanRank(args: {
 }
 
 /**
- * Solo 多人：保证 bot 分数严格单调且人类 settle 后 rank === effectiveRank。
+ * Single human in async multi：保证 bot 分数严格单调且人类 settle 后 rank === effectiveRank。
  * 保留 rolloutIndex / duration，仅在必要时修正 score。
  */
-export function enforceSoloBotFillsForEffectiveRank(args: {
+export function enforceSingleHumanBotFillsForEffectiveRank(args: {
   humanScore: number;
   effectiveRank: number;
   maxPlayers: number;
@@ -168,7 +168,7 @@ export function enforceSoloBotFillsForEffectiveRank(args: {
     });
   }
 
-  const humanRank = simulateSoloHumanRank({
+  const humanRank = simulateSingleHumanRank({
     humanScore: args.humanScore,
     effectiveRank: args.effectiveRank,
     botFills: out,

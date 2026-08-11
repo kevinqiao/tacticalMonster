@@ -1,4 +1,4 @@
-import { defineSchema, defineTable } from "convex/server";
+﻿import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 import {
@@ -150,6 +150,19 @@ export default defineSchema({
     iapEnabled: v.optional(v.boolean()),
     /** Daily check-in in shop; omit = enabled (default true). */
     checkinEnabled: v.optional(v.boolean()),
+    /** Daily check-in reward currency; omit = tickets. */
+    checkinRewardKind: v.optional(
+      v.union(v.literal("tickets"), v.literal("coins"), v.literal("both"))
+    ),
+    /** Optional amount overrides (inherit portal-economy when omitted). */
+    checkinRewards: v.optional(
+      v.object({
+        baseTickets: v.optional(v.number()),
+        streakBonusTickets: v.optional(v.array(v.number())),
+        baseCoins: v.optional(v.number()),
+        streakBonusCoins: v.optional(v.array(v.number())),
+      })
+    ),
     assortmentMode: v.union(v.literal("all_shared"), v.literal("allowlist")),
     skuIds: v.optional(v.array(v.string())),
     excludeSkuIds: v.optional(v.array(v.string())),
@@ -311,6 +324,8 @@ export default defineSchema({
     weeklyPointsAfter: v.optional(v.number()),
     /** Coin payout written at settle (coin multi / solo coin tables). */
     coinsGranted: v.optional(v.number()),
+    /** Season honor XP granted at settle (after daily caps). */
+    xpGranted: v.optional(v.number()),
     /** Legacy fields (prod rows); SSOT is portal_run_player_matches. */
     seedScoreThreshold: v.optional(v.number()),
     challengeSuccess: v.optional(v.boolean()),
@@ -732,6 +747,8 @@ export default defineSchema({
           })
         ),
         enabled: v.optional(v.boolean()),
+        /** Season honor level gate; permanent once unlocked for the player. */
+        unlockSeasonLevel: v.optional(v.number()),
       })
     ),
     /**
@@ -955,13 +972,16 @@ export default defineSchema({
     .index("by_uid_dayKey", ["uid", "dayKey"])
     .index("by_uid_scopeKey_dayKey", ["uid", "scopeKey", "dayKey"]),
 
-  /** Portal daily check-in streak (tickets); scoped like wallets. */
+  /** Portal daily check-in streak; scoped like wallets. */
   portal_checkin_streaks: defineTable({
     uid: v.string(),
     scopeKey: v.string(),
     streakCount: v.number(),
     lastClaimPeriodKey: v.string(),
+    /** Tickets granted on last claim (0 when kind=coins). */
     lastClaimTickets: v.optional(v.number()),
+    /** Coins granted on last claim (0 when kind=tickets). */
+    lastClaimCoins: v.optional(v.number()),
     updatedAt: v.number(),
     lobbyId: v.optional(v.id("portal_lobbies")),
   }).index("by_uid_scopeKey", ["uid", "scopeKey"]),
@@ -1053,6 +1073,8 @@ export default defineSchema({
     unreadSeasonMarks: v.optional(v.boolean()),
     unreadSeasonId: v.optional(v.string()),
     unreadSeasonLevel: v.optional(v.number()),
+    /** Lobby offerings permanently unlocked via season level gates. */
+    unlockedTournamentIds: v.optional(v.array(v.string())),
     updatedAt: v.number(),
   })
     .index("by_uid_game", ["uid", "gameType"])

@@ -129,6 +129,15 @@ export const joinTournament = authedAction({
       return { ok: false as const, error: "invalid_entry_mode" };
     }
 
+    /** Ad/ticket grants are keyed by requested mode — capture before ritual rewrite. */
+    const requestedTemplateId = resolvedTemplateId;
+    const requestedEntryMode =
+      def.matchType === "solo_p75"
+        ? ("solo" as const)
+        : def.matchType === "multi_ranked"
+          ? ("multi" as const)
+          : null;
+
     /** Multi ritual: force Solo template before entry charge / open (non-campaign). */
     let ritualForcedSolo = false;
     if (!campaignId && def.matchType === "multi_ranked") {
@@ -171,11 +180,16 @@ export const joinTournament = authedAction({
       }
     }
     if (adEntry) {
+      if (!requestedEntryMode) {
+        return { ok: false as const, error: "invalid_entry_mode" };
+      }
       const entry = await ctx.runMutation(
         internal.service.ads.portalAdEntryService.consumeAdEntryForJoin,
         {
           uid,
-          templateId: resolvedTemplateId,
+          // Consume against the grant mode the client earned (multi ad ≠ solo grant).
+          mode: requestedEntryMode,
+          templateId: requestedTemplateId,
           ...(lobbyId ? { lobbyId } : {}),
         }
       );
@@ -282,7 +296,7 @@ export const joinTournament = authedAction({
 
     if (effectiveHumans === 1 && queueRowId) {
       const opened = await ctx.runAction(
-        internal.service.tournament.join.casualOpenTableActions.openSoloAsyncTableFromQueue,
+        internal.service.tournament.join.casualOpenTableActions.openSingleHumanAsyncTableFromQueue,
         { queueRowId: queueRowId as never }
       );
       if (opened && typeof opened === "object" && "ok" in opened && opened.ok === true) {

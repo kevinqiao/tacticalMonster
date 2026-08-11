@@ -5,6 +5,9 @@ import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { internalMutation, internalQuery } from "../../_generated/server";
 import {
   defaultPortalPartnerShopSettings,
+  mergeCheckinRewards,
+  normalizeCheckinRewardKind,
+  type PortalCheckinRewardsOverride,
   type PortalPartnerShopSettings,
 } from "../../data/portalPartnerShopSettings";
 
@@ -17,6 +20,13 @@ const overrideValidator = v.object({
   tangoUtid: v.optional(v.string()),
 });
 
+const checkinRewardsValidator = v.object({
+  baseTickets: v.optional(v.number()),
+  streakBonusTickets: v.optional(v.array(v.number())),
+  baseCoins: v.optional(v.number()),
+  streakBonusCoins: v.optional(v.array(v.number())),
+});
+
 type ShopSettingsRow = {
   enabled: boolean;
   giftCardsEnabled: boolean;
@@ -25,6 +35,8 @@ type ShopSettingsRow = {
   adCoinEnabled?: boolean;
   iapEnabled?: boolean;
   checkinEnabled?: boolean;
+  checkinRewardKind?: "tickets" | "coins" | "both";
+  checkinRewards?: PortalCheckinRewardsOverride;
   assortmentMode: "all_shared" | "allowlist";
   skuIds?: string[];
   excludeSkuIds?: string[];
@@ -46,6 +58,8 @@ function normalize(
     adCoinEnabled: row.adCoinEnabled !== false,
     iapEnabled: row.iapEnabled !== false,
     checkinEnabled: row.checkinEnabled !== false,
+    checkinRewardKind: normalizeCheckinRewardKind(row.checkinRewardKind),
+    checkinRewards: row.checkinRewards ?? {},
     assortmentMode: row.assortmentMode,
     skuIds: row.skuIds ?? [],
     excludeSkuIds: row.excludeSkuIds ?? [],
@@ -99,6 +113,11 @@ export function mergePartnerShopSettingsRows(
     adCoinEnabled: overlay?.adCoinEnabled ?? base?.adCoinEnabled,
     iapEnabled: overlay?.iapEnabled ?? base?.iapEnabled,
     checkinEnabled: overlay?.checkinEnabled ?? base?.checkinEnabled,
+    checkinRewardKind: overlay?.checkinRewardKind ?? base?.checkinRewardKind,
+    checkinRewards: mergeCheckinRewards(
+      base?.checkinRewards,
+      overlay?.checkinRewards
+    ),
     assortmentMode:
       overlay?.assortmentMode ??
       base?.assortmentMode ??
@@ -183,6 +202,12 @@ export const upsertPartnerShopSettingsInternal = internalMutation({
     adCoinEnabled: v.boolean(),
     iapEnabled: v.boolean(),
     checkinEnabled: v.boolean(),
+    checkinRewardKind: v.union(
+      v.literal("tickets"),
+      v.literal("coins"),
+      v.literal("both")
+    ),
+    checkinRewards: v.optional(checkinRewardsValidator),
     assortmentMode: v.union(v.literal("all_shared"), v.literal("allowlist")),
     skuIds: v.array(v.string()),
     excludeSkuIds: v.array(v.string()),
@@ -195,12 +220,13 @@ export const upsertPartnerShopSettingsInternal = internalMutation({
     }
     const cleanIds = (ids: string[]) => [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
     const now = Date.now();
-    const { lobbyId, ...rest } = args;
+    const { lobbyId, checkinRewards, ...rest } = args;
     // all_shared ignores allowlist ids; keep row clean so merge/inheritance stay obvious.
     const skuIds =
       args.assortmentMode === "all_shared" ? [] : cleanIds(args.skuIds);
     const payload = {
       ...rest,
+      checkinRewards: checkinRewards ?? {},
       skuIds,
       excludeSkuIds: cleanIds(args.excludeSkuIds),
       updatedAt: now,

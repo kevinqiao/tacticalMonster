@@ -151,14 +151,14 @@ export const resolveMatchSubmitContext = internalQuery({
     const humanReplayEpoch = pg.replayEpoch ?? pm.replayEpoch ?? 0;
 
     const soloRankPlanning =
-      mode === "solo"
+      mode === "single_human"
         ? await loadSoloRankPlanningBundle(ctx, {
             uid,
             templateId: pm.templateId,
             def,
           })
         : undefined;
-    if (mode === "solo") {
+    if (mode === "single_human") {
       timing.mark("loadSoloRankPlanningBundle");
     }
 

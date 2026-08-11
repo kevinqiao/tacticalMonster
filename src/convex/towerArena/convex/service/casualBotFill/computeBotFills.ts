@@ -21,7 +21,7 @@ export type SoloRankPlanningInputs = {
 
 export type ResolveSubmitContext = {
   ok: true;
-  mode: "daily" | "solo" | "mixed";
+  mode: "daily" | "single_human" | "mixed";
   templateId: string;
   matchId: string;
   maxPlayers: number;

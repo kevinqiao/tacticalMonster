@@ -165,8 +165,10 @@ interface ISoloGameContext {
     reloadCasualRun: () => Promise<SoloGameState | null>;
     /** Skip in-progress opening deal (tap-to-skip). */
     skipOpeningDeal: () => void;
-    /** True while the short opening deal timeline is running. */
+    /** True while waiting for / playing the short opening deal (suppress model card snap). */
     openingDealActive: boolean;
+    /** True only after deal timeline started — freeze board remeasure to avoid gap flash. */
+    openingDealLayoutLocked: boolean;
     /** 动画回放：合并卡牌 patch 并触发重渲染 */
     saveUpdate: (cards: SoloCard[]) => void;
     /** 动画回放：将模拟状态完整同步到 live 棋盘（含 score/moves） */
@@ -204,6 +206,7 @@ const SoloGameContext = createContext<ISoloGameContext>({
     reloadCasualRun: async () => null,
     skipOpeningDeal: () => { },
     openingDealActive: false,
+    openingDealLayoutLocked: false,
     saveUpdate: () => { },
     syncReplayState: () => { },
     syncReplayScore: () => { },
@@ -254,6 +257,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     );
     const [dealEvent, setDealEvent] = useState<OpeningDealEvent | null>(null);
     const [openingDealActive, setOpeningDealActive] = useState(false);
+    const [openingDealLayoutLocked, setOpeningDealLayoutLocked] = useState(false);
     /**
      * When true, hide Loading when the opening deal is about to start (not when it
      * finishes) — otherwise Loading covers the whole deal and the board “pops” in.
@@ -274,6 +278,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     const boardDimensionRef = useRef<SoloBoardDimension | null>(null);
     const timelinesRef = useRef<{ [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }>({});
     const openingDealStartedRef = useRef(false);
+    /** Consecutive nearly-equal board measures after the last change (deal waits for settle). */
+    const layoutStableCountRef = useRef(0);
     const dealEventRef = useRef(dealEvent);
     dealEventRef.current = dealEvent;
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
@@ -290,11 +296,18 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
 
     // 更新棋盘尺寸（尺寸未变则跳过 setState，避免 CSS 变量 → ResizeObserver → 测量死循环）
     const updateBoardDimension = useCallback((dimension: SoloBoardDimension) => {
-        const prev = boardDimensionRef.current;
-        if (prev && soloBoardDimensionNearlyEqual(prev, dimension)) {
+        // Opening deal owns card coords from the settled dim; ignore mid-deal RO churn
+        // (writing --solo-card-* mid-tween also jumps foundation↔tableau gap).
+        if (openingDealStartedRef.current) {
             return;
         }
-        Object.values(timelinesRef.current).forEach(tl => {
+        const prev = boardDimensionRef.current;
+        if (prev && soloBoardDimensionNearlyEqual(prev, dimension)) {
+            layoutStableCountRef.current += 1;
+            return;
+        }
+        layoutStableCountRef.current = 0;
+        Object.values(timelinesRef.current).forEach((tl) => {
             if (tl.timeline.isActive()) {
                 tl.timeline.invalidate();
             }
@@ -349,10 +362,13 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             res.events as Array<{ name?: string; cards?: Card[] }> | undefined
         );
         openingDealStartedRef.current = false;
+        layoutStableCountRef.current = 0;
+        setOpeningDealLayoutLocked(false);
         if (opening) {
             pendingLoadCompleteRef.current = true;
             setDealEvent(opening);
             setInteractionPhase(GameInteractionPhase.animating);
+            // Suppress model card snap while waiting for layout settle + deal start.
             setOpeningDealActive(true);
         } else {
             pendingLoadCompleteRef.current = false;
@@ -399,6 +415,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             res.events as Array<{ name?: string; cards?: Card[] }> | undefined
         );
         openingDealStartedRef.current = false;
+        layoutStableCountRef.current = 0;
+        setOpeningDealLayoutLocked(false);
         if (opening) {
             pendingLoadCompleteRef.current = true;
             setDealEvent(opening);
@@ -435,6 +453,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
 
     const finishOpeningDeal = useCallback(() => {
         openingDealStartedRef.current = false;
+        setOpeningDealLayoutLocked(false);
         setDealEvent(null);
         setOpeningDealActive(false);
         setInteractionPhase(GameInteractionPhase.idle);
@@ -583,7 +602,9 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         setGameState(null);
         setDealEvent(null);
         setOpeningDealActive(false);
+        setOpeningDealLayoutLocked(false);
         openingDealStartedRef.current = false;
+        layoutStableCountRef.current = 0;
         soloActLock.clear();
         autoCompleteLayoutGate.blocked = false;
         setInteractionPhase(GameInteractionPhase.idle);
@@ -638,8 +659,10 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
     }, [interactionPhase, openingDealActive, setInteractionPhase]);
 
     /**
-     * Play short opening deal once cards + board are mounted.
-     * Poll via rAF (board dim via ref) so ResizeObserver measure churn cannot cancel the wait.
+     * Play short opening deal once cards + board layout have settled.
+     * Wait for consecutive nearly-equal measures so --solo-card-* / zone Y are
+     * stable before reveal — otherwise deal starts on an early dim and the next
+     * RO pass flashes foundation↔tableau gap mid-tween.
      */
     useLayoutEffect(() => {
         if (!dealEvent || !gameState) return;
@@ -649,54 +672,73 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         let raf = 0;
         const startedAt = performance.now();
         const patches = dealEvent.cards;
+        /** Confirmations after the last dimension change (GamePlayer triple-rAF settle). */
+        const STABLE_NEEDED = 2;
 
         const tryStart = () => {
             if (cancelled || openingDealStartedRef.current) return;
             const dim = boardDimensionRef.current;
             // `ele` starts undefined — must use != null (!== null wrongly treats undefined as ready).
-            const ready =
-                !!dim &&
+            const cardsReady =
                 gameState.cards.length > 0 &&
                 gameState.cards.every((card) => card.ele != null && card.ele.isConnected);
-            if (!ready) {
-                if (performance.now() - startedAt > 8_000) {
+            const elapsed = performance.now() - startedAt;
+            const stable = layoutStableCountRef.current;
+            // Prefer 2 equal measures; soften after ~200ms / hard-fallback at 500ms
+            // so Loading never sticks if RO keeps tiny jitter.
+            const layoutReady =
+                !!dim &&
+                (stable >= STABLE_NEEDED ||
+                    (elapsed >= 200 && stable >= 1) ||
+                    elapsed >= 500);
+            if (!cardsReady || !layoutReady) {
+                if (elapsed > 8_000) {
                     console.warn('[SoloGameProvider] opening deal wait timed out');
-                    finishOpeningDeal();
+                    if (!(dim && cardsReady)) {
+                        finishOpeningDeal();
+                        return;
+                    }
+                    // Best-effort deal with current dim so the board is not stuck on Loading.
+                } else {
+                    raf = window.requestAnimationFrame(tryStart);
                     return;
                 }
-                raf = window.requestAnimationFrame(tryStart);
+            }
+
+            const settledDim = boardDimensionRef.current;
+            if (!settledDim) {
+                finishOpeningDeal();
                 return;
             }
 
             openingDealStartedRef.current = true;
+            // Lock measure before React re-render from setState below can race park.
+            setOpeningDealLayoutLocked(true);
             setOpeningDealActive(true);
             setInteractionPhase(GameInteractionPhase.animating);
-            // Drop Loading now so the deal is visible (not covered until onComplete).
-            revealBoardFromLoading();
 
-            const st = Number(gameState.status);
-            let animState = gameState;
-            if (st === SoloGameStatus.OPEN) {
-                animState = applyDealPatchesToGame(gameState, patches);
-                setGameState(animState);
-            }
-
+            // Keep OPEN model until deal finishes — applying DEALED/isRevealed early
+            // makes faces flash before the flip tween. Park cards (hidden) first,
+            // then cross-fade Loading; cascade starts after 2 rAFs (see dealOpening).
             AudioBus.emit("game.solitaire.deal.opening");
             dealEffect({
                 effectType: "opening",
                 timelines: timelinesRef.current,
                 data: {
                     cards: patches,
-                    gameState: animState,
+                    gameState,
                     boardDimensionRef,
-                    boardDimension: dim,
+                    boardDimension: settledDim,
+                    onParked: () => {
+                        revealBoardFromLoading();
+                    },
                 },
                 onComplete: () => {
-                    if (Number(animState.status) === SoloGameStatus.OPEN) {
-                        setGameState((prev) =>
-                            prev ? applyDealPatchesToGame(prev, patches) : prev
-                        );
-                    }
+                    setGameState((prev) =>
+                        prev && Number(prev.status) === SoloGameStatus.OPEN
+                            ? applyDealPatchesToGame(prev, patches)
+                            : prev
+                    );
                     finishOpeningDeal();
                 },
             });
@@ -726,6 +768,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         reloadCasualRun,
         skipOpeningDeal,
         openingDealActive,
+        openingDealLayoutLocked,
         saveUpdate,
         syncReplayState,
         syncReplayScore,

@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import {
   clampTargetRankToBand,
   rankBandFromScore,
   resolveEffectiveRank,
   scaleRankForMaxPlayers,
-} from "../soloRankBand";
+} from "../singleHumanRankBand";
 
 const BB_QUANTILES = {
   p10: 32,
@@ -19,7 +19,7 @@ const BB_QUANTILES = {
   p90: 280,
 };
 
-describe("soloRankBand", () => {
+describe("singleHumanRankBand", () => {
   it("scales reference ranks for maxPlayers=3", () => {
     expect(scaleRankForMaxPlayers(1, 3)).toBe(1);
     expect(scaleRankForMaxPlayers(3, 3)).toBe(2);

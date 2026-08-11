@@ -29,7 +29,7 @@ export const dealOpening = ({
     onComplete?.();
   };
 
-  const tl = gsap.timeline({ onComplete: finish });
+  const tl = gsap.timeline({ paused: true, onComplete: finish });
   if (timelines) {
     timelines.dealOpening = { timeline: tl, cards: patches };
   }
@@ -47,8 +47,15 @@ export const dealOpening = ({
   const cardW = boardDimension.cardWidth;
   const cardH = boardDimension.cardHeight;
 
-  // Park every live card on the talon first (stock + tableau) to avoid layout flash.
-  // Cards default to opacity:0 in CSS — must set autoAlpha + size before motion is visible.
+  const tableauPatches = patches.filter(
+    (c) =>
+      (c.zone === ZoneType.TABLEAU ||
+        String(c.zoneId ?? "").startsWith("tableau-")) &&
+      String(c.zoneId ?? "").startsWith("tableau-")
+  );
+  const movingIds = new Set(tableauPatches.map((c) => c.id));
+
+  // Park every live card on the talon, still hidden.
   for (const card of liveCards) {
     if (!card.ele?.isConnected) continue;
     gsap.set(card.ele, {
@@ -59,21 +66,28 @@ export const dealOpening = ({
       rotateZ: 0,
       rotateY: 0,
       scale: 1,
-      autoAlpha: 1,
+      autoAlpha: 0,
       zIndex: 5,
       force3D: true,
     });
   }
 
+  // Reveal board under Loading fade while cards are still invisible.
+  data.onParked?.();
+
+  // Stock (non-flying) appears as the deck when the cascade starts — not on the
+  // same paint as board reveal (see delayed tl.play below).
+  const stockEles = liveCards
+    .filter((c) => c.ele?.isConnected && !movingIds.has(c.id))
+    .map((c) => c.ele!);
+  if (stockEles.length) {
+    tl.set(stockEles, { autoAlpha: 1, zIndex: 5 }, 0);
+  }
+
   let tweenCount = 0;
   for (let col = 0; col < 7; col++) {
-    const columnPatches = patches
-      .filter(
-        (c) =>
-          (c.zone === ZoneType.TABLEAU ||
-            String(c.zoneId ?? "").startsWith("tableau-")) &&
-          c.zoneId === `tableau-${col}`
-      )
+    const columnPatches = tableauPatches
+      .filter((c) => c.zoneId === `tableau-${col}`)
       .sort((a, b) => a.zoneIndex - b.zoneIndex);
 
     columnPatches.forEach((patch, rowIndex) => {
@@ -81,6 +95,12 @@ export const dealOpening = ({
       if (!card?.ele?.isConnected) return;
       const delay = col * 0.07 + rowIndex * 0.035;
       tweenCount += 1;
+      // Show each card only when its fly starts — avoids a full-deck flash on talon.
+      tl.set(
+        card.ele,
+        { autoAlpha: 1, zIndex: patch.zoneIndex + 10 },
+        delay
+      );
       tl.to(
         card.ele,
         {
@@ -107,7 +127,8 @@ export const dealOpening = ({
   revealPatches.forEach((patch, index) => {
     const card = liveById.get(patch.id);
     if (!card?.ele?.isConnected) return;
-    popCard(card);
+    // Populate face glyphs just before the flip (not while parked face-down).
+    tl.call(() => popCard(card), undefined, `reveal+=${index * 0.07}`);
     tweenCount += 1;
     tl.to(
       card.ele,
@@ -126,5 +147,12 @@ export const dealOpening = ({
     return;
   }
 
-  tl.play();
+  // Let the board + Loading cross-fade paint one/two frames with an empty table
+  // before stock/cascade become visible — kills the start-of-deal screen flash.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!timelines?.dealOpening) return;
+      tl.play(0);
+    });
+  });
 };

@@ -13,7 +13,7 @@ const http = httpRouter();
 
 /**
  * 游戏服交分前解析桌型：daily / solo / mixed（不含 targetRank）。
- * mode=solo 时附带 `soloRankPlanning`（profile / rankCounts / rankRates），避免二次 HTTP。
+ * mode=single_human 时附带 `soloRankPlanning`（profile / rankCounts / rankRates），避免二次 HTTP。
  * Header `X-Casual-Bridge-Secret` 与 ingest 共用。
  */
 http.route({
@@ -255,7 +255,7 @@ http.route({
       submitCtx.isLastGame &&
       !submitCtx.botsSeeded &&
       submitCtx.maxPlayers > 1 &&
-      (submitCtx.mode === "solo" || submitCtx.mode === "mixed") &&
+      (submitCtx.mode === "single_human" || submitCtx.mode === "mixed") &&
       (!mergedBotFills || mergedBotFills.length === 0)
     ) {
       const humanFinishedAt = Date.now();

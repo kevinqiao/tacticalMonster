@@ -8,6 +8,8 @@ export type PortalLobbyOfferingView = {
   gameType: string | null;
   matchType: string | null;
   sortOrder: number;
+  /** Season honor level required to unlock; permanent once unlocked. */
+  unlockSeasonLevel?: number;
 };
 
 export type PortalLobbyView = {

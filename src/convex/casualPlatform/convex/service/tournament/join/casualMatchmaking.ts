@@ -188,7 +188,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
     if (effectiveHumans === 1) {
       await ctx.scheduler.runAfter(
         CASUAL_SOLO_ASYNC_OPEN_DELAY_MS,
-        internal.service.tournament.join.casualOpenTableActions.openSoloAsyncTableFromQueue,
+        internal.service.tournament.join.casualOpenTableActions.openSingleHumanAsyncTableFromQueue,
         { queueRowId }
       );
     } else {

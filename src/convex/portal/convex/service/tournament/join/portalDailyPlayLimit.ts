@@ -4,7 +4,11 @@ import type { Id } from "../../../_generated/dataModel";
 import type { QueryCtx } from "../../../_generated/server";
 import { internalQuery } from "../../../_generated/server";
 import { authedQuery } from "../../../custom/session";
-import { clampAdEntryDailyCap } from "../../../data/portalAdEntryConfig";
+import {
+  clampAdEntryDailyCap,
+  isUnlimitedAdEntryDailyCap,
+  resolveAdEntryEnabled,
+} from "../../../data/portalAdEntryConfig";
 import {
   getPortalDailyPlayLimits,
   type PortalDailyPlayLimits,
@@ -240,7 +244,14 @@ export async function assertPortalDailyPlayLimit(
   }
 ): Promise<
   | { ok: true }
-  | { ok: false; error: "daily_play_limit_reached" | "solo_success_daily_cap_reached" }
+  | {
+      ok: false;
+      error:
+        | "daily_play_limit_reached"
+        | "ad_entry_required"
+        | "ticket_entry_required"
+        | "solo_success_daily_cap_reached";
+    }
 > {
   const def = getPortalTournamentDefinition(args.templateId);
   if (!def) return { ok: true };
@@ -284,7 +295,11 @@ export async function assertPortalDailyPlayLimit(
     mode === "solo" ? settings.adEntrySoloDailyCap : settings.adEntryMultiDailyCap,
     mode
   );
-  const ticketCap = ticketConfigFromSettings(settings, mode).dailyCap;
+  const adEnabled =
+    resolveAdEntryEnabled(settings.adEntryEnabled, mode) && adCap > 0;
+  const ticketCfg = ticketConfigFromSettings(settings, mode);
+  const ticketCap = ticketCfg.dailyCap;
+  const ticketEnabled = ticketCfg.enabled && ticketCap > 0;
   const dayKey = dailyPeriodKey(args.nowMs ?? Date.now());
   const [adUsed, ticketUsed] = await Promise.all([
     readAdEntryUsedToday(ctx, args.uid, dayKey, mode, entryCtx, quotaScope),
@@ -306,29 +321,43 @@ export async function assertPortalDailyPlayLimit(
     dayTimezone: args.dayTimezone,
   });
 
-  // Absolute ladder ceiling (free + ad + ticket caps).
-  const hardMax = freeCap + adCap + ticketCap;
-  if (playsToday >= hardMax) {
-    return { ok: false, error: "daily_play_limit_reached" };
-  }
-
   if (entryLane === "free") {
     // Strict free lane: do not let prior ad/ticket usage unlock extra free joins.
     if (playsToday >= freeCap) {
+      // Free gone but ad/ticket still open — distinct code so FE can escalate
+      // instead of showing a hard "come back tomorrow" dead-end.
+      if (
+        adEnabled &&
+        (isUnlimitedAdEntryDailyCap(adCap) || adUsed < adCap)
+      ) {
+        return { ok: false, error: "ad_entry_required" };
+      }
+      if (ticketEnabled && ticketUsed < ticketCap) {
+        return { ok: false, error: "ticket_entry_required" };
+      }
       return { ok: false, error: "daily_play_limit_reached" };
     }
     return { ok: true };
   }
 
-  // Ad/ticket lane (begin before consume, or open-table after consume).
+  // Ad/ticket lanes: only the lane usage counter matters.
+  // Do NOT gate on playsToday>=free+ad — orphan / cross-bucket ladder rows
+  // inflate playsToday while adEntryOffer.remaining still looks healthy, which
+  // was surfacing as daily_play_limit_reached despite unused ad entry.
   if (entryLane === "ad") {
-    if (adUsed + pendingAd > adCap) {
+    if (!adEnabled) {
+      return { ok: false, error: "daily_play_limit_reached" };
+    }
+    if (
+      !isUnlimitedAdEntryDailyCap(adCap) &&
+      adUsed + pendingAd > adCap
+    ) {
       return { ok: false, error: "daily_play_limit_reached" };
     }
     return { ok: true };
   }
 
-  if (ticketUsed + pendingTicket > ticketCap) {
+  if (!ticketEnabled || ticketUsed + pendingTicket > ticketCap) {
     return { ok: false, error: "daily_play_limit_reached" };
   }
   return { ok: true };

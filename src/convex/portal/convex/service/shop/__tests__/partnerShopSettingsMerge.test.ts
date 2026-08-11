@@ -97,4 +97,40 @@ describe("mergePartnerShopSettingsRows", () => {
     expect(merged?.checkinEnabled).toBe(false);
     expect(merged?.virtualEnabled).toBe(false);
   });
+
+  it("merges checkinRewardKind and checkinRewards field-wise", () => {
+    const merged = mergePartnerShopSettingsRows(
+      1,
+      {
+        enabled: true,
+        giftCardsEnabled: true,
+        virtualEnabled: true,
+        checkinEnabled: true,
+        checkinRewardKind: "tickets",
+        checkinRewards: { baseTickets: 2, baseCoins: 10 },
+        assortmentMode: "all_shared",
+        skuIds: [],
+        excludeSkuIds: [],
+        overrides: {},
+        updatedAt: 1,
+      },
+      {
+        enabled: true,
+        giftCardsEnabled: true,
+        virtualEnabled: true,
+        checkinRewardKind: "both",
+        checkinRewards: { baseCoins: 50 },
+        assortmentMode: "all_shared",
+        skuIds: [],
+        excludeSkuIds: [],
+        overrides: {},
+        updatedAt: 2,
+      }
+    );
+    expect(merged?.checkinRewardKind).toBe("both");
+    expect(merged?.checkinRewards).toEqual({
+      baseTickets: 2,
+      baseCoins: 50,
+    });
+  });
 });

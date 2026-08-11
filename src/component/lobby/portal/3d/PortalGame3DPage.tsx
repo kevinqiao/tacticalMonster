@@ -104,6 +104,10 @@ const PortalGame3DPage: React.FC<PortalGame3DPageProps> = ({ visible }) => {
           multiTicketEntryRemaining={ctrl.multiTicketEntryRemaining}
           soloShowHomeLadderCta={ctrl.soloShowHomeLadderCta}
           multiShowHomeLadderCta={ctrl.multiShowHomeLadderCta}
+          singleMultiRankRewardsTournamentId={
+            ctrl.singleMultiRankRewardsTournamentId
+          }
+          onOpenMultiRankRewards={ctrl.openRankRewards}
           queueWaiting={ctrl.queueWaiting}
           weekEndsAt={portal.weekEndsAt}
           onJoin={(mode) => void ctrl.handleJoin(mode)}

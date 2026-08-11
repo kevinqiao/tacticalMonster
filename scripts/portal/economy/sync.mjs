@@ -107,6 +107,11 @@ function validate(eco) {
   assert(isPosInt(sh.seasonWeeks) && sh.seasonWeeks > 0, "seasonHonor.seasonWeeks");
   assert(isPosInt(sh.maxLevel) && sh.maxLevel > 0, "seasonHonor.maxLevel");
   assert(Array.isArray(sh.levelXp) && sh.levelXp.length === sh.maxLevel + 1, "seasonHonor.levelXp length");
+  assert(isPosInt(sh.dailyWinXpCap), "seasonHonor.dailyWinXpCap");
+  assert(
+    sh.dailyPlayXpCap === null || isPosInt(sh.dailyPlayXpCap),
+    "seasonHonor.dailyPlayXpCap (number or null=unlimited)"
+  );
 
   const wl = eco.weeklyLeague;
   assert(typeof wl?.enabled === "boolean", "weeklyLeague.enabled");
@@ -125,6 +130,7 @@ function validate(eco) {
   const dc = eco.dailyCheckin;
   assert(typeof dc?.enabled === "boolean", "dailyCheckin.enabled");
   assert(isPosInt(dc.baseTickets) && dc.baseTickets > 0, "dailyCheckin.baseTickets");
+  assert(isPosInt(dc.baseCoins) && dc.baseCoins > 0, "dailyCheckin.baseCoins");
   assert(
     isPosInt(dc.streakCycleDays) && dc.streakCycleDays > 0,
     "dailyCheckin.streakCycleDays"
@@ -136,6 +142,14 @@ function validate(eco) {
   );
   for (const n of dc.streakBonusTickets) {
     assert(isPosInt(n), "dailyCheckin.streakBonusTickets entries");
+  }
+  assert(
+    Array.isArray(dc.streakBonusCoins) &&
+      dc.streakBonusCoins.length === dc.streakCycleDays,
+    "dailyCheckin.streakBonusCoins length"
+  );
+  for (const n of dc.streakBonusCoins) {
+    assert(isPosInt(n), "dailyCheckin.streakBonusCoins entries");
   }
 
   const pd = eco.playDefaults;
@@ -383,7 +397,10 @@ export const PORTAL_SEASON_XP_PLAY = ${sh.xpPlay};
 export const PORTAL_SEASON_XP_WEEK_SETTLE = ${sh.xpWeekSettle};
 export const PORTAL_SEASON_XP_WEEK_PROMOTE = ${sh.xpWeekPromote};
 export const PORTAL_SEASON_DAILY_WIN_XP_CAP = ${sh.dailyWinXpCap};
-export const PORTAL_SEASON_DAILY_PLAY_XP_CAP = ${sh.dailyPlayXpCap};
+/** null = unlimited play XP per day */
+export const PORTAL_SEASON_DAILY_PLAY_XP_CAP: number | null = ${
+    sh.dailyPlayXpCap === null ? "null" : sh.dailyPlayXpCap
+  };
 
 // --- weekly league (economy) ---
 export const PORTAL_WEEKLY_LEAGUE_ENABLED = ${wl.enabled};
@@ -397,11 +414,13 @@ export const PORTAL_AD_COIN_DAILY_CAP = ${ac.dailyCap};
 export const PORTAL_AD_COIN_SESSION_TTL_MS = ${ac.sessionTtlMs};
 export const PORTAL_AD_COIN_CHANNELS = ${tsStringArray(ac.channels)} as const;
 
-// --- daily check-in (tickets) ---
+// --- daily check-in (tickets / coins) ---
 export const PORTAL_DAILY_CHECKIN_ENABLED = ${dc.enabled};
 export const PORTAL_DAILY_CHECKIN_BASE_TICKETS = ${dc.baseTickets};
 export const PORTAL_DAILY_CHECKIN_STREAK_CYCLE_DAYS = ${dc.streakCycleDays};
 export const PORTAL_DAILY_CHECKIN_STREAK_BONUS_TICKETS = ${tsNumberArray(dc.streakBonusTickets)} as const;
+export const PORTAL_DAILY_CHECKIN_BASE_COINS = ${dc.baseCoins};
+export const PORTAL_DAILY_CHECKIN_STREAK_BONUS_COINS = ${tsNumberArray(dc.streakBonusCoins)} as const;
 
 // --- play defaults: free ---
 export const PORTAL_DAILY_PLAY_LIMITS = {

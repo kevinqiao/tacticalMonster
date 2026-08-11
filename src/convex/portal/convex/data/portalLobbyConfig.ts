@@ -36,6 +36,11 @@ export type PortalLobbyOffering = {
     };
   };
   enabled?: boolean;
+  /**
+   * Season honor level required to unlock this offering.
+   * Once unlocked for a player+lobby it stays permanently (survives season reset).
+   */
+  unlockSeasonLevel?: number;
 };
 
 /** Platform / multi-game lobby wordmark (4-game collection sticker). */

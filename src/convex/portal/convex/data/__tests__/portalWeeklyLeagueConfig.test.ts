@@ -56,10 +56,11 @@ describe("portalWeeklyLeagueConfig", () => {
   });
 
   it("projected coins scale by tier", () => {
-    expect(portalWeeklyLeagueProjectedCoins("bronze", 1)).toBe(200);
-    expect(portalWeeklyLeagueProjectedCoins("diamond", 1)).toBe(1200);
-    expect(portalWeeklyLeagueProjectedCoins("bronze", 8)).toBe(60);
-    expect(portalWeeklyLeagueProjectedCoins("bronze", 22)).toBe(20);
+    expect(portalWeeklyLeagueProjectedCoins("bronze", 1)).toBe(120);
+    expect(portalWeeklyLeagueProjectedCoins("diamond", 1)).toBe(300);
+    expect(portalWeeklyLeagueProjectedCoins("bronze", 8)).toBe(50);
+    expect(portalWeeklyLeagueProjectedCoins("bronze", 9)).toBeNull();
+    expect(portalWeeklyLeagueProjectedCoins("bronze", 22)).toBeNull();
     expect(portalWeeklyLeagueProjectedCoins("bronze", 23)).toBeNull();
   });
 

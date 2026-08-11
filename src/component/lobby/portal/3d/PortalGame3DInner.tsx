@@ -20,7 +20,12 @@ import { isFinitePortalAdEntryCap } from "../shared/portalAdEntryQuota";
 import { formatWeekRemaining } from "./portalGame3DFormatters";
 
 /** 统一规则弹窗的定位锚点：solo/multi 定位到积分段的对应模式卡 */
-export type Portal3DRulesAnchor = "solo" | "multi" | "tiers" | "rewards";
+export type Portal3DRulesAnchor =
+  | "solo"
+  | "multi"
+  | "tiers"
+  | "rewards"
+  | "season";
 
 export interface Portal3DTierInfo {
   tierId: PortalTierId;
@@ -108,6 +113,11 @@ export interface PortalGame3DInnerProps {
    */
   soloShowHomeLadderCta?: boolean;
   multiShowHomeLadderCta?: boolean;
+  /**
+   * Exactly one multi offering (picker skipped) — show All-ranks entry on Arena card.
+   */
+  singleMultiRankRewardsTournamentId?: string | null;
+  onOpenMultiRankRewards?: (tournamentId: string) => void;
   queueWaiting?: boolean;
   weekEndsAt?: number | null;
   bgUrl?: string;
@@ -129,7 +139,7 @@ export interface PortalGame3DInnerProps {
   showAuthMenuActions?: boolean;
   /** Open My Account panel (authed avatar click). */
   onOpenAccount?: () => void;
-  /** Open account scrolled to badges (season bar tap). */
+  /** @deprecated Season bar opens rules; kept for preview wiring. */
   onOpenBadges?: () => void;
   /** 未领取的周联赛金币；有值时在段位条显示「待领」胶囊 */
   unclaimedRewards?: PortalWeeklyLeagueUnclaimedRewards | null;
@@ -173,6 +183,8 @@ export function PortalGame3DInner({
   multiTicketEntryRemaining,
   soloShowHomeLadderCta = false,
   multiShowHomeLadderCta = false,
+  singleMultiRankRewardsTournamentId = null,
+  onOpenMultiRankRewards,
   queueWaiting = false,
   weekEndsAt,
   bgUrl,
@@ -715,8 +727,8 @@ export function PortalGame3DInner({
           <button
             type="button"
             className={styles.seasonProgressBar}
-            onClick={() => onOpenBadges?.()}
-            aria-label="Season progress"
+            onClick={() => onOpenRules?.("season")}
+            aria-label={t("rules.season.title")}
           >
             <span className={styles.seasonProgressLabel}>
               Season{" "}
@@ -916,6 +928,20 @@ export function PortalGame3DInner({
                     </span>
                   )}
                 </div>
+                {singleMultiRankRewardsTournamentId &&
+                onOpenMultiRankRewards &&
+                !multiOpenAssignment ? (
+                  <button
+                    type="button"
+                    className={styles.modeRankRewardsLink}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenMultiRankRewards(singleMultiRankRewardsTournamentId);
+                    }}
+                  >
+                    {t("lobby.allRanks")}
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>

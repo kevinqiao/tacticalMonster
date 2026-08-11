@@ -663,19 +663,16 @@
     align-self: stretch;
     box-sizing: border-box;
     /*
-      间距随牌桌容器（solo-play）与牌面尺寸缩放：
-      --solo-card-* 由 measureBoardDimension 写入；未测到前用 cqi/cqh 兜底。
+      列间距可随牌宽微调；foundation↔tableau 行距只跟容器高度（cqh），
+      不跟 --solo-card-height，避免测牌写变量时 row-gap 连环跳动闪屏。
+      --solo-card-* 由 measureBoardDimension 写入。
     */
     --solo-zone-gap: clamp(
         4px,
         max(1.4cqi, calc(var(--solo-card-width, 56px) * 0.12)),
         20px
     );
-    --solo-foundation-tableau-gap: clamp(
-        14px,
-        max(4.5cqh, calc(var(--solo-card-height, 78px) * 0.18)),
-        44px
-    );
+    --solo-foundation-tableau-gap: clamp(14px, 4.5cqh, 36px);
     --solo-board-w-h-ratio: 1;
     width: 100%;
     max-width: 100%;
@@ -697,11 +694,8 @@
             max(0.8cqi, calc(var(--solo-card-width, 56px) * 0.06)),
             10px
         );
-        --solo-foundation-tableau-gap: clamp(
-            10px,
-            max(3cqh, calc(var(--solo-card-height, 78px) * 0.14)),
-            28px
-        );
+        /* Still cqh-only — no card-height feedback. */
+        --solo-foundation-tableau-gap: clamp(10px, 3.2cqh, 24px);
     }
 
     .solo-board-surface .tableau-column {
@@ -709,7 +703,7 @@
     }
 }
 
-/* 手机横屏：略收紧，但仍保留 foundation 与 tableau 可读间距 */
+/* 手机横屏：略收紧；用 clamp 过渡，避免 max-height 断点硬跳 12px */
 @media (orientation: landscape) and (max-height: 500px) {
     .solo-game-header {
         min-height: 36px;
@@ -730,8 +724,8 @@
 
     .solo-board-surface {
         --solo-board-w-h-ratio: 1;
-        --solo-zone-gap: 3px;
-        --solo-foundation-tableau-gap: 12px;
+        --solo-zone-gap: clamp(2px, 0.8cqi, 6px);
+        --solo-foundation-tableau-gap: clamp(10px, 3cqh, 16px);
         padding: 3px 4px;
     }
 
@@ -1033,12 +1027,12 @@
     }
 }
 
-/* 悬停区域 */
+/* 悬停区域：勿 transition:all，否则测牌改宽高/间距时会拖出 0.2s 闪动 */
 .foundation-zone,
 .talon-zone,
 .waste-zone,
 .tableau-column {
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
     z-index: 1;
     /* 确保区域容器的z-index较低 */
 }

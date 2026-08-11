@@ -240,6 +240,7 @@ export async function portalVoucherOp(target, partnerId, operation, fields = {})
 }
 
 function shopSettingsBody(settings) {
+  const kind = settings.checkinRewardKind;
   return {
     enabled: settings.enabled,
     giftCardsEnabled: settings.giftCardsEnabled,
@@ -248,6 +249,14 @@ function shopSettingsBody(settings) {
     adCoinEnabled: settings.adCoinEnabled,
     iapEnabled: settings.iapEnabled !== false,
     checkinEnabled: settings.checkinEnabled !== false,
+    checkinRewardKind:
+      kind === "coins" || kind === "both" || kind === "tickets"
+        ? kind
+        : "tickets",
+    checkinRewards:
+      settings.checkinRewards && typeof settings.checkinRewards === "object"
+        ? settings.checkinRewards
+        : {},
     assortmentMode: settings.assortmentMode,
     skuIds: settings.skuIds,
     excludeSkuIds: settings.excludeSkuIds,

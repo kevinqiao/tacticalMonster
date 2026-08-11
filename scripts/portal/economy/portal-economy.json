@@ -103,27 +103,27 @@
       0, 0, 8, 18, 30, 44, 60, 78, 98, 120, 144, 172, 204, 240, 280, 324, 372,
       424, 480, 540, 604, 674, 750, 832, 920, 1014, 1114, 1220, 1332, 1450, 1574
     ],
-    "xpWin": 4,
-    "xpPlay": 1,
+    "xpWin": 2,
+    "xpPlay": 2,
     "xpWeekSettle": 20,
     "xpWeekPromote": 40,
     "dailyWinXpCap": 24,
-    "dailyPlayXpCap": 10
+    "dailyPlayXpCap": null
   },
   "weeklyLeague": {
     "enabled": true,
     "cohortSize": 30,
     "projectedCoins": {
-      "bronze": { "r1": 200, "r2_3": 120, "r4_8": 60, "r9_22": 20 },
-      "silver": { "r1": 300, "r2_3": 180, "r4_8": 90, "r9_22": 30 },
-      "gold": { "r1": 500, "r2_3": 300, "r4_8": 150, "r9_22": 50 },
-      "platinum": { "r1": 800, "r2_3": 480, "r4_8": 240, "r9_22": 80 },
-      "diamond": { "r1": 1200, "r2_3": 720, "r4_8": 360, "r9_22": 120 }
+      "bronze": { "r1": 120, "r2_3": 80, "r4_8": 50, "r9_22": 0 },
+      "silver": { "r1": 150, "r2_3": 100, "r4_8": 65, "r9_22": 0 },
+      "gold": { "r1": 200, "r2_3": 120, "r4_8": 80, "r9_22": 0 },
+      "platinum": { "r1": 250, "r2_3": 140, "r4_8": 100, "r9_22": 0 },
+      "diamond": { "r1": 300, "r2_3": 180, "r4_8": 120, "r9_22": 0 }
     }
   },
   "adCoin": {
     "enabled": true,
-    "rewardAmount": 30,
+    "rewardAmount": 3,
     "dailyCap": 5,
     "sessionTtlMs": 120000,
     "channels": ["partner", "poki", "dev", "crazygames"]
@@ -132,7 +132,9 @@
     "enabled": true,
     "baseTickets": 1,
     "streakCycleDays": 7,
-    "streakBonusTickets": [0, 0, 1, 0, 0, 1, 2]
+    "streakBonusTickets": [0, 0, 1, 0, 0, 1, 2],
+    "baseCoins": 30,
+    "streakBonusCoins": [0, 0, 15, 0, 0, 15, 30]
   },
   "playDefaults": {
     "freePlay": {

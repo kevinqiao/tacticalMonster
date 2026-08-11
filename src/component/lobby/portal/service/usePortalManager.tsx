@@ -71,6 +71,8 @@ export type PortalGameHistoryRow = {
   pointDelta?: number | null;
   /** Coin payout from template rewards (coin multi / solo coin tables). */
   coinsGranted?: number | null;
+  /** Season honor XP granted at settle. */
+  xpGranted?: number | null;
   weeklyPointsAfter?: number | null;
   /** 单人挑战目标分 */
   seedScoreThreshold?: number | null;
@@ -127,6 +129,8 @@ export type PortalWeeklyLeagueTierView = {
   unreadSeasonMarks?: boolean;
   unreadSeasonId?: string | null;
   unreadSeasonLevel?: number | null;
+  /** Permanently unlocked lobby tournamentIds (survives season reset). */
+  unlockedTournamentIds?: string[];
 };
 
 export type PortalWeeklyLeagueUnclaimedRewards = {
@@ -308,10 +312,18 @@ export type PortalDailyCheckinStatus = {
   streakCount: number;
   dayInCycle: number;
   streakCycleDays: number;
+  rewardKind: "tickets" | "coins" | "both";
+  rewardAmount: number;
   rewardTickets: number;
+  rewardCoins: number;
+  cycleRewardTickets: number[];
+  cycleRewardCoins: number[];
+  /** Compat primary cycle (tickets / coins / coins when both). */
   cycleRewards: number[];
   baseTickets: number;
+  baseCoins: number;
   streakBonusTickets: number[];
+  streakBonusCoins: number[];
 };
 
 type PortalDataSnapshot = {
@@ -409,7 +421,10 @@ type PortalContextValue = {
   claimDailyCheckin: () => Promise<
     | {
         ok: true;
+        rewardKind?: "tickets" | "coins" | "both";
+        amountGranted?: number;
         ticketsGranted: number;
+        coinsGranted?: number;
         streakCount: number;
         dayInCycle: number;
         alreadyClaimed?: boolean;
@@ -851,6 +866,31 @@ export const PortalProvider: React.FC<{
           patchData({ dailyCheckin: null });
           return;
         }
+        const rewardKind =
+          r.rewardKind === "coins" || r.rewardKind === "both"
+            ? r.rewardKind
+            : ("tickets" as const);
+        const rewardTickets = Math.max(0, Math.floor(r.rewardTickets ?? 0));
+        const rewardCoins = Math.max(0, Math.floor(r.rewardCoins ?? 0));
+        const rewardAmount = Math.max(
+          0,
+          Math.floor(r.rewardAmount ?? rewardTickets + rewardCoins)
+        );
+        const cycleRewardTickets = Array.isArray(r.cycleRewardTickets)
+          ? r.cycleRewardTickets.map((n) => Math.max(0, Math.floor(n ?? 0)))
+          : Array.isArray(r.cycleRewards) && rewardKind === "tickets"
+            ? r.cycleRewards.map((n) => Math.max(0, Math.floor(n ?? 0)))
+            : [];
+        const cycleRewardCoins = Array.isArray(r.cycleRewardCoins)
+          ? r.cycleRewardCoins.map((n) => Math.max(0, Math.floor(n ?? 0)))
+          : Array.isArray(r.cycleRewards) && rewardKind !== "tickets"
+            ? r.cycleRewards.map((n) => Math.max(0, Math.floor(n ?? 0)))
+            : [];
+        const cycleRewards = Array.isArray(r.cycleRewards)
+          ? r.cycleRewards.map((n) => Math.max(0, Math.floor(n ?? 0)))
+          : rewardKind === "tickets"
+            ? cycleRewardTickets
+            : cycleRewardCoins;
         patchData({
           dailyCheckin: {
             enabled: true,
@@ -860,13 +900,20 @@ export const PortalProvider: React.FC<{
             streakCount: Math.max(0, Math.floor(r.streakCount ?? 0)),
             dayInCycle: Math.max(1, Math.floor(r.dayInCycle ?? 1)),
             streakCycleDays: Math.max(1, Math.floor(r.streakCycleDays ?? 7)),
-            rewardTickets: Math.max(0, Math.floor(r.rewardTickets ?? 0)),
-            cycleRewards: Array.isArray(r.cycleRewards)
-              ? r.cycleRewards.map((n) => Math.max(0, Math.floor(n ?? 0)))
-              : [],
+            rewardKind,
+            rewardAmount,
+            rewardTickets,
+            rewardCoins,
+            cycleRewardTickets,
+            cycleRewardCoins,
+            cycleRewards,
             baseTickets: Math.max(0, Math.floor(r.baseTickets ?? 0)),
+            baseCoins: Math.max(0, Math.floor(r.baseCoins ?? 0)),
             streakBonusTickets: Array.isArray(r.streakBonusTickets)
               ? r.streakBonusTickets.map((n) => Math.max(0, Math.floor(n ?? 0)))
+              : [],
+            streakBonusCoins: Array.isArray(r.streakBonusCoins)
+              ? r.streakBonusCoins.map((n) => Math.max(0, Math.floor(n ?? 0)))
               : [],
           },
         });
@@ -1620,7 +1667,10 @@ export const PortalProvider: React.FC<{
       })) as
         | {
             ok: true;
+            rewardKind?: "tickets" | "coins" | "both";
+            amountGranted?: number;
             ticketsGranted: number;
+            coinsGranted?: number;
             streakCount: number;
             dayInCycle: number;
             alreadyClaimed?: boolean;

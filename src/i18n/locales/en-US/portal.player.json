@@ -32,6 +32,13 @@
     "prizeTopPoints": "1st place points",
     "prizeTopCoins": "1st place coins",
     "prizeTopPointsAndCoins": "1st place points / coins",
+    "allRanks": "All ranks",
+    "rankRewards": "Rank rewards",
+    "rankRewardsTitle": "Rewards · {{name}}",
+    "rankRewardsEntry": "Entry: 🪙 {{amount}}",
+    "rankRewardsRank": "Rank",
+    "rankRewardsPoints": "Points",
+    "rankRewardsCoins": "Coins",
     "entryFee": "Entry",
     "entryFree": "Free",
     "entryFreeAndAd": "Free/Ad",
@@ -143,6 +150,7 @@
     "rank": "Rank {{rank}}",
     "points": "{{delta}} pts",
     "coins": "{{coins}} coins",
+    "xp": "{{xp}} XP",
     "pendingSettlement": "Awaiting settlement",
     "report": "Report",
     "matchTypes": {
@@ -238,20 +246,26 @@
     "checkin": {
       "title": "Daily check-in",
       "hint": "Check in daily for tickets. Miss a day and the streak resets.",
+      "hintCoins": "Check in daily for coins. Miss a day and the streak resets.",
+      "hintBoth": "Check in daily for tickets and coins. Miss a day and the streak resets.",
       "day": "Day {{day}}",
       "streak": "{{streak}}-day streak",
       "claimedToday": "Checked in today",
       "claim": "Check in +{{tickets}} tickets",
+      "claimCoins": "Check in +{{coins}} coins",
+      "claimBoth": "Check in +{{tickets}} tickets +{{coins}} coins",
       "claiming": "Claiming…",
       "claimed": "Checked in",
       "alreadyClaimed": "Already claimed today's check-in",
       "success": "Checked in — earned {{tickets}} tickets",
+      "successCoins": "Checked in — earned {{coins}} coins",
+      "successBoth": "Checked in — earned {{tickets}} tickets and {{coins}} coins",
       "errors": {
         "generic": "Couldn't check in. Try again later.",
         "disabled": "Daily check-in is unavailable",
         "lobby_required_for_isolated_economy": "Enter a lobby to check in",
         "no_player": "Player not ready. Try again.",
-        "grant_failed": "Couldn't grant tickets. Try again.",
+        "grant_failed": "Couldn't grant the reward. Try again.",
         "no_auth": "Please sign in first",
         "claim_failed": "Couldn't check in. Try again."
       }
@@ -346,8 +360,8 @@
       "intro": "Both modes feed the <strong>same weekly total</strong>. Your total determines your rank within this week's group.",
       "soloTitle": "🎯 Solo Challenge",
       "soloBullets": [
-        "Each run has a seed P75 <strong>target score</strong>;",
-        "Hit target: <strong class=\"portal-rules-pos\">+3 pts</strong>, miss: <strong class=\"portal-rules-neg\">-1 pt</strong>;",
+        "Each run has a <strong>target score</strong>;",
+        "Hit target: <strong class=\"portal-rules-pos\">+3 pts</strong>, miss: <strong>0 pts</strong>;",
         "Runs that time out count as a miss."
       ],
       "multiTitle": "⚔️ Arena",
@@ -386,6 +400,16 @@
         "Spend coins in the <strong>redemption shop</strong>;",
         "Reset timing follows the <strong>time left this week</strong> on the home screen;",
         "Reward values follow the current season config."
+      ]
+    },
+    "season": {
+      "title": "Season level",
+      "intro": "The season bar tracks <strong>Season XP</strong> and level. It is separate from weekly points and your weekly tier.",
+      "bullets": [
+        "Each season lasts <strong>{{weeks}} weeks</strong>. Level up from Lv 1 to <strong>Lv {{maxLevel}}</strong> by earning Season XP;",
+        "Each finished run grants Season XP <strong class=\"portal-rules-pos\">+{{xpPlay}}</strong> (win or lose; no daily cap);",
+        "At weekly settle you get <strong class=\"portal-rules-pos\">+{{xpWeekSettle}} XP</strong>; promoting in your group adds <strong class=\"portal-rules-pos\">+{{xpWeekPromote}} XP</strong>;",
+        "When a season ends, your level resets and unlocked season marks stay in <strong>Badges</strong>."
       ]
     }
   }

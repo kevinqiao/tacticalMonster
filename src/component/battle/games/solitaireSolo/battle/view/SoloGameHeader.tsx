@@ -30,6 +30,11 @@ export interface SoloGameHeaderProps {
     targetScoreP90?: number;
     /** 开盘目标飞入动画按局去重 */
     gameKey?: string;
+    /**
+     * True while opening deal is pending/running — hold the target intro until
+     * deal finishes so it does not overlap the cascade.
+     */
+    deferTargetIntro?: boolean;
     /** 倒计时归零时触发强制结束（与 useActHandler 定时器互为兜底） */
     onMatchTimeout?: () => void;
 }
@@ -42,6 +47,7 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
     targetScoreP75,
     targetScoreP90,
     gameKey = "",
+    deferTargetIntro = false,
     onMatchTimeout,
 }) => {
     const { t } = useTranslation("shared.casual");
@@ -123,6 +129,12 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
             setIntroVisible(false);
             return;
         }
+        // Wait for opening deal to finish before flying the goal into the HUD.
+        if (deferTargetIntro) {
+            setTargetSettled(false);
+            setIntroVisible(false);
+            return;
+        }
         const slotEl = targetSlotRef.current;
         const flyEl = flyRef.current;
         if (!slotEl || !flyEl) return;
@@ -151,7 +163,7 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
                 setIntroVisible(false);
             }
         };
-    }, [hasTarget, gameKey, introKey]);
+    }, [hasTarget, gameKey, introKey, deferTargetIntro]);
 
     const timerText =
         remainingSec != null ? formatMatchRemainingSec(remainingSec) : null;

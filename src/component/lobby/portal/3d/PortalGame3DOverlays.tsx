@@ -25,6 +25,7 @@ import type { PortalTierId } from "./portalGame3DTheme";
 
 import type { usePortalGame3DController } from "./usePortalGame3DController";
 import PortalTournamentPickerModal from "../PortalTournamentPickerModal";
+import { PortalMultiRankRewardsSheet } from "../PortalMultiRankRewardsSheet";
 
 type Controller = ReturnType<typeof usePortalGame3DController>;
 
@@ -83,6 +84,10 @@ export function PortalGame3DOverlays({
     tournamentPicker,
     closeTournamentPicker,
     selectTournamentFromPicker,
+    rankRewardsTournamentId,
+    rankRewardsTitleOverride,
+    openRankRewards,
+    closeRankRewards,
   } = ctrl;
 
   // Creating copy: solo/multi open-play bridge, or multi queue claiming. Multi join/wait → Matching.
@@ -138,6 +143,17 @@ export function PortalGame3DOverlays({
         }
         onSelect={selectTournamentFromPicker}
         onClose={closeTournamentPicker}
+        onOpenRankRewards={
+          (tournamentPicker?.mode ?? "solo") === "multi"
+            ? openRankRewards
+            : undefined
+        }
+      />
+      <PortalMultiRankRewardsSheet
+        open={rankRewardsTournamentId != null}
+        tournamentId={rankRewardsTournamentId}
+        titleOverride={rankRewardsTitleOverride}
+        onClose={closeRankRewards}
       />
       <CasualPlayMatchOverlay
         className="portal-3d-match-overlay"

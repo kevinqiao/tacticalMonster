@@ -52,12 +52,19 @@ export async function fetchCasualMatchSubmitContext(args: {
     };
   }
 
-  const mode = parsed.mode;
-  if (mode !== "daily" && mode !== "solo" && mode !== "mixed") {
+  const rawMode = parsed.mode;
+  // Legacy wire: `"solo"` = single human in async multi (not Solo Challenge).
+  const mode =
+    rawMode === "solo"
+      ? "single_human"
+      : rawMode === "daily" || rawMode === "single_human" || rawMode === "mixed"
+        ? rawMode
+        : null;
+  if (mode == null) {
     return { ok: false, error: "bad_resolve_mode" };
   }
 
-  if (mode === "solo") {
+  if (mode === "single_human") {
     const planning = parsed.soloRankPlanning;
     if (!planning || typeof planning !== "object") {
       return { ok: false, error: "missing_solo_rank_planning" };
@@ -70,6 +77,6 @@ export async function fetchCasualMatchSubmitContext(args: {
 
   return {
     ok: true,
-    context: parsed as unknown as ResolveSubmitContext,
+    context: { ...parsed, mode } as unknown as ResolveSubmitContext,
   };
 }

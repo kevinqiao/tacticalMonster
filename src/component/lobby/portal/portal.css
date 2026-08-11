@@ -159,6 +159,11 @@
   contain: layout style paint;
 }
 
+/* Nested sheet above another portal modal (e.g. rank rewards over picker). */
+.portal-modal-overlay--stacked {
+  z-index: 10040;
+}
+
 .portal-modal-shell {
   position: relative;
   z-index: 1;

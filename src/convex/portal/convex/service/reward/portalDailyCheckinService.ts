@@ -2,15 +2,26 @@ import { internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import {
+  checkinAmountsForKind,
+  checkinCycleRewardCoins,
   checkinCycleRewardTickets,
   checkinDayInCycle,
-  checkinTicketsForStreak,
+  checkinOptsFromRewards,
+  PORTAL_DAILY_CHECKIN_BASE_COINS,
   PORTAL_DAILY_CHECKIN_BASE_TICKETS,
   PORTAL_DAILY_CHECKIN_ENABLED,
+  PORTAL_DAILY_CHECKIN_STREAK_BONUS_COINS,
   PORTAL_DAILY_CHECKIN_STREAK_BONUS_TICKETS,
   PORTAL_DAILY_CHECKIN_STREAK_CYCLE_DAYS,
+  type CheckinAmountOpts,
+  type PortalCheckinRewardKind,
 } from "../../data/portalDailyCheckinConfig";
-import { isPartnerShopCheckinEnabled } from "../../data/portalPartnerShopSettings";
+import {
+  isPartnerShopCheckinEnabled,
+  normalizeCheckinRewardKind,
+  type PortalCheckinRewardsOverride,
+  type PortalPartnerShopSettings,
+} from "../../data/portalPartnerShopSettings";
 import { resolvePortalShopSessionPartnerId } from "../../data/portalShopPartner";
 import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
 import { resolveEconomyScope } from "../economy/resolveEconomyScope";
@@ -25,6 +36,12 @@ type CheckinEconomy =
       lobbyId: Id<"portal_lobbies"> | null;
     }
   | { error: "lobby_required_for_isolated_economy" };
+
+type ResolvedCheckinConfig = {
+  rewardKind: PortalCheckinRewardKind;
+  amountOpts: CheckinAmountOpts;
+  settings: PortalPartnerShopSettings | null;
+};
 
 async function resolveCheckinEconomy(
   ctx: QueryCtx | MutationCtx,
@@ -79,6 +96,26 @@ export function nextCheckinStreakCount(args: {
   return 1;
 }
 
+async function resolveCheckinConfig(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  lobbyId?: Id<"portal_lobbies"> | null
+): Promise<ResolvedCheckinConfig> {
+  const partnerId = resolvePortalShopSessionPartnerId(uid);
+  const settings = await loadPartnerShopSettings(
+    ctx,
+    partnerId,
+    lobbyId ?? null
+  );
+  return {
+    rewardKind: normalizeCheckinRewardKind(settings?.checkinRewardKind),
+    amountOpts: checkinOptsFromRewards(
+      settings?.checkinRewards as PortalCheckinRewardsOverride | undefined
+    ),
+    settings,
+  };
+}
+
 export type PortalDailyCheckinStatus = {
   enabled: boolean;
   claimedToday: boolean;
@@ -87,11 +124,19 @@ export type PortalDailyCheckinStatus = {
   streakCount: number;
   dayInCycle: number;
   streakCycleDays: number;
-  /** Tickets granted if claiming now (or last claim if already claimed). */
+  rewardKind: PortalCheckinRewardKind;
   rewardTickets: number;
+  rewardCoins: number;
+  /** Sum for single-number UIs; prefer rewardTickets/rewardCoins. */
+  rewardAmount: number;
+  cycleRewardTickets: number[];
+  cycleRewardCoins: number[];
+  /** Compat: primary cycle array (tickets / coins / coins when both). */
   cycleRewards: number[];
   baseTickets: number;
+  baseCoins: number;
   streakBonusTickets: number[];
+  streakBonusCoins: number[];
 };
 
 async function partnerAllowsCheckin(
@@ -109,14 +154,41 @@ async function partnerAllowsCheckin(
   return isPartnerShopCheckinEnabled(settings);
 }
 
+function effectiveBaseTickets(opts: CheckinAmountOpts): number {
+  return opts.baseTickets ?? PORTAL_DAILY_CHECKIN_BASE_TICKETS;
+}
+
+function effectiveBaseCoins(opts: CheckinAmountOpts): number {
+  return opts.baseCoins ?? PORTAL_DAILY_CHECKIN_BASE_COINS;
+}
+
+function effectiveBonusTickets(opts: CheckinAmountOpts): number[] {
+  return [
+    ...(opts.streakBonusTickets ?? PORTAL_DAILY_CHECKIN_STREAK_BONUS_TICKETS),
+  ];
+}
+
+function effectiveBonusCoins(opts: CheckinAmountOpts): number[] {
+  return [
+    ...(opts.streakBonusCoins ?? PORTAL_DAILY_CHECKIN_STREAK_BONUS_COINS),
+  ];
+}
+
 export async function getPortalDailyCheckinStatusCore(
   ctx: QueryCtx | MutationCtx,
   uid: string,
   nowMs: number = Date.now(),
   lobbyId?: Id<"portal_lobbies"> | null
 ): Promise<PortalDailyCheckinStatus> {
-  const cycleRewards = checkinCycleRewardTickets();
+  const { rewardKind, amountOpts } = await resolveCheckinConfig(
+    ctx,
+    uid,
+    lobbyId
+  );
+  const cycleRewardTickets = checkinCycleRewardTickets(amountOpts);
+  const cycleRewardCoins = checkinCycleRewardCoins(amountOpts);
   const checkinAllowed = await partnerAllowsCheckin(ctx, uid, lobbyId);
+  const day1 = checkinAmountsForKind(rewardKind, 1, amountOpts);
   const base = {
     enabled: checkinAllowed,
     claimedToday: false,
@@ -125,10 +197,18 @@ export async function getPortalDailyCheckinStatusCore(
     streakCount: 0,
     dayInCycle: 1,
     streakCycleDays: PORTAL_DAILY_CHECKIN_STREAK_CYCLE_DAYS,
-    rewardTickets: checkinTicketsForStreak(1),
-    cycleRewards,
-    baseTickets: PORTAL_DAILY_CHECKIN_BASE_TICKETS,
-    streakBonusTickets: [...PORTAL_DAILY_CHECKIN_STREAK_BONUS_TICKETS],
+    rewardKind,
+    rewardTickets: day1.tickets,
+    rewardCoins: day1.coins,
+    rewardAmount: day1.tickets + day1.coins,
+    cycleRewardTickets,
+    cycleRewardCoins,
+    cycleRewards:
+      rewardKind === "tickets" ? cycleRewardTickets : cycleRewardCoins,
+    baseTickets: effectiveBaseTickets(amountOpts),
+    baseCoins: effectiveBaseCoins(amountOpts),
+    streakBonusTickets: effectiveBonusTickets(amountOpts),
+    streakBonusCoins: effectiveBonusCoins(amountOpts),
   };
 
   if (!checkinAllowed) {
@@ -157,14 +237,32 @@ export async function getPortalDailyCheckinStatusCore(
     (row?.lastClaimPeriodKey != null &&
       row.lastClaimPeriodKey === yesterdayKey);
   const streakCount = streakAlive ? storedStreak : 0;
+  const computed = claimedToday
+    ? checkinAmountsForKind(rewardKind, storedStreak, amountOpts)
+    : checkinAmountsForKind(rewardKind, nextStreak, amountOpts);
+  const prevTickets = claimedToday
+    ? Math.max(0, Math.floor(row?.lastClaimTickets ?? 0))
+    : 0;
+  const prevCoins = claimedToday
+    ? Math.max(0, Math.floor(row?.lastClaimCoins ?? 0))
+    : 0;
+  const ticketTopUp = claimedToday
+    ? Math.max(0, computed.tickets - prevTickets)
+    : 0;
+  const coinTopUp = claimedToday
+    ? Math.max(0, computed.coins - prevCoins)
+    : 0;
+  const needsTopUp = ticketTopUp > 0 || coinTopUp > 0;
   const rewardTickets = claimedToday
-    ? Math.max(
-        0,
-        Math.floor(
-          row?.lastClaimTickets ?? checkinTicketsForStreak(storedStreak)
-        )
-      )
-    : checkinTicketsForStreak(nextStreak);
+    ? needsTopUp
+      ? ticketTopUp
+      : Math.max(0, Math.floor(row?.lastClaimTickets ?? computed.tickets))
+    : computed.tickets;
+  const rewardCoins = claimedToday
+    ? needsTopUp
+      ? coinTopUp
+      : Math.max(0, Math.floor(row?.lastClaimCoins ?? computed.coins))
+    : computed.coins;
   const dayInCycle = checkinDayInCycle(
     claimedToday ? storedStreak : nextStreak
   );
@@ -172,18 +270,23 @@ export async function getPortalDailyCheckinStatusCore(
   return {
     ...base,
     claimedToday,
-    canClaim: !claimedToday,
+    canClaim: !claimedToday || needsTopUp,
     dayKey,
     streakCount,
     dayInCycle,
     rewardTickets,
+    rewardCoins,
+    rewardAmount: rewardTickets + rewardCoins,
   };
 }
 
 export type ClaimPortalDailyCheckinResult =
   | {
       ok: true;
+      rewardKind: PortalCheckinRewardKind;
+      amountGranted: number;
       ticketsGranted: number;
+      coinsGranted: number;
       streakCount: number;
       dayInCycle: number;
       dayKey: string;
@@ -192,7 +295,10 @@ export type ClaimPortalDailyCheckinResult =
   | {
       ok: true;
       alreadyClaimed: true;
+      rewardKind: PortalCheckinRewardKind;
+      amountGranted: number;
       ticketsGranted: number;
+      coinsGranted: number;
       streakCount: number;
       dayInCycle: number;
       dayKey: string;
@@ -206,6 +312,33 @@ export type ClaimPortalDailyCheckinResult =
         | "grant_failed";
     };
 
+function claimOkPayload(args: {
+  rewardKind: PortalCheckinRewardKind;
+  ticketsGranted: number;
+  coinsGranted: number;
+  streakCount: number;
+  dayInCycle: number;
+  dayKey: string;
+  alreadyClaimed?: boolean;
+}): Extract<ClaimPortalDailyCheckinResult, { ok: true }> {
+  const ticketsGranted = Math.max(0, Math.floor(args.ticketsGranted));
+  const coinsGranted = Math.max(0, Math.floor(args.coinsGranted));
+  const base = {
+    ok: true as const,
+    rewardKind: args.rewardKind,
+    amountGranted: ticketsGranted + coinsGranted,
+    ticketsGranted,
+    coinsGranted,
+    streakCount: args.streakCount,
+    dayInCycle: args.dayInCycle,
+    dayKey: args.dayKey,
+  };
+  if (args.alreadyClaimed) {
+    return { ...base, alreadyClaimed: true as const };
+  }
+  return base;
+}
+
 export async function claimPortalDailyCheckinCore(
   ctx: MutationCtx,
   args: {
@@ -218,6 +351,11 @@ export async function claimPortalDailyCheckinCore(
     return { ok: false, error: "disabled" };
   }
 
+  const { rewardKind, amountOpts } = await resolveCheckinConfig(
+    ctx,
+    args.uid,
+    args.lobbyId
+  );
   const nowMs = args.nowMs ?? Date.now();
   const econ = await resolveCheckinEconomy(ctx, args.uid, args.lobbyId);
   if ("error" in econ) {
@@ -230,18 +368,82 @@ export async function claimPortalDailyCheckinCore(
 
   if (row?.lastClaimPeriodKey === dayKey) {
     const streakCount = Math.max(0, Math.floor(row.streakCount));
-    const ticketsGranted = Math.max(
-      0,
-      Math.floor(row.lastClaimTickets ?? checkinTicketsForStreak(streakCount))
+    const computed = checkinAmountsForKind(
+      rewardKind,
+      streakCount,
+      amountOpts
     );
-    return {
-      ok: true,
-      alreadyClaimed: true,
-      ticketsGranted,
+    const prevTickets = Math.max(0, Math.floor(row.lastClaimTickets ?? 0));
+    const prevCoins = Math.max(0, Math.floor(row.lastClaimCoins ?? 0));
+    const ticketTopUp = Math.max(0, computed.tickets - prevTickets);
+    const coinTopUp = Math.max(0, computed.coins - prevCoins);
+
+    // Config bump mid-day (e.g. CrazyGames faucet raise): top up the gap once.
+    if (ticketTopUp > 0 || coinTopUp > 0) {
+      const dayInCycle = checkinDayInCycle(streakCount);
+      const reason = `daily_checkin_topup_d${dayInCycle}`;
+      if (ticketTopUp > 0) {
+        const grant = await ctx.runMutation(
+          internal.service.reward.casualRewardRegistry.grantPortalTickets,
+          {
+            uid: args.uid,
+            amount: ticketTopUp,
+            reason,
+            scopeKey: econ.scopeKey,
+            ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
+          }
+        );
+        if (!grant.ok) {
+          return {
+            ok: false,
+            error: grant.error === "no_player" ? "no_player" : "grant_failed",
+          };
+        }
+      }
+      if (coinTopUp > 0) {
+        const grant = await ctx.runMutation(
+          internal.service.reward.casualRewardRegistry.grantCasualReward,
+          {
+            uid: args.uid,
+            kind: "coins",
+            amount: coinTopUp,
+            reason,
+            scopeKey: econ.scopeKey,
+            ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
+          }
+        );
+        if (!grant.ok) {
+          return {
+            ok: false,
+            error: grant.error === "no_player" ? "no_player" : "grant_failed",
+          };
+        }
+      }
+      await ctx.db.patch(row._id, {
+        lastClaimTickets: computed.tickets,
+        lastClaimCoins: computed.coins,
+        updatedAt: nowMs,
+      });
+      return claimOkPayload({
+        rewardKind,
+        ticketsGranted: ticketTopUp,
+        coinsGranted: coinTopUp,
+        streakCount,
+        dayInCycle,
+        dayKey,
+        alreadyClaimed: true,
+      });
+    }
+
+    return claimOkPayload({
+      rewardKind,
+      ticketsGranted: Math.max(0, Math.floor(row.lastClaimTickets ?? computed.tickets)),
+      coinsGranted: Math.max(0, Math.floor(row.lastClaimCoins ?? computed.coins)),
       streakCount,
       dayInCycle: checkinDayInCycle(streakCount),
       dayKey,
-    };
+      alreadyClaimed: true,
+    });
   }
 
   const streakCount = nextCheckinStreakCount({
@@ -250,8 +452,10 @@ export async function claimPortalDailyCheckinCore(
     dayKey,
     yesterdayKey,
   });
-  const ticketsGranted = checkinTicketsForStreak(streakCount);
+  const { tickets: ticketsGranted, coins: coinsGranted } =
+    checkinAmountsForKind(rewardKind, streakCount, amountOpts);
   const dayInCycle = checkinDayInCycle(streakCount);
+  const reason = `daily_checkin_streak_d${dayInCycle}`;
 
   if (ticketsGranted > 0) {
     const grant = await ctx.runMutation(
@@ -259,7 +463,27 @@ export async function claimPortalDailyCheckinCore(
       {
         uid: args.uid,
         amount: ticketsGranted,
-        reason: `daily_checkin_streak_d${dayInCycle}`,
+        reason,
+        scopeKey: econ.scopeKey,
+        ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
+      }
+    );
+    if (!grant.ok) {
+      return {
+        ok: false,
+        error: grant.error === "no_player" ? "no_player" : "grant_failed",
+      };
+    }
+  }
+
+  if (coinsGranted > 0) {
+    const grant = await ctx.runMutation(
+      internal.service.reward.casualRewardRegistry.grantCasualReward,
+      {
+        uid: args.uid,
+        kind: "coins",
+        amount: coinsGranted,
+        reason,
         scopeKey: econ.scopeKey,
         ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
       }
@@ -280,6 +504,7 @@ export async function claimPortalDailyCheckinCore(
       streakCount,
       lastClaimPeriodKey: dayKey,
       lastClaimTickets: ticketsGranted,
+      lastClaimCoins: coinsGranted,
       updatedAt,
       ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
     });
@@ -288,16 +513,18 @@ export async function claimPortalDailyCheckinCore(
       streakCount,
       lastClaimPeriodKey: dayKey,
       lastClaimTickets: ticketsGranted,
+      lastClaimCoins: coinsGranted,
       updatedAt,
       ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
     });
   }
 
-  return {
-    ok: true,
+  return claimOkPayload({
+    rewardKind,
     ticketsGranted,
+    coinsGranted,
     streakCount,
     dayInCycle,
     dayKey,
-  };
+  });
 }

@@ -70,6 +70,7 @@ const offeringValidator = v.object({
     })
   ),
   enabled: v.optional(v.boolean()),
+  unlockSeasonLevel: v.optional(v.number()),
 });
 
 const brandingValidator = v.object({
@@ -174,12 +175,19 @@ function serializeLobby(row: {
     offerings: offerings.map((o) => {
       const def = getPortalTournamentDefinition(o.tournamentId);
       const titleOverride = o.titleOverride?.trim() || undefined;
+      const unlockSeasonLevel =
+        typeof o.unlockSeasonLevel === "number" &&
+        Number.isFinite(o.unlockSeasonLevel) &&
+        o.unlockSeasonLevel >= 2
+          ? Math.floor(o.unlockSeasonLevel)
+          : undefined;
       return {
         ...o,
         titleOverride,
         title: titleOverride ?? def?.title ?? o.tournamentId,
         gameType: def?.gameType ?? null,
         matchType: def?.matchType ?? null,
+        ...(unlockSeasonLevel != null ? { unlockSeasonLevel } : {}),
       };
     }),
     soloCount: solo.length,

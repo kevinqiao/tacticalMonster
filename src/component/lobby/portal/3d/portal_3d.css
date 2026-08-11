@@ -1810,6 +1810,28 @@
   margin-top: auto;
 }
 
+.modeRankRewardsLink {
+  appearance: none;
+  margin: 0;
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", Inter, var(--default-font-family);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #5b3a12;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.modeRankRewardsLink:focus-visible {
+  outline: 2px solid #c99f5b;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 .modePlayQuotaRow {
   display: flex;
   flex-wrap: wrap;

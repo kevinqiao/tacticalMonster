@@ -32,6 +32,13 @@
     "prizeTopPoints": "冠军积分",
     "prizeTopCoins": "冠军金币",
     "prizeTopPointsAndCoins": "冠军积分 / 金币",
+    "allRanks": "全部名次",
+    "rankRewards": "名次奖励",
+    "rankRewardsTitle": "奖励 · {{name}}",
+    "rankRewardsEntry": "入场：🪙 {{amount}}",
+    "rankRewardsRank": "名次",
+    "rankRewardsPoints": "积分",
+    "rankRewardsCoins": "金币",
     "entryFee": "入场",
     "entryFree": "免费",
     "entryFreeAndAd": "免费/广告",
@@ -143,6 +150,7 @@
     "rank": "第 {{rank}} 名",
     "points": "{{delta}} 分",
     "coins": "{{coins}} 金币",
+    "xp": "{{xp}} XP",
     "pendingSettlement": "等待结算中",
     "report": "战报",
     "matchTypes": {
@@ -238,14 +246,20 @@
     "checkin": {
       "title": "每日签到",
       "hint": "连续签到可获得更多门票，断签将重新开始",
+      "hintCoins": "连续签到可获得更多金币，断签将重新开始",
+      "hintBoth": "连续签到可获得门票与金币，断签将重新开始",
       "day": "第{{day}}天",
       "streak": "当前连签 {{streak}} 天",
       "claimedToday": "今日已签到",
       "claim": "签到 +{{tickets}} 门票",
+      "claimCoins": "签到 +{{coins}} 金币",
+      "claimBoth": "签到 +{{tickets}} 门票 +{{coins}} 金币",
       "claiming": "领取中…",
       "claimed": "已签到",
       "alreadyClaimed": "今日已领取签到奖励",
       "success": "签到成功，获得 {{tickets}} 张门票",
+      "successCoins": "签到成功，获得 {{coins}} 金币",
+      "successBoth": "签到成功，获得 {{tickets}} 张门票与 {{coins}} 金币",
       "errors": {
         "generic": "签到失败，请稍后再试",
         "disabled": "签到暂未开放",
@@ -346,8 +360,8 @@
       "intro": "两种模式的成绩计入<strong>同一个周榜总分</strong>，总分决定你在本周分组中的名次。",
       "soloTitle": "🎯 单人挑战",
       "soloBullets": [
-        "每局提供一个 seed P75 <strong>目标分</strong>；",
-        "达标 <strong class=\"portal-rules-pos\">+3 分</strong>，未达标 <strong class=\"portal-rules-neg\">-1 分</strong>；",
+        "每局提供一个 <strong>target score</strong>；",
+        "达标 <strong class=\"portal-rules-pos\">+3 分</strong>，未达标 <strong>0 分</strong>；",
         "对局超时未完成，按未达标结算。"
       ],
       "multiTitle": "⚔️ 多人竞技",
@@ -386,6 +400,16 @@
         "金币可在 <strong>兑换商店</strong>中兑换奖励；",
         "结算时间以主页顶部的<strong>本周剩余倒计时</strong>为准；",
         "奖励数值以当期活动配置为准。"
+      ]
+    },
+    "season": {
+      "title": "赛季等级",
+      "intro": "赛季等级条记录<strong>赛季 XP</strong>与等级，与周积分、周段位相互独立。",
+      "bullets": [
+        "每个赛季持续 <strong>{{weeks}} 周</strong>，通过赛季 XP 从 Lv 1 升至 <strong>Lv {{maxLevel}}</strong>；",
+        "每局结算获得赛季 XP <strong class=\"portal-rules-pos\">+{{xpPlay}}</strong>（不分输赢，不设每日上限）；",
+        "每周结算额外 <strong class=\"portal-rules-pos\">+{{xpWeekSettle}} XP</strong>；组内晋级再得 <strong class=\"portal-rules-pos\">+{{xpWeekPromote}} XP</strong>；",
+        "赛季结束时等级清零，已解锁的赛季印记保留在<strong>徽章</strong>中。"
       ]
     }
   }

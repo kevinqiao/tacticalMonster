@@ -1936,6 +1936,104 @@
   gap: 2px;
 }
 
+.portal-tour-ticket-prize-btn {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.portal-tour-ticket-prize-btn:focus-visible {
+  outline: 2px solid #ffe08a;
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.portal-tour-ticket-prize-btn--link {
+  padding: 4px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffe08a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.portal-tour-ticket-prize-all {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #f0c35a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.portal-rank-rewards {
+  padding: 4px 2px 12px;
+}
+
+.portal-rank-rewards-entry {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #8a5a2b;
+}
+
+.portal-rank-rewards-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  font-size: 15px;
+}
+
+.portal-rank-rewards-table th {
+  padding: 2px 10px 6px;
+  text-align: center;
+  color: #8a5a2b;
+  font-family: "Fredoka", "Segoe UI Rounded", "Nunito", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.portal-rank-rewards-table th:first-child {
+  text-align: left;
+  padding-left: 14px;
+}
+
+.portal-rank-rewards-table td {
+  padding: 12px 10px;
+  text-align: center;
+  background: rgba(255, 251, 238, 0.85);
+  border-top: 2px solid #dcb779;
+  border-bottom: 2px solid #c99f5b;
+  color: #6b4a1c;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-rank-rewards-table td:first-child {
+  text-align: left;
+  padding-left: 14px;
+  border-left: 2px solid #dcb779;
+  border-radius: 12px 0 0 12px;
+  white-space: nowrap;
+}
+
+.portal-rank-rewards-table td:last-child {
+  border-right: 2px solid #c99f5b;
+  border-radius: 0 12px 12px 0;
+}
+
 .portal-tour-ticket-prize-label {
   font-size: 11px;
   font-weight: 700;

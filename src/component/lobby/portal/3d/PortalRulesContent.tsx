@@ -2,12 +2,20 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  PORTAL_SEASON_MAX_LEVEL,
+  PORTAL_SEASON_WEEKS,
+  PORTAL_SEASON_XP_PLAY,
+  PORTAL_SEASON_XP_WEEK_PROMOTE,
+  PORTAL_SEASON_XP_WEEK_SETTLE,
+} from "@/convex/portal/convex/data/portalSeasonHonorConfig";
+
+import {
   PORTAL_3D_TIER_BADGES,
   type PortalTierId,
 } from "./portalGame3DTheme";
 import type { Portal3DRulesAnchor } from "./PortalGame3DInner";
 
-type RulesSection = "points" | "tiers" | "rewards";
+type RulesSection = "points" | "tiers" | "rewards" | "season";
 
 const TIER_IDS: PortalTierId[] = ["bronze", "silver", "gold", "platinum", "diamond"];
 
@@ -19,22 +27,22 @@ const REWARD_MATRIX: {
   {
     rangeKey: "rank1",
     zone: "promote",
-    coins: { bronze: 200, silver: 300, gold: 500, platinum: 800, diamond: 1200 },
+    coins: { bronze: 120, silver: 150, gold: 200, platinum: 250, diamond: 300 },
   },
   {
     rangeKey: "rank2_3",
     zone: "promote",
-    coins: { bronze: 120, silver: 180, gold: 300, platinum: 480, diamond: 720 },
+    coins: { bronze: 80, silver: 100, gold: 120, platinum: 140, diamond: 180 },
   },
   {
     rangeKey: "rank4_8",
     zone: "promote",
-    coins: { bronze: 60, silver: 90, gold: 150, platinum: 240, diamond: 360 },
+    coins: { bronze: 50, silver: 65, gold: 80, platinum: 100, diamond: 120 },
   },
   {
     rangeKey: "rank9_22",
     zone: "keep",
-    coins: { bronze: 20, silver: 30, gold: 50, platinum: 80, diamond: 120 },
+    coins: { bronze: null, silver: null, gold: null, platinum: null, diamond: null },
   },
   {
     rangeKey: "rank23_30",
@@ -52,6 +60,7 @@ const ZONE_MARKS = {
 function sectionOfAnchor(anchor: Portal3DRulesAnchor | undefined): RulesSection {
   if (anchor === "tiers") return "tiers";
   if (anchor === "rewards") return "rewards";
+  if (anchor === "season") return "season";
   return "points";
 }
 
@@ -94,6 +103,7 @@ export function PortalRulesContent({
     points: useRef<HTMLDivElement>(null),
     tiers: useRef<HTMLDivElement>(null),
     rewards: useRef<HTMLDivElement>(null),
+    season: useRef<HTMLDivElement>(null),
   };
   const soloRef = useRef<HTMLDivElement>(null);
   const multiRef = useRef<HTMLDivElement>(null);
@@ -113,6 +123,14 @@ export function PortalRulesContent({
   const tierBullets = t("rules.tiers.bullets", { returnObjects: true }) as string[];
   const footerBullets = t("rules.rewards.footerBullets", {
     returnObjects: true,
+  }) as string[];
+  const seasonBullets = t("rules.season.bullets", {
+    returnObjects: true,
+    weeks: PORTAL_SEASON_WEEKS,
+    maxLevel: PORTAL_SEASON_MAX_LEVEL,
+    xpPlay: PORTAL_SEASON_XP_PLAY,
+    xpWeekSettle: PORTAL_SEASON_XP_WEEK_SETTLE,
+    xpWeekPromote: PORTAL_SEASON_XP_WEEK_PROMOTE,
   }) as string[];
 
   useEffect(() => {
@@ -310,6 +328,17 @@ export function PortalRulesContent({
         </p>
         <div className="portal-rules-card">
           <RulesBulletList items={footerBullets} />
+        </div>
+      </div>
+
+      <div ref={sectionRefs.season} className="portal-rules-section">
+        <h3 className="portal-rules-title">{t("rules.season.title")}</h3>
+        <p
+          className="portal-rules-intro"
+          dangerouslySetInnerHTML={{ __html: t("rules.season.intro") }}
+        />
+        <div className="portal-rules-card">
+          <RulesBulletList items={seasonBullets} />
         </div>
       </div>
     </div>

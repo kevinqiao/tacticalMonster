@@ -2,7 +2,6 @@
  * Portal 赛季荣誉：Season XP / Lv / 季末 E 章 finalize。
  */
 import {
-  PORTAL_SEASON_DAILY_PLAY_XP_CAP,
   PORTAL_SEASON_DAILY_WIN_XP_CAP,
   PORTAL_SEASON_MAX_LEVEL,
   PORTAL_SEASON_XP_PLAY,
@@ -16,6 +15,7 @@ import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
 import type { Id } from "../../_generated/dataModel";
 import { internalMutation, type MutationCtx, type QueryCtx } from "../../_generated/server";
 import { checkAndUnlockBadgesCore } from "../badge/portalBadgeService";
+import { syncLobbyOfferingUnlocksForSeasonLevel } from "../lobby/lobbyOfferingUnlocks";
 import { ensureWeeklyLeagueProfileForLobby } from "../weeklyLeague/casualWeeklyLeagueProfile";
 import { resolveSeasonHonorContext } from "./resolvePortalSeasonHonor";
 
@@ -44,7 +44,16 @@ export async function ensureSeasonHonorProgress(
   });
   if (!honor?.active) return null;
   const existing = await getSeasonRow(ctx, uid, lobbyId, honor.seasonId);
-  if (existing) return existing;
+  if (existing) {
+    // Retroactive permanent unlocks for players already at gated levels.
+    await syncLobbyOfferingUnlocksForSeasonLevel(ctx, {
+      uid,
+      lobbyId,
+      seasonLevel: existing.level,
+      now,
+    });
+    return existing;
+  }
   const id = await ctx.db.insert("portal_season_honor_progress", {
     uid,
     lobbyId,
@@ -116,6 +125,13 @@ export async function finalizePreviousSeasonsIfNeeded(
         updatedAt: now,
       });
     }
+    // Permanent offering unlocks based on the season that just closed.
+    await syncLobbyOfferingUnlocksForSeasonLevel(ctx, {
+      uid,
+      lobbyId,
+      seasonLevel: finalizedLevel,
+      now,
+    });
   }
 
   return { finalizedSeasonId, unlocked };
@@ -129,13 +145,18 @@ export async function addSeasonHonorXp(
     kind: "win" | "play" | "week_settle" | "week_promote";
     now?: number;
   }
-): Promise<{ seasonXp: number; level: number; leveledUp: boolean }> {
+): Promise<{
+  seasonXp: number;
+  level: number;
+  leveledUp: boolean;
+  xpGranted: number;
+}> {
   const now = args.now ?? Date.now();
   const honor = await resolveSeasonHonorContext(ctx, args.lobbyId, now, {
     persistStartsWeekKey: true,
   });
   if (!honor?.active) {
-    return { seasonXp: 0, level: 1, leveledUp: false };
+    return { seasonXp: 0, level: 1, leveledUp: false, xpGranted: 0 };
   }
 
   await finalizePreviousSeasonsIfNeeded(ctx, args.uid, args.lobbyId, now);
@@ -145,6 +166,7 @@ export async function addSeasonHonorXp(
       seasonXp: row?.seasonXp ?? 0,
       level: row?.level ?? 1,
       leveledUp: false,
+      xpGranted: 0,
     };
   }
 
@@ -158,8 +180,8 @@ export async function addSeasonHonorXp(
     add = Math.min(PORTAL_SEASON_XP_WIN, room);
     dailyWinXp += add;
   } else if (args.kind === "play") {
-    const room = Math.max(0, PORTAL_SEASON_DAILY_PLAY_XP_CAP - dailyPlayXp);
-    add = Math.min(PORTAL_SEASON_XP_PLAY, room);
+    // Play XP is uncapped (null dailyPlayXpCap in economy SSOT).
+    add = PORTAL_SEASON_XP_PLAY;
     dailyPlayXp += add;
   } else if (args.kind === "week_settle") {
     add = PORTAL_SEASON_XP_WEEK_SETTLE;
@@ -168,7 +190,12 @@ export async function addSeasonHonorXp(
   }
 
   if (add <= 0) {
-    return { seasonXp: row.seasonXp, level: row.level, leveledUp: false };
+    return {
+      seasonXp: row.seasonXp,
+      level: row.level,
+      leveledUp: false,
+      xpGranted: 0,
+    };
   }
 
   const prevLevel = row.level;
@@ -183,7 +210,13 @@ export async function addSeasonHonorXp(
     dailyPlayXp,
     updatedAt: now,
   });
-  return { seasonXp, level, leveledUp: level > prevLevel };
+  await syncLobbyOfferingUnlocksForSeasonLevel(ctx, {
+    uid: args.uid,
+    lobbyId: args.lobbyId,
+    seasonLevel: level,
+    now,
+  });
+  return { seasonXp, level, leveledUp: level > prevLevel, xpGranted: add };
 }
 
 export async function readSeasonHonorView(

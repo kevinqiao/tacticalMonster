@@ -1,7 +1,7 @@
-import type { ScoreQuantiles } from "../../shared/scoreQuantiles";
+﻿import type { ScoreQuantiles } from "../../shared/scoreQuantiles";
 
 /** 允许的名次区间：ceilRank=最好（数字最小），floorRank=最差（数字最大） */
-export type SoloRankBand = {
+export type SingleHumanRankBand = {
   ceilRank: number;
   floorRank: number;
 };
@@ -9,7 +9,7 @@ export type SoloRankBand = {
 /** 5 人桌参考档；其它 maxPlayers 线性缩放名次数字 */
 const REFERENCE_MAX_PLAYERS = 5;
 
-const REFERENCE_BANDS: SoloRankBand[] = [
+const REFERENCE_BANDS: SingleHumanRankBand[] = [
   { ceilRank: 1, floorRank: 1 }, // > p90
   { ceilRank: 1, floorRank: 3 }, // (p70, p90]
   { ceilRank: 2, floorRank: 4 }, // (p50, p70]
@@ -25,7 +25,7 @@ export function scaleRankForMaxPlayers(rank: number, maxPlayers: number): number
   return Math.min(maxPlayers, Math.max(1, scaled));
 }
 
-function scaleBandForMaxPlayers(band: SoloRankBand, maxPlayers: number): SoloRankBand {
+function scaleBandForMaxPlayers(band: SingleHumanRankBand, maxPlayers: number): SingleHumanRankBand {
   const ceilRank = scaleRankForMaxPlayers(band.ceilRank, maxPlayers);
   const floorRank = scaleRankForMaxPlayers(band.floorRank, maxPlayers);
   return {
@@ -39,9 +39,9 @@ export function rankBandFromScore(
   humanScore: number,
   scoreQuantiles: ScoreQuantiles,
   maxPlayers: number
-): SoloRankBand {
+): SingleHumanRankBand {
   const { p90, p70, p50, p33 } = scoreQuantiles;
-  let ref: SoloRankBand;
+  let ref: SingleHumanRankBand;
   if (humanScore > p90) ref = REFERENCE_BANDS[0]!;
   else if (humanScore > p70) ref = REFERENCE_BANDS[1]!;
   else if (humanScore > p50) ref = REFERENCE_BANDS[2]!;
@@ -52,7 +52,7 @@ export function rankBandFromScore(
 
 export function clampTargetRankToBand(
   targetRank: number,
-  band: SoloRankBand,
+  band: SingleHumanRankBand,
   maxPlayers: number
 ): number {
   const lo = Math.max(1, Math.min(band.ceilRank, maxPlayers));
@@ -60,10 +60,10 @@ export function clampTargetRankToBand(
   return Math.min(Math.max(targetRank, lo), hi);
 }
 
-/** v3：effectiveRank = targetRank 在 rankBand 内 clamp；bot 补位后人类 settle 名次应等于此值。 */
+/** v3：人类名次仅由 targetRank 在 rankBand 内 clamp，不再用 rankFloors 推档。 */
 export function resolveEffectiveRank(args: {
   targetRank: number;
-  band: SoloRankBand;
+  band: SingleHumanRankBand;
   maxPlayers: number;
 }): number {
   return clampTargetRankToBand(args.targetRank, args.band, args.maxPlayers);

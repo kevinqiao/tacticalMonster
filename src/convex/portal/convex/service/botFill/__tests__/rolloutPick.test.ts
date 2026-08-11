@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import { soloRolloutQueryBands } from "../botScoreSlots";
 import {
   botSlotsToScoreBands,
   pickScoresFromRolloutBands,
   pickSoloBotFillsFromTwoBands,
 } from "../rolloutPick";
-import { simulateSoloHumanRank } from "../soloRankEnforce";
+import { simulateSingleHumanRank } from "../singleHumanRankEnforce";
 
 describe("rolloutPick", () => {
   it("soloRolloutQueryBands uses at most two bands", () => {
@@ -64,7 +64,7 @@ describe("rolloutPick", () => {
       fills.find((f) => f.rank === 4)!.score
     );
     expect(
-      simulateSoloHumanRank({ humanScore, effectiveRank, botFills: fills })
+      simulateSingleHumanRank({ humanScore, effectiveRank, botFills: fills })
     ).toBe(2);
   });
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Portal 周联赛：首次登录入组、组内排名、段位视图快照。
  */
 import {
@@ -291,6 +291,8 @@ export type PortalWeeklyLeagueTierView = {
   unreadSeasonMarks?: boolean;
   unreadSeasonId?: string | null;
   unreadSeasonLevel?: number | null;
+  /** Permanently unlocked lobby offerings (season-level gates). */
+  unlockedTournamentIds?: string[];
 };
 
 export type PortalWeeklyLeagueUnclaimedRewards = {
@@ -410,6 +412,9 @@ export async function getPortalWeeklyLeagueTierViewForUidScoped(
         unreadSeasonMarks: Boolean(profile?.unreadSeasonMarks),
         unreadSeasonId: profile?.unreadSeasonId ?? null,
         unreadSeasonLevel: profile?.unreadSeasonLevel ?? null,
+        unlockedTournamentIds: (profile?.unlockedTournamentIds ?? []).filter(
+          (id): id is string => typeof id === "string" && id.length > 0
+        ),
       };
     } else {
       // next_season 门控未到：不展示 Season 条；仍可弹已 finalize 的未读季末章
@@ -417,6 +422,9 @@ export async function getPortalWeeklyLeagueTierViewForUidScoped(
         unreadSeasonMarks: Boolean(profile?.unreadSeasonMarks),
         unreadSeasonId: profile?.unreadSeasonId ?? null,
         unreadSeasonLevel: profile?.unreadSeasonLevel ?? null,
+        unlockedTournamentIds: (profile?.unlockedTournamentIds ?? []).filter(
+          (id): id is string => typeof id === "string" && id.length > 0
+        ),
       };
     }
   }

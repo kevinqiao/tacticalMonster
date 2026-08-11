@@ -103,6 +103,11 @@ export const PortalHistoryList: React.FC<{
                   {t("history.coins", { coins: `+${row.coinsGranted}` })}
                 </span>
               ) : null}
+              {row.xpGranted != null && row.xpGranted > 0 ? (
+                <span className="portal-pts-pos">
+                  {t("history.xp", { xp: `+${row.xpGranted}` })}
+                </span>
+              ) : null}
               <span className="portal-muted">
                 {pendingSettlement
                   ? t("history.pendingSettlement")

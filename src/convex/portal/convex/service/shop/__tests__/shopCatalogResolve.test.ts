@@ -18,6 +18,8 @@ function settings(
     adCoinEnabled: true,
     iapEnabled: true,
     checkinEnabled: true,
+    checkinRewardKind: "tickets",
+    checkinRewards: {},
     assortmentMode: "all_shared",
     skuIds: [],
     excludeSkuIds: [],

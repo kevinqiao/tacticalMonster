@@ -72,6 +72,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         casualTournamentId,
         scoreFloats,
         openingDealActive,
+        openingDealLayoutLocked,
         skipOpeningDeal,
     } = useSoloGameManager();
     const notifyCardDomChange = useCallback(() => {
@@ -354,6 +355,8 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         settleConfirmOpen ||
         postCasualScoreReportOpen ||
         postCasualSummaryOpen;
+    const openingDealLayoutLockedRef = useRef(false);
+    openingDealLayoutLockedRef.current = openingDealLayoutLocked;
 
     useLayoutEffect(() => {
         const board = boardSurfaceRef.current;
@@ -365,6 +368,8 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
 
         const runMeasure = () => {
             if (cancelled) return;
+            // Mid-deal: do not rewrite --solo-card-* (that reflows foundation↔tableau gap).
+            if (openingDealLayoutLockedRef.current) return;
             const dimension = measureBoardDimension();
             if (dimension) updateBoardDimension(dimension);
         };
@@ -374,9 +379,11 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             if (cancelled || measureRaf) return;
             // freeze ref 在 setState 前就会写 true；须直接读，不能等下一次 render
             if (postSettleLayoutFreezeRef.current || settleUiOpenRef.current) return;
+            if (openingDealLayoutLockedRef.current) return;
             measureRaf = requestAnimationFrame(() => {
                 measureRaf = 0;
                 if (postSettleLayoutFreezeRef.current || settleUiOpenRef.current) return;
+                if (openingDealLayoutLockedRef.current) return;
                 runMeasure();
             });
         };
@@ -444,6 +451,15 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
             ro.disconnect();
         };
     }, [measureBoardDimension, updateBoardDimension, gameState?.gameId]);
+
+    // After deal unlocks layout, catch up once (mid-deal measures were skipped).
+    useLayoutEffect(() => {
+        if (openingDealLayoutLocked) return;
+        const board = boardSurfaceRef.current;
+        if (!board || board.clientWidth < 80) return;
+        const dimension = measureBoardDimension();
+        if (dimension) updateBoardDimension(dimension);
+    }, [openingDealLayoutLocked, measureBoardDimension, updateBoardDimension]);
 
     useLayoutEffect(() => {
         postDealBatchLayoutDoneRef.current = false;
@@ -642,6 +658,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 targetScoreP75={replayMode ? undefined : targetScoreP75}
                 targetScoreP90={replayMode ? undefined : targetScoreP90}
                 gameKey={gameState?.gameId}
+                deferTargetIntro={!replayMode && openingDealActive}
                 onMatchTimeout={
                     replayMode ? undefined : () => void completeCasualSolitaireRunOnTimeout()
                 }

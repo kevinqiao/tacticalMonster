@@ -29,14 +29,14 @@ const OPEN_TABLE_RETRY_ERRORS = new Set([
   "bad_response",
 ]);
 
-async function scheduleSoloOpenRetry(
+async function scheduleSingleHumanOpenRetry(
   ctx: ActionCtx,
   queueRowId: Id<"casual_match_queue">,
   delayMs = 3_000
 ) {
   await ctx.scheduler.runAfter(
     delayMs,
-    internal.service.tournament.join.casualOpenTableActions.openSoloAsyncTableFromQueue,
+    internal.service.tournament.join.casualOpenTableActions.openSingleHumanAsyncTableFromQueue,
     { queueRowId }
   );
 }
@@ -177,7 +177,7 @@ export const openCasualTableFromQueue = internalAction({
         queueRowIds.length === 1 &&
         (claim.error === "charge_failed" || OPEN_TABLE_RETRY_ERRORS.has(claim.error))
       ) {
-        await scheduleSoloOpenRetry(ctx, queueRowIds[0]!);
+        await scheduleSingleHumanOpenRetry(ctx, queueRowIds[0]!);
       }
       return claim;
     }
@@ -189,7 +189,7 @@ export const openCasualTableFromQueue = internalAction({
         error: opened.error,
       });
       if (queueRowIds.length === 1 && OPEN_TABLE_RETRY_ERRORS.has(opened.error)) {
-        await scheduleSoloOpenRetry(ctx, queueRowIds[0]!);
+        await scheduleSingleHumanOpenRetry(ctx, queueRowIds[0]!);
       }
     }
     return opened;
@@ -271,8 +271,8 @@ export const processCasualMatchQueueForTemplate = internalAction({
   },
 });
 
-/** eff=1 异步 solo 开桌 */
-export const openSoloAsyncTableFromQueue = internalAction({
+/** eff=1：single human in async multi (effectiveHumans=1) 开桌 */
+export const openSingleHumanAsyncTableFromQueue = internalAction({
   args: { queueRowId: v.id("casual_match_queue") },
   handler: async (ctx, { queueRowId }) => {
     await ctx.runMutation(
@@ -284,10 +284,16 @@ export const openSoloAsyncTableFromQueue = internalAction({
       { queueRowId }
     );
     if (!row) {
-      console.warn("[casual] openSoloAsyncTableFromQueue skipped", { queueRowId, reason: "no_waiting_row" });
+      console.warn("[casual] openSingleHumanAsyncTableFromQueue skipped", {
+        queueRowId,
+        reason: "no_waiting_row",
+      });
       return { ok: true as const };
     }
-    console.log("[casual] openSoloAsyncTableFromQueue", { queueRowId, templateId: row.templateId });
+    console.log("[casual] openSingleHumanAsyncTableFromQueue", {
+      queueRowId,
+      templateId: row.templateId,
+    });
     return await ctx.runAction(internal.service.tournament.join.casualOpenTableActions.openCasualTableFromQueue, {
       templateId: row.templateId,
       queueRowIds: [queueRowId],
@@ -295,7 +301,18 @@ export const openSoloAsyncTableFromQueue = internalAction({
   },
 });
 
-/** 排队超时 fallback solo 开桌 */
+/** @deprecated Use openSingleHumanAsyncTableFromQueue */
+export const openSoloAsyncTableFromQueue = internalAction({
+  args: { queueRowId: v.id("casual_match_queue") },
+  handler: async (ctx, args) => {
+    return await ctx.runAction(
+      internal.service.tournament.join.casualOpenTableActions.openSingleHumanAsyncTableFromQueue,
+      args
+    );
+  },
+});
+
+/** 排队超时 fallback 开桌（single human / exit） */
 export const expireCasualMatchQueueEntryOpen = internalAction({
   args: { queueRowId: v.id("casual_match_queue") },
   handler: async (ctx, { queueRowId }) => {

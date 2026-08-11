@@ -109,11 +109,11 @@ describe("portalSeasonHonorConfig", () => {
     expect(p.xpForLevel).toBe(10);
   });
 
-  it("caps daily win/play xp soft ceilings", () => {
-    expect(PORTAL_SEASON_XP_WIN).toBe(4);
-    expect(PORTAL_SEASON_XP_PLAY).toBe(1);
+  it("flat per-match play xp is uncapped", () => {
+    expect(PORTAL_SEASON_XP_WIN).toBe(2);
+    expect(PORTAL_SEASON_XP_PLAY).toBe(2);
     expect(PORTAL_SEASON_DAILY_WIN_XP_CAP).toBe(24);
-    expect(PORTAL_SEASON_DAILY_PLAY_XP_CAP).toBe(10);
+    expect(PORTAL_SEASON_DAILY_PLAY_XP_CAP).toBeNull();
   });
 });
 

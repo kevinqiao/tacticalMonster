@@ -149,7 +149,10 @@ export const tryJoinExistingAsyncMatch = internalMutation({
     }
 
     const now = Date.now();
-    const preview = await assertJoinEntryEligible(ctx, uid, templateId, now);
+    const preview = await assertJoinEntryEligible(ctx, uid, templateId, now, {
+      partnerId,
+      lobbyId,
+    });
     if (!preview.ok) {
       return { ok: false as const, error: preview.error };
     }
@@ -427,7 +430,10 @@ export const chargeAsyncMultiCreate = internalMutation({
     }
 
     const now = Date.now();
-    const preview = await assertJoinEntryEligible(ctx, uid, templateId, now);
+    const preview = await assertJoinEntryEligible(ctx, uid, templateId, now, {
+      partnerId,
+      lobbyId,
+    });
     if (!preview.ok) {
       return { ok: false as const, error: preview.error };
     }

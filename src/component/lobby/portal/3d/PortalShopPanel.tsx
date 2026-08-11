@@ -48,12 +48,15 @@ type PortalShopPanelProps = {
     | { ok: true; coinsGranted: number; remaining: number; rewardAmount: number }
     | { ok: false; error: string }
   >;
-  /** 每日签到发门票；null/undefined 时不展示 */
+  /** 每日签到；null/undefined 时不展示 */
   dailyCheckin?: PortalDailyCheckinStatus | null;
   onClaimDailyCheckin?: () => Promise<
     | {
         ok: true;
+        rewardKind?: "tickets" | "coins" | "both";
+        amountGranted?: number;
         ticketsGranted: number;
+        coinsGranted?: number;
         streakCount: number;
         dayInCycle: number;
         alreadyClaimed?: boolean;
@@ -196,7 +199,8 @@ export function PortalShopPanel({
   const adReward = adCoinOffer?.rewardAmount ?? 0;
   const adExhausted = adRemaining <= 0;
 
-  const checkinClaimed = Boolean(dailyCheckin?.claimedToday);
+  const checkinClaimed =
+    Boolean(dailyCheckin?.claimedToday) && !dailyCheckin?.canClaim;
   const checkinCycleDays = dailyCheckin?.streakCycleDays ?? 7;
   const checkinFilled = checkinFilledSlots(
     dailyCheckin?.streakCount ?? 0,
@@ -207,8 +211,18 @@ export function PortalShopPanel({
     : checkinFilled >= checkinCycleDays
       ? 0
       : checkinFilled;
-  const checkinReward = dailyCheckin?.rewardTickets ?? 0;
-  const checkinCycleRewards = dailyCheckin?.cycleRewards ?? [];
+  const checkinRewardKind =
+    dailyCheckin?.rewardKind === "coins" || dailyCheckin?.rewardKind === "both"
+      ? dailyCheckin.rewardKind
+      : "tickets";
+  const checkinRewardTickets = dailyCheckin?.rewardTickets ?? 0;
+  const checkinRewardCoins = dailyCheckin?.rewardCoins ?? 0;
+  const checkinCycleTickets =
+    dailyCheckin?.cycleRewardTickets ??
+    (checkinRewardKind === "tickets" ? (dailyCheckin?.cycleRewards ?? []) : []);
+  const checkinCycleCoins =
+    dailyCheckin?.cycleRewardCoins ??
+    (checkinRewardKind !== "tickets" ? (dailyCheckin?.cycleRewards ?? []) : []);
 
   const executeBuy = useCallback(
     async (skuId: string, priceCoins: number) => {
@@ -308,11 +322,32 @@ export function PortalShopPanel({
     try {
       const r = await onClaimDailyCheckin();
       if (r.ok) {
+        const kind =
+          r.rewardKind === "coins" || r.rewardKind === "both"
+            ? r.rewardKind
+            : r.coinsGranted &&
+                r.coinsGranted > 0 &&
+                r.ticketsGranted > 0
+              ? "both"
+              : r.coinsGranted && r.coinsGranted > 0
+                ? "coins"
+                : "tickets";
+        const tickets = Math.max(0, Math.floor(r.ticketsGranted ?? 0));
+        const coins = Math.max(0, Math.floor(r.coinsGranted ?? 0));
         const message = r.alreadyClaimed
           ? t("shop.checkin.alreadyClaimed")
-          : t("shop.checkin.success", {
-              tickets: r.ticketsGranted.toLocaleString(),
-            });
+          : kind === "both"
+            ? t("shop.checkin.successBoth", {
+                tickets: tickets.toLocaleString(),
+                coins: coins.toLocaleString(),
+              })
+            : kind === "coins"
+              ? t("shop.checkin.successCoins", {
+                  coins: coins.toLocaleString(),
+                })
+              : t("shop.checkin.success", {
+                  tickets: tickets.toLocaleString(),
+                });
         if (onFeedback) onFeedback(message);
         else setInlineNote(message);
       } else {
@@ -488,12 +523,19 @@ export function PortalShopPanel({
               <div className="portal-shop-panel__itemTitleRow">
                 <strong>{t("shop.checkin.title")}</strong>
               </div>
-              <p className="portal-shop-panel__desc">{t("shop.checkin.hint")}</p>
+              <p className="portal-shop-panel__desc">
+                {checkinRewardKind === "both"
+                  ? t("shop.checkin.hintBoth")
+                  : checkinRewardKind === "coins"
+                    ? t("shop.checkin.hintCoins")
+                    : t("shop.checkin.hint")}
+              </p>
               <ol className="portal-shop-panel__checkinDays">
                 {Array.from({ length: checkinCycleDays }, (_, i) => {
                   const filled = i < checkinFilled;
                   const isToday = checkinTodaySlot === i;
-                  const tickets = checkinCycleRewards[i] ?? 1;
+                  const tickets = checkinCycleTickets[i] ?? 0;
+                  const coins = checkinCycleCoins[i] ?? 0;
                   return (
                     <li
                       key={i}
@@ -509,7 +551,31 @@ export function PortalShopPanel({
                         {t("shop.checkin.day", { day: i + 1 })}
                       </span>
                       <span className="portal-shop-panel__checkinDayReward">
-                        <img src={ticketIcon} alt="" />×{tickets}
+                        {checkinRewardKind !== "coins" && tickets > 0 ? (
+                          <>
+                            <img src={ticketIcon} alt="" />×{tickets}
+                          </>
+                        ) : null}
+                        {checkinRewardKind === "both" &&
+                        tickets > 0 &&
+                        coins > 0
+                          ? " "
+                          : null}
+                        {checkinRewardKind !== "tickets" && coins > 0 ? (
+                          <>
+                            <img src={coinIcon} alt="" />×{coins}
+                          </>
+                        ) : null}
+                        {checkinRewardKind === "tickets" && tickets <= 0 ? (
+                          <>
+                            <img src={ticketIcon} alt="" />×0
+                          </>
+                        ) : null}
+                        {checkinRewardKind === "coins" && coins <= 0 ? (
+                          <>
+                            <img src={coinIcon} alt="" />×0
+                          </>
+                        ) : null}
                       </span>
                     </li>
                   );
@@ -539,7 +605,18 @@ export function PortalShopPanel({
                 ? t("shop.checkin.claiming")
                 : checkinClaimed
                   ? t("shop.checkin.claimed")
-                  : t("shop.checkin.claim", { tickets: checkinReward })}
+                  : checkinRewardKind === "both"
+                    ? t("shop.checkin.claimBoth", {
+                        tickets: checkinRewardTickets,
+                        coins: checkinRewardCoins,
+                      })
+                    : checkinRewardKind === "coins"
+                      ? t("shop.checkin.claimCoins", {
+                          coins: checkinRewardCoins,
+                        })
+                      : t("shop.checkin.claim", {
+                          tickets: checkinRewardTickets,
+                        })}
             </button>
           </div>
         </div>

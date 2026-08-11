@@ -1,16 +1,16 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import { soloRolloutQueryBands } from "../botScoreSlots";
 import { pickSoloBotFillsFromTwoBands } from "../rolloutPick";
 import {
-  enforceSoloBotFillsForEffectiveRank,
-  simulateSoloHumanRank,
-} from "../soloRankEnforce";
+  enforceSingleHumanBotFillsForEffectiveRank,
+  simulateSingleHumanRank,
+} from "../singleHumanRankEnforce";
 
-describe("soloRankEnforce", () => {
+describe("singleHumanRankEnforce", () => {
   it("simulates human rank from bot scores", () => {
     expect(
-      simulateSoloHumanRank({
+      simulateSingleHumanRank({
         humanScore: 100,
         effectiveRank: 3,
         botFills: [
@@ -58,7 +58,7 @@ describe("soloRankEnforce", () => {
     });
     expect(enforced).toHaveLength(4);
     expect(
-      simulateSoloHumanRank({ humanScore, effectiveRank, botFills: enforced })
+      simulateSingleHumanRank({ humanScore, effectiveRank, botFills: enforced })
     ).toBe(5);
     for (const fill of enforced) {
       expect(fill.score).toBeGreaterThan(humanScore);
@@ -71,7 +71,7 @@ describe("soloRankEnforce", () => {
     const effectiveRank = 3;
     const maxPlayers = 5;
     const scoreLow = 10;
-    const enforced = enforceSoloBotFillsForEffectiveRank({
+    const enforced = enforceSingleHumanBotFillsForEffectiveRank({
       humanScore,
       effectiveRank,
       maxPlayers,
@@ -85,7 +85,7 @@ describe("soloRankEnforce", () => {
       gameType: "block_blast",
     });
     expect(
-      simulateSoloHumanRank({ humanScore, effectiveRank, botFills: enforced })
+      simulateSingleHumanRank({ humanScore, effectiveRank, botFills: enforced })
     ).toBe(3);
     const above = enforced
       .filter((f) => f.rank < effectiveRank)

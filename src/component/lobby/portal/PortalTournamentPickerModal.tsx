@@ -70,6 +70,8 @@ type Props = {
   dailyQuota?: PortalTournamentPickerDailyQuota | null;
   onSelect: (tournamentId: string) => void;
   onClose: () => void;
+  /** Open full rank-reward schedule for a multi ticket. */
+  onOpenRankRewards?: (tournamentId: string) => void;
 };
 
 function prizeHighlight(
@@ -132,6 +134,7 @@ const PortalTournamentPickerModal: React.FC<Props> = ({
   dailyQuota,
   onSelect,
   onClose,
+  onOpenRankRewards,
 }) => {
   const { t } = useTranslation("portal.player");
   const [cached, setCached] = useState({ mode, offerings, dailyQuota });
@@ -350,12 +353,48 @@ const PortalTournamentPickerModal: React.FC<Props> = ({
                       <span className="portal-tour-ticket-game">{gameLabel}</span>
                     ) : null}
                   </div>
-                  {prize ? (
+                  {prize &&
+                  activeMode === "multi" &&
+                  matchType === "multi_ranked" &&
+                  onOpenRankRewards ? (
+                    <div className="portal-tour-ticket-prize">
+                      <button
+                        type="button"
+                        className="portal-tour-ticket-prize-btn"
+                        onClick={() => onOpenRankRewards(o.tournamentId)}
+                        aria-label={t("lobby.allRanks")}
+                      >
+                        <span className="portal-tour-ticket-prize-label">
+                          {t(prize.labelKey)}
+                        </span>
+                        <span className="portal-tour-ticket-prize-value">
+                          {prize.value}
+                        </span>
+                        <span className="portal-tour-ticket-prize-all">
+                          {t("lobby.allRanks")}
+                        </span>
+                      </button>
+                    </div>
+                  ) : prize ? (
                     <div className="portal-tour-ticket-prize">
                       <span className="portal-tour-ticket-prize-label">
                         {t(prize.labelKey)}
                       </span>
-                      <span className="portal-tour-ticket-prize-value">{prize.value}</span>
+                      <span className="portal-tour-ticket-prize-value">
+                        {prize.value}
+                      </span>
+                    </div>
+                  ) : activeMode === "multi" &&
+                    matchType === "multi_ranked" &&
+                    onOpenRankRewards ? (
+                    <div className="portal-tour-ticket-prize">
+                      <button
+                        type="button"
+                        className="portal-tour-ticket-prize-btn portal-tour-ticket-prize-btn--link"
+                        onClick={() => onOpenRankRewards(o.tournamentId)}
+                      >
+                        {t("lobby.allRanks")}
+                      </button>
                     </div>
                   ) : null}
                   {maxPlayers != null ? (

@@ -11,6 +11,7 @@ import {
   resolveSeedSuccessThresholdFromQuantiles,
   shouldAppearInCasualPlayLobby,
 } from "../../../data/portalTournamentConfigs";
+import { PORTAL_SEASON_XP_PLAY } from "../../../data/portalSeasonHonorConfig";
 import { resolveInstanceWindow } from "../../../data/portalInstanceWindow";
 import type { Doc, Id } from "../../../_generated/dataModel";
 import type { QueryCtx } from "../../../_generated/server";
@@ -430,6 +431,10 @@ export const gameHistory = authedQuery({
           typeof pt.coinsGranted === "number" && Number.isFinite(pt.coinsGranted)
             ? Math.max(0, Math.floor(pt.coinsGranted))
             : null;
+        let xpGranted: number | null =
+          typeof pt.xpGranted === "number" && Number.isFinite(pt.xpGranted)
+            ? Math.max(0, Math.floor(pt.xpGranted))
+            : null;
 
         if (def?.matchType === "solo_p75" && selfPm) {
           if (
@@ -489,6 +494,22 @@ export const gameHistory = authedQuery({
           if (coins > 0 || def.entry.kind === "coins") coinsGranted = coins;
         }
 
+        // History should show flat per-match XP on every settled run.
+        // Fill when missing, or when older caps stored 0. Keep solo daily-success
+        // mute honest: success + pointDelta 0 means rewards (incl. XP) were muted.
+        const soloRewardsMutedRow =
+          def?.matchType === "solo_p75" &&
+          challengeSuccess === true &&
+          pointDelta === 0;
+        if (
+          completed &&
+          def &&
+          !soloRewardsMutedRow &&
+          (xpGranted == null || xpGranted === 0)
+        ) {
+          xpGranted = PORTAL_SEASON_XP_PLAY;
+        }
+
         let periodInstanceKey: string | undefined;
         let periodTournament = false;
 
@@ -521,6 +542,7 @@ export const gameHistory = authedQuery({
           participantCount,
           pointDelta,
           coinsGranted,
+          xpGranted,
           weeklyPointsAfter: pt.weeklyPointsAfter ?? null,
           seedScoreThreshold,
           challengeSuccess,

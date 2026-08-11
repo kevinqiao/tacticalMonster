@@ -8,6 +8,13 @@ import {
   usePlatformAdminMutations,
 } from "./usePlatformAdmin";
 
+type CheckinRewardsForm = {
+  baseTickets: string;
+  streakBonusTickets: string;
+  baseCoins: string;
+  streakBonusCoins: string;
+};
+
 type ShopSettingsForm = {
   enabled: boolean;
   giftCardsEnabled: boolean;
@@ -16,6 +23,8 @@ type ShopSettingsForm = {
   adCoinEnabled: boolean;
   iapEnabled: boolean;
   checkinEnabled: boolean;
+  checkinRewardKind: "tickets" | "coins" | "both";
+  checkinRewards: CheckinRewardsForm;
   assortmentMode: "all_shared" | "allowlist";
   skuIds: string[];
   excludeSkuIds: string[];
@@ -34,6 +43,13 @@ type Props = {
   canEdit: boolean;
 };
 
+const EMPTY_CHECKIN_REWARDS: CheckinRewardsForm = {
+  baseTickets: "",
+  streakBonusTickets: "",
+  baseCoins: "",
+  streakBonusCoins: "",
+};
+
 const DEFAULT_FORM: ShopSettingsForm = {
   enabled: true,
   giftCardsEnabled: true,
@@ -42,13 +58,79 @@ const DEFAULT_FORM: ShopSettingsForm = {
   adCoinEnabled: true,
   iapEnabled: true,
   checkinEnabled: true,
+  checkinRewardKind: "tickets",
+  checkinRewards: EMPTY_CHECKIN_REWARDS,
   assortmentMode: "all_shared",
   skuIds: [],
   excludeSkuIds: [],
   overrides: {},
 };
 
-function formFromSettings(settings: Partial<ShopSettingsForm> | undefined): ShopSettingsForm {
+function normalizeCheckinKind(
+  raw: unknown
+): "tickets" | "coins" | "both" {
+  if (raw === "coins" || raw === "both" || raw === "tickets") return raw;
+  return "tickets";
+}
+
+function rewardsFormFromSettings(raw: unknown): CheckinRewardsForm {
+  if (!raw || typeof raw !== "object") return { ...EMPTY_CHECKIN_REWARDS };
+  const r = raw as Record<string, unknown>;
+  return {
+    baseTickets: r.baseTickets != null ? String(r.baseTickets) : "",
+    streakBonusTickets: Array.isArray(r.streakBonusTickets)
+      ? r.streakBonusTickets.join(",")
+      : "",
+    baseCoins: r.baseCoins != null ? String(r.baseCoins) : "",
+    streakBonusCoins: Array.isArray(r.streakBonusCoins)
+      ? r.streakBonusCoins.join(",")
+      : "",
+  };
+}
+
+function parseOptionalNonNegInt(raw: string, label: string): number | undefined {
+  const t = raw.trim();
+  if (!t) return undefined;
+  const n = Number(t);
+  if (!Number.isInteger(n) || n < 0) throw new Error(`${label} 须为非负整数`);
+  return n;
+}
+
+function parseOptionalNonNegIntList(raw: string, label: string): number[] | undefined {
+  const t = raw.trim();
+  if (!t) return undefined;
+  const parts = t.split(/[,\s]+/).filter(Boolean);
+  const out: number[] = [];
+  for (const p of parts) {
+    const n = Number(p);
+    if (!Number.isInteger(n) || n < 0) throw new Error(`${label} 须为非负整数列表`);
+    out.push(n);
+  }
+  return out;
+}
+
+function checkinRewardsPayload(form: CheckinRewardsForm): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const baseTickets = parseOptionalNonNegInt(form.baseTickets, "baseTickets");
+  const baseCoins = parseOptionalNonNegInt(form.baseCoins, "baseCoins");
+  const streakBonusTickets = parseOptionalNonNegIntList(
+    form.streakBonusTickets,
+    "streakBonusTickets"
+  );
+  const streakBonusCoins = parseOptionalNonNegIntList(
+    form.streakBonusCoins,
+    "streakBonusCoins"
+  );
+  if (baseTickets != null) out.baseTickets = baseTickets;
+  if (baseCoins != null) out.baseCoins = baseCoins;
+  if (streakBonusTickets) out.streakBonusTickets = streakBonusTickets;
+  if (streakBonusCoins) out.streakBonusCoins = streakBonusCoins;
+  return out;
+}
+
+function formFromSettings(
+  settings: (Partial<ShopSettingsForm> & { checkinRewards?: unknown }) | undefined
+): ShopSettingsForm {
   return {
     enabled: settings?.enabled !== false,
     giftCardsEnabled: settings?.giftCardsEnabled !== false,
@@ -57,6 +139,8 @@ function formFromSettings(settings: Partial<ShopSettingsForm> | undefined): Shop
     adCoinEnabled: settings?.adCoinEnabled !== false,
     iapEnabled: settings?.iapEnabled !== false,
     checkinEnabled: settings?.checkinEnabled !== false,
+    checkinRewardKind: normalizeCheckinKind(settings?.checkinRewardKind),
+    checkinRewards: rewardsFormFromSettings(settings?.checkinRewards),
     assortmentMode:
       settings?.assortmentMode === "allowlist" ? "allowlist" : "all_shared",
     skuIds: settings?.skuIds ?? [],
@@ -147,10 +231,12 @@ const PlatformPartnerShopPanel: React.FC<Props> = ({ partnerId, canEdit }) => {
     setSaving(true);
     setNote(null);
     try {
+      const { checkinRewards: rewardsForm, ...rest } = form;
       await savePlatformPartnerShopSettings({
         partnerId,
         ...(scopeLobbyId ? { lobbyId: scopeLobbyId } : {}),
-        ...form,
+        ...rest,
+        checkinRewards: checkinRewardsPayload(rewardsForm),
         // Keep allowlist ids only when that mode is active.
         skuIds: form.assortmentMode === "allowlist" ? form.skuIds : [],
       });
@@ -283,6 +369,120 @@ const PlatformPartnerShopPanel: React.FC<Props> = ({ partnerId, canEdit }) => {
             每日签到
           </label>
         </fieldset>
+        {form.checkinEnabled ? (
+          <>
+            <fieldset className="merchant-field merchant-field--radio">
+              <legend>签到奖励类型</legend>
+              <label className="merchant-radio">
+                <input
+                  type="radio"
+                  name={`checkin-kind-${partnerId}-${scopeLobbyId || "base"}`}
+                  checked={form.checkinRewardKind === "tickets"}
+                  onChange={() => setForm({ ...form, checkinRewardKind: "tickets" })}
+                />
+                门票
+              </label>
+              <label className="merchant-radio">
+                <input
+                  type="radio"
+                  name={`checkin-kind-${partnerId}-${scopeLobbyId || "base"}`}
+                  checked={form.checkinRewardKind === "coins"}
+                  onChange={() => setForm({ ...form, checkinRewardKind: "coins" })}
+                />
+                金币
+              </label>
+              <label className="merchant-radio">
+                <input
+                  type="radio"
+                  name={`checkin-kind-${partnerId}-${scopeLobbyId || "base"}`}
+                  checked={form.checkinRewardKind === "both"}
+                  onChange={() => setForm({ ...form, checkinRewardKind: "both" })}
+                />
+                门票 + 金币
+              </label>
+            </fieldset>
+            <fieldset className="merchant-field">
+              <legend>签到数额覆盖（留空 = 继承全局 portal-economy）</legend>
+              <p className="merchant-note merchant-note--compact">
+                streak bonus 用逗号分隔，长度应等于全局 streakCycleDays（默认 7）。
+              </p>
+              {(form.checkinRewardKind === "tickets" ||
+                form.checkinRewardKind === "both") && (
+                <>
+                  <label className="merchant-field">
+                    baseTickets
+                    <input
+                      value={form.checkinRewards.baseTickets}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          checkinRewards: {
+                            ...form.checkinRewards,
+                            baseTickets: e.target.value,
+                          },
+                        })
+                      }
+                      placeholder="全局默认"
+                    />
+                  </label>
+                  <label className="merchant-field">
+                    streakBonusTickets
+                    <input
+                      value={form.checkinRewards.streakBonusTickets}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          checkinRewards: {
+                            ...form.checkinRewards,
+                            streakBonusTickets: e.target.value,
+                          },
+                        })
+                      }
+                      placeholder="例: 0,0,1,0,0,1,2"
+                    />
+                  </label>
+                </>
+              )}
+              {(form.checkinRewardKind === "coins" ||
+                form.checkinRewardKind === "both") && (
+                <>
+                  <label className="merchant-field">
+                    baseCoins
+                    <input
+                      value={form.checkinRewards.baseCoins}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          checkinRewards: {
+                            ...form.checkinRewards,
+                            baseCoins: e.target.value,
+                          },
+                        })
+                      }
+                      placeholder="全局默认"
+                    />
+                  </label>
+                  <label className="merchant-field">
+                    streakBonusCoins
+                    <input
+                      value={form.checkinRewards.streakBonusCoins}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          checkinRewards: {
+                            ...form.checkinRewards,
+                            streakBonusCoins: e.target.value,
+                          },
+                        })
+                      }
+                      placeholder="例: 0,0,15,0,0,15,30"
+                    />
+                  </label>
+                </>
+              )}
+            </fieldset>
+          </>
+        ) : null}
         <p className="merchant-note merchant-note--compact">
           关闭「兑换券」只影响商店展示；玩家已获得的兑换券仍可核销。关闭「商店启用」也会关闭看广告领金币入口。
           「全部共享」仍受上方开关约束：虚拟商品/礼品卡都关时，共享货架会是空的。

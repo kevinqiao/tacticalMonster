@@ -20,6 +20,9 @@ import { effectiveGameSequence } from "../../../data/portalTournamentConfigs";
 import { insertPlayerSessionForUid } from "../shared/casualSessionOpenCore";
 import type { CasualMatchSeedBinding } from "./casualMatchSeedBinding";
 import { applyWalletDelta, getPlayerWalletBalances } from "../../economy/portalWalletDao";
+import { resolveEconomyScope } from "../../economy/resolveEconomyScope";
+import { sessionPartnerIdFromUid } from "../../../../../shared/platformAuth/parsePlatformUid";
+import { assertLobbyOfferingJoinAllowed } from "../../lobby/lobbyOfferingUnlocks";
 
 export const RUN_TOURNAMENT_OPEN = 0;
 export const RUN_TOURNAMENT_COMPLETED = 1;
@@ -548,18 +551,72 @@ export async function validateJoinEntryAffordable(
 }
 
 /**
- * ???? + ????(join / previewJoinEntryCharge ??,?????????)?
+ * Resolve the wallet scope used for join charge / affordability.
+ * Must match claimQueueAndCharge / async join charge (isolated lobby wallets).
+ */
+export async function resolveJoinChargeScope(
+  ctx: MutationCtx | QueryCtx,
+  args: {
+    uid: string;
+    partnerId?: number | null;
+    lobbyId?: Id<"portal_lobbies"> | null;
+  }
+): Promise<{ scopeKey: string; lobbyId: Id<"portal_lobbies"> | null }> {
+  const partnerId =
+    args.partnerId ?? sessionPartnerIdFromUid(args.uid) ?? 0;
+  try {
+    const scope = await resolveEconomyScope(ctx, {
+      partnerId,
+      lobbyId: args.lobbyId ?? null,
+    });
+    return { scopeKey: scope.scopeKey, lobbyId: scope.lobbyId };
+  } catch {
+    // isolated without lobbyId (or unknown partner): fall back to shared
+    return { scopeKey: "shared", lobbyId: null };
+  }
+}
+
+/**
+ * Entry preview + affordability (join / previewJoinEntryCharge).
+ * Uses the same economy scope as the actual join charge.
  */
 export async function assertJoinEntryEligible(
   ctx: MutationCtx | QueryCtx,
   uid: string,
   tournamentId: string,
   now: number,
-  opts?: { skipEntryCharge?: boolean }
+  opts?: {
+    skipEntryCharge?: boolean;
+    scopeKey?: string;
+    partnerId?: number | null;
+    lobbyId?: Id<"portal_lobbies"> | null;
+  }
 ): Promise<JoinEntryChargePreview> {
   const preview = await computeJoinEntryWillCharge(ctx, uid, tournamentId, now);
   if (!preview.ok) {
     return preview;
   }
-  return validateJoinEntryAffordable(ctx, uid, preview, opts);
+  if (opts?.lobbyId) {
+    const unlock = await assertLobbyOfferingJoinAllowed(ctx, {
+      uid,
+      lobbyId: opts.lobbyId,
+      tournamentId,
+    });
+    if (!unlock.ok) {
+      return { ok: false as const, error: unlock.error };
+    }
+  }
+  let scopeKey = opts?.scopeKey;
+  if (!scopeKey) {
+    const scope = await resolveJoinChargeScope(ctx, {
+      uid,
+      partnerId: opts?.partnerId,
+      lobbyId: opts?.lobbyId,
+    });
+    scopeKey = scope.scopeKey;
+  }
+  return validateJoinEntryAffordable(ctx, uid, preview, {
+    skipEntryCharge: opts?.skipEntryCharge,
+    scopeKey,
+  });
 }

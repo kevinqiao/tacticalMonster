@@ -34,14 +34,18 @@ export function countSoloLadderProgress(
   ).length;
 }
 
-/** Multi ritual open until first Solo clear (ladder progress > 0). */
-export function isPortalMultiRitualOpen(ladderProgress: number): boolean {
-  return ladderProgress <= 0;
+/**
+ * Legacy multi→solo onboarding gate. Disabled: Arena joins must stay multi.
+ * Kept for tests / call sites that still pass ladderProgress.
+ */
+export function isPortalMultiRitualOpen(_ladderProgress: number): boolean {
+  return false;
 }
 
 /**
- * While multi ritual is open, rewrite multi_ranked joins to the same-game Solo template.
- * Campaign joins should pass `skip: true`.
+ * Previously rewrote multi_ranked → Solo until first Solo clear.
+ * Now a no-op so clicking Arena always joins the requested multi template.
+ * Campaign joins may still pass `skip: true`.
  */
 export function resolveMultiRitualJoinTemplate(args: {
   requestedTemplateId: string;
@@ -50,17 +54,11 @@ export function resolveMultiRitualJoinTemplate(args: {
   ladderProgress: number;
   skip?: boolean;
 }): { templateId: string; ritualForcedSolo: boolean } {
-  if (args.skip) {
-    return { templateId: args.requestedTemplateId, ritualForcedSolo: false };
-  }
-  if (args.matchType !== "multi_ranked") {
-    return { templateId: args.requestedTemplateId, ritualForcedSolo: false };
-  }
-  if (!isPortalMultiRitualOpen(args.ladderProgress)) {
-    return { templateId: args.requestedTemplateId, ritualForcedSolo: false };
-  }
-  const soloTemplateId = soloTemplateIdForGame(args.gameType);
-  return { templateId: soloTemplateId, ritualForcedSolo: true };
+  void args.matchType;
+  void args.gameType;
+  void args.ladderProgress;
+  void args.skip;
+  return { templateId: args.requestedTemplateId, ritualForcedSolo: false };
 }
 
 export async function loadSeasonSeedPickSignals(

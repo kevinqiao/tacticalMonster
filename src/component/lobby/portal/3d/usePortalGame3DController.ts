@@ -63,16 +63,45 @@ import { localizePortalTournamentTitle } from "../portalTournamentLocalize";
 
 const getTournamentDef = getPortalTournamentDefinition;
 
+type LobbyOfferingUnlockGate = {
+  seasonLevel?: number | null;
+  unlockedTournamentIds?: string[] | null;
+};
+
 /** Lobby offerings for Solo/Arena — filter by matchType only (never invent a game slice). */
 function filterLobbyOfferingsForMode(
   offerings: PortalLobbyOfferingView[] | undefined,
-  mode: "solo" | "multi"
+  mode: "solo" | "multi",
+  unlock?: LobbyOfferingUnlockGate
 ): PortalLobbyOfferingView[] {
   const matchType = mode === "solo" ? "solo_p75" : "multi_ranked";
+  const unlocked = new Set(
+    (unlock?.unlockedTournamentIds ?? []).filter(
+      (id): id is string => typeof id === "string" && id.length > 0
+    )
+  );
+  const seasonLevel = Math.max(
+    1,
+    Math.floor(
+      typeof unlock?.seasonLevel === "number" &&
+        Number.isFinite(unlock.seasonLevel)
+        ? unlock.seasonLevel
+        : 0
+    )
+  );
   return (offerings ?? []).filter((o) => {
     const def = getTournamentDef(o.tournamentId);
     const resolvedMatch = def?.matchType ?? o.matchType;
-    return resolvedMatch === matchType;
+    if (resolvedMatch !== matchType) return false;
+    const need =
+      typeof o.unlockSeasonLevel === "number" &&
+      Number.isFinite(o.unlockSeasonLevel) &&
+      o.unlockSeasonLevel >= 2
+        ? Math.floor(o.unlockSeasonLevel)
+        : null;
+    if (need == null) return true;
+    if (unlocked.has(o.tournamentId)) return true;
+    return seasonLevel >= need;
   });
 }
 
@@ -103,6 +132,9 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     mode: "solo" | "multi";
     offerings: PortalLobbyOfferingView[];
   } | null>(null);
+  const [rankRewardsTournamentId, setRankRewardsTournamentId] = useState<
+    string | null
+  >(null);
 
   const signIn = useCallback(() => {
     askAuth({});
@@ -268,6 +300,7 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   useEffect(() => {
     if (!playModalOpen) return;
     setTournamentPicker(null);
+    setRankRewardsTournamentId(null);
   }, [playModalOpen]);
 
   useEffect(() => {
@@ -323,9 +356,22 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     portal.dailyPlayQuota?.solo.playsToday ?? clientSoloLadderPlays;
   const multiLadderPlaysToday =
     portal.dailyPlayQuota?.multi.playsToday ?? clientMultiLadderPlays;
-  /** 免费档用尽 → 切到广告/门票入场 CTA（上限仍是免费 cap，与 assert 的 free 段一致） */
-  const soloDailyExhausted = authed && soloLadderPlaysToday >= soloMaxPlaysPerDay;
-  const multiDailyExhausted = authed && multiLadderPlaysToday >= multiMaxPlaysPerDay;
+  /**
+   * 免费档用尽 → 切到广告/门票入场 CTA。
+   * Prefer server remainingPlaysToday: partner free caps (e.g. multi=3) can be
+   * lower than the FE default (5), and playsToday>=defaultMax would under-detect
+   * exhaustion and join as free → server daily_play_limit_reached.
+   */
+  const soloDailyExhausted =
+    authed &&
+    (portal.dailyPlayQuota?.solo != null
+      ? portal.dailyPlayQuota.solo.remainingPlaysToday <= 0
+      : soloLadderPlaysToday >= soloMaxPlaysPerDay);
+  const multiDailyExhausted =
+    authed &&
+    (portal.dailyPlayQuota?.multi != null
+      ? portal.dailyPlayQuota.multi.remainingPlaysToday <= 0
+      : multiLadderPlaysToday >= multiMaxPlaysPerDay);
 
   const isFreeExhaustedForTemplate = useCallback(
     (mode: "solo" | "multi", templateId: string | null | undefined) => {
@@ -382,13 +428,19 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     portal.ticketEntryOffer?.multi.enabled === true &&
     (portal.ticketEntryOffer.multi.remaining ?? 0) > 0;
 
+  const offeringUnlockGate: LobbyOfferingUnlockGate = {
+    seasonLevel: portal.weeklyLeagueTierView?.seasonLevel,
+    unlockedTournamentIds: portal.weeklyLeagueTierView?.unlockedTournamentIds,
+  };
   const soloOfferingsForBlock = filterLobbyOfferingsForMode(
     lobby?.offerings,
-    "solo"
+    "solo",
+    offeringUnlockGate
   );
   const multiOfferingsForBlock = filterLobbyOfferingsForMode(
     lobby?.offerings,
-    "multi"
+    "multi",
+    offeringUnlockGate
   );
   /** Multi-offering modes open a picker — home CTA stays clickable; gray only for single-ticket modes. */
   const soloHasMultipleOfferings = (soloOfferingsForBlock?.length ?? 0) > 1;
@@ -418,14 +470,20 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
     (multiOfferingsForBlock?.length ?? 0) === 1 &&
     modeLadderOfferingCount(multiOfferingsForBlock) === 1;
   // Paid coin/gem offerings stay joinable after free/ad/ticket ladder is spent.
+  // Only treat ads as "gone" once the offer query has loaded — null offer must
+  // not gray the CTA / fake daily_play_limit while remaining is still unknown.
+  const soloAdEntryOfferLoaded = portal.adEntryOffer != null;
+  const multiAdEntryOfferLoaded = portal.adEntryOffer != null;
   const soloDailyLadderBlocked =
     soloDailyExhausted &&
+    soloAdEntryOfferLoaded &&
     !soloAdEntryAvailable &&
     !soloTicketEntryAvailable &&
     soloOpenAssignment == null &&
     !modeHasPaidEntryOffering(soloOfferingsForBlock);
   const multiDailyLadderBlocked =
     multiDailyExhausted &&
+    multiAdEntryOfferLoaded &&
     !multiAdEntryAvailable &&
     !multiTicketEntryAvailable &&
     multiOpenAssignment == null &&
@@ -808,17 +866,34 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
 
       // Coin/gem tables bypass free→ad→ticket daily ladder (and its join block).
       if (usesPlayEntryLadder) {
+        const adOfferLoaded = portal.adEntryOffer != null;
+        const adAvailableForBlock =
+          mode === "solo" ? soloAdEntryAvailable : multiAdEntryAvailable;
+        const ticketAvailableForBlock =
+          mode === "solo" ? soloTicketEntryAvailable : multiTicketEntryAvailable;
         if (mode === "multi" && multiJoinBlocked && !queueWaiting) {
+          const ladderDead =
+            multiDailyExhausted &&
+            adOfferLoaded &&
+            !adAvailableForBlock &&
+            !ticketAvailableForBlock &&
+            !multiOpenAssignment;
           setNote(
-            multiDailyExhausted && !multiOpenAssignment
+            ladderDead
               ? joinEntryErrorMessage("daily_play_limit_reached")
               : campaignFlowErrorMessage("matchingInProgress")
           );
           return "error";
         }
         if (mode === "solo" && soloJoinBlocked) {
+          const ladderDead =
+            soloDailyExhausted &&
+            adOfferLoaded &&
+            !adAvailableForBlock &&
+            !ticketAvailableForBlock &&
+            !soloOpenAssignment;
           setNote(
-            soloDailyExhausted && !soloOpenAssignment
+            ladderDead
               ? joinEntryErrorMessage("daily_play_limit_reached")
               : campaignFlowErrorMessage("matchingInProgress")
           );
@@ -843,38 +918,50 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
           mode === "solo"
             ? portal.adEntryOffer?.solo.hasReadyGrant === true
             : portal.adEntryOffer?.multi.hasReadyGrant === true;
+        const adOfferLoaded = portal.adEntryOffer != null;
 
         // Paid coin tables may keep the mode card enabled; free-ladder templates
         // must still stop when free is gone and no ad/ticket remains.
-        if (freeExhausted && !adAvailable && !ticketAvailable) {
+        // If ad offer hasn't loaded yet, fall through and let the server decide.
+        if (
+          freeExhausted &&
+          !adAvailable &&
+          !ticketAvailable &&
+          adOfferLoaded
+        ) {
           setNote(joinEntryErrorMessage("daily_play_limit_reached"));
           return "error";
         }
 
         let adEntry = false;
         let ticketEntry = false;
+        const runAdEntry = async (): Promise<"ad" | "free" | "error"> => {
+          if (!templateId) {
+            setNote(joinEntryErrorMessage("unknown_tournament"));
+            return "error";
+          }
+          const ad = await requestPortalAdEntry({
+            mode,
+            templateId,
+            lobbyId: lobby?.lobbyId ?? null,
+          });
+          if (!ad.ok) {
+            // Client thought free was gone; server still has free slots —
+            // join as free instead of surfacing free_quota_available.
+            if (ad.error !== "free_quota_available") {
+              setNote(joinEntryErrorMessage(ad.error));
+              return "error";
+            }
+            return "free";
+          }
+          return "ad";
+        };
         if (freeExhausted) {
           if (adAvailable) {
             if (!hasReadyGrant) {
-              if (!templateId) {
-                setNote(joinEntryErrorMessage("unknown_tournament"));
-                return "error";
-              }
-              const ad = await requestPortalAdEntry({
-                mode,
-                templateId,
-                lobbyId: lobby?.lobbyId ?? null,
-              });
-              if (!ad.ok) {
-                // Client thought free was gone; server still has free slots —
-                // join as free instead of surfacing free_quota_available.
-                if (ad.error !== "free_quota_available") {
-                  setNote(joinEntryErrorMessage(ad.error));
-                  return "error";
-                }
-              } else {
-                adEntry = true;
-              }
+              const rung = await runAdEntry();
+              if (rung === "error") return "error";
+              if (rung === "ad") adEntry = true;
             } else {
               adEntry = true;
             }
@@ -883,11 +970,63 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
           }
         }
 
-        const outcome = await portal.joinTournament(mode, {
+        let outcome = await portal.joinTournament(mode, {
           ...(templateId ? { tournamentId: templateId } : {}),
           ...(adEntry ? { adEntry: true } : {}),
           ...(ticketEntry ? { ticketEntry: true } : {}),
         });
+        // Free join rejected because free ladder is done — escalate to ad/ticket.
+        // Covers: stale FE free-cap math, and server `ad_entry_required`.
+        const needsPaidLadder =
+          outcome.kind === "failed" &&
+          usesPlayEntryLadder &&
+          !adEntry &&
+          !ticketEntry &&
+          (outcome.errorCode === "daily_play_limit_reached" ||
+            outcome.errorCode === "ad_entry_required" ||
+            outcome.errorCode === "ticket_entry_required");
+        if (needsPaidLadder && adAvailable) {
+          if (!hasReadyGrant) {
+            const rung = await runAdEntry();
+            if (rung === "error") return "error";
+            if (rung === "ad") adEntry = true;
+            else if (rung === "free") {
+              outcome = await portal.joinTournament(mode, {
+                ...(templateId ? { tournamentId: templateId } : {}),
+              });
+            }
+          } else {
+            adEntry = true;
+          }
+          if (adEntry) {
+            outcome = await portal.joinTournament(mode, {
+              ...(templateId ? { tournamentId: templateId } : {}),
+              adEntry: true,
+            });
+          }
+        } else if (needsPaidLadder && ticketAvailable) {
+          ticketEntry = true;
+          outcome = await portal.joinTournament(mode, {
+            ...(templateId ? { tournamentId: templateId } : {}),
+            ticketEntry: true,
+          });
+        }
+        // Stale hasReadyGrant / expired grant: re-watch once then retry join.
+        if (
+          outcome.kind === "failed" &&
+          adEntry &&
+          (outcome.errorCode === "ad_entry_grant_missing" ||
+            outcome.error === joinEntryErrorMessage("ad_entry_grant_missing"))
+        ) {
+          const rung = await runAdEntry();
+          if (rung === "error") return "error";
+          if (rung === "ad") {
+            outcome = await portal.joinTournament(mode, {
+              ...(templateId ? { tournamentId: templateId } : {}),
+              adEntry: true,
+            });
+          }
+        }
         if (outcome.kind === "ready") {
           if (outcome.ritualForcedSolo) {
             setNote(
@@ -1070,12 +1209,30 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
   );
 
   const soloOfferings = useMemo(
-    () => filterLobbyOfferingsForMode(lobby?.offerings, "solo"),
-    [lobby?.offerings]
+    () =>
+      filterLobbyOfferingsForMode(
+        lobby?.offerings,
+        "solo",
+        offeringUnlockGate
+      ),
+    [
+      lobby?.offerings,
+      offeringUnlockGate.seasonLevel,
+      offeringUnlockGate.unlockedTournamentIds,
+    ]
   );
   const multiOfferings = useMemo(
-    () => filterLobbyOfferingsForMode(lobby?.offerings, "multi"),
-    [lobby?.offerings]
+    () =>
+      filterLobbyOfferingsForMode(
+        lobby?.offerings,
+        "multi",
+        offeringUnlockGate
+      ),
+    [
+      lobby?.offerings,
+      offeringUnlockGate.seasonLevel,
+      offeringUnlockGate.unlockedTournamentIds,
+    ]
   );
 
   const handleJoin = useCallback(
@@ -1196,6 +1353,28 @@ export function usePortalGame3DController({ visible }: { visible: number }) {
         if (result === "ok" && mode === "solo") setTournamentPicker(null);
       });
     },
+    rankRewardsTournamentId,
+    rankRewardsTitleOverride: (() => {
+      if (!rankRewardsTournamentId) return null;
+      const fromPicker = tournamentPicker?.offerings.find(
+        (o) => o.tournamentId === rankRewardsTournamentId
+      )?.titleOverride;
+      if (fromPicker) return fromPicker;
+      return (
+        multiOfferings.find((o) => o.tournamentId === rankRewardsTournamentId)
+          ?.titleOverride ??
+        lobby?.offerings?.find((o) => o.tournamentId === rankRewardsTournamentId)
+          ?.titleOverride ??
+        null
+      );
+    })(),
+    openRankRewards: (tournamentId: string) => {
+      setRankRewardsTournamentId(tournamentId);
+    },
+    closeRankRewards: () => setRankRewardsTournamentId(null),
+    /** When Arena skips picker (exactly one multi offering), home can open its schedule. */
+    singleMultiRankRewardsTournamentId:
+      multiOfferings.length === 1 ? multiOfferings[0]!.tournamentId : null,
     handleLeaveMatchQueue,
     openAssignment,
     cohortLeaderboard,

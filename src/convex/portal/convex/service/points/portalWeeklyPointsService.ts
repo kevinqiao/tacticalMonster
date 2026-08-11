@@ -32,6 +32,14 @@ import {
 
 export type PortalWeeklyMode = "solo" | "multi";
 
+export type ApplyPortalMatchPointsResult = {
+  pointDelta: number;
+  weeklyPointsAfter: number;
+  weekKey: string;
+  soloRewardsMuted?: boolean;
+  xpGranted?: number;
+};
+
 export function portalModeFromDef(def: PortalTournamentDefinition): PortalWeeklyMode {
   return def.matchType === "solo_p75" ? "solo" : "multi";
 }
@@ -60,19 +68,14 @@ export async function applyPortalMatchPoints(
       };
     } | null;
   }
-): Promise<{
-  pointDelta: number;
-  weeklyPointsAfter: number;
-  weekKey: string;
-  /** Solo daily success cap muted all rewards/penalties for this settle. */
-  soloRewardsMuted?: boolean;
-}> {
+): Promise<ApplyPortalMatchPointsResult> {
   const now = args.now ?? Date.now();
   const mode = portalModeFromDef(args.def);
   let delta = 0;
   let reason = "multi_rank";
   let p75Success: boolean | undefined;
   let soloRewardsMuted = false;
+  let xpGranted: number | undefined;
   const runRow = await ctx.db.get(args.runTournamentId);
   const lobbyId = args.joinLobbyId ?? runRow?.lobbyId;
 
@@ -189,14 +192,6 @@ export async function applyPortalMatchPoints(
       q.eq("tournamentId", args.runTournamentId).eq("uid", args.uid)
     )
     .unique();
-  if (pt) {
-    await ctx.db.patch(pt._id, {
-      pointDelta: appliedDelta,
-      weeklyPointsAfter,
-      updatedAt: now,
-    });
-  }
-
   await persistPlayerMatchChallengeOutcome(ctx, {
     uid: args.uid,
     runTournamentId: String(args.runTournamentId),
@@ -244,13 +239,26 @@ export async function applyPortalMatchPoints(
         },
         now,
       });
-      await addSeasonHonorXp(ctx, {
+      // Flat per-match Season XP (win/lose both use play bucket; uncapped).
+      const xp = await addSeasonHonorXp(ctx, {
         uid: args.uid,
         lobbyId,
-        kind: matchWin ? "win" : "play",
+        kind: "play",
         now,
       });
+      xpGranted = Math.max(0, Math.floor(xp.xpGranted));
     }
+  } else if (lobbyId && soloRewardsMuted) {
+    xpGranted = 0;
+  }
+
+  if (pt) {
+    await ctx.db.patch(pt._id, {
+      pointDelta: appliedDelta,
+      weeklyPointsAfter,
+      ...(xpGranted != null ? { xpGranted } : {}),
+      updatedAt: now,
+    });
   }
 
   return {
@@ -258,5 +266,6 @@ export async function applyPortalMatchPoints(
     weeklyPointsAfter,
     weekKey,
     ...(soloRewardsMuted ? { soloRewardsMuted: true } : {}),
+    ...(xpGranted != null ? { xpGranted } : {}),
   };
 }

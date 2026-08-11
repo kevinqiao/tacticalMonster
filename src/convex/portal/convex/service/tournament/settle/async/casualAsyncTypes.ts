@@ -1,4 +1,15 @@
-/** ??? bot ingest / ???? roster ???????(V3:bot ????? ingest ??)? */
+/**
+ * Casual async submit / bot-ingest helpers.
+ *
+ * Terminology (three different “solo” layers — do not conflate):
+ * 1) Play mode `mode: "solo" | "multi"` — Solo Challenge vs multiplayer Arena
+ *    (entry, quotas, ads, templates like `portal_solo_p75_*`). Keep as-is.
+ * 2) `CasualSubmitMode` — human composition on an async multi table:
+ *    `daily` (maxPlayers<=1), `single_human` (effectiveHumans=1), `mixed` (>=2).
+ * 3) Open-table / rank APIs (`openSingleHumanAsyncTableFromQueue`,
+ *    `recommendSingleHumanEffectiveRank`) — multi with effectiveHumans=1.
+ * Never call (2)/(3) “solo mode”.
+ */
 
 import type { PortalTournamentDefinition } from "../../../../data/portalTournamentConfigs";
 import {
@@ -10,7 +21,17 @@ import {
 } from "../../../../data/partnerGameRegistry";
 import { effectiveGameSequence } from "../../../../data/portalTournamentConfigs";
 
-export type CasualSubmitMode = "daily" | "solo" | "mixed";
+export type CasualSubmitMode = "daily" | "single_human" | "mixed";
+
+/** Wire/legacy values; `"solo"` means single human in async multi. */
+export type CasualSubmitModeWire = CasualSubmitMode | "solo";
+
+/** Map legacy `"solo"` → `"single_human"` at bridge boundaries. */
+export function normalizeSubmitMode(mode: string): CasualSubmitMode | null {
+  if (mode === "solo") return "single_human";
+  if (mode === "daily" || mode === "single_human" || mode === "mixed") return mode;
+  return null;
+}
 
 export function resolveCasualSubmitMode(
   maxPlayers: number,
@@ -18,7 +39,7 @@ export function resolveCasualSubmitMode(
 ): CasualSubmitMode {
   if (maxPlayers <= 1) return "daily";
   if (Math.max(1, humanPlayerCount) >= 2) return "mixed";
-  return "solo";
+  return "single_human";
 }
 
 export type AsyncBotFill = {

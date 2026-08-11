@@ -5,6 +5,7 @@ import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { internalMutation } from "../../_generated/server";
 import {
   clampAdEntryDailyCap,
+  isUnlimitedAdEntryDailyCap,
   isPortalAdEntryChannel,
   PORTAL_AD_ENTRY_GRANT_TTL_MS,
   PORTAL_AD_ENTRY_SESSION_TTL_MS,
@@ -361,7 +362,12 @@ export async function useAdEntryGrantForJoin(
     entryCtx,
     cfg.quotaScope
   );
-  if (used >= cfg.dailyCap) return { ok: false, error: "daily_cap_reached" };
+  if (
+    !isUnlimitedAdEntryDailyCap(cfg.dailyCap) &&
+    used >= cfg.dailyCap
+  ) {
+    return { ok: false, error: "daily_cap_reached" };
+  }
 
   await ctx.db.patch(grant._id, { status: "consumed", consumedAt: now });
   await bumpAdEntryUsedToday(ctx, {
@@ -380,15 +386,21 @@ export const consumeAdEntryForJoin = internalMutation({
     uid: v.string(),
     templateId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    /**
+     * Grant mode from the *requested* entry (before multi→solo ritual rewrite).
+     * When omitted, derived from templateId.
+     */
+    mode: v.optional(v.union(v.literal("solo"), v.literal("multi"))),
   },
   handler: async (ctx, args) => {
     const def = getPortalTournamentDefinition(args.templateId);
-    const mode =
+    const derived =
       def?.matchType === "solo_p75"
         ? "solo"
         : def?.matchType === "multi_ranked"
           ? "multi"
           : null;
+    const mode = args.mode ?? derived;
     if (!mode) return { ok: false as const, error: "invalid_mode" };
     return await useAdEntryGrantForJoin(ctx, {
       uid: args.uid,

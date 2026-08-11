@@ -74,18 +74,27 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
         }
     }, []);
     const onGameLoadComplete = useCallback(() => {
-        loadingRef.current?.classList.add('solo-game-loading--hidden');
+        // Cross-fade only — do NOT set visibility:hidden up front (that pops Loading
+        // off in one frame and reads as a full-screen flash when the board appears).
         if (playerRef.current) {
             gsap.set(playerRef.current, { autoAlpha: 1 });
         }
-        if (loadingRef.current) {
-            gsap.to(loadingRef.current, {
+        const loadingEl = loadingRef.current;
+        if (loadingEl) {
+            gsap.to(loadingEl, {
                 autoAlpha: 0,
-                duration: 0.35,
+                duration: 0.28,
                 ease: 'power2.inOut',
+                onComplete: () => {
+                    loadingEl.classList.add('solo-game-loading--hidden');
+                    // Banner/chrome phase change can resize the stage — run after the
+                    // fade so it does not coincide with the first deal paint.
+                    markPortalGameplayReady();
+                },
             });
+        } else {
+            markPortalGameplayReady();
         }
-        markPortalGameplayReady();
     }, []);
     return (
         <>

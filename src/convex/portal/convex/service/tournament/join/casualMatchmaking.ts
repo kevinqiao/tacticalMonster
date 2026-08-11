@@ -202,7 +202,10 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       };
     }
 
-    const preview = await assertJoinEntryEligible(ctx, uid, tournamentId, now);
+    const preview = await assertJoinEntryEligible(ctx, uid, tournamentId, now, {
+      partnerId,
+      lobbyId,
+    });
     if (!preview.ok) {
       return { ok: false as const, error: preview.error };
     }
@@ -317,7 +320,7 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       if (effectiveHumans === 1) {
         await ctx.scheduler.runAfter(
           CASUAL_SOLO_ASYNC_OPEN_DELAY_MS,
-          internal.service.tournament.join.casualOpenTableActions.openSoloAsyncTableFromQueue,
+          internal.service.tournament.join.casualOpenTableActions.openSingleHumanAsyncTableFromQueue,
           { queueRowId }
         );
         /** 双保险：processQueue 也会 claim eff=1，避免 solo open 调度丢失后一直「匹配中」 */

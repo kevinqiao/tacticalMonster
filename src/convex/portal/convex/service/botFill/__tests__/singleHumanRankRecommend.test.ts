@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import type { BotStrategyPlayerContext } from "../../../data/portalPlayerStrategyTypes";
 import {
   getPortalTournamentDefinition,
   getTournamentBotDifficultyProfile,
 } from "../../../data/portalTournamentConfigs";
-import { recommendSoloEffectiveRank } from "../soloRankRecommend";
+import { recommendSingleHumanEffectiveRank } from "../singleHumanRankRecommend";
 
 const QUANTILES = {
   p10: 32,
@@ -46,9 +46,9 @@ function profile(over: Partial<BotStrategyPlayerContext> = {}): BotStrategyPlaye
   };
 }
 
-describe("recommendSoloEffectiveRank", () => {
+describe("recommendSingleHumanEffectiveRank", () => {
   it("botDifficultyProfile=none skips BOT_DIFFICULTY_RULES even when player profile would match", () => {
-    const withStrategy = recommendSoloEffectiveRank({
+    const withStrategy = recommendSingleHumanEffectiveRank({
       humanScore: 200,
       scoreQuantiles: QUANTILES,
       maxPlayers: 5,
@@ -61,7 +61,7 @@ describe("recommendSoloEffectiveRank", () => {
     expect(withStrategy.source).toBe("profile");
     expect(withStrategy.matchedRuleId).toBeTruthy();
 
-    const noneProfile = recommendSoloEffectiveRank({
+    const noneProfile = recommendSingleHumanEffectiveRank({
       humanScore: 200,
       scoreQuantiles: QUANTILES,
       maxPlayers: 5,
@@ -76,7 +76,7 @@ describe("recommendSoloEffectiveRank", () => {
   });
 
   it("botDifficultyProfile=none also skips quantile path below p50", () => {
-    const normal = recommendSoloEffectiveRank({
+    const normal = recommendSingleHumanEffectiveRank({
       humanScore: 100,
       scoreQuantiles: QUANTILES,
       maxPlayers: 5,
@@ -88,7 +88,7 @@ describe("recommendSoloEffectiveRank", () => {
     });
     expect(normal.source).toBe("quantile");
 
-    const noneProfile = recommendSoloEffectiveRank({
+    const noneProfile = recommendSingleHumanEffectiveRank({
       humanScore: 100,
       scoreQuantiles: QUANTILES,
       maxPlayers: 5,

@@ -23,6 +23,8 @@
     "not_found": "活动不存在",
     "merchant_unreachable": "活动服务暂不可用，请稍后重试",
     "daily_play_limit_reached": "今日挑战次数已用完，明天再来",
+    "ad_entry_required": "免费次数已用完，请看广告继续挑战",
+    "ticket_entry_required": "免费次数已用完，请使用门票继续挑战",
     "solo_success_daily_cap_reached": "今日达标奖励次数已满，暂时无法继续开桌",
     "ad_channel_unsupported": "当前环境不支持广告入场",
     "begin_failed": "无法开始广告入场，请稍后重试",
@@ -39,6 +41,7 @@
     "ticket_entry_limit_reached": "今日门票入场次数已用完",
     "ticket_entry_not_available": "当前不可使用门票入场",
     "insufficient_tickets": "门票不足",
+    "offering_locked": "赛季等级不足，暂未解锁该竞技场",
     "default_with_code": "无法加入：{{code}}",
     "default": "无法加入"
   },

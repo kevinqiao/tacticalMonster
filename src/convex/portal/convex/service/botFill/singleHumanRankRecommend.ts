@@ -1,4 +1,4 @@
-import { CASUAL_RANK_STAT_BUCKET_MAX } from "../../shared/constants";
+﻿import { CASUAL_RANK_STAT_BUCKET_MAX } from "../../shared/constants";
 import { expandStatBucketToTargetRank } from "../../shared/rankStatBuckets";
 import type {
   CasualRankRateEntry,
@@ -17,17 +17,17 @@ import { buildBalancedRankWeights, sampleTargetRank } from "./rankSampling";
 import {
   rankBandFromScore,
   resolveEffectiveRank,
-  type SoloRankBand,
-} from "./soloRankBand";
+  type SingleHumanRankBand,
+} from "./singleHumanRankBand";
 
-export type SoloRankRecommendSource = "quantile" | "profile" | "rank_rates";
+export type SingleHumanRankRecommendSource = "quantile" | "profile" | "rank_rates";
 
-export type SoloRankRecommendResult = {
+export type SingleHumanRankRecommendResult = {
   targetRank: number;
   /** 人类在 bot 补位后 finalize 的实际 1-based 名次（与 assignMatchRanksByScoreDesc 一致）。 */
   effectiveRank: number;
-  rankBand: SoloRankBand;
-  source: SoloRankRecommendSource;
+  rankBand: SingleHumanRankBand;
+  source: SingleHumanRankRecommendSource;
   matchedRuleId?: string;
 };
 
@@ -49,7 +49,7 @@ function sampleRankFromTournamentRates(args: {
   return expandStatBucketToTargetRank(statBucket, args.maxPlayers, args.sessionSeed);
 }
 
-export function recommendSoloEffectiveRank(args: {
+export function recommendSingleHumanEffectiveRank(args: {
   humanScore: number;
   scoreQuantiles: ScoreQuantiles;
   maxPlayers: number;
@@ -59,7 +59,7 @@ export function recommendSoloEffectiveRank(args: {
   sessionSeed: number;
   /** 桌级难度分轨；`none` 时始终 rank_rates（跳过 quantile / rules）。缺省 `default`。 */
   botDifficultyProfile?: PortalBotDifficultyProfileId;
-}): SoloRankRecommendResult {
+}): SingleHumanRankRecommendResult {
   const {
     humanScore,
     scoreQuantiles,
@@ -76,7 +76,7 @@ export function recommendSoloEffectiveRank(args: {
   const rules = resolveBotDifficultyRules(botDifficultyProfile);
 
   let targetRank: number;
-  let source: SoloRankRecommendSource;
+  let source: SingleHumanRankRecommendSource;
   let matchedRuleId: string | undefined;
 
   if (rules.length === 0) {
@@ -123,5 +123,5 @@ export function recommendSoloEffectiveRank(args: {
   return { targetRank, effectiveRank, rankBand, source, matchedRuleId };
 }
 
-export type { SoloRankBand };
+export type { SingleHumanRankBand };
 

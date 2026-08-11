@@ -1,32 +1,30 @@
+﻿import { CASUAL_RANK_STAT_BUCKET_MAX } from "../../shared/constants";
+import { expandStatBucketToTargetRank } from "../../shared/rankStatBuckets";
+import type { CasualRankRateEntry } from "../../data/casualTournamentConfigs";
+import type { BotStrategyPlayerContext } from "../../data/casualPlayerStrategyTypes";
 import {
-  buildBalancedRankWeights,
-  evaluateBotDifficultyRulesWithMeta,
-  sampleTargetRank,
-} from "./botDifficultyConfig";
-import {
-  CASUAL_RANK_STAT_BUCKET_MAX,
-  expandStatBucketToTargetRank,
-  type BotStrategyPlayerContext,
-  type CasualRankRateEntry,
-} from "./botStrategyTypes";
-import {
-  clampTargetRank,
-  deriveRankScoreFloorsFromQuantiles,
   recommendTargetRankFromQuantileProximity,
-  type RankScoreFloorsByRank,
   type ScoreQuantiles,
-} from "./botDifficulty";
+} from "../../shared/scoreQuantiles";
+import { evaluateBotDifficultyRulesWithMeta } from "./botDifficultyConfig";
+import { buildBalancedRankWeights, sampleTargetRank } from "./rankSampling";
+import {
+  rankBandFromScore,
+  resolveEffectiveRank,
+  type SingleHumanRankBand,
+} from "./singleHumanRankBand";
 
-export type SoloRankRecommendSource = "quantile" | "profile" | "rank_rates";
+export type SingleHumanRankRecommendSource = "quantile" | "profile" | "rank_rates";
 
-export type SoloRankRecommendResult = {
+export type SingleHumanRankRecommendResult = {
   targetRank: number;
   effectiveRank: number;
-  source: SoloRankRecommendSource;
+  rankBand: SingleHumanRankBand;
+  source: SingleHumanRankRecommendSource;
   matchedRuleId?: string;
 };
 
-export function recommendSoloEffectiveRank(args: {
+export function recommendSingleHumanEffectiveRank(args: {
   humanScore: number;
   scoreQuantiles: ScoreQuantiles;
   maxPlayers: number;
@@ -34,7 +32,7 @@ export function recommendSoloEffectiveRank(args: {
   rankCounts: Record<number, number>;
   rankRates: CasualRankRateEntry[];
   sessionSeed: number;
-}): SoloRankRecommendResult {
+}): SingleHumanRankRecommendResult {
   const {
     humanScore,
     scoreQuantiles,
@@ -45,11 +43,11 @@ export function recommendSoloEffectiveRank(args: {
     sessionSeed,
   } = args;
 
-  const rankFloors = deriveRankScoreFloorsFromQuantiles(scoreQuantiles, maxPlayers);
+  const rankBand = rankBandFromScore(humanScore, scoreQuantiles, maxPlayers);
   const p50 = scoreQuantiles.p50;
 
   let targetRank: number;
-  let source: SoloRankRecommendSource;
+  let source: SingleHumanRankRecommendSource;
   let matchedRuleId: string | undefined;
 
   if (humanScore < p50) {
@@ -77,8 +75,12 @@ export function recommendSoloEffectiveRank(args: {
     }
   }
 
-  const effectiveRank = clampTargetRank(targetRank, humanScore, rankFloors, maxPlayers);
-  return { targetRank, effectiveRank, source, matchedRuleId };
+  const effectiveRank = resolveEffectiveRank({
+    targetRank,
+    band: rankBand,
+    maxPlayers,
+  });
+  return { targetRank, effectiveRank, rankBand, source, matchedRuleId };
 }
 
-export type { RankScoreFloorsByRank };
+export type { SingleHumanRankBand };
