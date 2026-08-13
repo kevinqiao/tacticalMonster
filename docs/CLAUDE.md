@@ -19,7 +19,7 @@
 | 经济、锦标 A/B/C、钻/软币（历史） | [`casual-platform-system-design.md`](./casual-platform-system-design.md) |
 | 统一赛季、任务、Pass、榜单、专场、商店动线 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | CasualTown（展示与轻社交；非第二养成主循环） | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
-| Town 主题与叙事（岛主 / 海滨家园；非 Mayor） | [`town-theme-narrative.md`](./town-theme-narrative.md) |
+| Town 主题与叙事（玩家向 = 岛 / 岛主；非 Town、非 Mayor） | [`town-theme-narrative.md`](./town-theme-narrative.md) |
 | CasualTown 美术技法与 AI 交付规范（一页纸） | [`casual-town-art-brief.md`](./casual-town-art-brief.md) |
 | 大厅 UI / 皮肤 / token SSOT | [`skin/SKIN_DESIGN.md`](./skin/SKIN_DESIGN.md) |
 | 大厅与局内 AI 资产清单（非 Town 主插画） | [`casual-lobby-game-art-brief.md`](./casual-lobby-game-art-brief.md) |
@@ -41,7 +41,7 @@
 1. **玩家向话术：** 可使用 **「异步对决」** 保留竞技感。  
 2. **结算与架构：** 仍与 **PVE 异步锦标** **同构**——**同一挑战、比成绩**；走现有成绩回写、计奖、**赛季分**与榜；**不与实时 PvP 混榜、混发货币**。未来若做实时对战，须 **独立玩法 ID / 匹配 / 结算**（见经济文档 §0.1）。  
 3. **段位：** **赛季分** 为竞技主数据；青铜/白银等 **仅为 UI 分段**（阈值配表）。**不**维护独立 ELO 或第二套升降级算法。附录若出现「ELO 式加减分」「日赛 +20」等，均视为 **历史示意，非实现规范**。
-4. **Town 叙事：** 玩家拥有 **个人主场**（系统角色 `steward`）。对外默认职称 **岛主**，默认地点皮 **海滨家园**。不把 **Mayor of Mayfield** 或 **海岛长官** 写成品牌；二者是同一套市政治理隐喻的换皮，会超卖本产品不做的养成循环。详见 [`town-theme-narrative.md`](./town-theme-narrative.md)。
+4. **Town 叙事：** 玩家向世界是 **岛（Island）**，不是镇。角色是 **岛主**（系统 id `steward`）。`town` / `/town` 只留作内部名。不把 **Mayor of Mayfield**、**Town**、**海岛长官** 写成玩家向品牌。Island 比 Town 更贴当前休闲潮流、覆盖更宽。详见 [`town-theme-narrative.md`](./town-theme-narrative.md)。
 
 ---
 
@@ -83,7 +83,7 @@
 - **Battle Pass：** **XP / 赛季经验不可直接用钱买**；可有跳级等 **明确边界** 的设计（见 Pass 专文 / 赛季文档）。  
 - **变现：** 付费用户体验优先（如零广告等目标与经济文档一致）；限时促销与近失触发可参照产品节奏，**不靠**盲盒赌博化。  
 - **Town：** 竞技解锁、访客可见、**不**把 Town 养成做成与赛季锦标 **并行的** 主要发币或进度轨；详见 CasualTown 文档。  
-- **Town 叙事：** 玩家是个人主场的主人（对外默认 **岛主**），地点默认 **海滨家园**；**不是** Mayor of Mayfield，也 **不用** 海岛长官。Mayor / 长官只是同一套「治理这块地」骨架的换皮，且会超卖市政养成。口径见 [`town-theme-narrative.md`](./town-theme-narrative.md)。  
+- **Town 叙事：** 玩家向世界锁 **Island / 你的岛**，职称 **岛主**；代码可以继续叫 town。不是 Mayor、不是镇、不用长官。口径见 [`town-theme-narrative.md`](./town-theme-narrative.md)。  
 - **社交：** 偏重竞技驱动的异步互动；**不**以开放式实时聊天、动态 Feed、礼物经济为早期核心。
 
 ---
@@ -98,7 +98,7 @@
 | 锦标档位、门票、钻闭环 | [`casual-platform-system-design.md`](./casual-platform-system-design.md) |
 | Pass 等级、任务、专场券、榜单重置 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | 小镇布局、拜访、异步挑战、与 ingest 边界 | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
-| Town 玩家身份、地点皮、Mayor vs 岛主 | [`town-theme-narrative.md`](./town-theme-narrative.md) |
+| Town 玩家身份、地点皮、Island vs Town | [`town-theme-narrative.md`](./town-theme-narrative.md) |
 | 成就、称号、展示 | [`casual-platform-achievement-system-design.md`](./casual-platform-achievement-system-design.md) |
 | 周联赛分组、Bot、周尾奖、**完整一周测试** | [`casual-platform-weekly-league-design.md`](./casual-platform-weekly-league-design.md) §16 |
 | 配置与实现细节 | `src/convex/casualPlatform/` 下 schema、service、`casualTournamentConfigs` 等 |
