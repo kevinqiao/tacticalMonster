@@ -11,6 +11,7 @@ const TITLE_BY_SHELL: Record<BootShellId, string> = {
   portal: "Branwar Games",
   tactical: "Tactical Lobby",
   casual: "Casual Lobby",
+  town: "Mayfield",
   campaign: "PlayMint",
   partnerOperation: "Partner Operation",
   platform: "Platform Admin",

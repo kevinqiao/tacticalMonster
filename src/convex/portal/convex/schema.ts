@@ -1448,4 +1448,29 @@ export default defineSchema({
     updatedAt: v.number(),
     updatedBy: v.optional(v.string()),
   }).index("by_key", ["key"]),
+
+  /** Saloon Row — Mayfield town meta (M1) */
+  town_progress: defineTable({
+    uid: v.string(),
+    townId: v.string(),
+    currentDistrict: v.string(),
+    unlockedDistricts: v.array(v.string()),
+    unlockedTierIds: v.array(v.string()),
+    questIds: v.array(v.string()),
+    updatedAt: v.number(),
+  }).index("by_uid", ["uid"]),
+
+  town_gate_entries: defineTable({
+    uid: v.string(),
+    entryToken: v.string(),
+    buildingId: v.string(),
+    modeId: v.string(),
+    tierId: v.string(),
+    buyIn: v.number(),
+    ssaKey: v.string(),
+    status: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_uid", ["uid"])
+    .index("by_entry_token", ["entryToken"]),
 });
