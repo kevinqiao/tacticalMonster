@@ -16,13 +16,13 @@ Town / Mayor / Mayfield 都是工程原型口吻，**不要出现在玩家向文
 | 角色 | 岛主（系统 id：`steward`）永久；赛季不是岛主任期 | Mayor 任期、长官、Chief |
 | 玩家向世界 | **Island / 你的岛** | Town / 小镇 / Mayfield 当品牌 |
 | 赛季叙事 | **本季岛赛**（岛上举办的竞技季，季末归档旗帜） | 镇长换届、岛主罢免 |
-| 产品名 | 名字承担 **休闲竞技**；岛只当世界 | 用岛 / 镇 / Mayor 当商店主名 |
+| 产品名 | **Arcade League**（休闲多游戏 + 赛季联赛）；岛不进货架主名 | Isle League、Your Island、Mayfield 当商店主名 |
 | 换皮 | 赛季只换岛的外观、岛赛主题与称号文案 | 换循环、换回「一座公共镇」 |
 
 **为什么是岛而不是镇：** 更贴近当前休闲潮流，玩家覆盖更宽（年龄、地区、性别、品类）。见 §2.4。  
 **海岛长官更好吗？** 地点对了，职称错了。用 **岛主**，不用长官。  
 **岛主任期对不上赛季怎么办？** 不要硬套。岛主是永久主人；赛季是岛上办的 **岛赛**。见 §10。  
-**游戏叫什么？** 商店主名走竞技（推荐工作名 **Isle League / 岛赛**），不要叫 Your Island。见 §11。
+**游戏叫什么？** 商店主名锁 **Arcade League**；赛季/世界层用 **岛赛**。不要用 Isle League 当货架名。见 §11。
 
 ---
 
@@ -202,7 +202,7 @@ Quest 口吻：
 5. **不在 M1 重画母图。** 先锁口径、改 HUD/Gate 文案；下一张插画按 **岛** 来画（水域环绕 + 码头 Gate），不要再画一座内陆镇。
 6. **玩家向禁止再用 town 当世界名。** 代码、路径、表名可以继续 `town`；UI、标题、任务、商店写 island / 你的岛。
 7. **不把赛季写成岛主任期或换届。** 岛主永久；赛季用岛赛。不要为了保住 Mayor 的任期隐喻而改回镇。
-8. **不以岛/镇/Mayor 做商店主名。** 主名必须能读出休闲竞技（工作名 Isle League / 岛赛）。
+8. **不以岛/镇/Mayor 做商店主名。** 货架主名锁 **Arcade League**；**岛赛**只用于赛季与进游戏后的世界，不用 Isle League 当 App 名。
 
 ---
 
@@ -211,7 +211,7 @@ Quest 口吻：
 | 位置 | 现状 | 目标 |
 |------|------|------|
 | `town_progress.townId` | `"mayfield"` | 保留字段名；语义改为地点皮 id，默认建议 `isle`（可晚于文案再迁） |
-| `documentTitles` town | `"Mayfield"` | 产品工作名（§11，如 Isle League），不要用 Mayfield / Town / Your Island 当 App 标题 |
+| `documentTitles` town | `"Mayfield"` | **Arcade League**，不要用 Mayfield / Town / Your Island / Isle League |
 | 建筑 `name` | Poker Saloon / Town Hall / … | 对外显示名可换；`id`（`saloon` / `parlor`）可保留 |
 | 角色 | 代码中无 mayor，只有隐含 | 不要新增 `mayor`；UI 字符串用岛主 / your island |
 | 赛季 Town 主题 | env/accent/facade/full | 继续只换岛的皮；称号表映射 steward → 岛主/馆主 |
@@ -263,40 +263,43 @@ Mayor 的任期能对上 season，是因为它把 **身份** 和 **赛季时钟*
 
 ---
 
-## 11. 游戏名称：休闲竞技走主名，岛走世界
+## 11. Arcade League vs Isle League：锁 Arcade League
 
-岛是进游戏之后的家，不是商店货架上要卖的品类。  
-名字若叫 Mayfield / Your Island / Island Keeper，货架第一眼是模拟经营或度假装扮，**休闲竞技主线被吃掉**。
+两个名字都带 League，竞技半边一样。差别在前半截承诺什么。
 
-Clash Royale 不叫 King's Village。本产品也不该叫 Your Island。
+| | **Arcade League** | **Isle League** |
+|--|-------------------|-----------------|
+| 货架第一眼 | 休闲小游戏合集 + 联赛 | 一座岛 + 联赛 |
+| 和真实循环 | 一致：接龙 / 方块 / Merge + 赛季分 | 半一致：岛是主场，不是玩法 |
+| 会招来谁 | 来玩游戏、比分的人 | 一部分来装扮/经营岛的人 |
+| 做错的代价 | 偏泛，CrazyGames 上 arcade 很多 | 招来本产品 **明确不做** 的养成用户 |
+| 中文 | 不要译成「街机联赛」；可保留英文，或 UI 里说联赛 | **岛赛** 很漂亮，但那是赛季名，不是货架名 |
+| M1 | 现在就能用，不依赖岛的美术 | 山谷村 / Mayfield 占位时，名字在说谎 |
+| 和三层结构 | 主名=竞技品类，岛留在进游戏后 | 把世界塞进主名，和「岛不当商店主名」打架 |
 
-三层命名（锁结构，工作名可再磨）：
+**锁：货架 / `<title>` / CrazyGames 用 Arcade League。**
 
-| 层 | 出现在哪 | 要表达 | 工作名 | 不要 |
-|----|----------|--------|--------|------|
-| **产品主名** | CrazyGames 标题、`<title>`、商店 | 休闲游戏 + 赛季竞技 | **Isle League** / **岛赛** | Mayfield、Your Island、Mayor、Casual Lobby |
-| **世界** | 进游戏后的地图、拜访 | 这是我的岛 | 你的岛 | 镇、Town Hall 当品牌 |
-| **本季** | Pass、段位、任务、主题皮 | 现在正在比什么 | S2 樱花岛赛 | 本届镇长任期、本届岛主任期 |
+原因就一条：本产品的差异化是 **多休闲玩法 + 统一赛季联赛**，不是岛。岛是进门之后的主场和潮流皮。Arcade 说清品类；League 说清玩法（已有 weekly league）。Isle 说清的是皮，会把皮卖成玩法。
 
-**Isle League / 岛赛** 怎么分担词义：
+Isle League / 岛赛 不是废词，降到它该在的层：
 
-- **League / 赛：** 赛季、周联赛、榜、异步对决——产品主线。
-- **Isle / 岛：** 主场与潮流皮，放在主名后半截，不单独当货架名。
-- 副标题（商店描述第一句）：`Play casual games. Climb the season. On your island.`
-- 中文副标题：`休闲小游戏，赛季积分，在你的岛上比。`
+| 层 | 名字 |
+|----|------|
+| 产品主名（商店、标题） | **Arcade League** |
+| 世界（地图、拜访） | 你的岛 |
+| 本季（Pass、段位、主题） | **岛赛**（S2 樱花岛赛） |
 
-备选（主名仍须带竞技词）：
+副标题（商店描述第一句）：`Play casual games. Climb the season. On your island.`  
+中文副标题：`休闲小游戏，赛季积分，在你的岛上比。`
 
-| 工作名 | 优点 | 风险 |
-|--------|------|------|
-| **Isle League / 岛赛**（首选） | 短；League 直接对上已有 weekly league | 岛仍在主名里，需靠副标题防止读成经营 |
-| **Island Games / 岛上赛事** | Games 像运动会，天然=赛季届次 | 易读成「一堆岛游戏合集」 |
-| **Arcade League** | Arcade=休闲多游戏，League=竞技；岛完全留给世界层 | 主名没有岛，潮流皮靠进游戏后才看见 |
+图标不要画街机柜子（会把 Arcade 读成 80s cabinet）。画：小岛轮廓 + 联赛/奖杯，让「On your island」在图标里完成，不写进主名。
 
-否决：PlayMint（另一条产品线）、Branwar Games（Portal 通用壳）、Casual Lobby（内部壳名）、Match 3（单玩法）、Mayfield。
+中文不要用「街机联赛」——街机在中文里是格斗/射击机台，对不上接龙和 Merge。对内对外中文可以说 Arcade League，赛季活动说岛赛。
 
-`documentTitles` 的 town shell：从 `"Mayfield"` 改为产品工作名（Isle League），不要改为 `"Your Island"`。
+否决：PlayMint、Branwar Games、Casual Lobby、Match 3、Mayfield、Your Island、Isle League 当货架主名、Island Games 当货架主名。
+
+`documentTitles` 的 town shell：从 `"Mayfield"` 改为 `"Arcade League"`。
 
 ---
 
-*版本：1.2 · 岛赛映射赛季；产品主名走休闲竞技。系统数值与拜访规则仍以 Town 系统文档 / Convex 为准。*
+*版本：1.3 · 货架主名锁 Arcade League；岛赛留给赛季。系统数值与拜访规则仍以 Town 系统文档 / Convex 为准。*
