@@ -52,6 +52,7 @@ const getSharedDataNamespaceFromUri = (uri?: string | null): string | null => {
     if (!uri) return null;
     const root = uri.split("/").filter(Boolean)[0];
     if (root === "casual") return "casualLobby";
+    if (root === "town") return "town";
     if (root === "tactical") return "lobby";
     return null;
 };

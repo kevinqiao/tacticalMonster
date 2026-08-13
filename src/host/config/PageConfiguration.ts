@@ -90,6 +90,27 @@ export const PortalPlace =
     ]
 }
 
+export const TownPlace =
+{
+    name: "townPlace",
+    entry: "mayfield",
+    context: "/town",
+    navs: [
+        {
+            name: "mayfield",
+            auth: 1,
+            path: "./lobby/town/TownMapPage",
+            uri: "",
+            bootCriticalAssetUrls: [
+                `${import.meta.env.BASE_URL}logo192.png`,
+            ],
+            class: "page_container",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        },
+    ],
+}
+
 export const PlatformPlace =
 {
     name: "platformPlace",
@@ -395,7 +416,7 @@ export interface ModalConfig {
     class?: string;
     effects?: ModalEffect[];
     /** When omitted, inferred from `path`. `shared` modals load in any active context when opened. */
-    contexts?: ("tactical" | "casual" | "portal" | "campaign" | "platform" | "partner" | "shared")[];
+    contexts?: ("tactical" | "casual" | "portal" | "campaign" | "platform" | "partner" | "town" | "shared")[];
 }
-export const AppsConfiguration: AppConfig[] = [TacticalPlace, CasualPlace, PortalPlace, CampaignPlace, PlatformPlace, PartnerPlace];
+export const AppsConfiguration: AppConfig[] = [TacticalPlace, CasualPlace, PortalPlace, TownPlace, CampaignPlace, PlatformPlace, PartnerPlace];
 

@@ -7,6 +7,7 @@ export type BootShellId =
   | "tactical"
   | "casual"
   | "campaign"
+  | "town"
   | "partnerOperation"
   | "platform"
   | "partner";
@@ -53,6 +54,14 @@ export const BOOT_SHELL_THEMES: Record<BootShellId, BootShellTheme> = {
     gradientPortrait: "linear-gradient(165deg, #3d3868 0%, #221f3d 48%, #12101f 100%)",
     messageKey: "enteringCasualLobby",
   },
+  town: {
+    id: "town",
+    fallbackLandscape: "#c9a66b",
+    fallbackPortrait: "#e8d5a8",
+    gradientLandscape: "linear-gradient(165deg, #e8d5a8 0%, #c47a2b 45%, #8b5a2b 100%)",
+    gradientPortrait: "linear-gradient(165deg, #f0e0c0 0%, #c9a66b 50%, #a67c52 100%)",
+    messageKey: "enteringTown",
+  },
   campaign: {
     id: "campaign",
     fallbackLandscape: "#4a3020",
@@ -98,6 +107,7 @@ export function resolveBootShellIdFromPathname(pathname: string): BootShellId {
   if (pathname.startsWith("/partner")) return "partner";
   if (pathname.startsWith(CAMPAIGN_URL_PREFIX)) return "campaign";
   if (pathname.startsWith(PORTAL_URL_PREFIX)) return "portal";
+  if (pathname.startsWith("/town")) return "town";
   if (pathname.startsWith("/tactical")) return "tactical";
   if (pathname.startsWith("/casual")) return "casual";
   return "portal";
