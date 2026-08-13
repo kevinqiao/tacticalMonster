@@ -106,6 +106,15 @@ export const portalTournamentFns = {
   authenticatePlayer: makeFunctionReference<"action">(
     "service/auth/portalAuth:authenticate"
   ),
+  townGetProgress: makeFunctionReference<"query">(
+    "service/town/townProgress:getProgress"
+  ),
+  townValidateEntry: makeFunctionReference<"query">(
+    "service/town/gate:validateEntry"
+  ),
+  townRecordEntry: makeFunctionReference<"mutation">(
+    "service/town/gate:recordEntry"
+  ),
   getCampaignDailyPlayQuota: makeFunctionReference<"query">(
     "service/tournament/join/campaignDailyPlayLimit:getCampaignDailyPlayQuota"
   ),

@@ -12,7 +12,7 @@ import { PageContainer, PageItem } from "host/service/PageManager";
 /** Default app shell when pathname matches no configured container. */
 export const DEFAULT_MOUNT_CONTEXT = "/tactical";
 
-export type AppContextTag = "tactical" | "casual" | "portal" | "campaign" | "platform" | "partner" | "shared";
+export type AppContextTag = "tactical" | "casual" | "portal" | "campaign" | "platform" | "partner" | "town" | "shared";
 
 /** Map URL context (`/gc`, `/cc`) to modal/shell tags (`portal`, `campaign`). */
 function activeContextToTag(ctx: string): AppContextTag {
@@ -37,6 +37,7 @@ function inferModalContexts(modalPath: string): AppContextTag[] {
     if (modalPath.includes("/lobby/partner/")) return ["partner"];
     if (modalPath.includes("/lobby/platform/")) return ["platform"];
     if (modalPath.includes("/lobby/portal/")) return ["portal"];
+    if (modalPath.includes("/lobby/town/")) return ["town"];
     return ["shared"];
 }
 
