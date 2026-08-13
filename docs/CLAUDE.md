@@ -19,7 +19,7 @@
 | 经济、锦标 A/B/C、钻/软币（历史） | [`casual-platform-system-design.md`](./casual-platform-system-design.md) |
 | 统一赛季、任务、Pass、榜单、专场、商店动线 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | CasualTown（展示与轻社交；非第二养成主循环） | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
-| Town 主题与叙事（玩家向 = 岛 / 岛主；非 Town、非 Mayor） | [`town-theme-narrative.md`](./town-theme-narrative.md) |
+| Town 主题与叙事（岛 / 岛主 / 岛赛；产品名 Isle League） | [`town-theme-narrative.md`](./town-theme-narrative.md) |
 | CasualTown 美术技法与 AI 交付规范（一页纸） | [`casual-town-art-brief.md`](./casual-town-art-brief.md) |
 | 大厅 UI / 皮肤 / token SSOT | [`skin/SKIN_DESIGN.md`](./skin/SKIN_DESIGN.md) |
 | 大厅与局内 AI 资产清单（非 Town 主插画） | [`casual-lobby-game-art-brief.md`](./casual-lobby-game-art-brief.md) |
