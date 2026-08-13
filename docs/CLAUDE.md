@@ -19,7 +19,7 @@
 | 经济、锦标 A/B/C、钻/软币（历史） | [`casual-platform-system-design.md`](./casual-platform-system-design.md) |
 | 统一赛季、任务、Pass、榜单、专场、商店动线 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | CasualTown（展示与轻社交；非第二养成主循环） | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
-| Town 主题与叙事（Town/Island 为赛季主题；货架名 Arcade League） | [`town-theme-narrative.md`](./town-theme-narrative.md) |
+| Town 主题与叙事（赛季 biome、Arcade League、熟成产业） | [`town-theme-narrative.md`](./town-theme-narrative.md) |
 | CasualTown 美术技法与 AI 交付规范（一页纸） | [`casual-town-art-brief.md`](./casual-town-art-brief.md) |
 | 大厅 UI / 皮肤 / token SSOT | [`skin/SKIN_DESIGN.md`](./skin/SKIN_DESIGN.md) |
 | 大厅与局内 AI 资产清单（非 Town 主插画） | [`casual-lobby-game-art-brief.md`](./casual-lobby-game-art-brief.md) |
@@ -83,7 +83,7 @@
 - **Battle Pass：** **XP / 赛季经验不可直接用钱买**；可有跳级等 **明确边界** 的设计（见 Pass 专文 / 赛季文档）。  
 - **变现：** 付费用户体验优先（如零广告等目标与经济文档一致）；限时促销与近失触发可参照产品节奏，**不靠**盲盒赌博化。  
 - **Town：** 竞技解锁、访客可见、**不**把 Town 养成做成与赛季锦标 **并行的** 主要发币或进度轨；详见 CasualTown 文档。  
-- **Town 叙事：** 主场永久；Town / Island = 赛季主题。货架名 **Arcade League**。口径见 [`town-theme-narrative.md`](./town-theme-narrative.md) §12。  
+- **Town 叙事：** 主场永久；Town / Island = 赛季主题。货架名 **Arcade League**。被动产业只做竞技熟成（§13），不离线产币。口径见 [`town-theme-narrative.md`](./town-theme-narrative.md) §12–§13。  
 - **社交：** 偏重竞技驱动的异步互动；**不**以开放式实时聊天、动态 Feed、礼物经济为早期核心。
 
 ---
@@ -98,7 +98,7 @@
 | 锦标档位、门票、钻闭环 | [`casual-platform-system-design.md`](./casual-platform-system-design.md) |
 | Pass 等级、任务、专场券、榜单重置 | [`casual-platform-season-system.md`](./casual-platform-season-system.md) |
 | 小镇布局、拜访、异步挑战、与 ingest 边界 | [`casual-platform-town-system.md`](./casual-platform-town-system.md) |
-| Town 玩家身份、赛季 biome（岛/镇）、产品命名 | [`town-theme-narrative.md`](./town-theme-narrative.md) |
+| Town 玩家身份、赛季 biome、熟成产业、产品命名 | [`town-theme-narrative.md`](./town-theme-narrative.md) |
 | 成就、称号、展示 | [`casual-platform-achievement-system-design.md`](./casual-platform-achievement-system-design.md) |
 | 周联赛分组、Bot、周尾奖、**完整一周测试** | [`casual-platform-weekly-league-design.md`](./casual-platform-weekly-league-design.md) §16 |
 | 配置与实现细节 | `src/convex/casualPlatform/` 下 schema、service、`casualTournamentConfigs` 等 |
