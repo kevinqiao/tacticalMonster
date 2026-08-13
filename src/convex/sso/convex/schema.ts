@@ -59,6 +59,27 @@ export default defineSchema({
         uid: v.optional(v.string()),
         aid: v.number(),
         balance: v.number(),
-    }).index("by_uid", ["uid", "aid"])
+    }).index("by_uid", ["uid", "aid"]),
+
+    townProgress: defineTable({
+        uid: v.string(),
+        townId: v.string(),
+        currentDistrict: v.string(),
+        unlockedDistricts: v.array(v.string()),
+        unlockedTierIds: v.array(v.string()),
+        questIds: v.array(v.string()),
+    }).index("by_uid", ["uid"]),
+
+    gateEntry: defineTable({
+        uid: v.string(),
+        entryToken: v.string(),
+        buildingId: v.string(),
+        modeId: v.string(),
+        tierId: v.string(),
+        buyIn: v.number(),
+        ssaKey: v.string(),
+        status: v.string(),
+        createdAt: v.number(),
+    }).index("by_uid", ["uid"]).index("by_token", ["entryToken"]),
 
 });

@@ -2,6 +2,7 @@ import { PageProp } from "component/RenderApp";
 import BattlePlayer from "component/solitaire/battle/BattlePlayer";
 import gsap from "gsap";
 import React, { useCallback, useRef, useState } from "react";
+import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
 import "./style.css";
 
@@ -20,17 +21,25 @@ const PlayMatch: React.FC<PageProp> = ({ visible, data, openFull, close }) => {
   const playRef = useRef<HTMLDivElement>(null);
   const [stageReady, setStageReady] = useState(false);
   const { user } = useUserManager();
+  const { openPage } = usePageManager();
   console.log("Battle", data);
+  const returnToTown = useCallback(() => {
+    if (data?.fromTown) {
+      openPage({ uri: "/play/map" });
+    }
+  }, [data?.fromTown, openPage]);
   const onComplete = useCallback(() => {
     console.log("onMatchComplete");
     user.data.matchId = undefined;
     close?.();
-  }, [user]);
+    returnToTown();
+  }, [user, close, returnToTown]);
   const onGiveIn = useCallback(() => {
     user.data.matchId = undefined;
     console.log("onMatchCancel");
     close?.();
-  }, [user]);
+    returnToTown();
+  }, [user, close, returnToTown]);
   const onLoadComplete = useCallback(async () => {
     console.log("onLoadComplete");
     // await openFull?.();

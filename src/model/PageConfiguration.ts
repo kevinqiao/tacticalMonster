@@ -45,7 +45,25 @@ export const PlayPlace =
                 { name: "topNav", class: "pop-right", init: "pops1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", close: { type: 1, effect: "popRightOut" } },
 
             ]
-        }
+        },
+        {
+            name: "map",
+            auth: 0,
+            path: "./town/TownMap",
+            uri: "map",
+            class: "page_container",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        },
+        {
+            name: "solitaireMatch",
+            auth: 0,
+            path: "./lobby/tournament/PlayMatch",
+            uri: "solitaire",
+            class: "page_container",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        },
 
     ]
 

@@ -1,0 +1,399 @@
+.town-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: linear-gradient(180deg, #d4e8f5 0%, #e8d5a8 35%, #c9a66b 100%);
+  font-family: Nunito, system-ui, sans-serif;
+  color: #3d2914;
+}
+
+.town-map__canvas {
+  position: absolute;
+  inset: 48px 0 56px;
+}
+
+.town-map__ground {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.town-building {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.town-building:hover:not(:disabled) {
+  transform: translate(-50%, -50%) scale(1.04);
+}
+
+.town-building:disabled {
+  cursor: not-allowed;
+}
+
+.town-building__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 88px;
+  min-height: 96px;
+  border-radius: 16px;
+  border: 2px solid #c47a2b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.town-building--saloon .town-building__body {
+  background: linear-gradient(180deg, #b54a3a 0%, #8b1a1a 100%);
+}
+
+.town-building--parlor .town-building__body {
+  background: linear-gradient(180deg, #6b8e5a 0%, #4a6741 100%);
+}
+
+.town-building--town_hall .town-building__body {
+  background: linear-gradient(180deg, #fff8ee 0%, #e8d5a8 100%);
+  min-height: 110px;
+}
+
+.town-building--telegraph .town-building__body {
+  background: linear-gradient(180deg, #d4a843 0%, #c47a2b 100%);
+}
+
+.town-building--locked .town-building__body {
+  filter: grayscale(0.6);
+  opacity: 0.75;
+}
+
+.town-building--highlight .town-building__body {
+  outline: 3px solid #d4a843;
+  outline-offset: 2px;
+}
+
+.town-building__icon {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.town-building__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 8px 8px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.town-building--town_hall .town-building__label,
+.town-building--telegraph .town-building__label {
+  color: #3d2914;
+  text-shadow: none;
+}
+
+.town-hud-top,
+.town-hud-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(255, 248, 238, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(196, 122, 43, 0.2);
+}
+
+.town-hud-top {
+  top: 0;
+  height: 48px;
+}
+
+.town-hud-bottom {
+  bottom: 0;
+  height: 56px;
+  border-bottom: none;
+  border-top: 1px solid rgba(196, 122, 43, 0.2);
+}
+
+.town-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid #d4a843;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.town-quest-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 20px;
+  background: #c47a2b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.town-season-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 20px;
+  background: #5a6b7a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.town-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 16px;
+}
+
+.town-gate-card {
+  width: min(90vw, 400px);
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: rgba(255, 248, 238, 0.96);
+  border: 4px solid #c47a2b;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.town-gate-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e8d5a8;
+}
+
+.town-gate-card__hero {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  background: #e8d5a8;
+}
+
+.town-gate-card__title {
+  flex: 1;
+  font-family: Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.town-gate-card__subtitle {
+  font-size: 12px;
+  color: #9e7b5c;
+}
+
+.town-gate-card__close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.town-gate-card__body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.town-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #9e7b5c;
+  margin-bottom: 8px;
+}
+
+.town-tab-row,
+.town-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.town-tab {
+  min-width: 96px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #c47a2b;
+  background: #fff;
+  color: #c47a2b;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.town-tab--selected {
+  background: #c47a2b;
+  color: #fff;
+  border-color: #c47a2b;
+}
+
+.town-chip {
+  min-width: 88px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 18px;
+  border: 1px solid #d4a843;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+
+.town-chip--selected {
+  background: #d4a843;
+  border-color: #d4a843;
+}
+
+.town-chip--locked {
+  opacity: 0.55;
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.town-chip__tier {
+  font-size: 12px;
+}
+
+.town-chip__buyin {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.town-buyin-panel {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e8d5a8;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.town-buyin-panel__value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.town-buyin-panel__balance--ok {
+  color: #5a8f4e;
+  text-align: right;
+}
+
+.town-buyin-panel__balance--low {
+  color: #b54a3a;
+  text-align: right;
+}
+
+.town-gate-card__footer {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid #e8d5a8;
+}
+
+.town-btn-primary {
+  width: 100%;
+  height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: #5a8f4e;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.town-btn-primary:disabled {
+  background: #ccc;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.town-btn-ghost {
+  width: 100%;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: #9e7b5c;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.town-banner-error {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fee;
+  color: #b54a3a;
+  font-size: 12px;
+}
+
+.town-toast {
+  position: fixed;
+  bottom: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  padding: 10px 16px;
+  border-radius: 20px;
+  background: rgba(61, 41, 20, 0.92);
+  color: #fff;
+  font-size: 13px;
+}
+
+.town-player {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #d4a843;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  z-index: 5;
+  transition: left 0.6s ease-in-out, top 0.6s ease-in-out;
+}

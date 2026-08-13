@@ -43,6 +43,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   './battle/BattlePlay': () => import('./battle/BattlePlay'),
   './battle/TournamentPlay': () => import('./battle/TournamentPlay'),
   './kumu/battle/PlayMap': () => import('./kumu/battle/PlayMap'),
+  './town/TownMap': () => import('./town/TownMap'),
   './lobby/LobbyHome': () => import('./lobby/LobbyHome'),
   './lobby/LobbyControl': () => import('./kumu/lobby/LobbyControl'),
   './lobby/view/Child1': () => import('./lobby/view/Child1'),
