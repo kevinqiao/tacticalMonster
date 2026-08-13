@@ -98,7 +98,8 @@ export const TownPlace =
     navs: [
         {
             name: "mayfield",
-            auth: 1,
+            /** auth:0 — 未登录也可浏览地图；Gate 进局时由 Portal 会话鉴权（与 /gc PortalPlace 一致） */
+            auth: 0,
             path: "./lobby/town/TownMapPage",
             uri: "",
             bootCriticalAssetUrls: [

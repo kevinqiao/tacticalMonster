@@ -132,6 +132,17 @@
   font-weight: 600;
 }
 
+.town-badge--action {
+  cursor: pointer;
+  background: linear-gradient(180deg, #f0e0c0 0%, #d4a843 100%);
+  border-color: #c47a2b;
+  color: #3d2914;
+}
+
+.town-badge--action:hover {
+  filter: brightness(1.05);
+}
+
 .town-quest-pill {
   display: inline-flex;
   align-items: center;

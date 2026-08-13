@@ -1,5 +1,7 @@
 import { PageProp } from "host/RenderApp";
 import { useModalManager } from "host/service/ModalManager";
+import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
+import { useUserManager } from "host/service/UserManager";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   getPortalHttpClient,
@@ -26,7 +28,9 @@ type TownProgress = {
 
 const TownMapInner: React.FC<PageProp> = ({ visible }) => {
   const { openModal } = useModalManager();
+  const { user, askAuth } = useUserManager();
   const { joinTournament, playerWallet, portalSessionReady, refresh } = usePortal();
+  const authed = isPlatformAuthed(user);
 
   const [toast, setToast] = useState<string | null>(null);
   const [approaching, setApproaching] = useState<string | null>(null);
@@ -164,6 +168,11 @@ const TownMapInner: React.FC<PageProp> = ({ visible }) => {
 
     const http = getPortalHttpClient();
     if (!http || !portalSessionReady) {
+      if (!authed) {
+        askAuth({});
+        setGateLoading(false);
+        return;
+      }
       setGateError("Portal session not ready. Please wait or re-login.");
       return;
     }
@@ -226,7 +235,7 @@ const TownMapInner: React.FC<PageProp> = ({ visible }) => {
       setGateError("Something went wrong. Try again.");
       setGateLoading(false);
     }
-  }, [gateSelection, portalSessionReady, closeGate, joinTournament, refresh, loadProgress, openModal]);
+  }, [gateSelection, portalSessionReady, authed, askAuth, closeGate, joinTournament, refresh, loadProgress, openModal]);
 
   if (!visible) return null;
 
@@ -237,7 +246,12 @@ const TownMapInner: React.FC<PageProp> = ({ visible }) => {
           <span className="town-badge">🪙 {coins.toLocaleString()}</span>
           <span className="town-badge">💎 {progress?.gems ?? playerWallet?.gems ?? 0}</span>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {!authed ? (
+            <button type="button" className="town-badge town-badge--action" onClick={() => askAuth({})}>
+              登录
+            </button>
+          ) : null}
           <span className="town-badge" title={portalSessionReady ? "Ready" : "Connecting…"}>
             {portalSessionReady ? "✓" : "…"}
           </span>
