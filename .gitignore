@@ -35,9 +35,10 @@ yarn-error.log*
 # Clerk CLI project link (run `clerk env pull` locally; do not commit secrets)
 .clerk/
 
-# 忽略非 TypeScript/JavaScript 文件（仅放行 docs/CLAUDE.md）
+# 忽略非 TypeScript/JavaScript 文件（仅放行 docs 口径文档）
 *.md
 !docs/CLAUDE.md
+!docs/town-theme-narrative.md
 *.txt
 *.pdf
 *.doc
@@ -63,6 +64,7 @@ src/component/lobby/casual/view/town/assets/illustration/raw/**
 docs/**
 !docs/
 !docs/CLAUDE.md
+!docs/town-theme-narrative.md
 portal-prod-dist.zip
 .env.production
 
