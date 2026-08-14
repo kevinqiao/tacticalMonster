@@ -1,0 +1,196 @@
+/* Saloon Row — Mayfield D0 map (contain + scale, lighter hotspots) */
+
+.mayfield-scene {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+
+.mayfield-scene__frame {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #b8e2f8 0%, #87ceeb 38%, #d4c4a0 100%);
+}
+
+/** 16:9 stage — fit inside viewport, then scale down so buildings feel lighter */
+.mayfield-scene__stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: min(100cqw, calc(100cqh * 16 / 9));
+  height: min(100cqh, calc(100cqw * 9 / 16));
+  transform: scale(var(--mayfield-map-scale, 0.86));
+  transform-origin: center center;
+}
+
+.mayfield-scene__plate {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.mayfield-scene__hotspot-wrap {
+  position: absolute;
+  z-index: 5;
+}
+
+.mayfield-scene__player {
+  position: absolute;
+  z-index: 10;
+  width: clamp(30px, 5.5vw, 48px);
+  height: clamp(30px, 5.5vw, 48px);
+  transform: translate(-50%, -88%);
+  pointer-events: none;
+  transition: left 0.55s ease-in-out, top 0.55s ease-in-out;
+  filter: drop-shadow(0 2px 4px rgba(61, 41, 20, 0.28));
+}
+
+.mayfield-scene__player img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Hotspots — light touch on baked art */
+
+.town-hotspot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.town-hotspot:hover:not(:disabled) {
+  background: rgba(212, 168, 67, 0.08);
+}
+
+.town-hotspot:disabled {
+  cursor: wait;
+}
+
+.town-hotspot--highlight {
+  background: rgba(212, 168, 67, 0.1);
+}
+
+.town-hotspot__pulse {
+  position: absolute;
+  inset: 8%;
+  border: 2px solid rgba(212, 168, 67, 0.75);
+  border-radius: 10px;
+  box-shadow: 0 0 8px rgba(212, 168, 67, 0.35);
+  animation: town-hotspot-pulse 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.town-hotspot__label {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translate(-50%, 100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #fff8ee;
+  background: rgba(61, 41, 20, 0.72);
+  border: 1px solid rgba(212, 168, 67, 0.45);
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes town-hotspot-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* Portrait: scale down a bit more — buildings read huge on narrow screens */
+@media (max-aspect-ratio: 9/16) {
+  .mayfield-scene__stage {
+    --mayfield-map-scale: 0.8;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mayfield-scene__stage {
+    --mayfield-map-scale: 0.9;
+  }
+}
+
+.mayfield-scene__district-label {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #fff8ee;
+  background: rgba(61, 41, 20, 0.72);
+  border: 1px solid rgba(212, 168, 67, 0.45);
+  pointer-events: none;
+}
+
+.mayfield-scene__zone {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 2px dashed rgba(212, 168, 67, 0.55);
+  border-radius: 8px;
+  background: rgba(255, 248, 238, 0.35);
+  color: #3d2914;
+  font-size: clamp(9px, 1.6vw, 12px);
+  font-weight: 700;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+
+.mayfield-scene__zone:hover {
+  background: rgba(212, 168, 67, 0.28);
+  border-style: solid;
+}
+
+.mayfield-scene__zone--empty {
+  border-style: dashed;
+  color: #c47a2b;
+  font-size: clamp(14px, 2.4vw, 18px);
+}
+
+.mayfield-scene__zone:not(.mayfield-scene__zone--empty) {
+  border-style: solid;
+  background: rgba(196, 122, 43, 0.22);
+  border-color: rgba(196, 122, 43, 0.65);
+}

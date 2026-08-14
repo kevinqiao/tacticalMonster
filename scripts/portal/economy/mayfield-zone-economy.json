@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "townId": "mayfield",
+  "formulas": {
+    "developCost": "developCostBase * developExponent ^ (slotIndex - 1)",
+    "upgradeCost": "zoneType.upgradeCostBase * upgradeExponent ^ currentLevel",
+    "passivePerHour": "zoneType.passiveBasePerHour * passiveGrowth ^ (level - 1) * district.passiveDistrictBonus * entertainmentBonus",
+    "collectableCoins": "min(elapsedHours, maxOfflineHours) * passivePerHour, then applyPassiveCap",
+    "prosperityScore": "round(100 * sum(slotProsperity) / districtMaxProsperity)",
+    "slotProsperity": "zoneType.prosperityWeight * level * district.prosperityDistrictFactor"
+  },
+  "global": {
+    "developCostBase": 150,
+    "developExponent": 1.45,
+    "upgradeExponent": 1.55,
+    "passiveGrowth": 1.35,
+    "maxZoneLevel": 5,
+    "maxOfflineHours": 12,
+    "passiveCapWeeklyShare": 0.25,
+    "passiveCapSoftWeeklyShare": 0.3,
+    "passiveCapRollingDays": 7,
+    "minCollectIntervalMs": 60000,
+    "startingCoins": 5000
+  },
+  "mayorLevel": {
+    "maxLevel": 30,
+    "xpPerShowdownComplete": 8,
+    "xpPerTrialComplete": 3,
+    "xpPerShowdownWin": 4,
+    "dailyMayorXpCap": 120,
+    "levelXp": [
+      0, 0, 40, 95, 170, 265, 380, 515, 670, 845, 1040, 1255, 1490, 1745, 2020, 2315, 2630, 2965, 3320, 3695, 4090, 4505, 4940, 5395, 5870, 6365, 6880, 7415, 7970, 8545, 9140
+    ]
+  },
+  "zoneTypes": {
+    "commercial": {
+      "label": "Commercial",
+      "labelZh": "商业区",
+      "passiveBasePerHour": 1.2,
+      "upgradeCostBase": 80,
+      "prosperityWeight": 1.0,
+      "allowedDistricts": ["D0", "D1"]
+    },
+    "industrial": {
+      "label": "Industrial",
+      "labelZh": "工业区",
+      "passiveBasePerHour": 1.5,
+      "upgradeCostBase": 68,
+      "prosperityWeight": 0.9,
+      "allowedDistricts": ["D0", "D1"]
+    },
+    "tourism": {
+      "label": "Tourism",
+      "labelZh": "旅游区",
+      "passiveBasePerHour": 0.9,
+      "upgradeCostBase": 90,
+      "prosperityWeight": 1.4,
+      "allowedDistricts": ["D0", "D1"]
+    },
+    "entertainment": {
+      "label": "Entertainment",
+      "labelZh": "娱乐区",
+      "passiveBasePerHour": 1.1,
+      "upgradeCostBase": 85,
+      "prosperityWeight": 1.1,
+      "showdownBonus": {
+        "minGamesPerWeek": 5,
+        "passiveMultiplier": 1.25
+      },
+      "allowedDistricts": ["D0", "D1"]
+    },
+    "civic": {
+      "label": "Civic",
+      "labelZh": "市政区",
+      "passiveBasePerHour": 0,
+      "upgradeCostBase": 0,
+      "prosperityWeight": 0.5,
+      "prebuiltOnly": true,
+      "allowedDistricts": ["D0"]
+    }
+  },
+  "districts": {
+    "D0": {
+      "label": "Old Square",
+      "labelZh": "老广场",
+      "passiveDistrictBonus": 1.0,
+      "prosperityDistrictFactor": 1.0,
+      "maxProsperityUnits": 28,
+      "slots": [
+        { "slotId": "d0_civic", "zoneType": "civic", "prebuiltLevel": 1, "developable": false },
+        { "slotId": "d0_z1", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] },
+        { "slotId": "d0_z2", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] },
+        { "slotId": "d0_z3", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] },
+        { "slotId": "d0_z4", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] }
+      ],
+      "expansion": null
+    },
+    "D1": {
+      "label": "Market Street",
+      "labelZh": "市场街",
+      "passiveDistrictBonus": 1.15,
+      "prosperityDistrictFactor": 1.1,
+      "maxProsperityUnits": 38,
+      "slots": [
+        { "slotId": "d1_z1", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] },
+        { "slotId": "d1_z2", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] },
+        { "slotId": "d1_z3", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] },
+        { "slotId": "d1_z4", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] },
+        { "slotId": "d1_z5", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] }
+      ],
+      "expansion": {
+        "requiresDistrict": "D0",
+        "minDevelopedZonesInPriorDistrict": 3,
+        "minMayorLevel": 3,
+        "mainQuestId": "quest_d1_market",
+        "expansionFeeCoins": 800
+      }
+    }
+  },
+  "precomputed": {
+    "developCostBySlotIndex": [
+      { "slotIndex": 1, "coins": 150 },
+      { "slotIndex": 2, "coins": 218 },
+      { "slotIndex": 3, "coins": 316 },
+      { "slotIndex": 4, "coins": 458 },
+      { "slotIndex": 5, "coins": 664 }
+    ],
+    "upgradeCostByTypeAndLevel": {
+      "commercial": [
+        { "fromLevel": 1, "toLevel": 2, "coins": 124 },
+        { "fromLevel": 2, "toLevel": 3, "coins": 192 },
+        { "fromLevel": 3, "toLevel": 4, "coins": 298 },
+        { "fromLevel": 4, "toLevel": 5, "coins": 462 }
+      ],
+      "industrial": [
+        { "fromLevel": 1, "toLevel": 2, "coins": 105 },
+        { "fromLevel": 2, "toLevel": 3, "coins": 163 },
+        { "fromLevel": 3, "toLevel": 4, "coins": 253 },
+        { "fromLevel": 4, "toLevel": 5, "coins": 392 }
+      ],
+      "tourism": [
+        { "fromLevel": 1, "toLevel": 2, "coins": 140 },
+        { "fromLevel": 2, "toLevel": 3, "coins": 216 },
+        { "fromLevel": 3, "toLevel": 4, "coins": 335 },
+        { "fromLevel": 4, "toLevel": 5, "coins": 520 }
+      ],
+      "entertainment": [
+        { "fromLevel": 1, "toLevel": 2, "coins": 132 },
+        { "fromLevel": 2, "toLevel": 3, "coins": 204 },
+        { "fromLevel": 3, "toLevel": 4, "coins": 316 },
+        { "fromLevel": 4, "toLevel": 5, "coins": 490 }
+      ]
+    },
+    "passivePerHourD0": {
+      "commercial": [1.2, 1.62, 2.19, 2.95, 3.98],
+      "industrial": [1.5, 2.03, 2.73, 3.69, 4.98],
+      "tourism": [0.9, 1.22, 1.64, 2.21, 2.99],
+      "entertainment": [1.1, 1.49, 2.01, 2.71, 3.66],
+      "entertainmentWithBonus": [1.38, 1.86, 2.51, 3.39, 4.58]
+    },
+    "d0FullBuildSinkCoins": {
+      "developAll4Slots": 1142,
+      "upgradeAllCommercialTo5": 1076,
+      "note": "develop 150+218+316+458; upgrade sum for 4× commercial L1→5"
+    },
+    "referenceWeeklyCoinBudget": {
+      "assumedHallAndQuestCoins": 700,
+      "passiveCapAt25Percent": 175,
+      "passiveCapPerDay": 25,
+      "passiveCapPerHourAllZonesLate": "truncated by rolling 7d cap at collect"
+    }
+  }
+}

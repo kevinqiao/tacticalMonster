@@ -1,122 +1,228 @@
-import { v } from "convex/values";
-import { authedMutation, authedQuery } from "../../custom/session";
-import { applyWalletDelta, getPlayerWalletBalances } from "../economy/portalWalletDao";
-import { getBuilding, getTier } from "./config";
-
-export const validateEntry = authedQuery({
-  args: {
-    buildingId: v.string(),
-    modeId: v.string(),
-    tierId: v.string(),
-  },
-  handler: async (ctx, { buildingId, modeId, tierId }) => {
-    const building = getBuilding(buildingId);
-    if (!building?.ssaKey) {
-      return { ok: false as const, error: "NOT_A_PORTAL" };
-    }
-    if (building.ssaKey === "poker") {
-      return {
-        ok: false as const,
-        error: "SSA_NOT_READY",
-        message: "Poker Saloon coming soon",
-      };
-    }
-    if (!building.modes.some((m) => m.id === modeId)) {
-      return { ok: false as const, error: "INVALID_MODE" };
-    }
-    const tier = getTier(buildingId, tierId);
-    if (!tier) {
-      return { ok: false as const, error: "INVALID_TIER" };
-    }
-
-    const progress = await ctx.db
-      .query("town_progress")
-      .withIndex("by_uid", (q) => q.eq("uid", ctx.uid))
-      .unique();
-    if (!progress?.unlockedTierIds.includes(tierId)) {
-      return { ok: false as const, error: "TIER_LOCKED", tierId };
-    }
-
-    const wallet = await getPlayerWalletBalances(ctx, ctx.uid, "shared");
-    if (wallet.coins < tier.buyIn) {
-      return {
-        ok: false as const,
-        error: "INSUFFICIENT_FUNDS",
-        balance: wallet.coins,
-        buyIn: tier.buyIn,
-      };
-    }
-
-    return {
-      ok: true as const,
-      ssaKey: building.ssaKey,
-      buildingId,
-      modeId,
-      tierId,
-      buyIn: tier.buyIn,
-      balance: wallet.coins,
-    };
-  },
-});
-
-export const recordEntry = authedMutation({
-  args: {
-    buildingId: v.string(),
-    modeId: v.string(),
-    tierId: v.string(),
-  },
-  handler: async (ctx, { buildingId, modeId, tierId }) => {
-    const building = getBuilding(buildingId);
-    const tier = getTier(buildingId, tierId);
-    if (!building?.ssaKey || !tier) {
-      return { ok: false as const, error: "INVALID_REQUEST" };
-    }
-    if (building.ssaKey === "poker") {
-      return { ok: false as const, error: "SSA_NOT_READY" };
-    }
-
-    const progress = await ctx.db
-      .query("town_progress")
-      .withIndex("by_uid", (q) => q.eq("uid", ctx.uid))
-      .unique();
-    if (!progress?.unlockedTierIds.includes(tierId)) {
-      return { ok: false as const, error: "TIER_LOCKED" };
-    }
-
-    if (tier.buyIn > 0) {
-      const debit = await applyWalletDelta(ctx, {
-        uid: ctx.uid,
-        scopeKey: "shared",
-        kind: "coins",
-        delta: -tier.buyIn,
-        reason: "town_gate_buyin",
-        gameType: building.ssaKey,
-      });
-      if (!debit.ok) {
-        return { ok: false as const, error: "INSUFFICIENT_FUNDS" };
-      }
-    }
-
-    const entryToken = `entry_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    await ctx.db.insert("town_gate_entries", {
-      uid: ctx.uid,
-      entryToken,
-      buildingId,
-      modeId,
-      tierId,
-      buyIn: tier.buyIn,
-      ssaKey: building.ssaKey,
-      status: "entered",
-      createdAt: Date.now(),
-    });
-
-    const wallet = await getPlayerWalletBalances(ctx, ctx.uid, "shared");
-    return {
-      ok: true as const,
-      entryToken,
-      ssaKey: building.ssaKey,
-      buyIn: tier.buyIn,
-      balance: wallet.coins,
-    };
-  },
-});
+import { v } from "convex/values";
+import { internalMutation } from "../../_generated/server";
+import { authedMutation, authedQuery } from "../../custom/session";
+import { getPortalTournamentDefinition } from "../../data/portalTournamentConfigs";
+import { applyWalletDelta, getPlayerWalletBalances } from "../economy/portalWalletDao";
+import {
+  gameTypeForTournament,
+  getBuilding,
+  getTier,
+  hallKindForTournament,
+  isHallKindMatch,
+  isTableUnlocked,
+  resolveTierBuyIn,
+  tableLockReason,
+} from "./config";
+import { ensureTownProgress, readTownProgress } from "./townProgressStore";
+import { resolveVenueLevel } from "./venueProgress";
+import {
+  requireTownSessionScope,
+  resolveTownSessionScope,
+  toTownScopedCtx,
+} from "./portalTownService";
+
+const TOWN_ENTRY_TTL_MS = 5 * 60_000;
+
+export const consumeTownEntryToken = internalMutation({
+  args: {
+    uid: v.string(),
+    entryToken: v.string(),
+    tournamentId: v.string(),
+  },
+  handler: async (ctx, { uid, entryToken, tournamentId }) => {
+    const row = await ctx.db
+      .query("town_gate_entries")
+      .withIndex("by_entry_token", (q) => q.eq("entryToken", entryToken))
+      .unique();
+
+    if (!row || row.uid !== uid) {
+      return { ok: false as const, error: "invalid_entry_token" as const };
+    }
+    if (row.status !== "entered") {
+      return { ok: false as const, error: "entry_token_used" as const };
+    }
+    if (row.tournamentId !== tournamentId) {
+      return { ok: false as const, error: "tournament_mismatch" as const };
+    }
+    if (Date.now() - row.createdAt > TOWN_ENTRY_TTL_MS) {
+      return { ok: false as const, error: "entry_token_expired" as const };
+    }
+
+    await ctx.db.patch(row._id, {
+      status: "consumed",
+    });
+
+    let townId = row.townId;
+    if (!townId) {
+      const scope = await resolveTownSessionScope(ctx, uid);
+      townId = scope?.townId ?? "";
+    }
+
+    return {
+      ok: true as const,
+      skipEntryCharge: row.buyIn > 0,
+      buildingId: row.buildingId,
+      tierId: row.tierId,
+      hallKind: row.hallKind,
+      buyIn: row.buyIn,
+      townId,
+    };
+  },
+});
+
+export const validateEntry = authedQuery({
+  args: {
+    townSlug: v.optional(v.string()),
+    buildingId: v.string(),
+    tierId: v.string(),
+  },
+  handler: async (ctx, { townSlug, buildingId, tierId }) => {
+    const scope = await requireTownSessionScope(ctx, ctx.uid, townSlug);
+    const townCtx = { ...toTownScopedCtx(ctx, scope), templateId: scope.templateId };
+
+    const building = getBuilding(buildingId);
+    if (!building?.hallKind) {
+      return { ok: false as const, error: "NOT_A_PORTAL" };
+    }
+    if (building.portalReady === false) {
+      return {
+        ok: false as const,
+        error: "SSA_NOT_READY",
+        message: `${building.name} is not ready yet`,
+      };
+    }
+
+    const tier = getTier(buildingId, tierId);
+    if (!tier) {
+      return { ok: false as const, error: "INVALID_TIER" };
+    }
+    if (!isHallKindMatch(building, tier)) {
+      return { ok: false as const, error: "INVALID_TOURNAMENT" };
+    }
+
+    const def = getPortalTournamentDefinition(tier.tournamentId);
+    if (!def) {
+      return { ok: false as const, error: "INVALID_TOURNAMENT" };
+    }
+    if (hallKindForTournament(tier.tournamentId) !== building.hallKind) {
+      return { ok: false as const, error: "INVALID_TOURNAMENT" };
+    }
+
+    const progress = await readTownProgress(townCtx);
+    const unlockedDistricts = progress?.unlockedDistricts ?? ["D0"];
+    const venueLevel = resolveVenueLevel(progress, building.hallKind);
+    if (!isTableUnlocked(tier, unlockedDistricts, venueLevel)) {
+      return {
+        ok: false as const,
+        error: "TABLE_LOCKED",
+        message: tableLockReason(tier, unlockedDistricts, venueLevel) ?? "Table locked",
+      };
+    }
+
+    const gameType = def.gameType;
+    const buyIn = resolveTierBuyIn(tier);
+    const wallet = await getPlayerWalletBalances(ctx, ctx.uid, scope.playScopeKey);
+    if (wallet.coins < buyIn) {
+      return {
+        ok: false as const,
+        error: "INSUFFICIENT_FUNDS",
+        balance: wallet.coins,
+        buyIn,
+      };
+    }
+
+    return {
+      ok: true as const,
+      ssaKey: gameType,
+      gameType,
+      hallKind: building.hallKind,
+      buildingId,
+      tierId,
+      tournamentId: tier.tournamentId,
+      matchType: def.matchType,
+      buyIn,
+      balance: wallet.coins,
+      venueLevel,
+    };
+  },
+});
+
+export const recordEntry = authedMutation({
+  args: {
+    townSlug: v.optional(v.string()),
+    buildingId: v.string(),
+    tierId: v.string(),
+  },
+  handler: async (ctx, { townSlug, buildingId, tierId }) => {
+    const scope = await requireTownSessionScope(ctx, ctx.uid, townSlug);
+    const townCtx = { ...toTownScopedCtx(ctx, scope), templateId: scope.templateId };
+
+    const building = getBuilding(buildingId);
+    const tier = getTier(buildingId, tierId);
+    if (!building?.hallKind || !tier) {
+      return { ok: false as const, error: "INVALID_REQUEST" };
+    }
+    if (building.portalReady === false) {
+      return { ok: false as const, error: "SSA_NOT_READY" };
+    }
+    if (!isHallKindMatch(building, tier)) {
+      return { ok: false as const, error: "INVALID_TOURNAMENT" };
+    }
+
+    const def = getPortalTournamentDefinition(tier.tournamentId);
+    if (!def) {
+      return { ok: false as const, error: "INVALID_TOURNAMENT" };
+    }
+
+    const progress = await ensureTownProgress(townCtx);
+    const venueLevel = resolveVenueLevel(progress, building.hallKind);
+    if (!isTableUnlocked(tier, progress.unlockedDistricts, venueLevel)) {
+      return { ok: false as const, error: "TABLE_LOCKED" };
+    }
+
+    const gameType = gameTypeForTournament(tier.tournamentId) ?? def.gameType;
+    const buyIn = resolveTierBuyIn(tier);
+    if (buyIn > 0) {
+      const debit = await applyWalletDelta(ctx, {
+        uid: ctx.uid,
+        scopeKey: scope.playScopeKey,
+        kind: "coins",
+        delta: -buyIn,
+        reason: "town_gate_buyin",
+        gameType,
+      });
+      if (!debit.ok) {
+        return { ok: false as const, error: "INSUFFICIENT_FUNDS" };
+      }
+    }
+
+    const entryToken = `entry_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    await ctx.db.insert("town_gate_entries", {
+      uid: ctx.uid,
+      townId: scope.townId,
+      entryToken,
+      buildingId,
+      tierId,
+      tournamentId: tier.tournamentId,
+      hallKind: building.hallKind,
+      buyIn,
+      ssaKey: gameType,
+      status: "entered",
+      createdAt: Date.now(),
+    });
+
+    const wallet = await getPlayerWalletBalances(ctx, ctx.uid, scope.playScopeKey);
+    return {
+      ok: true as const,
+      entryToken,
+      tournamentId: tier.tournamentId,
+      hallKind: building.hallKind,
+      ssaKey: gameType,
+      buyIn,
+      balance: wallet.coins,
+      venueLevel,
+      townId: scope.townId,
+    };
+  },
+});
+

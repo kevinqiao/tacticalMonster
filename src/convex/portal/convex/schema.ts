@@ -1473,23 +1473,77 @@ export default defineSchema({
     .index("by_partnerId_slug", ["partnerId", "slug"])
     .index("by_partnerId_default", ["partnerId", "isDefault"]),
 
-  /** Saloon Row — Mayfield town meta (M1). League-first: no town_level; gates use coins + League Season Lv for lobby unlocks. */
+  /** Saloon Row — Mayfield town meta. League-first: lobby Season Lv for unlocks; mayor/venue/prosperity for town shell. */
   town_progress: defineTable({
     uid: v.string(),
+    /** portal_towns document id (string). */
     townId: v.string(),
     currentDistrict: v.string(),
     unlockedDistricts: v.array(v.string()),
     unlockedTierIds: v.array(v.string()),
+    hallLevels: v.optional(v.record(v.string(), v.number())),
     questIds: v.array(v.string()),
+    mayorXp: v.optional(v.number()),
+    mayorLevel: v.optional(v.number()),
+    prosperityScore: v.optional(v.number()),
+    townTemplateId: v.optional(v.string()),
+    equippedSkinId: v.optional(v.string()),
+    completedQuestIds: v.optional(v.array(v.string())),
+    mayorXpDayKey: v.optional(v.string()),
+    mayorXpToday: v.optional(v.number()),
+    venueXp: v.optional(v.record(v.string(), v.number())),
+    venueLevel: v.optional(v.record(v.string(), v.number())),
+    venueXpDayKey: v.optional(v.string()),
+    venueXpToday: v.optional(v.record(v.string(), v.number())),
+    /** Ops week key (`w:YYYY-MM-DD`) for entertainment × Showdown passive bonus. */
+    showdownWeekKey: v.optional(v.string()),
+    /** Settled Showdown (multi_ranked) games in `showdownWeekKey`. */
+    showdownGamesThisWeek: v.optional(v.number()),
     updatedAt: v.number(),
-  }).index("by_uid", ["uid"]),
+  }).index("by_uid_townId", ["uid", "townId"]),
+
+  /** Mayfield — developable zone slots. */
+  town_zones: defineTable({
+    uid: v.string(),
+    townId: v.string(),
+    slotId: v.string(),
+    districtId: v.string(),
+    zoneType: v.optional(v.string()),
+    level: v.number(),
+    lastCollectedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_uid_townId", ["uid", "townId"])
+    .index("by_uid_townId_slotId", ["uid", "townId", "slotId"]),
+
+  /** Mayfield — daily coin source buckets for passive cap. */
+  town_passive_state: defineTable({
+    uid: v.string(),
+    townId: v.string(),
+    dayKey: v.string(),
+    passiveCoins: v.number(),
+    otherCoins: v.number(),
+    updatedAt: v.number(),
+  }).index("by_uid_townId_dayKey", ["uid", "townId", "dayKey"]),
+
+  /** Mayfield — lightweight product analytics. */
+  town_analytics_events: defineTable({
+    uid: v.string(),
+    event: v.string(),
+    props: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean()))),
+    createdAt: v.number(),
+  }).index("by_uid_created", ["uid", "createdAt"]),
 
   town_gate_entries: defineTable({
     uid: v.string(),
+    townId: v.optional(v.string()),
     entryToken: v.string(),
     buildingId: v.string(),
-    modeId: v.string(),
     tierId: v.string(),
+    tournamentId: v.optional(v.string()),
+    hallKind: v.optional(v.string()),
+    /** @deprecated legacy M1 field */
+    modeId: v.optional(v.string()),
     buyIn: v.number(),
     ssaKey: v.string(),
     status: v.string(),

@@ -106,6 +106,9 @@ export const portalTournamentFns = {
   authenticatePlayer: makeFunctionReference<"action">(
     "service/auth/portalAuth:authenticate"
   ),
+  resolvePortalTown: makeFunctionReference<"mutation">(
+    "service/town/portalTownMutations:resolvePortalTown"
+  ),
   townGetProgress: makeFunctionReference<"query">(
     "service/town/townProgress:getProgress"
   ),
@@ -114,6 +117,21 @@ export const portalTournamentFns = {
   ),
   townRecordEntry: makeFunctionReference<"mutation">(
     "service/town/gate:recordEntry"
+  ),
+  townDevelopZone: makeFunctionReference<"mutation">(
+    "service/town/zones:developZoneMutation"
+  ),
+  townUpgradeZone: makeFunctionReference<"mutation">(
+    "service/town/zones:upgradeZoneMutation"
+  ),
+  townCollectPassive: makeFunctionReference<"mutation">(
+    "service/town/zones:collectPassiveMutation"
+  ),
+  townExpandDistrict: makeFunctionReference<"mutation">(
+    "service/town/zones:expandDistrictMutation"
+  ),
+  townEnsureZones: makeFunctionReference<"mutation">(
+    "service/town/zones:ensureZones"
   ),
   getCampaignDailyPlayQuota: makeFunctionReference<"query">(
     "service/tournament/join/campaignDailyPlayLimit:getCampaignDailyPlayQuota"
