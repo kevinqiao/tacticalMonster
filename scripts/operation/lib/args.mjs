@@ -82,10 +82,12 @@ export function parseCommonArgs(argv) {
     skipSso: argv.includes("--skip-sso"),
     skipPortal: argv.includes("--skip-portal"),
     skipLobbies: argv.includes("--skip-lobbies"),
+    skipTowns: argv.includes("--skip-towns"),
     skipShopSkus: argv.includes("--skip-shop-skus"),
     skipShopSettings: argv.includes("--skip-shop-settings"),
     skipStaff: argv.includes("--skip-staff"),
     onlyLobbies: argv.includes("--only-lobbies"),
+    onlyTowns: argv.includes("--only-towns"),
     onlyPortal: argv.includes("--only-portal"),
     onlySso: argv.includes("--only-sso"),
     onlyShopSkus: argv.includes("--only-shop-skus"),
@@ -100,6 +102,7 @@ export function needsPortalBridge(flags) {
   return (
     wantStep(flags, "portal") ||
     wantStep(flags, "lobbies") ||
+    wantStep(flags, "towns") ||
     wantStep(flags, "shopSkus") ||
     wantStep(flags, "shopSettings")
   );
@@ -110,6 +113,7 @@ export function wantStep(flags, step) {
     flags.onlySso ||
     flags.onlyPortal ||
     flags.onlyLobbies ||
+    flags.onlyTowns ||
     flags.onlyShopSkus ||
     flags.onlyShopSettings ||
     flags.onlyStaff;
@@ -117,6 +121,7 @@ export function wantStep(flags, step) {
     if (step === "sso") return flags.onlySso;
     if (step === "portal") return flags.onlyPortal;
     if (step === "lobbies") return flags.onlyLobbies;
+    if (step === "towns") return flags.onlyTowns;
     if (step === "shopSkus") return flags.onlyShopSkus;
     if (step === "shopSettings") return flags.onlyShopSettings;
     if (step === "staff") return flags.onlyStaff;
@@ -125,6 +130,7 @@ export function wantStep(flags, step) {
   if (step === "sso") return !flags.skipSso;
   if (step === "portal") return !flags.skipPortal;
   if (step === "lobbies") return !flags.skipLobbies;
+  if (step === "towns") return !flags.skipTowns;
   if (step === "shopSkus") return !flags.skipShopSkus;
   if (step === "shopSettings") return !flags.skipShopSettings;
   if (step === "staff") return !flags.skipStaff;

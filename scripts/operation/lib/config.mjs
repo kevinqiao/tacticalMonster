@@ -49,6 +49,15 @@ export function partnerLobbyAltPath(partnerSlug, lobby) {
   return null;
 }
 
+/** Town player URL — default town uses /town. */
+export function partnerTownPath(_partnerSlug, town) {
+  const slug = town?.slug;
+  if (town?.isDefault || !slug || slug === "mayfield") {
+    return "/town";
+  }
+  return `/town/${slug}`;
+}
+
 /**
  * Lobby offering rewardsOverride (portalLobbyMutations offeringValidator shape).
  * Pass-through only — does not invent defaults.
@@ -441,6 +450,57 @@ function expandShopSettings(raw) {
   return { ...base, lobbyOverlays };
 }
 
+const TOWN_TEMPLATES = new Set(["mayfield_standard"]);
+
+function expandTown(town) {
+  if (!town || typeof town !== "object") {
+    throw new Error("town_invalid");
+  }
+  const slug = String(town.slug ?? "mayfield").trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(slug)) {
+    throw new Error(`town_slug_invalid:${slug}`);
+  }
+  const templateId = String(town.templateId ?? "mayfield_standard").trim();
+  if (!TOWN_TEMPLATES.has(templateId)) {
+    throw new Error(`town_template_invalid:${templateId}`);
+  }
+  let branding;
+  if (town.branding && typeof town.branding === "object") {
+    branding = {
+      ...(typeof town.branding.logoUrl === "string"
+        ? { logoUrl: town.branding.logoUrl.trim() }
+        : {}),
+      ...(typeof town.branding.titleOverride === "string"
+        ? { titleOverride: town.branding.titleOverride.trim() }
+        : {}),
+      ...(typeof town.branding.mapThemeId === "string"
+        ? { mapThemeId: town.branding.mapThemeId.trim() }
+        : {}),
+    };
+    if (Object.keys(branding).length === 0) branding = undefined;
+  }
+  let walletSeedCoins;
+  if (town.walletSeedCoins === null) {
+    walletSeedCoins = null;
+  } else if (town.walletSeedCoins != null) {
+    const n = Number(town.walletSeedCoins);
+    if (!Number.isFinite(n) || n < 0) throw new Error(`town_wallet_seed_invalid:${slug}`);
+    walletSeedCoins = Math.floor(n);
+  }
+  return {
+    slug,
+    title: String(town.title ?? "Mayfield").trim() || "Mayfield",
+    isDefault: town.isDefault !== false,
+    enabled: town.enabled !== false,
+    templateId,
+    ...(typeof town.economyProfileId === "string"
+      ? { economyProfileId: town.economyProfileId.trim() }
+      : {}),
+    ...(branding ? { branding } : {}),
+    ...(walletSeedCoins !== undefined ? { walletSeedCoins } : {}),
+  };
+}
+
 /** Known partner `portal.*` GC / play-entry keys (pass-through to Portal upsert). */
 export const PORTAL_GC_OPS_KEYS = new Set([
   "lobbyOpsMode",
@@ -475,6 +535,52 @@ export const PORTAL_GC_OPS_KEYS = new Set([
 export function patchPartnerJson(filePath, patch) {
   const raw = JSON.parse(fs.readFileSync(filePath, "utf8"));
   if (!raw.portal || typeof raw.portal !== "object") raw.portal = {};
+
+  if (patch.profile && typeof patch.profile === "object") {
+    if (patch.profile.name !== undefined) raw.name = patch.profile.name;
+    if (patch.profile.host !== undefined) raw.host = patch.profile.host;
+    if (patch.profile.capabilities && typeof patch.profile.capabilities === "object") {
+      if (!raw.capabilities || typeof raw.capabilities !== "object") raw.capabilities = {};
+      if (patch.profile.capabilities.portalGames !== undefined) {
+        raw.capabilities.portalGames = patch.profile.capabilities.portalGames;
+      }
+      if (patch.profile.capabilities.campaignOps !== undefined) {
+        raw.capabilities.campaignOps = patch.profile.capabilities.campaignOps;
+      }
+    }
+    if (patch.profile.playerAuth !== undefined) {
+      raw.playerAuth = patch.profile.playerAuth;
+    }
+    if (patch.profile.embed && typeof patch.profile.embed === "object") {
+      if (!raw.embed || typeof raw.embed !== "object") raw.embed = {};
+      if (patch.profile.embed.method !== undefined) raw.embed.method = patch.profile.embed.method;
+      if (patch.profile.embed.allowedOrigins !== undefined) {
+        raw.embed.allowedOrigins = patch.profile.embed.allowedOrigins;
+      }
+    }
+  }
+
+  if (Array.isArray(patch.townPatches) && patch.townPatches.length) {
+    if (!Array.isArray(raw.towns)) raw.towns = [];
+    for (const tp of patch.townPatches) {
+      const slug = String(tp.slug ?? "").trim().toLowerCase();
+      const idx = raw.towns.findIndex(
+        (t) => String(t?.slug ?? "mayfield").trim().toLowerCase() === slug
+      );
+      if (idx < 0) throw new Error(`town_not_in_json:${slug}`);
+      const row = raw.towns[idx];
+      if (tp.title !== undefined) row.title = tp.title;
+      if (tp.enabled !== undefined) row.enabled = tp.enabled;
+      if (tp.isDefault !== undefined) row.isDefault = tp.isDefault;
+      if (tp.templateId !== undefined) row.templateId = tp.templateId;
+      if (tp.walletSeedCoins !== undefined) row.walletSeedCoins = tp.walletSeedCoins;
+      if (tp.branding === null) {
+        delete row.branding;
+      } else if (tp.branding && typeof tp.branding === "object") {
+        row.branding = { ...(row.branding ?? {}), ...tp.branding };
+      }
+    }
+  }
 
   if (patch.portal && typeof patch.portal === "object") {
     for (const [key, value] of Object.entries(patch.portal)) {
@@ -616,6 +722,12 @@ export function normalizePartnerConfig(raw, filePath = "(memory)") {
     ? raw.lobbies.map(expandLobby)
     : [];
 
+  const towns = Array.isArray(raw.towns)
+    ? raw.towns.map(expandTown)
+    : raw.town && typeof raw.town === "object"
+      ? [expandTown(raw.town)]
+      : [];
+
   const shopSkus = Array.isArray(raw.shopSkus)
     ? raw.shopSkus.map((sku) => expandShopSku(sku, partnerId))
     : [];
@@ -634,6 +746,7 @@ export function normalizePartnerConfig(raw, filePath = "(memory)") {
     playerAuth,
     portal,
     lobbies,
+    towns,
     shopSkus,
     shopSettings,
     staff,

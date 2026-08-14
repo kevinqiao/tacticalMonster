@@ -171,6 +171,41 @@ export async function portalLobbyDelete(target, partnerId, lobbyId) {
   });
 }
 
+export async function portalTownsList(target, partnerId) {
+  return postPortal(target, "/internal/partner-towns", {
+    operation: "list",
+    partnerId,
+  });
+}
+
+export async function portalTownUpsert(target, partnerId, town) {
+  return postPortal(target, "/internal/partner-towns", {
+    operation: "upsert",
+    partnerId,
+    slug: town.slug,
+    title: town.title,
+    isDefault: town.isDefault,
+    enabled: town.enabled,
+    templateId: town.templateId,
+    ...(town.economyProfileId !== undefined
+      ? { economyProfileId: town.economyProfileId }
+      : {}),
+    ...(town.branding ? { branding: town.branding } : {}),
+    ...(town.walletSeedCoins !== undefined
+      ? { walletSeedCoins: town.walletSeedCoins }
+      : {}),
+    ...(town.townId ? { townId: town.townId } : {}),
+  });
+}
+
+export async function portalTownDelete(target, partnerId, townId) {
+  return postPortal(target, "/internal/partner-towns", {
+    operation: "delete",
+    partnerId,
+    townId,
+  });
+}
+
 export async function portalShopSkusList(target, partnerId) {
   return postPortal(target, "/internal/partner-shop-skus", {
     operation: "list",

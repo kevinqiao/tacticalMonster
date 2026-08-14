@@ -1449,6 +1449,30 @@ export default defineSchema({
     updatedBy: v.optional(v.string()),
   }).index("by_key", ["key"]),
 
+  /** Partner-scoped town instance (Strategy B: one rebranded Mayfield per partner). */
+  portal_towns: defineTable({
+    partnerId: v.number(),
+    slug: v.string(),
+    title: v.string(),
+    isDefault: v.boolean(),
+    enabled: v.boolean(),
+    templateId: v.string(),
+    economyProfileId: v.optional(v.string()),
+    branding: v.optional(
+      v.object({
+        logoUrl: v.optional(v.string()),
+        titleOverride: v.optional(v.string()),
+        mapThemeId: v.optional(v.string()),
+      })
+    ),
+    walletSeedCoins: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_partnerId", ["partnerId"])
+    .index("by_partnerId_slug", ["partnerId", "slug"])
+    .index("by_partnerId_default", ["partnerId", "isDefault"]),
+
   /** Saloon Row — Mayfield town meta (M1) */
   town_progress: defineTable({
     uid: v.string(),

@@ -1688,6 +1688,85 @@ http.route({
   }),
 });
 
+/** Platform Admin / ops scripts → Portal: list / upsert / delete partner towns. */
+http.route({
+  path: "/internal/partner-towns",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (request.headers.get("X-Portal-Bridge-Secret") !== portalGameBridgeSecret()) {
+      return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+    }
+    const parsed = await readJsonBody(request);
+    if (!parsed.ok) return parsed.response;
+    const partnerId = partnerIdFromBody(parsed.body);
+    const operation = parsed.body.operation;
+    if (partnerId === null || typeof operation !== "string") {
+      return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+    }
+    try {
+      if (operation === "list") {
+        const towns = await ctx.runQuery(
+          internal.service.town.portalTownMutations.listPortalTownsInternal,
+          { partnerId }
+        );
+        return jsonResponse({ ok: true, towns });
+      }
+      if (operation === "upsert") {
+        const b = parsed.body;
+        if (typeof b.slug !== "string" || typeof b.title !== "string") {
+          return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+        }
+        const result = await ctx.runMutation(
+          internal.service.town.portalTownMutations.upsertPortalTownInternal,
+          {
+            partnerId,
+            ...(typeof b.townId === "string" ? { townId: b.townId as any } : {}),
+            slug: b.slug,
+            title: b.title,
+            ...(typeof b.isDefault === "boolean" ? { isDefault: b.isDefault } : {}),
+            ...(typeof b.enabled === "boolean" ? { enabled: b.enabled } : {}),
+            ...(typeof b.templateId === "string" ? { templateId: b.templateId } : {}),
+            ...(b.economyProfileId === null
+              ? { economyProfileId: null }
+              : typeof b.economyProfileId === "string"
+                ? { economyProfileId: b.economyProfileId }
+                : {}),
+            ...(b.branding === null
+              ? { branding: null }
+              : b.branding && typeof b.branding === "object"
+                ? { branding: b.branding as any }
+                : {}),
+            ...(b.walletSeedCoins === null
+              ? { walletSeedCoins: null }
+              : typeof b.walletSeedCoins === "number"
+                ? { walletSeedCoins: b.walletSeedCoins }
+                : {}),
+          }
+        );
+        return jsonResponse({ ok: true, ...result });
+      }
+      if (operation === "delete") {
+        if (typeof parsed.body.townId !== "string") {
+          return jsonResponse({ ok: false, error: "invalid_fields" }, 400);
+        }
+        const result = await ctx.runMutation(
+          internal.service.town.portalTownMutations.deletePortalTownInternal,
+          {
+            partnerId,
+            townId: parsed.body.townId as any,
+          }
+        );
+        return jsonResponse(result);
+      }
+      return jsonResponse({ ok: false, error: "unknown_operation" }, 400);
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : "operation_failed";
+      const cleaned = raw.replace(/^Uncaught Error:\s*/i, "").trim().split(/\s|\n/)[0] || raw;
+      return jsonResponse({ ok: false, error: cleaned }, 400);
+    }
+  }),
+});
+
 /**
  * Operation scripts → Portal: wipe partner-scoped config for clean relaunch.
  * Body: `{ partnerId }`. Does not touch seed pools or player runtime tables.

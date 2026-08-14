@@ -24,12 +24,16 @@ import {
   loadPartnerConfig,
   partnerLobbyPath,
   partnerLobbyAltPath,
+  partnerTownPath,
 } from "./lib/config.mjs";
 import {
   portalGcOpsUpsert,
   portalLobbyUpsert,
   portalLobbyDelete,
   portalLobbiesList,
+  portalTownUpsert,
+  portalTownDelete,
+  portalTownsList,
   portalShopSkuUpsert,
   portalShopSkuDelete,
   portalShopSkusList,
@@ -81,6 +85,12 @@ function printPlan(cfg, flags, portalTarget) {
     const urlLabel = alt ? `${url} | ${alt}` : url;
     console.log(
       `    - slug=${l.slug} default=${l.isDefault} offerings=${l.offerings.length} derivedGames=[${(l.derivedGameTypes ?? []).join(",")}] url=${urlLabel}`
+    );
+  }
+  console.log(`  towns: ${cfg.towns.length}`);
+  for (const t of cfg.towns) {
+    console.log(
+      `    - slug=${t.slug} default=${t.isDefault} template=${t.templateId} title=${t.title} url=${partnerTownPath(cfg.slug, t)}`
     );
   }
   console.log(`  shopSkus: ${cfg.shopSkus.length}`);
@@ -189,6 +199,32 @@ async function applyLobbies(cfg, target, { prune = false } = {}) {
   return results;
 }
 
+async function applyTowns(cfg, target, { prune = false } = {}) {
+  if (!cfg.towns.length) {
+    console.log("\n[Towns] skip (none in config)");
+    return [];
+  }
+  console.log(`\n[Towns] upsert ${cfg.towns.length}…`);
+  const results = [];
+  for (const town of cfg.towns) {
+    const out = await portalTownUpsert(target, cfg.pid, town);
+    console.log(`  → ${town.slug}`, out.townId ?? out);
+    results.push(out);
+  }
+  if (prune) {
+    const listed = await portalTownsList(target, cfg.pid);
+    const want = new Set(cfg.towns.map((t) => t.slug));
+    for (const live of listed.towns ?? []) {
+      if (want.has(live.slug)) continue;
+      const townId = live.townId;
+      if (!townId) continue;
+      console.log(`  → prune delete ${live.slug} (${townId})`);
+      await portalTownDelete(target, cfg.pid, townId);
+    }
+  }
+  return results;
+}
+
 async function applyShopSkus(cfg, target, { prune = false } = {}) {
   console.log(`\n[Shop SKUs] upsert ${cfg.shopSkus.length}…`);
   const results = [];
@@ -278,11 +314,11 @@ async function main() {
   npm run op -- partner apply --partner=<slug> [--apply] [--prod] [--prune]
 
 Flags:
-  --skip-sso --skip-portal --skip-lobbies --skip-shop-skus
+  --skip-sso --skip-portal --skip-lobbies --skip-towns --skip-shop-skus
   --skip-shop-settings --skip-staff
-  --only-sso --only-portal --only-lobbies --only-shop-skus
+  --only-sso --only-portal --only-lobbies --only-towns --only-shop-skus
   --only-shop-settings --only-staff
-  --prune  delete live lobbies/SKUs not present in JSON
+  --prune  delete live lobbies/towns/SKUs not present in JSON
 
 Dry-run without --apply. Syncs partners/<slug>.json → SSO + Portal.`);
     process.exit(flags.help ? 0 : 1);
@@ -313,6 +349,11 @@ Dry-run without --apply. Syncs partners/<slug>.json → SSO + Portal.`);
     "Lobbies"
   );
   await run(
+    "towns",
+    () => applyTowns(cfg, portalTarget, { prune: flags.prune }),
+    "Towns"
+  );
+  await run(
     "shopSkus",
     () => applyShopSkus(cfg, portalTarget, { prune: flags.prune }),
     "Shop SKUs"
@@ -329,6 +370,10 @@ Dry-run without --apply. Syncs partners/<slug>.json → SSO + Portal.`);
   for (const l of cfg.lobbies) {
     const mark = l.isDefault ? " (default lobby)" : "";
     console.log(`  ${partnerLobbyPath(cfg.slug, l)}${mark}`);
+  }
+  for (const t of cfg.towns) {
+    const mark = t.isDefault ? " (default town)" : "";
+    console.log(`  ${partnerTownPath(cfg.slug, t)}${mark}`);
   }
   if (cfg.shopSkus.length) {
     console.log(`  shopSkus: ${cfg.shopSkus.map((s) => s.skuId).join(", ")}`);
