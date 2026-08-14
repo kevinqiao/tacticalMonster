@@ -23,6 +23,13 @@ import { applyWalletDelta, getPlayerWalletBalances } from "../../economy/portalW
 import { resolveEconomyScope } from "../../economy/resolveEconomyScope";
 import { sessionPartnerIdFromUid } from "../../../../../shared/platformAuth/parsePlatformUid";
 import { assertLobbyOfferingJoinAllowed } from "../../lobby/lobbyOfferingUnlocks";
+import {
+  buildSharedPlayContext,
+  joinContextFromPlayContext,
+  joinContextRowFields,
+  playContextRowFields,
+  type PlayContext,
+} from "../../../data/portalPlayContext";
 
 export const RUN_TOURNAMENT_OPEN = 0;
 export const RUN_TOURNAMENT_COMPLETED = 1;
@@ -300,6 +307,7 @@ export async function insertCasualRunDocumentsForHumans(
       string,
       { vouchersCharged?: number; coinsCharged?: number; gemsCharged?: number }
     >;
+    playContext?: PlayContext;
   }
 ): Promise<{
   runTournamentId: string;
@@ -312,6 +320,7 @@ export async function insertCasualRunDocumentsForHumans(
 }> {
   const { uids, templateId, def } = args;
   const now = Date.now();
+  const runContext = args.playContext ?? buildSharedPlayContext();
   const runTournamentId = await ctx.db.insert("portal_run_tournaments", {
     templateId,
     gameType: def.gameType,
@@ -319,8 +328,10 @@ export async function insertCasualRunDocumentsForHumans(
     createdAt: now,
     updatedAt: now,
     ...(args.instanceId ? { instanceId: args.instanceId } : {}),
+    ...playContextRowFields(runContext),
   });
 
+  const joinCtx = joinContextFromPlayContext(runContext);
   for (const uid of uids) {
     await ctx.db.insert("portal_run_player_tournaments", {
       uid,
@@ -330,6 +341,7 @@ export async function insertCasualRunDocumentsForHumans(
       status: RUN_PLAYER_TOURNAMENT_OPEN,
       createdAt: now,
       updatedAt: now,
+      ...joinContextRowFields(joinCtx),
     });
   }
 

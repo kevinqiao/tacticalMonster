@@ -39,6 +39,13 @@ import {
   entrySnapshotFromDef,
   loadLobbyRewardsOverride,
 } from "../../lobby/lobbyOfferingRewards";
+import {
+  buildLobbyPlayContext,
+  lobbyIdFromRun,
+  playContextInputValidator,
+  playContextRowFields,
+  type PlayContext,
+} from "../../../data/portalPlayContext";
 import { refundAbandonedQueuePlayEntry } from "../../ads/portalPlayEntryQueueRefund";
 
 export {
@@ -126,28 +133,8 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
   args: {
     uid: v.string(),
     tournamentId: v.string(),
-    lobbyId: v.optional(v.id("portal_lobbies")),
-    campaignId: v.optional(v.string()),
-    partnerId: v.optional(v.number()),
-    campaignRewardMode: v.optional(
-      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
-    ),
-    campaignDueTime: v.optional(v.number()),
-    campaignReplaySettings: v.optional(
-      v.object({
-        maxReplaysPerMatch: v.optional(v.number()),
-        adReplayEnabled: v.optional(v.boolean()),
-        adReplayDailyCap: v.optional(v.number()),
-        ticketReplayEnabled: v.optional(v.boolean()),
-        ticketReplayPriceTickets: v.optional(v.number()),
-        coinReplayEnabled: v.optional(v.boolean()),
-        coinReplayPriceCoins: v.optional(v.number()),
-        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
-      })
-    ),
-    maxPlaysPerDay: v.optional(v.number()),
-    dayTimezone: v.optional(v.string()),
-    /** After ad/ticket grant consume — open-table rechecks use this lane. */
+    playContext: playContextInputValidator,
+    /** After ad/ticket grant consume — open-table daily-limit rechecks use this lane. */
     playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
     /** Snapshot of tickets spent; refunded if queue is abandoned. */
     ticketEntryPriceTickets: v.optional(v.number()),
@@ -156,25 +143,26 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
      * eff=1 tables synchronously and return ready/error to the client.
      */
     deferOpenToCaller: v.optional(v.boolean()),
+    skipEntryCharge: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
     {
       uid,
       tournamentId,
-      lobbyId,
-      campaignId,
-      partnerId,
-      campaignRewardMode,
-      campaignDueTime,
-      campaignReplaySettings,
-      maxPlaysPerDay,
-      dayTimezone,
+      playContext: playContextArg,
       playEntryLane,
       ticketEntryPriceTickets,
       deferOpenToCaller,
+      skipEntryCharge,
     }
   ): Promise<JoinCasualRunResult> => {
+    const playContext: PlayContext = playContextArg;
+    const lobbyId = lobbyIdFromRun(playContext);
+    const campaignId = playContext.contextKind === "campaign" ? playContext.contextId : undefined;
+    const partnerId = playContext.contextSnapshot?.partnerId;
+    const maxPlaysPerDay = playContext.contextSnapshot?.maxPlaysPerDay;
+    const dayTimezone = playContext.contextSnapshot?.dayTimezone;
     const def = getPortalTournamentDefinition(tournamentId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
@@ -253,9 +241,18 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
     const reconciled = await reconcileCasualMatchQueueForJoin(ctx, uid, tournamentId, now);
     const resolvedPartnerId = partnerId ?? 0;
     const partitionKey = matchPartitionKey(resolvedPartnerId, tournamentId);
-    const rewardsOverrideSnapshot = lobbyId
-      ? await loadLobbyRewardsOverride(ctx, lobbyId, tournamentId)
-      : undefined;
+    let queuePlayContext = playContext;
+    if (lobbyId && !playContext.contextSnapshot?.rewardsOverride) {
+      const rewardsOverride = await loadLobbyRewardsOverride(ctx, lobbyId, tournamentId);
+      if (rewardsOverride) {
+        queuePlayContext = buildLobbyPlayContext({
+          lobbyId,
+          partnerId: resolvedPartnerId,
+          rewardsOverride,
+        });
+      }
+    }
+    const playContextFields = playContextRowFields(queuePlayContext);
     const entrySnapshot = entrySnapshotFromDef(def);
 
     let queueRowId: Id<"portal_match_queue">;
@@ -265,17 +262,11 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         matchedRuleId: matchedRuleId ?? undefined,
         queueExpireAction: effectiveHumans > 1 ? queueExpireAction : undefined,
         expiresAt,
-        skipEntryCharge: reconciled.skipEntryCharge,
+        skipEntryCharge: skipEntryCharge === true ? true : reconciled.skipEntryCharge,
         updatedAt: now,
         matchPartitionKey: partitionKey,
-        partnerId: resolvedPartnerId,
         entrySnapshot,
-        ...(rewardsOverrideSnapshot ? { rewardsOverrideSnapshot } : {}),
-        ...(lobbyId ? { lobbyId } : {}),
-        ...(campaignId ? { campaignId } : {}),
-        ...(campaignRewardMode ? { campaignRewardMode } : {}),
-        ...(campaignDueTime != null ? { campaignDueTime } : {}),
-        ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
+        ...playContextFields,
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
         playEntryLane: playEntryLane,
@@ -295,18 +286,12 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         matchedRuleId: matchedRuleId ?? undefined,
         queueExpireAction: effectiveHumans > 1 ? queueExpireAction : undefined,
         expiresAt,
-        skipEntryCharge: undefined,
+        skipEntryCharge: skipEntryCharge === true ? true : undefined,
         status: "waiting",
         createdAt: now,
         updatedAt: now,
-        partnerId: resolvedPartnerId,
         entrySnapshot,
-        ...(rewardsOverrideSnapshot ? { rewardsOverrideSnapshot } : {}),
-        ...(lobbyId ? { lobbyId } : {}),
-        ...(campaignId ? { campaignId } : {}),
-        ...(campaignRewardMode ? { campaignRewardMode } : {}),
-        ...(campaignDueTime != null ? { campaignDueTime } : {}),
-        ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
+        ...playContextFields,
         ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
         ...(playEntryLane ? { playEntryLane } : {}),

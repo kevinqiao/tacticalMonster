@@ -1,6 +1,8 @@
+import { lobbyIdFromJoin } from "../../data/portalPlayContext";
+
 /**
  * Portal 周积分：结算加分只写入 portal_weekly_league_members（+ ledger 审计）。
- * Prefer lobby-scoped member when the run carries lobbyId.
+ * Prefer player join lobby over run context (cross-lobby shared matchmaking).
  */
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
@@ -77,7 +79,13 @@ export async function applyPortalMatchPoints(
   let soloRewardsMuted = false;
   let xpGranted: number | undefined;
   const runRow = await ctx.db.get(args.runTournamentId);
-  const lobbyId = args.joinLobbyId ?? runRow?.lobbyId;
+  const pt = await ctx.db
+    .query("portal_run_player_tournaments")
+    .withIndex("by_tournament_uid", (q) =>
+      q.eq("tournamentId", args.runTournamentId).eq("uid", args.uid)
+    )
+    .unique();
+  const lobbyId = args.joinLobbyId ?? lobbyIdFromJoin(pt, runRow);
 
   if (args.def.matchType === "solo_p75") {
     const pm = await ctx.db
@@ -186,12 +194,6 @@ export async function applyPortalMatchPoints(
     createdAt: now,
   });
 
-  const pt = await ctx.db
-    .query("portal_run_player_tournaments")
-    .withIndex("by_tournament_uid", (q) =>
-      q.eq("tournamentId", args.runTournamentId).eq("uid", args.uid)
-    )
-    .unique();
   await persistPlayerMatchChallengeOutcome(ctx, {
     uid: args.uid,
     runTournamentId: String(args.runTournamentId),

@@ -14,6 +14,14 @@ import { authorizeCampaignJoinViaHttp } from "../../bridge/merchantCampaignBridg
 import { resolveMultiRitualJoinTemplate } from "../../bridge/portalSeasonSeedPickSignals";
 import { sessionPartnerIdFromUid } from "../../../../../shared/platformAuth/parsePlatformUid";
 import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
+import {
+  buildCampaignPlayContext,
+  buildLobbyPlayContext,
+  buildSharedPlayContext,
+  buildTownPlayContext,
+  type PlayContext,
+  type TownGateSnapshot,
+} from "../../../data/portalPlayContext";
 
 /**
  * Solo (maxPlayers<=1): openCasualSoloTable; multi: enqueue matchmaking.
@@ -21,6 +29,8 @@ import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
 export const joinTournament = authedAction({
   args: {
     tournamentId: v.optional(v.string()),
+    /** Town Gate buy-in already charged via recordEntry. */
+    townEntryToken: v.optional(v.string()),
     /**
      * Campaign join: partner from platform session (uid) or FE PartnerManager.
      * Prefer omitting — server derives from uid. If provided, must match session.
@@ -36,9 +46,31 @@ export const joinTournament = authedAction({
   },
   handler: async (
     ctx,
-    { tournamentId, partnerId: partnerIdArg, campaignSlug, lobbyId, adEntry, ticketEntry }
+    { tournamentId, partnerId: partnerIdArg, campaignSlug, lobbyId, adEntry, ticketEntry, townEntryToken }
   ): Promise<JoinCasualRunResult> => {
     const uid = ctx.uid;
+    let skipEntryCharge = false;
+    let townGate: TownGateSnapshot | undefined;
+    let townIdForPlay: string | undefined;
+
+    if (townEntryToken && tournamentId && !campaignSlug) {
+      const consumed = await ctx.runMutation(
+        internal.service.town.gate.consumeTownEntryToken,
+        { uid, entryToken: townEntryToken, tournamentId }
+      );
+      if (!consumed.ok) {
+        return { ok: false as const, error: consumed.error };
+      }
+      skipEntryCharge = consumed.skipEntryCharge;
+      townIdForPlay = consumed.townId;
+      townGate = {
+        buildingId: consumed.buildingId,
+        tierId: consumed.tierId,
+        hallKind: consumed.hallKind,
+        buyIn: consumed.buyIn,
+      };
+    }
+
     let resolvedTemplateId = tournamentId;
     let campaignId: string | undefined;
     let partnerId: number | undefined;
@@ -213,21 +245,45 @@ export const joinTournament = authedAction({
 
     const playEntryLane = adEntry ? "ad" : ticketEntry ? "ticket" : undefined;
 
+    const sessionPartnerId = sessionPartnerIdFromUid(uid) ?? undefined;
+    let playContext: PlayContext;
+    if (townGate && !townIdForPlay) {
+      return { ok: false as const, error: "invalid_entry_token" as const };
+    }
+    if (townGate && townIdForPlay) {
+      playContext = buildTownPlayContext({
+        townId: townIdForPlay,
+        gate: townGate,
+        partnerId: sessionPartnerId,
+      });
+    } else if (campaignId && partnerId != null) {
+      playContext = buildCampaignPlayContext({
+        campaignId,
+        partnerId,
+        rewardMode: campaignRewardMode,
+        dueTime: campaignDueTime,
+        replaySettings: campaignReplaySettings,
+        maxPlaysPerDay,
+        dayTimezone,
+      });
+    } else if (lobbyId) {
+      playContext = buildLobbyPlayContext({
+        lobbyId,
+        partnerId: sessionPartnerId ?? 0,
+      });
+    } else {
+      playContext = buildSharedPlayContext(sessionPartnerId);
+    }
+
     if (def.maxPlayers <= 1) {
       const opened = await ctx.runAction(
         internal.service.tournament.join.casualOpenTableActions.openCasualSoloTable,
         {
           uid,
           templateId: resolvedTemplateId,
-          ...(lobbyId ? { lobbyId } : {}),
-          ...(campaignId ? { campaignId } : {}),
-          ...(partnerId != null ? { partnerId } : {}),
-          ...(campaignRewardMode ? { campaignRewardMode } : {}),
-          ...(campaignDueTime != null ? { campaignDueTime } : {}),
-          ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
-          ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
-          ...(dayTimezone ? { dayTimezone } : {}),
+          playContext,
           ...(playEntryLane ? { playEntryLane } : {}),
+          ...(skipEntryCharge ? { skipEntryCharge: true } : {}),
         }
       );
       if (opened.ok && ritualForcedSolo) {
@@ -243,15 +299,9 @@ export const joinTournament = authedAction({
         {
           uid,
           templateId: resolvedTemplateId,
-          ...(lobbyId ? { lobbyId } : {}),
-          ...(campaignId ? { campaignId } : {}),
-          ...(partnerId != null ? { partnerId } : {}),
-          ...(campaignRewardMode ? { campaignRewardMode } : {}),
-          ...(campaignDueTime != null ? { campaignDueTime } : {}),
-          ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
-          ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
-          ...(dayTimezone ? { dayTimezone } : {}),
+          playContext,
           ...(playEntryLane ? { playEntryLane } : {}),
+          ...(skipEntryCharge ? { skipEntryCharge: true } : {}),
         }
       );
     }
@@ -262,20 +312,12 @@ export const joinTournament = authedAction({
       {
         uid,
         tournamentId: resolvedTemplateId,
-        ...(lobbyId ? { lobbyId } : {}),
-        ...(campaignId ? { campaignId } : {}),
-        ...(partnerId != null ? { partnerId } : {}),
-        ...(campaignRewardMode ? { campaignRewardMode } : {}),
-        ...(campaignDueTime != null ? { campaignDueTime } : {}),
-        ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
-        ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
-        ...(dayTimezone ? { dayTimezone } : {}),
+        playContext,
         ...(playEntryLane ? { playEntryLane } : {}),
         ...(ticketEntryPriceTickets != null
           ? { ticketEntryPriceTickets }
           : {}),
-        // Bot-fill (eff=1): open in this action so coin/free multi returns ready/error
-        // instead of leaving the client stuck on "Creating match".
+        ...(skipEntryCharge ? { skipEntryCharge: true } : {}),
         deferOpenToCaller: true,
       }
     );

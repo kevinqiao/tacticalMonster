@@ -7,6 +7,10 @@ import {
   rolloutDistributionMetrics,
   rolloutTerminalReason,
 } from "./service/seedPool/seedPoolValidators";
+import {
+  playContextKindValidator,
+  playContextSnapshotValidator,
+} from "./data/portalPlayContext";
 
 export default defineSchema({
   portal_players: defineTable({
@@ -35,7 +39,7 @@ export default defineSchema({
     .index("by_displayNameNormalized", ["displayNameNormalized"]),
 
   /**
-   * Scoped wallets (SoT for balances). scopeKey = "shared" | `lobby:${lobbyId}`.
+   * Scoped wallets (SoT for balances). scopeKey = "shared" | `lobby:${id}` | `town:${id}` | …
    * portal_players keeps identity/profile; legacy coins/gems/tickets migrate to shared.
    */
   portal_player_wallets: defineTable({
@@ -282,35 +286,18 @@ export default defineSchema({
     status: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
-    /** Portal lobby that opened this run; weekly league points settle into this lobby. */
-    lobbyId: v.optional(v.id("portal_lobbies")),
     /** 周期型：指向当前开放桶；`single_match` 省略 */
     instanceId: v.optional(v.id("portal_tournament_instances")),
-    campaignId: v.optional(v.string()),
-    partnerId: v.optional(v.number()),
-    /** Join authorize snapshot: pass_per_run | competitive_leaderboard */
-    campaignRewardMode: v.optional(
-      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
-    ),
-    /** 0 for pass_per_run; campaign.endsAt for competitive_leaderboard */
-    campaignDueTime: v.optional(v.number()),
-    /** Join authorize sparse snapshot; overlays partner replay settings at settle. */
-    campaignReplaySettings: v.optional(
-      v.object({
-        maxReplaysPerMatch: v.optional(v.number()),
-        adReplayEnabled: v.optional(v.boolean()),
-        adReplayDailyCap: v.optional(v.number()),
-        ticketReplayEnabled: v.optional(v.boolean()),
-        ticketReplayPriceTickets: v.optional(v.number()),
-        coinReplayEnabled: v.optional(v.boolean()),
-        coinReplayPriceCoins: v.optional(v.number()),
-        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
-      })
-    ),
+    /** Where this run was opened — SSOT for lobby / campaign / town / shared. */
+    contextKind: playContextKindValidator,
+    contextId: v.string(),
+    playScopeKey: v.string(),
+    contextSnapshot: v.optional(playContextSnapshotValidator),
   })
     .index("by_templateId", ["templateId"])
     .index("by_instanceId", ["instanceId"])
-    .index("by_campaignId_createdAt", ["campaignId", "createdAt"]),
+    .index("by_playScopeKey_createdAt", ["playScopeKey", "createdAt"])
+    .index("by_contextKind_contextId_createdAt", ["contextKind", "contextId", "createdAt"]),
 
   portal_run_player_tournaments: defineTable({
     uid: v.string(),
@@ -329,45 +316,11 @@ export default defineSchema({
     /** Legacy fields (prod rows); SSOT is portal_run_player_matches. */
     seedScoreThreshold: v.optional(v.number()),
     challengeSuccess: v.optional(v.boolean()),
-    /** Lobby the player joined from (per-player; may differ from run.lobbyId). */
-    joinLobbyId: v.optional(v.id("portal_lobbies")),
-    /** Snapshot of lobby offering rewardsOverride at join/open. */
-    rewardsOverrideSnapshot: v.optional(
-      v.object({
-        soloPoints: v.optional(
-          v.union(
-            v.object({
-              success: v.number(),
-              fail: v.number(),
-              clearBonus: v.optional(v.number()),
-            }),
-            v.object({
-              fail: v.number(),
-              ritual_a: v.object({
-                clear: v.number(),
-                bonus: v.number(),
-              }),
-              transition_b: v.object({
-                clear: v.number(),
-                bonus: v.number(),
-              }),
-              merged_c: v.object({
-                p75: v.number(),
-                p90: v.number(),
-              }),
-            })
-          )
-        ),
-        rankPoints: v.optional(v.record(v.string(), v.number())),
-        coins: v.optional(
-          v.object({
-            soloSuccess: v.optional(v.number()),
-            soloFail: v.optional(v.number()),
-            rankCoins: v.optional(v.record(v.string(), v.number())),
-          })
-        ),
-      })
-    ),
+    /** Per-player join context (may differ from run when cross-scope matchmaking). */
+    joinContextKind: playContextKindValidator,
+    joinContextId: v.string(),
+    joinScopeKey: v.string(),
+    joinSnapshot: v.optional(playContextSnapshotValidator),
     /** Snapshot of entry cost at join (for per-player charge / audit). */
     entrySnapshot: v.optional(
       v.object({
@@ -603,24 +556,10 @@ export default defineSchema({
     ticketEntry: v.optional(v.boolean()),
     status: v.union(v.literal("waiting"), v.literal("claiming"), v.literal("matched")),
     matchedRunTournamentId: v.optional(v.id("portal_run_tournaments")),
-    campaignId: v.optional(v.string()),
-    partnerId: v.optional(v.number()),
-    campaignRewardMode: v.optional(
-      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
-    ),
-    campaignDueTime: v.optional(v.number()),
-    campaignReplaySettings: v.optional(
-      v.object({
-        maxReplaysPerMatch: v.optional(v.number()),
-        adReplayEnabled: v.optional(v.boolean()),
-        adReplayDailyCap: v.optional(v.number()),
-        ticketReplayEnabled: v.optional(v.boolean()),
-        ticketReplayPriceTickets: v.optional(v.number()),
-        coinReplayEnabled: v.optional(v.boolean()),
-        coinReplayPriceCoins: v.optional(v.number()),
-        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
-      })
-    ),
+    contextKind: playContextKindValidator,
+    contextId: v.string(),
+    playScopeKey: v.string(),
+    contextSnapshot: v.optional(playContextSnapshotValidator),
     maxPlaysPerDay: v.optional(v.number()),
     dayTimezone: v.optional(v.string()),
     /**
@@ -633,45 +572,6 @@ export default defineSchema({
     ),
     /** Ticket price charged at enqueue; used to refund if queue is abandoned. */
     ticketEntryPriceTickets: v.optional(v.number()),
-    /** Player join lobby; copied to portal_run_player_tournaments.joinLobbyId. */
-    lobbyId: v.optional(v.id("portal_lobbies")),
-    /** Snapshot of lobby offering rewardsOverride at enqueue. */
-    rewardsOverrideSnapshot: v.optional(
-      v.object({
-        soloPoints: v.optional(
-          v.union(
-            v.object({
-              success: v.number(),
-              fail: v.number(),
-              clearBonus: v.optional(v.number()),
-            }),
-            v.object({
-              fail: v.number(),
-              ritual_a: v.object({
-                clear: v.number(),
-                bonus: v.number(),
-              }),
-              transition_b: v.object({
-                clear: v.number(),
-                bonus: v.number(),
-              }),
-              merged_c: v.object({
-                p75: v.number(),
-                p90: v.number(),
-              }),
-            })
-          )
-        ),
-        rankPoints: v.optional(v.record(v.string(), v.number())),
-        coins: v.optional(
-          v.object({
-            soloSuccess: v.optional(v.number()),
-            soloFail: v.optional(v.number()),
-            rankCoins: v.optional(v.record(v.string(), v.number())),
-          })
-        ),
-      })
-    ),
     entrySnapshot: v.optional(
       v.object({
         kind: v.union(v.literal("none"), v.literal("coins"), v.literal("gems")),
@@ -1449,23 +1349,101 @@ export default defineSchema({
     updatedBy: v.optional(v.string()),
   }).index("by_key", ["key"]),
 
-  /** Saloon Row — Mayfield town meta (M1) */
+  /** Partner-scoped town instance (Strategy B: one rebranded Mayfield per partner). */
+  portal_towns: defineTable({
+    partnerId: v.number(),
+    /** URL segment; "mayfield" for the partner default town. */
+    slug: v.string(),
+    title: v.string(),
+    isDefault: v.boolean(),
+    enabled: v.boolean(),
+    /** Layout/economy template SSOT in code (e.g. mayfield_standard). */
+    templateId: v.string(),
+    economyProfileId: v.optional(v.string()),
+    branding: v.optional(
+      v.object({
+        logoUrl: v.optional(v.string()),
+        titleOverride: v.optional(v.string()),
+        mapThemeId: v.optional(v.string()),
+      })
+    ),
+    walletSeedCoins: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_partnerId", ["partnerId"])
+    .index("by_partnerId_slug", ["partnerId", "slug"])
+    .index("by_partnerId_default", ["partnerId", "isDefault"]),
+
+  /** Mayfield — town meta (M1). Default biome skin: Saloon Row (mayfield_desert). */
   town_progress: defineTable({
     uid: v.string(),
+    /** portal_towns document id (string). */
     townId: v.string(),
     currentDistrict: v.string(),
     unlockedDistricts: v.array(v.string()),
     unlockedTierIds: v.array(v.string()),
+    hallLevels: v.optional(v.record(v.string(), v.number())),
     questIds: v.array(v.string()),
+    mayorXp: v.optional(v.number()),
+    mayorLevel: v.optional(v.number()),
+    prosperityScore: v.optional(v.number()),
+    townTemplateId: v.optional(v.string()),
+    equippedSkinId: v.optional(v.string()),
+    completedQuestIds: v.optional(v.array(v.string())),
+    mayorXpDayKey: v.optional(v.string()),
+    mayorXpToday: v.optional(v.number()),
+    venueXp: v.optional(v.record(v.string(), v.number())),
+    venueLevel: v.optional(v.record(v.string(), v.number())),
+    venueXpDayKey: v.optional(v.string()),
+    venueXpToday: v.optional(v.record(v.string(), v.number())),
+    /** Ops week key (`w:YYYY-MM-DD`) for entertainment × Showdown passive bonus. */
+    showdownWeekKey: v.optional(v.string()),
+    /** Settled Showdown (multi_ranked) games in `showdownWeekKey`. */
+    showdownGamesThisWeek: v.optional(v.number()),
     updatedAt: v.number(),
-  }).index("by_uid", ["uid"]),
+  }).index("by_uid_townId", ["uid", "townId"]),
+
+  /** Mayfield — developable zone slots (M2). */
+  town_zones: defineTable({
+    uid: v.string(),
+    townId: v.string(),
+    slotId: v.string(),
+    districtId: v.string(),
+    zoneType: v.optional(v.string()),
+    level: v.number(),
+    lastCollectedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_uid_townId", ["uid", "townId"])
+    .index("by_uid_townId_slotId", ["uid", "townId", "slotId"]),
+
+  /** Mayfield — daily coin source buckets for passive cap (M2). */
+  town_passive_state: defineTable({
+    uid: v.string(),
+    townId: v.string(),
+    dayKey: v.string(),
+    passiveCoins: v.number(),
+    otherCoins: v.number(),
+    updatedAt: v.number(),
+  }).index("by_uid_townId_dayKey", ["uid", "townId", "dayKey"]),
+
+  /** Mayfield — lightweight product analytics (M2). */
+  town_analytics_events: defineTable({
+    uid: v.string(),
+    event: v.string(),
+    props: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean()))),
+    createdAt: v.number(),
+  }).index("by_uid_created", ["uid", "createdAt"]),
 
   town_gate_entries: defineTable({
     uid: v.string(),
+    townId: v.string(),
     entryToken: v.string(),
     buildingId: v.string(),
-    modeId: v.string(),
     tierId: v.string(),
+    tournamentId: v.string(),
+    hallKind: v.string(),
     buyIn: v.number(),
     ssaKey: v.string(),
     status: v.string(),

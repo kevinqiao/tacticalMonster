@@ -46,18 +46,29 @@ import {
   resolveQueueEffectiveHumans,
   type QueueRow,
 } from "./casualMatchmakingCore";
-import { resolveEconomyScope } from "../../economy/resolveEconomyScope";
+
 import {
   entrySnapshotFromDef,
   loadLobbyRewardsOverride,
 } from "../../lobby/lobbyOfferingRewards";
+import {
+  joinContextRowFields,
+  lobbyIdFromRun,
+  playContextFromQueueRow,
+  playContextFromRow,
+  playContextInputValidator,
+  playContextRowFields,
+  resolvePlayerJoinContext,
+  resolveWalletScopeFromRun,
+  type PlayContext,
+} from "../../../data/portalPlayContext";
 
 export type JoinChargeMeta = {
   vouchersCharged?: number;
   coinsCharged?: number;
   gemsCharged?: number;
   scopeKey?: string;
-  lobbyId?: Id<"portal_lobbies">;
+  playScopeKey?: string;
 };
 
 export function joinChargeForStorage(
@@ -82,7 +93,7 @@ const joinChargeByUidValidator = v.record(
     coinsCharged: v.optional(v.number()),
     gemsCharged: v.optional(v.number()),
     scopeKey: v.optional(v.string()),
-    lobbyId: v.optional(v.id("portal_lobbies")),
+    playScopeKey: v.optional(v.string()),
   })
 );
 
@@ -135,22 +146,8 @@ export const claimQueueAndCharge = internalMutation({
       let ch: Awaited<ReturnType<typeof applyCasualJoinEntryChargeWithInstance>>;
       let chargeScopeKey = "shared";
       try {
-        const partnerId = row.partnerId ?? 0;
-        let scopeKey = "shared";
-        let lobbyIdForCharge = row.lobbyId ?? null;
-        try {
-          const scope = await resolveEconomyScope(ctx, {
-            partnerId,
-            lobbyId: row.lobbyId ?? null,
-          });
-          scopeKey = scope.scopeKey;
-          lobbyIdForCharge = scope.lobbyId;
-        } catch {
-          // isolated without lobbyId: fall back to shared charge (legacy rows)
-          scopeKey = "shared";
-          lobbyIdForCharge = null;
-        }
-        chargeScopeKey = scopeKey;
+        const walletScope = await resolveWalletScopeFromRun(ctx, row);
+        chargeScopeKey = walletScope.scopeKey;
         ch = await applyCasualJoinEntryChargeWithInstance(
           ctx,
           row.uid,
@@ -159,8 +156,8 @@ export const claimQueueAndCharge = internalMutation({
           instanceId,
           {
             skipEntryCharge: row.skipEntryCharge === true,
-            scopeKey,
-            lobbyId: lobbyIdForCharge,
+            scopeKey: walletScope.scopeKey,
+            lobbyId: walletScope.lobbyId,
           }
         );
       } catch (err) {
@@ -190,7 +187,7 @@ export const claimQueueAndCharge = internalMutation({
         coinsCharged: ch.coinsCharged,
         gemsCharged: ch.gemsCharged,
         scopeKey: chargeScopeKey,
-        ...(row.lobbyId ? { lobbyId: row.lobbyId } : {}),
+        playScopeKey: row.playScopeKey,
       };
       chargedRows.push(row);
     }
@@ -221,18 +218,7 @@ export const claimQueueAndCharge = internalMutation({
       joinChargeByUid,
       instanceId: instanceId ?? undefined,
       activityIds: batchActivityIds,
-      ...(rows[0]?.lobbyId ? { lobbyId: rows[0].lobbyId } : {}),
-      ...(rows[0]?.campaignId ? { campaignId: rows[0].campaignId } : {}),
-      ...(rows[0]?.partnerId != null ? { partnerId: rows[0].partnerId } : {}),
-      ...(rows[0]?.campaignRewardMode
-        ? { campaignRewardMode: rows[0].campaignRewardMode }
-        : {}),
-      ...(rows[0]?.campaignDueTime != null
-        ? { campaignDueTime: rows[0].campaignDueTime }
-        : {}),
-      ...(rows[0]?.campaignReplaySettings
-        ? { campaignReplaySettings: rows[0].campaignReplaySettings }
-        : {}),
+      playContext: playContextFromQueueRow(rows[0]!),
       ...(rows[0]?.maxPlaysPerDay != null ? { maxPlaysPerDay: rows[0].maxPlaysPerDay } : {}),
       ...(rows[0]?.dayTimezone ? { dayTimezone: rows[0].dayTimezone } : {}),
     };
@@ -244,8 +230,9 @@ export const chargeSoloJoin = internalMutation({
   args: {
     uid: v.string(),
     templateId: v.string(),
+    skipEntryCharge: v.optional(v.boolean()),
   },
-  handler: async (ctx, { uid, templateId }) => {
+  handler: async (ctx, { uid, templateId, skipEntryCharge }) => {
     const def = getPortalTournamentDefinition(templateId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" as const };
@@ -265,7 +252,9 @@ export const chargeSoloJoin = internalMutation({
       return { ok: false as const, error: "period_unavailable" as const };
     }
 
-    const ch = await applyCasualJoinEntryChargeWithInstance(ctx, uid, templateId, def, instanceId);
+    const ch = await applyCasualJoinEntryChargeWithInstance(ctx, uid, templateId, def, instanceId, {
+      skipEntryCharge: skipEntryCharge === true,
+    });
     if (!ch.ok) {
       return { ok: false as const, error: ch.error };
     }
@@ -292,29 +281,9 @@ export const insertMatchShell = internalMutation({
     templateId: v.string(),
     uids: v.array(v.string()),
     joinChargeByUid: joinChargeByUidValidator,
-    lobbyId: v.optional(v.id("portal_lobbies")),
+    playContext: playContextInputValidator,
     instanceId: v.optional(v.id("portal_tournament_instances")),
-    campaignId: v.optional(v.string()),
-    partnerId: v.optional(v.number()),
-    campaignRewardMode: v.optional(
-      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
-    ),
-    campaignDueTime: v.optional(v.number()),
-    campaignReplaySettings: v.optional(
-      v.object({
-        maxReplaysPerMatch: v.optional(v.number()),
-        adReplayEnabled: v.optional(v.boolean()),
-        adReplayDailyCap: v.optional(v.number()),
-        ticketReplayEnabled: v.optional(v.boolean()),
-        ticketReplayPriceTickets: v.optional(v.number()),
-        coinReplayEnabled: v.optional(v.boolean()),
-        coinReplayPriceCoins: v.optional(v.number()),
-        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
-      })
-    ),
-    maxPlaysPerDay: v.optional(v.number()),
-    dayTimezone: v.optional(v.string()),
-    /** When present, copy per-player joinLobbyId / rewards snapshots from queue. */
+    /** When present, copy per-player join context from queue. */
     queueRowIds: v.optional(v.array(v.id("portal_match_queue"))),
     /** Solo (no queue): ad/ticket lane after grant consume. */
     playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
@@ -343,22 +312,27 @@ export const insertMatchShell = internalMutation({
       }
     }
 
-    if (args.campaignId && args.maxPlaysPerDay != null && args.maxPlaysPerDay >= 1) {
-      for (const uid of uids) {
-        const daily = await assertCampaignDailyPlayLimit(ctx, {
-          uid,
-          campaignId: args.campaignId,
-          maxPlaysPerDay: args.maxPlaysPerDay,
-          ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
-        });
-        if (!daily.ok) {
-          return { ok: false as const, error: daily.error };
+    if (args.playContext.contextKind === "campaign") {
+      const maxPlaysPerDay = args.playContext.contextSnapshot?.maxPlaysPerDay;
+      const dayTimezone = args.playContext.contextSnapshot?.dayTimezone;
+      if (maxPlaysPerDay != null && maxPlaysPerDay >= 1) {
+        for (const uid of uids) {
+          const daily = await assertCampaignDailyPlayLimit(ctx, {
+            uid,
+            campaignId: args.playContext.contextId,
+            maxPlaysPerDay,
+            ...(dayTimezone ? { dayTimezone } : {}),
+          });
+          if (!daily.ok) {
+            return { ok: false as const, error: daily.error };
+          }
         }
       }
-    } else if (!args.campaignId) {
+    } else {
+      const joinLobby = lobbyIdFromRun(args.playContext);
+      const dayTimezone = args.playContext.contextSnapshot?.dayTimezone;
       for (const uid of uids) {
         const queueRow = queueByUid.get(uid);
-        const joinLobby = queueRow?.lobbyId ?? args.lobbyId;
         const entryLane =
           queueRow?.playEntryLane === "ad" || queueRow?.playEntryLane === "ticket"
             ? queueRow.playEntryLane
@@ -369,11 +343,28 @@ export const insertMatchShell = internalMutation({
           uid,
           templateId: args.templateId,
           ...(joinLobby ? { lobbyId: joinLobby } : {}),
-          ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+          ...(dayTimezone ? { dayTimezone } : {}),
           ...(entryLane ? { entryLane } : {}),
         });
         if (!daily.ok) {
           return { ok: false as const, error: daily.error };
+        }
+      }
+    }
+
+    let runContext: PlayContext = playContextFromRow(args.playContext);
+    if (runContext.contextKind === "lobby" && !runContext.contextSnapshot?.rewardsOverride) {
+      const lobbyId = lobbyIdFromRun(runContext);
+      if (lobbyId) {
+        const rewardsOverride = await loadLobbyRewardsOverride(ctx, lobbyId, args.templateId);
+        if (rewardsOverride) {
+          runContext = {
+            ...runContext,
+            contextSnapshot: {
+              ...runContext.contextSnapshot,
+              rewardsOverride,
+            },
+          };
         }
       }
     }
@@ -385,26 +376,25 @@ export const insertMatchShell = internalMutation({
       status: RUN_TOURNAMENT_OPEN,
       createdAt: now,
       updatedAt: now,
-      ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
       ...(args.instanceId ? { instanceId: args.instanceId } : {}),
-      ...(args.campaignId ? { campaignId: args.campaignId } : {}),
-      ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
-      ...(args.campaignRewardMode ? { campaignRewardMode: args.campaignRewardMode } : {}),
-      ...(args.campaignDueTime != null ? { campaignDueTime: args.campaignDueTime } : {}),
-      ...(args.campaignReplaySettings
-        ? { campaignReplaySettings: args.campaignReplaySettings }
-        : {}),
+      ...playContextRowFields(runContext),
     });
 
     const entrySnap = entrySnapshotFromDef(def);
     for (const uid of uids) {
       const qrow = queueByUid.get(uid);
-      const joinLobbyId = qrow?.lobbyId ?? args.lobbyId;
-      const rewardsOverrideSnapshot =
-        qrow?.rewardsOverrideSnapshot ??
-        (joinLobbyId
-          ? await loadLobbyRewardsOverride(ctx, joinLobbyId, args.templateId)
-          : undefined);
+      let rewardsOverride = qrow?.contextSnapshot?.rewardsOverride;
+      if (!rewardsOverride && !qrow) {
+        const joinLobby = lobbyIdFromRun(runContext);
+        if (joinLobby) {
+          rewardsOverride = await loadLobbyRewardsOverride(ctx, joinLobby, args.templateId);
+        }
+      }
+      const joinCtx = resolvePlayerJoinContext({
+        queueRow: qrow,
+        runContext,
+        rewardsOverride,
+      });
       await ctx.db.insert("portal_run_player_tournaments", {
         uid,
         tournamentId: runTournamentId,
@@ -413,8 +403,7 @@ export const insertMatchShell = internalMutation({
         status: RUN_PLAYER_TOURNAMENT_OPEN,
         createdAt: now,
         updatedAt: now,
-        ...(joinLobbyId ? { joinLobbyId } : {}),
-        ...(rewardsOverrideSnapshot ? { rewardsOverrideSnapshot } : {}),
+        ...joinContextRowFields(joinCtx),
         entrySnapshot: qrow?.entrySnapshot ?? entrySnap,
       });
     }
@@ -658,7 +647,7 @@ export const abortOpenTable = internalMutation({
 
 function queuePartitionKey(row: Doc<"portal_match_queue">, templateId: string): string {
   if (row.matchPartitionKey) return row.matchPartitionKey;
-  const partnerId = row.partnerId ?? 0;
+  const partnerId = row.contextSnapshot?.partnerId ?? 0;
   return `p:${partnerId}|t:${templateId}`;
 }
 

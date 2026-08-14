@@ -37,6 +37,11 @@ import {
   resolvePlayEntrySettings,
   ticketConfigFromSettings,
 } from "../../ads/resolvePlayEntrySettings";
+import {
+  isCampaignRun,
+  lobbyIdFromJoin,
+  playScopeKeyFor,
+} from "../../../data/portalPlayContext";
 
 /** How this join pays the free→ad→ticket ladder. */
 export type PortalPlayEntryLane = "free" | "ad" | "ticket";
@@ -124,6 +129,8 @@ export async function countPortalPlaysForQuotaScope(
   const matchType = args.mode === "solo" ? "solo_p75" : "multi_ranked";
   const lobbyId = args.lobbyId ?? null;
   const templateId = args.templateId?.trim() || null;
+  const targetPlayScopeKey =
+    lobbyId != null ? playScopeKeyFor("lobby", String(lobbyId)) : null;
 
   if (args.quotaScope === "tournament") {
     if (!templateId) return 0;
@@ -140,8 +147,11 @@ export async function countPortalPlaysForQuotaScope(
     for (const row of rows) {
       if (row.createdAt < startsAt || row.createdAt > endsAt) continue;
       const run = await ctx.db.get(row.tournamentId);
-      if (run?.campaignId) continue;
-      if (lobbyId && run?.lobbyId && run.lobbyId !== lobbyId) continue;
+      if (isCampaignRun(run)) continue;
+      if (targetPlayScopeKey) {
+        const rowScope = row.joinScopeKey ?? run?.playScopeKey;
+        if (rowScope !== targetPlayScopeKey) continue;
+      }
       count += 1;
     }
     return count;
@@ -160,9 +170,10 @@ export async function countPortalPlaysForQuotaScope(
     if (args.quotaScope === "mode" && def.matchType !== matchType) continue;
     // lobby scope: all modes
     const run = await ctx.db.get(row.tournamentId);
-    if (run?.campaignId) continue;
+    if (isCampaignRun(run)) continue;
     if (lobbyId) {
-      if (run?.lobbyId !== lobbyId) continue;
+      const effectiveLobby = lobbyIdFromJoin(row, run);
+      if (effectiveLobby !== lobbyId) continue;
     }
     count += 1;
   }

@@ -18,6 +18,10 @@ import { internalMutation, internalQuery } from "../../_generated/server";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { findPlayerGameByGameId } from "../tournament/shared/casualPlayerGameTypes";
+import {
+  campaignReplaySettingsFromRun,
+  isCampaignRun,
+} from "../../data/portalPlayContext";
 
 const AD_REPLAY_DAILY_CAP_OVERRIDE_MAX = 100;
 
@@ -117,8 +121,9 @@ export async function loadCampaignReplaySettingsForMatchGame(
   const pm = await ctx.db.get(pg.playerMatchId);
   if (!pm) return undefined;
   const run = await ctx.db.get(pm.tournamentId as Id<"portal_run_tournaments">);
-  if (!run?.campaignId || !run.campaignReplaySettings) return undefined;
-  return pickReplaySettingsPartial(run.campaignReplaySettings as Record<string, unknown>);
+  const replaySettings = campaignReplaySettingsFromRun(run);
+  if (!isCampaignRun(run) || !replaySettings) return undefined;
+  return pickReplaySettingsPartial(replaySettings as Record<string, unknown>);
 }
 
 /** Portal GC ops / internal upsert (full or partial settings). */

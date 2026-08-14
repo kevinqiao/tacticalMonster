@@ -1,3 +1,4 @@
+import { campaignIdFromRun } from "../../../data/portalPlayContext";
 import { v } from "convex/values";
 import {
   getPortalTournamentDefinition,
@@ -548,7 +549,7 @@ export const gameHistory = authedQuery({
           challengeSuccess,
           periodTournament,
           periodInstanceKey,
-          ...(run?.campaignId ? { campaignId: run.campaignId } : {}),
+          ...(campaignIdFromRun(run) ? { campaignId: campaignIdFromRun(run) } : {}),
           ...(tableSummary ? { tableSummary } : {}),
         };
       })
@@ -594,7 +595,7 @@ export const listOpenCasualRunAssignments = authedQuery({
         runTournamentId: pm.tournamentId,
         createdAt: pg.createdAt,
         dueAt,
-        ...(run?.campaignId ? { campaignId: run.campaignId } : {}),
+        ...(campaignIdFromRun(run) ? { campaignId: campaignIdFromRun(run) } : {}),
       });
     }
     return assignments.sort((a, b) => b.createdAt - a.createdAt);

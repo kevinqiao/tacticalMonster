@@ -9,6 +9,8 @@ import { internalAction } from "../../../_generated/server";
 import { getPortalTournamentDefinition, effectiveGameSequence } from "../../../data/portalTournamentConfigs";
 import { pickCasualMatchSeedBinding } from "../../bridge/casualSeedProvider";
 import { resolveMultiRitualJoinTemplate } from "../../bridge/portalSeasonSeedPickSignals";
+import type { PlayContext } from "../../../data/portalPlayContext";
+import { playContextInputValidator } from "../../../data/portalPlayContext";
 import type { CasualMatchSeedBinding } from "./casualMatchSeedBinding";
 import { type JoinChargeMeta } from "./casualOpenTableMutations";
 import type { SeedBindingByGameIndex } from "../shared/casualSessionOpenCore";
@@ -21,23 +23,7 @@ type ClaimOk = {
   joinChargeByUid: Record<string, JoinChargeMeta>;
   instanceId?: Id<"portal_tournament_instances">;
   activityIds?: string[];
-  lobbyId?: Id<"portal_lobbies">;
-  campaignId?: string;
-  partnerId?: number;
-  campaignRewardMode?: "pass_per_run" | "competitive_leaderboard";
-  campaignDueTime?: number;
-  campaignReplaySettings?: {
-    maxReplaysPerMatch?: number;
-    adReplayEnabled?: boolean;
-    adReplayDailyCap?: number;
-    ticketReplayEnabled?: boolean;
-    ticketReplayPriceTickets?: number;
-    coinReplayEnabled?: boolean;
-    coinReplayPriceCoins?: number;
-    coinReplayDailyCap?: number | null;
-  };
-  maxPlaysPerDay?: number;
-  dayTimezone?: string;
+  playContext: PlayContext;
   /**
    * Solo open has no queue row — must carry ad/ticket lane into insertMatchShell
    * or the free-cap assert fires after ad/ticket consume.
@@ -123,18 +109,9 @@ async function openCasualTableFromClaimHandler(
       templateId,
       uids: claim.uids,
       joinChargeByUid: claim.joinChargeByUid,
+      playContext: claim.playContext,
       queueRowIds: claim.queueRowIds,
-      ...(claim.lobbyId ? { lobbyId: claim.lobbyId } : {}),
       ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
-      ...(claim.campaignId ? { campaignId: claim.campaignId } : {}),
-      ...(claim.partnerId != null ? { partnerId: claim.partnerId } : {}),
-      ...(claim.campaignRewardMode ? { campaignRewardMode: claim.campaignRewardMode } : {}),
-      ...(claim.campaignDueTime != null ? { campaignDueTime: claim.campaignDueTime } : {}),
-      ...(claim.campaignReplaySettings
-        ? { campaignReplaySettings: claim.campaignReplaySettings }
-        : {}),
-      ...(claim.maxPlaysPerDay != null ? { maxPlaysPerDay: claim.maxPlaysPerDay } : {}),
-      ...(claim.dayTimezone ? { dayTimezone: claim.dayTimezone } : {}),
       ...(claim.playEntryLane ? { playEntryLane: claim.playEntryLane } : {}),
       ...(claim.effectiveHumans != null ? { effectiveHumans: claim.effectiveHumans } : {}),
       ...(claim.matchPartitionKey ? { matchPartitionKey: claim.matchPartitionKey } : {}),
@@ -254,43 +231,18 @@ export const openCasualSoloTable = internalAction({
   args: {
     uid: v.string(),
     templateId: v.string(),
-    lobbyId: v.optional(v.id("portal_lobbies")),
-    campaignId: v.optional(v.string()),
-    partnerId: v.optional(v.number()),
-    campaignRewardMode: v.optional(
-      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
-    ),
-    campaignDueTime: v.optional(v.number()),
-    campaignReplaySettings: v.optional(
-      v.object({
-        maxReplaysPerMatch: v.optional(v.number()),
-        adReplayEnabled: v.optional(v.boolean()),
-        adReplayDailyCap: v.optional(v.number()),
-        ticketReplayEnabled: v.optional(v.boolean()),
-        ticketReplayPriceTickets: v.optional(v.number()),
-        coinReplayEnabled: v.optional(v.boolean()),
-        coinReplayPriceCoins: v.optional(v.number()),
-        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
-      })
-    ),
-    maxPlaysPerDay: v.optional(v.number()),
-    dayTimezone: v.optional(v.string()),
+    playContext: playContextInputValidator,
     playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
+    skipEntryCharge: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
     {
       uid,
       templateId,
-      lobbyId,
-      campaignId,
-      partnerId,
-      campaignRewardMode,
-      campaignDueTime,
-      campaignReplaySettings,
-      maxPlaysPerDay,
-      dayTimezone,
+      playContext,
       playEntryLane,
+      skipEntryCharge,
     }
   ) => {
     const existingOpen = await ctx.runQuery(
@@ -311,14 +263,18 @@ export const openCasualSoloTable = internalAction({
       };
     }
 
-    if (!campaignId) {
+    if (playContext.contextKind !== "campaign") {
       const daily = await ctx.runQuery(
         internal.service.tournament.join.portalDailyPlayLimit.assertPortalDailyPlayLimitQuery,
         {
           uid,
           templateId,
-          ...(lobbyId ? { lobbyId } : {}),
-          ...(dayTimezone ? { dayTimezone } : {}),
+          ...(playContext.contextKind === "lobby"
+            ? { lobbyId: playContext.contextId as Id<"portal_lobbies"> }
+            : {}),
+          ...(playContext.contextSnapshot?.dayTimezone
+            ? { dayTimezone: playContext.contextSnapshot.dayTimezone }
+            : {}),
           ...(playEntryLane ? { entryLane: playEntryLane } : {}),
         }
       );
@@ -329,7 +285,7 @@ export const openCasualSoloTable = internalAction({
 
     const charge = await ctx.runMutation(
       internal.service.tournament.join.casualOpenTableMutations.chargeSoloJoin,
-      { uid, templateId }
+      { uid, templateId, ...(skipEntryCharge ? { skipEntryCharge: true } : {}) }
     );
     if (!charge.ok) {
       return charge;
@@ -342,14 +298,7 @@ export const openCasualSoloTable = internalAction({
       joinChargeByUid: charge.joinChargeByUid,
       instanceId: charge.instanceId,
       activityIds: charge.activityIds,
-      ...(lobbyId ? { lobbyId } : {}),
-      ...(campaignId ? { campaignId } : {}),
-      ...(partnerId != null ? { partnerId } : {}),
-      ...(campaignRewardMode ? { campaignRewardMode } : {}),
-      ...(campaignDueTime != null ? { campaignDueTime } : {}),
-      ...(campaignReplaySettings ? { campaignReplaySettings } : {}),
-      ...(maxPlaysPerDay != null ? { maxPlaysPerDay } : {}),
-      ...(dayTimezone ? { dayTimezone } : {}),
+      playContext,
       ...(playEntryLane ? { playEntryLane } : {}),
     };
 
@@ -491,38 +440,19 @@ export const joinOrCreateAsyncMultiTable = internalAction({
   args: {
     uid: v.string(),
     templateId: v.string(),
-    lobbyId: v.optional(v.id("portal_lobbies")),
-    campaignId: v.optional(v.string()),
-    partnerId: v.optional(v.number()),
-    campaignRewardMode: v.optional(
-      v.union(v.literal("pass_per_run"), v.literal("competitive_leaderboard"))
-    ),
-    campaignDueTime: v.optional(v.number()),
-    campaignReplaySettings: v.optional(
-      v.object({
-        maxReplaysPerMatch: v.optional(v.number()),
-        adReplayEnabled: v.optional(v.boolean()),
-        adReplayDailyCap: v.optional(v.number()),
-        ticketReplayEnabled: v.optional(v.boolean()),
-        ticketReplayPriceTickets: v.optional(v.number()),
-        coinReplayEnabled: v.optional(v.boolean()),
-        coinReplayPriceCoins: v.optional(v.number()),
-        coinReplayDailyCap: v.optional(v.union(v.number(), v.null())),
-      })
-    ),
-    maxPlaysPerDay: v.optional(v.number()),
-    dayTimezone: v.optional(v.string()),
+    playContext: playContextInputValidator,
     playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
+    skipEntryCharge: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { uid, templateId } = args;
+    const { uid, templateId, playContext } = args;
     const def = getPortalTournamentDefinition(templateId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" as const };
     }
 
     /** Defense: multi ritual rewrite if joinTournament was bypassed. */
-    if (!args.campaignId && def.matchType === "multi_ranked") {
+    if (playContext.contextKind !== "campaign" && def.matchType === "multi_ranked") {
       const signals = await ctx.runQuery(
         internal.service.bridge.portalSeasonSeedPickQueries.loadSignals,
         { uid, gameType: def.gameType }
@@ -541,13 +471,9 @@ export const joinOrCreateAsyncMultiTable = internalAction({
             {
               uid,
               templateId: rewritten.templateId,
-              ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
-              ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
-              ...(args.maxPlaysPerDay != null
-                ? { maxPlaysPerDay: args.maxPlaysPerDay }
-                : {}),
-              ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+              playContext,
               ...(args.playEntryLane ? { playEntryLane: args.playEntryLane } : {}),
+              ...(args.skipEntryCharge ? { skipEntryCharge: true } : {}),
             }
           );
           if (opened.ok) {
@@ -595,12 +521,9 @@ export const joinOrCreateAsyncMultiTable = internalAction({
           uid,
           templateId,
           effectiveHumans,
-          ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
-          ...(args.campaignId ? { campaignId: args.campaignId } : {}),
-          ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
-          ...(args.maxPlaysPerDay != null ? { maxPlaysPerDay: args.maxPlaysPerDay } : {}),
-          ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+          playContext,
           ...(args.playEntryLane ? { playEntryLane: args.playEntryLane } : {}),
+          ...(args.skipEntryCharge ? { skipEntryCharge: true } : {}),
         }
       );
       if (!joined.ok) {
@@ -627,12 +550,9 @@ export const joinOrCreateAsyncMultiTable = internalAction({
       {
         uid,
         templateId,
-        ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
-        ...(args.campaignId ? { campaignId: args.campaignId } : {}),
-        ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
-        ...(args.maxPlaysPerDay != null ? { maxPlaysPerDay: args.maxPlaysPerDay } : {}),
-        ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+        playContext,
         ...(args.playEntryLane ? { playEntryLane: args.playEntryLane } : {}),
+        ...(args.skipEntryCharge ? { skipEntryCharge: true } : {}),
       }
     );
     if (!charge.ok) {
@@ -646,16 +566,7 @@ export const joinOrCreateAsyncMultiTable = internalAction({
       joinChargeByUid: charge.joinChargeByUid,
       instanceId: charge.instanceId,
       activityIds: charge.activityIds,
-      ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
-      ...(args.campaignId ? { campaignId: args.campaignId } : {}),
-      ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
-      ...(args.campaignRewardMode ? { campaignRewardMode: args.campaignRewardMode } : {}),
-      ...(args.campaignDueTime != null ? { campaignDueTime: args.campaignDueTime } : {}),
-      ...(args.campaignReplaySettings
-        ? { campaignReplaySettings: args.campaignReplaySettings }
-        : {}),
-      ...(args.maxPlaysPerDay != null ? { maxPlaysPerDay: args.maxPlaysPerDay } : {}),
-      ...(args.dayTimezone ? { dayTimezone: args.dayTimezone } : {}),
+      playContext,
       ...(args.playEntryLane ? { playEntryLane: args.playEntryLane } : {}),
       effectiveHumans,
       matchPartitionKey: charge.matchPartitionKey,

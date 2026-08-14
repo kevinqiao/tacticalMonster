@@ -3,6 +3,8 @@
 import {
     CAMPAIGN_URL_PREFIX,
     CAMPAIGN_URL_SEGMENT,
+    CASUAL_FROZEN_REDIRECT_PREFIX,
+    FROZEN_CASUAL_URL_SEGMENT,
     PORTAL_URL_PREFIX,
     PORTAL_URL_SEGMENT,
 } from "./appUrlSegments";
@@ -11,6 +13,10 @@ import { useMemo } from "react";
 import { PageContainer, PageItem } from "host/service/PageManager";
 /** Default app shell when pathname matches no configured container. */
 export const DEFAULT_MOUNT_CONTEXT = "/tactical";
+
+/** @deprecated use FROZEN_CASUAL_URL_SEGMENT / CASUAL_FROZEN_REDIRECT_PREFIX from appUrlSegments */
+export const FROZEN_CASUAL_CONTEXT = `/${FROZEN_CASUAL_URL_SEGMENT}`;
+export const CASUAL_FROZEN_REDIRECT_CONTEXT = CASUAL_FROZEN_REDIRECT_PREFIX;
 
 export type AppContextTag = "tactical" | "casual" | "portal" | "campaign" | "platform" | "partner" | "town" | "shared";
 
@@ -21,11 +27,12 @@ function activeContextToTag(ctx: string): AppContextTag {
     return ctx.replace(/^\//, "") as AppContextTag;
 }
 
-/** Resolve URL context segment: `/cc/foo` → `/cc`, `/` → `/`. */
+/** Resolve URL context segment: `/cc/foo` → `/cc`, `/` → `/`. Frozen `/casual` → `/town`. */
 export function resolveActiveContext(pathname: string): string {
     const ps = pathname.split("/").filter(Boolean);
     if (ps.length === 0) return "/";
     const ctx = `/${ps[0]}`;
+    if (ctx === FROZEN_CASUAL_CONTEXT) return CASUAL_FROZEN_REDIRECT_CONTEXT;
     const known = AppsConfiguration.some((a) => a.context === ctx);
     return known ? ctx : "/";
 }
@@ -433,7 +440,10 @@ export function resolveMountedRootShells(
     containers: readonly PageContainer[],
     entryUri: string
 ): PageContainer[] {
-    const u = normalizePageUri(entryUri);
+    let u = normalizePageUri(entryUri);
+    if (u === FROZEN_CASUAL_CONTEXT || u.startsWith(`${FROZEN_CASUAL_CONTEXT}/`)) {
+        u = CASUAL_FROZEN_REDIRECT_CONTEXT;
+    }
     if (isPortalPreviewUri(u)) {
         return [];
     }

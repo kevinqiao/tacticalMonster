@@ -16,7 +16,8 @@ type WalletKind = "coins" | "gems" | "tickets";
 export async function ensurePlayerWallet(
   ctx: MutationCtx,
   uid: string,
-  scopeKey: string
+  scopeKey: string,
+  opts?: { seedCoins?: number }
 ): Promise<Doc<"portal_player_wallets">> {
   const existing = await ctx.db
     .query("portal_player_wallets")
@@ -46,6 +47,13 @@ export async function ensurePlayerWallet(
           updatedAt: now,
         });
       }
+    }
+  } else if (scopeKey.startsWith("town:")) {
+    if (typeof opts?.seedCoins === "number" && Number.isFinite(opts.seedCoins)) {
+      coins = Math.max(0, Math.floor(opts.seedCoins));
+    } else {
+      const { ZONE_GLOBAL } = await import("../town/zoneEconomyConfig");
+      coins = ZONE_GLOBAL.startingCoins;
     }
   }
 
@@ -147,5 +155,18 @@ export async function applyWalletDelta(
     ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
     createdAt: now,
   });
+
+  if (
+    args.kind === "coins" &&
+    args.delta > 0 &&
+    (args.scopeKey === "shared" || args.scopeKey.startsWith("town:"))
+  ) {
+    const { recordTownCoinIncome, townIdFromScopeKey } = await import("../town/townPassiveRollup");
+    const townId = townIdFromScopeKey(args.scopeKey);
+    if (townId) {
+      await recordTownCoinIncome(ctx, args.uid, townId, args.delta, args.reason === "town_passive_collect" ? "passive" : "other", now);
+    }
+  }
+
   return { ok: true, balanceAfter: next };
 }

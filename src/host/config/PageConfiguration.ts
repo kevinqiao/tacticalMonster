@@ -37,6 +37,7 @@ export const TacticalPlace =
 
 export const CasualPlace =
 {
+    /** @deprecated FROZEN 2026-08-13 — 见 docs/CASUAL-FROZEN.md。不再挂载到 AppsConfiguration；/casual 重定向 /town。 */
     name: "casualPlace",
     entry: "casual",
     context: "/casual",
@@ -103,7 +104,8 @@ export const TownPlace =
             path: "./lobby/town/TownMapPage",
             uri: "",
             bootCriticalAssetUrls: [
-                `${import.meta.env.BASE_URL}logo192.png`,
+                `${import.meta.env.BASE_URL}assets/saloon-row/mayfield/mayfield_d0_map.png`,
+                `${import.meta.env.BASE_URL}assets/saloon-row/mayfield/mayfield_player.png`,
             ],
             class: "page_container",
             enter: "fadeIn",
@@ -419,5 +421,13 @@ export interface ModalConfig {
     /** When omitted, inferred from `path`. `shared` modals load in any active context when opened. */
     contexts?: ("tactical" | "casual" | "portal" | "campaign" | "platform" | "partner" | "town" | "shared")[];
 }
-export const AppsConfiguration: AppConfig[] = [TacticalPlace, CasualPlace, PortalPlace, TownPlace, CampaignPlace, PlatformPlace, PartnerPlace];
+export const AppsConfiguration: AppConfig[] = [
+    TacticalPlace,
+    // CasualPlace — FROZEN; not mounted (see docs/CASUAL-FROZEN.md)
+    PortalPlace,
+    TownPlace,
+    CampaignPlace,
+    PlatformPlace,
+    PartnerPlace,
+];
 

@@ -30,12 +30,19 @@ import { assertCampaignDailyPlayLimit } from "./campaignDailyPlayLimit";
 import { assertPortalDailyPlayLimit } from "./portalDailyPlayLimit";
 import {
   matchPartitionKey,
-  resolveEconomyScope,
 } from "../../economy/resolveEconomyScope";
 import {
   entrySnapshotFromDef,
   loadLobbyRewardsOverride,
 } from "../../lobby/lobbyOfferingRewards";
+import {
+  joinContextFromPlayContext,
+  joinContextRowFields,
+  lobbyIdFromRun,
+  playContextInputValidator,
+  resolveWalletScopeFromRun,
+  type PlayContext,
+} from "../../../data/portalPlayContext";
 import { isCasualAsyncVirtualOpponentUid } from "../settle/async/casualAsyncTypes";
 import {
   isAsyncMatchJoinable,
@@ -47,7 +54,7 @@ type JoinChargeMeta = {
   coinsCharged?: number;
   gemsCharged?: number;
   scopeKey?: string;
-  lobbyId?: Id<"portal_lobbies">;
+  playScopeKey?: string;
 };
 
 function joinChargeForStorage(
@@ -120,24 +127,18 @@ export const tryJoinExistingAsyncMatch = internalMutation({
     uid: v.string(),
     templateId: v.string(),
     effectiveHumans: v.number(),
-    lobbyId: v.optional(v.id("portal_lobbies")),
-    campaignId: v.optional(v.string()),
-    partnerId: v.optional(v.number()),
-    maxPlaysPerDay: v.optional(v.number()),
-    dayTimezone: v.optional(v.string()),
+    playContext: playContextInputValidator,
     playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
+    skipEntryCharge: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const {
-      uid,
-      templateId,
-      lobbyId,
-      campaignId,
-      partnerId,
-      maxPlaysPerDay,
-      dayTimezone,
-      playEntryLane,
-    } = args;
+    const { uid, templateId, playContext: playContextArg, playEntryLane } = args;
+    const playContext: PlayContext = playContextArg;
+    const lobbyId = lobbyIdFromRun(playContext);
+    const campaignId = playContext.contextKind === "campaign" ? playContext.contextId : undefined;
+    const partnerId = playContext.contextSnapshot?.partnerId;
+    const maxPlaysPerDay = playContext.contextSnapshot?.maxPlaysPerDay;
+    const dayTimezone = playContext.contextSnapshot?.dayTimezone;
     const def = getPortalTournamentDefinition(templateId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" as const };
@@ -227,9 +228,7 @@ export const tryJoinExistingAsyncMatch = internalMutation({
 
       const run = await ctx.db.get(match.tournamentId);
       if (!run) continue;
-      const runCampaignId = run.campaignId ?? undefined;
-      const wantCampaignId = campaignId ?? undefined;
-      if (runCampaignId !== wantCampaignId) continue;
+      if (run.playScopeKey !== playContext.playScopeKey) continue;
 
       const seedBindingsByIndex = await loadSeedBindingsFromMatch(ctx, String(match._id), def);
       if (!seedBindingsByIndex) {
@@ -242,27 +241,18 @@ export const tryJoinExistingAsyncMatch = internalMutation({
         return { ok: false as const, error: "period_unavailable" as const };
       }
 
-      let scopeKey = "shared";
-      let lobbyIdForCharge = lobbyId ?? null;
-      try {
-        const scope = await resolveEconomyScope(ctx, {
-          partnerId: resolvedPartnerId,
-          lobbyId: lobbyId ?? null,
-        });
-        scopeKey = scope.scopeKey;
-        lobbyIdForCharge = scope.lobbyId;
-      } catch {
-        scopeKey = "shared";
-        lobbyIdForCharge = null;
-      }
-
+      const walletScope = await resolveWalletScopeFromRun(ctx, playContext);
       const ch = await applyCasualJoinEntryChargeWithInstance(
         ctx,
         uid,
         templateId,
         def,
         instanceId,
-        { scopeKey, lobbyId: lobbyIdForCharge }
+        {
+          scopeKey: walletScope.scopeKey,
+          lobbyId: walletScope.lobbyId,
+          skipEntryCharge: args.skipEntryCharge === true,
+        }
       );
       if (!ch.ok) {
         return { ok: false as const, error: ch.error };
@@ -272,14 +262,24 @@ export const tryJoinExistingAsyncMatch = internalMutation({
         vouchersCharged: ch.vouchersCharged,
         coinsCharged: ch.coinsCharged,
         gemsCharged: ch.gemsCharged,
-        scopeKey,
-        ...(lobbyId ? { lobbyId } : {}),
+        scopeKey: walletScope.scopeKey,
+        playScopeKey: playContext.playScopeKey,
       };
 
       const ptId = await (async () => {
-        const rewardsOverrideSnapshot = lobbyId
-          ? await loadLobbyRewardsOverride(ctx, lobbyId, templateId)
-          : undefined;
+        let joinCtx = joinContextFromPlayContext(playContext);
+        if (lobbyId && !joinCtx.joinSnapshot?.rewardsOverride) {
+          const rewardsOverride = await loadLobbyRewardsOverride(ctx, lobbyId, templateId);
+          if (rewardsOverride) {
+            joinCtx = {
+              ...joinCtx,
+              joinSnapshot: {
+                ...joinCtx.joinSnapshot,
+                rewardsOverride,
+              },
+            };
+          }
+        }
         const entrySnap = entrySnapshotFromDef(def);
         return await ctx.db.insert("portal_run_player_tournaments", {
           uid,
@@ -289,8 +289,7 @@ export const tryJoinExistingAsyncMatch = internalMutation({
           status: RUN_PLAYER_TOURNAMENT_OPEN,
           createdAt: now,
           updatedAt: now,
-          ...(lobbyId ? { joinLobbyId: lobbyId } : {}),
-          ...(rewardsOverrideSnapshot ? { rewardsOverrideSnapshot } : {}),
+          ...joinContextRowFields(joinCtx),
           entrySnapshot: entrySnap,
         });
       })().catch(async (err) => {
@@ -401,24 +400,18 @@ export const chargeAsyncMultiCreate = internalMutation({
   args: {
     uid: v.string(),
     templateId: v.string(),
-    lobbyId: v.optional(v.id("portal_lobbies")),
-    campaignId: v.optional(v.string()),
-    partnerId: v.optional(v.number()),
-    maxPlaysPerDay: v.optional(v.number()),
-    dayTimezone: v.optional(v.string()),
+    playContext: playContextInputValidator,
     playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
+    skipEntryCharge: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const {
-      uid,
-      templateId,
-      lobbyId,
-      campaignId,
-      maxPlaysPerDay,
-      dayTimezone,
-      playEntryLane,
-      partnerId,
-    } = args;
+    const { uid, templateId, playContext: playContextArg, playEntryLane } = args;
+    const playContext: PlayContext = playContextArg;
+    const lobbyId = lobbyIdFromRun(playContext);
+    const campaignId = playContext.contextKind === "campaign" ? playContext.contextId : undefined;
+    const partnerId = playContext.contextSnapshot?.partnerId;
+    const maxPlaysPerDay = playContext.contextSnapshot?.maxPlaysPerDay;
+    const dayTimezone = playContext.contextSnapshot?.dayTimezone;
     const def = getPortalTournamentDefinition(templateId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" as const };
@@ -467,27 +460,18 @@ export const chargeAsyncMultiCreate = internalMutation({
     }
 
     const resolvedPartnerId = partnerId ?? 0;
-    let scopeKey = "shared";
-    let lobbyIdForCharge = lobbyId ?? null;
-    try {
-      const scope = await resolveEconomyScope(ctx, {
-        partnerId: resolvedPartnerId,
-        lobbyId: lobbyId ?? null,
-      });
-      scopeKey = scope.scopeKey;
-      lobbyIdForCharge = scope.lobbyId;
-    } catch {
-      scopeKey = "shared";
-      lobbyIdForCharge = null;
-    }
-
+    const walletScope = await resolveWalletScopeFromRun(ctx, playContext);
     const ch = await applyCasualJoinEntryChargeWithInstance(
       ctx,
       uid,
       templateId,
       def,
       instanceId,
-      { scopeKey, lobbyId: lobbyIdForCharge }
+      {
+        scopeKey: walletScope.scopeKey,
+        lobbyId: walletScope.lobbyId,
+        skipEntryCharge: args.skipEntryCharge === true,
+      }
     );
     if (!ch.ok) {
       return { ok: false as const, error: ch.error };
@@ -502,15 +486,13 @@ export const chargeAsyncMultiCreate = internalMutation({
           vouchersCharged: ch.vouchersCharged,
           coinsCharged: ch.coinsCharged,
           gemsCharged: ch.gemsCharged,
-          scopeKey,
-          ...(lobbyId ? { lobbyId } : {}),
+          scopeKey: walletScope.scopeKey,
+          playScopeKey: playContext.playScopeKey,
         },
       },
       instanceId: instanceId ?? undefined,
       activityIds: ch.activityIds,
-      ...(lobbyId ? { lobbyId } : {}),
-      ...(campaignId ? { campaignId } : {}),
-      ...(partnerId != null ? { partnerId } : {}),
+      playContext,
       matchPartitionKey: matchPartitionKey(resolvedPartnerId, templateId),
     };
   },

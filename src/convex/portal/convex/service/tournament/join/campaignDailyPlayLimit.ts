@@ -47,9 +47,12 @@ export async function countCampaignPlaysInOpsDay(
 
     .query("portal_run_tournaments")
 
-    .withIndex("by_campaignId_createdAt", (q) =>
+    .withIndex("by_contextKind_contextId_createdAt", (q) =>
 
-      q.eq("campaignId", args.campaignId).gte("createdAt", startsAt)
+      q
+        .eq("contextKind", "campaign")
+        .eq("contextId", args.campaignId)
+        .gte("createdAt", startsAt)
 
     )
 

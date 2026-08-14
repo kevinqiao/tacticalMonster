@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { getPortalTournamentDefinition } from "../../../data/portalTournamentConfigs";
 import { campaignMultiRankPointsDeltaForPlace } from "../../campaignLeague/campaignMultiRankPoints";
 import { campaignSoloPointsDelta } from "../../campaignLeague/campaignSoloPoints";
+import { campaignRewardModeFromRun } from "../../../data/portalPlayContext";
 import { authedQuery } from "../../../custom/session";
 import {
   buildCasualAsyncTableSummary,
@@ -27,7 +28,7 @@ function gameLabelForType(gameType: string): string {
 
 /**
  * 玩家在某活动下的 Portal 对局记录。
- * Campaign 归属 SSOT：`portal_run_tournaments.campaignId`（不再写在 player_matches 上）。
+ * Campaign 归属 SSOT：`portal_run_tournaments` play context (`contextKind=campaign`).
  * 挑战成败 / 单局奖励快照：`portal_run_player_matches`。
  * 战报摘要按需用 `getCampaignPlayReport` 拉取（避免列表嵌入大对象失败/过重）。
  */
@@ -42,7 +43,9 @@ export const listCampaignPlayHistory = authedQuery({
 
     const runs = await ctx.db
       .query("portal_run_tournaments")
-      .withIndex("by_campaignId_createdAt", (q) => q.eq("campaignId", campaignId))
+      .withIndex("by_contextKind_contextId_createdAt", (q) =>
+        q.eq("contextKind", "campaign").eq("contextId", campaignId)
+      )
       .order("desc")
       .take(RUN_SCAN_CAP);
 
@@ -78,11 +81,7 @@ export const listCampaignPlayHistory = authedQuery({
       const def = getPortalTournamentDefinition(pm.templateId);
       const mode: "solo" | "multi" =
         def?.maxPlayers != null && def.maxPlayers > 1 ? "multi" : "solo";
-      const campaignRewardMode =
-        run.campaignRewardMode === "pass_per_run" ||
-        run.campaignRewardMode === "competitive_leaderboard"
-          ? run.campaignRewardMode
-          : null;
+      const campaignRewardMode = campaignRewardModeFromRun(run);
 
       const challengeSuccess =
         typeof pm.challengeSuccess === "boolean" ? pm.challengeSuccess : null;

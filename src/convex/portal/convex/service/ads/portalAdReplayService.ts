@@ -34,7 +34,9 @@ import {
   loadCampaignReplaySettingsForMatchGame,
   resolveReplayConfig,
 } from "./partnerAdReplayConfig";
-import { resolveEconomyScope } from "../economy/resolveEconomyScope";
+import {
+  resolveWalletScopeFromRun,
+} from "../../data/portalPlayContext";
 
 async function resolveAdReplayEconomyScope(
   ctx: QueryCtx | MutationCtx,
@@ -46,18 +48,10 @@ async function resolveAdReplayEconomyScope(
     const run = match
       ? await ctx.db.get(match.tournamentId)
       : null;
-    const pt = run
-      ? await ctx.db
-          .query("portal_run_player_tournaments")
-          .withIndex("by_tournament_uid", (q) =>
-            q.eq("tournamentId", run._id).eq("uid", uid)
-          )
-          .unique()
-      : null;
-    const lobbyId = pt?.joinLobbyId ?? run?.lobbyId ?? null;
-    const partnerId = run?.partnerId ?? 0;
-    const scope = await resolveEconomyScope(ctx, { partnerId, lobbyId });
-    return { scopeKey: scope.scopeKey, lobbyId: scope.lobbyId };
+    if (!run) {
+      return { scopeKey: "shared", lobbyId: null };
+    }
+    return await resolveWalletScopeFromRun(ctx, run);
   } catch {
     return { scopeKey: "shared", lobbyId: null };
   }

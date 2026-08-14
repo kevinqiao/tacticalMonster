@@ -36,7 +36,7 @@ describe("context routing", () => {
 
   it("resolveActiveContext maps pathname to app context", () => {
     expect(resolveActiveContext("/cc/demo-cafe")).toBe("/cc");
-    expect(resolveActiveContext("/casual/lobby/c3")).toBe("/casual");
+    expect(resolveActiveContext("/casual/lobby/c3")).toBe("/town");
     expect(resolveActiveContext("/gc/solitaire")).toBe("/gc");
     expect(resolveActiveContext("/tactical/lobby")).toBe("/tactical");
     expect(resolveActiveContext("/partner/admin")).toBe("/partner");
@@ -51,7 +51,7 @@ describe("context routing", () => {
 
     const casual = resolveMountedRootShells(containers, "/casual/lobby/c3");
     expect(casual).toHaveLength(1);
-    expect(casual[0]?.uri.startsWith("/casual")).toBe(true);
+    expect(casual[0]?.uri.startsWith("/town")).toBe(true);
 
     const tactical = resolveMountedRootShells(containers, "/tactical/lobby");
     expect(tactical).toHaveLength(1);

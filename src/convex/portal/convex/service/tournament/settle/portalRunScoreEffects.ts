@@ -7,8 +7,12 @@ import {
   portalRankCoinReward,
   resolveEffectiveTournamentRewards,
 } from "../../../data/portalTournamentConfigs";
-import { resolveEconomyScope } from "../../economy/resolveEconomyScope";
-import { loadLobbyRewardsOverride } from "../../lobby/lobbyOfferingRewards";
+import {
+  isCampaignRun,
+  lobbyIdFromJoin,
+  resolveWalletScopeFromRun,
+  rewardsOverrideFromJoin,
+} from "../../../data/portalPlayContext";
 import { applyPortalMatchPoints } from "../../points/portalWeeklyPointsService";
 
 /** Portal 结算：周积分 + 模板金币奖励；campaign 对局跳过全球周榜 */
@@ -31,7 +35,7 @@ export async function applyPortalTemplateScoreEffects(
 }> {
   if (args.runTournamentId) {
     const runRow = await ctx.db.get(args.runTournamentId as Id<"portal_run_tournaments">);
-    if (runRow?.campaignId) {
+    if (isCampaignRun(runRow)) {
       return { pointDelta: 0, weeklyPointsAfter: 0, weekKey: "" };
     }
   }
@@ -52,13 +56,8 @@ export async function applyPortalTemplateScoreEffects(
     ? await ctx.db.get(args.runTournamentId as Id<"portal_run_tournaments">)
     : null;
 
-  const joinLobbyId =
-    playerTournament?.joinLobbyId ?? runRow?.lobbyId ?? null;
-  let rewardsOverride =
-    playerTournament?.rewardsOverrideSnapshot ??
-    (joinLobbyId
-      ? await loadLobbyRewardsOverride(ctx, joinLobbyId, def.tournamentId)
-      : undefined);
+  const joinLobbyId = lobbyIdFromJoin(playerTournament, runRow);
+  const rewardsOverride = rewardsOverrideFromJoin(playerTournament, runRow);
 
   const points = await applyPortalMatchPoints(ctx, {
     uid: args.uid,
@@ -88,28 +87,15 @@ export async function applyPortalTemplateScoreEffects(
     }
   }
   if (coinsGranted > 0) {
-    const partnerId = runRow?.partnerId ?? 0;
-    let scopeKey = "shared";
-    let lobbyIdForWallet = joinLobbyId;
-    try {
-      const scope = await resolveEconomyScope(ctx, {
-        partnerId,
-        lobbyId: joinLobbyId,
-      });
-      scopeKey = scope.scopeKey;
-      lobbyIdForWallet = scope.lobbyId;
-    } catch {
-      scopeKey = "shared";
-      lobbyIdForWallet = null;
-    }
+    const walletScope = await resolveWalletScopeFromRun(ctx, runRow);
     await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
       uid: args.uid,
       kind: "coins",
       amount: coinsGranted,
       reason: `tournament_reward:${def.tournamentId}`,
       gameType: def.gameType,
-      scopeKey,
-      ...(lobbyIdForWallet ? { lobbyId: lobbyIdForWallet } : {}),
+      scopeKey: walletScope.scopeKey,
+      ...(walletScope.lobbyId ? { lobbyId: walletScope.lobbyId } : {}),
     });
   }
 

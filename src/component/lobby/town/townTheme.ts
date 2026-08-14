@@ -1,0 +1,30 @@
+/** Saloon Row / Mayfield design tokens (wireframe v1 — independent of casual). */
+export const TOWN_THEME = {
+  colors: {
+    mapBg: "#E8D5A8",
+    hudBg: "rgba(255, 248, 238, 0.92)",
+    hudBorder: "rgba(196, 122, 43, 0.2)",
+    ink: "#3D2914",
+    inkMuted: "#9E7B5C",
+    wood: "#C47A2B",
+    gold: "#D4A843",
+    cream: "#FFF8EE",
+    dust: "#A67C52",
+    skyTop: "#F5EAD0",
+    skyMid: "#E8C88A",
+    skyHorizon: "#C9A66B",
+    ground: "#C4A574",
+    groundDark: "#8B5A2B",
+    fog: "rgba(0, 0, 0, 0.25)",
+    saloon: "#8B1A1A",
+    parlor: "#4A6741",
+    townHall: "#FFF8EE",
+    telegraph: "#C47A2B",
+    highlight: "#D4A843",
+    player: "#D4A843",
+  },
+  fonts: {
+    ui: "Nunito, system-ui, sans-serif",
+    display: "Georgia, 'Rye', serif",
+  },
+} as const;

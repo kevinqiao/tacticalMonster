@@ -173,6 +173,8 @@
     "portal:economy:sync": "node scripts/portal/economy/sync.mjs",
     "portal:economy:sync:check": "node scripts/portal/economy/sync.mjs --check",
     "portal:economy:balance": "node scripts/portal/economy/balance.mjs",
+    "portal:zone:balance": "node scripts/portal/economy/zone-balance.mjs",
+    "test:portal-zone": "vitest run --config vitest.seed-pool.config.ts src/convex/portal/convex/service/town/__tests__",
     "test:casual-bot-fill": "vitest run --config vitest.seed-pool.config.ts src/convex/casualPlatform/convex/service/botFill/__tests__",
     "test:portal-points": "vitest run --config vitest.seed-pool.config.ts src/convex/portal/convex/service/points/__tests__",
     "test:portal-giftcard": "vitest run --config vitest.seed-pool.config.ts src/convex/portal/convex/service/giftcard/__tests__",

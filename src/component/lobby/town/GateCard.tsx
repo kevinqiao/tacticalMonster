@@ -1,76 +1,66 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { GateSelection } from "./types";
+import React, { useMemo, useState } from "react";
+import {
+  GateSelection,
+  HALL_KIND_META,
+  HallTierView,
+  gameLabelFromGameType,
+} from "./types";
 import "./town.css";
 
 export interface GateCardProps {
   selection: GateSelection;
   balance: number;
-  unlockedTierIds: string[];
   loading?: boolean;
   error?: string | null;
+  portalReady?: boolean;
   onClose: () => void;
   onEnter: () => void;
-  onModeChange: (modeId: string) => void;
   onTierChange: (tierId: string) => void;
-  buildingConfig: {
-    modes: { id: string; label: string }[];
-    tiers: { id: string; label: string; buyIn: number; unlockTierId?: string }[];
-  };
+  tiers: HallTierView[];
 }
 
 const GateCard: React.FC<GateCardProps> = ({
   selection,
   balance,
-  unlockedTierIds,
   loading,
   error,
+  portalReady = true,
   onClose,
   onEnter,
-  onModeChange,
   onTierChange,
-  buildingConfig,
+  tiers,
 }) => {
   const [lockedTip, setLockedTip] = useState<string | null>(null);
 
   const insufficient = balance < selection.buyIn;
-  const m1Table1Only = selection.tierId !== "parlor_t1";
-  const canEnter =
-    !loading &&
-    !insufficient &&
-    selection.ssaKey === "solitaire" &&
-    !m1Table1Only;
+  const hallMeta = HALL_KIND_META[selection.hallKind];
+
+  const canEnter = !loading && !insufficient && portalReady !== false;
 
   const tierRows = useMemo(
     () =>
-      buildingConfig.tiers.map((tier) => ({
+      tiers.map((tier) => ({
         ...tier,
-        locked: !unlockedTierIds.includes(tier.id),
+        buyIn: tier.buyIn ?? 0,
+        affordable: balance >= (tier.buyIn ?? 0),
       })),
-    [buildingConfig.tiers, unlockedTierIds]
+    [tiers, balance]
   );
 
-  const handleTierClick = useCallback(
-    (tierId: string, locked: boolean, label: string) => {
-      if (locked) {
-        setLockedTip(`${label} locked — complete quests or unlock with coins`);
-        return;
-      }
-      setLockedTip(null);
-      onTierChange(tierId);
-    },
-    [onTierChange]
-  );
+  const buildingIcon =
+    selection.hallKind === "trial" ? "🎴" : selection.hallKind === "showdown" ? "⚔️" : "🏠";
+  const gameLabel = selection.gameType ? gameLabelFromGameType(selection.gameType) : "";
 
   return (
     <div className="town-gate-overlay" onClick={onClose}>
       <div className="town-gate-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="town-gate-card__header">
-          <div className="town-gate-card__hero">
-            {selection.buildingName.includes("Solitaire") ? "🎴" : "🃏"}
-          </div>
+          <div className="town-gate-card__hero">{buildingIcon}</div>
           <div>
             <div className="town-gate-card__title">{selection.buildingName}</div>
-            <div className="town-gate-card__subtitle">Old Square · D0</div>
+            <div className="town-gate-card__subtitle">
+              {gameLabel ? `${gameLabel} · ${selection.tierLabel}` : hallMeta.label}
+            </div>
           </div>
           <button type="button" className="town-gate-card__close" onClick={onClose} aria-label="Close">
             ✕
@@ -78,41 +68,41 @@ const GateCard: React.FC<GateCardProps> = ({
         </div>
 
         <div className="town-gate-card__body">
-          {buildingConfig.modes.length > 0 && (
+          <div className="town-gate-card__kind-banner">
+            <span className={`town-gate-card__kind town-gate-card__kind--${selection.hallKind}`}>
+              {hallMeta.shortLabel}
+            </span>
+            <span className="town-gate-card__kind-desc">{hallMeta.description}</span>
+          </div>
+
+          {tiers.length > 1 ? (
             <div>
-              <div className="town-section-label">MODE</div>
-              <div className="town-tab-row">
-                {buildingConfig.modes.map((mode) => (
+              <div className="town-section-label">TABLE</div>
+              <div className="town-chip-row">
+                {tierRows.map((tier) => (
                   <button
-                    key={mode.id}
+                    key={tier.id}
                     type="button"
-                    className={`town-tab ${selection.modeId === mode.id ? "town-tab--selected" : ""}`}
-                    onClick={() => onModeChange(mode.id)}
+                    className={`town-chip ${selection.tierId === tier.id ? "town-chip--selected" : ""} ${!tier.affordable ? "town-chip--locked" : ""}`}
+                    onClick={() => {
+                      if (!tier.affordable) {
+                        setLockedTip("Not enough coins for this table");
+                        return;
+                      }
+                      setLockedTip(null);
+                      onTierChange(tier.id);
+                    }}
                   >
-                    {mode.label}
+                    <span className="town-chip__tier">{tier.label}</span>
+                    <span className="town-chip__buyin">
+                      {tier.buyIn === 0 ? "Free" : tier.buyIn}
+                    </span>
                   </button>
                 ))}
               </div>
+              {lockedTip && <div className="town-banner-error" style={{ marginTop: 8 }}>{lockedTip}</div>}
             </div>
-          )}
-
-          <div>
-            <div className="town-section-label">TIER</div>
-            <div className="town-chip-row">
-              {tierRows.map((tier) => (
-                <button
-                  key={tier.id}
-                  type="button"
-                  className={`town-chip ${selection.tierId === tier.id ? "town-chip--selected" : ""} ${tier.locked ? "town-chip--locked" : ""}`}
-                  onClick={() => handleTierClick(tier.id, tier.locked, tier.label)}
-                >
-                  <span className="town-chip__tier">{tier.label}</span>
-                  <span className="town-chip__buyin">{tier.buyIn === 0 ? "Free" : tier.buyIn}</span>
-                </button>
-              ))}
-            </div>
-            {lockedTip && <div className="town-banner-error" style={{ marginTop: 8 }}>{lockedTip}</div>}
-          </div>
+          ) : null}
 
           <div className="town-buyin-panel">
             <div>
@@ -127,14 +117,11 @@ const GateCard: React.FC<GateCardProps> = ({
             </div>
           </div>
 
-          {selection.ssaKey === "poker" && (
-            <div className="town-banner-error">Poker Saloon coming soon — try Solitaire Parlor first.</div>
-          )}
-          {m1Table1Only && selection.ssaKey === "solitaire" && (
-            <div className="town-banner-error">M1: Table 1 (Free) only. Table 2 unlock in M2.</div>
+          {portalReady === false && (
+            <div className="town-banner-error">This venue is not ready yet.</div>
           )}
           {error && <div className="town-banner-error">{error}</div>}
-          {insufficient && selection.ssaKey === "solitaire" && (
+          {insufficient && portalReady !== false && (
             <div className="town-banner-error">Not enough coins for this table.</div>
           )}
         </div>

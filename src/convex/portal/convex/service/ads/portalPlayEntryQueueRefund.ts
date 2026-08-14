@@ -15,6 +15,7 @@ import {
   decrementAdEntryUsedToday,
   decrementTicketEntryUsedToday,
 } from "./portalEntryDailyUsage";
+import { lobbyIdFromRun } from "../../data/portalPlayContext";
 import type { PlayEntryContext } from "./portalEntryUsageScope";
 import {
   quotaScopeFromSettings,
@@ -59,7 +60,7 @@ export async function refundAbandonedQueuePlayEntry(
 
   const now = Date.now();
   const entryCtx: PlayEntryContext = {
-    lobbyId: row.lobbyId ?? null,
+    lobbyId: lobbyIdFromRun(row) ?? null,
     tournamentId: row.templateId,
   };
   const { settings } = await resolvePlayEntrySettings(ctx, {

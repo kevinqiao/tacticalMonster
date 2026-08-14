@@ -47,7 +47,7 @@ import { playerGameId, listPlayerGamesForSeat, loadSeedScoreQuantilesForSeat } f
 import { resolvePortalSoloSeedScoreThresholdForPlayerGame } from "../../ads/portalAdReplayEligibility";
 import { incrementRankCountsForSettledHumans } from "../shared/casualPlayerTournamentRankStats";
 import { canonicalCasualRunSessionExternalId } from "../shared/casualRunSession";
-import { getOrRepairPortalRunMatchDoc } from "../shared/portalRunMatchShell";
+import { townIdFromRunContext } from "../../../data/portalPlayContext";
 import {
   applyCasualTemplateScoreEffects,
   persistPendingRunRewards,
@@ -55,6 +55,7 @@ import {
 import { scheduleMerchantCampaignSettleNotify } from "../settle/campaignBridgeNotify";
 import { applyWeeklyLeagueOnMatchSettle } from "../../weeklyLeague/casualWeeklyLeagueSettle";
 import { CASUAL_WEEKLY_LEAGUE_ENABLED } from "../../../data/casualWeeklyLeagueConfig";
+
 export async function settleSoloMaxPlayersOneCasualRun(
   ctx: MutationCtx,
   args: {
@@ -98,6 +99,7 @@ export async function settleSoloMaxPlayersOneCasualRun(
 
   const runTid = pm.tournamentId as Id<"portal_run_tournaments">;
   const runRow = await ctx.db.get(runTid);
+  const townId = townIdFromRunContext(runRow);
   const skipPeriodWallet = Boolean(isPeriodScopedTournament(def) && runRow?.instanceId);
 
   const challengeSuccess =
@@ -223,6 +225,29 @@ export async function settleSoloMaxPlayersOneCasualRun(
     isPassed: challengeSuccess,
   });
 
+  await ctx.runMutation(internal.service.town.mayorProgress.applyMayorXpOnRunSettled, {
+    uid,
+    matchType: def.matchType,
+    rank: 1,
+    townId,
+  });
+  await ctx.runMutation(internal.service.town.venueProgress.applyVenueXpOnRunSettled, {
+    uid,
+    matchType: def.matchType,
+    rank: 1,
+    townId,
+  });
+  await ctx.runMutation(internal.service.town.showdownWeekProgress.applyShowdownWeekCountOnRunSettled, {
+    uid,
+    matchType: def.matchType,
+    townId,
+  });
+  await ctx.runMutation(internal.service.town.mayorProgress.maybeUnlockD1Quest, {
+    uid,
+    matchType: def.matchType,
+    townId,
+  });
+
   return {
     ok: true as const,
     tableSummary,
@@ -254,6 +279,7 @@ export async function finalizeCasualAsyncMatchIngest(
   const sessionExternalId = canonicalCasualRunSessionExternalId(pm.matchId);
   const runTid = pm.tournamentId as Id<"portal_run_tournaments">;
   const runRow = await ctx.db.get(runTid);
+  const townId = townIdFromRunContext(runRow);
   const skipPeriodWallet = Boolean(isPeriodScopedTournament(def) && runRow?.instanceId);
 
   const sortedHumans = [...humanPms].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
@@ -412,6 +438,28 @@ export async function finalizeCasualAsyncMatchIngest(
       uid: hp.uid,
       score: hp.score,
       rank: finalRank ?? undefined,
+    });
+    await ctx.runMutation(internal.service.town.mayorProgress.applyMayorXpOnRunSettled, {
+      uid: hp.uid,
+      matchType: def.matchType,
+      rank: finalRank ?? undefined,
+      townId,
+    });
+    await ctx.runMutation(internal.service.town.venueProgress.applyVenueXpOnRunSettled, {
+      uid: hp.uid,
+      matchType: def.matchType,
+      rank: finalRank ?? undefined,
+      townId,
+    });
+    await ctx.runMutation(internal.service.town.showdownWeekProgress.applyShowdownWeekCountOnRunSettled, {
+      uid: hp.uid,
+      matchType: def.matchType,
+      townId,
+    });
+    await ctx.runMutation(internal.service.town.mayorProgress.maybeUnlockD1Quest, {
+      uid: hp.uid,
+      matchType: def.matchType,
+      townId,
     });
     if (CASUAL_WEEKLY_LEAGUE_ENABLED && def.maxPlayers > 1) {
       lastWeeklyLeague = await applyWeeklyLeagueOnMatchSettle(ctx, {

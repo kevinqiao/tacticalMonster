@@ -2,6 +2,11 @@ import { internal } from "../../../_generated/api";
 import type { Doc } from "../../../_generated/dataModel";
 import type { MutationCtx } from "../../../_generated/server";
 import type { PortalTournamentDefinition } from "../../../data/portalTournamentConfigs";
+import {
+  campaignDueTimeFromRun,
+  campaignIdFromRun,
+  campaignRewardModeFromRun,
+} from "../../../data/portalPlayContext";
 import { upsertCampaignLeagueHumanEntry } from "../../campaignLeague/campaignLeagueUpsert";
 
 /**
@@ -26,11 +31,11 @@ export async function scheduleMerchantCampaignSettleNotify(
   }
 ): Promise<void> {
   void args.matchDoc;
-  const campaignId = args.runRow?.campaignId;
-  const partnerId = args.runRow?.partnerId;
+  const campaignId = campaignIdFromRun(args.runRow);
+  const partnerId = args.runRow?.contextSnapshot?.partnerId;
   if (!campaignId || partnerId == null) return;
 
-  const rewardMode = args.runRow?.campaignRewardMode;
+  const rewardMode = campaignRewardModeFromRun(args.runRow);
   if (rewardMode !== "pass_per_run" && rewardMode !== "competitive_leaderboard") {
     return;
   }
@@ -57,7 +62,7 @@ export async function scheduleMerchantCampaignSettleNotify(
     return;
   }
 
-  const dueTime = args.runRow?.campaignDueTime ?? 0;
+  const dueTime = campaignDueTimeFromRun(args.runRow) ?? 0;
   if (dueTime <= 0) return;
 
   await upsertCampaignLeagueHumanEntry(ctx, {

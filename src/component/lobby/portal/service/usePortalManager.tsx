@@ -1542,6 +1542,8 @@ export const PortalProvider: React.FC<{
         ticketEntry?: boolean;
         /** Lobby offering override — when set, skip gameType→template mapping. */
         tournamentId?: string;
+        /** Town Gate entry token — skips duplicate buy-in in joinTournament. */
+        townEntryToken?: string;
       }
     ): Promise<ResolvedJoinTournamentOutcome> => {
       const http = getHttp();
@@ -1570,6 +1572,7 @@ export const PortalProvider: React.FC<{
             : {}),
           ...(opts?.adEntry ? { adEntry: true } : {}),
           ...(opts?.ticketEntry ? { ticketEntry: true } : {}),
+          ...(opts?.townEntryToken ? { townEntryToken: opts.townEntryToken } : {}),
         });
         return resolveJoinTournamentOutcome(result);
       } catch (e) {
