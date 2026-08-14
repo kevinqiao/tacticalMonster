@@ -52,7 +52,7 @@ const GateCard: React.FC<GateCardProps> = ({
   const handleTierClick = useCallback(
     (tierId: string, locked: boolean, label: string) => {
       if (locked) {
-        setLockedTip(`${label} locked — complete quests or unlock with coins`);
+        setLockedTip(`${label} locked — spend coins or raise Season Lv in League`);
         return;
       }
       setLockedTip(null);

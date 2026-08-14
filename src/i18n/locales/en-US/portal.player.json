@@ -189,6 +189,13 @@
     "claimedToast": "Claimed {{coins}} coins",
     "seasonXpUpdated": "Season XP updated from this week’s result."
   },
+  "town": {
+    "leagueStatusTitle": "Open Game Center for weekly league and Season level",
+    "leagueHubHint": "League · tap for details",
+    "leagueLoginHint": "Sign in to sync League progress",
+    "leagueRankHint": "This week #{{rank}}/{{size}}",
+    "questHint": "Play at the Parlor · earn Season XP"
+  },
   "shop": {
     "title": "Redemption shop",
     "balance": "Balance:",

@@ -1,16 +1,24 @@
 import { PageProp } from "host/RenderApp";
 import { useModalManager } from "host/service/ModalManager";
+import { usePartnerManager } from "host/service/PartnerManager";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import { useUserManager } from "host/service/UserManager";
+import { portalLobbyPath } from "host/util/portalPathParse";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ConvexHttpClient } from "convex/browser";
+import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
 import {
   getPortalHttpClient,
   portalPlayModalForGameType,
   PortalProvider,
+  PORTAL_CONVEX_URL,
   usePortal,
 } from "component/lobby/portal/service/usePortalManager";
 import { portalTournamentFns } from "component/lobby/portal/service/portalConvexFunctionRefs";
+import type { PortalLobbyView } from "component/lobby/portal/PortalLobbyContext";
 import GateCard from "./GateCard";
+import { TownLeagueStatus } from "./TownLeagueStatus";
 import {
   BUILDING_ICONS,
   FALLBACK_BUILDINGS,
@@ -26,10 +34,16 @@ type TownProgress = {
   buildings: TownBuildingView[];
 };
 
-const TownMapInner: React.FC<PageProp> = ({ visible }) => {
+type TownMapInnerProps = PageProp & {
+  leagueHref: string;
+};
+
+const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, leagueHref }) => {
+  const { t } = useTranslation("portal.player");
   const { openModal } = useModalManager();
   const { user, askAuth } = useUserManager();
-  const { joinTournament, playerWallet, portalSessionReady, refresh } = usePortal();
+  const { joinTournament, playerWallet, portalSessionReady, refresh, weeklyLeagueTierView } =
+    usePortal();
   const authed = isPlatformAuthed(user);
 
   const [toast, setToast] = useState<string | null>(null);
@@ -123,7 +137,8 @@ const TownMapInner: React.FC<PageProp> = ({ visible }) => {
     (building: TownBuildingView) => {
       if (approaching) return;
       setApproaching(building.id);
-      setPlayerPos({ x: building.position.x, y: building.position.y + 8 });
+      const target = building.position;
+      setPlayerPos({ x: target.x, y: target.y + 8 });
       window.setTimeout(() => {
         setApproaching(null);
         openGateForBuilding(building);
@@ -235,7 +250,17 @@ const TownMapInner: React.FC<PageProp> = ({ visible }) => {
       setGateError("Something went wrong. Try again.");
       setGateLoading(false);
     }
-  }, [gateSelection, portalSessionReady, authed, askAuth, closeGate, joinTournament, refresh, loadProgress, openModal]);
+  }, [
+    gateSelection,
+    portalSessionReady,
+    authed,
+    askAuth,
+    closeGate,
+    joinTournament,
+    refresh,
+    loadProgress,
+    openModal,
+  ]);
 
   if (!visible) return null;
 
@@ -283,8 +308,12 @@ const TownMapInner: React.FC<PageProp> = ({ visible }) => {
       </div>
 
       <div className="town-hud-bottom">
-        <span className="town-quest-pill">📋 Play 1 game at the Parlor</span>
-        <span className="town-season-badge">🥉 Bronze</span>
+        <span className="town-quest-pill">{t("town.questHint")}</span>
+        <TownLeagueStatus
+          league={weeklyLeagueTierView}
+          leagueHref={leagueHref}
+          authed={authed}
+        />
       </div>
 
       {gateOpen && gateSelection && activeBuilding && (
@@ -307,10 +336,69 @@ const TownMapInner: React.FC<PageProp> = ({ visible }) => {
   );
 };
 
-const TownMapPage: React.FC<PageProp> = (props) => (
-  <PortalProvider gameType="solitaire">
-    <TownMapInner {...props} />
-  </PortalProvider>
-);
+let townLobbyHttp: ConvexHttpClient | null = null;
+
+function townLobbyClient(): ConvexHttpClient {
+  if (!townLobbyHttp) {
+    townLobbyHttp = new ConvexHttpClient(PORTAL_CONVEX_URL);
+    registerConvexAuthClient(townLobbyHttp);
+  }
+  return townLobbyHttp;
+}
+
+/**
+ * Mayfield town shell — League-first: meta progress mirrors GC (lobby-scoped).
+ * No independent Mayor/Town level on this route.
+ */
+const TownMapPage: React.FC<PageProp> = (props) => {
+  const {
+    partner,
+    partnerPid,
+    partnerResolveReady,
+    isFirstPartyPortal,
+    portalPartnerSlug,
+  } = usePartnerManager();
+  const [lobby, setLobby] = useState<PortalLobbyView | null>(null);
+
+  useEffect(() => {
+    if (!partnerResolveReady) return;
+    if (!isFirstPartyPortal && !portalPartnerSlug) {
+      setLobby(null);
+      return;
+    }
+
+    let cancelled = false;
+    void townLobbyClient()
+      .mutation(portalTournamentFns.resolvePortalLobby, {
+        partnerId: isFirstPartyPortal ? 0 : partnerPid,
+      })
+      .then((row) => {
+        if (cancelled) return;
+        setLobby(row ? (row as PortalLobbyView) : null);
+      })
+      .catch(() => {
+        if (!cancelled) setLobby(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [partnerResolveReady, isFirstPartyPortal, portalPartnerSlug, partnerPid, partner]);
+
+  const leagueHref = useMemo(
+    () => portalLobbyPath(portalPartnerSlug, lobby?.slug),
+    [portalPartnerSlug, lobby?.slug]
+  );
+
+  return (
+    <PortalProvider
+      gameType="solitaire"
+      lobbyId={lobby?.lobbyId ?? null}
+      lobbySlug={lobby?.slug ?? null}
+    >
+      <TownMapInner {...props} leagueHref={leagueHref} />
+    </PortalProvider>
+  );
+};
 
 export default TownMapPage;

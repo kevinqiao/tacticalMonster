@@ -172,6 +172,60 @@
   font-weight: 600;
 }
 
+/** League-first: mirrors GC tier + Season Lv (no Town/Mayor level). */
+.town-league-status {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: min(52vw, 280px);
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: #3d5160;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  line-height: 1.25;
+}
+
+.town-league-status:hover {
+  background: #4a6274;
+}
+
+.town-league-status__tier {
+  white-space: nowrap;
+}
+
+.town-league-status__season {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.92;
+}
+
+.town-league-status__track {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.town-league-status__fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: #7ec8ff;
+}
+
+.town-league-status__hint,
+.town-league-status__rank {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
 .town-gate-overlay {
   position: fixed;
   inset: 0;

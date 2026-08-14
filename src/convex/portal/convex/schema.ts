@@ -1473,7 +1473,7 @@ export default defineSchema({
     .index("by_partnerId_slug", ["partnerId", "slug"])
     .index("by_partnerId_default", ["partnerId", "isDefault"]),
 
-  /** Saloon Row — Mayfield town meta (M1) */
+  /** Saloon Row — Mayfield town meta (M1). League-first: no town_level; gates use coins + League Season Lv for lobby unlocks. */
   town_progress: defineTable({
     uid: v.string(),
     townId: v.string(),

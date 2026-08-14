@@ -1,6 +1,12 @@
 /** Partner town URL segment; matches TownPlace nav name. */
 export const DEFAULT_TOWN_SLUG = "mayfield";
 
+/**
+ * Portal town instances (Strategy B). League-first meta:
+ * - Progression / unlocks → GC weekly league + Season Lv (`unlockSeasonLevel`).
+ * - Town route → map shell, coin buy-in gates, partner branding (no Mayor/Town Lv).
+ */
+
 export const DEFAULT_TOWN_TEMPLATE_ID = "mayfield_standard";
 export const DEFAULT_TOWN_TITLE = "Mayfield";
 

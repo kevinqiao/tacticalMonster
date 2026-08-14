@@ -1,5 +1,8 @@
 /**
- * Town 成长进度系统（对齐新设计文档）。
+ * Town 成长进度系统（Casual 原型 / 设计参考）。
+ *
+ * League-first（Portal / Mayfield）：主 meta 为 GC 周联赛 + Season Lv；
+ * 不在 Town 路由落地独立 Town/Mayor 等级。见 `component/lobby/town/TownLeagueStatus`.
  *
  * - Town Level 1–20，跨赛季永久积累，不随赛季重置。
  * - 建设点（Town Points）是唯一货币，只能通过竞技赢得，不可购买。

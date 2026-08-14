@@ -1,5 +1,6 @@
 import { getTownBuilding } from "./casualTownBuildingCatalog";
 
+/** Casual Town 插图原型 — 非 Portal Mayfield（League-first）主路径。 */
 export interface TownBuildingUnlockContext {
   townLevel: number;
   previewAllUnlocked: boolean;
