@@ -45,6 +45,7 @@ import type * as data_portalSoloSuccessConfig from "../data/portalSoloSuccessCon
 import type * as data_portalTicketEntryConfig from "../data/portalTicketEntryConfig.js";
 import type * as data_portalTournamentConfigs from "../data/portalTournamentConfigs.js";
 import type * as data_portalTournamentRewardTypes from "../data/portalTournamentRewardTypes.js";
+import type * as data_portalTownConfig from "../data/portalTownConfig.js";
 import type * as data_portalWeeklyLeagueConfig from "../data/portalWeeklyLeagueConfig.js";
 import type * as http from "../http.js";
 import type * as service_activity_casualActivityService from "../service/activity/casualActivityService.js";
@@ -221,6 +222,10 @@ import type * as service_tournament_submit_casualRunBridgeQueries from "../servi
 import type * as service_tournament_submit_casualRunIngestCore from "../service/tournament/submit/casualRunIngestCore.js";
 import type * as service_tournament_submit_casualRunIngestHelpers from "../service/tournament/submit/casualRunIngestHelpers.js";
 import type * as service_tournament_submit_casualRunIngestMutations from "../service/tournament/submit/casualRunIngestMutations.js";
+import type * as service_town_config from "../service/town/config.js";
+import type * as service_town_gate from "../service/town/gate.js";
+import type * as service_town_portalTownMutations from "../service/town/portalTownMutations.js";
+import type * as service_town_townProgress from "../service/town/townProgress.js";
 import type * as service_weeklyLeague_casualWeeklyLeagueProfile from "../service/weeklyLeague/casualWeeklyLeagueProfile.js";
 import type * as service_weeklyLeague_casualWeeklyLeagueService from "../service/weeklyLeague/casualWeeklyLeagueService.js";
 import type * as service_weeklyLeague_casualWeeklyLeagueSettle from "../service/weeklyLeague/casualWeeklyLeagueSettle.js";
@@ -286,6 +291,7 @@ declare const fullApi: ApiFromModules<{
   "data/portalTicketEntryConfig": typeof data_portalTicketEntryConfig;
   "data/portalTournamentConfigs": typeof data_portalTournamentConfigs;
   "data/portalTournamentRewardTypes": typeof data_portalTournamentRewardTypes;
+  "data/portalTownConfig": typeof data_portalTownConfig;
   "data/portalWeeklyLeagueConfig": typeof data_portalWeeklyLeagueConfig;
   http: typeof http;
   "service/activity/casualActivityService": typeof service_activity_casualActivityService;
@@ -462,6 +468,10 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/submit/casualRunIngestCore": typeof service_tournament_submit_casualRunIngestCore;
   "service/tournament/submit/casualRunIngestHelpers": typeof service_tournament_submit_casualRunIngestHelpers;
   "service/tournament/submit/casualRunIngestMutations": typeof service_tournament_submit_casualRunIngestMutations;
+  "service/town/config": typeof service_town_config;
+  "service/town/gate": typeof service_town_gate;
+  "service/town/portalTownMutations": typeof service_town_portalTownMutations;
+  "service/town/townProgress": typeof service_town_townProgress;
   "service/weeklyLeague/casualWeeklyLeagueProfile": typeof service_weeklyLeague_casualWeeklyLeagueProfile;
   "service/weeklyLeague/casualWeeklyLeagueService": typeof service_weeklyLeague_casualWeeklyLeagueService;
   "service/weeklyLeague/casualWeeklyLeagueSettle": typeof service_weeklyLeague_casualWeeklyLeagueSettle;
