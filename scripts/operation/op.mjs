@@ -86,6 +86,8 @@ Commands:
   play-entry --partner=         ticket/ad entry on|off|null
   lobby-econ --partner=         lobbyOpsMode / quotaScope
   gc-ops --partner=             free/ad/ticket caps & replay knobs
+  profile --partner=            name / host / playerAuth / capabilities
+  town-config --partner=        town title / branding / template / wallet seed
   wipe --partner= [--apply]     wipe Portal+SSO partner config
   launch --partner= [--apply]   wipe → platform admin → apply
   deploy [--apply]              convex deploy order (+ optional frontend)
