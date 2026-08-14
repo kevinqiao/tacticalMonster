@@ -96,6 +96,8 @@
     "op:play-entry": "node scripts/operation/set-play-entry.mjs",
     "op:lobby-econ": "node scripts/operation/set-lobby-econ.mjs",
     "op:gc-ops": "node scripts/operation/set-gc-ops.mjs",
+    "op:profile": "node scripts/operation/set-partner-profile.mjs",
+    "op:town-config": "node scripts/operation/set-town-config.mjs",
     "op:new": "node scripts/operation/new-partner.mjs",
     "op:status": "node scripts/operation/status-partner.mjs",
     "op:wipe": "node scripts/operation/wipe-partner.mjs",

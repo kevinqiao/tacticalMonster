@@ -43,6 +43,12 @@ export const wipePartnerConfigInternal = internalMutation({
       .collect();
     for (const row of lobbies) await ctx.db.delete(row._id);
 
+    const towns = await ctx.db
+      .query("portal_towns")
+      .withIndex("by_partnerId", (q) => q.eq("partnerId", pid))
+      .collect();
+    for (const row of towns) await ctx.db.delete(row._id);
+
     const lobbyOps = await ctx.db
       .query("portal_partner_lobby_ops_settings")
       .withIndex("by_partnerId", (q) => q.eq("partnerId", pid))
@@ -78,6 +84,7 @@ export const wipePartnerConfigInternal = internalMutation({
       partnerId: pid,
       deleted: {
         portal_lobbies: lobbies.length,
+        portal_towns: towns.length,
         portal_partner_shop_settings: shopSettings.length,
         portal_partner_play_entry_settings: playEntries.length,
         portal_partner_lobby_ops_settings: lobbyOps.length,

@@ -11,6 +11,7 @@ import { loadPartnerConfig } from "./lib/config.mjs";
 import {
   portalGcOpsGet,
   portalLobbiesList,
+  portalTownsList,
   portalShopSkusList,
   portalShopSettingsGet,
   resolvePortalTarget,
@@ -133,6 +134,29 @@ Shows SSO peek, Portal GC ops (incl. entry caps), lobbies, shop SKUs/settings, d
   }
   if (!missingLobbies.length && !orphanLobbies.length && cfg.lobbies.length) {
     console.log("\n[Drift] lobbies: in sync");
+  }
+
+  const townListed = await portalTownsList(target, cfg.pid);
+  const towns = townListed.towns ?? [];
+  console.log(`\n[Towns] ${towns.length}`);
+  for (const t of towns) {
+    console.log(
+      `  - ${t.slug}  default=${t.isDefault === true}  enabled=${t.enabled !== false}  template=${t.templateId}  title=${t.title}  id=${t.townId ?? "?"}`
+    );
+  }
+  const liveTownSlugs = new Set(towns.map((t) => t.slug));
+  const missingTowns = cfg.towns.filter((t) => !liveTownSlugs.has(t.slug));
+  const orphanTowns = towns.filter((t) => !cfg.towns.some((c) => c.slug === t.slug));
+  if (missingTowns.length) {
+    console.log("\n[Drift] config towns not in Portal:");
+    for (const m of missingTowns) console.log(`  - ${m.slug}`);
+  }
+  if (orphanTowns.length) {
+    console.log("\n[Drift] Portal towns not in config (use --prune on apply):");
+    for (const m of orphanTowns) console.log(`  - ${m.slug}`);
+  }
+  if (!missingTowns.length && !orphanTowns.length && cfg.towns.length) {
+    console.log("\n[Drift] towns: in sync");
   }
 
   const skuListed = await portalShopSkusList(target, cfg.pid);

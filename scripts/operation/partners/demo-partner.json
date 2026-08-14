@@ -89,6 +89,16 @@
       "seasonHonorMode": "join_now"
     }
   ],
+  "towns": [
+    {
+      "slug": "mayfield",
+      "title": "Mayfield",
+      "isDefault": true,
+      "enabled": true,
+      "templateId": "mayfield_standard",
+      "walletSeedCoins": 5000
+    }
+  ],
   "shopSkus": [
     {
       "kind": "virtual",

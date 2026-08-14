@@ -50,7 +50,7 @@ Domains:
 
 Partner:
   list | apply | status | new | wipe | launch | deploy
-  play-entry | lobby-econ | gc-ops
+  play-entry | lobby-econ | gc-ops | profile | town-config
 
 Economy:
   balance | sync | check
@@ -93,7 +93,9 @@ Commands:
 Examples:
   npm run op -- partner list
   npm run op -- partner apply --partner=demo-partner --apply
-  npm run op -- partner gc-ops --help`);
+  npm run op -- partner gc-ops --help
+  npm run op -- partner profile --partner=demo --name="Demo" --apply
+  npm run op -- partner town-config --partner=demo --title="Saloon Row" --apply`);
 }
 
 function printEconomyHelp() {
@@ -155,6 +157,8 @@ const PARTNER_CMDS = {
   "play-entry": "scripts/operation/set-play-entry.mjs",
   "lobby-econ": "scripts/operation/set-lobby-econ.mjs",
   "gc-ops": "scripts/operation/set-gc-ops.mjs",
+  profile: "scripts/operation/set-partner-profile.mjs",
+  "town-config": "scripts/operation/set-town-config.mjs",
 };
 
 function main() {
