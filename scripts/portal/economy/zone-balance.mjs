@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
  * Mayfield Zone economy balance report (read-only).
+ * SSOT: scripts/portal/economy/mayfield-zone-economy.json
  *
+ *   npm run op -- economy balance
  *   node scripts/portal/economy/zone-balance.mjs
  */
 

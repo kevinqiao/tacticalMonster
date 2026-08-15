@@ -121,9 +121,9 @@
     "developCostBySlotIndex": [
       { "slotIndex": 1, "coins": 150 },
       { "slotIndex": 2, "coins": 218 },
-      { "slotIndex": 3, "coins": 316 },
-      { "slotIndex": 4, "coins": 458 },
-      { "slotIndex": 5, "coins": 664 }
+      { "slotIndex": 3, "coins": 315 },
+      { "slotIndex": 4, "coins": 457 },
+      { "slotIndex": 5, "coins": 663 }
     ],
     "upgradeCostByTypeAndLevel": {
       "commercial": [
@@ -142,26 +142,26 @@
         { "fromLevel": 1, "toLevel": 2, "coins": 140 },
         { "fromLevel": 2, "toLevel": 3, "coins": 216 },
         { "fromLevel": 3, "toLevel": 4, "coins": 335 },
-        { "fromLevel": 4, "toLevel": 5, "coins": 520 }
+        { "fromLevel": 4, "toLevel": 5, "coins": 519 }
       ],
       "entertainment": [
         { "fromLevel": 1, "toLevel": 2, "coins": 132 },
         { "fromLevel": 2, "toLevel": 3, "coins": 204 },
-        { "fromLevel": 3, "toLevel": 4, "coins": 316 },
-        { "fromLevel": 4, "toLevel": 5, "coins": 490 }
+        { "fromLevel": 3, "toLevel": 4, "coins": 317 },
+        { "fromLevel": 4, "toLevel": 5, "coins": 491 }
       ]
     },
     "passivePerHourD0": {
-      "commercial": [1.2, 1.62, 2.19, 2.95, 3.98],
+      "commercial": [1.2, 1.62, 2.19, 2.95, 3.99],
       "industrial": [1.5, 2.03, 2.73, 3.69, 4.98],
       "tourism": [0.9, 1.22, 1.64, 2.21, 2.99],
-      "entertainment": [1.1, 1.49, 2.01, 2.71, 3.66],
-      "entertainmentWithBonus": [1.38, 1.86, 2.51, 3.39, 4.58]
+      "entertainment": [1.1, 1.49, 2.0, 2.71, 3.65],
+      "entertainmentWithBonus": [1.38, 1.86, 2.51, 3.38, 4.57]
     },
     "d0FullBuildSinkCoins": {
-      "developAll4Slots": 1142,
+      "developAll4Slots": 1140,
       "upgradeAllCommercialTo5": 1076,
-      "note": "develop 150+218+316+458; upgrade sum for 4× commercial L1→5"
+      "note": "develop 150+218+315+457; upgrade sum for 4× commercial L1→5"
     },
     "referenceWeeklyCoinBudget": {
       "assumedHallAndQuestCoins": 700,

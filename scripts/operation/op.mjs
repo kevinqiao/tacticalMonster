@@ -17,13 +17,17 @@ import { wantsHelp } from "./lib/args.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
 
-function runNode(scriptRel, args) {
+function runNodeStatus(scriptRel, args) {
   const script = path.join(REPO_ROOT, scriptRel);
   const r = spawnSync(process.execPath, [script, ...args], {
     cwd: REPO_ROOT,
     stdio: "inherit",
   });
-  process.exit(r.status ?? 1);
+  return r.status ?? 1;
+}
+
+function runNode(scriptRel, args) {
+  process.exit(runNodeStatus(scriptRel, args));
 }
 
 function runNpx(binArgs) {
@@ -44,7 +48,7 @@ Usage: npm run op -- <domain> <command> [args…]
 
 Domains:
   partner     Partner JSON SSOT (scripts/operation/partners/*.json)
-  economy     Global economy SSOT (scripts/portal/economy/portal-economy.json)
+  economy     Shared play + Mayfield town economy SSOTs (scripts/portal/economy/)
   seeds       Portal seed pools
   platform    Platform staff / maintenance / brand / vouchers
 
@@ -101,12 +105,15 @@ Examples:
 }
 
 function printEconomyHelp() {
-  console.log(`Economy ops — SSOT: scripts/portal/economy/portal-economy.json
+  console.log(`Economy ops — two SSOTs under scripts/portal/economy/
+
+  portal-economy.json          shared play + platform (Town and Lobby)
+  mayfield-zone-economy.json   Mayfield zone / mayor / district only
 
 Commands:
-  balance     read-only balance report (shop / play defaults / giftcard)
-  sync        write src/convex/portal/convex/data/portalEconomyGenerated.ts
-  check       fail if generated file drifts from JSON
+  balance     read-only reports (shared play + Mayfield zones)
+  sync        write portalEconomyGenerated.ts + townEconomyGenerated.ts
+  check       fail if either generated file drifts from JSON
 
 Examples:
   npm run op -- economy balance
@@ -114,7 +121,7 @@ Examples:
   npm run op -- economy check
 
 After sync: deploy / convex dev Portal.
-Partner overrides → npm run op -- partner gc-ops|apply (not this file).`);
+Partner overrides → npm run op -- partner gc-ops|apply (not these files).`);
 }
 
 function printSeedsHelp() {
@@ -202,19 +209,25 @@ function main() {
       return;
     }
     if (cmd === "balance") {
-      runNode("scripts/portal/economy/balance.mjs", wantsHelp(args) ? ["--help"] : args);
+      if (wantsHelp(args)) {
+        runNode("scripts/portal/economy/balance.mjs", ["--help"]);
+        return;
+      }
+      const shared = runNodeStatus("scripts/portal/economy/balance.mjs", args);
+      const town = runNodeStatus("scripts/portal/economy/zone-balance.mjs", args);
+      process.exit(shared || town);
       return;
     }
     if (cmd === "sync") {
-      runNode("scripts/portal/economy/sync.mjs", wantsHelp(args) ? ["--help"] : args);
+      runNode("scripts/portal/economy/sync-all.mjs", wantsHelp(args) ? ["--help"] : args);
       return;
     }
     if (cmd === "check") {
       if (wantsHelp(args)) {
-        runNode("scripts/portal/economy/sync.mjs", ["--help"]);
+        runNode("scripts/portal/economy/sync-all.mjs", ["--help"]);
         return;
       }
-      runNode("scripts/portal/economy/sync.mjs", ["--check", ...args]);
+      runNode("scripts/portal/economy/sync-all.mjs", ["--check", ...args]);
       return;
     }
     console.error(`Unknown economy command: ${cmd}`);

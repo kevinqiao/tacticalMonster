@@ -1,6 +1,8 @@
 /**
  * AUTO-GENERATED — DO NOT EDIT.
  * Source: scripts/portal/economy/portal-economy.json
+ * Shared play + platform defaults (Town and Lobby). Not Lobby-only.
+ * Town zone meta: mayfield-zone-economy.json → townEconomyGenerated.ts
  * Regenerate: npm run portal:economy:sync
  * Check:     npm run portal:economy:sync:check
  */

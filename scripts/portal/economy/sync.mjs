@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * Portal global economy SSOT → generated TS.
+ * Shared play + platform economy SSOT → generated TS.
+ * Not Lobby-only: Town and Lobby both consume these defaults (scoped at runtime).
+ * Town zone / mayor / district meta: mayfield-zone-economy.json → sync-town.mjs
  *
- *   npm run portal:economy:sync          # write
+ *   npm run portal:economy:sync          # write (also runs town sync)
  *   npm run portal:economy:sync:check    # fail on drift
  *   node scripts/portal/economy/sync.mjs --dry-run
  */
@@ -349,6 +351,8 @@ function generate(eco) {
   const header = `/**
  * AUTO-GENERATED — DO NOT EDIT.
  * Source: scripts/portal/economy/portal-economy.json
+ * Shared play + platform defaults (Town and Lobby). Not Lobby-only.
+ * Town zone meta: mayfield-zone-economy.json → townEconomyGenerated.ts
  * Regenerate: npm run portal:economy:sync
  * Check:     npm run portal:economy:sync:check
  */
@@ -480,7 +484,7 @@ export const PORTAL_TICKET_REPLAY_PRICE_DEFAULT = ${ar.ticketReplayPriceDefault}
 
 function printHelp() {
   console.log(`Usage:
-  npm run op -- economy sync              # write portalEconomyGenerated.ts
+  npm run op -- economy sync              # write both generated files
   npm run op -- economy check             # fail on drift
   npm run portal:economy:sync
   npm run portal:economy:sync:check
@@ -490,6 +494,8 @@ Flags:
   --dry-run    print whether write would happen
 
 SSOT: scripts/portal/economy/portal-economy.json
+Shared play + platform defaults for Town and Lobby (not Lobby-only).
+Town zone / mayor: mayfield-zone-economy.json → sync-town.mjs
 After sync: deploy / convex dev Portal.
 
 Partner overrides (caps, entry toggles) are NOT in this file —
