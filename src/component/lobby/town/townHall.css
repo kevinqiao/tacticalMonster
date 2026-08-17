@@ -340,8 +340,119 @@
 }
 
 .town-hall__section--solo,
-.town-hall__section--showdown {
+.town-hall__section--showdown,
+.town-hall__section--districts,
+.town-hall__section--town-hall {
   margin-bottom: 12px;
+}
+
+.town-hall__section--town-hall .town-hall__district-chip {
+  width: 100%;
+}
+
+.town-hall__district-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.town-hall__district-chip {
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(196, 122, 43, 0.35);
+  background: rgba(255, 255, 255, 0.82);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.town-hall__district-chip:disabled {
+  cursor: default;
+}
+
+.town-hall__district-chip--current {
+  border-color: #c47a2b;
+  box-shadow: 0 4px 12px rgba(196, 122, 43, 0.16);
+}
+
+.town-hall__district-chip--collect {
+  border-color: #c47a2b;
+  background: rgba(255, 236, 196, 0.95);
+}
+
+.town-hall__district-chip--collect .town-hall__district-chip-cta {
+  color: #9a5a12;
+}
+
+.town-hall__district-chip--locked {
+  border-style: dashed;
+}
+
+.town-hall__district-chip--gates {
+  flex: 1 1 100%;
+}
+
+.town-hall__district-chip-id {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #9e7b5c;
+}
+
+.town-hall__district-chip-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.town-hall__district-chip-state {
+  font-size: 11px;
+  color: #9e7b5c;
+}
+
+.town-hall__district-chip-detail {
+  font-size: 10px;
+  line-height: 1.35;
+  color: #7a6248;
+}
+
+.town-hall__district-gates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.town-hall__district-gate {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #7a6248;
+}
+
+.town-hall__district-gate--ok {
+  color: #4a7a40;
+  font-weight: 700;
+}
+
+.town-hall__district-chip-cta {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c47a2b;
+}
+
+.town-hall__district-chip--locked .town-hall__district-chip-cta {
+  color: #9e7b5c;
 }
 
 .town-hall__venue-hub {
@@ -462,6 +573,27 @@
   font-size: 12px;
   line-height: 1.45;
   color: #5a4632;
+}
+
+.town-hall__quest-action {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.town-hall__quest-cta {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c47a2b;
 }
 
 /* Mobile-specific tuning */

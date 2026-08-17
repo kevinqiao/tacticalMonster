@@ -1,34 +1,27 @@
 .town-map {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   overflow: hidden;
   background: #87ceeb;
   font-family: Nunito, system-ui, sans-serif;
   color: #3d2914;
-  --town-hud-top: calc(48px + env(safe-area-inset-top, 0px));
+  --town-hud-top: 0px;
   --town-hud-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   --town-hud-bottom-hall: calc(64px + env(safe-area-inset-bottom, 0px));
 }
 
 .town-map__body {
-  position: absolute;
-  inset: var(--town-hud-top) 0 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
 .town-map--scene .town-map__body {
-  inset: var(--town-hud-top) 0 var(--town-hud-bottom);
-}
-
-.town-map--hall .town-map__body {
-  inset: var(--town-hud-top) 0 var(--town-hud-bottom-hall);
-}
-
-.town-map--hall-mobile .town-map__body {
-  inset: var(--town-hud-top) 0 var(--town-hud-bottom-hall);
+  padding-bottom: var(--town-hud-bottom);
 }
 
 .town-map__canvas {
@@ -48,6 +41,7 @@
 
 .town-hud-top__start {
   flex: 1;
+  flex-wrap: wrap;
   overflow: hidden;
 }
 
@@ -55,10 +49,51 @@
   flex-shrink: 0;
 }
 
-.town-badge--wallet {
-  height: 30px;
-  padding: 0 10px;
+.town-hud-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px 0 2px;
+  border: none;
+  border-radius: 16px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.town-hud-identity__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #d4a843;
+  background: #e8d5a8;
+}
+
+.town-hud-identity__avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #3d2914;
+}
+
+.town-hud-identity__meta {
   font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.town-badge--wallet {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #3d2914;
+  background: #fff8ee;
+  border-color: #d4a843;
 }
 
 .town-badge--compact {
@@ -165,6 +200,31 @@
   padding: max(6px, env(safe-area-inset-top, 0px)) 12px 6px;
 }
 
+.town-hall-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px 8px;
+  background: linear-gradient(180deg, #f5ead0 0%, #fff8ee 100%);
+  border-bottom: 1px solid rgba(196, 122, 43, 0.2);
+  color: #3d2914;
+}
+
+.town-hall-bar__name {
+  font-family: Georgia, "Rye", serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.town-hall-bar__meta {
+  font-size: 13px;
+  font-weight: 700;
+  color: #5a4632;
+  white-space: nowrap;
+}
+
 .town-hud-bottom {
   bottom: 0;
   min-height: 56px;
@@ -181,10 +241,12 @@
   height: 32px;
   padding: 0 12px;
   border-radius: 16px;
-  background: #fff;
+  background: #fff8ee;
   border: 1px solid #d4a843;
+  color: #3d2914;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .town-badge--action {
@@ -480,7 +542,9 @@
 }
 
 .town-gate-card--picker {
-  max-height: min(85vh, 640px);
+  position: relative;
+  max-width: min(92vw, 520px);
+  max-height: min(85vh, 720px);
   display: flex;
   flex-direction: column;
 }
@@ -522,70 +586,281 @@
   gap: 6px;
 }
 
-.town-showdown-picker__list {
+.town-venue-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.town-venue-ticket {
+  position: relative;
+}
+
+.town-venue-ticket--funds {
+  opacity: 0.85;
+}
+
+.town-venue-ticket--locked .town-venue-ticket__play {
+  opacity: 0.45;
+  filter: grayscale(0.25);
+}
+
+.town-venue-ticket__mask {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 48px 16px 16px;
+  border-radius: 18px;
+  background: rgba(26, 18, 10, 0.72);
+  backdrop-filter: blur(3px);
+  color: #fff8e8;
+}
+
+.town-venue-ticket__lock-icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1.5px solid rgba(247, 228, 180, 0.45);
+  border-radius: 10px;
+  background: rgba(40, 22, 6, 0.42);
+  font-size: 16px;
+  line-height: 1;
+  color: inherit;
+}
+
+button.town-venue-ticket__lock-icon {
+  cursor: pointer;
+}
+
+.town-venue-ticket__mask-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  width: 100%;
 }
 
-.town-showdown-picker__row {
-  width: 100%;
+.town-venue-ticket__mask-row,
+.town-venue-ticket__mask-row-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 52px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(196, 122, 43, 0.28);
-  background: #fff8ee;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.town-venue-ticket__mask-row--ok {
+  color: rgba(255, 248, 232, 0.55);
+}
+
+.town-venue-ticket__mask-row--need {
+  color: #ffe08a;
+}
+
+.town-venue-ticket__mask-row-btn {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.town-showdown-picker__row:active:not(:disabled) {
-  transform: scale(0.99);
+.town-venue-ticket__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(118px, 0.7fr);
+  min-height: 118px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 3px solid #6f4318;
+  box-shadow:
+    0 6px 0 rgba(111, 67, 24, 0.28),
+    0 10px 22px rgba(40, 22, 6, 0.22);
+  background: #f7e4b4;
 }
 
-.town-showdown-picker__row--locked {
-  opacity: 0.65;
-  cursor: not-allowed;
+.town-venue-ticket__main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  color: #fff8e8;
+  background:
+    radial-gradient(120% 90% at 10% 0%, rgba(255, 220, 140, 0.22), transparent 55%),
+    linear-gradient(145deg, #6a3d16 0%, #8a5422 42%, #5a3212 100%);
 }
 
-.town-showdown-picker__row--funds {
-  opacity: 0.85;
+.town-venue-ticket__main::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: -1px;
+  bottom: 10px;
+  width: 0;
+  border-right: 2px dashed rgba(247, 228, 180, 0.55);
 }
 
-.town-showdown-picker__row-main {
+.town-venue-ticket__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
+}
+
+.town-venue-ticket__title-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.town-venue-ticket__title {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #fff8e8;
+  text-shadow: 0 2px 0 rgba(40, 22, 6, 0.35);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.town-venue-ticket__game {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 248, 232, 0.78);
+}
+
+.town-venue-ticket__prize {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.town-showdown-picker__row-label {
-  font-size: 14px;
+.town-venue-ticket__prize-label {
+  font-size: 12px;
   font-weight: 700;
+  color: rgba(255, 248, 232, 0.72);
 }
 
-.town-showdown-picker__row-meta {
-  font-size: 11px;
-  color: #9e7b5c;
+.town-venue-ticket__prize-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffe08a;
 }
 
-.town-showdown-picker__row-buyin {
-  flex-shrink: 0;
+.town-venue-ticket__lock {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f0c35a;
+  line-height: 1.35;
+}
+
+.town-venue-ticket__players {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 700;
-  color: #5a8f4e;
+  color: rgba(255, 248, 232, 0.86);
 }
 
-.town-showdown-picker__row--locked .town-showdown-picker__row-buyin {
-  color: #9e7b5c;
+.town-venue-ticket__players svg {
+  width: 16px;
+  height: 16px;
+}
+
+.town-venue-ticket__stub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 12px;
+  background: linear-gradient(180deg, #fff6dc 0%, #f3dfaa 100%);
+  color: #5b3a12;
+}
+
+.town-venue-ticket__fee {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.town-venue-ticket__fee-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: rgba(91, 58, 18, 0.7);
+  text-transform: uppercase;
+}
+
+.town-venue-ticket__fee-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: #3f2710;
+  text-align: center;
+}
+
+.town-venue-ticket__play {
+  min-width: 88px;
+  padding: 10px 14px;
+  border: 2px solid #4c8a15;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #8fd14f 0%, #5fae1e 100%);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px rgba(40, 70, 10, 0.45);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 4px 0 #3f7412;
+  cursor: pointer;
+}
+
+.town-venue-ticket__play:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+}
+
+.town-venue-ticket__play:hover:not(:disabled) {
+  filter: brightness(1.04);
+}
+
+@media (max-width: 420px) {
+  .town-venue-ticket__body {
+    grid-template-columns: minmax(0, 1.2fr) minmax(104px, 0.75fr);
+  }
+
+  .town-venue-ticket__title {
+    font-size: 16px;
+  }
 }
 
 .town-banner-error {
@@ -635,13 +910,17 @@
   gap: 4px;
   max-width: min(52vw, 280px);
   padding: 8px 12px;
+  border: none;
   border-radius: 20px;
   background: #3d5160;
   color: #fff;
+  font: inherit;
   font-size: 12px;
   font-weight: 600;
+  text-align: right;
   text-decoration: none;
   line-height: 1.25;
+  cursor: pointer;
 }
 
 .town-league-status:hover {

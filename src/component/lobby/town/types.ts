@@ -1,7 +1,14 @@
+import { districtCatalogEntry, districtLockCopy } from "./districtSystem";
+
 export type HallKind = "trial" | "showdown";
 
 /** URL slug for the partner default town (Strategy B). */
 export const DEFAULT_TOWN_SLUG = "mayfield";
+
+/** Competitive partition for Town Week Score / Term / Season — not wallet `shared`. */
+export function townLeagueScopeKey(townId: string): string {
+  return `town:${townId}`;
+}
 
 export const HALL_KIND_META: Record<
   HallKind,
@@ -28,6 +35,7 @@ export interface HallTierView {
   buyIn?: number;
   requiredDistrict?: string;
   requiredVenueLevel?: number;
+  requiredZoneType?: string;
 }
 
 export interface TownBuildingView {
@@ -96,28 +104,79 @@ export function isTableOpen(
   tier: HallTierView,
   hallKind: HallKind,
   unlockedDistricts: string[],
-  venueLevel: number
+  venueLevel: number,
+  developedByZoneType: Record<string, number> = {}
 ): boolean {
   if (tier.requiredDistrict && !unlockedDistricts.includes(tier.requiredDistrict)) {
     return false;
   }
   const need = tier.requiredVenueLevel ?? 1;
-  return venueLevel >= need;
+  if (venueLevel < need) return false;
+  if (tier.requiredZoneType && (developedByZoneType[tier.requiredZoneType] ?? 0) < 1) {
+    return false;
+  }
+  return true;
+}
+
+export type TableLockCondition = {
+  id: "district" | "venue" | "zone";
+  label: string;
+  ok: boolean;
+  districtId?: string;
+};
+
+export function tableLockConditions(
+  tier: HallTierView,
+  unlockedDistricts: string[],
+  venueLevel: number,
+  developedByZoneType: Record<string, number> = {}
+): TableLockCondition[] {
+  const out: TableLockCondition[] = [];
+  if (tier.requiredDistrict) {
+    const row = districtCatalogEntry(tier.requiredDistrict);
+    out.push({
+      id: "district",
+      label: row ? `Open ${row.label}` : "Open district",
+      ok: unlockedDistricts.includes(tier.requiredDistrict),
+      districtId: tier.requiredDistrict,
+    });
+  }
+  const need = tier.requiredVenueLevel ?? 1;
+  if (need > 1) {
+    out.push({
+      id: "venue",
+      label: `Venue Lv.${need}`,
+      ok: venueLevel >= need,
+    });
+  }
+  if (tier.requiredZoneType) {
+    out.push({
+      id: "zone",
+      label: "Develop a Finance zone",
+      ok: (developedByZoneType[tier.requiredZoneType] ?? 0) >= 1,
+    });
+  }
+  return out;
 }
 
 export function tableLockReason(
   tier: HallTierView,
   unlockedDistricts: string[],
-  venueLevel: number
+  venueLevel: number,
+  developedByZoneType: Record<string, number> = {}
 ): string | null {
-  if (tier.requiredDistrict && !unlockedDistricts.includes(tier.requiredDistrict)) {
-    return "Expand town to unlock";
+  const blocked = tableLockConditions(
+    tier,
+    unlockedDistricts,
+    venueLevel,
+    developedByZoneType
+  ).find((row) => !row.ok);
+  if (!blocked) return null;
+  if (blocked.id === "district" && blocked.districtId) {
+    return districtLockCopy(blocked.districtId);
   }
-  const need = tier.requiredVenueLevel ?? 1;
-  if (venueLevel < need) {
-    return `Venue Lv.${need} required`;
-  }
-  return null;
+  if (blocked.id === "venue") return `${blocked.label} required`;
+  return blocked.label;
 }
 
 export function buildGateSelection(building: TownBuildingView, tier: HallTierView): GateSelection {
@@ -143,26 +202,35 @@ export type VenueTournamentOption = {
   buyIn: number;
   open: boolean;
   lockReason: string | null;
+  lockConditions: TableLockCondition[];
 };
 
 function listVenueTournamentOptions(
   buildings: TownBuildingView[],
   hallKind: HallKind,
   unlockedDistricts: string[],
-  venueLevel: number
+  venueLevel: number,
+  developedByZoneType: Record<string, number> = {}
 ): VenueTournamentOption[] {
   const out: VenueTournamentOption[] = [];
   for (const venue of buildings) {
     if (venue.hallKind !== hallKind || venue.portalReady === false) continue;
     for (const tier of venue.tiers) {
-      const open = isTableOpen(tier, hallKind, unlockedDistricts, venueLevel);
+      const open = isTableOpen(tier, hallKind, unlockedDistricts, venueLevel, developedByZoneType);
+      const lockConditions = tableLockConditions(
+        tier,
+        unlockedDistricts,
+        venueLevel,
+        developedByZoneType
+      );
       out.push({
         venue,
         tier,
         gameType: gameTypeFromTournamentId(tier.tournamentId),
         buyIn: tier.buyIn ?? 0,
         open,
-        lockReason: open ? null : tableLockReason(tier, unlockedDistricts, venueLevel),
+        lockReason: open ? null : tableLockReason(tier, unlockedDistricts, venueLevel, developedByZoneType),
+        lockConditions,
       });
     }
   }
@@ -172,17 +240,37 @@ function listVenueTournamentOptions(
 export function listTrialTournamentOptions(
   buildings: TownBuildingView[],
   unlockedDistricts: string[],
-  venueLevel: number
+  venueLevel: number,
+  developedByZoneType: Record<string, number> = {}
 ): VenueTournamentOption[] {
-  return listVenueTournamentOptions(buildings, "trial", unlockedDistricts, venueLevel);
+  return listVenueTournamentOptions(buildings, "trial", unlockedDistricts, venueLevel, developedByZoneType);
 }
 
 export function listShowdownTournamentOptions(
   buildings: TownBuildingView[],
   unlockedDistricts: string[],
-  venueLevel: number
+  venueLevel: number,
+  developedByZoneType: Record<string, number> = {}
 ): VenueTournamentOption[] {
-  return listVenueTournamentOptions(buildings, "showdown", unlockedDistricts, venueLevel);
+  return listVenueTournamentOptions(buildings, "showdown", unlockedDistricts, venueLevel, developedByZoneType);
+}
+
+export function filterVenueOptionsByGame(
+  options: VenueTournamentOption[],
+  gameType?: string | null
+): VenueTournamentOption[] {
+  if (!gameType) return options;
+  return options.filter((o) => o.gameType === gameType);
+}
+
+/** Prefer a free open table; otherwise the first open table. */
+export function pickPreferredOpenTable(
+  options: VenueTournamentOption[],
+  gameType?: string | null
+): VenueTournamentOption | null {
+  const scoped = filterVenueOptionsByGame(options, gameType).filter((o) => o.open);
+  if (scoped.length === 0) return null;
+  return scoped.find((o) => o.buyIn === 0) ?? scoped[0];
 }
 
 const SOLO_TABLES: HallTierView[] = [
@@ -220,7 +308,7 @@ const SOLO_TABLES: HallTierView[] = [
 const MULTI_TABLES: HallTierView[] = [
   {
     id: "multi_solitaire_free",
-    label: "Ranked · Free",
+    label: "Ranked",
     tournamentId: "portal_multi_solitaire",
     buyIn: 0,
     requiredDistrict: "D0",
@@ -232,10 +320,11 @@ const MULTI_TABLES: HallTierView[] = [
     buyIn: 20,
     requiredDistrict: "D0",
     requiredVenueLevel: 2,
+    requiredZoneType: "commercial",
   },
   {
     id: "multi_yatz_free",
-    label: "Ranked · Free",
+    label: "Ranked",
     tournamentId: "portal_multi_yatz",
     buyIn: 0,
     requiredDistrict: "D1",
@@ -247,6 +336,7 @@ const MULTI_TABLES: HallTierView[] = [
     buyIn: 20,
     requiredDistrict: "D1",
     requiredVenueLevel: 2,
+    requiredZoneType: "commercial",
   },
 ];
 
@@ -257,7 +347,7 @@ export const FALLBACK_BUILDINGS: TownBuildingView[] = [
     districtId: "D0",
     hallKind: "trial",
     portalReady: true,
-    tiers: SOLO_TABLES.filter((t) => t.requiredDistrict === "D0"),
+    tiers: SOLO_TABLES,
     position: { x: 62, y: 38 },
   },
   {
@@ -266,7 +356,7 @@ export const FALLBACK_BUILDINGS: TownBuildingView[] = [
     districtId: "D0",
     hallKind: "showdown",
     portalReady: true,
-    tiers: MULTI_TABLES.filter((t) => t.requiredDistrict === "D0"),
+    tiers: MULTI_TABLES,
     position: { x: 28, y: 42 },
   },
   {

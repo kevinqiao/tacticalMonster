@@ -3,21 +3,15 @@ import { useModalManager } from "host/service/ModalManager";
 import { isPlatformAuthed } from "host/service/platformAuth/platformAccessToken";
 import { usePartnerManager } from "host/service/PartnerManager";
 import { useUserManager } from "host/service/UserManager";
-import { portalLobbyPath } from "host/util/portalPathParse";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ConvexHttpClient } from "convex/browser";
-import { registerConvexAuthClient } from "host/service/platformAuth/convexAuthRegistry";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getPortalHttpClient,
   portalPlayModalForGameType,
   PortalProvider,
-  PORTAL_CONVEX_URL,
   usePortal,
 } from "component/lobby/portal/service/usePortalManager";
 import { portalTournamentFns } from "component/lobby/portal/service/portalConvexFunctionRefs";
-import type { PortalLobbyView } from "component/lobby/portal/PortalLobbyContext";
 import TownZonePanel, { EntertainmentBonusView, TownZoneView } from "./TownZonePanel";
-import GateCard from "./GateCard";
 import VenuePickerModal from "./VenuePickerModal";
 import TownHallView from "./TownHallView";
 import TownSceneView from "./TownSceneView";
@@ -28,9 +22,12 @@ import {
   DEFAULT_TOWN_SLUG,
   DEFAULT_VENUE_LEVEL,
   FALLBACK_BUILDINGS,
+  filterVenueOptionsByGame,
   GateSelection,
+  HallKind,
   listShowdownTournamentOptions,
   listTrialTournamentOptions,
+  townLeagueScopeKey,
   VenueLevelMap,
   VenueTournamentOption,
   TownBuildingView,
@@ -44,7 +41,8 @@ import TownShopTab from "./TownShopTab";
 import TownRewardTab from "./TownRewardTab";
 import TownLeagueTab from "./TownLeagueTab";
 import TownMeTab from "./TownMeTab";
-import { districtLabel } from "./mayfieldSceneLayout";
+import TownDistrictPanel from "./TownDistrictPanel";
+import { districtCatalogEntry, districtErrorMessage } from "./districtSystem";
 import { useTownViewMode } from "./useTownViewMode";
 import { casualGameKindFromGameType } from "component/lobby/casual/service/casualOpenRunAssignment";
 import "./town.css";
@@ -55,6 +53,8 @@ type D1ExpansionView = {
   minDevelopedZones: number;
   questId: string;
   feeCoins: number;
+  questComplete?: boolean;
+  unlocked?: boolean;
   canExpand: boolean;
 } | null;
 
@@ -66,10 +66,13 @@ type TownTermView = {
 };
 
 type TownProgress = {
+  townId?: string;
+  playScopeKey?: string;
   townTitle?: string;
   townSlug?: string;
   coins: number;
   gems: number;
+  tickets?: number;
   unlockedTierIds: string[];
   hallLevels: Record<string, number>;
   venueLevel?: VenueLevelMap;
@@ -85,67 +88,78 @@ type TownProgress = {
   showdownGamesThisWeek?: number;
   entertainmentBonus?: EntertainmentBonusView;
   hasEntertainmentZone?: boolean;
+  coinTableBonus?: EntertainmentBonusView;
+  hasCommercialZone?: boolean;
+  developedCommercial?: number;
   d1Expansion?: D1ExpansionView;
+  developedZonesD0?: number;
+  developedZonesD1?: number;
   term?: TownTermView;
 };
 
 type TownMapInnerProps = PageProp & {
-  leagueHref: string;
+  onLeagueScopeKey: (key: string | null) => void;
 };
 
-const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, leagueHref }) => {
+const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }) => {
   const { openModal } = useModalManager();
   const { user, askAuth } = useUserManager();
   const { partnerPid, partnerResolveReady } = usePartnerManager();
-  const { joinTournament, playerWallet, portalSessionReady, refresh, weeklyLeagueTierView } =
-    usePortal();
+  const {
+    joinTournament,
+    playerWallet,
+    playerProfile,
+    portalSessionReady,
+    refresh,
+    weeklyLeagueTierView,
+    ticketEntryOffer,
+  } = usePortal();
   const authed = isPlatformAuthed(user);
-  const { mode: viewMode, mobile: isMobile, toggleMode } = useTownViewMode();
+  const { mode: viewMode, mobile: isMobile, toggleMode, setPreference } = useTownViewMode();
   const townSlug = DEFAULT_TOWN_SLUG;
 
   const [townTitle, setTownTitle] = useState("Mayfield");
 
   const [toast, setToast] = useState<string | null>(null);
-  const [gateOpen, setGateOpen] = useState(false);
   const [gateLoading, setGateLoading] = useState(false);
-  const [gateError, setGateError] = useState<string | null>(null);
   const [progress, setProgress] = useState<TownProgress | null>(null);
   const [gateSelection, setGateSelection] = useState<GateSelection | null>(null);
+  const enteringRef = useRef(false);
   const [zonePanelOpen, setZonePanelOpen] = useState(false);
   const [soloPickerOpen, setSoloPickerOpen] = useState(false);
   const [showdownPickerOpen, setShowdownPickerOpen] = useState(false);
-  const [shellTab, setShellTab] = useState<TownShellTab>("hall");
+  const [pickerGameFilter, setPickerGameFilter] = useState<string | null>(null);
+  const [shellTab, setShellTab] = useState<TownShellTab>("town");
+  const [expandBusy, setExpandBusy] = useState(false);
+  const [focusBusy, setFocusBusy] = useState(false);
+  const [districtPanelId, setDistrictPanelId] = useState<string | null>(null);
+  const [justExpanded, setJustExpanded] = useState(false);
 
   const loadProgress = useCallback(async () => {
     const http = getPortalHttpClient();
     if (!http || !portalSessionReady) return;
     try {
+      await http.mutation(portalTournamentFns.townEnsureZones, { townSlug });
       const data = (await http.query(portalTournamentFns.townGetProgress, {
         townSlug,
       })) as TownProgress;
       if (data) {
         setProgress(data);
         if (data.townTitle) setTownTitle(data.townTitle);
-        if (!data.zones?.length) {
-          await http.mutation(portalTournamentFns.townEnsureZones, { townSlug });
-          const refreshed = (await http.query(portalTournamentFns.townGetProgress, {
-            townSlug,
-          })) as TownProgress;
-          if (refreshed) setProgress(refreshed);
-        }
       }
     } catch (e) {
       console.warn("[Town] progress fallback", e);
       setProgress({
         coins: playerWallet?.coins ?? 0,
         gems: playerWallet?.gems ?? 0,
+        tickets: playerWallet?.tickets ?? 0,
         unlockedTierIds: ["solo_solitaire_free", "multi_solitaire_free"],
         hallLevels: { parlor: 1, saloon: 1 },
         venueLevel: DEFAULT_VENUE_LEVEL,
         buildings: FALLBACK_BUILDINGS,
       });
     }
-  }, [portalSessionReady, playerWallet?.coins, playerWallet?.gems, townSlug]);
+  }, [portalSessionReady, playerWallet?.coins, playerWallet?.gems, playerWallet?.tickets, townSlug]);
 
   useEffect(() => {
     const http = getPortalHttpClient();
@@ -165,56 +179,73 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, leagueHref }) => {
   }, [partnerPid, partnerResolveReady, townSlug]);
 
   useEffect(() => {
-    if (visible && portalSessionReady) {
+    if (visible && portalSessionReady && shellTab === "town") {
       void loadProgress();
     }
-  }, [visible, portalSessionReady, loadProgress]);
+  }, [visible, portalSessionReady, shellTab, loadProgress]);
 
   useEffect(() => {
-    if (playerWallet && progress) {
-      setProgress((p) =>
-        p
-          ? {
-              ...p,
-              coins: playerWallet.coins,
-              gems: playerWallet.gems,
-            }
-          : p
-      );
-    }
-  }, [playerWallet?.coins, playerWallet?.gems]);
+    const onVis = () => {
+      if (document.visibilityState === "visible" && portalSessionReady) {
+        void loadProgress();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [portalSessionReady, loadProgress]);
+
+  useEffect(() => {
+    const townScope =
+      progress?.playScopeKey ??
+      (progress?.townId ? townLeagueScopeKey(progress.townId) : null);
+    onLeagueScopeKey(townScope);
+  }, [progress?.playScopeKey, progress?.townId, onLeagueScopeKey]);
+
+  useEffect(() => {
+    const townScope =
+      progress?.playScopeKey ??
+      (progress?.townId ? townLeagueScopeKey(progress.townId) : null);
+    if (!playerWallet || !progress || !townScope) return;
+    if (playerWallet.scopeKey && playerWallet.scopeKey !== townScope) return;
+    if (!playerWallet.scopeKey) return;
+    setProgress((p) =>
+      p
+        ? {
+            ...p,
+            coins: playerWallet.coins,
+            gems: playerWallet.gems,
+            tickets: playerWallet.tickets,
+          }
+        : p
+    );
+  }, [playerWallet?.coins, playerWallet?.gems, playerWallet?.tickets, playerWallet?.scopeKey, progress?.playScopeKey, progress?.townId]);
 
   const buildings = progress?.buildings ?? FALLBACK_BUILDINGS;
   const coins = progress?.coins ?? playerWallet?.coins ?? 0;
+  const tickets = progress?.tickets ?? playerWallet?.tickets ?? 0;
+  const showdownTicketPrice = ticketEntryOffer?.multi.priceTickets ?? 1;
   const gems = progress?.gems ?? playerWallet?.gems ?? 0;
   const unlockedDistricts = progress?.unlockedDistricts ?? ["D0"];
   const venueLevel = progress?.venueLevel ?? DEFAULT_VENUE_LEVEL;
   const prosperityMilestones = progress?.prosperityMilestones ?? FALLBACK_PROSPERITY_MILESTONES;
+  const developedByZoneType = useMemo(
+    () => ({ commercial: progress?.developedCommercial ?? 0 }),
+    [progress?.developedCommercial]
+  );
 
   const soloOptions = useMemo(
-    () => listTrialTournamentOptions(buildings, unlockedDistricts, venueLevel.trial),
-    [buildings, unlockedDistricts, venueLevel.trial]
+    () => listTrialTournamentOptions(buildings, unlockedDistricts, venueLevel.trial, developedByZoneType),
+    [buildings, unlockedDistricts, venueLevel.trial, developedByZoneType]
   );
 
   const showdownOptions = useMemo(
-    () => listShowdownTournamentOptions(buildings, unlockedDistricts, venueLevel.showdown),
-    [buildings, unlockedDistricts, venueLevel.showdown]
+    () => listShowdownTournamentOptions(buildings, unlockedDistricts, venueLevel.showdown, developedByZoneType),
+    [buildings, unlockedDistricts, venueLevel.showdown, developedByZoneType]
   );
 
   const soloOpenCount = soloOptions.filter((o) => o.open).length;
 
   const showdownOpenCount = showdownOptions.filter((o) => o.open).length;
-
-  const activeBuilding = useMemo(
-    () => buildings.find((b) => b.id === gateSelection?.buildingId),
-    [buildings, gateSelection?.buildingId]
-  );
-
-  const quickPlayLabel = useMemo(() => {
-    const last = readLastGateSelection();
-    if (last?.buildingName) return last.buildingName;
-    return "Solo Challenge";
-  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -223,6 +254,174 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, leagueHref }) => {
 
   const pickDefaultTier = useCallback((building: TownBuildingView) => building.tiers[0], []);
 
+  const closeVenuePickers = useCallback(() => {
+    setSoloPickerOpen(false);
+    setShowdownPickerOpen(false);
+    setPickerGameFilter(null);
+  }, []);
+
+  const enterTable = useCallback(
+    async (selection: GateSelection) => {
+      if (enteringRef.current) return;
+      enteringRef.current = true;
+      closeVenuePickers();
+      setGateSelection(selection);
+      setGateLoading(true);
+
+      const fail = (msg: string) => {
+        enteringRef.current = false;
+        setGateLoading(false);
+        showToast(msg);
+      };
+
+      const http = getPortalHttpClient();
+      if (!http || !portalSessionReady) {
+        enteringRef.current = false;
+        setGateLoading(false);
+        if (!authed) {
+          askAuth({});
+          return;
+        }
+        showToast("Portal session not ready. Please wait or re-login.");
+        return;
+      }
+
+      try {
+        await http.mutation(portalTournamentFns.townEnsureZones, { townSlug });
+
+        const validation = await http.query(portalTournamentFns.townValidateEntry, {
+          townSlug,
+          buildingId: selection.buildingId,
+          tierId: selection.tierId,
+          modeId: selection.ssaKey,
+        });
+
+        if (!validation?.ok) {
+          fail(
+            validation?.error === "INSUFFICIENT_FUNDS"
+              ? "Not enough coins."
+              : validation?.error === "TABLE_LOCKED" ||
+                  validation?.error === "DISTRICT_LOCKED" ||
+                  validation?.error === "TIER_LOCKED"
+                ? validation?.message ?? "This table is locked."
+                : validation?.error === "TOWN_UNAVAILABLE"
+                  ? "Town is not ready yet. Try again."
+                  : validation?.message ?? validation?.error ?? "Cannot enter"
+          );
+          return;
+        }
+
+        const entry = await http.mutation(portalTournamentFns.townRecordEntry, {
+          townSlug,
+          buildingId: selection.buildingId,
+          tierId: selection.tierId,
+          modeId: selection.ssaKey,
+        });
+
+        if (!entry?.ok) {
+          fail(entry?.error ?? "Entry failed");
+          return;
+        }
+
+        writeLastGateSelection(selection);
+
+        const joinMode = selection.matchType === "solo_p75" ? "solo" : "multi";
+        const leagueScopeKey =
+          progress?.playScopeKey ??
+          (progress?.townId ? townLeagueScopeKey(progress.townId) : undefined);
+        if (!leagueScopeKey) {
+          fail("Town is not ready yet. Try again.");
+          return;
+        }
+        const ticketEntry = joinMode === "multi" && (selection.buyIn ?? 0) <= 0;
+        const outcome = await joinTournament(joinMode, {
+          tournamentId: selection.tournamentId,
+          leagueScopeKey,
+          ...(ticketEntry ? { ticketEntry: true } : {}),
+        });
+        if (outcome.kind === "queued") {
+          fail("Table is filling. Try again in a moment.");
+          return;
+        }
+        if (outcome.kind !== "ready" || !outcome.gameId) {
+          const err = outcome.kind === "failed" ? outcome.error : "Could not start game.";
+          fail(
+            outcome.kind === "failed" && outcome.errorCode === "insufficient_tickets"
+              ? "Not enough tickets."
+              : outcome.kind === "failed" && outcome.errorCode === "ticket_entry_required"
+                ? "This table needs 1 ticket."
+                : err
+          );
+          return;
+        }
+
+        enteringRef.current = false;
+        setGateLoading(false);
+        setGateSelection(null);
+        await refresh();
+        await loadProgress();
+
+        openModal({
+          name: portalPlayModalForGameType(casualGameKindFromGameType(selection.gameType)),
+          data: {
+            casualTournamentId: outcome.templateId,
+            casualMatchGameId: outcome.gameId,
+            casualSessionKey: `${outcome.gameId}:${Date.now()}`,
+            fromTown: true,
+          },
+        });
+      } catch (e) {
+        console.error("[Town] enter", e);
+        fail("Something went wrong. Try again.");
+      }
+    },
+    [
+      closeVenuePickers,
+      showToast,
+      portalSessionReady,
+      authed,
+      askAuth,
+      townSlug,
+      joinTournament,
+      refresh,
+      loadProgress,
+      openModal,
+      progress?.playScopeKey,
+      progress?.townId,
+    ]
+  );
+
+  const handleVenuePick = useCallback(
+    (option: VenueTournamentOption) => {
+      void enterTable(buildGateSelection(option.venue, option.tier));
+    },
+    [enterTable]
+  );
+
+  const openPlay = useCallback(
+    (kind: HallKind, gameType?: string) => {
+      const options = kind === "trial" ? soloOptions : showdownOptions;
+      const scoped = filterVenueOptionsByGame(options, gameType);
+      // Match Lobby: only skip the picker when a single table exists and is open.
+      // Locked tables stay visible so players can see unlock gates.
+      if (scoped.length === 1 && scoped[0]!.open) {
+        handleVenuePick(scoped[0]!);
+        return;
+      }
+      if (scoped.length === 0) return;
+      setPickerGameFilter(gameType ?? null);
+      if (kind === "trial") setSoloPickerOpen(true);
+      else setShowdownPickerOpen(true);
+    },
+    [soloOptions, showdownOptions, handleVenuePick]
+  );
+
+  const openHallPlay = useCallback((kind: HallKind) => {
+    setPickerGameFilter(null);
+    if (kind === "trial") setSoloPickerOpen(true);
+    else setShowdownPickerOpen(true);
+  }, []);
+
   const openGateForBuilding = useCallback(
     (building: TownBuildingView) => {
       if (building.id === "town_hall") {
@@ -230,11 +429,11 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, leagueHref }) => {
         return;
       }
       if (building.hallKind === "showdown") {
-        setShowdownPickerOpen(true);
+        openHallPlay("showdown");
         return;
       }
       if (building.hallKind === "trial") {
-        setSoloPickerOpen(true);
+        openHallPlay("trial");
         return;
       }
       if (!building.hallKind) {
@@ -246,11 +445,9 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, leagueHref }) => {
         showToast("No tables available");
         return;
       }
-      setGateSelection(buildGateSelection(building, defaultTier));
-      setGateError(null);
-      setGateOpen(true);
+      void enterTable(buildGateSelection(building, defaultTier));
     },
-    [showToast, pickDefaultTier]
+    [showToast, pickDefaultTier, openHallPlay, enterTable]
   );
 
   const handleBuildingClick = useCallback(
@@ -264,175 +461,276 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, leagueHref }) => {
     [openGateForBuilding]
   );
 
-  const handleVenuePick = useCallback((option: VenueTournamentOption) => {
-    setSoloPickerOpen(false);
-    setShowdownPickerOpen(false);
-    setGateSelection(buildGateSelection(option.venue, option.tier));
-    setGateError(null);
-    setGateOpen(true);
-  }, []);
+  const handleExpandDistrict = useCallback(async () => {
+    const http = getPortalHttpClient();
+    if (!http || !portalSessionReady) {
+      showToast("Portal not ready");
+      return;
+    }
+    setExpandBusy(true);
+    try {
+      const result = (await http.mutation(portalTournamentFns.townExpandDistrict, {
+        districtId: "D1",
+        townSlug,
+      })) as { ok?: boolean; error?: string };
+      if (result?.ok === false) {
+        showToast(districtErrorMessage(result.error));
+        return;
+      }
+      setDistrictPanelId("D1");
+      setJustExpanded(true);
+      showToast("Market Street is open");
+      await loadProgress();
+    } catch (e) {
+      console.error("[Town] expand", e);
+      showToast("Something went wrong");
+    } finally {
+      setExpandBusy(false);
+    }
+  }, [portalSessionReady, townSlug, loadProgress, showToast]);
+
+  const handleSetCurrentDistrict = useCallback(
+    async (districtId: string) => {
+      const http = getPortalHttpClient();
+      if (!http || !portalSessionReady) {
+        showToast("Portal not ready");
+        return;
+      }
+      setFocusBusy(true);
+      try {
+        const result = (await http.mutation(portalTournamentFns.townSetCurrentDistrict, {
+          districtId,
+          townSlug,
+        })) as { ok?: boolean; error?: string };
+        if (result?.ok === false) {
+          showToast(districtErrorMessage(result.error));
+          return;
+        }
+        const label = districtCatalogEntry(districtId)?.label ?? districtId;
+        showToast(`Now in ${label}`);
+        await loadProgress();
+        setDistrictPanelId(null);
+        setPreference("scene");
+      } catch (e) {
+        console.error("[Town] focus district", e);
+        showToast("Something went wrong");
+      } finally {
+        setFocusBusy(false);
+      }
+    },
+    [portalSessionReady, townSlug, loadProgress, showToast, setPreference]
+  );
 
   const handleQuickPlay = useCallback(() => {
     const last = readLastGateSelection();
     if (last) {
       const building = buildings.find((b) => b.id === last.buildingId);
       if (building?.hallKind) {
-        setGateSelection(last);
-        setGateError(null);
-        setGateOpen(true);
+        void enterTable(last);
         return;
       }
     }
-    const soloVenue = buildings.find((b) => b.id === "parlor");
-    if (soloVenue) setSoloPickerOpen(true);
-  }, [buildings]);
-
-  const closeGate = useCallback(() => {
-    setGateOpen(false);
-    setGateSelection(null);
-    setGateError(null);
-  }, []);
-
-  const updateTier = useCallback(
-    (tierId: string) => {
-      if (!gateSelection || !activeBuilding) return;
-      const tier = activeBuilding.tiers.find((t) => t.id === tierId);
-      if (!tier) return;
-      setGateSelection(buildGateSelection(activeBuilding, tier));
-    },
-    [gateSelection, activeBuilding]
-  );
-
-  const handleEnter = useCallback(async () => {
-    if (!gateSelection) return;
-
-    const http = getPortalHttpClient();
-    if (!http || !portalSessionReady) {
-      if (!authed) {
-        askAuth({});
-        return;
-      }
-      setGateError("Portal session not ready. Please wait or re-login.");
-      return;
-    }
-
-    setGateLoading(true);
-    setGateError(null);
-
-    try {
-      const validation = await http.query(portalTournamentFns.townValidateEntry, {
-        townSlug,
-        buildingId: gateSelection.buildingId,
-        tierId: gateSelection.tierId,
-      });
-
-      if (!validation?.ok) {
-        setGateError(
-          validation?.error === "INSUFFICIENT_FUNDS"
-            ? "Not enough coins."
-            : validation?.error === "TABLE_LOCKED" || validation?.error === "DISTRICT_LOCKED"
-              ? validation?.message ?? "This table is locked."
-              : validation?.error === "TIER_LOCKED"
-              ? validation?.message ?? "This table is locked."
-              : validation?.message ?? validation?.error ?? "Cannot enter"
-        );
-        setGateLoading(false);
-        return;
-      }
-
-      const entry = await http.mutation(portalTournamentFns.townRecordEntry, {
-        townSlug,
-        buildingId: gateSelection.buildingId,
-        tierId: gateSelection.tierId,
-      });
-
-      if (!entry?.ok) {
-        setGateError(entry?.error ?? "Entry failed");
-        setGateLoading(false);
-        return;
-      }
-
-      writeLastGateSelection(gateSelection);
-
-      const joinMode = gateSelection.matchType === "solo_p75" ? "solo" : "multi";
-      const outcome = await joinTournament(joinMode, {
-        tournamentId: gateSelection.tournamentId,
-        townEntryToken: entry.entryToken,
-      });
-      if (outcome.kind !== "ready" || !outcome.gameId) {
-        setGateError(outcome.kind === "failed" ? outcome.error : "Could not start game.");
-        setGateLoading(false);
-        return;
-      }
-
-      closeGate();
-      setGateLoading(false);
-      await refresh();
-      await loadProgress();
-
-      openModal({
-        name: portalPlayModalForGameType(casualGameKindFromGameType(gateSelection.gameType)),
-        data: {
-          casualTournamentId: outcome.templateId,
-          casualMatchGameId: outcome.gameId,
-          casualSessionKey: `${outcome.gameId}:${Date.now()}`,
-          fromTown: true,
-        },
-      });
-    } catch (e) {
-      console.error("[Town] enter", e);
-      setGateError("Something went wrong. Try again.");
-      setGateLoading(false);
-    }
-  }, [
-    gateSelection,
-    portalSessionReady,
-    authed,
-    askAuth,
-    closeGate,
-    joinTournament,
-    refresh,
-    loadProgress,
-    openModal,
-  ]);
+    openHallPlay("trial");
+  }, [buildings, openHallPlay, enterTable]);
 
   if (!visible) return null;
 
   const viewToggleLabel = viewMode === "hall" ? "Map" : "Town Hall";
   const hallMobile = viewMode === "hall" && isMobile;
-  const showWalletInHud = viewMode === "scene" || hallMobile;
 
   const currentDistrict = progress?.currentDistrict ?? "D0";
-  const termLine = progress?.term
-    ? `Term ${progress.term.termNumber} · Week ${progress.term.weekOf}`
-    : null;
+  const mayorLevel = progress?.mayorLevel ?? 1;
+  const prosperityPct = Math.min(100, progress?.prosperityScore ?? 0);
+  const avatarUrl = avatarPhotoUrlFromUser(user);
+  const avatarInitial = (
+    playerProfile?.resolvedDisplayName ??
+    playerProfile?.displayName ??
+    "M"
+  )
+    .trim()
+    .charAt(0)
+    .toUpperCase() || "M";
+  const termLine =
+    viewMode === "scene" && progress?.term
+      ? `Term ${progress.term.termNumber} · Week ${progress.term.weekOf}`
+      : null;
 
   const hallContent = (
     <div className={`town-map town-map--${viewMode}${hallMobile ? " town-map--hall-mobile" : ""}`}>
-      <header className="town-hud-top">
-        <div className="town-hud-top__start">
-          {showWalletInHud ? (
-            <>
-              <span className="town-badge town-badge--wallet">🪙 {coins.toLocaleString()}</span>
-              <span className="town-badge town-badge--wallet">💎 {gems.toLocaleString()}</span>
-            </>
-          ) : (
-            <span className="town-badge town-badge--compact">
-              Mayfield · {districtLabel(currentDistrict)}
-            </span>
-          )}
-          {termLine ? <span className="town-badge town-badge--term">{termLine}</span> : null}
+      <div className="town-map__body">
+        {viewMode === "hall" ? (
+          <TownHallView
+            buildings={buildings}
+            isMobile={isMobile}
+            mayorLevel={mayorLevel}
+            prosperityPct={prosperityPct}
+            onBuildingClick={handleBuildingClick}
+            onOpenMayorOffice={() => setZonePanelOpen(true)}
+            onOpenDistrict={(id) => {
+              setJustExpanded(false);
+              setDistrictPanelId(id);
+            }}
+            onOpenSoloPicker={() => openHallPlay("trial")}
+            onOpenShowdownPicker={() => openHallPlay("showdown")}
+            soloOpenCount={soloOpenCount}
+            showdownOpenCount={showdownOpenCount}
+            venueLevel={venueLevel}
+            currentDistrict={currentDistrict}
+            unlockedDistricts={unlockedDistricts}
+            coins={coins}
+            developedZonesD0={progress?.developedZonesD0 ?? 0}
+            developedZonesD1={progress?.developedZonesD1 ?? 0}
+            d1Expansion={progress?.d1Expansion ?? null}
+            collectablePassive={progress?.collectablePassive ?? 0}
+          />
+        ) : (
+          <div className="town-map__canvas">
+            <TownSceneView
+              buildings={buildings}
+              zones={progress?.zones}
+              unlockedDistricts={unlockedDistricts}
+              currentDistrict={currentDistrict}
+              activeBuildingId={gateLoading ? gateSelection?.buildingId ?? null : null}
+              onBuildingClick={handleBuildingClick}
+              onZoneClick={() => setDistrictPanelId(currentDistrict)}
+            />
+          </div>
+        )}
+      </div>
+
+      {viewMode === "scene" ? (
+        <footer className="town-hud-bottom">
+          <span className="town-quest-pill">📋 Play 1 game at the Trial Hall</span>
+          <TownLeagueStatus
+            league={weeklyLeagueTierView}
+            authed={authed}
+            onOpenLeague={() => setShellTab("league")}
+          />
+          <button type="button" className="town-btn-primary town-hud-bottom__play" onClick={handleQuickPlay}>
+            ▶ Play
+          </button>
+        </footer>
+      ) : null}
+
+      {soloPickerOpen && (
+        <VenuePickerModal
+          kind="trial"
+          options={soloOptions}
+          balance={coins}
+          gameFilter={pickerGameFilter}
+          onClose={closeVenuePickers}
+          onSelect={handleVenuePick}
+          onLockedDistrict={(id) => {
+            closeVenuePickers();
+            setJustExpanded(false);
+            setDistrictPanelId(id);
+          }}
+        />
+      )}
+
+      {showdownPickerOpen && (
+        <VenuePickerModal
+          kind="showdown"
+          options={showdownOptions}
+          balance={coins}
+          ticketBalance={tickets}
+          ticketEntryPrice={showdownTicketPrice}
+          gameFilter={pickerGameFilter}
+          onClose={closeVenuePickers}
+          onSelect={handleVenuePick}
+          onLockedDistrict={(id) => {
+            closeVenuePickers();
+            setJustExpanded(false);
+            setDistrictPanelId(id);
+          }}
+        />
+      )}
+
+      {gateLoading ? (
+        <div className="town-gate-overlay" aria-busy="true" aria-live="polite">
+          <p className="town-showdown-picker__hint">Entering…</p>
+        </div>
+      ) : null}
+
+      {districtPanelId ? (
+        <TownDistrictPanel
+          districtId={districtPanelId}
+          zones={progress?.zones ?? []}
+          coins={coins}
+          mayorLevel={mayorLevel}
+          developedZonesD0={progress?.developedZonesD0 ?? 0}
+          developedZonesD1={progress?.developedZonesD1 ?? 0}
+          d1Expansion={progress?.d1Expansion ?? null}
+          currentDistrict={currentDistrict}
+          unlockedDistricts={unlockedDistricts}
+          portalSessionReady={portalSessionReady}
+          townSlug={townSlug}
+          expandBusy={expandBusy}
+          focusBusy={focusBusy}
+          justExpanded={justExpanded && districtPanelId === "D1"}
+          onClose={() => {
+            setDistrictPanelId(null);
+            setJustExpanded(false);
+          }}
+          onUpdated={() => void loadProgress()}
+          onToast={showToast}
+          onGoHere={(id) => void handleSetCurrentDistrict(id)}
+          onExpand={() => void handleExpandDistrict()}
+          onOpenDistrict={(id) => setDistrictPanelId(id)}
+          collectablePassive={progress?.collectablePassive ?? 0}
+        />
+      ) : null}
+
+      {zonePanelOpen && (
+        <TownZonePanel
+          prosperityScore={progress?.prosperityScore ?? 0}
+          prosperityMilestones={prosperityMilestones}
+          entertainmentBonus={progress?.entertainmentBonus}
+          hasEntertainmentZone={progress?.hasEntertainmentZone}
+          coinTableBonus={progress?.coinTableBonus}
+          hasCommercialZone={progress?.hasCommercialZone}
+          onClose={() => setZonePanelOpen(false)}
+          onOpenDistricts={() => {
+            setZonePanelOpen(false);
+            setJustExpanded(false);
+            setDistrictPanelId(currentDistrict);
+          }}
+        />
+      )}
+    </div>
+  );
+
+  return (
+    <TownShell
+      active={shellTab}
+      onChange={setShellTab}
+      collectablePassive={progress?.collectablePassive ?? 0}
+      avatarUrl={avatarUrl}
+      avatarInitial={avatarInitial}
+      onAvatarClick={() => setShellTab("me")}
+      chromeWallet={
+        <>
+          <span className="town-badge town-badge--wallet">🪙 {coins.toLocaleString()}</span>
+          <span className="town-badge town-badge--wallet" aria-label={`${tickets.toLocaleString()} tickets`}>
+            🎫 {tickets.toLocaleString()}
+          </span>
           {(progress?.collectablePassive ?? 0) > 0 ? (
             <button
               type="button"
               className="town-badge town-badge--passive"
-              onClick={() => setZonePanelOpen(true)}
+              onClick={() => {
+                setJustExpanded(false);
+                setDistrictPanelId(currentDistrict);
+              }}
             >
               +{progress?.collectablePassive}
             </button>
           ) : null}
-        </div>
-        <div className="town-hud-top__end">
+        </>
+      }
+      chromeEnd={
+        <>
+          {termLine ? <span className="town-badge town-badge--term">{termLine}</span> : null}
           <button
             type="button"
             className="town-badge town-badge--action town-badge--icon"
@@ -447,147 +745,27 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, leagueHref }) => {
               登录
             </button>
           ) : null}
-          <span
-            className="town-badge town-badge--compact town-badge--status"
-            title={portalSessionReady ? "Ready" : "Connecting…"}
-            aria-label={portalSessionReady ? "Portal ready" : "Portal connecting"}
-          >
-            {portalSessionReady ? "✓" : "…"}
-          </span>
-        </div>
-      </header>
-
-      <div className="town-map__body">
-        {viewMode === "hall" ? (
-          <TownHallView
-            buildings={buildings}
-            coins={coins}
-            gems={gems}
-            mayorLevel={progress?.mayorLevel ?? 1}
-            prosperityScore={progress?.prosperityScore ?? 0}
-            collectablePassive={progress?.collectablePassive ?? 0}
-            isMobile={isMobile}
-            league={weeklyLeagueTierView}
-            leagueHref={leagueHref}
-            authed={authed}
-            onBuildingClick={handleBuildingClick}
-            onOpenMayorOffice={() => setZonePanelOpen(true)}
-            onOpenSoloPicker={() => setSoloPickerOpen(true)}
-            onOpenShowdownPicker={() => setShowdownPickerOpen(true)}
-            soloOpenCount={soloOpenCount}
-            showdownOpenCount={showdownOpenCount}
-            venueLevel={venueLevel}
-          />
-        ) : (
-          <div className="town-map__canvas">
-            <TownSceneView
-              buildings={buildings}
-              zones={progress?.zones}
-              unlockedDistricts={unlockedDistricts}
-              currentDistrict={currentDistrict}
-              activeBuildingId={gateOpen ? gateSelection?.buildingId ?? null : null}
-              onBuildingClick={handleBuildingClick}
-              onZoneClick={() => setZonePanelOpen(true)}
-            />
-          </div>
-        )}
-      </div>
-
-      {viewMode === "scene" ? (
-        <footer className="town-hud-bottom">
-          <span className="town-quest-pill">📋 Play 1 game at the Trial Hall</span>
-          <TownLeagueStatus
-            league={weeklyLeagueTierView}
-            leagueHref={leagueHref}
-            authed={authed}
-          />
-          <button type="button" className="town-btn-primary town-hud-bottom__play" onClick={handleQuickPlay}>
-            ▶ Play
-          </button>
-        </footer>
-      ) : (
-        <footer
-          className={`town-hud-bottom town-hud-bottom--hall${hallMobile ? "" : " town-hud-bottom--hall-desktop"}`}
-        >
-          <button type="button" className="town-btn-primary town-hud-bottom__quick" onClick={handleQuickPlay}>
-            ▶ Play {quickPlayLabel}
-          </button>
-        </footer>
-      )}
-
-      {soloPickerOpen && (
-        <VenuePickerModal
-          kind="trial"
-          options={soloOptions}
-          balance={coins}
-          onClose={() => setSoloPickerOpen(false)}
-          onSelect={handleVenuePick}
-        />
-      )}
-
-      {showdownPickerOpen && (
-        <VenuePickerModal
-          kind="showdown"
-          options={showdownOptions}
-          balance={coins}
-          onClose={() => setShowdownPickerOpen(false)}
-          onSelect={handleVenuePick}
-        />
-      )}
-
-      {gateOpen && gateSelection && activeBuilding && (
-        <GateCard
-          selection={gateSelection}
-          balance={coins}
-          loading={gateLoading}
-          error={gateError}
-          portalReady={activeBuilding.portalReady !== false}
-          onClose={closeGate}
-          onEnter={handleEnter}
-          onTierChange={updateTier}
-          tiers={activeBuilding.tiers}
-        />
-      )}
-
-      {zonePanelOpen && (
-        <TownZonePanel
-          zones={progress?.zones ?? []}
-          coins={coins}
-          mayorLevel={progress?.mayorLevel ?? 1}
-          prosperityScore={progress?.prosperityScore ?? 0}
-          prosperityMilestones={prosperityMilestones}
-          collectablePassive={progress?.collectablePassive ?? 0}
-          entertainmentBonus={progress?.entertainmentBonus}
-          hasEntertainmentZone={progress?.hasEntertainmentZone}
-          d1Expansion={progress?.d1Expansion ?? null}
-          portalSessionReady={portalSessionReady}
-          townSlug={townSlug}
-          onClose={() => setZonePanelOpen(false)}
-          onUpdated={() => void loadProgress()}
-          onToast={showToast}
-        />
-      )}
-    </div>
-  );
-
-  return (
-    <TownShell
-      active={shellTab}
-      onChange={setShellTab}
-      collectablePassive={progress?.collectablePassive ?? 0}
+        </>
+      }
     >
-      {shellTab === "hall" ? hallContent : null}
+      {shellTab === "town" ? hallContent : null}
       {shellTab === "shop" ? <TownShopTab onToast={showToast} /> : null}
       {shellTab === "reward" ? <TownRewardTab onToast={showToast} /> : null}
-      {shellTab === "league" ? <TownLeagueTab /> : null}
+      {shellTab === "league" ? (
+        <TownLeagueTab leagueScopeKey={progress?.playScopeKey ?? null} />
+      ) : null}
       {shellTab === "me" ? (
         <TownMeTab
-          mayorLevel={progress?.mayorLevel ?? 1}
+          seasonLevel={weeklyLeagueTierView?.seasonLevel ?? 1}
+          coins={coins}
+          gems={gems}
           prosperityScore={progress?.prosperityScore ?? 0}
           venueLevel={venueLevel}
           unlockedDistricts={unlockedDistricts}
+          currentDistrict={currentDistrict}
           prosperityMilestones={prosperityMilestones}
           entertainmentBonus={progress?.entertainmentBonus}
+          coinTableBonus={progress?.coinTableBonus}
         />
       ) : null}
 
@@ -597,64 +775,24 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, leagueHref }) => {
 };
 
 const TownMapPage: React.FC<PageProp> = (props) => {
-  const {
-    partner,
-    partnerPid,
-    partnerResolveReady,
-    isFirstPartyPortal,
-    portalPartnerSlug,
-  } = usePartnerManager();
-  const [lobby, setLobby] = useState<PortalLobbyView | null>(null);
-
-  useEffect(() => {
-    if (!partnerResolveReady) return;
-    if (!isFirstPartyPortal && !portalPartnerSlug) {
-      setLobby(null);
-      return;
-    }
-
-    let cancelled = false;
-    void townLobbyClient()
-      .mutation(portalTournamentFns.resolvePortalLobby, {
-        partnerId: isFirstPartyPortal ? 0 : partnerPid,
-      })
-      .then((row) => {
-        if (cancelled) return;
-        setLobby(row ? (row as PortalLobbyView) : null);
-      })
-      .catch(() => {
-        if (!cancelled) setLobby(null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [partnerResolveReady, isFirstPartyPortal, portalPartnerSlug, partnerPid, partner]);
-
-  const leagueHref = useMemo(
-    () => portalLobbyPath(portalPartnerSlug, lobby?.slug),
-    [portalPartnerSlug, lobby?.slug]
-  );
+  const [leagueScopeKey, setLeagueScopeKey] = useState<string | null>(null);
 
   return (
-    <PortalProvider
-      gameType="solitaire"
-      lobbyId={lobby?.lobbyId ?? null}
-      lobbySlug={lobby?.slug ?? null}
-    >
-      <TownMapInner {...props} leagueHref={leagueHref} />
+    <PortalProvider gameType="solitaire" leagueScopeKey={leagueScopeKey}>
+      <TownMapInner {...props} onLeagueScopeKey={setLeagueScopeKey} />
     </PortalProvider>
   );
 };
 
-let townLobbyHttp: ConvexHttpClient | null = null;
-
-function townLobbyClient(): ConvexHttpClient {
-  if (!townLobbyHttp) {
-    townLobbyHttp = new ConvexHttpClient(PORTAL_CONVEX_URL);
-    registerConvexAuthClient(townLobbyHttp);
+function avatarPhotoUrlFromUser(u: { data?: Record<string, unknown> | null; picture?: string; imageUrl?: string; avatar?: string } | null): string | undefined {
+  if (!u) return undefined;
+  const d = u.data ?? null;
+  const raw = d?.["imageUrl"] ?? d?.["avatar"] ?? d?.["picture"] ?? d?.["photoUrl"];
+  if (typeof raw === "string" && raw.trim().length > 0) return raw.trim();
+  for (const v of [u.picture, u.imageUrl, u.avatar]) {
+    if (typeof v === "string" && v.trim().length > 0) return v.trim();
   }
-  return townLobbyHttp;
+  return undefined;
 }
 
 export default TownMapPage;
