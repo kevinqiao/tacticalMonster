@@ -12,16 +12,13 @@ const TownShopTab: React.FC<{ onToast: (msg: string) => void }> = ({ onToast }) 
   return (
     <div className="town-tab-panel">
       <h2>Shop</h2>
-      <p>Spend coins on tickets and rewards. League standings use Showdown 政绩 only.</p>
+      <p>Buy tickets with coins once a day, or coin + ticket packs.</p>
       {skus.length > 0 ? (
         <PortalShopPanel
           coins={portal.playerWallet?.coins ?? 0}
           skus={skus}
-          dailyCheckin={portal.dailyCheckin}
-          adCoinOffer={portal.adCoinOffer}
           onPurchase={portal.purchasePortalShopSku}
-          onClaimDailyCheckin={portal.claimDailyCheckin}
-          onWatchAdForCoins={portal.watchAdForCoins}
+          onStripeCheckout={portal.createStripeCheckout}
           onFeedback={(msg) => msg && onToast(msg)}
         />
       ) : (

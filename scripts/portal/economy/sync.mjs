@@ -83,6 +83,20 @@ function validate(eco) {
         `giftcard scarcityMultiplier: ${s.skuId}`
       );
     }
+    if (s.dailyPurchaseLimit != null) {
+      assert(
+        Number.isInteger(s.dailyPurchaseLimit) && s.dailyPurchaseLimit > 0,
+        `dailyPurchaseLimit: ${s.skuId}`
+      );
+    }
+    if (s.surfaces != null) {
+      assert(
+        Array.isArray(s.surfaces) &&
+          s.surfaces.length > 0 &&
+          s.surfaces.every((x) => x === "lobby" || x === "town"),
+        `surfaces: ${s.skuId}`
+      );
+    }
   }
 
   const tr = eco.tournamentRewards;
@@ -100,6 +114,9 @@ function validate(eco) {
       Number.isFinite(tr.soloPoints.clearBonus),
     "tournamentRewards.soloPoints.clearBonus"
   );
+  assert(tr?.soloCoinRewards, "tournamentRewards.soloCoinRewards");
+  assert(isPosInt(tr.soloCoinRewards.success), "tournamentRewards.soloCoinRewards.success");
+  assert(isPosInt(tr.soloCoinRewards.fail), "tournamentRewards.soloCoinRewards.fail");
   assert(tr?.multiRankPoints && typeof tr.multiRankPoints === "object", "tournamentRewards.multiRankPoints");
   assert(isPosInt(tr.multiCoinEntry), "tournamentRewards.multiCoinEntry");
   assert(Array.isArray(tr.rankRates5) && tr.rankRates5.length === 5, "tournamentRewards.rankRates5");
@@ -246,9 +263,11 @@ function buildShopCatalog(eco) {
         brandName: s.brandName,
         priceCoins: giftCardPriceCoins(s.faceValueUsd, coinsPerUsd, scarcity),
         weeklyPurchaseLimit: s.weeklyPurchaseLimit,
+        dailyPurchaseLimit: s.dailyPurchaseLimit,
         minAccountAgeDays: s.minAccountAgeDays ?? minAge,
         requiresVerifiedContact: s.requiresVerifiedContact !== false,
         sortOrder: s.sortOrder,
+        surfaces: s.surfaces,
       };
     }
     if (s.skuKind === "iap") {
@@ -264,7 +283,9 @@ function buildShopCatalog(eco) {
         grantTicketCount: s.grantTicketCount ?? s.grantReplayTokenCount ?? 0,
         grantCoinCount: s.grantCoinCount ?? 0,
         weeklyPurchaseLimit: s.weeklyPurchaseLimit,
+        dailyPurchaseLimit: s.dailyPurchaseLimit,
         sortOrder: s.sortOrder,
+        surfaces: s.surfaces,
       };
     }
     return {
@@ -275,7 +296,9 @@ function buildShopCatalog(eco) {
       priceCoins: s.priceCoins,
       grantTicketCount: s.grantTicketCount ?? s.grantReplayTokenCount ?? 0,
       weeklyPurchaseLimit: s.weeklyPurchaseLimit,
+      dailyPurchaseLimit: s.dailyPurchaseLimit,
       sortOrder: s.sortOrder,
+      surfaces: s.surfaces,
     };
   });
 }
@@ -294,7 +317,9 @@ function formatSku(sku) {
     "grantTicketCount",
     "grantCoinCount",
     "weeklyPurchaseLimit",
+    "dailyPurchaseLimit",
     "sortOrder",
+    "surfaces",
     "region",
     "faceValueUsd",
     "faceValueLocal",
@@ -311,9 +336,11 @@ function formatSku(sku) {
     const lit =
       typeof v === "string"
         ? JSON.stringify(v)
-        : typeof v === "boolean"
-          ? String(v)
-          : String(v);
+        : Array.isArray(v)
+          ? JSON.stringify(v)
+          : typeof v === "boolean"
+            ? String(v)
+            : String(v);
     lines.push(`    ${key}: ${lit},`);
   }
   lines.push("  },");
@@ -379,6 +406,11 @@ export const PORTAL_SOLO_POINTS = {
   fail: ${tr.soloPoints.fail},
   success: ${tr.soloPoints.success},
   clearBonus: ${tr.soloPoints.clearBonus},
+} as const;
+
+export const PORTAL_SOLO_COIN_REWARDS = {
+  success: ${tr.soloCoinRewards.success},
+  fail: ${tr.soloCoinRewards.fail},
 } as const;
 
 export const PORTAL_MULTI_RANK_POINTS = ${formatRecordNumberKeys(tr.multiRankPoints)} as const;

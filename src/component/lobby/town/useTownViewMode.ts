@@ -5,6 +5,7 @@ export type TownViewPreference = "auto" | TownViewMode;
 
 const STORAGE_KEY = "town.viewPreference";
 const MOBILE_MQ = "(max-width: 767px)";
+const LANDSCAPE_MQ = "(orientation: landscape)";
 
 function readPreference(): TownViewPreference {
   try {
@@ -27,10 +28,21 @@ export function useTownViewMode() {
   const [mobile, setMobile] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia(MOBILE_MQ).matches : false
   );
+  const [landscape, setLandscape] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(LANDSCAPE_MQ).matches : false
+  );
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_MQ);
     const sync = () => setMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia(LANDSCAPE_MQ);
+    const sync = () => setLandscape(mq.matches);
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
@@ -51,5 +63,5 @@ export function useTownViewMode() {
     setPreference(mode === "hall" ? "scene" : "hall");
   }, [mode, setPreference]);
 
-  return { mode, preference, mobile, setPreference, toggleMode };
+  return { mode, preference, mobile, landscape, setPreference, toggleMode };
 }

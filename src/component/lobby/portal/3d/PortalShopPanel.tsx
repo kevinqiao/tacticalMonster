@@ -445,7 +445,14 @@ export function PortalShopPanel({
               {t("shop.voucherReward", { reward: sku.voucherRewardText })}
             </p>
           ) : null}
-          {sku.weeklyPurchaseLimit != null ? (
+          {sku.dailyPurchaseLimit != null ? (
+            <p className="portal-shop-panel__limit">
+              {t("shop.dailyRemaining", {
+                remaining: sku.remainingThisWeek ?? 0,
+                limit: sku.dailyPurchaseLimit,
+              })}
+            </p>
+          ) : sku.weeklyPurchaseLimit != null ? (
             <p className="portal-shop-panel__limit">
               {t("shop.weeklyRemaining", {
                 remaining: sku.remainingThisWeek ?? 0,

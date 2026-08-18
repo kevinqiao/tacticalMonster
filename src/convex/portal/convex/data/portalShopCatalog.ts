@@ -10,6 +10,8 @@ import { PORTAL_SHOP_SKU_CATALOG as GENERATED_CATALOG } from "./portalEconomyGen
 
 export type PortalShopSkuKind = "virtual" | "giftcard" | "voucher" | "iap";
 
+export type PortalShopSurface = "lobby" | "town";
+
 export type PortalShopSkuSeed = {
   skuId: string;
   title: string;
@@ -24,6 +26,7 @@ export type PortalShopSkuSeed = {
   /** Soft-currency pack bonus; used by iap (and optionally virtual) SKUs. */
   grantCoinCount?: number;
   weeklyPurchaseLimit?: number;
+  dailyPurchaseLimit?: number;
   sortOrder: number;
   skuKind?: PortalShopSkuKind;
   /** Stripe Price id for iap Checkout (server-side only). */
@@ -48,7 +51,22 @@ export type PortalShopSkuSeed = {
   voucherRewardText?: string;
   voucherValidityDays?: number;
   listInShop?: boolean;
+  /** Omit or [] = lobby only. Town shop uses `["town"]`. */
+  surfaces?: PortalShopSurface[];
 };
+
+export function shopSkuSurfaces(
+  sku: Pick<PortalShopSkuSeed, "surfaces">
+): PortalShopSurface[] {
+  return sku.surfaces?.length ? sku.surfaces : ["lobby"];
+}
+
+export function shopSkuMatchesSurface(
+  sku: Pick<PortalShopSkuSeed, "surfaces">,
+  surface: PortalShopSurface
+): boolean {
+  return shopSkuSurfaces(sku).includes(surface);
+}
 
 /** Resolve ticket grant with legacy field fallback. */
 export function resolveGrantTicketCount(s: {
@@ -81,6 +99,7 @@ export function mapPortalShopSkuRow(r: PortalShopSkuSeed) {
     grantReplayTokenCount: grantTicketCount,
     grantCoinCount: Math.max(0, Math.floor(r.grantCoinCount ?? 0)),
     weeklyPurchaseLimit: r.weeklyPurchaseLimit ?? null,
+    dailyPurchaseLimit: r.dailyPurchaseLimit ?? null,
     sortOrder: r.sortOrder,
     skuKind,
     shopSection: r.shopSection,

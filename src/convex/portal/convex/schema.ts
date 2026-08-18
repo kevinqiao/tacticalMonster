@@ -77,6 +77,7 @@ export default defineSchema({
     grantReplayTokenCount: v.optional(v.number()),
     grantCoinCount: v.optional(v.number()),
     weeklyPurchaseLimit: v.optional(v.number()),
+    dailyPurchaseLimit: v.optional(v.number()),
     active: v.boolean(),
     sortOrder: v.number(),
     skuKind: v.optional(
@@ -107,6 +108,8 @@ export default defineSchema({
     voucherValidityDays: v.optional(v.number()),
     /** Voucher listings can be hidden while remaining valid campaign rewards. */
     listInShop: v.optional(v.boolean()),
+    /** Omit = lobby. Town SKUs use `["town"]`. */
+    surfaces: v.optional(v.array(v.string())),
   }).index("by_skuId", ["skuId"]),
 
   /**
@@ -331,6 +334,8 @@ export default defineSchema({
     challengeSuccess: v.optional(v.boolean()),
     /** Lobby the player joined from (per-player; may differ from run.lobbyId). */
     joinLobbyId: v.optional(v.id("portal_lobbies")),
+    /** Town vs Lobby competitive partition: `town:{townId}` | `lobby:{lobbyId}`. */
+    joinLeagueScopeKey: v.optional(v.string()),
     /** Snapshot of lobby offering rewardsOverride at join/open. */
     rewardsOverrideSnapshot: v.optional(
       v.object({
@@ -635,6 +640,8 @@ export default defineSchema({
     ticketEntryPriceTickets: v.optional(v.number()),
     /** Player join lobby; copied to portal_run_player_tournaments.joinLobbyId. */
     lobbyId: v.optional(v.id("portal_lobbies")),
+    /** Copied to portal_run_player_tournaments.joinLeagueScopeKey. */
+    leagueScopeKey: v.optional(v.string()),
     /** Snapshot of lobby offering rewardsOverride at enqueue. */
     rewardsOverrideSnapshot: v.optional(
       v.object({
@@ -821,6 +828,7 @@ export default defineSchema({
     mode: v.literal("solo"),
     lobbyId: v.optional(v.id("portal_lobbies")),
     tournamentId: v.optional(v.string()),
+    scopeKey: v.optional(v.string()),
     usedCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -842,6 +850,7 @@ export default defineSchema({
     mode: v.union(v.literal("solo"), v.literal("multi")),
     lobbyId: v.optional(v.id("portal_lobbies")),
     tournamentId: v.optional(v.string()),
+    scopeKey: v.optional(v.string()),
     usedCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -906,6 +915,7 @@ export default defineSchema({
     mode: v.union(v.literal("solo"), v.literal("multi")),
     lobbyId: v.optional(v.id("portal_lobbies")),
     tournamentId: v.optional(v.string()),
+    scopeKey: v.optional(v.string()),
     usedCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1055,12 +1065,15 @@ export default defineSchema({
     .index("by_run_uid", ["tournamentId", "uid"])
     .index("by_run_tournament", ["tournamentId"]),
 
-  /** 周联赛档案：按 lobby 持久段位（legacy gameType retained for old rows） */
+  /** 周联赛档案：统一 leagueScopeKey（town: / lobby: / game:） */
   portal_weekly_league_profile: defineTable({
     uid: v.string(),
-    /** @deprecated Prefer lobbyId for new rows. */
+    /** @deprecated Prefer leagueScopeKey. */
     gameType: v.optional(v.string()),
+    /** @deprecated Prefer leagueScopeKey = lobby:{id}. */
     lobbyId: v.optional(v.id("portal_lobbies")),
+    /** `town:{townId}` | `lobby:{lobbyId}` | `game:{gameType}` */
+    leagueScopeKey: v.optional(v.string()),
     weeklyLeagueTier: v.string(),
     peakLeagueTier: v.string(),
     /** 综合胜场：multi #1 或 Solo P75 成功（徽章） */
@@ -1078,7 +1091,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_uid_game", ["uid", "gameType"])
-    .index("by_uid_lobby", ["uid", "lobbyId"]),
+    .index("by_uid_lobby", ["uid", "lobbyId"])
+    .index("by_uid_scope", ["uid", "leagueScopeKey"]),
 
   /** 永久徽章解锁记录（纯展示） */
   portal_player_badges: defineTable({
@@ -1096,6 +1110,7 @@ export default defineSchema({
   portal_season_honor_progress: defineTable({
     uid: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    leagueScopeKey: v.optional(v.string()),
     seasonId: v.string(),
     seasonXp: v.number(),
     level: v.number(),
@@ -1108,14 +1123,17 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_uid_lobby_season", ["uid", "lobbyId", "seasonId"])
-    .index("by_uid_season", ["uid", "seasonId"]),
+    .index("by_uid_season", ["uid", "seasonId"])
+    .index("by_uid_scope_season", ["uid", "leagueScopeKey", "seasonId"]),
 
-  /** 周联赛 cohort：同 week + lobby + 段位 下分组 */
+  /** 周联赛 cohort：同 week + leagueScopeKey + 段位 下分组 */
   portal_weekly_league_cohorts: defineTable({
     weekKey: v.string(),
-    /** @deprecated Prefer lobbyId for new cohorts. */
+    /** @deprecated Prefer leagueScopeKey. */
     gameType: v.optional(v.string()),
+    /** @deprecated Prefer leagueScopeKey = lobby:{id}. */
     lobbyId: v.optional(v.id("portal_lobbies")),
+    leagueScopeKey: v.optional(v.string()),
     leagueTierId: v.string(),
     cohortIndex: v.number(),
     /** 用户可见 8 位字母数字组号 */
@@ -1139,15 +1157,19 @@ export default defineSchema({
     .index("by_week_game_tier_index", ["weekKey", "gameType", "leagueTierId", "cohortIndex"])
     .index("by_week_lobby_tier_status", ["weekKey", "lobbyId", "leagueTierId", "status"])
     .index("by_week_lobby_tier_index", ["weekKey", "lobbyId", "leagueTierId", "cohortIndex"])
+    .index("by_week_scope_tier_status", ["weekKey", "leagueScopeKey", "leagueTierId", "status"])
+    .index("by_week_scope_tier_index", ["weekKey", "leagueScopeKey", "leagueTierId", "cohortIndex"])
     .index("by_status_matching_ends", ["status", "matchingEndsAt"]),
 
   /** 周联赛成员：组内按 weeklyPoints 排名（结算直接累加） */
   portal_weekly_league_members: defineTable({
     weekKey: v.string(),
     uid: v.string(),
-    /** @deprecated Prefer lobbyId for new rows. */
+    /** @deprecated Prefer leagueScopeKey. */
     gameType: v.optional(v.string()),
+    /** @deprecated Prefer leagueScopeKey = lobby:{id}. */
     lobbyId: v.optional(v.id("portal_lobbies")),
+    leagueScopeKey: v.optional(v.string()),
     cohortId: v.id("portal_weekly_league_cohorts"),
     leagueTierId: v.string(),
     weeklyPoints: v.number(),
@@ -1172,8 +1194,10 @@ export default defineSchema({
   })
     .index("by_week_game_uid", ["weekKey", "gameType", "uid"])
     .index("by_week_lobby_uid", ["weekKey", "lobbyId", "uid"])
+    .index("by_week_scope_uid", ["weekKey", "leagueScopeKey", "uid"])
     .index("by_uid_game", ["uid", "gameType"])
     .index("by_uid_lobby", ["uid", "lobbyId"])
+    .index("by_uid_scope", ["uid", "leagueScopeKey"])
     .index("by_cohort", ["cohortId"])
     .index("by_week_cohort_points", ["weekKey", "cohortId", "weeklyPoints"]),
 
@@ -1183,6 +1207,7 @@ export default defineSchema({
     gameType: v.string(),
     /** Weekly-league scope; preferred over gameType for cohort accrual. */
     lobbyId: v.optional(v.id("portal_lobbies")),
+    leagueScopeKey: v.optional(v.string()),
     mode: v.union(v.literal("solo"), v.literal("multi")),
     weekKey: v.string(),
     delta: v.number(),
@@ -1192,7 +1217,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_uid", ["uid"])
-    .index("by_uid_lobby_week", ["uid", "lobbyId", "weekKey"]),
+    .index("by_uid_lobby_week", ["uid", "lobbyId", "weekKey"])
+    .index("by_uid_scope_week", ["uid", "leagueScopeKey", "weekKey"]),
 
   /** 广告再战会话（begin → complete，短生命周期） */
   portal_ad_replay_sessions: defineTable({
@@ -1499,6 +1525,38 @@ export default defineSchema({
     showdownWeekKey: v.optional(v.string()),
     /** Settled Showdown (multi_ranked) games in `showdownWeekKey`. */
     showdownGamesThisWeek: v.optional(v.number()),
+    /** Ops week key for finance × coin-table passive bonus. */
+    coinWeekKey: v.optional(v.string()),
+    /** Settled coin-buy-in games in `coinWeekKey`. */
+    coinGamesThisWeek: v.optional(v.number()),
+    districtOps: v.optional(
+      v.record(
+        v.string(),
+        v.object({
+          type: v.optional(v.string()),
+          level: v.number(),
+          lastCollectedAt: v.optional(v.number()),
+          rebranded: v.optional(v.boolean()),
+        })
+      )
+    ),
+    passTermId: v.optional(v.string()),
+    passXp: v.optional(v.number()),
+    passClaimed: v.optional(v.array(v.number())),
+    mayorChestClaimed: v.optional(v.array(v.number())),
+    ownedTitles: v.optional(v.array(v.string())),
+    gameCodex: v.optional(
+      v.record(
+        v.string(),
+        v.object({
+          opened: v.optional(v.boolean()),
+          played: v.optional(v.boolean()),
+        })
+      )
+    ),
+    opsWeekKey: v.optional(v.string()),
+    opsPlays: v.optional(v.record(v.string(), v.number())),
+    opsClaimed: v.optional(v.array(v.string())),
     updatedAt: v.number(),
   }).index("by_uid_townId", ["uid", "townId"]),
 

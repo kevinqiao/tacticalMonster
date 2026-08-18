@@ -57,5 +57,21 @@ describe("portalShopCatalog giftcard SKUs", () => {
     expect(t3.priceCoins).toBe(180);
     expect(t3.grantTicketCount).toBe(3);
   });
+
+  it("includes town-only daily tickets and three fiat packs", () => {
+    const town = PORTAL_SHOP_SKU_CATALOG.filter((s) =>
+      s.surfaces?.includes("town")
+    );
+    expect(town.map((s) => s.skuId)).toEqual([
+      "town_shop_ticket_daily",
+      "town_stripe_pack_s",
+      "town_stripe_pack_m",
+      "town_stripe_pack_l",
+    ]);
+    const daily = town.find((s) => s.skuId === "town_shop_ticket_daily")!;
+    expect(daily.dailyPurchaseLimit).toBe(1);
+    expect(daily.priceCoins).toBe(180);
+    expect(daily.grantTicketCount).toBe(3);
+  });
 });
 

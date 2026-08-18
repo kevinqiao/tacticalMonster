@@ -30,10 +30,11 @@ export const createStripeCheckout = authedAction({
   args: {
     skuId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
     successUrl: v.string(),
     cancelUrl: v.string(),
   },
-  handler: async (ctx, { skuId, lobbyId, successUrl, cancelUrl }) => {
+  handler: async (ctx, { skuId, lobbyId, scopeKey, successUrl, cancelUrl }) => {
     if (!isHttpUrl(successUrl) || !isHttpUrl(cancelUrl)) {
       return { ok: false as const, error: "invalid_return_url" as const };
     }
@@ -48,6 +49,7 @@ export const createStripeCheckout = authedAction({
         uid: ctx.uid,
         skuId,
         ...(lobbyId ? { lobbyId } : {}),
+        ...(scopeKey ? { scopeKey } : {}),
       }
     );
     if (!resolved.ok) {

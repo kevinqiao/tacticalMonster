@@ -11,12 +11,11 @@ import {
   usePortal,
 } from "component/lobby/portal/service/usePortalManager";
 import { portalTournamentFns } from "component/lobby/portal/service/portalConvexFunctionRefs";
-import TownZonePanel, { EntertainmentBonusView, TownZoneView } from "./TownZonePanel";
+import TownZonePanel, { EntertainmentBonusView } from "./TownZonePanel";
 import VenuePickerModal from "./VenuePickerModal";
 import TownHallView from "./TownHallView";
 import TownSceneView from "./TownSceneView";
-import { TownLeagueStatus } from "./TownLeagueStatus";
-import { readLastGateSelection, writeLastGateSelection } from "./townLastGate";
+import { writeLastGateSelection } from "./townLastGate";
 import {
   buildGateSelection,
   DEFAULT_TOWN_SLUG,
@@ -42,7 +41,14 @@ import TownRewardTab from "./TownRewardTab";
 import TownLeagueTab from "./TownLeagueTab";
 import TownMeTab from "./TownMeTab";
 import TownDistrictPanel from "./TownDistrictPanel";
-import { districtCatalogEntry, districtErrorMessage } from "./districtSystem";
+import {
+  districtCatalogEntry,
+  districtDevelopedLevel,
+  districtErrorMessage,
+  districtOpFor,
+  type DistrictOpView,
+  type TownLevyView,
+} from "./districtSystem";
 import { useTownViewMode } from "./useTownViewMode";
 import { casualGameKindFromGameType } from "component/lobby/casual/service/casualOpenRunAssignment";
 import "./town.css";
@@ -50,7 +56,8 @@ import "./townShell.css";
 
 type D1ExpansionView = {
   minMayorLevel: number;
-  minDevelopedZones: number;
+  minPriorDistrictLevel?: number;
+  minDevelopedZones?: number;
   questId: string;
   feeCoins: number;
   questComplete?: boolean;
@@ -83,8 +90,8 @@ type TownProgress = {
   mayorLevel?: number;
   prosperityScore?: number;
   prosperityMilestones?: ProsperityMilestonesView;
-  zones?: TownZoneView[];
   collectablePassive?: number;
+  townLevy?: TownLevyView;
   showdownGamesThisWeek?: number;
   entertainmentBonus?: EntertainmentBonusView;
   hasEntertainmentZone?: boolean;
@@ -92,8 +99,12 @@ type TownProgress = {
   hasCommercialZone?: boolean;
   developedCommercial?: number;
   d1Expansion?: D1ExpansionView;
-  developedZonesD0?: number;
-  developedZonesD1?: number;
+  districtLevels?: Record<string, number>;
+  districtOps?: DistrictOpView[];
+  termPass?: import("./TownRewardTab").TermPassView;
+  gameOps?: import("./TownRewardTab").GameOpsView;
+  gameCodex?: import("./TownRewardTab").GameCodexEntry[];
+  ownedTitles?: string[];
   term?: TownTermView;
 };
 
@@ -115,7 +126,13 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
     ticketEntryOffer,
   } = usePortal();
   const authed = isPlatformAuthed(user);
-  const { mode: viewMode, mobile: isMobile, toggleMode, setPreference } = useTownViewMode();
+  const {
+    mode: viewMode,
+    mobile: isMobile,
+    landscape,
+    toggleMode,
+    setPreference,
+  } = useTownViewMode();
   const townSlug = DEFAULT_TOWN_SLUG;
 
   const [townTitle, setTownTitle] = useState("Mayfield");
@@ -134,6 +151,7 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
   const [focusBusy, setFocusBusy] = useState(false);
   const [districtPanelId, setDistrictPanelId] = useState<string | null>(null);
   const [justExpanded, setJustExpanded] = useState(false);
+  const [levyBusy, setLevyBusy] = useState(false);
 
   const loadProgress = useCallback(async () => {
     const http = getPortalHttpClient();
@@ -179,10 +197,10 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
   }, [partnerPid, partnerResolveReady, townSlug]);
 
   useEffect(() => {
-    if (visible && portalSessionReady && shellTab === "town") {
+    if (visible && portalSessionReady) {
       void loadProgress();
     }
-  }, [visible, portalSessionReady, shellTab, loadProgress]);
+  }, [visible, portalSessionReady, loadProgress]);
 
   useEffect(() => {
     const onVis = () => {
@@ -228,19 +246,23 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
   const unlockedDistricts = progress?.unlockedDistricts ?? ["D0"];
   const venueLevel = progress?.venueLevel ?? DEFAULT_VENUE_LEVEL;
   const prosperityMilestones = progress?.prosperityMilestones ?? FALLBACK_PROSPERITY_MILESTONES;
-  const developedByZoneType = useMemo(
-    () => ({ commercial: progress?.developedCommercial ?? 0 }),
-    [progress?.developedCommercial]
+  const districtLevels = useMemo(
+    () =>
+      progress?.districtLevels ?? {
+        D0: districtDevelopedLevel(districtOpFor(progress?.districtOps, "D0")),
+        D1: districtDevelopedLevel(districtOpFor(progress?.districtOps, "D1")),
+      },
+    [progress?.districtLevels, progress?.districtOps]
   );
 
   const soloOptions = useMemo(
-    () => listTrialTournamentOptions(buildings, unlockedDistricts, venueLevel.trial, developedByZoneType),
-    [buildings, unlockedDistricts, venueLevel.trial, developedByZoneType]
+    () => listTrialTournamentOptions(buildings, districtLevels),
+    [buildings, districtLevels]
   );
 
   const showdownOptions = useMemo(
-    () => listShowdownTournamentOptions(buildings, unlockedDistricts, venueLevel.showdown, developedByZoneType),
-    [buildings, unlockedDistricts, venueLevel.showdown, developedByZoneType]
+    () => listShowdownTournamentOptions(buildings, districtLevels),
+    [buildings, districtLevels]
   );
 
   const soloOpenCount = soloOptions.filter((o) => o.open).length;
@@ -251,6 +273,33 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
     setToast(msg);
     window.setTimeout(() => setToast(null), 2500);
   }, []);
+
+  const handleCollectLevy = useCallback(async () => {
+    const http = getPortalHttpClient();
+    if (!http || !portalSessionReady) {
+      showToast("Portal not ready");
+      return;
+    }
+    setLevyBusy(true);
+    try {
+      const result = (await http.mutation(portalTournamentFns.townCollectPassive, {
+        townSlug,
+      })) as { ok?: boolean; error?: string; collected?: number };
+      if (result?.ok === false) {
+        showToast(districtErrorMessage(result.error));
+        return;
+      }
+      if (typeof result?.collected === "number" && result.collected > 0) {
+        showToast(`Collected ${result.collected} coins · dripping again`);
+      }
+      await loadProgress();
+    } catch (e) {
+      console.error("[Town] levy collect", e);
+      showToast("Something went wrong");
+    } finally {
+      setLevyBusy(false);
+    }
+  }, [portalSessionReady, townSlug, showToast, loadProgress]);
 
   const pickDefaultTier = useCallback((building: TownBuildingView) => building.tiers[0], []);
 
@@ -521,18 +570,6 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
     [portalSessionReady, townSlug, loadProgress, showToast, setPreference]
   );
 
-  const handleQuickPlay = useCallback(() => {
-    const last = readLastGateSelection();
-    if (last) {
-      const building = buildings.find((b) => b.id === last.buildingId);
-      if (building?.hallKind) {
-        void enterTable(last);
-        return;
-      }
-    }
-    openHallPlay("trial");
-  }, [buildings, openHallPlay, enterTable]);
-
   if (!visible) return null;
 
   const viewToggleLabel = viewMode === "hall" ? "Map" : "Town Hall";
@@ -578,39 +615,26 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
             currentDistrict={currentDistrict}
             unlockedDistricts={unlockedDistricts}
             coins={coins}
-            developedZonesD0={progress?.developedZonesD0 ?? 0}
-            developedZonesD1={progress?.developedZonesD1 ?? 0}
+            districtOps={progress?.districtOps ?? []}
             d1Expansion={progress?.d1Expansion ?? null}
-            collectablePassive={progress?.collectablePassive ?? 0}
+            townLevy={progress?.townLevy ?? null}
+            collectBusy={levyBusy}
+            onCollectLevy={() => void handleCollectLevy()}
           />
         ) : (
           <div className="town-map__canvas">
             <TownSceneView
               buildings={buildings}
-              zones={progress?.zones}
+              districtOps={progress?.districtOps}
               unlockedDistricts={unlockedDistricts}
               currentDistrict={currentDistrict}
               activeBuildingId={gateLoading ? gateSelection?.buildingId ?? null : null}
               onBuildingClick={handleBuildingClick}
-              onZoneClick={() => setDistrictPanelId(currentDistrict)}
+              onDistrictClick={() => setDistrictPanelId(currentDistrict)}
             />
           </div>
         )}
       </div>
-
-      {viewMode === "scene" ? (
-        <footer className="town-hud-bottom">
-          <span className="town-quest-pill">📋 Play 1 game at the Trial Hall</span>
-          <TownLeagueStatus
-            league={weeklyLeagueTierView}
-            authed={authed}
-            onOpenLeague={() => setShellTab("league")}
-          />
-          <button type="button" className="town-btn-primary town-hud-bottom__play" onClick={handleQuickPlay}>
-            ▶ Play
-          </button>
-        </footer>
-      ) : null}
 
       {soloPickerOpen && (
         <VenuePickerModal
@@ -655,18 +679,14 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
       {districtPanelId ? (
         <TownDistrictPanel
           districtId={districtPanelId}
-          zones={progress?.zones ?? []}
+          districtOps={progress?.districtOps ?? []}
           coins={coins}
           mayorLevel={mayorLevel}
-          developedZonesD0={progress?.developedZonesD0 ?? 0}
-          developedZonesD1={progress?.developedZonesD1 ?? 0}
           d1Expansion={progress?.d1Expansion ?? null}
-          currentDistrict={currentDistrict}
           unlockedDistricts={unlockedDistricts}
           portalSessionReady={portalSessionReady}
           townSlug={townSlug}
           expandBusy={expandBusy}
-          focusBusy={focusBusy}
           justExpanded={justExpanded && districtPanelId === "D1"}
           onClose={() => {
             setDistrictPanelId(null);
@@ -674,10 +694,11 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
           }}
           onUpdated={() => void loadProgress()}
           onToast={showToast}
-          onGoHere={(id) => void handleSetCurrentDistrict(id)}
           onExpand={() => void handleExpandDistrict()}
           onOpenDistrict={(id) => setDistrictPanelId(id)}
-          collectablePassive={progress?.collectablePassive ?? 0}
+          townLevy={progress?.townLevy ?? null}
+          collectBusy={levyBusy}
+          onCollect={() => void handleCollectLevy()}
         />
       ) : null}
 
@@ -700,32 +721,72 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
     </div>
   );
 
+  const tabPanel =
+    shellTab === "shop" ? (
+      <TownShopTab onToast={showToast} />
+    ) : shellTab === "reward" ? (
+      <TownRewardTab
+        onToast={showToast}
+        townSlug={townSlug}
+        portalSessionReady={portalSessionReady}
+        termPass={progress?.termPass}
+        gameOps={progress?.gameOps}
+        onUpdated={() => void loadProgress()}
+        onOpenDistrict={(id) => {
+          setShellTab("town");
+          setDistrictPanelId(id);
+        }}
+      />
+    ) : shellTab === "league" ? (
+      <TownLeagueTab leagueScopeKey={progress?.playScopeKey ?? null} />
+    ) : shellTab === "me" ? (
+      <TownMeTab
+        seasonLevel={weeklyLeagueTierView?.seasonLevel ?? 1}
+        coins={coins}
+        gems={gems}
+        prosperityScore={progress?.prosperityScore ?? 0}
+        venueLevel={venueLevel}
+        unlockedDistricts={unlockedDistricts}
+        currentDistrict={currentDistrict}
+        prosperityMilestones={prosperityMilestones}
+        entertainmentBonus={progress?.entertainmentBonus}
+        coinTableBonus={progress?.coinTableBonus}
+        termPass={progress?.termPass}
+        gameCodex={progress?.gameCodex}
+        ownedTitles={progress?.ownedTitles}
+        onOpenReward={() => setShellTab("reward")}
+      />
+    ) : null;
+
   return (
     <TownShell
       active={shellTab}
-      onChange={setShellTab}
+      onChange={(tab) => {
+        if (landscape && tab === shellTab) {
+          setShellTab("town");
+          return;
+        }
+        setShellTab(tab);
+      }}
+      landscape={landscape}
+      drawer={landscape ? tabPanel : null}
+      onCloseDrawer={() => setShellTab("town")}
       collectablePassive={progress?.collectablePassive ?? 0}
       avatarUrl={avatarUrl}
       avatarInitial={avatarInitial}
-      onAvatarClick={() => setShellTab("me")}
+      onAvatarClick={() => {
+        if (landscape && shellTab === "me") {
+          setShellTab("town");
+          return;
+        }
+        setShellTab("me");
+      }}
       chromeWallet={
         <>
           <span className="town-badge town-badge--wallet">🪙 {coins.toLocaleString()}</span>
           <span className="town-badge town-badge--wallet" aria-label={`${tickets.toLocaleString()} tickets`}>
             🎫 {tickets.toLocaleString()}
           </span>
-          {(progress?.collectablePassive ?? 0) > 0 ? (
-            <button
-              type="button"
-              className="town-badge town-badge--passive"
-              onClick={() => {
-                setJustExpanded(false);
-                setDistrictPanelId(currentDistrict);
-              }}
-            >
-              +{progress?.collectablePassive}
-            </button>
-          ) : null}
         </>
       }
       chromeEnd={
@@ -748,27 +809,7 @@ const TownMapInner: React.FC<TownMapInnerProps> = ({ visible, onLeagueScopeKey }
         </>
       }
     >
-      {shellTab === "town" ? hallContent : null}
-      {shellTab === "shop" ? <TownShopTab onToast={showToast} /> : null}
-      {shellTab === "reward" ? <TownRewardTab onToast={showToast} /> : null}
-      {shellTab === "league" ? (
-        <TownLeagueTab leagueScopeKey={progress?.playScopeKey ?? null} />
-      ) : null}
-      {shellTab === "me" ? (
-        <TownMeTab
-          seasonLevel={weeklyLeagueTierView?.seasonLevel ?? 1}
-          coins={coins}
-          gems={gems}
-          prosperityScore={progress?.prosperityScore ?? 0}
-          venueLevel={venueLevel}
-          unlockedDistricts={unlockedDistricts}
-          currentDistrict={currentDistrict}
-          prosperityMilestones={prosperityMilestones}
-          entertainmentBonus={progress?.entertainmentBonus}
-          coinTableBonus={progress?.coinTableBonus}
-        />
-      ) : null}
-
+      {landscape || shellTab === "town" ? hallContent : tabPanel}
       {toast && <div className="town-toast">{toast}</div>}
     </TownShell>
   );
