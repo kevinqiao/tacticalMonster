@@ -54,6 +54,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/tournament/PlayMatch': () => import('./lobby/tournament/PlayMatch'),
   './lobby/control/NavControl': () => import('./lobby/control/NavControl'),
   './www/W3Home': () => import('./www/W3Home'),
+  './lobby/rpg/RpgShell': () => import('./lobby/rpg/RpgShell'),
+  './lobby/rpg/ChessArenaPlay': () => import('./lobby/rpg/ChessArenaPlay'),
+  './lobby/rpg/RpgResult': () => import('./lobby/rpg/RpgResult'),
 };
 
 // 获取缓存的组件

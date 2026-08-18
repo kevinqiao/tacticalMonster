@@ -98,5 +98,26 @@ export interface PageConfig {
     close?: { type?: number, effect: string };
 
 }
-export const AppsConfiguration: AppConfig[] = [PlayPlace];
+export const RpgPlace =
+{
+    name: "rpgPlace",
+    entry: "home",
+    context: "/rpg",
+    auth: 0,
+    logout: "/rpg/home",
+    navs: [
+        { name: "home", auth: 0, path: "./lobby/rpg/RpgShell", uri: "home", class: "page_container", enter: "fadeIn", exit: "fadeOut" },
+        { name: "shop", auth: 0, path: "./lobby/rpg/RpgShell", uri: "shop", class: "page_container", enter: "fadeIn", exit: "fadeOut" },
+        { name: "rewards", auth: 0, path: "./lobby/rpg/RpgShell", uri: "rewards", class: "page_container", enter: "fadeIn", exit: "fadeOut" },
+        { name: "hall", auth: 0, path: "./lobby/rpg/RpgShell", uri: "hall", class: "page_container", enter: "fadeIn", exit: "fadeOut" },
+        { name: "preview", auth: 0, path: "./lobby/rpg/RpgShell", uri: "preview", class: "page_container", enter: "fadeIn", exit: "fadeOut" },
+        { name: "loadout", auth: 0, path: "./lobby/rpg/RpgShell", uri: "loadout", class: "page_container", enter: "fadeIn", exit: "fadeOut" },
+        { name: "league", auth: 0, path: "./lobby/rpg/RpgShell", uri: "league", class: "page_container", enter: "fadeIn", exit: "fadeOut" },
+        { name: "me", auth: 0, path: "./lobby/rpg/RpgShell", uri: "me", class: "page_container", enter: "fadeIn", exit: "fadeOut" },
+        { name: "match", auth: 0, path: "./lobby/rpg/ChessArenaPlay", uri: "match", class: "page_container", enter: "fadeIn", exit: "fadeOut" },
+        { name: "result", auth: 0, path: "./lobby/rpg/RpgResult", uri: "result", class: "page_container", enter: "fadeIn", exit: "fadeOut" },
+    ],
+}
+
+export const AppsConfiguration: AppConfig[] = [PlayPlace, RpgPlace];
 
