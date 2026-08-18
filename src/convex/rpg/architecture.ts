@@ -52,7 +52,7 @@
  *   2 rewards  /rpg/rewards  Term Pass 领取（coins / tickets）
  *   3 battle   /rpg          试炼 / 秀斗馆 → chess / tcg 桌 → 小时题
  *   4 league   /rpg/league   rpg: 周榜
- *   5 me       /rpg/me       图鉴。主业是卡牌收集（默认 tcgArena）；英雄是次级库，不是战队
+ *   5 me       /rpg/me       图鉴。页内库导航按游戏切（TCG / 战棋 / 未来桌），不是新底栏
  *
  * ---------------------------------------------------------------------------
  * 硬边界
@@ -72,6 +72,14 @@ export type RpgHallKind = (typeof RPG_HALL_KINDS)[number];
 
 export const RPG_GAME_TYPES = ["chess", "tcg"] as const;
 export type RpgGameType = (typeof RPG_GAME_TYPES)[number];
+
+/**
+ * 新游戏接入（桌上 + 图鉴）。不要加第 6 个底栏，不要在对战首页加玩法馆大门。
+ * 1. 本数组追加 gameType
+ * 2. 新 Arena（与 solitaireArena 对等，自带目录/尘/战斗）
+ * 3. RPG_DEFAULT_TABLES：试炼、秀斗各加一桌
+ * 4. RPG_CODEX.libraries 加一条 → 图鉴库导航自动多一枚 chip
+ */
 
 export function rpgLeagueScopeKey(rpgId: string): `rpg:${string}` {
   return `rpg:${rpgId}`;
@@ -146,7 +154,7 @@ export const RPG_PASS_XP = {
  *   2 rewards  奖励   Term Pass 领取（coins / tickets），不是拆包
  *   3 battle   对战   试炼 / 秀斗馆 → chess / tcg 桌 → 小时题
  *   4 league   联赛   rpg: 周榜
- *   5 me       图鉴   卡牌收集主页；槽位仍是 Town 的 me
+ *   5 me       图鉴   页内库导航切游戏；默认 TCG
  */
 export const RPG_ROUTE = "/rpg" as const;
 
@@ -182,49 +190,84 @@ export const RPG_UI_FLOW = [
   "match: 全屏对局，无底栏",
   "result: 分数、名次、coin、Pass XP、尘",
   "league: 同段位 Pod，chess/tcg 秀斗共榜",
-  "roster: 图鉴默认 tcgArena 卡册（收集/筛选/详情/合成）。英雄是次级库。不要叫战队",
+  "roster: 图鉴。页内库导航切游戏（默认 TCG）。网格只显示当前 Arena。英雄/新游戏都是同一套卡册壳",
 ] as const;
 
 /**
- * 图鉴（/rpg/me）完整契约。
+ * 图鉴（/rpg/me）。
  *
- * 主业是卡牌收集，不是个人主页、不是战队、不是组队。
- * 落地就是 tcgArena 卡册。chessArena 英雄是次级库：同一套卡面 UI，更薄。
- * 两套目录永不混表；尘按 Arena 分桶；战斗数值只读所属 Arena。
+ * 有导航，但是页内「库导航」，不是壳上的第 6 栏，也不是对战里的玩法馆。
+ * 对战：馆 → 桌(gameType)。图鉴：库(gameType) → 筛选 → 卡。同一批游戏，父级不同。
+ * 一屏只展示一座 Arena。新游戏往 libraries 加一行，chip 自动出现。
  */
+export type RpgCodexLibrary = {
+  gameType: RpgGameType;
+  arenaId: Extract<RpgArenaId, "chessArena" | "tcgArena">;
+  navLabel: string;
+  atom: "card" | "hero_card";
+  playableCap: number;
+  filterSchema: "card" | "hero";
+  isDefault?: boolean;
+};
+
+export const RPG_CODEX_LIBRARIES: readonly RpgCodexLibrary[] = [
+  {
+    gameType: "tcg",
+    arenaId: "tcgArena",
+    navLabel: "TCG",
+    atom: "card",
+    playableCap: 2,
+    filterSchema: "card",
+    isDefault: true,
+  },
+  {
+    gameType: "chess",
+    arenaId: "chessArena",
+    navLabel: "战棋",
+    atom: "hero_card",
+    playableCap: 1,
+    filterSchema: "hero",
+  },
+];
+
 export const RPG_CODEX = {
   tabId: "me",
   path: "/rpg/me",
   label: "图鉴",
-  defaultLibrary: "tcgArena",
-  libraries: [
-    {
-      id: "cards",
-      arenaId: "tcgArena",
-      label: "卡牌",
-      role: "primary",
-      atom: "card",
-      playableCap: 2,
-    },
-    {
-      id: "heroes",
-      arenaId: "chessArena",
-      label: "英雄",
-      role: "secondary",
-      atom: "hero_card",
-      playableCap: 1,
-    },
-  ],
+  defaultGameType: "tcg" as RpgGameType,
+  libraries: RPG_CODEX_LIBRARIES,
 } as const;
 
-export type RpgCodexLibraryId = (typeof RPG_CODEX.libraries)[number]["id"];
+export function rpgCodexLibraryForGame(
+  gameType: RpgGameType,
+): RpgCodexLibrary | undefined {
+  return RPG_CODEX_LIBRARIES.find((library) => library.gameType === gameType);
+}
 
-export const RPG_CODEX_SCREENS = [
-  "album",
-  "detail",
-  "craft",
-  "heroes",
-] as const;
+export const RPG_CODEX_DEFAULT_LIBRARY =
+  RPG_CODEX_LIBRARIES.find((library) => library.isDefault) ?? RPG_CODEX_LIBRARIES[0];
+
+/**
+ * 图鉴导航。
+ *
+ * L0 壳五栏（无游戏）
+ * L1 库导航：一枚 chip = 一个 gameType / Arena（可横滑）
+ * L2 该库自己的筛选
+ * L3 网格 → 详情 / 合成
+ */
+export const RPG_CODEX_NAV = {
+  kind: "inPageLibraryChips",
+  route: "/rpg/me/:gameType",
+  detailRoute: "/rpg/me/:gameType/:cardId",
+  persist: "lastGameType",
+  syncFromBattle: false,
+  hideWhenLibraryCount: 1,
+  overflow: "horizontalScroll",
+  chipShows: ["navLabel", "ownedTotal"],
+  not: ["shellTab", "gameHall", "mixedGrid", "sixthTab"],
+} as const;
+
+export const RPG_CODEX_SCREENS = ["album", "detail", "craft"] as const;
 export type RpgCodexScreenId = (typeof RPG_CODEX_SCREENS)[number];
 
 export const RPG_CODEX_OWNED_FILTERS = ["all", "owned", "missing"] as const;
@@ -271,6 +314,7 @@ export type RpgCodexCard = {
 };
 
 export type RpgCodexAlbumQuery = {
+  gameType: RpgGameType;
   arenaId: Extract<RpgArenaId, "chessArena" | "tcgArena">;
   owned: RpgCodexOwnedFilter;
   types: RpgCodexCardType[] | "all";
@@ -283,51 +327,50 @@ export type RpgCodexAlbumQuery = {
 /**
  * 图鉴页信息架构（实现按此排）。
  *
- * 卡册 /rpg/me
- *   HUD：段位 · coin · ticket · 当前 Arena 尘（没有图鉴战力）
- *   库切换：卡牌(默认) | 英雄(次级)
- *   进度：已收集 a/b · 尘 n
- *   筛选：全部 / 已有 / 未有；费用；类型；稀有度；排序
- *   网格：3 列卡面。已有显示张数；未有剪影 + 合成价；新卡角标
- *   点卡 → 详情
+ * 卡册 /rpg/me/:gameType
+ *   HUD：段位 · coin · ticket · 当前库尘
+ *   库导航：TCG | 战棋 | …（横滑；新游戏加 chip）
+ *   进度与尘随当前库变
+ *   筛选 schema 随当前库变（TCG：费用/类型/稀有；战棋：定位/稀有）
+ *   网格只含当前 Arena
  *
- * 详情 /rpg/me/:cardId
- *   大卡面、费用、类型、稀有、规则、所属 Arena
- *   张数 owned/playableCap
- *   主按钮：合成（尘够）或分解（多余且非 rank_road）
- *   不在这里组队、不进商店开包
+ * 详情 /rpg/me/:gameType/:cardId
+ *   大卡面、规则、张数、合成/分解。不组队、不开包。
  *
- * 合成确认
- *   扣该 Arena 尘。tcg 尘不能合成 chess 卡。
+ * 合成确认：扣当前 Arena 尘。
  *
- * 英雄库（次级）
- *   同一卡面 UI，目录更薄。段位路解锁 = 已有。v1 可不做英雄分解。
- *   4 人出战仍在 battle loadout。
+ * 战棋不是独立页，只是 gameType=chess。新游戏同理：新 chip。
  *
  * 卡面状态：owned | missing | extra | locked_rank | new
  * 数据：目录与所有权读对应 Arena；Portal 只提供壳、钱包、段位。
  */
 export const RPG_CODEX_UI = {
-  albumPath: "/rpg/me",
-  detailPath: "/rpg/me/:cardId",
+  albumPath: "/rpg/me/:gameType",
+  detailPath: "/rpg/me/:gameType/:cardId",
   gridColumns: 3,
   hud: ["tier", "coins", "tickets", "arenaDust"],
+  libraryNav: "chips",
   forbidden: [
     "collectionPower",
     "loadoutEdit",
     "packOpen",
     "crossArenaCraft",
     "teamTab",
+    "shellGameTab",
+    "mixedLibraryGrid",
   ],
 } as const;
 
 export const RPG_CODEX_RULES = [
-  "默认库 tcgArena；英雄库不得做成落地页或对等第二本",
+  "有导航：图鉴页内库 chip，一枚 = 一个 gameType。不要加壳 Tab",
+  "默认 TCG；记住 lastGameType。不强制跟对战当前桌同步",
+  "网格只渲染当前库。禁止把 chess/tcg/新游戏混在一张网里",
   "卡牌所有权、张数、尘、合成只发生在所属 Arena",
   "artId 可共享；cost/type/rarity/combat stats 不可跨 Arena 抄",
   "rank_road 基础卡已有且不可分解；必须够打本段小时题",
-  "张数上限 tcg=2、英雄=1；多余才可分解",
+  "张数上限由该库 playableCap 决定；多余才可分解",
   "图鉴不改小时题、不改 Boss、不产生周分",
-  "结算发的尘/卡带 arenaId；图鉴用新角标直到点进详情",
+  "结算发的尘/卡带 arenaId；深链到 /rpg/me/:gameType/:cardId",
   "v1 无开包入口；商店不卖卡",
+  "新游戏：gameType + Arena + 两馆各一桌 + libraries 一行",
 ] as const;
