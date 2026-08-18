@@ -1,0 +1,161 @@
+.rpg-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #151821;
+  color: #f4f1ea;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.rpg-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #1d2230;
+  border-bottom: 1px solid #2c3348;
+  font-size: 13px;
+}
+
+.rpg-body {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+.rpg-title {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.rpg-card {
+  background: #23283a;
+  border: 1px solid #343c55;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.rpg-card.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.rpg-card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.rpg-card p,
+.rpg-note {
+  margin: 0;
+  color: #c5c9d6;
+  font-size: 13px;
+}
+
+.rpg-cta {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #d7a13d;
+  color: #1b1408;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rpg-cta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rpg-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  background: #12151f;
+  border-top: 1px solid #2c3348;
+}
+
+.rpg-tab {
+  border: 0;
+  background: transparent;
+  color: #9aa3bb;
+  padding: 12px 0;
+  cursor: pointer;
+}
+
+.rpg-tab.active {
+  color: #f4f1ea;
+  font-weight: 700;
+}
+
+.rpg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.rpg-hero {
+  background: #2b3146;
+  border-radius: 8px;
+  padding: 10px;
+  min-height: 72px;
+  text-align: center;
+}
+
+.rpg-hero.selected {
+  outline: 2px solid #d7a13d;
+}
+
+.rpg-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+
+.rpg-chip {
+  border: 1px solid #3a435e;
+  background: #1d2230;
+  color: #d5d8e4;
+  border-radius: 999px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+.rpg-chip.active {
+  background: #d7a13d;
+  color: #1b1408;
+  border-color: #d7a13d;
+}
+
+.rpg-chip:disabled {
+  opacity: 0.4;
+}
+
+.rpg-match {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.rpg-board {
+  flex: 1;
+  border: 1px dashed #4a5370;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 0;
+  background: #1a1f2d;
+}
+
+.rpg-team {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}

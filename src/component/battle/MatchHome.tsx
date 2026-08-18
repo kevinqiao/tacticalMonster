@@ -13,6 +13,7 @@ import { MatchReportModel } from "./types";
 const GamePlayerCache = new Map<string, React.ComponentType<GamePlayerProps>>();
 const gamePlayerMap: Record<string, () => Promise<any>> = {
   'solitaire': () => import('./games/solitaireSolo/battle/SoloGame'),
+  'chess': () => import('./games/chessArena/battle/PlayChess'),
 };
 const ErrorComponent: React.FC<{ gameType: string; error?: Error }> = ({ gameType, error }) => (
   <div style={{

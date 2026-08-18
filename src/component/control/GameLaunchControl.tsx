@@ -6,6 +6,7 @@ const GAME_PROVIDER: { [key: string]: string } = {
   SOLITAIRE: "SolitaireArenaLauncher",
   LUDO: "LudoArenaLauncher",
   TACTICAL_MONSTER: "TacticalMonsterArenaLauncher",
+  CHESS: "ChessArenaLauncher",
 }
 
 // 优化的主渲染组件

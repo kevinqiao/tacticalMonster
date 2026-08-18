@@ -15,6 +15,8 @@ export const SSA_URLS: { [k: string]: string } = {
   "ludo": "https://famous-mule-757.convex.cloud",
   "solitaire": "https://limitless-platypus-124.convex.cloud",
   "tournament": "https://beloved-mouse-699.convex.cloud",
+  "chessArena": "https://chess-arena-placeholder.convex.cloud",
+  "portal": "https://portal-rpg-placeholder.convex.cloud",
 };
 export const SSA_AUTH_URLS: { [k: string]: string } = {
   "solitaireArena": "https://artful-chipmunk-59.convex.site",
@@ -22,6 +24,8 @@ export const SSA_AUTH_URLS: { [k: string]: string } = {
   "ludo": "https://famous-mule-757.convex.site",
   "solitaire": "https://limitless-platypus-124.convex.site",
   "tournament": "https://beloved-mouse-699.convex.site",
+  "chessArena": "https://chess-arena-placeholder.convex.site",
+  "portal": "https://portal-rpg-placeholder.convex.site",
 };
 interface ISSAContext {
   player: any;
