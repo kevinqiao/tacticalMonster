@@ -14,6 +14,7 @@ import {
   isPeriodScopedTournament,
   type PortalTournamentDefinition,
 } from "../../../data/portalTournamentConfigs";
+import { resolveLeagueScope } from "../../../data/portalLeagueScope";
 import { getOrCreateOpenInstance } from "../list/portalInstanceService";
 import {
   insertPlayerSessionForUid,
@@ -121,6 +122,7 @@ export const tryJoinExistingAsyncMatch = internalMutation({
     templateId: v.string(),
     effectiveHumans: v.number(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    leagueScopeKey: v.optional(v.string()),
     campaignId: v.optional(v.string()),
     partnerId: v.optional(v.number()),
     maxPlaysPerDay: v.optional(v.number()),
@@ -138,6 +140,10 @@ export const tryJoinExistingAsyncMatch = internalMutation({
       dayTimezone,
       playEntryLane,
     } = args;
+    const leagueScopeKey = resolveLeagueScope({
+      leagueScopeKey: args.leagueScopeKey,
+      lobbyId,
+    })?.leagueScopeKey;
     const def = getPortalTournamentDefinition(templateId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" as const };
@@ -172,6 +178,7 @@ export const tryJoinExistingAsyncMatch = internalMutation({
         uid,
         templateId,
         ...(lobbyId ? { lobbyId } : {}),
+        ...(leagueScopeKey ? { scopeKey: leagueScopeKey } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
         ...(playEntryLane ? { entryLane: playEntryLane } : {}),
       });
@@ -248,6 +255,7 @@ export const tryJoinExistingAsyncMatch = internalMutation({
         const scope = await resolveEconomyScope(ctx, {
           partnerId: resolvedPartnerId,
           lobbyId: lobbyId ?? null,
+          scopeKey: leagueScopeKey,
         });
         scopeKey = scope.scopeKey;
         lobbyIdForCharge = scope.lobbyId;
@@ -290,6 +298,7 @@ export const tryJoinExistingAsyncMatch = internalMutation({
           createdAt: now,
           updatedAt: now,
           ...(lobbyId ? { joinLobbyId: lobbyId } : {}),
+          ...(leagueScopeKey ? { joinLeagueScopeKey: leagueScopeKey } : {}),
           ...(rewardsOverrideSnapshot ? { rewardsOverrideSnapshot } : {}),
           entrySnapshot: entrySnap,
         });
@@ -402,6 +411,7 @@ export const chargeAsyncMultiCreate = internalMutation({
     uid: v.string(),
     templateId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    leagueScopeKey: v.optional(v.string()),
     campaignId: v.optional(v.string()),
     partnerId: v.optional(v.number()),
     maxPlaysPerDay: v.optional(v.number()),
@@ -419,6 +429,10 @@ export const chargeAsyncMultiCreate = internalMutation({
       playEntryLane,
       partnerId,
     } = args;
+    const leagueScopeKey = resolveLeagueScope({
+      leagueScopeKey: args.leagueScopeKey,
+      lobbyId,
+    })?.leagueScopeKey;
     const def = getPortalTournamentDefinition(templateId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" as const };
@@ -453,6 +467,7 @@ export const chargeAsyncMultiCreate = internalMutation({
         uid,
         templateId,
         ...(lobbyId ? { lobbyId } : {}),
+        ...(leagueScopeKey ? { scopeKey: leagueScopeKey } : {}),
         ...(dayTimezone ? { dayTimezone } : {}),
         ...(playEntryLane ? { entryLane: playEntryLane } : {}),
       });
@@ -473,6 +488,7 @@ export const chargeAsyncMultiCreate = internalMutation({
       const scope = await resolveEconomyScope(ctx, {
         partnerId: resolvedPartnerId,
         lobbyId: lobbyId ?? null,
+        scopeKey: leagueScopeKey,
       });
       scopeKey = scope.scopeKey;
       lobbyIdForCharge = scope.lobbyId;

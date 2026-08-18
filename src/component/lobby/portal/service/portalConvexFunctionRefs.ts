@@ -124,11 +124,29 @@ export const portalTournamentFns = {
   townUpgradeZone: makeFunctionReference<"mutation">(
     "service/town/zones:upgradeZoneMutation"
   ),
+  townDevelopDistrict: makeFunctionReference<"mutation">(
+    "service/town/zones:developDistrictMutation"
+  ),
+  townUpgradeDistrict: makeFunctionReference<"mutation">(
+    "service/town/zones:upgradeDistrictMutation"
+  ),
+  townRebrandDistrict: makeFunctionReference<"mutation">(
+    "service/town/zones:rebrandDistrictMutation"
+  ),
+  townClaimTermPass: makeFunctionReference<"mutation">(
+    "service/town/zones:claimTermPassMutation"
+  ),
+  townClaimGameOps: makeFunctionReference<"mutation">(
+    "service/town/zones:claimGameOpsMutation"
+  ),
   townCollectPassive: makeFunctionReference<"mutation">(
     "service/town/zones:collectPassiveMutation"
   ),
   townExpandDistrict: makeFunctionReference<"mutation">(
     "service/town/zones:expandDistrictMutation"
+  ),
+  townSetCurrentDistrict: makeFunctionReference<"mutation">(
+    "service/town/zones:setCurrentDistrictMutation"
   ),
   townEnsureZones: makeFunctionReference<"mutation">(
     "service/town/zones:ensureZones"

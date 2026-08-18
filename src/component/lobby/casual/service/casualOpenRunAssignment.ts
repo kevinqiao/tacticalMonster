@@ -39,6 +39,8 @@ export interface OpenCasualRunAssignment {
   dueAt?: number;
   /** 商家活动对局；Portal `listOpenCasualRunAssignments` 返回 */
   campaignId?: string;
+  /** Town vs Lobby partition (`town:{id}` / `lobby:{id}`). */
+  leagueScopeKey?: string;
 }
 
 export function isTriathlonAssignment(a: OpenCasualRunAssignment): boolean {

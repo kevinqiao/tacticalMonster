@@ -16,7 +16,11 @@ import type { Id } from "../../_generated/dataModel";
 import { internalMutation, type MutationCtx, type QueryCtx } from "../../_generated/server";
 import { checkAndUnlockBadgesCore } from "../badge/portalBadgeService";
 import { syncLobbyOfferingUnlocksForSeasonLevel } from "../lobby/lobbyOfferingUnlocks";
-import { ensureWeeklyLeagueProfileForLobby } from "../weeklyLeague/casualWeeklyLeagueProfile";
+import {
+  ensureWeeklyLeagueProfileForScope,
+  findWeeklyLeagueProfile,
+} from "../weeklyLeague/casualWeeklyLeagueProfile";
+import { lobbyLeagueScopeKey } from "../../data/portalLeagueScope";
 import { resolveSeasonHonorContext } from "./resolvePortalSeasonHonor";
 
 async function getSeasonRow(
@@ -112,11 +116,9 @@ export async function finalizePreviousSeasonsIfNeeded(
   }
 
   if (finalizedSeasonId) {
-    await ensureWeeklyLeagueProfileForLobby(ctx, uid, lobbyId, now);
-    const profile = await ctx.db
-      .query("portal_weekly_league_profile")
-      .withIndex("by_uid_lobby", (q) => q.eq("uid", uid).eq("lobbyId", lobbyId))
-      .unique();
+    const leagueScopeKey = lobbyLeagueScopeKey(lobbyId);
+    await ensureWeeklyLeagueProfileForScope(ctx, uid, leagueScopeKey, now);
+    const profile = await findWeeklyLeagueProfile(ctx, uid, leagueScopeKey);
     if (profile) {
       await ctx.db.patch(profile._id, {
         unreadSeasonMarks: true,

@@ -9,14 +9,23 @@ export type WalletBalances = {
 
 type WalletKind = "coins" | "gems" | "tickets";
 
+export type EnsurePlayerWalletOpts = {
+  seedCoins?: number;
+  seedTickets?: number;
+  /** Ledger reason written when seedTickets > 0 (town grant idempotency). */
+  seedTicketReason?: string;
+};
+
 /**
  * Ensure scoped wallet exists. For scopeKey "shared", seed once from legacy
  * portal_players.coins/gems/tickets (then clear those fields to avoid double-count).
+ * Town / other scopes may pass seedCoins / seedTickets for first insert only.
  */
 export async function ensurePlayerWallet(
   ctx: MutationCtx,
   uid: string,
-  scopeKey: string
+  scopeKey: string,
+  opts?: EnsurePlayerWalletOpts
 ): Promise<Doc<"portal_player_wallets">> {
   const existing = await ctx.db
     .query("portal_player_wallets")
@@ -47,6 +56,9 @@ export async function ensurePlayerWallet(
         });
       }
     }
+  } else {
+    coins = Math.max(0, Math.floor(opts?.seedCoins ?? 0));
+    tickets = Math.max(0, Math.floor(opts?.seedTickets ?? 0));
   }
 
   const id = await ctx.db.insert("portal_player_wallets", {
@@ -60,6 +72,18 @@ export async function ensurePlayerWallet(
   });
   const row = await ctx.db.get(id);
   if (!row) throw new Error("wallet_insert_failed");
+
+  if (scopeKey !== "shared" && tickets > 0 && opts?.seedTicketReason) {
+    await ctx.db.insert("portal_coin_ledger", {
+      uid,
+      kind: "tickets",
+      delta: tickets,
+      balanceAfter: tickets,
+      reason: opts.seedTicketReason,
+      scopeKey,
+      createdAt: now,
+    });
+  }
   return row;
 }
 

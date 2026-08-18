@@ -7,23 +7,40 @@ import type { EntertainmentBonusView } from "./TownZonePanel";
 import ProsperityMilestonesStrip from "./ProsperityMilestonesStrip";
 import type { ProsperityMilestonesView } from "./prosperityMilestones";
 import { FALLBACK_PROSPERITY_MILESTONES } from "./prosperityMilestones";
+import { districtLabel } from "./mayfieldSceneLayout";
 
 export interface TownMeTabProps {
-  mayorLevel: number;
+  seasonLevel: number;
+  coins?: number;
+  gems?: number;
   prosperityScore: number;
   venueLevel: { trial: number; showdown: number };
   unlockedDistricts: string[];
+  currentDistrict?: string;
   prosperityMilestones?: ProsperityMilestonesView;
   entertainmentBonus?: EntertainmentBonusView;
+  coinTableBonus?: EntertainmentBonusView;
+  termPass?: { completedMain: number; mainNodes: number; claimableCount: number } | null;
+  gameCodex?: Array<{ gameType: string; label: string; opened: boolean; played: boolean }>;
+  ownedTitles?: string[];
+  onOpenReward?: () => void;
 }
 
 const TownMeTab: React.FC<TownMeTabProps> = ({
-  mayorLevel,
+  seasonLevel,
+  coins,
+  gems,
   prosperityScore,
   venueLevel,
   unlockedDistricts,
+  currentDistrict = "D0",
   prosperityMilestones = FALLBACK_PROSPERITY_MILESTONES,
   entertainmentBonus,
+  coinTableBonus,
+  termPass,
+  gameCodex,
+  ownedTitles,
+  onOpenReward,
 }) => {
   const portal = usePortal();
   const wallet = portal.playerWallet;
@@ -33,10 +50,35 @@ const TownMeTab: React.FC<TownMeTabProps> = ({
   return (
     <div className="town-tab-panel">
       <h2>Mayor</h2>
+      {termPass ? (
+        <button type="button" className="town-tab-panel__card" onClick={onOpenReward}>
+          <strong>
+            Pass {termPass.completedMain}/{termPass.mainNodes}
+            {termPass.claimableCount > 0 ? " · claim" : ""}
+          </strong>
+        </button>
+      ) : null}
+      {ownedTitles && ownedTitles.length > 0 ? (
+        <div className="town-tab-panel__card">
+          <strong>Titles</strong>
+          <p>{ownedTitles.join(" · ")}</p>
+        </div>
+      ) : null}
+      {gameCodex && gameCodex.length > 0 ? (
+        <div className="town-tab-panel__card">
+          <strong>Games</strong>
+          {gameCodex.map((row) => (
+            <div key={row.gameType} className="town-tab-panel__row">
+              <span>{row.label}</span>
+              <span>{row.played ? "Played" : row.opened ? "Opened" : "Locked"}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="town-tab-panel__card">
         <div className="town-tab-panel__row">
-          <span>Mayor Lv</span>
-          <span>{mayorLevel}</span>
+          <span>Season Lv</span>
+          <span>{seasonLevel}</span>
         </div>
         <div className="town-tab-panel__row">
           <span>Prosperity</span>
@@ -59,17 +101,30 @@ const TownMeTab: React.FC<TownMeTabProps> = ({
             </span>
           </div>
         ) : null}
+        {coinTableBonus ? (
+          <div className="town-tab-panel__row">
+            <span>Coin tables this week</span>
+            <span>
+              {coinTableBonus.gamesThisWeek}/{coinTableBonus.minGamesPerWeek}
+              {coinTableBonus.active ? " · bonus on" : ""}
+            </span>
+          </div>
+        ) : null}
+        <div className="town-tab-panel__row">
+          <span>Current district</span>
+          <span>{districtLabel(currentDistrict)}</span>
+        </div>
         <div className="town-tab-panel__row">
           <span>Districts</span>
-          <span>{unlockedDistricts.join(", ")}</span>
+          <span>{unlockedDistricts.map((id) => districtLabel(id)).join(", ")}</span>
         </div>
         <div className="town-tab-panel__row">
           <span>Coins</span>
-          <span>{wallet?.coins?.toLocaleString() ?? "—"}</span>
+          <span>{(coins ?? wallet?.coins)?.toLocaleString() ?? "—"}</span>
         </div>
         <div className="town-tab-panel__row">
           <span>Gems</span>
-          <span>{wallet?.gems?.toLocaleString() ?? "—"}</span>
+          <span>{(gems ?? wallet?.gems)?.toLocaleString() ?? "—"}</span>
         </div>
         <div className="town-tab-panel__row">
           <span>Replay tokens</span>

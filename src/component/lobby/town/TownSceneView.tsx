@@ -1,32 +1,32 @@
 import React from "react";
 
 import MayfieldTownScene from "./MayfieldTownScene";
-import type { TownZoneView } from "./TownZonePanel";
+import type { DistrictOpView } from "./districtSystem";
 import { TownBuildingView } from "./types";
 
 export interface TownSceneViewProps {
   buildings: TownBuildingView[];
-  zones?: TownZoneView[];
+  districtOps?: DistrictOpView[];
   unlockedDistricts?: string[];
   currentDistrict?: string;
   activeBuildingId: string | null;
   onBuildingClick: (building: TownBuildingView) => void;
-  onZoneClick?: () => void;
+  onDistrictClick?: () => void;
 }
 
 /** Mode 1: static town plate + clickable building hotspots (no walk animation). */
 const TownSceneView: React.FC<TownSceneViewProps> = ({
   buildings,
-  zones,
+  districtOps,
   unlockedDistricts,
   currentDistrict,
   activeBuildingId,
   onBuildingClick,
-  onZoneClick,
+  onDistrictClick,
 }) => (
   <MayfieldTownScene
     buildings={buildings}
-    zones={zones}
+    districtOps={districtOps}
     unlockedDistricts={unlockedDistricts}
     currentDistrict={currentDistrict}
     activeBuildingId={activeBuildingId}
@@ -34,7 +34,7 @@ const TownSceneView: React.FC<TownSceneViewProps> = ({
     playerPos={{ x: -999, y: -999 }}
     showPlayer={false}
     onBuildingClick={onBuildingClick}
-    onZoneClick={onZoneClick}
+    onDistrictClick={onDistrictClick}
   />
 );
 

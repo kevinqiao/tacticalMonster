@@ -14,6 +14,7 @@ import {
 } from "./zoneEconomyConfig";
 import { ensureTownProgress, readTownProgress } from "./townProgressStore";
 import { applyWalletDelta, getPlayerWalletBalances } from "../economy/portalWalletDao";
+import { coinTableBonusActive, resolveCoinGamesThisWeek } from "./coinWeekProgress";
 import { entertainmentBonusActive, resolveShowdownGamesThisWeek } from "./showdownWeekProgress";
 import { passiveCapAllowance } from "./townPassiveRollup";
 import type { TownScopedCtx } from "./portalTownService";
@@ -130,7 +131,8 @@ export function zoneView(
   zone: TownZoneRow,
   districtId: DistrictId,
   developedCountInDistrict: number,
-  showdownGamesThisWeek = 0
+  showdownGamesThisWeek = 0,
+  coinGamesThisWeek = 0
 ) {
   const slot = slotConfig(districtId, zone.slotId);
   const zoneType = zone.zoneType as ZoneTypeId | undefined;
@@ -150,6 +152,7 @@ export function zoneView(
       level: zone.level,
       districtId,
       showdownGamesThisWeek,
+      coinGamesThisWeek,
     });
   } else if (isDeveloped && zoneType) {
     ratePerHour = passivePerHour({
@@ -157,6 +160,7 @@ export function zoneView(
       level: zone.level,
       districtId,
       showdownGamesThisWeek,
+      coinGamesThisWeek,
     });
   }
 
@@ -174,6 +178,10 @@ export function zoneView(
       zoneType === "entertainment" && isDeveloped
         ? entertainmentBonusActive(showdownGamesThisWeek)
         : undefined,
+    coinTableBonusActive:
+      zoneType === "commercial" && isDeveloped
+        ? coinTableBonusActive(coinGamesThisWeek)
+        : undefined,
     label: zoneType ? ZONE_TYPES[zoneType].label : null,
     labelZh: zoneType ? ZONE_TYPES[zoneType].labelZh : null,
     developedCountInDistrict,
@@ -184,7 +192,8 @@ export async function computeCollectablePassive(
   ctx: ZoneCtx,
   zones: TownZoneRow[],
   showdownGamesThisWeek = 0,
-  now = Date.now()
+  now = Date.now(),
+  coinGamesThisWeek = 0
 ): Promise<{ raw: number; capped: number; ratePerHour: number }> {
   let ratePerHour = 0;
   for (const zone of zones) {
@@ -194,6 +203,7 @@ export async function computeCollectablePassive(
       level: zone.level,
       districtId: zone.districtId as DistrictId,
       showdownGamesThisWeek,
+      coinGamesThisWeek,
     });
   }
 
@@ -205,7 +215,7 @@ export async function computeCollectablePassive(
     .filter((z) => z.level > 0 && z.lastCollectedAt)
     .reduce((min, z) => Math.min(min, z.lastCollectedAt!), Number.POSITIVE_INFINITY);
 
-  const since = Number.isFinite(oldest) ? oldest : now;
+  const since = Number.isFinite(oldest) ? oldest : 0;
   const elapsedMs = Math.max(0, now - since);
   const raw = collectablePassiveCoins({ passivePerHourTotal: ratePerHour, elapsedMs });
   const allowance = await passiveCapAllowance(ctx, ctx.uid, ctx.townId, now);
@@ -278,6 +288,11 @@ export async function upgradeZone(
   if (!zone?.zoneType || zone.level < 1) return { ok: false, error: "NOT_DEVELOPED" };
   if (zone.level >= ZONE_GLOBAL.maxZoneLevel) return { ok: false, error: "MAX_LEVEL" };
 
+  const progress = await readTownProgress(ctx);
+  if (!progress?.unlockedDistricts.includes(zone.districtId)) {
+    return { ok: false, error: "DISTRICT_LOCKED" };
+  }
+
   const zoneType = zone.zoneType as ZoneTypeId;
   const cost = upgradeCost(zoneType, zone.level);
   if (cost <= 0) return { ok: false, error: "NOT_UPGRADABLE" };
@@ -316,11 +331,13 @@ export async function collectPassive(
   const zones = await listTownZones(ctx);
   const progress = await readTownProgress(ctx);
   const showdownGamesThisWeek = resolveShowdownGamesThisWeek(progress, now);
+  const coinGamesThisWeek = resolveCoinGamesThisWeek(progress, now);
   const { raw, capped, ratePerHour } = await computeCollectablePassive(
     ctx,
     zones,
     showdownGamesThisWeek,
-    now
+    now,
+    coinGamesThisWeek
   );
   if (capped <= 0) {
     const wallet = await getPlayerWalletBalances(ctx, ctx.uid, ctx.playScopeKey);
@@ -392,11 +409,12 @@ export async function expandDistrict(
     return { ok: false, error: "MAYOR_LEVEL_TOO_LOW" };
   }
 
-  const priorZones = (await listTownZones(ctx)).filter(
-    (z) => z.districtId === expansion.requiresDistrict && z.level > 0 && z.zoneType
-  );
-  if (priorZones.length < expansion.minDevelopedZonesInPriorDistrict) {
-    return { ok: false, error: "NEED_MORE_ZONES" };
+  const priorZones = (await listTownZones(ctx)).filter((z) => {
+    if (z.districtId !== expansion.requiresDistrict || !(z.level > 0) || !z.zoneType) return false;
+    return Boolean(slotConfig(z.districtId as DistrictId, z.slotId)?.developable);
+  });
+  if (priorZones.length < expansion.minPriorDistrictLevel) {
+    return { ok: false, error: "NEED_HIGHER_DISTRICT_LEVEL" };
   }
 
   const completed = progress.completedQuestIds ?? progress.questIds ?? [];
@@ -426,6 +444,32 @@ export async function expandDistrict(
   return { ok: true, unlockedDistricts, coins: wallet.coins };
 }
 
+export async function setCurrentDistrict(
+  ctx: ZoneCtx,
+  districtId: DistrictId
+): Promise<{ ok: true; currentDistrict: string } | { ok: false; error: string }> {
+  if (!DISTRICTS[districtId]) return { ok: false, error: "INVALID_DISTRICT" };
+  const progress = await ensureTownProgress(ctx);
+  if (!progress.unlockedDistricts.includes(districtId)) {
+    return { ok: false, error: "DISTRICT_LOCKED" };
+  }
+  if (progress.currentDistrict !== districtId) {
+    await ctx.db.patch(progress._id, {
+      currentDistrict: districtId,
+      updatedAt: Date.now(),
+    });
+    await logTownEvent(ctx, "district_focus", { districtId });
+  }
+  return { ok: true, currentDistrict: districtId };
+}
+
 export function countDevelopedInDistrict(zones: TownZoneRow[], districtId: string): number {
-  return zones.filter((z) => z.districtId === districtId && z.level > 0 && z.zoneType).length;
+  return zones.filter((z) => {
+    if (z.districtId !== districtId || !(z.level > 0) || !z.zoneType) return false;
+    return Boolean(slotConfig(z.districtId as DistrictId, z.slotId)?.developable);
+  }).length;
+}
+
+export function countDevelopedByZoneType(zones: TownZoneRow[], zoneType: string): number {
+  return zones.filter((z) => z.level > 0 && z.zoneType === zoneType).length;
 }

@@ -1,11 +1,17 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import {
   DISTRICT_CATALOG,
   DEFAULT_D1_EXPANSION,
   checklistGates,
+  districtDevelopedLevel,
+  districtOpFor,
+  districtStatusLine,
   expansionChecklist,
+  liveDistrictCollect,
   type DistrictExpansionView,
+  type DistrictOpView,
+  type TownLevyView,
 } from "./districtSystem";
 import { TOWN_THEME } from "./townTheme";
 import { BUILDING_ICONS, TownBuildingView } from "./types";
@@ -17,8 +23,7 @@ export interface TownHallViewProps {
   mayorLevel?: number;
   prosperityPct?: number;
   coins?: number;
-  developedZonesD0?: number;
-  developedZonesD1?: number;
+  districtOps?: DistrictOpView[];
   d1Expansion?: DistrictExpansionView | null;
   onBuildingClick: (building: TownBuildingView) => void;
   onOpenMayorOffice?: () => void;
@@ -30,7 +35,10 @@ export interface TownHallViewProps {
   venueLevel?: { trial: number; showdown: number };
   currentDistrict?: string;
   unlockedDistricts?: string[];
-  collectablePassive?: number;
+  townLevy?: TownLevyView | null;
+  collectBusy?: boolean;
+  focusLevy?: boolean;
+  onCollectLevy?: () => void;
 }
 
 const TownHallView: React.FC<TownHallViewProps> = ({
@@ -39,8 +47,7 @@ const TownHallView: React.FC<TownHallViewProps> = ({
   mayorLevel = 1,
   prosperityPct = 0,
   coins = 0,
-  developedZonesD0 = 0,
-  developedZonesD1 = 0,
+  districtOps = [],
   d1Expansion = null,
   onBuildingClick,
   onOpenMayorOffice,
@@ -52,16 +59,35 @@ const TownHallView: React.FC<TownHallViewProps> = ({
   venueLevel = { trial: 1, showdown: 1 },
   currentDistrict = "D0",
   unlockedDistricts = ["D0"],
-  collectablePassive = 0,
+  townLevy = null,
+  collectBusy = false,
+  focusLevy = false,
+  onCollectLevy,
 }) => {
   const metaBuildings = buildings.filter((b) => !b.hallKind && b.id !== "town_hall");
   const rootClass = `town-hall${isMobile ? " town-hall--mobile" : ""}`;
+  const d0Level = districtDevelopedLevel(districtOpFor(districtOps, "D0"));
   const d1List = expansionChecklist(
     d1Expansion ?? DEFAULT_D1_EXPANSION,
     mayorLevel,
-    developedZonesD0,
+    d0Level,
     coins
   );
+  const districtsRef = useRef<HTMLElement | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const collectView = liveDistrictCollect(townLevy, districtOps, nowMs);
+  const levyTicking = Boolean(collectView?.dripping);
+
+  useEffect(() => {
+    if (!levyTicking) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [levyTicking, townLevy?.readyAt]);
+
+  useEffect(() => {
+    if (!focusLevy) return;
+    districtsRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [focusLevy]);
 
   return (
     <div className={rootClass} style={{ fontFamily: TOWN_THEME.fonts.ui }}>
@@ -126,29 +152,41 @@ const TownHallView: React.FC<TownHallViewProps> = ({
         </section>
       ) : null}
 
-      <section className="town-hall__section town-hall__section--districts" aria-label="Districts">
-        <h2 className="town-hall__section-label">Districts</h2>
+      <section
+        ref={districtsRef}
+        className={`town-hall__section town-hall__section--districts${focusLevy ? " town-hall__section--levy-focus" : ""}`}
+        aria-label="Districts"
+      >
+        <div className="town-hall__section-head">
+          <h2 className="town-hall__section-label">Districts</h2>
+          {collectView ? (
+            <button
+              type="button"
+              className="town-hall__collect"
+              onClick={onCollectLevy}
+              disabled={!onCollectLevy || collectBusy || !collectView.canCollect}
+            >
+              {collectBusy ? "Collecting…" : collectView.collectLabel}
+            </button>
+          ) : null}
+        </div>
+        {collectView ? (
+          <div className={`town-hall__drip${collectView.dripping ? "" : " town-hall__drip--full"}`}>
+            <span className="town-hall__drip-bar" aria-hidden>
+              <i style={{ width: `${Math.round(collectView.progress * 100)}%` }} />
+            </span>
+            <span className="town-hall__drip-copy">{collectView.bankLine}</span>
+          </div>
+        ) : null}
         <div className="town-hall__district-row">
           {DISTRICT_CATALOG.map((district) => {
             const unlocked = unlockedDistricts.includes(district.id);
             const current = district.id === currentDistrict;
-            const developed = district.id === "D0" ? developedZonesD0 : developedZonesD1;
+            const op = districtOpFor(districtOps, district.id);
             const isD1Locked = district.id === "D1" && !unlocked;
-
-            let state: string;
-            if (current) state = "Here";
-            else if (unlocked) state = "Open";
-            else state = "Locked";
-
-            const detail = `${developed}/${district.developableSlots} lots`;
-            const showCollect = unlocked && developed > 0 && collectablePassive > 0;
-            const cta = isD1Locked
-              ? d1List.canExpand
-                ? "Expand ready"
-                : "View gates"
-              : showCollect
-                ? `Collect +${collectablePassive}`
-                : "Open";
+            const state = current ? "Here" : unlocked ? "Open" : "Locked";
+            const detail = districtStatusLine(op, unlocked);
+            const cta = isD1Locked ? (d1List.canExpand ? "Expand ready" : "View gates") : "Open";
 
             return (
               <button
@@ -156,9 +194,7 @@ const TownHallView: React.FC<TownHallViewProps> = ({
                 type="button"
                 className={`town-hall__district-chip${current ? " town-hall__district-chip--current" : ""}${
                   unlocked ? "" : " town-hall__district-chip--locked"
-                }${isD1Locked ? " town-hall__district-chip--gates" : ""}${
-                  showCollect ? " town-hall__district-chip--collect" : ""
-                }`}
+                }${isD1Locked ? " town-hall__district-chip--gates" : ""}`}
                 onClick={() => onOpenDistrict?.(district.id)}
                 disabled={!onOpenDistrict}
               >
@@ -178,10 +214,7 @@ const TownHallView: React.FC<TownHallViewProps> = ({
                     ))}
                   </span>
                 ) : (
-                  <span className="town-hall__district-chip-detail">
-                    {detail}
-                    {showCollect ? ` · +${collectablePassive} ready` : ""}
-                  </span>
+                  <span className="town-hall__district-chip-detail">{detail}</span>
                 )}
                 <span className="town-hall__district-chip-cta">{cta}</span>
               </button>
@@ -218,14 +251,7 @@ const TownHallView: React.FC<TownHallViewProps> = ({
         </section>
       ) : null}
 
-      {unlockedDistricts.includes("D1") ? (
-        <section className="town-hall__quest" aria-label="District quest">
-          <span className="town-hall__quest-icon" aria-hidden>
-            📋
-          </span>
-          <span className="town-hall__quest-text">Play 1 solo challenge to warm up the square.</span>
-        </section>
-      ) : d1List.canExpand ? (
+      {d1List.canExpand ? (
         <section className="town-hall__quest" aria-label="District quest">
           <span className="town-hall__quest-icon" aria-hidden>
             📋

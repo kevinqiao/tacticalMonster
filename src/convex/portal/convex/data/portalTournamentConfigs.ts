@@ -7,6 +7,7 @@
 
 import {
   PORTAL_SOLO_POINTS as GENERATED_SOLO_POINTS,
+  PORTAL_SOLO_COIN_REWARDS as GENERATED_SOLO_COIN_REWARDS,
   PORTAL_MULTI_RANK_POINTS as GENERATED_MULTI_RANK_POINTS,
   PORTAL_MULTI_COIN_ENTRY as GENERATED_MULTI_COIN_ENTRY,
   PORTAL_MULTI_COIN_RANK_REWARDS as GENERATED_MULTI_COIN_RANK_REWARDS,
@@ -358,6 +359,11 @@ export const PORTAL_MULTI_COIN_RANK_REWARDS: Record<string, number> = {
   ...GENERATED_MULTI_COIN_RANK_REWARDS,
 };
 
+export const PORTAL_SOLO_COIN_REWARDS = {
+  success: GENERATED_SOLO_COIN_REWARDS.success,
+  fail: GENERATED_SOLO_COIN_REWARDS.fail,
+} as const;
+
 function soloDef(gameType: string, title: string): PortalTournamentDefinition {
   return {
     tournamentId: `portal_solo_p75_${gameType}`,
@@ -368,6 +374,10 @@ function soloDef(gameType: string, title: string): PortalTournamentDefinition {
     maxPlayers: 1,
     entry: { kind: "none" },
     soloPoints: PORTAL_SOLO_POINTS,
+    coinRewards: {
+      soloSuccess: PORTAL_SOLO_COIN_REWARDS.success,
+      soloFail: PORTAL_SOLO_COIN_REWARDS.fail,
+    },
     // BB bot 分位相对真人偏低：合并后通关线 = p75 × 1.2；仪式 A 的 p50 不抬（ritualScoreMultiplier 缺省 1）
     seedQuantileSuccess:
       gameType === "block_blast"
@@ -387,6 +397,7 @@ function multiDef(gameType: string, title: string): PortalTournamentDefinition {
     timingMode: "async",
     entry: { kind: "none" },
     rankPoints: PORTAL_MULTI_RANK_POINTS,
+    coinRewards: { rankCoins: { ...PORTAL_MULTI_COIN_RANK_REWARDS } },
     rankRates: [...CASUAL_RANK_RATES_5],
   };
 }

@@ -1,5 +1,7 @@
 /** Mayfield scene layout — districts, hotspots, zone overlays */
 
+import { DISTRICT_CATALOG } from "./districtSystem";
+
 export type MayfieldBuildingId =
   | "saloon"
   | "parlor"
@@ -14,8 +16,8 @@ export type MayfieldHotspot = {
   h: number;
 };
 
-export type MayfieldZoneOverlay = {
-  slotId: string;
+export type MayfieldDistrictOverlay = {
+  districtId: string;
   x: number;
   y: number;
   w: number;
@@ -29,12 +31,17 @@ export const MAYFIELD_D0_HOTSPOTS: MayfieldHotspot[] = [
   { buildingId: "parlor", x: 0.54, y: 0.48, w: 0.28, h: 0.34 },
 ];
 
-export const MAYFIELD_D0_ZONE_OVERLAYS: MayfieldZoneOverlay[] = [
-  { slotId: "d0_z1", x: 0.42, y: 0.34, w: 0.1, h: 0.08 },
-  { slotId: "d0_z2", x: 0.54, y: 0.34, w: 0.1, h: 0.08 },
-  { slotId: "d0_z3", x: 0.42, y: 0.44, w: 0.1, h: 0.08 },
-  { slotId: "d0_z4", x: 0.54, y: 0.44, w: 0.1, h: 0.08 },
-];
+export const MAYFIELD_DISTRICT_OVERLAY: MayfieldDistrictOverlay = {
+  districtId: "current",
+  x: 0.38,
+  y: 0.34,
+  w: 0.24,
+  h: 0.12,
+};
+
+export function districtOverlayForScene(): MayfieldDistrictOverlay {
+  return MAYFIELD_DISTRICT_OVERLAY;
+}
 
 export type MayfieldBuildingLayout = {
   id: MayfieldBuildingId;
@@ -57,7 +64,9 @@ export function hotspotsForDistricts(_unlockedDistricts: string[]): MayfieldHots
   return [...MAYFIELD_D0_HOTSPOTS];
 }
 
+export const MAYFIELD_DISTRICTS = DISTRICT_CATALOG;
+
 export function districtLabel(districtId: string): string {
-  if (districtId === "D1") return "Market Street";
-  return "Old Square";
+  const row = MAYFIELD_DISTRICTS.find((d) => d.id === districtId);
+  return row?.label ?? "Old Square";
 }

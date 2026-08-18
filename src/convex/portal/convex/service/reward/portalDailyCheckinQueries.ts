@@ -7,12 +7,14 @@ import { getPortalDailyCheckinStatusCore } from "./portalDailyCheckinService";
 export const getDailyCheckinStatus = authedQuery({
   args: {
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
     getPortalDailyCheckinStatusCore(
       ctx,
       ctx.uid,
       Date.now(),
-      args.lobbyId ?? null
+      args.lobbyId ?? null,
+      args.scopeKey ?? null
     ),
 });

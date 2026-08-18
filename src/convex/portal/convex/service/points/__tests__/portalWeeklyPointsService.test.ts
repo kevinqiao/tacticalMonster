@@ -117,8 +117,8 @@ describe("portal points config", () => {
 
   it("multi rank points", () => {
     expect(portalRankPointDelta(multiDef, 1)).toBe(5);
-    expect(portalRankPointDelta(multiDef, 3)).toBe(1);
-    expect(portalRankPointDelta(multiDef, 5)).toBe(-2);
+    expect(portalRankPointDelta(multiDef, 3)).toBe(2);
+    expect(portalRankPointDelta(multiDef, 5)).toBe(0);
   });
 
   it("weekly period key is stable string", () => {

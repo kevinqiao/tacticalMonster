@@ -7,7 +7,14 @@ import { getPortalAdCoinOfferCore } from "./portalAdCoinService";
 export const getAdCoinOffer = authedQuery({
   args: {
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
-    getPortalAdCoinOfferCore(ctx, ctx.uid, Date.now(), args.lobbyId ?? null),
+    getPortalAdCoinOfferCore(
+      ctx,
+      ctx.uid,
+      Date.now(),
+      args.lobbyId ?? null,
+      args.scopeKey ?? null
+    ),
 });

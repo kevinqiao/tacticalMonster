@@ -2,12 +2,14 @@
   "version": 1,
   "townId": "mayfield",
   "formulas": {
-    "developCost": "developCostBase * developExponent ^ (slotIndex - 1)",
+    "developCost": "district.developCost",
     "upgradeCost": "zoneType.upgradeCostBase * upgradeExponent ^ currentLevel",
-    "passivePerHour": "zoneType.passiveBasePerHour * passiveGrowth ^ (level - 1) * district.passiveDistrictBonus * entertainmentBonus",
-    "collectableCoins": "min(elapsedHours, maxOfflineHours) * passivePerHour, then applyPassiveCap",
-    "prosperityScore": "round(100 * sum(slotProsperity) / districtMaxProsperity)",
-    "slotProsperity": "zoneType.prosperityWeight * level * district.prosperityDistrictFactor"
+    "rebrandCost": "district.rebrandCost",
+    "passivePerHour": "zoneType.passiveBasePerHour * passiveGrowth ^ (level - 1) * district.passiveDistrictBonus * entertainmentBonus * coinTableBonus",
+    "collectableCoins": "floor(sum(districtPassive) * min(elapsedHours, levyCycleHours)); collect anytime and restart the drip",
+    "prosperityScore": "round(100 * sum(districtProsperity) / townMaxProsperity)",
+    "districtProsperity": "zoneType.prosperityWeight * level * district.prosperityDistrictFactor",
+    "passXpSpeed": "1 + prosperitySpeedPerPoint * prosperityScore"
   },
   "global": {
     "developCostBase": 150,
@@ -15,12 +17,27 @@
     "upgradeExponent": 1.55,
     "passiveGrowth": 1.35,
     "maxZoneLevel": 5,
-    "maxOfflineHours": 12,
+    "levyCycleHours": 8,
     "passiveCapWeeklyShare": 0.25,
     "passiveCapSoftWeeklyShare": 0.3,
     "passiveCapRollingDays": 7,
     "minCollectIntervalMs": 60000,
     "startingCoins": 5000
+  },
+  "playEntry": {
+    "freePlaySoloDailyCap": 5,
+    "freePlayMultiDailyCap": 0,
+    "adEntryEnabled": false,
+    "adEntrySoloDailyCap": 0,
+    "adEntryMultiDailyCap": 0,
+    "ticketEntryEnabled": true,
+    "ticketEntrySoloPriceTickets": 1,
+    "ticketEntrySoloDailyCap": 0,
+    "ticketEntryMultiPriceTickets": 1,
+    "ticketEntryMultiDailyCap": 100,
+    "soloSuccessDailyEnabled": true,
+    "soloSuccessDailyCap": 5,
+    "soloSuccessAllowPlayAfterCap": false
   },
   "mayorLevel": {
     "maxLevel": 30,
@@ -32,13 +49,58 @@
       0, 0, 40, 95, 170, 265, 380, 515, 670, 845, 1040, 1255, 1490, 1745, 2020, 2315, 2630, 2965, 3320, 3695, 4090, 4505, 4940, 5395, 5870, 6365, 6880, 7415, 7970, 8545, 9140
     ]
   },
+  "venueLevel": {
+    "maxLevel": 5,
+    "xpPerTrialComplete": 6,
+    "xpPerShowdownComplete": 12,
+    "xpPerShowdownWin": 6,
+    "dailyXpCap": {
+      "trial": 60,
+      "showdown": 100
+    },
+    "levelXp": [0, 0, 20, 50, 90, 140]
+  },
+  "prosperityMilestones": [
+    {
+      "id": "pros_25",
+      "threshold": 25,
+      "title": "Awakening Square",
+      "titleZh": "苏醒广场",
+      "blurb": "Town plaque unlocked in Mayor's Office."
+    },
+    {
+      "id": "pros_50",
+      "threshold": 50,
+      "title": "Growing Main Street",
+      "titleZh": "成长主街",
+      "blurb": "Prosperity banner on your Mayor profile."
+    },
+    {
+      "id": "pros_75",
+      "threshold": 75,
+      "title": "Busy Mayfield",
+      "titleZh": "繁忙 Mayfield",
+      "blurb": "Map district label flair (coming soon)."
+    },
+    {
+      "id": "pros_100",
+      "threshold": 100,
+      "title": "Golden Mayfield",
+      "titleZh": "黄金 Mayfield",
+      "blurb": "Legend mayor title on Me tab."
+    }
+  ],
   "zoneTypes": {
     "commercial": {
-      "label": "Commercial",
-      "labelZh": "商业区",
+      "label": "Finance",
+      "labelZh": "金融区",
       "passiveBasePerHour": 1.2,
       "upgradeCostBase": 80,
       "prosperityWeight": 1.0,
+      "coinTableBonus": {
+        "minGamesPerWeek": 3,
+        "passiveMultiplier": 1.2
+      },
       "allowedDistricts": ["D0", "D1"]
     },
     "industrial": {
@@ -83,9 +145,13 @@
     "D0": {
       "label": "Old Square",
       "labelZh": "老广场",
+      "developCost": 150,
+      "rebrandCost": 250,
+      "typeChoices": ["commercial", "industrial", "tourism", "entertainment"],
+      "gameType": "solitaire",
       "passiveDistrictBonus": 1.0,
       "prosperityDistrictFactor": 1.0,
-      "maxProsperityUnits": 28,
+      "maxProsperityUnits": 7,
       "slots": [
         { "slotId": "d0_civic", "zoneType": "civic", "prebuiltLevel": 1, "developable": false },
         { "slotId": "d0_z1", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] },
@@ -98,9 +164,13 @@
     "D1": {
       "label": "Market Street",
       "labelZh": "市场街",
+      "developCost": 400,
+      "rebrandCost": 320,
+      "typeChoices": ["commercial", "industrial", "tourism", "entertainment"],
+      "gameType": "yatz",
       "passiveDistrictBonus": 1.15,
       "prosperityDistrictFactor": 1.1,
-      "maxProsperityUnits": 38,
+      "maxProsperityUnits": 8,
       "slots": [
         { "slotId": "d1_z1", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] },
         { "slotId": "d1_z2", "zoneType": null, "developable": true, "choices": ["commercial", "industrial", "tourism", "entertainment"] },
@@ -110,21 +180,67 @@
       ],
       "expansion": {
         "requiresDistrict": "D0",
-        "minDevelopedZonesInPriorDistrict": 3,
+        "minPriorDistrictLevel": 3,
         "minMayorLevel": 3,
         "mainQuestId": "quest_d1_market",
         "expansionFeeCoins": 800
       }
     }
   },
+  "termPass": {
+    "xpPerShowdown": 10,
+    "xpPerSoloSuccess": 4,
+    "prosperitySpeedPerPoint": 0.004,
+    "mainNodes": 20,
+    "nodeXp": [20, 20, 20, 20, 20, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 40, 40, 40, 40, 40],
+    "rewards": [
+      { "node": 1, "kind": "coins", "amount": 40 },
+      { "node": 2, "kind": "coins", "amount": 50 },
+      { "node": 3, "kind": "coins", "amount": 60 },
+      { "node": 4, "kind": "title", "titleId": "square_squire", "title": "Square Squire" },
+      { "node": 5, "kind": "coins", "amount": 80 },
+      { "node": 6, "kind": "coins", "amount": 80 },
+      { "node": 7, "kind": "coins", "amount": 90 },
+      { "node": 8, "kind": "tickets", "amount": 1 },
+      { "node": 9, "kind": "coins", "amount": 90 },
+      { "node": 10, "kind": "coins", "amount": 120 },
+      { "node": 11, "kind": "coins", "amount": 100 },
+      { "node": 12, "kind": "coins", "amount": 100 },
+      { "node": 13, "kind": "coins", "amount": 110 },
+      { "node": 14, "kind": "coins", "amount": 110 },
+      { "node": 15, "kind": "coins", "amount": 150 },
+      { "node": 16, "kind": "tickets", "amount": 1 },
+      { "node": 17, "kind": "coins", "amount": 120 },
+      { "node": 18, "kind": "coins", "amount": 120 },
+      { "node": 19, "kind": "coins", "amount": 140 },
+      { "node": 20, "kind": "title", "titleId": "term_mayor", "title": "Term Mayor" }
+    ]
+  },
+  "gameCatalog": [
+    { "gameType": "solitaire", "label": "Solitaire", "requiredDistrict": null },
+    { "gameType": "yatz", "label": "Yatz", "requiredDistrict": "D1" }
+  ],
+  "gameOps": {
+    "featuredPlaysRequired": 3,
+    "featuredCoinReward": 80,
+    "dualPlaysRequired": 1,
+    "dualCoinReward": 60,
+    "rotation": [
+      { "id": "featured_solitaire", "kind": "featured", "gameType": "solitaire", "title": "This week: Solitaire" },
+      { "id": "featured_yatz", "kind": "featured", "gameType": "yatz", "title": "This week: Yatz" },
+      { "id": "launch_yatz", "kind": "launch", "gameType": "yatz", "title": "Market Street launch: Yatz" },
+      { "id": "dual_play", "kind": "dual", "gameTypes": ["solitaire", "yatz"], "title": "Play both halls" }
+    ]
+  },
   "precomputed": {
-    "developCostBySlotIndex": [
-      { "slotIndex": 1, "coins": 150 },
-      { "slotIndex": 2, "coins": 218 },
-      { "slotIndex": 3, "coins": 315 },
-      { "slotIndex": 4, "coins": 457 },
-      { "slotIndex": 5, "coins": 663 }
-    ],
+    "developCostByDistrict": {
+      "D0": 150,
+      "D1": 400
+    },
+    "rebrandCostByDistrict": {
+      "D0": 250,
+      "D1": 320
+    },
     "upgradeCostByTypeAndLevel": {
       "commercial": [
         { "fromLevel": 1, "toLevel": 2, "coins": 124 },
@@ -156,12 +272,14 @@
       "industrial": [1.5, 2.03, 2.73, 3.69, 4.98],
       "tourism": [0.9, 1.22, 1.64, 2.21, 2.99],
       "entertainment": [1.1, 1.49, 2.0, 2.71, 3.65],
-      "entertainmentWithBonus": [1.38, 1.86, 2.51, 3.38, 4.57]
+      "entertainmentWithBonus": [1.38, 1.86, 2.51, 3.38, 4.57],
+      "commercialWithBonus": [1.44, 1.94, 2.63, 3.54, 4.79]
     },
     "d0FullBuildSinkCoins": {
-      "developAll4Slots": 1140,
-      "upgradeAllCommercialTo5": 1076,
-      "note": "develop 150+218+315+457; upgrade sum for 4× commercial L1→5"
+      "developD0": 150,
+      "upgradeCommercialTo5": 1076,
+      "rebrandD0": 250,
+      "note": "one district: develop 150; upgrade commercial L1→5; rebrand once"
     },
     "referenceWeeklyCoinBudget": {
       "assumedHallAndQuestCoins": 700,

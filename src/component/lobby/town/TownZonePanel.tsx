@@ -92,7 +92,7 @@ const TownZonePanel: React.FC<TownZonePanelProps> = ({
         ) : null}
 
         <p className="town-zone-panel__expand-checks">
-          Build lots and expand districts from the Districts list.
+          Develop and upgrade districts from the Districts list. Types only change passive flavor.
         </p>
         {onOpenDistricts ? (
           <div className="town-zone-panel__expand">

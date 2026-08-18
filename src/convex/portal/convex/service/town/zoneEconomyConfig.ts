@@ -7,7 +7,10 @@
 
 import {
   DISTRICTS as DISTRICTS_GENERATED,
+  GAME_CATALOG as GAME_CATALOG_GENERATED,
+  GAME_OPS as GAME_OPS_GENERATED,
   MAYOR_LEVEL_CONFIG as MAYOR_LEVEL_CONFIG_GENERATED,
+  TERM_PASS as TERM_PASS_GENERATED,
   TOWN_ECONOMY_VERSION,
   ZONE_GLOBAL as ZONE_GLOBAL_GENERATED,
   ZONE_TYPES as ZONE_TYPES_GENERATED,
@@ -34,6 +37,10 @@ export interface ZoneTypeConfig {
     minGamesPerWeek: number;
     passiveMultiplier: number;
   };
+  coinTableBonus?: {
+    minGamesPerWeek: number;
+    passiveMultiplier: number;
+  };
 }
 
 export interface DistrictSlotConfig {
@@ -46,7 +53,7 @@ export interface DistrictSlotConfig {
 
 export interface DistrictExpansionConfig {
   requiresDistrict: DistrictId;
-  minDevelopedZonesInPriorDistrict: number;
+  minPriorDistrictLevel: number;
   minMayorLevel: number;
   mainQuestId: string;
   expansionFeeCoins: number;
@@ -55,6 +62,10 @@ export interface DistrictExpansionConfig {
 export interface DistrictConfig {
   label: string;
   labelZh: string;
+  developCost: number;
+  rebrandCost: number;
+  typeChoices: ZoneTypeId[];
+  gameType?: string | null;
   passiveDistrictBonus: number;
   prosperityDistrictFactor: number;
   maxProsperityUnits: number;
@@ -62,15 +73,74 @@ export interface DistrictConfig {
   expansion: DistrictExpansionConfig | null;
 }
 
+export type TermPassRewardKind = "coins" | "tickets" | "title";
+
+export interface TermPassReward {
+  node: number;
+  kind: TermPassRewardKind;
+  amount?: number;
+  titleId?: string;
+  title?: string;
+}
+
+export interface TermPassConfig {
+  xpPerShowdown: number;
+  xpPerSoloSuccess: number;
+  prosperitySpeedPerPoint: number;
+  mainNodes: number;
+  nodeXp: number[];
+  rewards: TermPassReward[];
+}
+
+export interface GameCatalogEntry {
+  gameType: string;
+  label: string;
+  requiredDistrict: DistrictId | null;
+}
+
+export interface GameOpsEvent {
+  id: string;
+  kind: "featured" | "launch" | "dual";
+  title: string;
+  gameType?: string;
+  gameTypes?: string[];
+}
+
+export interface GameOpsConfig {
+  featuredPlaysRequired: number;
+  featuredCoinReward: number;
+  dualPlaysRequired: number;
+  dualCoinReward: number;
+  rotation: GameOpsEvent[];
+}
+
 export const ZONE_ECONOMY_VERSION = TOWN_ECONOMY_VERSION;
 export const ZONE_GLOBAL = ZONE_GLOBAL_GENERATED;
 export const MAYOR_LEVEL_CONFIG = MAYOR_LEVEL_CONFIG_GENERATED;
 export const ZONE_TYPES: Record<ZoneTypeId, ZoneTypeConfig> = ZONE_TYPES_GENERATED;
 export const DISTRICTS: Record<DistrictId, DistrictConfig> = DISTRICTS_GENERATED;
+export const TERM_PASS: TermPassConfig = TERM_PASS_GENERATED;
+export const GAME_CATALOG: GameCatalogEntry[] = GAME_CATALOG_GENERATED;
+export const GAME_OPS: GameOpsConfig = GAME_OPS_GENERATED;
+
+export const DISTRICT_TYPE_CHOICES: ZoneTypeId[] = [
+  "commercial",
+  "industrial",
+  "tourism",
+  "entertainment",
+];
 
 export function developCostForSlotIndex(slotIndex: number): number {
   const { developCostBase, developExponent } = ZONE_GLOBAL;
   return Math.round(developCostBase * developExponent ** (slotIndex - 1));
+}
+
+export function districtDevelopCost(districtId: DistrictId): number {
+  return DISTRICTS[districtId].developCost;
+}
+
+export function districtRebrandCost(districtId: DistrictId): number {
+  return DISTRICTS[districtId].rebrandCost;
 }
 
 export function upgradeCost(zoneType: ZoneTypeId, currentLevel: number): number {
@@ -84,6 +154,7 @@ export function passivePerHour(args: {
   level: number;
   districtId: DistrictId;
   showdownGamesThisWeek?: number;
+  coinGamesThisWeek?: number;
 }): number {
   const typeCfg = ZONE_TYPES[args.zoneType];
   const district = DISTRICTS[args.districtId];
@@ -94,12 +165,13 @@ export function passivePerHour(args: {
     ZONE_GLOBAL.passiveGrowth ** (args.level - 1) *
     district.passiveDistrictBonus;
 
-  const bonus = typeCfg.showdownBonus;
-  if (
-    bonus &&
-    (args.showdownGamesThisWeek ?? 0) >= bonus.minGamesPerWeek
-  ) {
-    rate *= bonus.passiveMultiplier;
+  const showdownBonus = typeCfg.showdownBonus;
+  if (showdownBonus && (args.showdownGamesThisWeek ?? 0) >= showdownBonus.minGamesPerWeek) {
+    rate *= showdownBonus.passiveMultiplier;
+  }
+  const coinBonus = typeCfg.coinTableBonus;
+  if (coinBonus && (args.coinGamesThisWeek ?? 0) >= coinBonus.minGamesPerWeek) {
+    rate *= coinBonus.passiveMultiplier;
   }
   return Math.round(rate * 100) / 100;
 }
@@ -126,15 +198,93 @@ export function prosperityScoreFromSlots(
   return Math.min(100, Math.round((100 * total) / district.maxProsperityUnits));
 }
 
+export function prosperityScoreFromDistricts(
+  districts: Array<{ zoneType: ZoneTypeId; level: number; districtId: DistrictId }>
+): number {
+  const total = districts.reduce(
+    (sum, d) =>
+      sum + slotProsperityUnits({ zoneType: d.zoneType, level: d.level, districtId: d.districtId }),
+    0
+  );
+  const cap = DISTRICTS.D0.maxProsperityUnits + DISTRICTS.D1.maxProsperityUnits;
+  return Math.min(100, Math.round((100 * total) / Math.max(1, cap)));
+}
+
+export function districtLevelTotal(
+  ops: Record<string, { level?: number } | undefined>
+): number {
+  return (ops.D0?.level ?? 0) + (ops.D1?.level ?? 0);
+}
+
+export function prosperityPassSpeed(prosperityScore: number): number {
+  const score = Math.min(100, Math.max(0, prosperityScore));
+  return 1 + TERM_PASS.prosperitySpeedPerPoint * score;
+}
+
+export function levyCycleMs(): number {
+  return ZONE_GLOBAL.levyCycleHours * 3_600_000;
+}
+
+export function townLevyPayout(passivePerHourTotal: number): number {
+  return Math.floor(Math.max(0, passivePerHourTotal) * ZONE_GLOBAL.levyCycleHours);
+}
+
+export function townLevyTick(args: {
+  passivePerHourTotal: number;
+  startedAt: number | null;
+  nowMs?: number;
+}): {
+  active: boolean;
+  ready: boolean;
+  collectable: number;
+  payout: number;
+  remainingMs: number;
+  readyAt: number;
+  startedAt: number | null;
+  dripping: boolean;
+} {
+  const now = args.nowMs ?? Date.now();
+  const cycleMs = levyCycleMs();
+  const payout = townLevyPayout(args.passivePerHourTotal);
+  const active = payout > 0;
+  if (!active) {
+    return {
+      active: false,
+      ready: false,
+      collectable: 0,
+      payout: 0,
+      remainingMs: cycleMs,
+      readyAt: now + cycleMs,
+      startedAt: args.startedAt,
+      dripping: false,
+    };
+  }
+  const startedAt = args.startedAt;
+  const elapsedMs = startedAt == null ? cycleMs : Math.min(cycleMs, Math.max(0, now - startedAt));
+  const remainingMs = Math.max(0, cycleMs - elapsedMs);
+  const collectable = Math.min(payout, Math.floor(args.passivePerHourTotal * (elapsedMs / 3_600_000)));
+  return {
+    active,
+    ready: collectable > 0,
+    collectable,
+    payout,
+    remainingMs,
+    readyAt: (startedAt ?? now - cycleMs) + cycleMs,
+    startedAt,
+    dripping: remainingMs > 0,
+  };
+}
+
+/** Drips until 8h, then freezes. Collect anytime for the dripped amount. */
 export function collectablePassiveCoins(args: {
   passivePerHourTotal: number;
   elapsedMs: number;
-  maxOfflineHours?: number;
 }): number {
-  const capHours = args.maxOfflineHours ?? ZONE_GLOBAL.maxOfflineHours;
-  const elapsedHours = Math.max(0, args.elapsedMs / 3_600_000);
-  const hours = Math.min(elapsedHours, capHours);
-  return Math.floor(args.passivePerHourTotal * hours);
+  return townLevyTick({
+    passivePerHourTotal: args.passivePerHourTotal,
+    startedAt: 0,
+    nowMs: args.elapsedMs,
+  }).collectable;
 }
 
 export function mayorLevelFromXp(xp: number): number {

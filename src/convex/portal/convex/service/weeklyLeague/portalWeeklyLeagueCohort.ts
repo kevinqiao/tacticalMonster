@@ -1,6 +1,5 @@
 /**
- * Portal 周联赛 cohort 分配（按 lobby + 段位；legacy gameType 路径仍可用）。
- * 匹配窗口内可加入；满员或超时后关闭匹配。
+ * Portal 周联赛 cohort 分配（统一 leagueScopeKey：town: / lobby: / game:）。
  */
 import {
   PORTAL_WEEKLY_LEAGUE_MATCHING_DURATION_MS,
@@ -11,10 +10,7 @@ import {
 import { weeklyWindowMsShanghai } from "../../utils/casualTaskPeriod";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import {
-  ensureWeeklyLeagueProfile,
-  ensureWeeklyLeagueProfileForLobby,
-} from "./casualWeeklyLeagueProfile";
+import { ensureWeeklyLeagueProfileForScope } from "./casualWeeklyLeagueProfile";
 import {
   maybeCloseMatchingIfFull,
   seedPortalWeeklyLeagueInitialBots,
@@ -45,6 +41,20 @@ function isMatchingOpen(
   if (cohort.matchingClosedAt != null) return false;
   const endsAt = cohort.matchingEndsAt ?? cohort.createdAt + PORTAL_WEEKLY_LEAGUE_MATCHING_DURATION_MS;
   return now < endsAt;
+}
+
+async function listCohortsForScopeTier(
+  ctx: MutationCtx,
+  weekKey: string,
+  leagueScopeKey: string,
+  leagueTierId: PortalWeeklyLeagueTierId
+) {
+  return await ctx.db
+    .query("portal_weekly_league_cohorts")
+    .withIndex("by_week_scope_tier_index", (q) =>
+      q.eq("weekKey", weekKey).eq("leagueScopeKey", leagueScopeKey).eq("leagueTierId", leagueTierId)
+    )
+    .collect();
 }
 
 export async function findOpenCohortForTier(
@@ -198,15 +208,10 @@ export async function assignCohortForUid(
   weekKey: string,
   now: number
 ): Promise<Id<"portal_weekly_league_cohorts">> {
-  const { weeklyLeagueTier } = await ensureWeeklyLeagueProfile(ctx, uid, gameType, now);
-  let cohortId = await findOpenCohortForTier(ctx, weekKey, gameType, weeklyLeagueTier, now);
-  if (!cohortId) {
-    cohortId = await createCohort(ctx, weekKey, gameType, weeklyLeagueTier, now);
-  }
-  return cohortId;
+  return assignCohortForUidByScope(ctx, uid, `game:${gameType}`, weekKey, now, gameType);
 }
 
-/** Preferred: assign cohort by lobby (new weeks). */
+/** @deprecated Prefer assignCohortForUidByScope with lobby:{id}. */
 export async function assignCohortForUidByLobby(
   ctx: MutationCtx,
   uid: string,
@@ -215,27 +220,105 @@ export async function assignCohortForUidByLobby(
   now: number,
   lobbySlugForDisplay: string = "lobby"
 ): Promise<Id<"portal_weekly_league_cohorts">> {
-  const { weeklyLeagueTier } = await ensureWeeklyLeagueProfileForLobby(
+  return assignCohortForUidByScope(
     ctx,
     uid,
-    lobbyId,
+    `lobby:${lobbyId}`,
+    weekKey,
+    now,
+    lobbySlugForDisplay
+  );
+}
+
+export async function findOpenCohortForScopeTier(
+  ctx: MutationCtx,
+  weekKey: string,
+  leagueScopeKey: string,
+  leagueTierId: PortalWeeklyLeagueTierId,
+  now: number = Date.now()
+): Promise<Id<"portal_weekly_league_cohorts"> | null> {
+  const open = (await listCohortsForScopeTier(ctx, weekKey, leagueScopeKey, leagueTierId)).filter(
+    (c) => c.status === "open"
+  );
+
+  const withRoom: Array<{ id: Id<"portal_weekly_league_cohorts">; cohortIndex: number; humans: number }> =
+    [];
+  for (const c of open) {
+    if (!isMatchingOpen(c, now)) continue;
+    const humans = await cohortHumanCount(ctx, c._id);
+    if (humans < PORTAL_WEEKLY_LEAGUE_MAX_HUMANS_PER_COHORT) {
+      withRoom.push({ id: c._id, cohortIndex: c.cohortIndex, humans });
+    }
+  }
+  withRoom.sort((a, b) => b.humans - a.humans || a.cohortIndex - b.cohortIndex);
+  return withRoom[0]?.id ?? null;
+}
+
+export async function createCohortForScope(
+  ctx: MutationCtx,
+  weekKey: string,
+  leagueScopeKey: string,
+  leagueTierId: PortalWeeklyLeagueTierId,
+  now: number,
+  displaySlug: string = "town"
+): Promise<Id<"portal_weekly_league_cohorts">> {
+  const window = weeklyWindowMsShanghai(now);
+  const existing = await listCohortsForScopeTier(ctx, weekKey, leagueScopeKey, leagueTierId);
+  const nextIndex =
+    existing.length > 0 ? Math.max(...existing.map((c) => c.cohortIndex)) + 1 : 0;
+  const displayCode = portalWeeklyLeagueDisplayCohortNo({
+    weekKey,
+    gameType: displaySlug,
+    leagueTierId,
+    cohortIndex: nextIndex,
+  });
+  const cohortId = await ctx.db.insert("portal_weekly_league_cohorts", {
+    weekKey,
+    leagueScopeKey,
+    leagueTierId,
+    cohortIndex: nextIndex,
+    displayCode,
+    humanCount: 0,
+    status: "open",
+    matchingEndsAt: now + PORTAL_WEEKLY_LEAGUE_MATCHING_DURATION_MS,
+    startsAt: window.startsAt,
+    endsAt: window.endsAt,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await seedPortalWeeklyLeagueInitialBots(ctx, cohortId, now);
+  return cohortId;
+}
+
+export async function assignCohortForUidByScope(
+  ctx: MutationCtx,
+  uid: string,
+  leagueScopeKey: string,
+  weekKey: string,
+  now: number,
+  displaySlug: string = "town"
+): Promise<Id<"portal_weekly_league_cohorts">> {
+  const { weeklyLeagueTier } = await ensureWeeklyLeagueProfileForScope(
+    ctx,
+    uid,
+    leagueScopeKey,
     now
   );
-  let cohortId = await findOpenCohortForLobbyTier(
+  let cohortId = await findOpenCohortForScopeTier(
     ctx,
     weekKey,
-    lobbyId,
+    leagueScopeKey,
     weeklyLeagueTier,
     now
   );
   if (!cohortId) {
-    cohortId = await createCohortForLobby(
+    cohortId = await createCohortForScope(
       ctx,
       weekKey,
-      lobbyId,
+      leagueScopeKey,
       weeklyLeagueTier,
       now,
-      lobbySlugForDisplay
+      displaySlug
     );
   }
   return cohortId;

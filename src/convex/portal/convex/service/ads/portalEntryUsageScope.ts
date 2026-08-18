@@ -1,14 +1,18 @@
 import type { Id } from "../../_generated/dataModel";
+import { isTownLeagueScopeKey } from "../../data/portalLeagueScope";
 import type { PortalQuotaScope } from "../../data/portalQuotaScope";
 
 export type PlayEntryContext = {
   lobbyId?: Id<"portal_lobbies"> | null;
   tournamentId?: string | null;
+  /** Town ad/ticket/solo-success partition — not shared with Lobby. */
+  scopeKey?: string | null;
 };
 
 export type EntryUsageBucket = {
   lobbyId?: Id<"portal_lobbies">;
   tournamentId?: string;
+  scopeKey?: string;
 };
 
 /**
@@ -20,6 +24,10 @@ export function entryUsageBucketForScope(
   quotaScope: PortalQuotaScope,
   entryCtx?: PlayEntryContext | null
 ): EntryUsageBucket {
+  const scopeKey = entryCtx?.scopeKey?.trim() || undefined;
+  if (scopeKey && isTownLeagueScopeKey(scopeKey)) {
+    return { scopeKey };
+  }
   const lobbyId = entryCtx?.lobbyId ?? undefined;
   const tournamentId = entryCtx?.tournamentId?.trim() || undefined;
   if (quotaScope === "tournament" && tournamentId) {
@@ -35,10 +43,32 @@ export function entryUsageBucketForScope(
   return {};
 }
 
+/** Town free-play counts only town-opened rows; Lobby counts exclude town. */
+export function playCountsTowardEntryScope(
+  joinLeagueScopeKey: string | null | undefined,
+  scopeKey?: string | null
+): boolean {
+  const joinKey = joinLeagueScopeKey?.trim() || undefined;
+  const want = scopeKey?.trim() || undefined;
+  if (want && isTownLeagueScopeKey(want)) {
+    return joinKey === want;
+  }
+  return !isTownLeagueScopeKey(joinKey);
+}
+
 export function usageRowMatchesBucket(
-  row: { lobbyId?: Id<"portal_lobbies">; tournamentId?: string },
+  row: {
+    lobbyId?: Id<"portal_lobbies">;
+    tournamentId?: string;
+    scopeKey?: string;
+  },
   bucket: EntryUsageBucket
 ): boolean {
+  const rowScope = row.scopeKey ?? undefined;
+  const wantScope = bucket.scopeKey ?? undefined;
+  if (wantScope || rowScope) {
+    return rowScope === wantScope;
+  }
   const rowLobby = row.lobbyId ?? undefined;
   const rowTournament = row.tournamentId?.trim() || undefined;
   const wantLobby = bucket.lobbyId ?? undefined;

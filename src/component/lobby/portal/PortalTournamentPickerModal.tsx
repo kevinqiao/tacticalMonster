@@ -84,8 +84,20 @@ function prizeHighlight(
   if (matchType === "solo_p75" || def.matchType === "solo_p75") {
     const success = rewards.soloPoints?.success;
     const clearBonus = rewards.soloPoints?.clearBonus ?? 0;
-    if (typeof success !== "number" || !Number.isFinite(success)) return null;
-    const total = Math.floor(success) + Math.floor(clearBonus);
+    const coins = rewards.coinRewards?.soloSuccess;
+    const hasPts = typeof success === "number" && Number.isFinite(success);
+    const hasCoins = typeof coins === "number" && Number.isFinite(coins) && coins > 0;
+    if (!hasPts && !hasCoins) return null;
+    const total = hasPts ? Math.floor(success) + Math.floor(clearBonus) : 0;
+    if (hasPts && hasCoins) {
+      return {
+        labelKey: "lobby.prizeTopPointsAndCoins",
+        value: `+${total} / +${Math.floor(coins!)}`,
+      };
+    }
+    if (hasCoins) {
+      return { labelKey: "lobby.prizeTopCoins", value: `+${Math.floor(coins!)}` };
+    }
     return { labelKey: "lobby.prizePoints", value: `+${total}` };
   }
   const topPts = rewards.rankPoints?.[1];

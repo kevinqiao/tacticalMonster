@@ -1,19 +1,19 @@
 import React from "react";
 
 import {
-  MAYFIELD_D0_ZONE_OVERLAYS,
   hotspotsForDistricts,
   districtLabel,
+  districtOverlayForScene,
 } from "./mayfieldSceneLayout";
 import { MAYFIELD_ART } from "./mayfieldArtCatalog";
 import TownBuildingHotspot, { BuildingHotspotState } from "./TownBuildingHotspot";
 import { TownBuildingView } from "./types";
-import type { TownZoneView } from "./TownZonePanel";
+import { districtOpFor, districtStatusLine, type DistrictOpView } from "./districtSystem";
 import "./mayfieldTownScene.css";
 
 export interface MayfieldTownSceneProps {
   buildings: TownBuildingView[];
-  zones?: TownZoneView[];
+  districtOps?: DistrictOpView[];
   unlockedDistricts?: string[];
   currentDistrict?: string;
   activeBuildingId: string | null;
@@ -21,12 +21,12 @@ export interface MayfieldTownSceneProps {
   playerPos: { x: number; y: number };
   showPlayer?: boolean;
   onBuildingClick: (building: TownBuildingView) => void;
-  onZoneClick?: () => void;
+  onDistrictClick?: () => void;
 }
 
 const MayfieldTownScene: React.FC<MayfieldTownSceneProps> = ({
   buildings,
-  zones = [],
+  districtOps = [],
   unlockedDistricts = ["D0"],
   currentDistrict = "D0",
   activeBuildingId,
@@ -34,19 +34,13 @@ const MayfieldTownScene: React.FC<MayfieldTownSceneProps> = ({
   playerPos,
   showPlayer = true,
   onBuildingClick,
-  onZoneClick,
+  onDistrictClick,
 }) => {
   const buildingById = React.useMemo(() => {
     const map = new Map<string, TownBuildingView>();
     buildings.forEach((b) => map.set(b.id, b));
     return map;
   }, [buildings]);
-
-  const zoneBySlot = React.useMemo(() => {
-    const map = new Map<string, TownZoneView>();
-    zones.forEach((z) => map.set(z.slotId, z));
-    return map;
-  }, [zones]);
 
   const hotspots = React.useMemo(
     () => hotspotsForDistricts(unlockedDistricts),
@@ -60,11 +54,17 @@ const MayfieldTownScene: React.FC<MayfieldTownSceneProps> = ({
   };
 
   const districtName = districtLabel(currentDistrict);
+  const currentOp = districtOpFor(districtOps, currentDistrict);
+  const overlay = districtOverlayForScene();
+  const overlayLabel = districtStatusLine(currentOp, unlockedDistricts.includes(currentDistrict));
 
   return (
-    <div className="mayfield-scene" data-town-renderer="saloon-row-plate-v1">
+    <div
+      className={`mayfield-scene${currentDistrict === "D1" ? " mayfield-scene--d1" : ""}`}
+      data-town-renderer="saloon-row-plate-v1"
+    >
       <div className="mayfield-scene__frame">
-        <div className="mayfield-scene__district-label">{districtName}</div>
+        <div className="mayfield-scene__district-label">Here · {districtName}</div>
         <div className="mayfield-scene__stage">
           <img
             className="mayfield-scene__plate"
@@ -73,28 +73,22 @@ const MayfieldTownScene: React.FC<MayfieldTownSceneProps> = ({
             draggable={false}
           />
 
-          {MAYFIELD_D0_ZONE_OVERLAYS.map((overlay) => {
-            const zone = zoneBySlot.get(overlay.slotId);
-            const empty = !zone?.zoneType || zone.level === 0;
-            const level = zone?.level ?? 0;
-            return (
-              <button
-                key={overlay.slotId}
-                type="button"
-                className={`mayfield-scene__zone${empty ? " mayfield-scene__zone--empty" : ""}`}
-                style={{
-                  left: `${overlay.x * 100}%`,
-                  top: `${overlay.y * 100}%`,
-                  width: `${overlay.w * 100}%`,
-                  height: `${overlay.h * 100}%`,
-                }}
-                onClick={onZoneClick}
-                title={zone?.labelZh ?? zone?.label ?? "Zone slot"}
-              >
-                {empty ? "+" : `L${level}`}
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            className={`mayfield-scene__district${
+              currentOp && currentOp.level > 0 ? "" : " mayfield-scene__district--empty"
+            }`}
+            style={{
+              left: `${overlay.x * 100}%`,
+              top: `${overlay.y * 100}%`,
+              width: `${overlay.w * 100}%`,
+              height: `${overlay.h * 100}%`,
+            }}
+            onClick={onDistrictClick}
+            title={districtName}
+          >
+            {overlayLabel}
+          </button>
 
           {hotspots.map((hotspot) => {
             const building = buildingById.get(hotspot.buildingId);

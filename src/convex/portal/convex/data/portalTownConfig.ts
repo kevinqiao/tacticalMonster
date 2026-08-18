@@ -9,6 +9,12 @@ export const DEFAULT_TOWN_SLUG = "mayfield";
 
 export const DEFAULT_TOWN_TEMPLATE_ID = "mayfield_standard";
 export const DEFAULT_TOWN_TITLE = "Mayfield";
+export const DEFAULT_TOWN_SKIN_ID = "mayfield_default";
+
+export function defaultSkinForTemplate(templateId: string): string {
+  if (templateId === DEFAULT_TOWN_TEMPLATE_ID) return DEFAULT_TOWN_SKIN_ID;
+  return `${templateId}_default`;
+}
 
 const TOWN_SLUG_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 

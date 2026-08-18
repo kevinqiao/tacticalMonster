@@ -36,6 +36,7 @@ export async function loadSoloSuccessDailyState(
     uid: string;
     lobbyId?: Id<"portal_lobbies"> | null;
     tournamentId?: string | null;
+    scopeKey?: string | null;
     nowMs?: number;
   }
 ): Promise<SoloSuccessDailyState> {
@@ -44,11 +45,13 @@ export async function loadSoloSuccessDailyState(
   const entryCtx: PlayEntryContext = {
     lobbyId: args.lobbyId ?? null,
     tournamentId: args.tournamentId ?? null,
+    scopeKey: args.scopeKey ?? null,
   };
   const { settings } = await resolvePlayEntrySettings(ctx, {
     partnerId: partnerIdFromUid(args.uid),
     lobbyId: entryCtx.lobbyId,
     tournamentId: entryCtx.tournamentId,
+    scopeKey: entryCtx.scopeKey,
   });
   const quotaScope = quotaScopeFromSettings(settings);
   const config = soloSuccessConfigFromSettings(settings);
@@ -76,6 +79,7 @@ export async function applySoloSuccessDailyCapAtSettle(
     uid: string;
     lobbyId?: Id<"portal_lobbies"> | null;
     tournamentId?: string | null;
+    scopeKey?: string | null;
     p75Success: boolean;
     nowMs?: number;
   }
@@ -89,6 +93,7 @@ export async function applySoloSuccessDailyCapAtSettle(
     const entryCtx: PlayEntryContext = {
       lobbyId: args.lobbyId ?? null,
       tournamentId: args.tournamentId ?? null,
+      scopeKey: args.scopeKey ?? null,
     };
     await bumpSoloSuccessUsedToday(ctx, {
       uid: args.uid,

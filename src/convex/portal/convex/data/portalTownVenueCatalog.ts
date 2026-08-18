@@ -1,12 +1,13 @@
-import { getPortalTournamentDefinition } from "../../data/portalTournamentConfigs";
+/**
+ * Mayfield venue / table catalog + unlock / buy-in helpers.
+ * Which tournament sits at which hall, district, and venue level.
+ * Identity: portalTownConfig.ts. Balance: mayfield-zone-economy.json.
+ */
 
-export const STARTING_COINS = 5000;
+import { getPortalTournamentDefinition } from "./portalTournamentConfigs";
 
-/** Map / gate venue ids — two competitive halls only. */
 export type VenueBuildingId = "parlor" | "saloon";
-
 export type BuildingId = VenueBuildingId | "town_hall" | "telegraph";
-
 export type HallKind = "trial" | "showdown";
 export type DistrictId = "D0" | "D1";
 
@@ -31,16 +32,14 @@ export const HALL_KIND_META: Record<
   },
 };
 
-/** A table row in a venue — points at a portal tournament (gameType lives on tournament def). */
+/** A table row in a venue — gameType lives on the portal tournament def. */
 export interface VenueTableConfig {
   id: string;
   label: string;
   tournamentId: string;
   buyIn?: number;
-  /** Tournament visible when this district is unlocked. */
-  requiredDistrict?: DistrictId;
-  /** Same-game table tier — requires venue level for this hallKind (default 1). */
-  requiredVenueLevel?: number;
+  /** Playable when this district is developed (Lv.1+). Solitaire has none. */
+  requiredDistrictDeveloped?: DistrictId;
 }
 
 /** @deprecated alias */
@@ -62,64 +61,60 @@ const SOLO_VENUE_TABLES: VenueTableConfig[] = [
     label: "Benchmark · Free",
     tournamentId: "portal_solo_p75_solitaire",
     buyIn: 0,
-    requiredDistrict: "D0",
   },
   {
     id: "solo_solitaire_coin",
     label: "Benchmark · Coin",
     tournamentId: "portal_solo_p75_solitaire",
     buyIn: 0,
-    requiredDistrict: "D0",
-    requiredVenueLevel: 2,
   },
   {
     id: "solo_yatz_free",
     label: "Benchmark · Free",
     tournamentId: "portal_solo_p75_yatz",
     buyIn: 0,
-    requiredDistrict: "D1",
+    requiredDistrictDeveloped: "D1",
   },
   {
     id: "solo_yatz_ranked",
     label: "Benchmark · Ranked",
     tournamentId: "portal_solo_p75_yatz",
     buyIn: 0,
-    requiredDistrict: "D1",
+    requiredDistrictDeveloped: "D1",
   },
 ];
 
 const MULTI_VENUE_TABLES: VenueTableConfig[] = [
   {
     id: "multi_solitaire_free",
-    label: "Ranked · Free",
+    label: "Ranked",
     tournamentId: "portal_multi_solitaire",
     buyIn: 0,
-    requiredDistrict: "D0",
   },
   {
     id: "multi_solitaire_coin",
     label: "Coin Arena",
     tournamentId: "portal_multi_coin_solitaire",
     buyIn: 20,
-    requiredDistrict: "D0",
-    requiredVenueLevel: 2,
   },
   {
     id: "multi_yatz_free",
-    label: "Ranked · Free",
+    label: "Ranked",
     tournamentId: "portal_multi_yatz",
     buyIn: 0,
-    requiredDistrict: "D1",
+    requiredDistrictDeveloped: "D1",
   },
   {
     id: "multi_yatz_coin",
     label: "Coin Arena",
     tournamentId: "portal_multi_coin_yatz",
     buyIn: 20,
-    requiredDistrict: "D1",
-    requiredVenueLevel: 2,
+    requiredDistrictDeveloped: "D1",
   },
 ];
+
+/** All Town Showdown tables share this Week Score. */
+export const TOWN_SHOWDOWN_WEEK_SCORE = { 1: 5, 2: 3, 3: 2, 4: 1, 5: 0 } as const;
 
 export const BUILDINGS: BuildingConfig[] = [
   {
@@ -165,18 +160,14 @@ export const DEFAULT_UNLOCKED_TIER_IDS = ["solo_solitaire_free", "multi_solitair
 
 export function filterTablesForDistricts(
   tables: VenueTableConfig[],
-  unlockedDistricts: string[]
+  _unlockedDistricts: string[]
 ): VenueTableConfig[] {
-  const set = new Set(unlockedDistricts);
-  return tables.filter((t) => !t.requiredDistrict || set.has(t.requiredDistrict));
+  return tables;
 }
 
-/** All venue tables for unlocked districts (venue level gating at pick/gate time). */
-export function buildingsForDistricts(unlockedDistricts: string[]): BuildingConfig[] {
-  return BUILDINGS.map((b) => {
-    if (!b.hallKind) return b;
-    return { ...b, tiers: filterTablesForDistricts(b.tiers, unlockedDistricts) };
-  });
+/** All venue tables — district / venue-level locks are applied at pick and gate. */
+export function buildingsForDistricts(_unlockedDistricts: string[]): BuildingConfig[] {
+  return BUILDINGS;
 }
 
 export function getBuilding(buildingId: string): BuildingConfig | undefined {
@@ -226,38 +217,29 @@ export function isHallKindMatch(building: BuildingConfig, tier: VenueTableConfig
 
 export function isTableUnlocked(
   tier: VenueTableConfig,
-  unlockedDistricts: string[],
-  venueLevel: number
+  districtLevels: Record<string, number> = {}
 ): boolean {
-  if (tier.requiredDistrict && !unlockedDistricts.includes(tier.requiredDistrict)) {
-    return false;
-  }
-  const need = tier.requiredVenueLevel ?? 1;
-  return venueLevel >= need;
+  if (!tier.requiredDistrictDeveloped) return true;
+  return (districtLevels[tier.requiredDistrictDeveloped] ?? 0) >= 1;
 }
 
 export function tableLockReason(
   tier: VenueTableConfig,
-  unlockedDistricts: string[],
-  venueLevel: number
+  districtLevels: Record<string, number> = {}
 ): string | null {
-  if (tier.requiredDistrict && !unlockedDistricts.includes(tier.requiredDistrict)) {
-    return "Expand town to unlock";
-  }
-  const need = tier.requiredVenueLevel ?? 1;
-  if (venueLevel < need) {
-    return `Venue Lv.${need} required`;
-  }
-  return null;
+  if (!tier.requiredDistrictDeveloped) return null;
+  if ((districtLevels[tier.requiredDistrictDeveloped] ?? 0) >= 1) return null;
+  return tier.requiredDistrictDeveloped === "D1"
+    ? "Develop Market Street"
+    : "Develop Old Square";
 }
 
 /** @deprecated use isTableUnlocked */
 export function isTableUnlockedByDistrict(
   tier: VenueTableConfig,
-  unlockedDistricts: string[]
+  _unlockedDistricts: string[]
 ): boolean {
-  if (!tier.requiredDistrict) return true;
-  return unlockedDistricts.includes(tier.requiredDistrict);
+  return !tier.requiredDistrictDeveloped;
 }
 
 export function isTierOpen(_tier: VenueTableConfig): boolean {

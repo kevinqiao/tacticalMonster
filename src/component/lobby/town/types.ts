@@ -1,4 +1,4 @@
-import { districtCatalogEntry, districtLockCopy } from "./districtSystem";
+import { districtCatalogEntry } from "./districtSystem";
 
 export type HallKind = "trial" | "showdown";
 
@@ -33,9 +33,7 @@ export interface HallTierView {
   label: string;
   tournamentId: string;
   buyIn?: number;
-  requiredDistrict?: string;
-  requiredVenueLevel?: number;
-  requiredZoneType?: string;
+  requiredDistrictDeveloped?: string;
 }
 
 export interface TownBuildingView {
@@ -102,24 +100,15 @@ export function matchTypeForTournamentId(tournamentId: string): "solo_p75" | "mu
 
 export function isTableOpen(
   tier: HallTierView,
-  hallKind: HallKind,
-  unlockedDistricts: string[],
-  venueLevel: number,
-  developedByZoneType: Record<string, number> = {}
+  _hallKind: HallKind,
+  districtLevels: Record<string, number> = {}
 ): boolean {
-  if (tier.requiredDistrict && !unlockedDistricts.includes(tier.requiredDistrict)) {
-    return false;
-  }
-  const need = tier.requiredVenueLevel ?? 1;
-  if (venueLevel < need) return false;
-  if (tier.requiredZoneType && (developedByZoneType[tier.requiredZoneType] ?? 0) < 1) {
-    return false;
-  }
-  return true;
+  if (!tier.requiredDistrictDeveloped) return true;
+  return (districtLevels[tier.requiredDistrictDeveloped] ?? 0) >= 1;
 }
 
 export type TableLockCondition = {
-  id: "district" | "venue" | "zone";
+  id: "district";
   label: string;
   ok: boolean;
   districtId?: string;
@@ -127,56 +116,27 @@ export type TableLockCondition = {
 
 export function tableLockConditions(
   tier: HallTierView,
-  unlockedDistricts: string[],
-  venueLevel: number,
-  developedByZoneType: Record<string, number> = {}
+  districtLevels: Record<string, number> = {}
 ): TableLockCondition[] {
-  const out: TableLockCondition[] = [];
-  if (tier.requiredDistrict) {
-    const row = districtCatalogEntry(tier.requiredDistrict);
-    out.push({
+  if (!tier.requiredDistrictDeveloped) return [];
+  const row = districtCatalogEntry(tier.requiredDistrictDeveloped);
+  return [
+    {
       id: "district",
-      label: row ? `Open ${row.label}` : "Open district",
-      ok: unlockedDistricts.includes(tier.requiredDistrict),
-      districtId: tier.requiredDistrict,
-    });
-  }
-  const need = tier.requiredVenueLevel ?? 1;
-  if (need > 1) {
-    out.push({
-      id: "venue",
-      label: `Venue Lv.${need}`,
-      ok: venueLevel >= need,
-    });
-  }
-  if (tier.requiredZoneType) {
-    out.push({
-      id: "zone",
-      label: "Develop a Finance zone",
-      ok: (developedByZoneType[tier.requiredZoneType] ?? 0) >= 1,
-    });
-  }
-  return out;
+      label: row ? `Develop ${row.label}` : "Develop district",
+      ok: (districtLevels[tier.requiredDistrictDeveloped] ?? 0) >= 1,
+      districtId: tier.requiredDistrictDeveloped,
+    },
+  ];
 }
 
 export function tableLockReason(
   tier: HallTierView,
-  unlockedDistricts: string[],
-  venueLevel: number,
-  developedByZoneType: Record<string, number> = {}
+  districtLevels: Record<string, number> = {}
 ): string | null {
-  const blocked = tableLockConditions(
-    tier,
-    unlockedDistricts,
-    venueLevel,
-    developedByZoneType
-  ).find((row) => !row.ok);
+  const blocked = tableLockConditions(tier, districtLevels).find((row) => !row.ok);
   if (!blocked) return null;
-  if (blocked.id === "district" && blocked.districtId) {
-    return districtLockCopy(blocked.districtId);
-  }
-  if (blocked.id === "venue") return `${blocked.label} required`;
-  return blocked.label;
+  return blocked.districtId ? `Develop ${districtCatalogEntry(blocked.districtId)?.label ?? "district"}` : blocked.label;
 }
 
 export function buildGateSelection(building: TownBuildingView, tier: HallTierView): GateSelection {
@@ -208,28 +168,21 @@ export type VenueTournamentOption = {
 function listVenueTournamentOptions(
   buildings: TownBuildingView[],
   hallKind: HallKind,
-  unlockedDistricts: string[],
-  venueLevel: number,
-  developedByZoneType: Record<string, number> = {}
+  districtLevels: Record<string, number> = {}
 ): VenueTournamentOption[] {
   const out: VenueTournamentOption[] = [];
   for (const venue of buildings) {
     if (venue.hallKind !== hallKind || venue.portalReady === false) continue;
     for (const tier of venue.tiers) {
-      const open = isTableOpen(tier, hallKind, unlockedDistricts, venueLevel, developedByZoneType);
-      const lockConditions = tableLockConditions(
-        tier,
-        unlockedDistricts,
-        venueLevel,
-        developedByZoneType
-      );
+      const open = isTableOpen(tier, hallKind, districtLevels);
+      const lockConditions = tableLockConditions(tier, districtLevels);
       out.push({
         venue,
         tier,
         gameType: gameTypeFromTournamentId(tier.tournamentId),
         buyIn: tier.buyIn ?? 0,
         open,
-        lockReason: open ? null : tableLockReason(tier, unlockedDistricts, venueLevel, developedByZoneType),
+        lockReason: open ? null : tableLockReason(tier, districtLevels),
         lockConditions,
       });
     }
@@ -239,20 +192,16 @@ function listVenueTournamentOptions(
 
 export function listTrialTournamentOptions(
   buildings: TownBuildingView[],
-  unlockedDistricts: string[],
-  venueLevel: number,
-  developedByZoneType: Record<string, number> = {}
+  districtLevels: Record<string, number> = {}
 ): VenueTournamentOption[] {
-  return listVenueTournamentOptions(buildings, "trial", unlockedDistricts, venueLevel, developedByZoneType);
+  return listVenueTournamentOptions(buildings, "trial", districtLevels);
 }
 
 export function listShowdownTournamentOptions(
   buildings: TownBuildingView[],
-  unlockedDistricts: string[],
-  venueLevel: number,
-  developedByZoneType: Record<string, number> = {}
+  districtLevels: Record<string, number> = {}
 ): VenueTournamentOption[] {
-  return listVenueTournamentOptions(buildings, "showdown", unlockedDistricts, venueLevel, developedByZoneType);
+  return listVenueTournamentOptions(buildings, "showdown", districtLevels);
 }
 
 export function filterVenueOptionsByGame(
@@ -273,35 +222,34 @@ export function pickPreferredOpenTable(
   return scoped.find((o) => o.buyIn === 0) ?? scoped[0];
 }
 
+export const TOWN_SHOWDOWN_WEEK_SCORE = { 1: 5, 2: 3, 3: 2, 4: 1, 5: 0 } as const;
+
 const SOLO_TABLES: HallTierView[] = [
   {
     id: "solo_solitaire_free",
     label: "Benchmark · Free",
     tournamentId: "portal_solo_p75_solitaire",
     buyIn: 0,
-    requiredDistrict: "D0",
   },
   {
     id: "solo_solitaire_coin",
     label: "Benchmark · Coin",
     tournamentId: "portal_solo_p75_solitaire",
     buyIn: 0,
-    requiredDistrict: "D0",
-    requiredVenueLevel: 2,
   },
   {
     id: "solo_yatz_free",
     label: "Benchmark · Free",
     tournamentId: "portal_solo_p75_yatz",
     buyIn: 0,
-    requiredDistrict: "D1",
+    requiredDistrictDeveloped: "D1",
   },
   {
     id: "solo_yatz_ranked",
     label: "Benchmark · Ranked",
     tournamentId: "portal_solo_p75_yatz",
     buyIn: 0,
-    requiredDistrict: "D1",
+    requiredDistrictDeveloped: "D1",
   },
 ];
 
@@ -311,32 +259,26 @@ const MULTI_TABLES: HallTierView[] = [
     label: "Ranked",
     tournamentId: "portal_multi_solitaire",
     buyIn: 0,
-    requiredDistrict: "D0",
   },
   {
     id: "multi_solitaire_coin",
     label: "Coin Arena",
     tournamentId: "portal_multi_coin_solitaire",
     buyIn: 20,
-    requiredDistrict: "D0",
-    requiredVenueLevel: 2,
-    requiredZoneType: "commercial",
   },
   {
     id: "multi_yatz_free",
     label: "Ranked",
     tournamentId: "portal_multi_yatz",
     buyIn: 0,
-    requiredDistrict: "D1",
+    requiredDistrictDeveloped: "D1",
   },
   {
     id: "multi_yatz_coin",
     label: "Coin Arena",
     tournamentId: "portal_multi_coin_yatz",
     buyIn: 20,
-    requiredDistrict: "D1",
-    requiredVenueLevel: 2,
-    requiredZoneType: "commercial",
+    requiredDistrictDeveloped: "D1",
   },
 ];
 

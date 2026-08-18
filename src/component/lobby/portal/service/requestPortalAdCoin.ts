@@ -29,6 +29,7 @@ export type PortalAdCoinResult =
 /** Portal：begin → 激励广告 → complete → 发金币（isolated 时写入当前 lobby 钱包） */
 export async function requestPortalAdCoin(args?: {
   lobbyId?: string | null;
+  scopeKey?: string | null;
 }): Promise<PortalAdCoinResult> {
   const channel = resolvePortalAdCoinChannel();
   if (!channel || channel === "crazygames") {
@@ -42,9 +43,11 @@ export async function requestPortalAdCoin(args?: {
     return { ok: false, error: "ad_channel_unsupported" };
   }
 
-  const lobbyArg = args?.lobbyId
-    ? { lobbyId: args.lobbyId as never }
-    : {};
+  const lobbyArg = args?.scopeKey
+    ? { scopeKey: args.scopeKey }
+    : args?.lobbyId
+      ? { lobbyId: args.lobbyId as never }
+      : {};
 
   const http = portalHttp();
   let begin: {

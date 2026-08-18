@@ -60,6 +60,27 @@ function main() {
   console.log(
     `  Mayor Lv.${exp.minMayorLevel}, ${exp.minDevelopedZonesInPriorDistrict} zones in ${exp.requiresDistrict}, quest ${exp.mainQuestId}, fee ${exp.expansionFeeCoins}`
   );
+
+  const coinBonus = eco.zoneTypes.commercial.coinTableBonus;
+  if (coinBonus) {
+    console.log("\n--- Finance / coin-table bonus ---");
+    console.log(
+      `  commercial passive ×${coinBonus.passiveMultiplier} after ${coinBonus.minGamesPerWeek} coin tables / week`
+    );
+  }
+
+  const venue = eco.venueLevel;
+  console.log("\n--- Venue XP ---");
+  console.log(
+    `  max Lv.${venue.maxLevel}  trial +${venue.xpPerTrialComplete}  showdown +${venue.xpPerShowdownComplete}  win +${venue.xpPerShowdownWin}`
+  );
+  console.log(`  daily cap  trial ${venue.dailyXpCap.trial}  showdown ${venue.dailyXpCap.showdown}`);
+  console.log(`  levelXp    ${venue.levelXp.join(", ")}`);
+
+  console.log("\n--- Prosperity milestones ---");
+  for (const row of eco.prosperityMilestones) {
+    console.log(`  ${row.threshold}%  ${row.id}  ${row.titleZh} / ${row.title}`);
+  }
 }
 
 main();

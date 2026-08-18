@@ -130,6 +130,10 @@
   gap: 0.5rem;
 }
 
+.town-zone-panel__district .town-zone-list {
+  padding: 0;
+}
+
 .town-zone-list__item {
   display: flex;
   align-items: center;
@@ -172,6 +176,33 @@
   opacity: 0.65;
 }
 
+.town-zone-panel__district {
+  margin: 0 1rem 0.85rem;
+}
+
+.town-zone-panel__district h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+}
+
+.town-zone-panel__district h3 span {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.town-zone-panel__district--here h3 {
+  color: #f0d48a;
+}
+
+.town-zone-panel__district-lock {
+  margin: 0;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
 .town-zone-panel__expand {
   padding: 0.75rem 1rem 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -181,6 +212,13 @@
   margin: 0 0 0.65rem;
   font-size: 0.78rem;
   opacity: 0.85;
+}
+
+.town-zone-panel__expand-checks {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  opacity: 0.9;
 }
 
 .town-zone-panel__expand .town-btn-primary {

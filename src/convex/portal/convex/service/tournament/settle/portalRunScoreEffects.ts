@@ -10,6 +10,8 @@ import {
 import { resolveEconomyScope } from "../../economy/resolveEconomyScope";
 import { loadLobbyRewardsOverride } from "../../lobby/lobbyOfferingRewards";
 import { applyPortalMatchPoints } from "../../points/portalWeeklyPointsService";
+import { isTownLeagueScopeKey, townIdFromLeagueScopeKey } from "../../../data/portalLeagueScope";
+import { applyTownProgressOnMatchSettle } from "../../town/townMatchSettle";
 
 /** Portal 结算：周积分 + 模板金币奖励；campaign 对局跳过全球周榜 */
 export async function applyPortalTemplateScoreEffects(
@@ -52,8 +54,10 @@ export async function applyPortalTemplateScoreEffects(
     ? await ctx.db.get(args.runTournamentId as Id<"portal_run_tournaments">)
     : null;
 
-  const joinLobbyId =
-    playerTournament?.joinLobbyId ?? runRow?.lobbyId ?? null;
+  const joinLeagueScopeKey = playerTournament?.joinLeagueScopeKey ?? null;
+  const joinLobbyId = joinLeagueScopeKey
+    ? null
+    : playerTournament?.joinLobbyId ?? runRow?.lobbyId ?? null;
   let rewardsOverride =
     playerTournament?.rewardsOverrideSnapshot ??
     (joinLobbyId
@@ -69,6 +73,7 @@ export async function applyPortalTemplateScoreEffects(
     seedScoreQuantiles: args.seedScoreQuantiles,
     runTournamentId: runId,
     joinLobbyId: joinLobbyId ?? undefined,
+    joinLeagueScopeKey: joinLeagueScopeKey ?? undefined,
     rewardsOverride: rewardsOverride ?? undefined,
   });
 
@@ -91,16 +96,21 @@ export async function applyPortalTemplateScoreEffects(
     const partnerId = runRow?.partnerId ?? 0;
     let scopeKey = "shared";
     let lobbyIdForWallet = joinLobbyId;
-    try {
-      const scope = await resolveEconomyScope(ctx, {
-        partnerId,
-        lobbyId: joinLobbyId,
-      });
-      scopeKey = scope.scopeKey;
-      lobbyIdForWallet = scope.lobbyId;
-    } catch {
-      scopeKey = "shared";
+    if (isTownLeagueScopeKey(joinLeagueScopeKey)) {
+      scopeKey = joinLeagueScopeKey!;
       lobbyIdForWallet = null;
+    } else {
+      try {
+        const scope = await resolveEconomyScope(ctx, {
+          partnerId,
+          lobbyId: joinLobbyId,
+        });
+        scopeKey = scope.scopeKey;
+        lobbyIdForWallet = scope.lobbyId;
+      } catch {
+        scopeKey = "shared";
+        lobbyIdForWallet = null;
+      }
     }
     await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
       uid: args.uid,
@@ -123,6 +133,26 @@ export async function applyPortalTemplateScoreEffects(
     await ctx.db.patch(playerTournament._id, {
       coinsGranted,
       updatedAt: Date.now(),
+    });
+  }
+
+  const townId = isTownLeagueScopeKey(joinLeagueScopeKey)
+    ? townIdFromLeagueScopeKey(joinLeagueScopeKey!)
+    : undefined;
+  if (townId) {
+    const soloSuccess =
+      def.matchType === "solo_p75" &&
+      typeof args.seedScoreThreshold === "number" &&
+      Number.isFinite(args.seedScoreThreshold) &&
+      args.score >= args.seedScoreThreshold;
+    await applyTownProgressOnMatchSettle(ctx, {
+      uid: args.uid,
+      matchType: def.matchType,
+      rank: args.multiplayerFinalRank,
+      townId,
+      coinTable: def.entry.kind === "coins",
+      soloSuccess,
+      gameType: def.gameType,
     });
   }
 

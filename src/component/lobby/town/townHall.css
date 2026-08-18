@@ -141,6 +141,18 @@
   margin-bottom: 12px;
 }
 
+.town-hall__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.town-hall__section-head .town-hall__section-label {
+  margin: 0;
+}
+
 .town-hall__section-label {
   margin: 0 0 8px;
   font-size: 10px;
@@ -148,6 +160,67 @@
   letter-spacing: 0.55px;
   text-transform: uppercase;
   color: #9e7b5c;
+}
+
+.town-hall__collect-meta {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a6248;
+  white-space: nowrap;
+}
+
+.town-hall__collect {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #c47a2b;
+  background: rgba(255, 236, 196, 0.95);
+  color: #9a5a12;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.town-hall__collect:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.town-hall__drip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 8px;
+}
+
+.town-hall__drip-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(196, 122, 43, 0.18);
+  overflow: hidden;
+}
+
+.town-hall__drip-bar i {
+  display: block;
+  height: 100%;
+  background: #c47a2b;
+}
+
+.town-hall__drip--full .town-hall__drip-bar i {
+  background: #9a5a12;
+}
+
+.town-hall__drip-copy {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a6248;
+}
+
+.town-hall__section--levy-focus {
+  outline: 2px solid rgba(196, 122, 43, 0.45);
+  outline-offset: 4px;
+  border-radius: 12px;
 }
 
 .town-hall__featured {

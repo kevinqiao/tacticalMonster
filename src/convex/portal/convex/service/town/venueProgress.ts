@@ -1,7 +1,7 @@
 import { internalMutation } from "../../_generated/server";
 import { v } from "convex/values";
 
-import type { HallKind } from "./config";
+import type { HallKind } from "../../data/portalTownVenueCatalog";
 import { ensureTownProgress, readTownProgress, townProgressCtxFromId, type TownProgressCtx } from "./townProgressStore";
 import { VENUE_LEVEL_CONFIG, venueLevelFromXp, xpToNextVenueLevel } from "./venueProgressConfig";
 

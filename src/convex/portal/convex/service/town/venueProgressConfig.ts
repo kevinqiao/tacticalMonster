@@ -1,18 +1,13 @@
-import type { HallKind } from "./config";
+import { VENUE_LEVEL_CONFIG as VENUE_LEVEL_CONFIG_GENERATED } from "../../data/townEconomyGenerated";
+import type { HallKind } from "../../data/portalTownVenueCatalog";
 
-/** Per-venue XP / level — separate from Mayor (town) progression. */
-export const VENUE_LEVEL_CONFIG = {
-  maxLevel: 5,
-  xpPerTrialComplete: 6,
-  xpPerShowdownComplete: 12,
-  xpPerShowdownWin: 6,
-  dailyXpCap: {
-    trial: 60,
-    showdown: 100,
-  } satisfies Record<HallKind, number>,
-  /** Cumulative XP thresholds; index = level (Lv.1 = 0 XP). */
-  levelXp: [0, 0, 20, 50, 90, 140] as const,
-} as const;
+/**
+ * Per-venue XP / level — separate from Mayor (town) progression.
+ * SSOT: scripts/portal/economy/mayfield-zone-economy.json → townEconomyGenerated.ts
+ */
+export const VENUE_LEVEL_CONFIG = VENUE_LEVEL_CONFIG_GENERATED satisfies {
+  dailyXpCap: Record<HallKind, number>;
+};
 
 export function venueLevelFromXp(xp: number): number {
   const table = VENUE_LEVEL_CONFIG.levelXp;

@@ -1,82 +1,103 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { portalTournamentFns } from "component/lobby/portal/service/portalConvexFunctionRefs";
 import { getPortalHttpClient } from "component/lobby/portal/service/usePortalManager";
 import {
   DEFAULT_D1_EXPANSION,
   checklistGates,
   districtCatalogEntry,
+  districtDevelopedLevel,
   districtErrorMessage,
+  districtOpFor,
+  districtStatusLine,
   expansionChecklist,
+  liveDistrictCollect,
   nextExpansionBlocker,
   type DistrictExpansionView,
+  type DistrictOpView,
+  type TownLevyView,
 } from "./districtSystem";
-import type { TownZoneView } from "./TownZonePanel";
 import "./townDistrict.css";
 
-const ZONE_LABELS: Record<string, string> = {
-  commercial: "Finance 金融区",
-  industrial: "Industrial 工业区",
-  tourism: "Tourism 旅游区",
-  entertainment: "Entertainment 娱乐区",
+export type { DistrictOpView };
+
+const TYPE_LABELS: Record<string, string> = {
+  commercial: "Finance",
+  industrial: "Industry",
+  tourism: "Tourism",
+  entertainment: "Entertainment",
+};
+
+const TYPE_FLAVOR: Record<string, string> = {
+  commercial: "Coin tables this week raise this district's coins/h.",
+  industrial: "Same level, slightly more coins/h.",
+  tourism: "Same level, slightly more prosperity.",
+  entertainment: "Showdown this week raises this district's coins/h.",
 };
 
 export interface TownDistrictPanelProps {
   districtId: string;
-  zones: TownZoneView[];
+  districtOps: DistrictOpView[];
   coins: number;
   mayorLevel: number;
-  developedZonesD0: number;
-  developedZonesD1: number;
   d1Expansion: DistrictExpansionView | null;
-  currentDistrict: string;
   unlockedDistricts: string[];
   portalSessionReady: boolean;
   townSlug?: string;
   expandBusy?: boolean;
-  focusBusy?: boolean;
   onClose: () => void;
   onUpdated: () => void;
   onToast: (msg: string) => void;
-  onGoHere: (districtId: string) => void;
   onExpand: () => void;
   onOpenDistrict: (districtId: string) => void;
   justExpanded?: boolean;
-  collectablePassive?: number;
+  townLevy?: TownLevyView | null;
+  collectBusy?: boolean;
+  onCollect?: () => void;
 }
 
 const TownDistrictPanel: React.FC<TownDistrictPanelProps> = ({
   districtId,
-  zones,
+  districtOps,
   coins,
   mayorLevel,
-  developedZonesD0,
-  developedZonesD1,
   d1Expansion,
-  currentDistrict,
   unlockedDistricts,
   portalSessionReady,
   townSlug,
   expandBusy = false,
-  focusBusy = false,
   onClose,
   onUpdated,
   onToast,
-  onGoHere,
   onExpand,
   onOpenDistrict,
   justExpanded = false,
-  collectablePassive = 0,
+  townLevy = null,
+  collectBusy = false,
+  onCollect,
 }) => {
   const catalog = districtCatalogEntry(districtId);
+  const op = districtOpFor(districtOps, districtId);
+  const d0Level = districtDevelopedLevel(districtOpFor(districtOps, "D0"));
   const unlocked = unlockedDistricts.includes(districtId);
-  const here = districtId === currentDistrict;
-  const developed = districtId === "D0" ? developedZonesD0 : developedZonesD1;
-  const slots = zones.filter((z) => z.districtId === districtId && z.developable);
-  const emptySlots = slots.filter((z) => z.level === 0 && !z.zoneType);
+  const developed = districtDevelopedLevel(op) > 0;
   const [busy, setBusy] = useState<string | null>(null);
-  const [pickType, setPickType] = useState(emptySlots[0]?.choices[0] ?? "commercial");
-  const d1List = expansionChecklist(d1Expansion ?? DEFAULT_D1_EXPANSION, mayorLevel, developedZonesD0, coins);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const collectView = liveDistrictCollect(townLevy, districtOps, nowMs);
+  const choices = op?.choices?.length ? op.choices : ["commercial", "industrial", "tourism", "entertainment"];
+  const [pickType, setPickType] = useState(choices[0] ?? "commercial");
+  const d1List = expansionChecklist(d1Expansion ?? DEFAULT_D1_EXPANSION, mayorLevel, d0Level, coins);
   const lockedD1 = districtId === "D1" && !unlocked;
+
+  const defaultType = choices[0] ?? "commercial";
+  useEffect(() => {
+    setPickType(developed && op?.type ? op.type : defaultType);
+  }, [districtId, developed, op?.type, defaultType]);
+
+  useEffect(() => {
+    if (!collectView?.dripping) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [collectView?.dripping, townLevy?.readyAt]);
 
   const runMutation = useCallback(
     async (key: string, fn: () => Promise<unknown>) => {
@@ -105,7 +126,21 @@ const TownDistrictPanel: React.FC<TownDistrictPanelProps> = ({
 
   if (!catalog) return null;
 
-  const state = here ? "Here" : unlocked ? "Open" : "Locked";
+  const status = lockedD1
+    ? "Locked"
+    : developed
+      ? districtStatusLine(op, true)
+      : unlocked
+        ? "Undeveloped"
+        : "Locked";
+  const gameNote =
+    districtId === "D1"
+      ? developed
+        ? "Yatz tables are open."
+        : unlocked
+          ? "Develop to open Yatz."
+          : "Expand and develop to open Yatz."
+      : "Solitaire is open from the start.";
 
   return (
     <div className="town-district-overlay" role="dialog" aria-label={catalog.label}>
@@ -114,86 +149,39 @@ const TownDistrictPanel: React.FC<TownDistrictPanelProps> = ({
           <div>
             <p className="town-district-panel__id">{catalog.id}</p>
             <h2>{catalog.label}</h2>
-            <p>
-              {state} · {developed}/{catalog.developableSlots} lots
-            </p>
+            <p>{status}</p>
           </div>
           <button type="button" className="town-district-panel__close" onClick={onClose} aria-label="Close">
             ✕
           </button>
         </header>
 
-        <div className="town-district-panel__actions">
-          {unlocked && !here ? (
-            <button
-              type="button"
-              className="town-btn-primary"
-              disabled={focusBusy}
-              onClick={() => onGoHere(districtId)}
-            >
-              {focusBusy ? "Going…" : "Go here"}
-            </button>
-          ) : null}
-          {here ? <span className="town-district-panel__here">You are here</span> : null}
-        </div>
-
-        {unlocked ? (
-          <section className="town-district-panel__collect">
-            <div>
-              <strong>Passive income</strong>
-              <span>
-                {collectablePassive > 0
-                  ? `${collectablePassive} coins ready from town lots`
-                  : "Nothing to collect yet"}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="town-btn-primary"
-              disabled={busy != null || collectablePassive <= 0}
-              onClick={() =>
-                runMutation("collect", async () => {
-                  const result = (await getPortalHttpClient()!.mutation(
-                    portalTournamentFns.townCollectPassive,
-                    { townSlug }
-                  )) as { ok?: boolean; error?: string; collected?: number };
-                  if (result?.ok !== false && typeof result?.collected === "number" && result.collected > 0) {
-                    onToast(`Collected ${result.collected} coins`);
-                  }
-                  return result;
-                })
-              }
-            >
-              Collect
-            </button>
-          </section>
-        ) : null}
-
         {justExpanded && unlocked ? (
           <section className="town-district-panel__celebrate" aria-live="polite">
             <strong>Market Street is open</strong>
-            <p>New lots are ready to develop.</p>
+            <p>Pick a type to develop it and unlock Yatz.</p>
           </section>
         ) : null}
 
         {lockedD1 ? (
-          <section className="town-district-panel__gates" aria-label="Expansion gates">
+          <section className="town-district-panel__block" aria-label="Expansion gates">
             <h3>Unlock Market Street</h3>
-            <ul>
+            <ul className="town-district-panel__list">
               {checklistGates(d1List).map((gate) => (
                 <li key={gate.label} className={gate.ok ? "is-ok" : ""}>
                   <span>
                     {gate.ok ? "✓" : "○"} {gate.label}
                   </span>
-                  {!gate.ok && gate === d1List.zones ? (
+                  {!gate.ok && gate === d1List.prior ? (
                     <button type="button" onClick={() => onOpenDistrict("D0")}>
-                      Build in Old Square
+                      Upgrade Old Square
                     </button>
                   ) : null}
                 </li>
               ))}
             </ul>
             <p className="town-district-panel__hint">{nextExpansionBlocker(d1List) ?? "Ready to expand"}</p>
+            <p className="town-district-panel__hint">{gameNote}</p>
             <button
               type="button"
               className="town-btn-primary"
@@ -205,84 +193,124 @@ const TownDistrictPanel: React.FC<TownDistrictPanelProps> = ({
           </section>
         ) : null}
 
-        {unlocked ? (
-          <section className="town-district-panel__lots">
-            <h3>Lots</h3>
-            {emptySlots.length > 0 ? (
-              <label className="town-district-panel__pick">
-                New lot type
-                <select value={pickType} onChange={(e) => setPickType(e.target.value)}>
-                  {(emptySlots[0].choices.length ? emptySlots[0].choices : ["commercial"]).map((c) => (
-                    <option key={c} value={c}>
-                      {ZONE_LABELS[c] ?? c}
-                    </option>
-                  ))}
-                </select>
-              </label>
+        {unlocked && !developed ? (
+          <section className="town-district-panel__block">
+            <h3>Develop</h3>
+            <p className="town-district-panel__hint">
+              Pick a type. This district will earn coins/h. Collect every 8h from Districts.
+            </p>
+            <label className="town-district-panel__pick">
+              District type
+              <select value={pickType} onChange={(e) => setPickType(e.target.value)}>
+                {choices.map((c) => (
+                  <option key={c} value={c}>
+                    {TYPE_LABELS[c] ?? c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="town-district-panel__hint">{TYPE_FLAVOR[pickType]}</p>
+            <p className="town-district-panel__hint">{gameNote}</p>
+            <button
+              type="button"
+              className="town-btn-primary"
+              disabled={busy != null || op?.developCost == null || coins < op.developCost}
+              onClick={() =>
+                runMutation("develop", () =>
+                  getPortalHttpClient()!.mutation(portalTournamentFns.townDevelopDistrict, {
+                    districtId,
+                    zoneType: pickType,
+                    townSlug,
+                  })
+                )
+              }
+            >
+              {busy === "develop" ? "Developing…" : `Develop · ${op?.developCost ?? "—"} coins`}
+            </button>
+          </section>
+        ) : null}
+
+        {unlocked && developed ? (
+          <section className="town-district-panel__block">
+            <h3>Passive</h3>
+            <p className="town-district-panel__rate">
+              {op?.passivePerHour ?? 0}/h
+              {op?.entertainmentBonusActive || op?.coinTableBonusActive ? " · bonus this week" : ""}
+            </p>
+            <p className="town-district-panel__hint">
+              {TYPE_FLAVOR[op?.type ?? ""] ?? "Type only changes this district's flavor."}
+            </p>
+            {collectView ? (
+              <>
+                <p className="town-district-panel__hint">Town {collectView.bankLine}</p>
+                <button
+                  type="button"
+                  className="town-btn-primary"
+                  disabled={collectBusy || !collectView.canCollect}
+                  onClick={onCollect}
+                >
+                  {collectBusy ? "Collecting…" : collectView.collectLabel}
+                </button>
+              </>
             ) : null}
-            {slots.length === 0 ? (
-              <p className="town-district-panel__hint">No lots in this district yet.</p>
+
+            <h3>Upgrade</h3>
+            {op?.upgradeCost != null ? (
+              <button
+                type="button"
+                className="town-btn-primary"
+                disabled={busy != null || coins < op.upgradeCost}
+                onClick={() =>
+                  runMutation("upgrade", () =>
+                    getPortalHttpClient()!.mutation(portalTournamentFns.townUpgradeDistrict, {
+                      districtId,
+                      townSlug,
+                    })
+                  )
+                }
+              >
+                {busy === "upgrade" ? "Upgrading…" : `Upgrade · ${op.upgradeCost} coins`}
+              </button>
             ) : (
-              <ul className="town-district-panel__lot-list">
-                {slots.map((zone) => {
-                  const empty = zone.level === 0 && !zone.zoneType;
-                  const canDevelop = empty && zone.developCost != null && coins >= zone.developCost;
-                  const canUpgrade =
-                    Boolean(zone.zoneType) &&
-                    zone.level > 0 &&
-                    zone.upgradeCost != null &&
-                    coins >= zone.upgradeCost;
-                  return (
-                    <li key={zone.slotId}>
-                      <div>
-                        <strong>{zone.labelZh ?? zone.label ?? (empty ? "Empty lot" : zone.slotId)}</strong>
-                        <span>
-                          {empty
-                            ? `Develop ${zone.developCost ?? "—"} coins`
-                            : `Lv.${zone.level} · ${zone.passivePerHour}/h${
-                                zone.entertainmentBonusActive || zone.coinTableBonusActive ? " ⚡" : ""
-                              }`}
-                        </span>
-                      </div>
-                      {empty ? (
-                        <button
-                          type="button"
-                          disabled={busy != null || !canDevelop}
-                          onClick={() =>
-                            runMutation(`dev-${zone.slotId}`, () =>
-                              getPortalHttpClient()!.mutation(portalTournamentFns.townDevelopZone, {
-                                slotId: zone.slotId,
-                                zoneType: pickType,
-                                townSlug,
-                              })
-                            )
-                          }
-                        >
-                          Develop
-                        </button>
-                      ) : zone.upgradeCost != null ? (
-                        <button
-                          type="button"
-                          disabled={busy != null || !canUpgrade}
-                          onClick={() =>
-                            runMutation(`up-${zone.slotId}`, () =>
-                              getPortalHttpClient()!.mutation(portalTournamentFns.townUpgradeZone, {
-                                slotId: zone.slotId,
-                                townSlug,
-                              })
-                            )
-                          }
-                        >
-                          Upgrade {zone.upgradeCost}
-                        </button>
-                      ) : (
-                        <span>Max</span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+              <p className="town-district-panel__hint">Max level</p>
             )}
+
+            <h3>Rebrand</h3>
+            {op?.rebrandCost != null ? (
+              <>
+                <p className="town-district-panel__hint">Once. Keeps this level. Does not change tables or Week Score.</p>
+                <label className="town-district-panel__pick">
+                  New type
+                  <select value={pickType} onChange={(e) => setPickType(e.target.value)}>
+                    {choices.map((c) => (
+                      <option key={c} value={c}>
+                        {TYPE_LABELS[c] ?? c}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="town-district-panel__hint">{TYPE_FLAVOR[pickType]}</p>
+                <button
+                  type="button"
+                  className="town-btn-primary"
+                  disabled={busy != null || coins < op.rebrandCost || pickType === op.type}
+                  onClick={() =>
+                    runMutation("rebrand", () =>
+                      getPortalHttpClient()!.mutation(portalTournamentFns.townRebrandDistrict, {
+                        districtId,
+                        zoneType: pickType,
+                        townSlug,
+                      })
+                    )
+                  }
+                >
+                  {busy === "rebrand" ? "Rebranding…" : `Rebrand · ${op.rebrandCost} coins`}
+                </button>
+              </>
+            ) : (
+              <p className="town-district-panel__hint">Already rebranded</p>
+            )}
+            <p className="town-district-panel__hint">{gameNote}</p>
           </section>
         ) : null}
       </div>
@@ -291,3 +319,5 @@ const TownDistrictPanel: React.FC<TownDistrictPanelProps> = ({
 };
 
 export default TownDistrictPanel;
+
+

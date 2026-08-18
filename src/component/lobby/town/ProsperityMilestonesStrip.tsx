@@ -7,7 +7,7 @@ export interface ProsperityMilestonesStripProps {
   compact?: boolean;
 }
 
-/** Display-only milestone track — no coin payouts, no tournament gates. */
+/** Milestone track — titles only. Prosperity also speeds Term Pass XP. */
 const ProsperityMilestonesStrip: React.FC<ProsperityMilestonesStripProps> = ({
   milestones,
   compact = false,
@@ -43,7 +43,9 @@ const ProsperityMilestonesStrip: React.FC<ProsperityMilestonesStripProps> = ({
           </li>
         ))}
       </ul>
-      <p className="town-prosperity-ms__note">Cosmetic only — Showdown Week Score unchanged.</p>
+      <p className="town-prosperity-ms__note">
+        Does not change Week Score. Prosperity adds Pass XP per play (up to +40%).
+      </p>
     </section>
   );
 };

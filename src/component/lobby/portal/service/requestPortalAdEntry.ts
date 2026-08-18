@@ -25,6 +25,7 @@ export async function requestPortalAdEntry(args: {
   mode: "solo" | "multi";
   templateId: string;
   lobbyId?: string | null;
+  scopeKey?: string | null;
 }): Promise<PortalAdEntryResult> {
   const channel = resolveRewardedAdChannel();
   if (!channel) {
@@ -44,7 +45,11 @@ export async function requestPortalAdEntry(args: {
       mode: args.mode,
       templateId: args.templateId,
       channel,
-      ...(args.lobbyId ? { lobbyId: args.lobbyId as never } : {}),
+      ...(args.scopeKey
+        ? { scopeKey: args.scopeKey }
+        : args.lobbyId
+          ? { lobbyId: args.lobbyId as never }
+          : {}),
     })) as typeof begin;
   } catch (e) {
     console.warn("[portal ad entry] begin threw", e);

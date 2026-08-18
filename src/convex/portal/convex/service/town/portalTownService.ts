@@ -122,6 +122,10 @@ export function serializeTown(row: PortalTownRow) {
   };
 }
 
+function ctxCanWrite(ctx: QueryCtx | MutationCtx): ctx is MutationCtx {
+  return typeof (ctx.db as MutationCtx["db"]).insert === "function";
+}
+
 export async function resolveTownSessionScope(
   ctx: QueryCtx | MutationCtx,
   uid: string,
@@ -129,7 +133,7 @@ export async function resolveTownSessionScope(
 ): Promise<TownSessionScope | null> {
   const partnerId = sessionPartnerIdFromUid(uid) ?? 0;
   let row = await getTownByPartnerAndSlug(ctx, partnerId, townSlug);
-  if (!row && (!townSlug || townSlug === DEFAULT_TOWN_SLUG)) {
+  if (!row && (!townSlug || townSlug === DEFAULT_TOWN_SLUG) && ctxCanWrite(ctx)) {
     await ensureDefaultTown(ctx, partnerId);
     row = await getTownByPartnerAndSlug(ctx, partnerId, townSlug);
   }

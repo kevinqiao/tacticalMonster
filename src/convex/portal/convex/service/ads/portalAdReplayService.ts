@@ -54,9 +54,16 @@ async function resolveAdReplayEconomyScope(
           )
           .unique()
       : null;
-    const lobbyId = pt?.joinLobbyId ?? run?.lobbyId ?? null;
+    const joinLeagueScopeKey = pt?.joinLeagueScopeKey ?? null;
+    const lobbyId = joinLeagueScopeKey
+      ? null
+      : pt?.joinLobbyId ?? run?.lobbyId ?? null;
     const partnerId = run?.partnerId ?? 0;
-    const scope = await resolveEconomyScope(ctx, { partnerId, lobbyId });
+    const scope = await resolveEconomyScope(ctx, {
+      partnerId,
+      lobbyId,
+      scopeKey: joinLeagueScopeKey,
+    });
     return { scopeKey: scope.scopeKey, lobbyId: scope.lobbyId };
   } catch {
     return { scopeKey: "shared", lobbyId: null };
@@ -139,6 +146,8 @@ export async function readAdReplayUsedToday(
   if (row && typeof row.usedCount === "number" && Number.isFinite(row.usedCount)) {
     return Math.max(0, Math.floor(row.usedCount));
   }
+  const key = scopeKey && scopeKey !== "shared" ? scopeKey : null;
+  if (key) return 0;
   return countAdReplayClaimsForDay(ctx, uid, dayKey);
 }
 
@@ -415,7 +424,13 @@ export async function buildPortalAdReplayOffer(
   const dayKey = dailyPeriodKey(now);
   const cap =
     PORTAL_AD_REPLAY_ENABLED && replayCfg.adReplayEnabled ? replayCfg.adReplayDailyCap : 0;
-  const usedToday = PORTAL_AD_REPLAY_ENABLED ? await readAdReplayUsedToday(ctx, uid, dayKey) : 0;
+  const econ = PORTAL_AD_REPLAY_ENABLED
+    ? await resolveAdReplayEconomyScope(ctx, uid, pm.matchId)
+    : null;
+  const usedToday =
+    PORTAL_AD_REPLAY_ENABLED && econ
+      ? await readAdReplayUsedToday(ctx, uid, dayKey, econ.scopeKey)
+      : 0;
   const adReplayDailyRemaining = Math.max(0, cap - usedToday);
   const alreadyClaimed = replayOffered
     ? await hasAdReplayClaimForReplayAttempt(ctx, uid, matchGameId, sourceReplayEpoch)

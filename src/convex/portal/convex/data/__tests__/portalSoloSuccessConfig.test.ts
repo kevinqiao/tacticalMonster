@@ -14,7 +14,7 @@ describe("portalSoloSuccessConfig", () => {
     expect(PORTAL_SOLO_SUCCESS_DAILY_DEFAULTS.enabled).toBe(true);
     expect(PORTAL_SOLO_SUCCESS_DAILY_DEFAULTS.dailyCap).toBe(5);
     expect(PORTAL_SOLO_SUCCESS_DAILY_DEFAULTS.afterCapMode).toBe("zero_all");
-    expect(PORTAL_SOLO_SUCCESS_DAILY_DEFAULTS.allowPlayAfterCap).toBe(true);
+    expect(PORTAL_SOLO_SUCCESS_DAILY_DEFAULTS.allowPlayAfterCap).toBe(false);
   });
 
   it("lobby/partner overlays resolve over defaults", () => {
@@ -27,7 +27,7 @@ describe("portalSoloSuccessConfig", () => {
     expect(cfg.dailyCap).toBe(3);
     expect(cfg.allowPlayAfterCap).toBe(false);
     expect(resolveSoloSuccessDailyEnabled(undefined)).toBe(true);
-    expect(resolveSoloSuccessAllowPlayAfterCap(undefined)).toBe(true);
+    expect(resolveSoloSuccessAllowPlayAfterCap(undefined)).toBe(false);
   });
 
   it("clamps invalid caps back to default", () => {

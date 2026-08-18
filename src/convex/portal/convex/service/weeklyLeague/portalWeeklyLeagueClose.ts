@@ -33,6 +33,7 @@ import { resolvePortalWeeklyLeagueBotPoints } from "./portalWeeklyLeagueBotPoint
 import { isPortalWeeklyLeagueBotRevealed } from "./portalWeeklyLeagueBotReveal";
 import { checkAndUnlockBadgesCore } from "../badge/portalBadgeService";
 import { applySeasonXpOnWeekClose } from "../season/portalSeasonHonorService";
+import { findWeeklyLeagueProfile } from "./casualWeeklyLeagueProfile";
 
 
 
@@ -232,21 +233,9 @@ async function closeOnePortalCohort(
 
 
 
-    const profile = member.lobbyId
-      ? await ctx.db
-          .query("portal_weekly_league_profile")
-          .withIndex("by_uid_lobby", (q) =>
-            q.eq("uid", member.uid).eq("lobbyId", member.lobbyId!)
-          )
-          .unique()
-      : member.gameType
-        ? await ctx.db
-            .query("portal_weekly_league_profile")
-            .withIndex("by_uid_game", (q) =>
-              q.eq("uid", member.uid).eq("gameType", member.gameType!)
-            )
-            .unique()
-        : null;
+    const profile = member.leagueScopeKey
+      ? await findWeeklyLeagueProfile(ctx, member.uid, member.leagueScopeKey)
+      : null;
 
     if (!profile) continue;
 

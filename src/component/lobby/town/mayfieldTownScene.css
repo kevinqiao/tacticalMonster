@@ -42,6 +42,18 @@
   -webkit-user-drag: none;
 }
 
+.mayfield-scene--d1 .mayfield-scene__frame {
+  background: linear-gradient(180deg, #f0d48a 0%, #c47a2b 42%, #6b3e1f 100%);
+}
+
+.mayfield-scene--d1 .mayfield-scene__plate {
+  filter: sepia(0.22) saturate(1.12) hue-rotate(-10deg);
+}
+
+.mayfield-scene--d1 .mayfield-scene__district-label {
+  background: rgba(196, 122, 43, 0.9);
+}
+
 .mayfield-scene__hotspot-wrap {
   position: absolute;
   z-index: 5;
@@ -160,17 +172,17 @@
   pointer-events: none;
 }
 
-.mayfield-scene__zone {
+.mayfield-scene__district {
   position: absolute;
   z-index: 4;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0;
-  padding: 0;
-  border: 2px dashed rgba(212, 168, 67, 0.55);
+  padding: 0 8px;
+  border: 2px solid rgba(196, 122, 43, 0.65);
   border-radius: 8px;
-  background: rgba(255, 248, 238, 0.35);
+  background: rgba(196, 122, 43, 0.22);
   color: #3d2914;
   font-size: clamp(9px, 1.6vw, 12px);
   font-weight: 700;
@@ -178,19 +190,11 @@
   transform: translate(-50%, -50%);
 }
 
-.mayfield-scene__zone:hover {
+.mayfield-scene__district:hover {
   background: rgba(212, 168, 67, 0.28);
-  border-style: solid;
 }
 
-.mayfield-scene__zone--empty {
+.mayfield-scene__district--empty {
   border-style: dashed;
   color: #c47a2b;
-  font-size: clamp(14px, 2.4vw, 18px);
-}
-
-.mayfield-scene__zone:not(.mayfield-scene__zone--empty) {
-  border-style: solid;
-  background: rgba(196, 122, 43, 0.22);
-  border-color: rgba(196, 122, 43, 0.65);
 }
