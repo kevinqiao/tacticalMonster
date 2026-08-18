@@ -3,7 +3,7 @@
  *
  * 将 Town 壳、Portal 赛区、Arena 引擎、小时同题、图鉴收集的讨论收口为此文。
  * 类型与可编译常量的 SSOT 是 ./architecture.ts。本文只叙述，不另发明枚举。
- * UI 线框：./uiWireframe.ts
+ * UI 线框：docs/rpg/ui-wireframe.md（源 ./uiWireframe.ts）
  *
  * 状态：accepted
  * 日期：2026-08-18
@@ -178,7 +178,7 @@ M2 可选：开包。不进 v1 商店，也不进图鉴主路径。
 
 ## 13. UI 线框
 
-逐屏 ascii 与 layout 见 src/convex/rpg/uiWireframe.ts（RPG_UI_WIREFRAMES）。
+逐屏 ascii 与 layout 见 docs/rpg/ui-wireframe.md（源 src/convex/rpg/uiWireframe.ts）。
 Canvas 只作预览，不进 git。
 `.trim();
 
