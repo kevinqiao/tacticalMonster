@@ -12,7 +12,8 @@
  *                 League(rpg:)、Battle Pass、join/settle
  *   L2 Arena      chessArena | tcgArena | solitaireArena
  *                 各自拥有：卡/英雄定义、玩家图鉴、负荷冻结、对局、回放
- *   L3 前端       /rpg（对标 /town）；卡册 UI 读对应 Arena
+ *   L3 前端       /rpg 壳对标 /town 五栏：shop · rewards · battle · league · me
+ *                 卡册 UI 读对应 Arena
  *
  * ---------------------------------------------------------------------------
  * League：只有 lobby | town | rpg（不要 game:、不要 arena:）
@@ -46,9 +47,18 @@
  *   尘在各 Arena 内定向合成；开包为 M2 可选，非 v1
  *
  * ---------------------------------------------------------------------------
+ * 壳（对标 Town 五栏，顺序固定，battle 居中）
+ *   1 shop     /rpg/shop     花 rpg 钱包 coin 买票；v1 不开包、不卖 Arena 卡
+ *   2 rewards  /rpg/rewards  Term Pass 领取（coins / tickets）
+ *   3 battle   /rpg          试炼 / 秀斗馆 → chess / tcg 桌 → 小时题
+ *   4 league   /rpg/league   rpg: 周榜
+ *   5 me       /rpg/me       英雄 | 卡牌
+ *
+ * ---------------------------------------------------------------------------
  * 硬边界
  *   Town Zone 不产 RPG 卡；TM teamPower 缩 Boss 不用于 RPG 同桌
  *   chess 与 tcg 不拆成两座玩法馆；两套卡表不共用战斗数值
+ *   不要自造四栏壳；Pass 不是独立 Tab，并进 rewards；馆并进 battle
  */
 
 export const RPG_LEAGUE_SCOPE_KINDS = ["lobby", "town", "rpg"] as const;
@@ -130,17 +140,29 @@ export const RPG_PASS_XP = {
   trialSuccess: 4,
 } as const;
 
-/** 前端路由与壳，对标 /town。 */
+/**
+ * 前端路由与壳，对标 /town 五栏（顺序固定，battle 居中为默认落地）：
+ *   1 shop     商店   花 coin（票；开包为 M2，不卖 Arena 卡）
+ *   2 rewards  奖励   Term Pass 领取（coins / tickets），不是拆包
+ *   3 battle   对战   试炼 / 秀斗馆 → chess / tcg 桌 → 小时题
+ *   4 league   联赛   rpg: 周榜
+ *   5 me       我     英雄图鉴 | 卡牌
+ */
 export const RPG_ROUTE = "/rpg" as const;
 
 export const RPG_SHELL_TABS = [
-  { id: "hall", path: "/rpg", label: "馆" },
+  { id: "shop", path: "/rpg/shop", label: "商店" },
+  { id: "rewards", path: "/rpg/rewards", label: "奖励" },
+  { id: "battle", path: "/rpg", label: "对战" },
   { id: "league", path: "/rpg/league", label: "联赛" },
-  { id: "pass", path: "/rpg/pass", label: "Pass" },
   { id: "me", path: "/rpg/me", label: "我" },
 ] as const;
 
+export type RpgShellTabId = (typeof RPG_SHELL_TABS)[number]["id"];
+
 export type RpgUiScreenId =
+  | "shop"
+  | "rewards"
   | "home"
   | "hall"
   | "preview"
@@ -148,17 +170,17 @@ export type RpgUiScreenId =
   | "match"
   | "result"
   | "league"
-  | "pass"
   | "roster";
 
 export const RPG_UI_FLOW = [
-  "home: 两馆入口（试炼 / 秀斗）",
+  "shop: 花 rpg 钱包 coin 买票；v1 不开包、不卖 chess/tcg 卡",
+  "rewards: Term Pass 节点领取 coin / ticket（秀斗 +10 XP / 试炼成功 +4）",
+  "home: battle 落地。两馆入口（试炼 / 秀斗），不是 chess/tcg 两座玩法馆",
   "hall: 馆内两桌（chess / tcg）+ 小时题摘要",
   "preview: Boss、地图、倒计时；评估后再组队",
   "loadout: chess 4 英雄 | tcg 卡组（读对应 Arena）",
   "match: 全屏对局，无底栏",
   "result: 分数、名次、coin、Pass XP、尘",
   "league: 同段位 Pod，chess/tcg 秀斗共榜",
-  "pass: 节点领 coin / ticket",
-  "roster: 英雄图鉴(chessArena) 与 卡册(tcgArena) 分栏，非一本 SSOT",
+  "roster: me。英雄图鉴(chessArena) 与 卡册(tcgArena) 分栏，非一本 SSOT",
 ] as const;
