@@ -52,7 +52,7 @@
  *   2 rewards  /rpg/rewards  Term Pass 领取（coins / tickets）
  *   3 battle   /rpg          试炼 / 秀斗馆 → chess / tcg 桌 → 小时题
  *   4 league   /rpg/league   rpg: 周榜
- *   5 me       /rpg/me       图鉴（英雄 | 卡牌）。不要叫战队：4 人组在 battle 流程里，且 tcg 不是战队
+ *   5 me       /rpg/me       图鉴。主业是卡牌收集（默认 tcgArena）；英雄是次级库，不是战队
  *
  * ---------------------------------------------------------------------------
  * 硬边界
@@ -146,7 +146,7 @@ export const RPG_PASS_XP = {
  *   2 rewards  奖励   Term Pass 领取（coins / tickets），不是拆包
  *   3 battle   对战   试炼 / 秀斗馆 → chess / tcg 桌 → 小时题
  *   4 league   联赛   rpg: 周榜
- *   5 me       图鉴   两栏收藏；槽位仍是 Town 的 me，表面名用图鉴
+ *   5 me       图鉴   卡牌收集主页；槽位仍是 Town 的 me
  */
 export const RPG_ROUTE = "/rpg" as const;
 
@@ -182,5 +182,152 @@ export const RPG_UI_FLOW = [
   "match: 全屏对局，无底栏",
   "result: 分数、名次、coin、Pass XP、尘",
   "league: 同段位 Pod，chess/tcg 秀斗共榜",
-  "roster: 图鉴。英雄(chessArena) 与 卡牌(tcgArena) 分栏，非一本 SSOT。不要叫战队",
+  "roster: 图鉴默认 tcgArena 卡册（收集/筛选/详情/合成）。英雄是次级库。不要叫战队",
+] as const;
+
+/**
+ * 图鉴（/rpg/me）完整契约。
+ *
+ * 主业是卡牌收集，不是个人主页、不是战队、不是组队。
+ * 落地就是 tcgArena 卡册。chessArena 英雄是次级库：同一套卡面 UI，更薄。
+ * 两套目录永不混表；尘按 Arena 分桶；战斗数值只读所属 Arena。
+ */
+export const RPG_CODEX = {
+  tabId: "me",
+  path: "/rpg/me",
+  label: "图鉴",
+  defaultLibrary: "tcgArena",
+  libraries: [
+    {
+      id: "cards",
+      arenaId: "tcgArena",
+      label: "卡牌",
+      role: "primary",
+      atom: "card",
+      playableCap: 2,
+    },
+    {
+      id: "heroes",
+      arenaId: "chessArena",
+      label: "英雄",
+      role: "secondary",
+      atom: "hero_card",
+      playableCap: 1,
+    },
+  ],
+} as const;
+
+export type RpgCodexLibraryId = (typeof RPG_CODEX.libraries)[number]["id"];
+
+export const RPG_CODEX_SCREENS = [
+  "album",
+  "detail",
+  "craft",
+  "heroes",
+] as const;
+export type RpgCodexScreenId = (typeof RPG_CODEX_SCREENS)[number];
+
+export const RPG_CODEX_OWNED_FILTERS = ["all", "owned", "missing"] as const;
+export type RpgCodexOwnedFilter = (typeof RPG_CODEX_OWNED_FILTERS)[number];
+
+export const RPG_CODEX_CARD_TYPES = ["minion", "spell", "weapon"] as const;
+export type RpgCodexCardType = (typeof RPG_CODEX_CARD_TYPES)[number];
+
+export const RPG_CODEX_RARITIES = ["common", "rare", "epic", "legendary"] as const;
+export type RpgCodexRarity = (typeof RPG_CODEX_RARITIES)[number];
+
+export const RPG_CODEX_SORTS = ["cost", "rarity", "name", "recent"] as const;
+export type RpgCodexSort = (typeof RPG_CODEX_SORTS)[number];
+
+export const RPG_CODEX_CARD_SOURCES = [
+  "rank_road",
+  "craft",
+  "match_drop",
+  "pass_paid",
+] as const;
+export type RpgCodexCardSource = (typeof RPG_CODEX_CARD_SOURCES)[number];
+
+/** tcgArena 合成/分解（单位：该 Arena 尘）。传说不可分解基础路。 */
+export const RPG_CODEX_DUST = {
+  common: { craft: 40, disenchant: 5 },
+  rare: { craft: 100, disenchant: 20 },
+  epic: { craft: 400, disenchant: 100 },
+  legendary: { craft: 1600, disenchant: 400 },
+} as const;
+
+export type RpgCodexCard = {
+  arenaId: Extract<RpgArenaId, "chessArena" | "tcgArena">;
+  cardId: string;
+  /** 美术可跨 Arena 复用；数值与所有权不可。 */
+  artId?: string;
+  name: string;
+  cost: number;
+  type: RpgCodexCardType | "hero";
+  rarity: RpgCodexRarity;
+  ownedCopies: number;
+  playableCap: number;
+  source: RpgCodexCardSource;
+  newUntilSeen: boolean;
+};
+
+export type RpgCodexAlbumQuery = {
+  arenaId: Extract<RpgArenaId, "chessArena" | "tcgArena">;
+  owned: RpgCodexOwnedFilter;
+  types: RpgCodexCardType[] | "all";
+  rarities: RpgCodexRarity[] | "all";
+  cost: number | "all";
+  sort: RpgCodexSort;
+  search?: string;
+};
+
+/**
+ * 图鉴页信息架构（实现按此排）。
+ *
+ * 卡册 /rpg/me
+ *   HUD：段位 · coin · ticket · 当前 Arena 尘（没有图鉴战力）
+ *   库切换：卡牌(默认) | 英雄(次级)
+ *   进度：已收集 a/b · 尘 n
+ *   筛选：全部 / 已有 / 未有；费用；类型；稀有度；排序
+ *   网格：3 列卡面。已有显示张数；未有剪影 + 合成价；新卡角标
+ *   点卡 → 详情
+ *
+ * 详情 /rpg/me/:cardId
+ *   大卡面、费用、类型、稀有、规则、所属 Arena
+ *   张数 owned/playableCap
+ *   主按钮：合成（尘够）或分解（多余且非 rank_road）
+ *   不在这里组队、不进商店开包
+ *
+ * 合成确认
+ *   扣该 Arena 尘。tcg 尘不能合成 chess 卡。
+ *
+ * 英雄库（次级）
+ *   同一卡面 UI，目录更薄。段位路解锁 = 已有。v1 可不做英雄分解。
+ *   4 人出战仍在 battle loadout。
+ *
+ * 卡面状态：owned | missing | extra | locked_rank | new
+ * 数据：目录与所有权读对应 Arena；Portal 只提供壳、钱包、段位。
+ */
+export const RPG_CODEX_UI = {
+  albumPath: "/rpg/me",
+  detailPath: "/rpg/me/:cardId",
+  gridColumns: 3,
+  hud: ["tier", "coins", "tickets", "arenaDust"],
+  forbidden: [
+    "collectionPower",
+    "loadoutEdit",
+    "packOpen",
+    "crossArenaCraft",
+    "teamTab",
+  ],
+} as const;
+
+export const RPG_CODEX_RULES = [
+  "默认库 tcgArena；英雄库不得做成落地页或对等第二本",
+  "卡牌所有权、张数、尘、合成只发生在所属 Arena",
+  "artId 可共享；cost/type/rarity/combat stats 不可跨 Arena 抄",
+  "rank_road 基础卡已有且不可分解；必须够打本段小时题",
+  "张数上限 tcg=2、英雄=1；多余才可分解",
+  "图鉴不改小时题、不改 Boss、不产生周分",
+  "结算发的尘/卡带 arenaId；图鉴用新角标直到点进详情",
+  "v1 无开包入口；商店不卖卡",
 ] as const;
