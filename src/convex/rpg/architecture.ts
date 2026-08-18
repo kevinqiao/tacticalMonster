@@ -129,3 +129,36 @@ export const RPG_PASS_XP = {
   showdownComplete: 10,
   trialSuccess: 4,
 } as const;
+
+/** 前端路由与壳，对标 /town。 */
+export const RPG_ROUTE = "/rpg" as const;
+
+export const RPG_SHELL_TABS = [
+  { id: "hall", path: "/rpg", label: "馆" },
+  { id: "league", path: "/rpg/league", label: "联赛" },
+  { id: "pass", path: "/rpg/pass", label: "Pass" },
+  { id: "me", path: "/rpg/me", label: "我" },
+] as const;
+
+export type RpgUiScreenId =
+  | "home"
+  | "hall"
+  | "preview"
+  | "loadout"
+  | "match"
+  | "result"
+  | "league"
+  | "pass"
+  | "roster";
+
+export const RPG_UI_FLOW = [
+  "home: 两馆入口（试炼 / 秀斗）",
+  "hall: 馆内两桌（chess / tcg）+ 小时题摘要",
+  "preview: Boss、地图、倒计时；评估后再组队",
+  "loadout: chess 4 英雄 | tcg 卡组（读对应 Arena）",
+  "match: 全屏对局，无底栏",
+  "result: 分数、名次、coin、Pass XP、尘",
+  "league: 同段位 Pod，chess/tcg 秀斗共榜",
+  "pass: 节点领 coin / ticket",
+  "roster: 英雄图鉴(chessArena) 与 卡册(tcgArena) 分栏，非一本 SSOT",
+] as const;
