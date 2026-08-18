@@ -15,8 +15,7 @@ import { weeklyPeriodKey, weeklyWindowMsShanghai } from "../../utils/casualTaskP
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import {
-  assignCohortForUid,
-  assignCohortForUidByLobby,
+  assignCohortForUidByScope,
   getCohortById,
   listCohortMembers,
   refreshCohortAfterHumanJoin,
@@ -28,28 +27,33 @@ import {
 import { resolvePortalWeeklyLeagueBotPoints } from "./portalWeeklyLeagueBotPoints";
 import { isPortalWeeklyLeagueBotRevealed } from "./portalWeeklyLeagueBotReveal";
 import {
-  ensureWeeklyLeagueProfile,
-  ensureWeeklyLeagueProfileForLobby,
-  readWeeklyLeagueTier,
-  readWeeklyLeagueTierForLobby,
+  ensureWeeklyLeagueProfileForScope,
+  findWeeklyLeagueProfile,
+  readWeeklyLeagueTierForScope,
 } from "./casualWeeklyLeagueProfile";
 import { readSeasonHonorView } from "../season/portalSeasonHonorService";
+import { readTownSeasonHonorView } from "../town/townSeasonHonor";
 import {
   ensureUniqueDisplayNames,
   resolvePlayerDisplayName,
 } from "../../../../shared/displayName";
 import { loadDisplayNameMap } from "../player/portalDisplayNameLookup";
+import type { LeagueScope } from "../../data/portalLeagueScope";
+import {
+  isLobbyLeagueScope,
+  resolveLeagueScope,
+} from "../../data/portalLeagueScope";
 
 export async function getWeeklyLeagueMember(
   ctx: QueryCtx | MutationCtx,
   args: { uid: string; gameType: string; weekKey: string }
 ) {
-  return await ctx.db
-    .query("portal_weekly_league_members")
-    .withIndex("by_week_game_uid", (q) =>
-      q.eq("weekKey", args.weekKey).eq("gameType", args.gameType).eq("uid", args.uid)
-    )
-    .unique();
+  const scope = resolveLeagueScope({ gameType: args.gameType });
+  return getWeeklyLeagueMemberByScope(ctx, {
+    uid: args.uid,
+    leagueScopeKey: scope!.leagueScopeKey,
+    weekKey: args.weekKey,
+  });
 }
 
 /** 本周首次登录 Portal 时入 cohort（幂等）。 */
@@ -63,63 +67,20 @@ export async function ensurePortalWeeklyLeagueMember(
     console.log("[portal] weekly league disabled; skip ensure member", { uid, gameType });
     return null;
   }
-  const weekKey = weeklyPeriodKey(now);
-  const existing = await getWeeklyLeagueMember(ctx, { uid, gameType, weekKey });
-  if (existing) {
-    const cohort = await getCohortById(ctx, existing.cohortId);
-    if (
-      cohort &&
-      cohort.status === "open" &&
-      cohort.matchingClosedAt == null &&
-      now >=
-        (cohort.matchingEndsAt ??
-          cohort.createdAt + PORTAL_WEEKLY_LEAGUE_MATCHING_DURATION_MS)
-    ) {
-      await closePortalWeeklyLeagueMatching(ctx, existing.cohortId, now);
-    } else {
-      await syncPortalWeeklyLeagueBotPadding(ctx, existing.cohortId, now);
-    }
-    return existing._id;
-  }
-
-  const { weeklyLeagueTier } = await ensureWeeklyLeagueProfile(ctx, uid, gameType, now);
-  const cohortId = await assignCohortForUid(ctx, uid, gameType, weekKey, now);
-  const memberId = await ctx.db.insert("portal_weekly_league_members", {
-    weekKey,
-    uid,
-    gameType,
-    cohortId,
-    leagueTierId: weeklyLeagueTier,
-    weeklyPoints: 0,
-    isBot: false,
-    createdAt: now,
-    updatedAt: now,
-  });
-  await refreshCohortAfterHumanJoin(ctx, cohortId, now);
-  console.log("[portal] weekly league member enrolled", {
-    uid,
-    gameType,
-    weekKey,
-    cohortId,
-    memberId,
-    weeklyLeagueTier,
-  });
-  return memberId;
+  return ensurePortalWeeklyLeagueMemberForScope(ctx, uid, `game:${gameType}`, gameType, now);
 }
 
 export async function getWeeklyLeagueMemberByLobby(
   ctx: QueryCtx | MutationCtx,
   args: { uid: string; lobbyId: Id<"portal_lobbies">; weekKey: string }
 ) {
-  return await ctx.db
-    .query("portal_weekly_league_members")
-    .withIndex("by_week_lobby_uid", (q) =>
-      q.eq("weekKey", args.weekKey).eq("lobbyId", args.lobbyId).eq("uid", args.uid)
-    )
-    .unique();
+  return getWeeklyLeagueMemberByScope(ctx, {
+    uid: args.uid,
+    leagueScopeKey: `lobby:${args.lobbyId}`,
+    weekKey: args.weekKey,
+  });
 }
 
-/** Prefer lobby-scoped enrollment for multi-game lobbies. */
 export async function ensurePortalWeeklyLeagueMemberForLobby(
   ctx: MutationCtx,
   uid: string,
@@ -127,15 +88,33 @@ export async function ensurePortalWeeklyLeagueMemberForLobby(
   lobbySlug: string = "lobby",
   now: number = Date.now()
 ): Promise<Id<"portal_weekly_league_members"> | null> {
+  return ensurePortalWeeklyLeagueMemberForScope(ctx, uid, `lobby:${lobbyId}`, lobbySlug, now);
+}
+
+export async function getWeeklyLeagueMemberByScope(
+  ctx: QueryCtx | MutationCtx,
+  args: { uid: string; leagueScopeKey: string; weekKey: string }
+) {
+  return await ctx.db
+    .query("portal_weekly_league_members")
+    .withIndex("by_week_scope_uid", (q) =>
+      q.eq("weekKey", args.weekKey).eq("leagueScopeKey", args.leagueScopeKey).eq("uid", args.uid)
+    )
+    .unique();
+}
+
+export async function ensurePortalWeeklyLeagueMemberForScope(
+  ctx: MutationCtx,
+  uid: string,
+  leagueScopeKey: string,
+  displaySlug: string = "town",
+  now: number = Date.now()
+): Promise<Id<"portal_weekly_league_members"> | null> {
   if (!PORTAL_WEEKLY_LEAGUE_ENABLED) {
-    console.log("[portal] weekly league disabled; skip ensure member (lobby)", {
-      uid,
-      lobbyId,
-    });
     return null;
   }
   const weekKey = weeklyPeriodKey(now);
-  const existing = await getWeeklyLeagueMemberByLobby(ctx, { uid, lobbyId, weekKey });
+  const existing = await getWeeklyLeagueMemberByScope(ctx, { uid, leagueScopeKey, weekKey });
   if (existing) {
     const cohort = await getCohortById(ctx, existing.cohortId);
     if (
@@ -153,24 +132,24 @@ export async function ensurePortalWeeklyLeagueMemberForLobby(
     return existing._id;
   }
 
-  const { weeklyLeagueTier } = await ensureWeeklyLeagueProfileForLobby(
+  const { weeklyLeagueTier } = await ensureWeeklyLeagueProfileForScope(
     ctx,
     uid,
-    lobbyId,
+    leagueScopeKey,
     now
   );
-  const cohortId = await assignCohortForUidByLobby(
+  const cohortId = await assignCohortForUidByScope(
     ctx,
     uid,
-    lobbyId,
+    leagueScopeKey,
     weekKey,
     now,
-    lobbySlug
+    displaySlug
   );
   const memberId = await ctx.db.insert("portal_weekly_league_members", {
     weekKey,
     uid,
-    lobbyId,
+    leagueScopeKey,
     cohortId,
     leagueTierId: weeklyLeagueTier,
     weeklyPoints: 0,
@@ -179,14 +158,6 @@ export async function ensurePortalWeeklyLeagueMemberForLobby(
     updatedAt: now,
   });
   await refreshCohortAfterHumanJoin(ctx, cohortId, now);
-  console.log("[portal] weekly league member enrolled (lobby)", {
-    uid,
-    lobbyId,
-    weekKey,
-    cohortId,
-    memberId,
-    weeklyLeagueTier,
-  });
   return memberId;
 }
 
@@ -302,20 +273,25 @@ export type PortalWeeklyLeagueUnclaimedRewards = {
   finalRank?: number;
 };
 
+export async function listWeeklyLeagueMembersForScope(
+  ctx: QueryCtx | MutationCtx,
+  uid: string,
+  scope: LeagueScope
+) {
+  return await ctx.db
+    .query("portal_weekly_league_members")
+    .withIndex("by_uid_scope", (q) =>
+      q.eq("uid", uid).eq("leagueScopeKey", scope.leagueScopeKey)
+    )
+    .collect();
+}
+
 async function findUnreadPortalWeeklyLeagueClose(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  scope: { lobbyId: Id<"portal_lobbies"> } | { gameType: string }
+  scope: LeagueScope
 ) {
-  const members = "lobbyId" in scope
-    ? await ctx.db
-        .query("portal_weekly_league_members")
-        .withIndex("by_uid_lobby", (q) => q.eq("uid", uid).eq("lobbyId", scope.lobbyId))
-        .collect()
-    : await ctx.db
-        .query("portal_weekly_league_members")
-        .withIndex("by_uid_game", (q) => q.eq("uid", uid).eq("gameType", scope.gameType))
-        .collect();
+  const members = await listWeeklyLeagueMembersForScope(ctx, uid, scope);
   return (
     members
       .filter((m) => !m.isBot && m.unreadClose === true)
@@ -326,17 +302,9 @@ async function findUnreadPortalWeeklyLeagueClose(
 export async function findUnclaimedPortalWeeklyLeagueRewards(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  scope: { lobbyId: Id<"portal_lobbies"> } | { gameType: string }
+  scope: LeagueScope
 ): Promise<PortalWeeklyLeagueUnclaimedRewards | null> {
-  const members = "lobbyId" in scope
-    ? await ctx.db
-        .query("portal_weekly_league_members")
-        .withIndex("by_uid_lobby", (q) => q.eq("uid", uid).eq("lobbyId", scope.lobbyId))
-        .collect()
-    : await ctx.db
-        .query("portal_weekly_league_members")
-        .withIndex("by_uid_game", (q) => q.eq("uid", uid).eq("gameType", scope.gameType))
-        .collect();
+  const members = await listWeeklyLeagueMembersForScope(ctx, uid, scope);
   const member =
     members
       .filter(
@@ -363,42 +331,31 @@ export async function getPortalWeeklyLeagueTierViewForUid(
   gameType: string,
   now: number = Date.now()
 ): Promise<PortalWeeklyLeagueTierView> {
-  return getPortalWeeklyLeagueTierViewForUidScoped(ctx, uid, { gameType }, now);
+  return getPortalWeeklyLeagueTierViewForUidScoped(
+    ctx,
+    uid,
+    resolveLeagueScope({ gameType })!,
+    now
+  );
 }
 
 export async function getPortalWeeklyLeagueTierViewForUidScoped(
   ctx: QueryCtx,
   uid: string,
-  scope: { lobbyId: Id<"portal_lobbies"> } | { gameType: string },
+  scope: LeagueScope,
   now: number = Date.now()
 ): Promise<PortalWeeklyLeagueTierView> {
   const weekKey = weeklyPeriodKey(now);
   const window = weeklyWindowMsShanghai(now);
-  const tierId =
-    "lobbyId" in scope
-      ? await readWeeklyLeagueTierForLobby(ctx, uid, scope.lobbyId)
-      : await readWeeklyLeagueTier(ctx, uid, scope.gameType);
+  const tierId = await readWeeklyLeagueTierForScope(ctx, uid, scope.leagueScopeKey);
   const bands = PORTAL_WEEKLY_LEAGUE_ZONE_BANDS[tierId];
 
-  const profile =
-    "lobbyId" in scope
-      ? await ctx.db
-          .query("portal_weekly_league_profile")
-          .withIndex("by_uid_lobby", (q) =>
-            q.eq("uid", uid).eq("lobbyId", scope.lobbyId)
-          )
-          .unique()
-      : await ctx.db
-          .query("portal_weekly_league_profile")
-          .withIndex("by_uid_game", (q) =>
-            q.eq("uid", uid).eq("gameType", scope.gameType)
-          )
-          .unique();
+  const profile = await findWeeklyLeagueProfile(ctx, uid, scope.leagueScopeKey);
   const peakLeagueTier = (profile?.peakLeagueTier ??
     DEFAULT_PORTAL_WEEKLY_LEAGUE_TIER) as PortalWeeklyLeagueTierId;
 
   let seasonFields: Partial<PortalWeeklyLeagueTierView> = {};
-  if ("lobbyId" in scope) {
+  if (isLobbyLeagueScope(scope)) {
     const season = await readSeasonHonorView(ctx, uid, scope.lobbyId, now);
     if (season.active && season.seasonLevel != null) {
       seasonFields = {
@@ -427,12 +384,22 @@ export async function getPortalWeeklyLeagueTierViewForUidScoped(
         ),
       };
     }
+  } else if (scope.kind === "town") {
+    const season = await readTownSeasonHonorView(ctx, uid, scope.leagueScopeKey, now);
+    seasonFields = {
+      seasonId: season.seasonId,
+      seasonLevel: season.seasonLevel,
+      seasonXp: season.seasonXp,
+      seasonXpIntoLevel: season.xpIntoLevel,
+      seasonXpForLevel: season.xpForLevel,
+    };
   }
 
-  const member =
-    "lobbyId" in scope
-      ? await getWeeklyLeagueMemberByLobby(ctx, { uid, lobbyId: scope.lobbyId, weekKey })
-      : await getWeeklyLeagueMember(ctx, { uid, gameType: scope.gameType, weekKey });
+  const member = await getWeeklyLeagueMemberByScope(ctx, {
+    uid,
+    leagueScopeKey: scope.leagueScopeKey,
+    weekKey,
+  });
   const unreadClose = await findUnreadPortalWeeklyLeagueClose(ctx, uid, scope);
   const unclaimedRewards = await findUnclaimedPortalWeeklyLeagueRewards(ctx, uid, scope);
   const closeFields = unreadClose
@@ -511,21 +478,28 @@ export async function listPortalWeeklyLeagueCohortBoard(
   limit: number = 30,
   now: number = Date.now()
 ): Promise<{ rows: PortalWeeklyLeagueCohortLeaderboardRow[]; cohortNo: string | null } | null> {
-  return listPortalWeeklyLeagueCohortBoardScoped(ctx, uid, { gameType }, limit, now);
+  return listPortalWeeklyLeagueCohortBoardScoped(
+    ctx,
+    uid,
+    resolveLeagueScope({ gameType })!,
+    limit,
+    now
+  );
 }
 
 export async function listPortalWeeklyLeagueCohortBoardScoped(
   ctx: QueryCtx,
   uid: string,
-  scope: { lobbyId: Id<"portal_lobbies"> } | { gameType: string },
+  scope: LeagueScope,
   limit: number = 30,
   now: number = Date.now()
 ): Promise<{ rows: PortalWeeklyLeagueCohortLeaderboardRow[]; cohortNo: string | null } | null> {
   const weekKey = weeklyPeriodKey(now);
-  const member =
-    "lobbyId" in scope
-      ? await getWeeklyLeagueMemberByLobby(ctx, { uid, lobbyId: scope.lobbyId, weekKey })
-      : await getWeeklyLeagueMember(ctx, { uid, gameType: scope.gameType, weekKey });
+  const member = await getWeeklyLeagueMemberByScope(ctx, {
+    uid,
+    leagueScopeKey: scope.leagueScopeKey,
+    weekKey,
+  });
   if (!member) return null;
 
   const cohort = await getCohortById(ctx, member.cohortId);

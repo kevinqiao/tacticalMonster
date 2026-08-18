@@ -22,13 +22,20 @@ import { portalMatchWinDeltas } from "../badge/portalBadgeUnlockLogic";
 import { addSeasonHonorXp } from "../season/portalSeasonHonorService";
 import { persistPlayerMatchChallengeOutcome } from "../tournament/settle/playerMatchChallengeOutcome";
 import { listPlayerGamesForSeat } from "../tournament/shared/casualPlayerGameTypes";
-import { ensureWeeklyLeagueProfileForLobby } from "../weeklyLeague/casualWeeklyLeagueProfile";
 import {
-  ensurePortalWeeklyLeagueMember,
-  ensurePortalWeeklyLeagueMemberForLobby,
-  getWeeklyLeagueMember,
-  getWeeklyLeagueMemberByLobby,
+  ensureWeeklyLeagueProfileForScope,
+  findWeeklyLeagueProfile,
+} from "../weeklyLeague/casualWeeklyLeagueProfile";
+import {
+  ensurePortalWeeklyLeagueMemberForScope,
+  getWeeklyLeagueMemberByScope,
 } from "../weeklyLeague/portalWeeklyLeagueService";
+import {
+  isTownLeagueScopeKey,
+  leagueScopeDisplaySlug,
+  resolveLeagueScope,
+} from "../../data/portalLeagueScope";
+import { addTownSeasonPlayXp } from "../town/townSeasonHonor";
 
 export type PortalWeeklyMode = "solo" | "multi";
 
@@ -58,6 +65,7 @@ export async function applyPortalMatchPoints(
     now?: number;
     /** Prefer player join lobby over run.lobbyId (cross-lobby shared matchmaking). */
     joinLobbyId?: Id<"portal_lobbies"> | null;
+    joinLeagueScopeKey?: string | null;
     rewardsOverride?: {
       soloPoints?: PortalSoloPointsOverride;
       rankPoints?: Record<string, number>;
@@ -77,7 +85,13 @@ export async function applyPortalMatchPoints(
   let soloRewardsMuted = false;
   let xpGranted: number | undefined;
   const runRow = await ctx.db.get(args.runTournamentId);
-  const lobbyId = args.joinLobbyId ?? runRow?.lobbyId;
+  const leagueScope = resolveLeagueScope({
+    leagueScopeKey: args.joinLeagueScopeKey,
+    lobbyId: args.joinLobbyId ?? runRow?.lobbyId,
+    gameType: args.def.gameType,
+  });
+  const leagueScopeKey = leagueScope?.leagueScopeKey ?? null;
+  const lobbyId = leagueScope?.lobbyId ?? null;
 
   if (args.def.matchType === "solo_p75") {
     const pm = await ctx.db
@@ -102,6 +116,7 @@ export async function applyPortalMatchPoints(
     const cap = await applySoloSuccessDailyCapAtSettle(ctx, {
       uid: args.uid,
       lobbyId: lobbyId ?? null,
+      scopeKey: leagueScopeKey,
       tournamentId: args.def.tournamentId,
       p75Success: p75Success === true,
       nowMs: now,
@@ -125,58 +140,37 @@ export async function applyPortalMatchPoints(
   let weeklyPointsAfter = Math.max(0, delta);
   let appliedDelta = weeklyPointsAfter;
 
-  if (PORTAL_WEEKLY_LEAGUE_ENABLED) {
-    if (lobbyId) {
-      const lobby = await ctx.db.get(lobbyId);
-      await ensurePortalWeeklyLeagueMemberForLobby(
-        ctx,
-        args.uid,
-        lobbyId,
-        lobby?.slug ?? "lobby",
-        now
+  if (PORTAL_WEEKLY_LEAGUE_ENABLED && leagueScopeKey) {
+    await ensurePortalWeeklyLeagueMemberForScope(
+      ctx,
+      args.uid,
+      leagueScopeKey,
+      leagueScope ? leagueScopeDisplaySlug(leagueScope) : "scope",
+      now
+    );
+    const member = await getWeeklyLeagueMemberByScope(ctx, {
+      uid: args.uid,
+      leagueScopeKey,
+      weekKey,
+    });
+    if (!member) {
+      throw new Error(
+        `portal weekly league member missing after ensure uid=${args.uid} leagueScopeKey=${leagueScopeKey}`
       );
-      const member = await getWeeklyLeagueMemberByLobby(ctx, {
-        uid: args.uid,
-        lobbyId,
-        weekKey,
-      });
-      if (!member) {
-        throw new Error(
-          `portal weekly league member missing after ensure uid=${args.uid} lobbyId=${lobbyId}`
-        );
-      }
-      weeklyPointsAfter = Math.max(0, member.weeklyPoints + delta);
-      appliedDelta = weeklyPointsAfter - member.weeklyPoints;
-      await ctx.db.patch(member._id, {
-        weeklyPoints: weeklyPointsAfter,
-        updatedAt: now,
-      });
-    } else {
-      await ensurePortalWeeklyLeagueMember(ctx, args.uid, gameType, now);
-      const member = await getWeeklyLeagueMember(ctx, {
-        uid: args.uid,
-        gameType,
-        weekKey,
-      });
-      if (!member) {
-        throw new Error(
-          `portal weekly league member missing after ensure uid=${args.uid} gameType=${gameType}`
-        );
-      }
-      weeklyPointsAfter = Math.max(0, member.weeklyPoints + delta);
-      appliedDelta = weeklyPointsAfter - member.weeklyPoints;
-      await ctx.db.patch(member._id, {
-        weeklyPoints: weeklyPointsAfter,
-        updatedAt: now,
-      });
     }
+    weeklyPointsAfter = Math.max(0, member.weeklyPoints + delta);
+    appliedDelta = weeklyPointsAfter - member.weeklyPoints;
+    await ctx.db.patch(member._id, {
+      weeklyPoints: weeklyPointsAfter,
+      updatedAt: now,
+    });
   }
 
   await ctx.db.insert("portal_point_ledger", {
     uid: args.uid,
     runTournamentId: args.runTournamentId,
     gameType,
-    ...(lobbyId ? { lobbyId } : {}),
+    ...(leagueScopeKey ? { leagueScopeKey } : {}),
     mode,
     weekKey,
     delta: appliedDelta,
@@ -200,13 +194,19 @@ export async function applyPortalMatchPoints(
     now,
   });
 
-  // Badges + season honor (lobby-scoped). Skip when solo daily success cap mutes rewards.
-  if (lobbyId && !soloRewardsMuted) {
-    await ensureWeeklyLeagueProfileForLobby(ctx, args.uid, lobbyId, now);
-    const profile = await ctx.db
-      .query("portal_weekly_league_profile")
-      .withIndex("by_uid_lobby", (q) => q.eq("uid", args.uid).eq("lobbyId", lobbyId))
-      .unique();
+  // Town Season XP stays on the town: scope. Lobby badges / Season stay lobby-scoped.
+  if (leagueScopeKey && isTownLeagueScopeKey(leagueScopeKey) && !soloRewardsMuted) {
+    const xp = await addTownSeasonPlayXp(ctx, {
+      uid: args.uid,
+      leagueScopeKey,
+      now,
+    });
+    xpGranted = Math.max(0, Math.floor(xp.xpGranted));
+  } else if (leagueScopeKey && isTownLeagueScopeKey(leagueScopeKey) && soloRewardsMuted) {
+    xpGranted = 0;
+  } else if (lobbyId && leagueScopeKey && !soloRewardsMuted) {
+    await ensureWeeklyLeagueProfileForScope(ctx, args.uid, leagueScopeKey, now);
+    const profile = await findWeeklyLeagueProfile(ctx, args.uid, leagueScopeKey);
     if (profile) {
       const { matchWin, multiWin } = portalMatchWinDeltas({
         mode,

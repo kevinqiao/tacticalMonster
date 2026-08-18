@@ -20,6 +20,9 @@ import {
   type PortalSoloSuccessAfterCapMode,
   type PortalSoloSuccessDailyConfig,
 } from "../../data/portalSoloSuccessConfig";
+import { TOWN_PLAY_ENTRY } from "../../data/townEconomyGenerated";
+import { isTownLeagueScopeKey } from "../../data/portalLeagueScope";
+import type { PlayEntryContext } from "./portalEntryUsageScope";
 
 export type PlayEntrySettingsFields = {
   /** mode | lobby | tournament — how free/ad/ticket pools are shared. */
@@ -103,12 +106,37 @@ function isPartnerBaseRow(row: {
  * Resolve effective play-entry settings:
  * partner base → lobby overlay → tournament overlay.
  */
+export function townPlayEntryOverlay(): PlayEntrySettingsFields {
+  return { ...TOWN_PLAY_ENTRY };
+}
+
+export function applyTownPlayEntryOverlay(
+  settings: PlayEntrySettingsFields,
+  scopeKey?: string | null
+): PlayEntrySettingsFields {
+  if (!isTownLeagueScopeKey(scopeKey)) return settings;
+  return fieldOverlay(settings, townPlayEntryOverlay());
+}
+
+export function playEntryResolveArgs(entryCtx?: PlayEntryContext | null): {
+  lobbyId?: Id<"portal_lobbies"> | null;
+  tournamentId?: string | null;
+  scopeKey?: string | null;
+} {
+  return {
+    lobbyId: entryCtx?.lobbyId ?? null,
+    tournamentId: entryCtx?.tournamentId ?? null,
+    scopeKey: entryCtx?.scopeKey ?? null,
+  };
+}
+
 export async function resolvePlayEntrySettings(
   ctx: QueryCtx | MutationCtx,
   args: {
     partnerId: number;
     lobbyId?: Id<"portal_lobbies"> | null;
     tournamentId?: string | null;
+    scopeKey?: string | null;
   }
 ): Promise<{ settings: PlayEntrySettingsFields; scope: PlayEntryResolveScope }> {
   const partnerId = Math.floor(args.partnerId);
@@ -147,7 +175,7 @@ export async function resolvePlayEntrySettings(
     }
   }
 
-  return { settings, scope };
+  return { settings: applyTownPlayEntryOverlay(settings, args.scopeKey), scope };
 }
 
 export function ticketConfigFromSettings(

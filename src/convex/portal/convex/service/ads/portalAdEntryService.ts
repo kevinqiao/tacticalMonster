@@ -31,6 +31,7 @@ import {
 import type { PlayEntryContext } from "./portalEntryUsageScope";
 import { resolveFreePlayDailyCap } from "./portalTicketEntryService";
 import {
+  playEntryResolveArgs,
   quotaScopeFromSettings,
   resolvePlayEntrySettings,
 } from "./resolvePlayEntrySettings";
@@ -59,8 +60,7 @@ export async function resolveAdEntryConfig(
 ) {
   const { settings } = await resolvePlayEntrySettings(ctx, {
     partnerId: partnerIdFromUid(uid),
-    lobbyId: entryCtx?.lobbyId,
-    tournamentId: entryCtx?.tournamentId,
+    ...playEntryResolveArgs(entryCtx),
   });
   const enabled = resolveAdEntryEnabled(settings.adEntryEnabled, mode);
   const dailyCap = clampAdEntryDailyCap(
@@ -151,6 +151,7 @@ export async function beginPortalAdEntrySessionCore(
     channel: string;
     templateId: string;
     lobbyId?: Id<"portal_lobbies"> | null;
+    scopeKey?: string | null;
     now?: number;
   }
 ) {
@@ -172,12 +173,12 @@ export async function beginPortalAdEntrySessionCore(
   const entryCtx: PlayEntryContext = {
     lobbyId: args.lobbyId ?? null,
     tournamentId: args.templateId,
+    scopeKey: args.scopeKey ?? null,
   };
   const freeCap = await resolveFreePlayDailyCap(ctx, args.uid, mode, entryCtx);
   const { settings } = await resolvePlayEntrySettings(ctx, {
     partnerId: partnerIdFromUid(args.uid),
-    lobbyId: entryCtx.lobbyId,
-    tournamentId: entryCtx.tournamentId,
+    ...playEntryResolveArgs(entryCtx),
   });
   const quotaScope = quotaScopeFromSettings(settings);
   const playsToday = await countPortalPlaysForQuotaScope(ctx, {
@@ -185,6 +186,7 @@ export async function beginPortalAdEntrySessionCore(
     mode,
     quotaScope,
     lobbyId: args.lobbyId,
+    scopeKey: entryCtx.scopeKey,
     templateId: args.templateId,
     nowMs: now,
   });
@@ -197,6 +199,7 @@ export async function beginPortalAdEntrySessionCore(
     uid: args.uid,
     templateId: args.templateId,
     lobbyId: args.lobbyId,
+    scopeKey: args.scopeKey,
     nowMs: now,
     pendingAdEntries: 1,
   });
@@ -339,6 +342,7 @@ export async function useAdEntryGrantForJoin(
     mode: PortalAdEntryMode;
     templateId: string;
     lobbyId?: Id<"portal_lobbies"> | null;
+    scopeKey?: string | null;
     now?: number;
   }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -346,6 +350,7 @@ export async function useAdEntryGrantForJoin(
   const entryCtx: PlayEntryContext = {
     lobbyId: args.lobbyId ?? null,
     tournamentId: args.templateId,
+    scopeKey: args.scopeKey ?? null,
   };
   await expireStaleReadyGrants(ctx, args.uid, args.mode, now);
   const grant = await findReadyAdEntryGrant(ctx, args.uid, args.mode, now);
@@ -386,6 +391,7 @@ export const consumeAdEntryForJoin = internalMutation({
     uid: v.string(),
     templateId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
     /**
      * Grant mode from the *requested* entry (before multi→solo ritual rewrite).
      * When omitted, derived from templateId.
@@ -407,6 +413,7 @@ export const consumeAdEntryForJoin = internalMutation({
       mode,
       templateId: args.templateId,
       lobbyId: args.lobbyId,
+      scopeKey: args.scopeKey,
     });
   },
 });

@@ -1,4 +1,8 @@
-import type { PortalShopSkuSeed } from "../../data/portalShopCatalog";
+import {
+  shopSkuMatchesSurface,
+  type PortalShopSkuSeed,
+  type PortalShopSurface,
+} from "../../data/portalShopCatalog";
 import {
   defaultPortalPartnerShopSettings,
   type PortalPartnerShopSettings,
@@ -32,8 +36,10 @@ export function resolvePortalShopCatalog(args: {
   partnerId: number | null;
   masterSkus: ShopCatalogMasterSku[];
   settings?: PortalPartnerShopSettings | null;
+  surface?: PortalShopSurface;
 }): ResolvedShopSku[] {
   const partnerId = args.partnerId;
+  const surface = args.surface ?? "lobby";
   const settings =
     partnerId == null
       ? defaultPortalPartnerShopSettings(-1)
@@ -45,20 +51,25 @@ export function resolvePortalShopCatalog(args: {
   return args.masterSkus
     .filter((sku) => {
       if (!sku.active) return false;
+      if (!shopSkuMatchesSurface(sku, surface)) return false;
       const isPartnerExclusive = Boolean(sku.partnerIds?.length);
       if (isPartnerExclusive && (partnerId == null || !sku.partnerIds!.includes(partnerId))) {
         return false;
       }
-      // Allowlist only gates shared catalog SKUs. Partner-exclusive SKUs are managed
-      // via Partner Admin CRUD + kind toggles (vouchersEnabled / listInShop / active).
-      if (
-        settings.assortmentMode === "allowlist" &&
-        !isPartnerExclusive &&
-        !allowlisted.has(sku.skuId)
-      ) {
-        return false;
+      // Town assortment is fixed (coin tickets + fiat packs). Lobby allowlist
+      // must not hide those SKUs when the player is in Town.
+      if (surface !== "town") {
+        // Allowlist only gates shared catalog SKUs. Partner-exclusive SKUs are managed
+        // via Partner Admin CRUD + kind toggles (vouchersEnabled / listInShop / active).
+        if (
+          settings.assortmentMode === "allowlist" &&
+          !isPartnerExclusive &&
+          !allowlisted.has(sku.skuId)
+        ) {
+          return false;
+        }
+        if (excluded.has(sku.skuId)) return false;
       }
-      if (excluded.has(sku.skuId)) return false;
       const kind = sku.skuKind ?? "virtual";
       if (kind === "giftcard" && !settings.giftCardsEnabled) return false;
       if (kind === "virtual" && !settings.virtualEnabled) return false;

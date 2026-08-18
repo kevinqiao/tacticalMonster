@@ -14,6 +14,7 @@ import { authorizeCampaignJoinViaHttp } from "../../bridge/merchantCampaignBridg
 import { resolveMultiRitualJoinTemplate } from "../../bridge/portalSeasonSeedPickSignals";
 import { sessionPartnerIdFromUid } from "../../../../../shared/platformAuth/parsePlatformUid";
 import type { JoinCasualRunResult } from "../shared/casualTournamentTypes";
+import { resolveLeagueScope } from "../../../data/portalLeagueScope";
 
 /**
  * Solo (maxPlayers<=1): openCasualSoloTable; multi: enqueue matchmaking.
@@ -29,6 +30,7 @@ export const joinTournament = authedAction({
     campaignSlug: v.optional(v.string()),
     /** Portal lobby for weekly-league settle scope. */
     lobbyId: v.optional(v.id("portal_lobbies")),
+    leagueScopeKey: v.optional(v.string()),
     /** Explicitly select the ad rung after free plays are exhausted. */
     adEntry: v.optional(v.boolean()),
     /** Explicitly select the ticket rung after free + ad are exhausted. */
@@ -36,8 +38,12 @@ export const joinTournament = authedAction({
   },
   handler: async (
     ctx,
-    { tournamentId, partnerId: partnerIdArg, campaignSlug, lobbyId, adEntry, ticketEntry }
+    { tournamentId, partnerId: partnerIdArg, campaignSlug, lobbyId, leagueScopeKey: leagueScopeKeyArg, adEntry, ticketEntry }
   ): Promise<JoinCasualRunResult> => {
+    const leagueScopeKey = resolveLeagueScope({
+      leagueScopeKey: leagueScopeKeyArg,
+      lobbyId,
+    })?.leagueScopeKey;
     const uid = ctx.uid;
     let resolvedTemplateId = tournamentId;
     let campaignId: string | undefined;
@@ -170,6 +176,7 @@ export const joinTournament = authedAction({
           uid,
           templateId: resolvedTemplateId,
           ...(lobbyId ? { lobbyId } : {}),
+          ...(leagueScopeKey ? { scopeKey: leagueScopeKey } : {}),
           ...(dayTimezone ? { dayTimezone } : {}),
           ...(adEntry ? { pendingAdEntries: 1 } : {}),
           ...(ticketEntry ? { pendingTicketEntries: 1 } : {}),
@@ -191,6 +198,7 @@ export const joinTournament = authedAction({
           mode: requestedEntryMode,
           templateId: requestedTemplateId,
           ...(lobbyId ? { lobbyId } : {}),
+          ...(leagueScopeKey ? { scopeKey: leagueScopeKey } : {}),
         }
       );
       if (!entry.ok) return entry;
@@ -203,6 +211,7 @@ export const joinTournament = authedAction({
           uid,
           templateId: resolvedTemplateId,
           ...(lobbyId ? { lobbyId } : {}),
+          ...(leagueScopeKey ? { scopeKey: leagueScopeKey } : {}),
         }
       );
       if (!entry.ok) return entry;
@@ -220,6 +229,7 @@ export const joinTournament = authedAction({
           uid,
           templateId: resolvedTemplateId,
           ...(lobbyId ? { lobbyId } : {}),
+          ...(leagueScopeKey ? { leagueScopeKey } : {}),
           ...(campaignId ? { campaignId } : {}),
           ...(partnerId != null ? { partnerId } : {}),
           ...(campaignRewardMode ? { campaignRewardMode } : {}),
@@ -244,6 +254,7 @@ export const joinTournament = authedAction({
           uid,
           templateId: resolvedTemplateId,
           ...(lobbyId ? { lobbyId } : {}),
+          ...(leagueScopeKey ? { leagueScopeKey } : {}),
           ...(campaignId ? { campaignId } : {}),
           ...(partnerId != null ? { partnerId } : {}),
           ...(campaignRewardMode ? { campaignRewardMode } : {}),

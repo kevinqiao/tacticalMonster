@@ -17,6 +17,7 @@
   "codes": {
     "insufficient_coins": "Not enough coins",
     "weekly_limit_reached": "Weekly purchase limit reached",
+    "daily_limit_reached": "Daily purchase limit reached",
     "sku_not_found": "Item not found",
     "iap_use_payment_provider": "Buy this pack with card payment",
     "stripe_not_configured": "Payments are unavailable",

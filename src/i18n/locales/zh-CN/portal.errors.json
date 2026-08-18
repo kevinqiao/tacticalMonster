@@ -17,6 +17,7 @@
   "codes": {
     "insufficient_coins": "金币不足",
     "weekly_limit_reached": "本周购买已达上限",
+    "daily_limit_reached": "今日购买已达上限",
     "sku_not_found": "商品不存在",
     "iap_use_payment_provider": "请使用法币支付购买该礼包",
     "stripe_not_configured": "支付暂不可用",

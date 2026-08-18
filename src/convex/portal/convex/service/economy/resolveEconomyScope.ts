@@ -1,5 +1,6 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
+import { isTownLeagueScopeKey } from "../../data/portalLeagueScope";
 import {
   economyScopeKey,
   resolveLobbyOpsMode,
@@ -17,6 +18,12 @@ export type EconomyScope =
       mode: "isolated";
       partnerId: number;
       lobbyId: Id<"portal_lobbies">;
+      scopeKey: string;
+    }
+  | {
+      mode: "town";
+      partnerId: number;
+      lobbyId: null;
       scopeKey: string;
     };
 
@@ -40,8 +47,18 @@ export async function resolveEconomyScope(
   args: {
     partnerId: number;
     lobbyId?: Id<"portal_lobbies"> | null;
+    /** Town wallet / ad / check-in partition (`town:{townId}`). */
+    scopeKey?: string | null;
   }
 ): Promise<EconomyScope> {
+  if (isTownLeagueScopeKey(args.scopeKey)) {
+    return {
+      mode: "town",
+      partnerId: args.partnerId,
+      lobbyId: null,
+      scopeKey: args.scopeKey!,
+    };
+  }
   const mode = await loadPartnerLobbyOpsMode(ctx, args.partnerId);
   if (mode === "shared") {
     return {

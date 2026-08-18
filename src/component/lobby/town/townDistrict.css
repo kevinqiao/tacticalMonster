@@ -1,0 +1,166 @@
+.town-district-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(12, 10, 8, 0.55);
+}
+
+.town-district-panel {
+  width: min(420px, 100%);
+  max-height: min(85vh, 640px);
+  overflow: auto;
+  border-radius: 16px 16px 12px 12px;
+  background: linear-gradient(180deg, #2a2218 0%, #1a1510 100%);
+  border: 1px solid rgba(212, 175, 95, 0.35);
+  color: #f5e6c8;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.town-district-panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.5rem;
+}
+
+.town-district-panel__id {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.town-district-panel__head h2 {
+  margin: 2px 0 0;
+  font-size: 1.2rem;
+}
+
+.town-district-panel__head p {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+.town-district-panel__close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.town-district-panel__list li button {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 95, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.town-district-panel__block .town-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.town-district-panel__block {
+  padding: 0 1rem 1rem;
+}
+
+.town-district-panel__block h3 {
+  margin: 16px 0 8px;
+  font-size: 0.78rem;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.town-district-panel__block h3:first-child {
+  margin-top: 0;
+}
+
+.town-district-panel__list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.town-district-panel__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 0.82rem;
+}
+
+.town-district-panel__list li.is-ok {
+  color: #9ad18a;
+}
+
+.town-district-panel__rate {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.town-district-panel__hint {
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.town-district-panel__pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 0.75rem;
+}
+
+.town-district-panel__pick select {
+  min-height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 95, 0.3);
+  background: #1a1510;
+  color: inherit;
+}
+
+.town-district-panel .town-btn-primary {
+  width: 100%;
+}
+
+.town-district-panel__celebrate {
+  margin: 0 1rem 1rem;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(90, 143, 78, 0.18);
+  border: 1px solid rgba(90, 143, 78, 0.4);
+}
+
+.town-district-panel__celebrate strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.town-district-panel__celebrate p {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  opacity: 0.9;
+}

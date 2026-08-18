@@ -6,11 +6,13 @@ import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { internalMutation, internalQuery, mutation } from "../../_generated/server";
 import { authedMutation, authedQuery } from "../../custom/session";
 import { formatFaceValueDisplay } from "../../data/portalGiftCardEconomy";
+import { isTownLeagueScopeKey } from "../../data/portalLeagueScope";
 import {
   mapPortalShopSkuRow,
   PORTAL_SHOP_SKU_CATALOG,
   resolveGrantTicketCount,
   type PortalShopSkuSeed,
+  type PortalShopSurface,
 } from "../../data/portalShopCatalog";
 import {
   isPortalShopSkuVisibleForPartner,
@@ -20,6 +22,11 @@ import { buildRedemptionProfileView } from "../giftcard/giftCardEligibility";
 import { weeklyPeriodKey } from "../../utils/casualTaskPeriod";
 import { defaultPortalPartnerShopSettings } from "../../data/portalPartnerShopSettings";
 import { findResolvedShopSku, resolvePortalShopCatalog } from "./shopCatalogResolve";
+import {
+  resolveShopPurchaseLimit,
+  shopPurchaseLimitError,
+  shopPurchasePeriodKey,
+} from "./shopPurchaseLimit";
 import { getPlayerWalletBalances } from "../economy/portalWalletDao";
 import { resolveEconomyScope } from "../economy/resolveEconomyScope";
 import { loadPartnerShopSettings } from "./partnerShopSettings";
@@ -38,6 +45,7 @@ function shopSkuDbPayload(s: PortalShopSkuSeed) {
     grantTicketCount,
     grantCoinCount: Math.max(0, Math.floor(s.grantCoinCount ?? 0)),
     weeklyPurchaseLimit: s.weeklyPurchaseLimit,
+    dailyPurchaseLimit: s.dailyPurchaseLimit,
     active: true,
     sortOrder: s.sortOrder,
     skuKind: s.skuKind ?? "virtual",
@@ -59,6 +67,7 @@ function shopSkuDbPayload(s: PortalShopSkuSeed) {
     voucherRewardText: s.voucherRewardText,
     voucherValidityDays: s.voucherValidityDays,
     listInShop: s.listInShop,
+    surfaces: s.surfaces,
   };
 }
 
@@ -95,6 +104,7 @@ function shopSkuSeedFromDbRow(r: Doc<"portal_shop_skus">): PortalShopSkuSeed {
     grantTicketCount,
     grantCoinCount: r.grantCoinCount ?? cat?.grantCoinCount ?? 0,
     weeklyPurchaseLimit: r.weeklyPurchaseLimit ?? cat?.weeklyPurchaseLimit,
+    dailyPurchaseLimit: r.dailyPurchaseLimit ?? cat?.dailyPurchaseLimit,
     sortOrder: r.sortOrder,
     skuKind: r.skuKind ?? cat?.skuKind ?? "virtual",
     stripePriceId: r.stripePriceId ?? cat?.stripePriceId,
@@ -115,7 +125,13 @@ function shopSkuSeedFromDbRow(r: Doc<"portal_shop_skus">): PortalShopSkuSeed {
     voucherRewardText: r.voucherRewardText ?? cat?.voucherRewardText,
     voucherValidityDays: r.voucherValidityDays ?? cat?.voucherValidityDays,
     listInShop: r.listInShop ?? cat?.listInShop,
+    surfaces: (cat?.surfaces ??
+      (r.surfaces as PortalShopSkuSeed["surfaces"])) as PortalShopSkuSeed["surfaces"],
   };
+}
+
+function shopSurfaceFromScope(scopeKey: string): PortalShopSurface {
+  return isTownLeagueScopeKey(scopeKey) ? "town" : "lobby";
 }
 
 function masterSkus(rows: Doc<"portal_shop_skus">[]) {
@@ -145,13 +161,15 @@ type ShopEconomyCtx = {
 async function resolveShopEconomy(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  lobbyId?: Id<"portal_lobbies"> | null
+  lobbyId?: Id<"portal_lobbies"> | null,
+  scopeKey?: string | null
 ): Promise<ShopEconomyCtx> {
   const partnerId = resolvePortalShopSessionPartnerId(uid) ?? 0;
   try {
     const scope = await resolveEconomyScope(ctx, {
       partnerId,
       lobbyId: lobbyId ?? null,
+      scopeKey: scopeKey ?? null,
     });
     return {
       partnerId,
@@ -177,7 +195,8 @@ async function resolveForPartner(
   ctx: QueryCtx | MutationCtx,
   partnerId: number | null,
   rows: Doc<"portal_shop_skus">[],
-  settingsLobbyId?: Id<"portal_lobbies"> | null
+  settingsLobbyId?: Id<"portal_lobbies"> | null,
+  surface: PortalShopSurface = "lobby"
 ) {
   const settings =
     partnerId == null
@@ -188,6 +207,7 @@ async function resolveForPartner(
     partnerId,
     masterSkus: masterSkus(rows),
     settings,
+    surface,
   });
 }
 
@@ -261,31 +281,48 @@ export const syncPortalShopCatalog = internalMutation({
 export const listPortalShopSkus = authedQuery({
   args: {
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
   },
-  handler: async (ctx, { lobbyId }) => {
-    const econ = await resolveShopEconomy(ctx, ctx.uid, lobbyId ?? null);
+  handler: async (ctx, { lobbyId, scopeKey }) => {
+    const econ = await resolveShopEconomy(
+      ctx,
+      ctx.uid,
+      lobbyId ?? null,
+      scopeKey ?? null
+    );
     const rows = await ctx.db.query("portal_shop_skus").collect();
-    const weekKey = weeklyPeriodKey(Date.now());
-    const counters = await listWeeklyCountersForUid(
+    const now = Date.now();
+    const weekKey = weeklyPeriodKey(now);
+    const dayKey = shopPurchasePeriodKey("daily", now);
+    const weekCounters = await listWeeklyCountersForUid(
       ctx,
       ctx.uid,
       weekKey,
       econ.scopeKey
     );
-    const countBySku = new Map(counters.map((c) => [c.skuId, c.count]));
+    const dayCounters = await listWeeklyCountersForUid(
+      ctx,
+      ctx.uid,
+      dayKey,
+      econ.scopeKey
+    );
+    const weekCountBySku = new Map(weekCounters.map((c) => [c.skuId, c.count]));
+    const dayCountBySku = new Map(dayCounters.map((c) => [c.skuId, c.count]));
 
     const player = await ctx.db
       .query("portal_players")
       .withIndex("by_uid", (q) => q.eq("uid", ctx.uid))
       .unique();
     const wallet = await getPlayerWalletBalances(ctx, ctx.uid, econ.scopeKey);
+    const surface = shopSurfaceFromScope(econ.scopeKey);
 
     const catalogRows = (
       await resolveForPartner(
         ctx,
         econ.partnerId,
         rows,
-        econ.settingsLobbyId
+        econ.settingsLobbyId,
+        surface
       )
     ).map((sku) => mapPortalShopSkuRow(sku));
 
@@ -295,12 +332,16 @@ export const listPortalShopSkus = authedQuery({
       lobbyId: econ.lobbyId,
       redemptionProfile: buildRedemptionProfileView(player, { ok: true }),
       skus: catalogRows.map((mapped) => {
-        const bought = countBySku.get(mapped.skuId) ?? 0;
-        const limit = mapped.weeklyPurchaseLimit;
+        const limit = resolveShopPurchaseLimit(mapped);
+        const bought =
+          limit?.kind === "daily"
+            ? (dayCountBySku.get(mapped.skuId) ?? 0)
+            : (weekCountBySku.get(mapped.skuId) ?? 0);
         return {
           ...mapped,
           purchasedThisWeek: bought,
-          remainingThisWeek: limit != null ? Math.max(0, limit - bought) : null,
+          remainingThisWeek:
+            limit != null ? Math.max(0, limit.limit - bought) : null,
           locked: false,
           lockReason: null,
         };
@@ -315,9 +356,10 @@ async function recordWeeklyPurchase(
   skuId: string,
   now: number,
   scopeKey: string,
-  lobbyId: Id<"portal_lobbies"> | null
+  lobbyId: Id<"portal_lobbies"> | null,
+  periodKey?: string
 ) {
-  const weekKey = weeklyPeriodKey(now);
+  const weekKey = periodKey ?? weeklyPeriodKey(now);
   const row = await findWeeklyPurchaseCounter(ctx, uid, skuId, weekKey, scopeKey);
   if (row) {
     await ctx.db.patch(row._id, { count: row.count + 1, updatedAt: now });
@@ -338,14 +380,16 @@ export const purchasePortalShopSku = authedMutation({
   args: {
     skuId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
   },
-  handler: async (ctx, { skuId, lobbyId }) => {
+  handler: async (ctx, { skuId, lobbyId, scopeKey }) => {
     const partnerId = resolvePortalShopSessionPartnerId(ctx.uid) ?? 0;
     let econ: ShopEconomyCtx;
     try {
       const scope = await resolveEconomyScope(ctx, {
         partnerId,
         lobbyId: lobbyId ?? null,
+        scopeKey: scopeKey ?? null,
       });
       econ = {
         partnerId,
@@ -362,7 +406,8 @@ export const purchasePortalShopSku = authedMutation({
       ctx,
       econ.partnerId,
       rows,
-      econ.settingsLobbyId
+      econ.settingsLobbyId,
+      shopSurfaceFromScope(econ.scopeKey)
     );
     const sku = findResolvedShopSku(effective, skuId);
     if (!sku) {
@@ -374,17 +419,20 @@ export const purchasePortalShopSku = authedMutation({
       return { ok: false as const, error: "iap_use_payment_provider" as const };
     }
     const now = Date.now();
-    const weekKey = weeklyPeriodKey(now);
+    const limit = resolveShopPurchaseLimit(sku);
+    const periodKey = limit
+      ? shopPurchasePeriodKey(limit.kind, now)
+      : weeklyPeriodKey(now);
     const counter = await findWeeklyPurchaseCounter(
       ctx,
       ctx.uid,
       skuId,
-      weekKey,
+      periodKey,
       econ.scopeKey
     );
     const bought = counter?.count ?? 0;
-    if (sku.weeklyPurchaseLimit != null && bought >= sku.weeklyPurchaseLimit) {
-      return { ok: false as const, error: "weekly_limit_reached" as const };
+    if (limit != null && bought >= limit.limit) {
+      return { ok: false as const, error: shopPurchaseLimitError(limit.kind) };
     }
 
     const player = await ctx.db
@@ -437,7 +485,8 @@ export const purchasePortalShopSku = authedMutation({
         skuId,
         now,
         econ.scopeKey,
-        econ.lobbyId
+        econ.lobbyId,
+        periodKey
       );
 
       await ctx.scheduler.runAfter(
@@ -481,7 +530,8 @@ export const purchasePortalShopSku = authedMutation({
         skuId,
         now,
         econ.scopeKey,
-        econ.lobbyId
+        econ.lobbyId,
+        periodKey
       );
       return {
         ok: true as const,
@@ -521,7 +571,8 @@ export const purchasePortalShopSku = authedMutation({
       skuId,
       now,
       econ.scopeKey,
-      econ.lobbyId
+      econ.lobbyId,
+      periodKey
     );
 
     return {
@@ -548,14 +599,16 @@ export const resolveIapCheckoutSkuInternal = internalQuery({
     uid: v.string(),
     skuId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
   },
-  handler: async (ctx, { uid, skuId, lobbyId }) => {
+  handler: async (ctx, { uid, skuId, lobbyId, scopeKey }) => {
     const partnerId = resolvePortalShopSessionPartnerId(uid) ?? 0;
     let econ: ShopEconomyCtx;
     try {
       const scope = await resolveEconomyScope(ctx, {
         partnerId,
         lobbyId: lobbyId ?? null,
+        scopeKey: scopeKey ?? null,
       });
       econ = {
         partnerId,
@@ -572,7 +625,8 @@ export const resolveIapCheckoutSkuInternal = internalQuery({
       ctx,
       econ.partnerId,
       rows,
-      econ.settingsLobbyId
+      econ.settingsLobbyId,
+      shopSurfaceFromScope(econ.scopeKey)
     );
     const sku = findResolvedShopSku(effective, skuId);
     if (!sku || (sku.skuKind ?? "virtual") !== "iap") {
@@ -584,17 +638,19 @@ export const resolveIapCheckoutSkuInternal = internalQuery({
     }
 
     const now = Date.now();
-    const weekKey = weeklyPeriodKey(now);
-    const counter = await findWeeklyPurchaseCounter(
-      ctx,
-      uid,
-      skuId,
-      weekKey,
-      econ.scopeKey
-    );
-    const bought = counter?.count ?? 0;
-    if (sku.weeklyPurchaseLimit != null && bought >= sku.weeklyPurchaseLimit) {
-      return { ok: false as const, error: "weekly_limit_reached" as const };
+    const limit = resolveShopPurchaseLimit(sku);
+    if (limit) {
+      const counter = await findWeeklyPurchaseCounter(
+        ctx,
+        uid,
+        skuId,
+        shopPurchasePeriodKey(limit.kind, now),
+        econ.scopeKey
+      );
+      const bought = counter?.count ?? 0;
+      if (bought >= limit.limit) {
+        return { ok: false as const, error: shopPurchaseLimitError(limit.kind) };
+      }
     }
 
     return {
@@ -791,7 +847,19 @@ export const fulfillStripeShopPurchase = internalMutation({
         fulfilledAt: now,
       });
     }
-    await recordWeeklyPurchase(ctx, uid, skuId, now, scopeKey, lobbyId ?? null);
+    const limit = resolveShopPurchaseLimit({
+      dailyPurchaseLimit: dbRow?.dailyPurchaseLimit ?? seed?.dailyPurchaseLimit,
+      weeklyPurchaseLimit: dbRow?.weeklyPurchaseLimit ?? seed?.weeklyPurchaseLimit,
+    });
+    await recordWeeklyPurchase(
+      ctx,
+      uid,
+      skuId,
+      now,
+      scopeKey,
+      lobbyId ?? null,
+      limit ? shopPurchasePeriodKey(limit.kind, now) : undefined
+    );
 
     return {
       ok: true as const,

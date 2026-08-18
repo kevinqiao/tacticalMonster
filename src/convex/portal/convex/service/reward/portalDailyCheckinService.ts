@@ -46,13 +46,15 @@ type ResolvedCheckinConfig = {
 async function resolveCheckinEconomy(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  lobbyId?: Id<"portal_lobbies"> | null
+  lobbyId?: Id<"portal_lobbies"> | null,
+  scopeKey?: string | null
 ): Promise<CheckinEconomy> {
   const partnerId = resolvePortalShopSessionPartnerId(uid) ?? 0;
   try {
     const scope = await resolveEconomyScope(ctx, {
       partnerId,
       lobbyId: lobbyId ?? null,
+      scopeKey,
     });
     return {
       partnerId,
@@ -178,7 +180,8 @@ export async function getPortalDailyCheckinStatusCore(
   ctx: QueryCtx | MutationCtx,
   uid: string,
   nowMs: number = Date.now(),
-  lobbyId?: Id<"portal_lobbies"> | null
+  lobbyId?: Id<"portal_lobbies"> | null,
+  scopeKey?: string | null
 ): Promise<PortalDailyCheckinStatus> {
   const { rewardKind, amountOpts } = await resolveCheckinConfig(
     ctx,
@@ -215,7 +218,7 @@ export async function getPortalDailyCheckinStatusCore(
     return base;
   }
 
-  const econ = await resolveCheckinEconomy(ctx, uid, lobbyId);
+  const econ = await resolveCheckinEconomy(ctx, uid, lobbyId, scopeKey);
   if ("error" in econ) {
     return base;
   }
@@ -344,6 +347,7 @@ export async function claimPortalDailyCheckinCore(
   args: {
     uid: string;
     lobbyId?: Id<"portal_lobbies"> | null;
+    scopeKey?: string | null;
     nowMs?: number;
   }
 ): Promise<ClaimPortalDailyCheckinResult> {
@@ -357,7 +361,12 @@ export async function claimPortalDailyCheckinCore(
     args.lobbyId
   );
   const nowMs = args.nowMs ?? Date.now();
-  const econ = await resolveCheckinEconomy(ctx, args.uid, args.lobbyId);
+  const econ = await resolveCheckinEconomy(
+    ctx,
+    args.uid,
+    args.lobbyId,
+    args.scopeKey
+  );
   if ("error" in econ) {
     return { ok: false, error: econ.error };
   }

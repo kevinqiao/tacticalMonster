@@ -7,10 +7,12 @@ import { claimPortalDailyCheckinCore } from "./portalDailyCheckinService";
 export const claimDailyCheckin = authedMutation({
   args: {
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
     claimPortalDailyCheckinCore(ctx, {
       uid: ctx.uid,
       lobbyId: args.lobbyId ?? null,
+      scopeKey: args.scopeKey ?? null,
     }),
 });

@@ -9,9 +9,8 @@ import {
 
 type TownLeagueStatusProps = {
   league: PortalWeeklyLeagueTierView | null;
-  /** Game Center / League hub (e.g. /gc/demo-partner). */
-  leagueHref: string;
   authed: boolean;
+  onOpenLeague: () => void;
 };
 
 const TIER_EMOJI: Record<PortalTierId, string> = {
@@ -30,13 +29,12 @@ function seasonProgressPct(league: PortalWeeklyLeagueTierView): number {
 }
 
 /**
- * League-first meta on Town: read-only mirror of GC weekly tier + Season Lv.
- * Town has no independent Mayor/Town level — progress lives in League.
+ * Town League telegraph — opens the Town League tab (not Lobby / Game Center).
  */
 export function TownLeagueStatus({
   league,
-  leagueHref,
   authed,
+  onOpenLeague,
 }: TownLeagueStatusProps) {
   const { t } = useTranslation("portal.player");
 
@@ -67,10 +65,11 @@ export function TownLeagueStatus({
       : null;
 
   return (
-    <a
+    <button
+      type="button"
       className="town-league-status"
-      href={leagueHref}
       title={t("town.leagueStatusTitle")}
+      onClick={onOpenLeague}
     >
       <span className="town-league-status__tier">
         {emoji} {tierLabel}
@@ -93,6 +92,6 @@ export function TownLeagueStatus({
       {rankHint ? (
         <span className="town-league-status__rank">{rankHint}</span>
       ) : null}
-    </a>
+    </button>
   );
 }

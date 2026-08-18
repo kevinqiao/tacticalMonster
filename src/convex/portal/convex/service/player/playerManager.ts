@@ -40,18 +40,24 @@ export const authenticate = ensurePlayer;
 export const getPortalPlayerWallet = authedQuery({
   args: {
     lobbyId: v.optional(v.id("portal_lobbies")),
+    /** Town wallet (`town:{townId}`) — do not resolve via lobby economy. */
+    scopeKey: v.optional(v.string()),
   },
-  handler: async (ctx, { lobbyId }) => {
+  handler: async (ctx, { lobbyId, scopeKey: scopeKeyArg }) => {
     const partnerId = resolvePortalShopSessionPartnerId(ctx.uid) ?? 0;
     let scopeKey = "shared";
-    try {
-      const scope = await resolveEconomyScope(ctx, {
-        partnerId,
-        lobbyId: lobbyId ?? null,
-      });
-      scopeKey = scope.scopeKey;
-    } catch {
-      scopeKey = "shared";
+    if (scopeKeyArg) {
+      scopeKey = scopeKeyArg;
+    } else {
+      try {
+        const scope = await resolveEconomyScope(ctx, {
+          partnerId,
+          lobbyId: lobbyId ?? null,
+        });
+        scopeKey = scope.scopeKey;
+      } catch {
+        scopeKey = "shared";
+      }
     }
     const bal = await getPlayerWalletBalances(ctx, ctx.uid, scopeKey);
     return {

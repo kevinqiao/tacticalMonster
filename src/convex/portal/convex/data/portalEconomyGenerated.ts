@@ -1,6 +1,8 @@
 /**
  * AUTO-GENERATED — DO NOT EDIT.
  * Source: scripts/portal/economy/portal-economy.json
+ * Shared play + platform defaults (Town and Lobby). Not Lobby-only.
+ * Town zone meta: mayfield-zone-economy.json → townEconomyGenerated.ts
  * Regenerate: npm run portal:economy:sync
  * Check:     npm run portal:economy:sync:check
  */
@@ -87,6 +89,59 @@ export const PORTAL_SHOP_SKU_CATALOG = [
     minAccountAgeDays: 7,
     requiresVerifiedContact: true,
   },
+  {
+    skuId: "town_shop_ticket_daily",
+    skuKind: "virtual",
+    title: "门票 ×3",
+    description: "用金币兑换 3 张门票。每日限购 1 次。",
+    priceCoins: 180,
+    grantTicketCount: 3,
+    dailyPurchaseLimit: 1,
+    sortOrder: 10,
+    surfaces: ["town"],
+  },
+  {
+    skuId: "town_stripe_pack_s",
+    skuKind: "iap",
+    title: "畅玩礼包 · 小",
+    description: "5 张门票 + 100 金币。",
+    priceCoins: 0,
+    stripePriceId: "price_1TzncDCydxyHQL6sGtobkBYe",
+    priceCents: 299,
+    currency: "usd",
+    grantTicketCount: 5,
+    grantCoinCount: 100,
+    sortOrder: 20,
+    surfaces: ["town"],
+  },
+  {
+    skuId: "town_stripe_pack_m",
+    skuKind: "iap",
+    title: "畅玩礼包 · 中",
+    description: "15 张门票 + 300 金币。",
+    priceCoins: 0,
+    stripePriceId: "price_REPLACE_TOWN_M",
+    priceCents: 699,
+    currency: "usd",
+    grantTicketCount: 15,
+    grantCoinCount: 300,
+    sortOrder: 21,
+    surfaces: ["town"],
+  },
+  {
+    skuId: "town_stripe_pack_l",
+    skuKind: "iap",
+    title: "畅玩礼包 · 大",
+    description: "40 张门票 + 800 金币。",
+    priceCoins: 0,
+    stripePriceId: "price_REPLACE_TOWN_L",
+    priceCents: 1499,
+    currency: "usd",
+    grantTicketCount: 40,
+    grantCoinCount: 800,
+    sortOrder: 22,
+    surfaces: ["town"],
+  },
 ] as const;
 
 // --- tournament rewards ---
@@ -96,21 +151,27 @@ export const PORTAL_SOLO_POINTS = {
   clearBonus: 1,
 } as const;
 
+export const PORTAL_SOLO_COIN_REWARDS = {
+  success: 5,
+  fail: 0,
+} as const;
+
 export const PORTAL_MULTI_RANK_POINTS = {
   1: 5,
   2: 3,
-  3: 1,
-  4: -1,
-  5: -2,
+  3: 2,
+  4: 1,
+  5: 0,
 } as const;
 
 export const PORTAL_MULTI_COIN_ENTRY = 20;
 
 export const PORTAL_MULTI_COIN_RANK_REWARDS = {
-  "1": 45,
-  "2": 25,
-  "3": 15,
-  "4": 5,
+  "1": 10,
+  "2": 6,
+  "3": 4,
+  "4": 2,
+  "5": 0,
 } as const;
 
 export const PORTAL_RANK_RATES_5 = [
@@ -199,7 +260,7 @@ export const PORTAL_SOLO_SUCCESS_DAILY_DEFAULTS = {
   enabled: true,
   dailyCap: 5,
   afterCapMode: "zero_all",
-  allowPlayAfterCap: true,
+  allowPlayAfterCap: false,
 } as const;
 export const PORTAL_SOLO_SUCCESS_DAILY_CAP_MAX = 100;
 

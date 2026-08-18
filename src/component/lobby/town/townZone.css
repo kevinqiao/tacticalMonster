@@ -1,0 +1,294 @@
+.town-zone-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(12, 10, 8, 0.55);
+}
+
+.town-zone-panel {
+  width: min(420px, 100%);
+  max-height: min(85vh, 640px);
+  overflow: auto;
+  border-radius: 16px 16px 12px 12px;
+  background: linear-gradient(180deg, #2a2218 0%, #1a1510 100%);
+  border: 1px solid rgba(212, 175, 95, 0.35);
+  color: #f5e6c8;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.town-zone-panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.5rem;
+}
+
+.town-zone-panel__head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.town-zone-panel__head p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.town-zone-panel__close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.town-zone-panel__collect {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.5rem 1rem 1rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.town-zone-panel__collect strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.town-zone-panel__collect span {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.town-zone-panel__collect-btn {
+  flex-shrink: 0;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.town-zone-panel__bonus {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0 1rem 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(40, 32, 24, 0.55);
+  border: 1px dashed rgba(212, 175, 95, 0.35);
+  font-size: 0.82rem;
+  color: rgba(245, 230, 200, 0.85);
+}
+
+.town-zone-panel__bonus strong {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(212, 175, 95, 0.9);
+}
+
+.town-zone-panel__bonus--active {
+  border-style: solid;
+  border-color: rgba(255, 200, 80, 0.55);
+  background: rgba(80, 56, 20, 0.35);
+}
+
+.town-zone-panel__bonus--active strong {
+  color: #ffd080;
+}
+
+.town-zone-panel__pick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 1rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.town-zone-panel__pick select {
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 95, 0.35);
+  background: #1a1510;
+  color: inherit;
+}
+
+.town-zone-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.town-zone-panel__district .town-zone-list {
+  padding: 0;
+}
+
+.town-zone-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.town-zone-list__meta strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.town-zone-list__meta span {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.town-zone-list__action {
+  flex-shrink: 0;
+  border: 1px solid rgba(212, 175, 95, 0.45);
+  background: rgba(212, 175, 95, 0.12);
+  color: #f5e6c8;
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.town-zone-list__action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.town-zone-list__max {
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+
+.town-zone-panel__district {
+  margin: 0 1rem 0.85rem;
+}
+
+.town-zone-panel__district h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+}
+
+.town-zone-panel__district h3 span {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.town-zone-panel__district--here h3 {
+  color: #f0d48a;
+}
+
+.town-zone-panel__district-lock {
+  margin: 0;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.town-zone-panel__expand {
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.town-zone-panel__expand p {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.town-zone-panel__expand-checks {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  opacity: 0.9;
+}
+
+.town-zone-panel__expand .town-btn-primary {
+  width: 100%;
+}
+
+.town-prosperity-ms {
+  margin: 0 1rem 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(212, 168, 67, 0.25);
+}
+
+.town-prosperity-ms--compact {
+  margin: 0.75rem 0 0;
+}
+
+.town-prosperity-ms__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  margin-bottom: 0.35rem;
+}
+
+.town-prosperity-ms__next {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  opacity: 0.88;
+}
+
+.town-prosperity-ms__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.town-prosperity-ms__tier {
+  display: flex;
+  gap: 0.45rem;
+  font-size: 0.76rem;
+  opacity: 0.72;
+}
+
+.town-prosperity-ms__tier--done {
+  opacity: 1;
+}
+
+.town-prosperity-ms__tier-mark {
+  width: 1rem;
+  flex-shrink: 0;
+}
+
+.town-prosperity-ms__tier-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.town-prosperity-ms__tier-blurb {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.town-prosperity-ms__note {
+  margin: 0.55rem 0 0;
+  font-size: 0.68rem;
+  opacity: 0.65;
+}

@@ -1,0 +1,114 @@
+.town-pass p {
+  margin: 6px 0 10px;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.town-pass__boost {
+  margin: 0 0 10px;
+}
+
+.town-pass__boost .town-tab-panel__row:last-child {
+  border-bottom: none;
+}
+
+.town-pass__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.town-pass__head strong {
+  font-size: 1rem;
+}
+
+.town-pass__head span {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.town-pass__xp {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.town-pass__xp-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(196, 122, 43, 0.18);
+  overflow: hidden;
+}
+
+.town-pass__xp-bar i {
+  display: block;
+  height: 100%;
+  background: #c47a2b;
+}
+
+.town-pass__track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.town-pass__node {
+  min-height: 48px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 95, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.town-pass__node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px 2px;
+}
+
+.town-pass__node-id {
+  font-size: 0.62rem;
+  opacity: 0.7;
+  line-height: 1;
+}
+
+.town-pass__node-reward {
+  font-size: 0.72rem;
+  line-height: 1.15;
+}
+
+.town-pass__node-claim {
+  font-size: 0.58rem;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  color: #f5e6c8;
+}
+
+.town-pass__node.is-claimed {
+  opacity: 0.45;
+}
+
+.town-pass__node.is-claimable {
+  background: rgba(196, 122, 43, 0.28);
+  border-color: #d4af5f;
+}
+
+.town-pass__node.is-current {
+  box-shadow: 0 0 0 2px #f5e6c8;
+}
+
+.town-pass__node:disabled {
+  cursor: default;
+}

@@ -1,0 +1,740 @@
+.town-hall {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 12px 16px 16px;
+  background: linear-gradient(180deg, #f5ead0 0%, #fff8ee 28%, #e8d5a8 100%);
+  color: #3d2914;
+}
+
+.town-hall--mobile {
+  padding: 10px 12px 12px;
+}
+
+.town-hall__hero {
+  margin-bottom: 14px;
+}
+
+.town-hall__hero-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.town-hall__hero-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: rgba(255, 248, 238, 0.95);
+  border: 2px solid #d4a843;
+  box-shadow: 0 3px 10px rgba(61, 41, 20, 0.08);
+}
+
+.town-hall__hero-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.town-hall__title {
+  margin: 0;
+  font-family: Georgia, "Rye", serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.town-hall__subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #9e7b5c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.town-hall__wallet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.town-hall__wallet-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 15px;
+  background: #fff;
+  border: 1px solid #d4a843;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.town-hall__prosperity {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(196, 122, 43, 0.22);
+}
+
+.town-hall__prosperity--inline {
+  margin-bottom: 0;
+}
+
+.town-hall__prosperity-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  color: #9e7b5c;
+}
+
+.town-hall__prosperity-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #e8d5a8;
+  overflow: hidden;
+}
+
+.town-hall__prosperity-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5a8f4e 0%, #d4a843 100%);
+  transition: width 0.25s ease;
+}
+
+.town-hall__collect-link {
+  display: block;
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #8b6914;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.town-hall__service-chip-cta {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.town-hall__section {
+  margin-bottom: 14px;
+}
+
+.town-hall__section--featured {
+  margin-bottom: 12px;
+}
+
+.town-hall__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.town-hall__section-head .town-hall__section-label {
+  margin: 0;
+}
+
+.town-hall__section-label {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.55px;
+  text-transform: uppercase;
+  color: #9e7b5c;
+}
+
+.town-hall__collect-meta {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a6248;
+  white-space: nowrap;
+}
+
+.town-hall__collect {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #c47a2b;
+  background: rgba(255, 236, 196, 0.95);
+  color: #9a5a12;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.town-hall__collect:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.town-hall__drip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 8px;
+}
+
+.town-hall__drip-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(196, 122, 43, 0.18);
+  overflow: hidden;
+}
+
+.town-hall__drip-bar i {
+  display: block;
+  height: 100%;
+  background: #c47a2b;
+}
+
+.town-hall__drip--full .town-hall__drip-bar i {
+  background: #9a5a12;
+}
+
+.town-hall__drip-copy {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a6248;
+}
+
+.town-hall__section--levy-focus {
+  outline: 2px solid rgba(196, 122, 43, 0.45);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.town-hall__featured {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 88px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 2px solid #5a8f4e;
+  background: linear-gradient(135deg, rgba(255, 248, 238, 0.98) 0%, rgba(232, 213, 168, 0.65) 100%);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(90, 143, 78, 0.18);
+}
+
+.town-hall__featured--active {
+  box-shadow: 0 0 0 3px rgba(90, 143, 78, 0.28);
+}
+
+.town-hall__featured--locked {
+  border-color: rgba(196, 122, 43, 0.45);
+  box-shadow: none;
+  opacity: 0.82;
+}
+
+.town-hall__featured-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  background: #e8d5a8;
+}
+
+.town-hall__featured-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.town-hall__featured-name {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.town-hall__featured-meta {
+  font-size: 12px;
+  color: #9e7b5c;
+  line-height: 1.35;
+}
+
+.town-hall__featured-cta {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #5a8f4e;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.town-hall__featured--locked .town-hall__featured-cta {
+  background: #9e7b5c;
+}
+
+.town-hall__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.town-hall__card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(196, 122, 43, 0.32);
+  background: rgba(255, 248, 238, 0.96);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(61, 41, 20, 0.05);
+  transition: border-color 0.15s ease;
+}
+
+.town-hall__card:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.town-hall__card--active {
+  border-color: #5a8f4e;
+  box-shadow: 0 0 0 2px rgba(90, 143, 78, 0.22);
+}
+
+.town-hall__card--locked {
+  opacity: 0.75;
+}
+
+.town-hall__card-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: #e8d5a8;
+}
+
+.town-hall__card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.town-hall__card-name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.town-hall__card-meta {
+  font-size: 11px;
+  color: #9e7b5c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.town-hall__card-chevron {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: #c47a2b;
+  font-weight: 700;
+}
+
+.town-hall__service-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.town-hall__service-row::-webkit-scrollbar {
+  display: none;
+}
+
+.town-hall__service-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px dashed rgba(196, 122, 43, 0.5);
+  background: rgba(255, 255, 255, 0.72);
+  color: #5a4632;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.town-hall__service-chip-lock {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.town-hall__section--solo,
+.town-hall__section--showdown,
+.town-hall__section--districts,
+.town-hall__section--town-hall {
+  margin-bottom: 12px;
+}
+
+.town-hall__section--town-hall .town-hall__district-chip {
+  width: 100%;
+}
+
+.town-hall__district-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.town-hall__district-chip {
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(196, 122, 43, 0.35);
+  background: rgba(255, 255, 255, 0.82);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.town-hall__district-chip:disabled {
+  cursor: default;
+}
+
+.town-hall__district-chip--current {
+  border-color: #c47a2b;
+  box-shadow: 0 4px 12px rgba(196, 122, 43, 0.16);
+}
+
+.town-hall__district-chip--collect {
+  border-color: #c47a2b;
+  background: rgba(255, 236, 196, 0.95);
+}
+
+.town-hall__district-chip--collect .town-hall__district-chip-cta {
+  color: #9a5a12;
+}
+
+.town-hall__district-chip--locked {
+  border-style: dashed;
+}
+
+.town-hall__district-chip--gates {
+  flex: 1 1 100%;
+}
+
+.town-hall__district-chip-id {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #9e7b5c;
+}
+
+.town-hall__district-chip-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.town-hall__district-chip-state {
+  font-size: 11px;
+  color: #9e7b5c;
+}
+
+.town-hall__district-chip-detail {
+  font-size: 10px;
+  line-height: 1.35;
+  color: #7a6248;
+}
+
+.town-hall__district-gates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.town-hall__district-gate {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #7a6248;
+}
+
+.town-hall__district-gate--ok {
+  color: #4a7a40;
+  font-weight: 700;
+}
+
+.town-hall__district-chip-cta {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c47a2b;
+}
+
+.town-hall__district-chip--locked .town-hall__district-chip-cta {
+  color: #9e7b5c;
+}
+
+.town-hall__venue-hub {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 80px;
+  padding: 14px;
+  border-radius: 16px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.town-hall__venue-hub--solo {
+  border: 2px solid #5a8f4e;
+  background: linear-gradient(135deg, rgba(255, 248, 238, 0.98) 0%, rgba(232, 213, 168, 0.65) 100%);
+  box-shadow: 0 6px 20px rgba(90, 143, 78, 0.18);
+}
+
+.town-hall__venue-hub--showdown {
+  border: 2px solid #c47a2b;
+  background: linear-gradient(135deg, rgba(255, 248, 238, 0.98) 0%, rgba(232, 200, 160, 0.55) 100%);
+  box-shadow: 0 6px 18px rgba(196, 122, 43, 0.16);
+}
+
+.town-hall__venue-hub-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: #e8d5a8;
+}
+
+.town-hall__venue-hub-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.town-hall__venue-hub-name {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.town-hall__venue-hub-meta {
+  font-size: 11px;
+  color: #9e7b5c;
+  line-height: 1.35;
+}
+
+.town-hall__venue-hub-cta {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.town-hall__venue-hub--solo .town-hall__venue-hub-cta {
+  color: #5a8f4e;
+}
+
+.town-hall__venue-hub--showdown .town-hall__venue-hub-cta {
+  color: #c47a2b;
+}
+
+.town-hall--mobile .town-hall__venue-hub {
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  min-height: 88px;
+  padding: 12px;
+}
+
+.town-hall--mobile .town-hall__venue-hub-cta {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 40px;
+  margin-top: 2px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+}
+
+.town-hall--mobile .town-hall__venue-hub--solo .town-hall__venue-hub-cta {
+  background: #5a8f4e;
+}
+
+.town-hall--mobile .town-hall__venue-hub--showdown .town-hall__venue-hub-cta {
+  background: #c47a2b;
+}
+
+.town-hall__quest {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(196, 122, 43, 0.14);
+  border: 1px solid rgba(196, 122, 43, 0.28);
+}
+
+.town-hall__quest-icon {
+  flex-shrink: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.town-hall__quest-text {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #5a4632;
+}
+
+.town-hall__quest-action {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.town-hall__quest-cta {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c47a2b;
+}
+
+/* Mobile-specific tuning */
+.town-hall--mobile .town-hall__hero {
+  margin-bottom: 12px;
+}
+
+.town-hall--mobile .town-hall__hero-icon {
+  width: 44px;
+  height: 44px;
+  font-size: 22px;
+}
+
+.town-hall--mobile .town-hall__title {
+  font-size: 18px;
+}
+
+.town-hall--mobile .town-hall__featured {
+  min-height: 92px;
+  padding: 12px;
+  gap: 10px;
+}
+
+.town-hall--mobile .town-hall__featured-cta {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 2px;
+  font-size: 15px;
+}
+
+.town-hall--mobile .town-hall__featured {
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+}
+
+.town-hall--mobile .town-hall__featured-cta {
+  grid-column: 1 / -1;
+}
+
+.town-hall--mobile .town-hall__card {
+  min-height: 60px;
+}
+
+.town-hall--mobile .town-hall__section--services {
+  margin-bottom: 10px;
+}
+
+@media (min-width: 768px) {
+  .town-hall {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 16px 20px 20px;
+  }
+
+  .town-hall__hero-main {
+    flex-wrap: wrap;
+  }
+
+  .town-hall__wallet {
+    width: 100%;
+  }
+
+  .town-hall__featured:hover:not(.town-hall__featured--locked) {
+    filter: brightness(1.02);
+  }
+
+  .town-hall__card:hover:not(:disabled) {
+    border-color: #c47a2b;
+  }
+}

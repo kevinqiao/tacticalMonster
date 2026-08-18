@@ -14,6 +14,7 @@ import {
   type PortalTournamentDefinition,
 } from "../../../data/portalTournamentConfigs";
 import { internalMutation } from "../../../_generated/server";
+import { resolveLeagueScope } from "../../../data/portalLeagueScope";
 import { getOrCreateOpenInstance } from "../list/portalInstanceService";
 import {
   deletePlayerSessionsForMatch,
@@ -293,6 +294,7 @@ export const insertMatchShell = internalMutation({
     uids: v.array(v.string()),
     joinChargeByUid: joinChargeByUidValidator,
     lobbyId: v.optional(v.id("portal_lobbies")),
+    leagueScopeKey: v.optional(v.string()),
     instanceId: v.optional(v.id("portal_tournament_instances")),
     campaignId: v.optional(v.string()),
     partnerId: v.optional(v.number()),
@@ -400,6 +402,10 @@ export const insertMatchShell = internalMutation({
     for (const uid of uids) {
       const qrow = queueByUid.get(uid);
       const joinLobbyId = qrow?.lobbyId ?? args.lobbyId;
+      const joinLeagueScopeKey = resolveLeagueScope({
+        leagueScopeKey: qrow?.leagueScopeKey ?? args.leagueScopeKey,
+        lobbyId: joinLobbyId,
+      })?.leagueScopeKey;
       const rewardsOverrideSnapshot =
         qrow?.rewardsOverrideSnapshot ??
         (joinLobbyId
@@ -414,6 +420,7 @@ export const insertMatchShell = internalMutation({
         createdAt: now,
         updatedAt: now,
         ...(joinLobbyId ? { joinLobbyId } : {}),
+        ...(joinLeagueScopeKey ? { joinLeagueScopeKey } : {}),
         ...(rewardsOverrideSnapshot ? { rewardsOverrideSnapshot } : {}),
         entrySnapshot: qrow?.entrySnapshot ?? entrySnap,
       });

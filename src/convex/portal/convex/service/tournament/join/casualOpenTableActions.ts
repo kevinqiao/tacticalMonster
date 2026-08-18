@@ -13,6 +13,7 @@ import type { CasualMatchSeedBinding } from "./casualMatchSeedBinding";
 import { type JoinChargeMeta } from "./casualOpenTableMutations";
 import type { SeedBindingByGameIndex } from "../shared/casualSessionOpenCore";
 import { asyncMatchJoinOpenForCreate } from "./casualAsyncMatchJoinCore";
+import { resolveLeagueScope } from "../../../data/portalLeagueScope";
 
 type ClaimOk = {
   ok: true;
@@ -22,6 +23,7 @@ type ClaimOk = {
   instanceId?: Id<"portal_tournament_instances">;
   activityIds?: string[];
   lobbyId?: Id<"portal_lobbies">;
+  leagueScopeKey?: string;
   campaignId?: string;
   partnerId?: number;
   campaignRewardMode?: "pass_per_run" | "competitive_leaderboard";
@@ -125,6 +127,7 @@ async function openCasualTableFromClaimHandler(
       joinChargeByUid: claim.joinChargeByUid,
       queueRowIds: claim.queueRowIds,
       ...(claim.lobbyId ? { lobbyId: claim.lobbyId } : {}),
+      ...(claim.leagueScopeKey ? { leagueScopeKey: claim.leagueScopeKey } : {}),
       ...(claim.instanceId ? { instanceId: claim.instanceId } : {}),
       ...(claim.campaignId ? { campaignId: claim.campaignId } : {}),
       ...(claim.partnerId != null ? { partnerId: claim.partnerId } : {}),
@@ -255,6 +258,7 @@ export const openCasualSoloTable = internalAction({
     uid: v.string(),
     templateId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    leagueScopeKey: v.optional(v.string()),
     campaignId: v.optional(v.string()),
     partnerId: v.optional(v.number()),
     campaignRewardMode: v.optional(
@@ -283,6 +287,7 @@ export const openCasualSoloTable = internalAction({
       uid,
       templateId,
       lobbyId,
+      leagueScopeKey: leagueScopeKeyArg,
       campaignId,
       partnerId,
       campaignRewardMode,
@@ -293,6 +298,10 @@ export const openCasualSoloTable = internalAction({
       playEntryLane,
     }
   ) => {
+    const leagueScopeKey = resolveLeagueScope({
+      leagueScopeKey: leagueScopeKeyArg,
+      lobbyId,
+    })?.leagueScopeKey;
     const existingOpen = await ctx.runQuery(
       internal.service.tournament.join.casualOpenTableGuard.getAnyGlobalOpenCasualMatch,
       { uid }
@@ -318,6 +327,7 @@ export const openCasualSoloTable = internalAction({
           uid,
           templateId,
           ...(lobbyId ? { lobbyId } : {}),
+          ...(leagueScopeKey ? { scopeKey: leagueScopeKey } : {}),
           ...(dayTimezone ? { dayTimezone } : {}),
           ...(playEntryLane ? { entryLane: playEntryLane } : {}),
         }
@@ -343,6 +353,7 @@ export const openCasualSoloTable = internalAction({
       instanceId: charge.instanceId,
       activityIds: charge.activityIds,
       ...(lobbyId ? { lobbyId } : {}),
+      ...(leagueScopeKey ? { leagueScopeKey } : {}),
       ...(campaignId ? { campaignId } : {}),
       ...(partnerId != null ? { partnerId } : {}),
       ...(campaignRewardMode ? { campaignRewardMode } : {}),
@@ -492,6 +503,7 @@ export const joinOrCreateAsyncMultiTable = internalAction({
     uid: v.string(),
     templateId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    leagueScopeKey: v.optional(v.string()),
     campaignId: v.optional(v.string()),
     partnerId: v.optional(v.number()),
     campaignRewardMode: v.optional(
@@ -515,6 +527,10 @@ export const joinOrCreateAsyncMultiTable = internalAction({
     playEntryLane: v.optional(v.union(v.literal("ad"), v.literal("ticket"))),
   },
   handler: async (ctx, args) => {
+    const leagueScopeKey = resolveLeagueScope({
+      leagueScopeKey: args.leagueScopeKey,
+      lobbyId: args.lobbyId,
+    })?.leagueScopeKey;
     const { uid, templateId } = args;
     const def = getPortalTournamentDefinition(templateId);
     if (!def) {
@@ -542,6 +558,7 @@ export const joinOrCreateAsyncMultiTable = internalAction({
               uid,
               templateId: rewritten.templateId,
               ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
+              ...(leagueScopeKey ? { leagueScopeKey } : {}),
               ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
               ...(args.maxPlaysPerDay != null
                 ? { maxPlaysPerDay: args.maxPlaysPerDay }
@@ -596,6 +613,7 @@ export const joinOrCreateAsyncMultiTable = internalAction({
           templateId,
           effectiveHumans,
           ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
+          ...(leagueScopeKey ? { leagueScopeKey } : {}),
           ...(args.campaignId ? { campaignId: args.campaignId } : {}),
           ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
           ...(args.maxPlaysPerDay != null ? { maxPlaysPerDay: args.maxPlaysPerDay } : {}),
@@ -628,6 +646,7 @@ export const joinOrCreateAsyncMultiTable = internalAction({
         uid,
         templateId,
         ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
+        ...(leagueScopeKey ? { leagueScopeKey } : {}),
         ...(args.campaignId ? { campaignId: args.campaignId } : {}),
         ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
         ...(args.maxPlaysPerDay != null ? { maxPlaysPerDay: args.maxPlaysPerDay } : {}),
@@ -647,6 +666,7 @@ export const joinOrCreateAsyncMultiTable = internalAction({
       instanceId: charge.instanceId,
       activityIds: charge.activityIds,
       ...(args.lobbyId ? { lobbyId: args.lobbyId } : {}),
+      ...(leagueScopeKey ? { leagueScopeKey } : {}),
       ...(args.campaignId ? { campaignId: args.campaignId } : {}),
       ...(args.partnerId != null ? { partnerId: args.partnerId } : {}),
       ...(args.campaignRewardMode ? { campaignRewardMode: args.campaignRewardMode } : {}),

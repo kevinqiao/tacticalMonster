@@ -7,6 +7,12 @@ import {
   getPortalTournamentDefinition,
   portalTournamentUsesPlayEntryLadder,
 } from "../../../../data/portalTournamentConfigs";
+import { playCountsTowardEntryScope } from "../../../ads/portalEntryUsageScope";
+import {
+  applyTownPlayEntryOverlay,
+  freePlayCapFromSettings,
+  ticketConfigFromSettings,
+} from "../../../ads/resolvePlayEntrySettings";
 import { portalDailyPlayModeFromDef } from "../portalDailyPlayLimit";
 
 describe("portalDailyPlayModeFromDef", () => {
@@ -42,5 +48,36 @@ describe("play entry ladder ceilings", () => {
     expect(free).toBe(5);
     expect(ad).toBe(10);
     expect(PORTAL_TICKET_ENTRY_DEFAULTS.multi.dailyCap).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("town play entry overlay", () => {
+  it("does not change lobby defaults", () => {
+    const settings = applyTownPlayEntryOverlay({}, "lobby:abc");
+    expect(freePlayCapFromSettings(settings, "solo")).toBe(PORTAL_DAILY_PLAY_LIMITS.solo);
+    expect(freePlayCapFromSettings(settings, "multi")).toBe(PORTAL_DAILY_PLAY_LIMITS.multi);
+  });
+
+  it("gives Mayfield 5 free solo, ticket-only unpaid multi, no ads", () => {
+    const settings = applyTownPlayEntryOverlay({}, "town:mayfield");
+    expect(freePlayCapFromSettings(settings, "solo")).toBe(5);
+    expect(freePlayCapFromSettings(settings, "multi")).toBe(0);
+    expect(ticketConfigFromSettings(settings, "solo")).toMatchObject({
+      enabled: true,
+      dailyCap: 0,
+    });
+    expect(ticketConfigFromSettings(settings, "multi")).toMatchObject({
+      enabled: true,
+      priceTickets: 1,
+      dailyCap: 100,
+    });
+  });
+
+  it("counts town opens only against the town pool", () => {
+    expect(playCountsTowardEntryScope("town:mayfield", "town:mayfield")).toBe(true);
+    expect(playCountsTowardEntryScope("lobby:abc", "town:mayfield")).toBe(false);
+    expect(playCountsTowardEntryScope("town:mayfield", null)).toBe(false);
+    expect(playCountsTowardEntryScope("lobby:abc", null)).toBe(true);
+    expect(playCountsTowardEntryScope(undefined, null)).toBe(true);
   });
 });

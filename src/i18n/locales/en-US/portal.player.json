@@ -220,6 +220,7 @@
     "grantCoins": "Coins ×{{count}}",
     "voucherReward": "Reward: {{reward}}",
     "weeklyRemaining": "{{remaining}} / {{limit}} left this week",
+    "dailyRemaining": "{{remaining}} / {{limit}} left today",
     "buying": "Redeeming…",
     "redirecting": "Redirecting…",
     "soldOut": "Sold out",
@@ -315,6 +316,22 @@
     "gc_amazon_5_ca": {
       "title": "Amazon gift card CA$5",
       "description": "Canada Amazon e-gift card. Redeem via link after purchase."
+    },
+    "town_shop_ticket_daily": {
+      "title": "Tickets ×3",
+      "description": "Spend coins for 3 tickets. Daily limit 1."
+    },
+    "town_stripe_pack_s": {
+      "title": "Play Pack S",
+      "description": "5 tickets + 100 coins."
+    },
+    "town_stripe_pack_m": {
+      "title": "Play Pack M",
+      "description": "15 tickets + 300 coins."
+    },
+    "town_stripe_pack_l": {
+      "title": "Play Pack L",
+      "description": "40 tickets + 800 coins."
     }
   },
   "orders": {

@@ -11,12 +11,14 @@ export const beginAdCoinSession = authedMutation({
   args: {
     channel: v.union(...PORTAL_AD_COIN_CHANNELS.map((c) => v.literal(c))),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
     beginPortalAdCoinSessionCore(ctx, {
       uid: ctx.uid,
       channel: args.channel,
       lobbyId: args.lobbyId ?? null,
+      scopeKey: args.scopeKey ?? null,
     }),
 });
 
@@ -25,6 +27,7 @@ export const completeAdCoinSession = authedMutation({
     sessionId: v.string(),
     clientProof: v.optional(v.string()),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
     completePortalAdCoinSessionCore(ctx, {
@@ -32,5 +35,6 @@ export const completeAdCoinSession = authedMutation({
       sessionId: args.sessionId,
       clientProof: args.clientProof,
       lobbyId: args.lobbyId ?? null,
+      scopeKey: args.scopeKey ?? null,
     }),
 });

@@ -33,13 +33,15 @@ type AdCoinEconomy = {
 async function resolveAdCoinEconomy(
   ctx: QueryCtx | MutationCtx,
   uid: string,
-  lobbyId?: Id<"portal_lobbies"> | null
+  lobbyId?: Id<"portal_lobbies"> | null,
+  scopeKey?: string | null
 ): Promise<AdCoinEconomy | { error: "lobby_required_for_isolated_economy" }> {
   const partnerId = resolvePortalShopSessionPartnerId(uid) ?? 0;
   try {
     const scope = await resolveEconomyScope(ctx, {
       partnerId,
       lobbyId: lobbyId ?? null,
+      scopeKey,
     });
     return {
       partnerId,
@@ -171,11 +173,12 @@ export async function getPortalAdCoinOfferCore(
   ctx: QueryCtx | MutationCtx,
   uid: string,
   now = Date.now(),
-  lobbyId?: Id<"portal_lobbies"> | null
+  lobbyId?: Id<"portal_lobbies"> | null,
+  scopeKey?: string | null
 ) {
   const cap = PORTAL_AD_COIN_DAILY_CAP;
   const rewardAmount = PORTAL_AD_COIN_REWARD_AMOUNT;
-  const econ = await resolveAdCoinEconomy(ctx, uid, lobbyId ?? null);
+  const econ = await resolveAdCoinEconomy(ctx, uid, lobbyId ?? null, scopeKey);
   if ("error" in econ) {
     return {
       enabled: false as const,
@@ -212,10 +215,16 @@ export async function beginPortalAdCoinSessionCore(
     channel: string;
     now?: number;
     lobbyId?: Id<"portal_lobbies"> | null;
+    scopeKey?: string | null;
   }
 ) {
   const now = args.now ?? Date.now();
-  const econ = await resolveAdCoinEconomy(ctx, args.uid, args.lobbyId ?? null);
+  const econ = await resolveAdCoinEconomy(
+    ctx,
+    args.uid,
+    args.lobbyId ?? null,
+    args.scopeKey
+  );
   if ("error" in econ) {
     return { ok: false as const, error: econ.error };
   }
@@ -276,6 +285,7 @@ export async function completePortalAdCoinSessionCore(
     clientProof?: string;
     now?: number;
     lobbyId?: Id<"portal_lobbies"> | null;
+    scopeKey?: string | null;
   }
 ) {
   const now = args.now ?? Date.now();
@@ -293,7 +303,12 @@ export async function completePortalAdCoinSessionCore(
   }
 
   const lobbyId = session.lobbyId ?? args.lobbyId ?? null;
-  const econ = await resolveAdCoinEconomy(ctx, args.uid, lobbyId);
+  const econ = await resolveAdCoinEconomy(
+    ctx,
+    args.uid,
+    lobbyId,
+    session.scopeKey ?? args.scopeKey
+  );
   if ("error" in econ) {
     return { ok: false as const, error: econ.error };
   }
@@ -311,7 +326,13 @@ export async function completePortalAdCoinSessionCore(
       .withIndex("by_sessionId", (q) => q.eq("sessionId", session.sessionId))
       .unique();
     if (existing) {
-      const offer = await getPortalAdCoinOfferCore(ctx, args.uid, now, lobbyId);
+      const offer = await getPortalAdCoinOfferCore(
+        ctx,
+        args.uid,
+        now,
+        lobbyId,
+        scopeKey
+      );
       return {
         ok: true as const,
         coinsGranted: existing.coinsGranted,

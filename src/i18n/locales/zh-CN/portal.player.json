@@ -220,6 +220,7 @@
     "grantCoins": "获得金币 ×{{count}}",
     "voucherReward": "兑换内容：{{reward}}",
     "weeklyRemaining": "本周剩余 {{remaining}} / {{limit}}",
+    "dailyRemaining": "今日剩余 {{remaining}} / {{limit}}",
     "buying": "兑换中…",
     "redirecting": "跳转支付…",
     "soldOut": "已售罄",
@@ -315,6 +316,22 @@
     "gc_amazon_5_ca": {
       "title": "Amazon 礼品卡 CA$5",
       "description": "加拿大区 Amazon 电子礼品卡，兑换后通过链接领取。"
+    },
+    "town_shop_ticket_daily": {
+      "title": "门票 ×3",
+      "description": "用金币兑换 3 张门票。每日限购 1 次。"
+    },
+    "town_stripe_pack_s": {
+      "title": "畅玩礼包 · 小",
+      "description": "5 张门票 + 100 金币。"
+    },
+    "town_stripe_pack_m": {
+      "title": "畅玩礼包 · 中",
+      "description": "15 张门票 + 300 金币。"
+    },
+    "town_stripe_pack_l": {
+      "title": "畅玩礼包 · 大",
+      "description": "40 张门票 + 800 金币。"
     }
   },
   "orders": {

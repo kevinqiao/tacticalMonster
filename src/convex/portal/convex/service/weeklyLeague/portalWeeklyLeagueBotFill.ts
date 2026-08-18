@@ -102,9 +102,9 @@ export async function seedPortalWeeklyLeagueInitialBots(
   }
 
   const createdAt = cohort.createdAt;
-  const scopeKey = cohort.lobbyId
-    ? `lobby:${cohort.lobbyId}`
-    : (cohort.gameType ?? "unknown");
+  const scopeKey =
+    cohort.leagueScopeKey ??
+    (cohort.lobbyId ? `lobby:${cohort.lobbyId}` : (cohort.gameType ?? "unknown"));
   const cohortKey = `${cohort.weekKey}|${scopeKey}|${cohort.leagueTierId}|${cohortId}`;
   const plans = planPortalWeeklyLeagueInitialBotRevealSchedule({
     cohortKey,
@@ -180,9 +180,9 @@ export async function syncPortalWeeklyLeagueBotPadding(
   }
 
   const matchingClosedAt = cohort.matchingClosedAt;
-  const scopeKey = cohort.lobbyId
-    ? `lobby:${cohort.lobbyId}`
-    : (cohort.gameType ?? "unknown");
+  const scopeKey =
+    cohort.leagueScopeKey ??
+    (cohort.lobbyId ? `lobby:${cohort.lobbyId}` : (cohort.gameType ?? "unknown"));
   const cohortKey = `${cohort.weekKey}|${scopeKey}|${cohort.leagueTierId}|${cohortId}`;
   const maxSlot = bots.reduce((acc, b) => {
     const part = b.uid.split("_").pop();

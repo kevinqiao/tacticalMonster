@@ -9,6 +9,7 @@ import {
 import { type PortalDailyPlayMode } from "../../data/portalDailyPlayLimits";
 import { dailyPeriodKey } from "../../utils/casualTaskPeriod";
 import { partnerIdFromUid } from "./partnerAdReplayConfig";
+import { resolveEconomyScope } from "../economy/resolveEconomyScope";
 import { readPortalTicketBalance } from "../tournament/replay/casualReplayTokens";
 import {
   getPortalTournamentDefinition,
@@ -23,6 +24,7 @@ import type { PlayEntryContext } from "./portalEntryUsageScope";
 import {
   freePlayCapFromSettings,
   quotaScopeFromSettings,
+  playEntryResolveArgs,
   resolvePlayEntrySettings,
   ticketConfigFromSettings,
 } from "./resolvePlayEntrySettings";
@@ -47,8 +49,7 @@ export async function resolveTicketEntryConfig(
 ) {
   const { settings } = await resolvePlayEntrySettings(ctx, {
     partnerId: partnerIdFromUid(uid),
-    lobbyId: entryCtx?.lobbyId,
-    tournamentId: entryCtx?.tournamentId,
+    ...playEntryResolveArgs(entryCtx),
   });
   return {
     ...ticketConfigFromSettings(settings, mode),
@@ -64,8 +65,7 @@ export async function resolveFreePlayDailyCap(
 ): Promise<number> {
   const { settings } = await resolvePlayEntrySettings(ctx, {
     partnerId: partnerIdFromUid(uid),
-    lobbyId: entryCtx?.lobbyId,
-    tournamentId: entryCtx?.tournamentId,
+    ...playEntryResolveArgs(entryCtx),
   });
   return freePlayCapFromSettings(settings, mode);
 }
@@ -106,6 +106,7 @@ export async function useTicketEntryForJoin(
     mode: PortalTicketEntryMode;
     templateId: string;
     lobbyId?: Id<"portal_lobbies"> | null;
+    scopeKey?: string | null;
     now?: number;
   }
 ): Promise<
@@ -119,6 +120,7 @@ export async function useTicketEntryForJoin(
   const entryCtx: PlayEntryContext = {
     lobbyId: args.lobbyId ?? null,
     tournamentId: args.templateId,
+    scopeKey: args.scopeKey ?? null,
   };
   const cfg = await resolveTicketEntryConfig(ctx, args.uid, args.mode, entryCtx);
   if (!cfg.enabled) return { ok: false, error: "ticket_entry_not_available" };
@@ -134,7 +136,12 @@ export async function useTicketEntryForJoin(
   if (cfg.dailyCap <= 0 || used >= cfg.dailyCap) {
     return { ok: false, error: "ticket_entry_limit_reached" };
   }
-  if ((await readPortalTicketBalance(ctx, args.uid)) < cfg.priceTickets) {
+  const econ = await resolveEconomyScope(ctx, {
+    partnerId: partnerIdFromUid(args.uid),
+    lobbyId: args.lobbyId ?? null,
+    scopeKey: args.scopeKey ?? null,
+  });
+  if ((await readPortalTicketBalance(ctx, args.uid, econ.scopeKey)) < cfg.priceTickets) {
     return { ok: false, error: "insufficient_tickets" };
   }
   const charged = await ctx.runMutation(
@@ -143,6 +150,8 @@ export async function useTicketEntryForJoin(
       uid: args.uid,
       amount: cfg.priceTickets,
       reason: `ticket_entry:${args.mode}`,
+      scopeKey: econ.scopeKey,
+      ...(econ.lobbyId ? { lobbyId: econ.lobbyId } : {}),
     }
   );
   if (!charged.ok) return { ok: false, error: charged.error };
@@ -164,6 +173,7 @@ export const consumeTicketEntryForJoin = internalMutation({
     uid: v.string(),
     templateId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const def = getPortalTournamentDefinition(args.templateId);
@@ -182,6 +192,7 @@ export const consumeTicketEntryForJoin = internalMutation({
       mode,
       templateId: args.templateId,
       lobbyId: args.lobbyId,
+      scopeKey: args.scopeKey,
     });
   },
 });

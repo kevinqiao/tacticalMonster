@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Portal economy balance report (read-only).
+ * Shared play + platform economy balance report (read-only).
  * Reads scripts/portal/economy/portal-economy.json — same SSOT as sync.
+ * Not Lobby-only. Town zone report: zone-balance.mjs
  *
  *   npm run op -- economy balance
  *   npm run portal:economy:balance
@@ -24,11 +25,12 @@ function printHelp() {
   npm run portal:economy:balance
 
 Read-only balance report from scripts/portal/economy/portal-economy.json
-(shop sinks, play defaults, giftcard pricing). Does not write files.
+(shared play + platform: shop sinks, play defaults, giftcard). Does not write files.
+Town zone report: scripts/portal/economy/zone-balance.mjs
 
 Related:
-  npm run op -- economy sync    # regenerate portalEconomyGenerated.ts
-  npm run op -- economy check   # fail if generated drifts from JSON`);
+  npm run op -- economy sync    # regenerate both generated TS files
+  npm run op -- economy check   # fail if either generated file drifts`);
 }
 
 function main() {

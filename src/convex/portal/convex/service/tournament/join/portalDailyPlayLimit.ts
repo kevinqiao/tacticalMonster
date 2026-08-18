@@ -29,10 +29,14 @@ import {
   readAdEntryUsedToday,
   readTicketEntryUsedToday,
 } from "../../ads/portalEntryDailyUsage";
-import { type PlayEntryContext } from "../../ads/portalEntryUsageScope";
+import {
+  playCountsTowardEntryScope,
+  type PlayEntryContext,
+} from "../../ads/portalEntryUsageScope";
 import { loadSoloSuccessDailyState } from "../../ads/portalSoloSuccessDaily";
 import { resolveFreePlayDailyCap } from "../../ads/portalTicketEntryService";
 import {
+  playEntryResolveArgs,
   quotaScopeFromSettings,
   resolvePlayEntrySettings,
   ticketConfigFromSettings,
@@ -115,6 +119,7 @@ export async function countPortalPlaysForQuotaScope(
     quotaScope: PortalQuotaScope;
     lobbyId?: Id<"portal_lobbies"> | null;
     templateId?: string | null;
+    scopeKey?: string | null;
     nowMs?: number;
     dayTimezone?: string;
   }
@@ -124,6 +129,7 @@ export async function countPortalPlaysForQuotaScope(
   const matchType = args.mode === "solo" ? "solo_p75" : "multi_ranked";
   const lobbyId = args.lobbyId ?? null;
   const templateId = args.templateId?.trim() || null;
+  const scopeKey = args.scopeKey ?? null;
 
   if (args.quotaScope === "tournament") {
     if (!templateId) return 0;
@@ -139,6 +145,7 @@ export async function countPortalPlaysForQuotaScope(
     let count = 0;
     for (const row of rows) {
       if (row.createdAt < startsAt || row.createdAt > endsAt) continue;
+      if (!playCountsTowardEntryScope(row.joinLeagueScopeKey, scopeKey)) continue;
       const run = await ctx.db.get(row.tournamentId);
       if (run?.campaignId) continue;
       if (lobbyId && run?.lobbyId && run.lobbyId !== lobbyId) continue;
@@ -158,6 +165,7 @@ export async function countPortalPlaysForQuotaScope(
     const def = getPortalTournamentDefinition(row.templateId);
     if (!def || !portalTournamentUsesPlayEntryLadder(def)) continue;
     if (args.quotaScope === "mode" && def.matchType !== matchType) continue;
+    if (!playCountsTowardEntryScope(row.joinLeagueScopeKey, scopeKey)) continue;
     // lobby scope: all modes
     const run = await ctx.db.get(row.tournamentId);
     if (run?.campaignId) continue;
@@ -210,8 +218,7 @@ export async function resolveEntryQuotaContext(
   };
   const { settings } = await resolvePlayEntrySettings(ctx, {
     partnerId: partnerIdFromUid(args.uid),
-    lobbyId: entryCtx.lobbyId,
-    tournamentId: entryCtx.tournamentId,
+    ...playEntryResolveArgs(entryCtx),
   });
   return {
     mode,
@@ -226,6 +233,7 @@ export async function assertPortalDailyPlayLimit(
     uid: string;
     templateId: string;
     lobbyId?: Id<"portal_lobbies"> | null;
+    scopeKey?: string | null;
     nowMs?: number;
     dayTimezone?: string;
     limits?: PortalDailyPlayLimits;
@@ -263,11 +271,11 @@ export async function assertPortalDailyPlayLimit(
   const entryCtx: PlayEntryContext = {
     lobbyId: args.lobbyId ?? null,
     tournamentId: args.templateId,
+    scopeKey: args.scopeKey ?? null,
   };
   const { settings } = await resolvePlayEntrySettings(ctx, {
     partnerId: partnerIdFromUid(args.uid),
-    lobbyId: entryCtx.lobbyId,
-    tournamentId: entryCtx.tournamentId,
+    ...playEntryResolveArgs(entryCtx),
   });
   const quotaScope = quotaScopeFromSettings(settings);
 
@@ -276,6 +284,7 @@ export async function assertPortalDailyPlayLimit(
     const soloSuccess = await loadSoloSuccessDailyState(ctx, {
       uid: args.uid,
       lobbyId: entryCtx.lobbyId,
+      scopeKey: entryCtx.scopeKey,
       tournamentId: entryCtx.tournamentId,
       nowMs: args.nowMs,
     });
@@ -317,6 +326,7 @@ export async function assertPortalDailyPlayLimit(
     quotaScope,
     lobbyId: args.lobbyId,
     templateId: args.templateId,
+    scopeKey: entryCtx.scopeKey,
     nowMs: args.nowMs,
     dayTimezone: args.dayTimezone,
   });
@@ -369,6 +379,7 @@ export const assertPortalDailyPlayLimitQuery = internalQuery({
     uid: v.string(),
     templateId: v.string(),
     lobbyId: v.optional(v.id("portal_lobbies")),
+    scopeKey: v.optional(v.string()),
     dayTimezone: v.optional(v.string()),
     pendingAdEntries: v.optional(v.number()),
     pendingTicketEntries: v.optional(v.number()),
@@ -389,6 +400,7 @@ async function quotaForMode(
     quotaScope: PortalQuotaScope;
     lobbyId?: Id<"portal_lobbies"> | null;
     templateId?: string | null;
+    scopeKey?: string | null;
     maxPlaysPerDay: number;
     nowMs: number;
     dayTimezone: string;
@@ -400,6 +412,7 @@ async function quotaForMode(
     quotaScope: args.quotaScope,
     lobbyId: args.lobbyId,
     templateId: args.templateId,
+    scopeKey: args.scopeKey,
     nowMs: args.nowMs,
     dayTimezone: args.dayTimezone,
   });
@@ -420,6 +433,7 @@ export const getPortalDailyPlayQuota = authedQuery({
     lobbyId: v.optional(v.id("portal_lobbies")),
     /** When quotaScope=tournament, pass to get that template's solo/multi view. */
     tournamentId: v.optional(v.string()),
+    scopeKey: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<PortalDailyPlayQuotaView> => {
     const uid = ctx.uid;
@@ -429,11 +443,11 @@ export const getPortalDailyPlayQuota = authedQuery({
     const entryCtx: PlayEntryContext = {
       lobbyId: args.lobbyId ?? null,
       tournamentId: args.tournamentId ?? null,
+      scopeKey: args.scopeKey ?? null,
     };
     const { settings } = await resolvePlayEntrySettings(ctx, {
       partnerId: partnerIdFromUid(uid),
-      lobbyId: entryCtx.lobbyId,
-      tournamentId: entryCtx.tournamentId,
+      ...playEntryResolveArgs(entryCtx),
     });
     const quotaScope = quotaScopeFromSettings(settings);
     const [soloCap, multiCap] = await Promise.all([
@@ -447,6 +461,7 @@ export const getPortalDailyPlayQuota = authedQuery({
         quotaScope,
         lobbyId: args.lobbyId,
         templateId: args.tournamentId,
+        scopeKey: args.scopeKey,
         maxPlaysPerDay: soloCap,
         nowMs,
         dayTimezone,
@@ -457,6 +472,7 @@ export const getPortalDailyPlayQuota = authedQuery({
         quotaScope,
         lobbyId: args.lobbyId,
         templateId: args.tournamentId,
+        scopeKey: args.scopeKey,
         maxPlaysPerDay: multiCap,
         nowMs,
         dayTimezone,
@@ -465,6 +481,7 @@ export const getPortalDailyPlayQuota = authedQuery({
         uid,
         lobbyId: args.lobbyId ?? null,
         tournamentId: args.tournamentId ?? null,
+        scopeKey: args.scopeKey ?? null,
         nowMs,
       }),
     ]);
@@ -498,6 +515,7 @@ export const getPortalTournamentDailyPlayQuotas = authedQuery({
   args: {
     lobbyId: v.optional(v.id("portal_lobbies")),
     tournamentIds: v.array(v.string()),
+    scopeKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const uid = ctx.uid;
@@ -518,11 +536,11 @@ export const getPortalTournamentDailyPlayQuotas = authedQuery({
       const entryCtx: PlayEntryContext = {
         lobbyId: args.lobbyId ?? null,
         tournamentId,
+        scopeKey: args.scopeKey ?? null,
       };
       const { settings } = await resolvePlayEntrySettings(ctx, {
         partnerId: partnerIdFromUid(uid),
-        lobbyId: entryCtx.lobbyId,
-        tournamentId,
+        ...playEntryResolveArgs(entryCtx),
       });
       const quotaScope = quotaScopeFromSettings(settings);
       const maxPlaysPerDay = await resolveFreePlayDailyCap(
@@ -537,6 +555,7 @@ export const getPortalTournamentDailyPlayQuotas = authedQuery({
         quotaScope,
         lobbyId: args.lobbyId,
         templateId: tournamentId,
+        scopeKey: args.scopeKey,
         nowMs,
         dayTimezone,
       });

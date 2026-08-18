@@ -17,6 +17,7 @@ import type { Doc, Id } from "../../../_generated/dataModel";
 import type { QueryCtx } from "../../../_generated/server";
 import { query } from "../../../_generated/server";
 import { authedQuery } from "../../../custom/session";
+import { playCountsTowardEntryScope } from "../../ads/portalEntryUsageScope";
 import {
   activeSeasonWindowForCtx,
   computePeriodInstanceSelfStanding,
@@ -355,8 +356,10 @@ export const gameHistory = authedQuery({
   args: {
     gameType: v.optional(v.string()),
     limit: v.optional(v.number()),
+    /** Town vs Lobby partition — omit to return all of the player's runs. */
+    leagueScopeKey: v.optional(v.string()),
   },
-  handler: async (ctx, { gameType, limit }) => {
+  handler: async (ctx, { gameType, limit, leagueScopeKey }) => {
     const uid = ctx.uid;
     const n = Math.min(Math.max(limit ?? 30, 1), 100);
 
@@ -368,6 +371,12 @@ export const gameHistory = authedQuery({
 
     const eligible = [];
     for (const pt of pts) {
+      if (
+        leagueScopeKey &&
+        !playCountsTowardEntryScope(pt.joinLeagueScopeKey, leagueScopeKey)
+      ) {
+        continue;
+      }
       if (pt.status === RUN_PLAYER_TOURNAMENT_COMPLETED) {
         eligible.push(pt);
         continue;
@@ -584,6 +593,14 @@ export const listOpenCasualRunAssignments = authedQuery({
       const matchTimeLimitSec = poolMeta?.matchTimeLimitSec ?? 300;
       const dueAt = pg.createdAt + matchTimeLimitSec * 1000;
       const run = await ctx.db.get(pm.tournamentId as Id<"portal_run_tournaments">);
+      const pt = await ctx.db
+        .query("portal_run_player_tournaments")
+        .withIndex("by_tournament_uid", (q) =>
+          q
+            .eq("tournamentId", pm.tournamentId as Id<"portal_run_tournaments">)
+            .eq("uid", uid)
+        )
+        .unique();
       assignments.push({
         templateId: pg.templateId,
         gameId: pg.gameId,
@@ -595,6 +612,9 @@ export const listOpenCasualRunAssignments = authedQuery({
         createdAt: pg.createdAt,
         dueAt,
         ...(run?.campaignId ? { campaignId: run.campaignId } : {}),
+        ...(pt?.joinLeagueScopeKey
+          ? { leagueScopeKey: pt.joinLeagueScopeKey }
+          : {}),
       });
     }
     return assignments.sort((a, b) => b.createdAt - a.createdAt);

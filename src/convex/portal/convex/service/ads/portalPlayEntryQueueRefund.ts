@@ -61,11 +61,13 @@ export async function refundAbandonedQueuePlayEntry(
   const entryCtx: PlayEntryContext = {
     lobbyId: row.lobbyId ?? null,
     tournamentId: row.templateId,
+    scopeKey: row.leagueScopeKey ?? null,
   };
   const { settings } = await resolvePlayEntrySettings(ctx, {
     partnerId: partnerIdFromUid(row.uid),
     lobbyId: entryCtx.lobbyId,
     tournamentId: entryCtx.tournamentId,
+    scopeKey: entryCtx.scopeKey,
   });
   const quotaScope = quotaScopeFromSettings(settings);
   const dayKey = dailyPeriodKey(now);

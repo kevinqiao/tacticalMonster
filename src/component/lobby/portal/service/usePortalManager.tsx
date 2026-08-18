@@ -143,6 +143,8 @@ export type PortalWeeklyLeagueUnclaimedRewards = {
 export type PortalPlayerWallet = {
   coins: number;
   gems: number;
+  tickets?: number;
+  scopeKey?: string;
 };
 
 export type PortalRedemptionProfileView = {
@@ -174,6 +176,7 @@ export type PortalShopSkuView = {
   grantReplayTokenCount?: number;
   grantCoinCount?: number;
   weeklyPurchaseLimit: number | null;
+  dailyPurchaseLimit?: number | null;
   purchasedThisWeek: number;
   remainingThisWeek: number | null;
   sortOrder?: number;
@@ -439,6 +442,8 @@ type PortalContextValue = {
       adEntry?: boolean;
       ticketEntry?: boolean;
       tournamentId?: string;
+      /** Town Week Score partition. When set, join omits lobbyId. */
+      leagueScopeKey?: string;
     }
   ) => Promise<ResolvedJoinTournamentOutcome>;
   leaveCasualMatchQueue: (
@@ -576,12 +581,38 @@ export function portalPlayModalForGameType(gameType: CasualGameKind) {
   return casualPlayModalForKind(gameType);
 }
 
+/** `null` leagueScopeKey means Town is bound but townId is not ready — do not fall back to gameType. */
+function portalEconomyQueryArgs(
+  leagueScopeKey: string | null | undefined,
+  lobbyId: string | null
+): { scopeKey: string } | { lobbyId: never } | Record<string, never> {
+  if (leagueScopeKey) return { scopeKey: leagueScopeKey };
+  if (lobbyId) return { lobbyId: lobbyId as never };
+  return {};
+}
+
+function portalLeagueQueryArgs(
+  leagueScopeKey: string | null | undefined,
+  lobbyId: string | null,
+  gameType: string | null
+): { leagueScopeKey: string } | { lobbyId: never } | { gameType: string } | null {
+  if (leagueScopeKey) return { leagueScopeKey };
+  if (leagueScopeKey === null) return null;
+  if (lobbyId) {
+    return { leagueScopeKey: `lobby:${lobbyId}`, lobbyId: lobbyId as never };
+  }
+  if (gameType) return { gameType };
+  return null;
+}
+
 export const PortalProvider: React.FC<{
   gameType: RegisteredPartnerGameType | null;
   lobbyId?: string | null;
   lobbySlug?: string | null;
+  /** Town: pass `null` until `town:{townId}` is known, then the key. Omit on Lobby. */
+  leagueScopeKey?: string | null;
   children: React.ReactNode;
-}> = ({ gameType, lobbyId = null, lobbySlug = null, children }) => {
+}> = ({ gameType, lobbyId = null, lobbySlug = null, leagueScopeKey, children }) => {
   const { user } = useUserManager();
   const uid = user?.uid;
   const [portalSessionReady, setPortalSessionReady] = useState(false);
@@ -590,14 +621,16 @@ export const PortalProvider: React.FC<{
   const historySettleInFlightRef = useRef(new Set<string>());
   const snapshot = useSyncExternalStore(subscribe, () => dataSnapshot, () => dataSnapshot);
 
-  const ensureWeeklyLeagueMember = useCallback(async (gt: RegisteredPartnerGameType) => {
+  const ensureWeeklyLeagueMember = useCallback(async (gt?: RegisteredPartnerGameType | null) => {
     const http = getHttp();
     if (!http) return;
+    if (leagueScopeKey === null) return;
+    const leagueArgs = portalLeagueQueryArgs(leagueScopeKey, lobbyId, gt ?? gameType);
+    if (!leagueArgs) return;
     try {
       const res = (await http.mutation(portalTournamentFns.ensurePortalWeeklyLeagueMember, {
-        ...(lobbyId
-          ? { lobbyId: lobbyId as never, lobbySlug: lobbySlug ?? undefined }
-          : { gameType: gt }),
+        ...leagueArgs,
+        ...(lobbyId && !leagueScopeKey ? { lobbySlug: lobbySlug ?? undefined } : {}),
       })) as { ok?: boolean; memberId?: string | null };
       if (!res?.ok || !res.memberId) {
         console.warn("[Portal] ensurePortalWeeklyLeagueMember not ok", res);
@@ -606,12 +639,13 @@ export const PortalProvider: React.FC<{
       console.info("[Portal] ensurePortalWeeklyLeagueMember ok", {
         gameType: gt,
         lobbyId,
+        leagueScopeKey,
         memberId: res.memberId,
       });
     } catch (e) {
       console.warn("[Portal] ensurePortalWeeklyLeagueMember", e);
     }
-  }, [lobbyId, lobbySlug]);
+  }, [lobbyId, lobbySlug, leagueScopeKey, gameType]);
 
   const authenticatePortal = useCallback(async (opts?: { force?: boolean }) => {
     const http = getHttp();
@@ -635,7 +669,7 @@ export const PortalProvider: React.FC<{
           portalAuthFailedKey = "";
           setPortalSessionReady(true);
           // 鉴权成功后立刻入组（同 HttpClient / JWT），避免依赖二次 effect 或旧包未触发。
-          if (gameType) {
+          if (leagueScopeKey || (leagueScopeKey !== null && gameType)) {
             await ensureWeeklyLeagueMember(gameType);
           }
         } else {
@@ -653,7 +687,7 @@ export const PortalProvider: React.FC<{
             if (retry?.uid) {
               portalAuthFailedKey = "";
               setPortalSessionReady(true);
-              if (gameType) {
+              if (leagueScopeKey || (leagueScopeKey !== null && gameType)) {
                 await ensureWeeklyLeagueMember(gameType);
               }
               return;
@@ -670,7 +704,7 @@ export const PortalProvider: React.FC<{
         setPortalSessionReady(false);
       }
     });
-  }, [user, gameType, ensureWeeklyLeagueMember]);
+  }, [user, gameType, leagueScopeKey, ensureWeeklyLeagueMember]);
 
   const refresh = useCallback(async () => {
     if (!uid) return;
@@ -681,11 +715,13 @@ export const PortalProvider: React.FC<{
     void refresh();
   }, [refresh]);
 
-  // 已鉴权但 gameType 后到（或热更新后）时补一次入组。
+  // 已鉴权但 gameType / town scope 后到（或热更新后）时补一次入组。
   useEffect(() => {
-    if (!portalSessionReady || !uid || !gameType) return;
+    if (!portalSessionReady || !uid) return;
+    if (leagueScopeKey === null) return;
+    if (!leagueScopeKey && !gameType && !lobbyId) return;
     void ensureWeeklyLeagueMember(gameType);
-  }, [gameType, portalSessionReady, uid, ensureWeeklyLeagueMember]);
+  }, [gameType, lobbyId, leagueScopeKey, portalSessionReady, uid, ensureWeeklyLeagueMember]);
 
   // Account / shop / backpack: only need uid (Campaign landing has no gameType).
   useEffect(() => {
@@ -726,7 +762,11 @@ export const PortalProvider: React.FC<{
     sub(
       portalTournamentFns.getPortalPlayerWallet,
       {
-        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+        ...(leagueScopeKey
+          ? { scopeKey: leagueScopeKey }
+          : lobbyId
+            ? { lobbyId: lobbyId as never }
+            : {}),
       },
       (rows) => {
         patchData({ playerWallet: rows as PortalPlayerWallet | null });
@@ -736,7 +776,7 @@ export const PortalProvider: React.FC<{
     sub(
       portalTournamentFns.listPortalShopSkus,
       {
-        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+        ...portalEconomyQueryArgs(leagueScopeKey, lobbyId),
       },
       (rows) => {
         patchData({ shopCatalog: rows as PortalShopCatalogView | null });
@@ -779,7 +819,9 @@ export const PortalProvider: React.FC<{
     );
     sub(
       portalTournamentFns.getAdReplayDailyRemaining,
-      {},
+      {
+        ...(leagueScopeKey ? { scopeKey: leagueScopeKey } : {}),
+      },
       (rows) => {
         const r = rows as {
           remaining?: number;
@@ -810,7 +852,7 @@ export const PortalProvider: React.FC<{
     sub(
       portalTournamentFns.getTicketEntryOffer,
       {
-        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+        ...portalEconomyQueryArgs(leagueScopeKey, lobbyId),
       },
       (rows) =>
         patchData({
@@ -823,7 +865,7 @@ export const PortalProvider: React.FC<{
     sub(
       portalTournamentFns.getAdEntryOffer,
       {
-        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+        ...portalEconomyQueryArgs(leagueScopeKey, lobbyId),
       },
       (rows) =>
         patchData({
@@ -835,7 +877,7 @@ export const PortalProvider: React.FC<{
     sub(
       portalTournamentFns.getAdCoinOffer,
       {
-        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+        ...portalEconomyQueryArgs(leagueScopeKey, lobbyId),
       },
       (rows) => {
         const r = rows as PortalAdCoinOffer | null;
@@ -858,7 +900,7 @@ export const PortalProvider: React.FC<{
     sub(
       portalTournamentFns.getDailyCheckinStatus,
       {
-        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+        ...portalEconomyQueryArgs(leagueScopeKey, lobbyId),
       },
       (rows) => {
         const r = rows as PortalDailyCheckinStatus | null;
@@ -924,7 +966,7 @@ export const PortalProvider: React.FC<{
     return () => {
       for (const u of unsubs) u.unsubscribe();
     };
-  }, [uid, lobbyId]);
+  }, [uid, lobbyId, leagueScopeKey]);
 
   // Game / league surface: gameType (single-game) and/or lobbyId (multi-game lobby).
   // Multi-game lobbies pin gameType=null — still must subscribe open runs / match queue
@@ -960,48 +1002,58 @@ export const PortalProvider: React.FC<{
       unsubs.push(h);
     };
 
-    const leagueScope = lobbyId
-      ? { lobbyId: lobbyId as never }
-      : { gameType: gameType! };
+    const leagueScope = portalLeagueQueryArgs(leagueScopeKey, lobbyId, gameType);
     const gameTournamentIds = gameType
       ? listPortalTournamentsForGame(gameType).map((d) => d.tournamentId)
       : [];
-    sub(
-      portalTournamentFns.getPortalWeeklyLeagueTierView,
-      leagueScope,
-      (rows) => {
-        const view = rows as PortalWeeklyLeagueTierView | null;
-        patchData({
-          weeklyLeagueTierView: view,
-          weekEndsAt: view?.weekEndsAt ?? null,
-        });
-      },
-      "weeklyLeagueTierView"
-    );
-    sub(
-      portalTournamentFns.getPortalWeeklyLeagueCohortLeaderboard,
-      { ...leagueScope, limit: 30 },
-      (rows) => {
-        const r = rows as {
-          rows?: PortalWeeklyLeaderboardRow[];
-          weekEndsAt?: number;
-        };
-        patchData({
-          cohortLeaderboard: r.rows ?? [],
-          ...(r.weekEndsAt != null ? { weekEndsAt: r.weekEndsAt } : {}),
-        });
-      },
-      "cohortLeaderboard"
-    );
+    if (leagueScope) {
+      sub(
+        portalTournamentFns.getPortalWeeklyLeagueTierView,
+        leagueScope,
+        (rows) => {
+          const view = rows as PortalWeeklyLeagueTierView | null;
+          patchData({
+            weeklyLeagueTierView: view,
+            weekEndsAt: view?.weekEndsAt ?? null,
+          });
+        },
+        "weeklyLeagueTierView"
+      );
+      sub(
+        portalTournamentFns.getPortalWeeklyLeagueCohortLeaderboard,
+        { ...leagueScope, limit: 30 },
+        (rows) => {
+          const r = rows as {
+            rows?: PortalWeeklyLeaderboardRow[];
+            weekEndsAt?: number;
+          };
+          patchData({
+            cohortLeaderboard: r.rows ?? [],
+            ...(r.weekEndsAt != null ? { weekEndsAt: r.weekEndsAt } : {}),
+          });
+        },
+        "cohortLeaderboard"
+      );
+    } else {
+      patchData({ weeklyLeagueTierView: null, cohortLeaderboard: [] });
+    }
     // Mode-scoped free/ad/ticket pools span all games — load history without gameType filter.
-    sub(
-      portalTournamentFns.gameHistory,
-      { limit: 40 },
-      (rows) => {
-        patchData({ gameHistory: (rows as PortalGameHistoryRow[]) ?? [] });
-      },
-      "gameHistory"
-    );
+    // leagueScopeKey isolates Town matches from Lobby (and the reverse).
+    if (leagueScopeKey === null) {
+      patchData({ gameHistory: [] });
+    } else {
+      sub(
+        portalTournamentFns.gameHistory,
+        {
+          limit: 40,
+          ...(leagueScopeKey ? { leagueScopeKey } : {}),
+        },
+        (rows) => {
+          patchData({ gameHistory: (rows as PortalGameHistoryRow[]) ?? [] });
+        },
+        "gameHistory"
+      );
+    }
     sub(
       portalTournamentFns.listOpenCasualRunAssignments,
       {},
@@ -1025,12 +1077,13 @@ export const PortalProvider: React.FC<{
       "listCasualMatchQueueForUid"
     );
     // Handler scopes by lobbyId when present; gameType arg is unused for mode caps.
-    if (gameType || lobbyId) {
+    if (gameType || lobbyId || leagueScopeKey) {
       sub(
         portalTournamentFns.getPortalDailyPlayQuota,
         {
           gameType: gameType ?? "solitaire",
           ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+          ...portalEconomyQueryArgs(leagueScopeKey, lobbyId),
         },
         (rows) => {
           patchData({
@@ -1046,6 +1099,7 @@ export const PortalProvider: React.FC<{
         {
           tournamentIds: gameTournamentIds,
           ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+          ...portalEconomyQueryArgs(leagueScopeKey, lobbyId),
         },
         (rows) => {
           patchData({
@@ -1062,19 +1116,17 @@ export const PortalProvider: React.FC<{
     return () => {
       for (const u of unsubs) u.unsubscribe();
     };
-  }, [uid, gameType, lobbyId]);
+  }, [uid, gameType, lobbyId, leagueScopeKey]);
 
   /** 段位栏始终轮询；分组排行仅在弹层打开时轮询 */
   useEffect(() => {
-    if (!portalSessionReady || !uid || (!gameType && !lobbyId)) return;
+    const leagueScope = portalLeagueQueryArgs(leagueScopeKey, lobbyId, gameType);
+    if (!portalSessionReady || !uid || !leagueScope) return;
     const http = getHttp();
     if (!http) return;
 
     const POLL_MS = 30_000;
     let cancelled = false;
-    const leagueScope = lobbyId
-      ? { lobbyId: lobbyId as never }
-      : { gameType: gameType! };
 
     const pollWeeklyLeague = async () => {
       if (cancelled) return;
@@ -1130,7 +1182,7 @@ export const PortalProvider: React.FC<{
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [portalSessionReady, uid, gameType, lobbyId, cohortLeaderboardPolling]);
+  }, [portalSessionReady, uid, gameType, lobbyId, leagueScopeKey, cohortLeaderboardPolling]);
 
   useEffect(() => {
     const http = getHttp();
@@ -1157,7 +1209,8 @@ export const PortalProvider: React.FC<{
 
   const claimPortalWeeklyLeagueRewards = useCallback(async () => {
     const http = getHttp();
-    if (!http || !uid || (!lobbyId && !gameType)) {
+    const leagueArgs = portalLeagueQueryArgs(leagueScopeKey, lobbyId, gameType);
+    if (!http || !uid || !leagueArgs) {
       return { ok: false as const, error: "no_auth" };
     }
     const weekKey =
@@ -1165,7 +1218,7 @@ export const PortalProvider: React.FC<{
       snapshot.weeklyLeagueTierView?.closeWeekKey;
     try {
       const res = (await http.mutation(portalTournamentFns.claimPortalWeeklyLeagueRewards, {
-        ...(lobbyId ? { lobbyId: lobbyId as never } : { gameType: gameType! }),
+        ...leagueArgs,
         ...(weekKey ? { weekKey } : {}),
       })) as {
         ok?: boolean;
@@ -1189,19 +1242,21 @@ export const PortalProvider: React.FC<{
     uid,
     gameType,
     lobbyId,
+    leagueScopeKey,
     snapshot.weeklyLeagueTierView?.unclaimedRewards?.weekKey,
     snapshot.weeklyLeagueTierView?.closeWeekKey,
   ]);
 
   const dismissPortalWeeklyLeagueClose = useCallback(async () => {
     const http = getHttp();
-    if (!http || !uid || (!lobbyId && !gameType)) return { ok: false };
+    const leagueArgs = portalLeagueQueryArgs(leagueScopeKey, lobbyId, gameType);
+    if (!http || !uid || !leagueArgs) return { ok: false };
     const weekKey =
       snapshot.weeklyLeagueTierView?.closeWeekKey ??
       snapshot.weeklyLeagueTierView?.unclaimedRewards?.weekKey;
     try {
       const res = (await http.mutation(portalTournamentFns.dismissPortalWeeklyLeagueClose, {
-        ...(lobbyId ? { lobbyId: lobbyId as never } : { gameType: gameType! }),
+        ...leagueArgs,
         ...(weekKey ? { weekKey } : {}),
       })) as { ok?: boolean };
       return { ok: Boolean(res?.ok) };
@@ -1213,6 +1268,7 @@ export const PortalProvider: React.FC<{
     uid,
     gameType,
     lobbyId,
+    leagueScopeKey,
     snapshot.weeklyLeagueTierView?.closeWeekKey,
     snapshot.weeklyLeagueTierView?.unclaimedRewards?.weekKey,
   ]);
@@ -1224,7 +1280,7 @@ export const PortalProvider: React.FC<{
       try {
         const res = (await http.mutation(portalTournamentFns.purchasePortalShopSku, {
           skuId,
-          ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+          ...portalEconomyQueryArgs(leagueScopeKey, lobbyId),
         })) as {
           ok?: boolean;
           error?: string;
@@ -1244,7 +1300,7 @@ export const PortalProvider: React.FC<{
         return { ok: false as const, error: "purchase_failed" };
       }
     },
-    [uid, lobbyId]
+    [uid, lobbyId, leagueScopeKey]
   );
 
   const createStripeCheckout = useCallback(
@@ -1268,7 +1324,7 @@ export const PortalProvider: React.FC<{
         const join = base.includes("?") ? "&" : "?";
         const res = (await http.action(portalTournamentFns.createStripeCheckout, {
           skuId,
-          ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+          ...portalEconomyQueryArgs(leagueScopeKey, lobbyId),
           successUrl: `${base}${join}stripe_shop=success`,
           cancelUrl: `${base}${join}stripe_shop=cancel`,
         })) as {
@@ -1290,7 +1346,7 @@ export const PortalProvider: React.FC<{
         return { ok: false as const, error: "checkout_failed" };
       }
     },
-    [uid, lobbyId]
+    [uid, lobbyId, leagueScopeKey]
   );
 
   const reconcileStripeCheckout = useCallback(
@@ -1542,6 +1598,7 @@ export const PortalProvider: React.FC<{
         ticketEntry?: boolean;
         /** Lobby offering override — when set, skip gameType→template mapping. */
         tournamentId?: string;
+        leagueScopeKey?: string;
       }
     ): Promise<ResolvedJoinTournamentOutcome> => {
       const http = getHttp();
@@ -1559,8 +1616,13 @@ export const PortalProvider: React.FC<{
       }
       try {
         await authenticatePortal({ force: true });
+        const joinScopeKey =
+          opts?.leagueScopeKey ??
+          leagueScopeKey ??
+          (lobbyId && !isCampaignJoin ? `lobby:${lobbyId}` : undefined);
         const result = await http.action(portalTournamentFns.joinTournament, {
           ...(tournamentId ? { tournamentId } : {}),
+          ...(joinScopeKey ? { leagueScopeKey: joinScopeKey } : {}),
           ...(lobbyId && !isCampaignJoin ? { lobbyId: lobbyId as never } : {}),
           ...(isCampaignJoin
             ? {
@@ -1577,7 +1639,7 @@ export const PortalProvider: React.FC<{
         return { kind: "failed", error: portalErrorMessage("join_failed") };
       }
     },
-    [uid, user?.platformAccessToken, gameType, lobbyId, authenticatePortal]
+    [uid, user?.platformAccessToken, gameType, lobbyId, leagueScopeKey, authenticatePortal]
   );
 
   const getCampaignDailyPlayQuota = useCallback(
@@ -1655,15 +1717,17 @@ export const PortalProvider: React.FC<{
 
   const watchAdForCoins = useCallback(async () => {
     if (!uid) return { ok: false as const, error: "no_auth" };
-    return requestPortalAdCoin({ lobbyId });
-  }, [uid, lobbyId]);
+    return requestPortalAdCoin({
+      ...(leagueScopeKey ? { scopeKey: leagueScopeKey } : { lobbyId }),
+    });
+  }, [uid, lobbyId, leagueScopeKey]);
 
   const claimDailyCheckin = useCallback(async () => {
     const http = getHttp();
     if (!http || !uid) return { ok: false as const, error: "no_auth" };
     try {
       const r = (await http.mutation(portalTournamentFns.claimDailyCheckin, {
-        ...(lobbyId ? { lobbyId: lobbyId as never } : {}),
+        ...portalEconomyQueryArgs(leagueScopeKey, lobbyId),
       })) as
         | {
             ok: true;
@@ -1681,7 +1745,7 @@ export const PortalProvider: React.FC<{
       console.warn("[Portal] claimDailyCheckin", e);
       return { ok: false as const, error: "claim_failed" };
     }
-  }, [uid, lobbyId]);
+  }, [uid, lobbyId, leagueScopeKey]);
 
   const value = useMemo<PortalContextValue>(
     () => ({

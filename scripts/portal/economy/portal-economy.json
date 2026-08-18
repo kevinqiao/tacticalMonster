@@ -75,6 +75,59 @@
         "weeklyPurchaseLimit": 1,
         "requiresVerifiedContact": true,
         "sortOrder": 110
+      },
+      {
+        "skuId": "town_shop_ticket_daily",
+        "skuKind": "virtual",
+        "title": "门票 ×3",
+        "description": "用金币兑换 3 张门票。每日限购 1 次。",
+        "priceCoins": 180,
+        "grantTicketCount": 3,
+        "dailyPurchaseLimit": 1,
+        "sortOrder": 10,
+        "surfaces": ["town"]
+      },
+      {
+        "skuId": "town_stripe_pack_s",
+        "skuKind": "iap",
+        "title": "畅玩礼包 · 小",
+        "description": "5 张门票 + 100 金币。",
+        "priceCoins": 0,
+        "stripePriceId": "price_1TzncDCydxyHQL6sGtobkBYe",
+        "priceCents": 299,
+        "currency": "usd",
+        "grantTicketCount": 5,
+        "grantCoinCount": 100,
+        "sortOrder": 20,
+        "surfaces": ["town"]
+      },
+      {
+        "skuId": "town_stripe_pack_m",
+        "skuKind": "iap",
+        "title": "畅玩礼包 · 中",
+        "description": "15 张门票 + 300 金币。",
+        "priceCoins": 0,
+        "stripePriceId": "price_REPLACE_TOWN_M",
+        "priceCents": 699,
+        "currency": "usd",
+        "grantTicketCount": 15,
+        "grantCoinCount": 300,
+        "sortOrder": 21,
+        "surfaces": ["town"]
+      },
+      {
+        "skuId": "town_stripe_pack_l",
+        "skuKind": "iap",
+        "title": "畅玩礼包 · 大",
+        "description": "40 张门票 + 800 金币。",
+        "priceCoins": 0,
+        "stripePriceId": "price_REPLACE_TOWN_L",
+        "priceCents": 1499,
+        "currency": "usd",
+        "grantTicketCount": 40,
+        "grantCoinCount": 800,
+        "sortOrder": 22,
+        "surfaces": ["town"]
       }
     ]
   },
@@ -84,9 +137,13 @@
       "success": 2,
       "clearBonus": 1
     },
-    "multiRankPoints": { "1": 5, "2": 3, "3": 1, "4": -1, "5": -2 },
+    "soloCoinRewards": {
+      "success": 5,
+      "fail": 0
+    },
+    "multiRankPoints": { "1": 5, "2": 3, "3": 2, "4": 1, "5": 0 },
     "multiCoinEntry": 20,
-    "multiCoinRankRewards": { "1": 45, "2": 25, "3": 15, "4": 5 },
+    "multiCoinRankRewards": { "1": 10, "2": 6, "3": 4, "4": 2, "5": 0 },
     "rankRates5": [
       { "rank": 1, "odd": 30 },
       { "rank": 2, "odd": 25 },
@@ -161,7 +218,7 @@
       "enabled": true,
       "dailyCap": 5,
       "afterCapMode": "zero_all",
-      "allowPlayAfterCap": true,
+      "allowPlayAfterCap": false,
       "capMax": 100
     },
     "adReplay": {

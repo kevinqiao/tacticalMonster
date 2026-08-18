@@ -40,6 +40,7 @@ function sku(partial: Partial<ShopCatalogMasterSku> & { skuId: string }): ShopCa
     sortOrder: partial.sortOrder ?? 100,
     shopSection: partial.shopSection ?? "virtual",
     skuKind: partial.skuKind ?? "virtual",
+    surfaces: partial.surfaces,
     active: partial.active ?? true,
     partnerIds: partial.partnerIds,
     listInShop: partial.listInShop,
@@ -107,6 +108,56 @@ describe("resolvePortalShopCatalog", () => {
       settings: settings({ partnerId: 5 }),
     });
     expect(resolved).toEqual([]);
+  });
+
+  it("keeps lobby SKUs off the town surface", () => {
+    const lobbyTicket = sku({ skuId: "portal_shop_ticket_3", skuKind: "virtual" });
+    const townTicket = sku({
+      skuId: "town_shop_ticket_daily",
+      skuKind: "virtual",
+      surfaces: ["town"],
+    });
+    const resolved = resolvePortalShopCatalog({
+      partnerId: 5,
+      masterSkus: [lobbyTicket, townTicket],
+      settings: settings({ partnerId: 5 }),
+      surface: "town",
+    });
+    expect(resolved.map((row) => row.skuId)).toEqual(["town_shop_ticket_daily"]);
+  });
+
+  it("keeps town SKUs off the lobby surface", () => {
+    const lobbyTicket = sku({ skuId: "portal_shop_ticket_3", skuKind: "virtual" });
+    const townTicket = sku({
+      skuId: "town_shop_ticket_daily",
+      skuKind: "virtual",
+      surfaces: ["town"],
+    });
+    const resolved = resolvePortalShopCatalog({
+      partnerId: 5,
+      masterSkus: [lobbyTicket, townTicket],
+      settings: settings({ partnerId: 5 }),
+    });
+    expect(resolved.map((row) => row.skuId)).toEqual(["portal_shop_ticket_3"]);
+  });
+
+  it("does not apply lobby allowlist to town surface SKUs", () => {
+    const townTicket = sku({
+      skuId: "town_shop_ticket_daily",
+      skuKind: "virtual",
+      surfaces: ["town"],
+    });
+    const resolved = resolvePortalShopCatalog({
+      partnerId: 5,
+      masterSkus: [townTicket],
+      settings: settings({
+        partnerId: 5,
+        assortmentMode: "allowlist",
+        skuIds: ["gc_amazon_5_us"],
+      }),
+      surface: "town",
+    });
+    expect(resolved.map((row) => row.skuId)).toEqual(["town_shop_ticket_daily"]);
   });
 
   it("hides iap SKUs when iapEnabled is false", () => {
