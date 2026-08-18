@@ -52,7 +52,7 @@
  *   2 rewards  /rpg/rewards  Term Pass 领取（coins / tickets）
  *   3 battle   /rpg          试炼 / 秀斗馆 → chess / tcg 桌 → 小时题
  *   4 league   /rpg/league   rpg: 周榜
- *   5 me       /rpg/me       英雄 | 卡牌
+ *   5 me       /rpg/me       图鉴（英雄 | 卡牌）。不要叫战队：4 人组在 battle 流程里，且 tcg 不是战队
  *
  * ---------------------------------------------------------------------------
  * 硬边界
@@ -146,7 +146,7 @@ export const RPG_PASS_XP = {
  *   2 rewards  奖励   Term Pass 领取（coins / tickets），不是拆包
  *   3 battle   对战   试炼 / 秀斗馆 → chess / tcg 桌 → 小时题
  *   4 league   联赛   rpg: 周榜
- *   5 me       我     英雄图鉴 | 卡牌
+ *   5 me       图鉴   两栏收藏；槽位仍是 Town 的 me，表面名用图鉴
  */
 export const RPG_ROUTE = "/rpg" as const;
 
@@ -155,7 +155,7 @@ export const RPG_SHELL_TABS = [
   { id: "rewards", path: "/rpg/rewards", label: "奖励" },
   { id: "battle", path: "/rpg", label: "对战" },
   { id: "league", path: "/rpg/league", label: "联赛" },
-  { id: "me", path: "/rpg/me", label: "我" },
+  { id: "me", path: "/rpg/me", label: "图鉴" },
 ] as const;
 
 export type RpgShellTabId = (typeof RPG_SHELL_TABS)[number]["id"];
@@ -182,5 +182,5 @@ export const RPG_UI_FLOW = [
   "match: 全屏对局，无底栏",
   "result: 分数、名次、coin、Pass XP、尘",
   "league: 同段位 Pod，chess/tcg 秀斗共榜",
-  "roster: me。英雄图鉴(chessArena) 与 卡册(tcgArena) 分栏，非一本 SSOT",
+  "roster: 图鉴。英雄(chessArena) 与 卡牌(tcgArena) 分栏，非一本 SSOT。不要叫战队",
 ] as const;
