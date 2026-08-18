@@ -2,6 +2,7 @@
  * RPG 系统架构 SSOT（实现前契约）
  *
  * 叙述文档（已定稿）：./architectureDoc.ts
+ * UI 线框（已定稿）：./uiWireframe.ts
  * 类型与常量以此文件为准；两份冲突时改叙述，不改已拍板的类型语义。
  *
  * 一句话：Portal 管赛区 / 馆 / 桌 / 小时题 / 结算 / Pass；

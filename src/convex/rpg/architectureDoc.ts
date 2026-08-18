@@ -3,6 +3,7 @@
  *
  * 将 Town 壳、Portal 赛区、Arena 引擎、小时同题、图鉴收集的讨论收口为此文。
  * 类型与可编译常量的 SSOT 是 ./architecture.ts。本文只叙述，不另发明枚举。
+ * UI 线框：./uiWireframe.ts
  *
  * 状态：accepted
  * 日期：2026-08-18
@@ -174,6 +175,11 @@ artId 可跨 Arena 复用。cost / type / rarity / 战斗数值 / 所有权 / �
 
 v1：小时同题、两馆四桌、Town 五栏、TCG 卡册 + 战棋薄库、定向合成、Pass 产币产票。
 M2 可选：开包。不进 v1 商店，也不进图鉴主路径。
+
+## 13. UI 线框
+
+逐屏 ascii 与 layout 见 src/convex/rpg/uiWireframe.ts（RPG_UI_WIREFRAMES）。
+Canvas 只作预览，不进 git。
 `.trim();
 
 /** 文档章节标题，便于目录与检索。 */
@@ -190,4 +196,5 @@ export const RPG_ARCHITECTURE_DOC_SECTIONS = [
   "图鉴",
   "新游戏接入",
   "v1 / M2",
+  "UI 线框",
 ] as const;
